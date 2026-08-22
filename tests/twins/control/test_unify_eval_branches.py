@@ -1,133 +1,79 @@
-"""The Python twin of examples/control/test_unify_eval_branches.metta.
+"""examples/control/test_unify_eval_branches.metta in Python: branches evaluate.
 
-Space-based `unify` EVALUATES the branch it selects, so a then-branch holding
-`(+ 1 2)` answers 3 rather than the expression, and an else-branch holding
-another `unify` runs it. The original was inspired by pverify's `add_c`/`add_v`
-conflict checks, which nest `unify` calls in the else branch.
+Space-based `unify` evaluates the branch it selects, both of them. Without
+that, the then branch of a matched case would answer `(+ 1 2)` instead of 3,
+and a nested `unify` in an else branch would come back unrun. The shape is
+pverify's: an `Error` atom when a declaration already exists, and a nested
+check in the else branch when it does not.
 
-The knowledge-base atoms carry MeTTa STRING literals, `"$c"` and `"$v"`, which
-are data rather than programs: `val(...)` marks them so that reading the twin
-says which strings the engine sees as values. `"$c"` is not a variable; the
-quotes are the whole reason it is a string.
+`unify` keeps MeTTa's name, for the reason unify.metta gives: Python has no
+expression that matches two terms and chooses a branch. What is ordinary
+Python here is the knowledge: two facts go in through the write door, and the
+strings the errors carry are named once and carried whole.
 """
 
-from petta import S, val
+from petta import S, expr, val
+
+#: The strings the knowledge and the errors carry, carried whole rather than
+#: parsed: `$c` and `$v` are metamath's constant and variable markers, and the
+#: two sentences are the messages the errors are made of.
+CONSTANT, VARIABLE = val("$c"), val("$v")
+DECLARED = val("already declared")
+CONFLICT = val("active variable conflict")
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 11955 to 12097, +142, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 11955 by 47554fc's control/types twin baseline.
-BUDGET = 12097
+#: RE-PINNED 2026-08-22, 12097 to 10851, -1246 (-10.3%), by the twin contract
+#: change: five `test` wrappers LEFT the engine for `assert`s and the two
+#: facts entered through `+=`; the five `unify` calls and the library import
+#: still run there. Measured min-of-3 over fresh processes with the MORK
+#: backend linked in, which the artefact-free worktree omits and which moves
+#: a compiled twin by about 10 inferences per definition; against the
+#: example's 21134 the ratio is 0.5134. Prior: 12097, the transliterated twin
+#: this replaces.
+BUDGET = 10851
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Take a then branch, an else branch, and a nested else branch."""
+    # !(import! &self (library lib_he))
+    m.eval(S["import!"](S[m.space_name], (S.library, S.lib_he)))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_he)) answers (())
-    yield m.eval(S["import!"](S["&self"], (S.library, S.lib_he)))
-
-    # Knowledge base atoms, like pverify's Constant/Var declarations.
     # (Constant wff (Type "$c"))
-    m += S.Constant(S.wff, S.Type(val("$c")))
+    m += S.Constant(S.wff, S.Type(CONSTANT))
     # (Var x 0 (Type "$v"))
-    m += S.Var(S.x, 0, S.Type(val("$v")))
+    m += S.Var(S.x, 0, S.Type(VARIABLE))
 
-    # Test 1: then-branch needs eval (expression in matched case).
+    here = S[m.space_name]
+    nothing = expr()
+
+    # Test 1: then-branch needs eval (expression in matched case)
     # !(test (unify &self (Constant wff (Type "$c"))
-    #          (Error (Constant wff) "already declared")
-    #          ())
+    #          (Error (Constant wff) "already declared") ())
     #        (Error (Constant wff) "already declared"))
-    declared = S.Error(S.Constant(S.wff), val("already declared"))
-    yield m.eval(
-        S.test(
-            S.unify(
-                S["&self"],
-                S.Constant(S.wff, S.Type(val("$c"))),
-                declared,
-                (),
-            ),
-            declared,
-        )
-    )
+    already = S.Error(S.Constant(S.wff), DECLARED)
+    assert m.eval(S.unify(here, S.Constant(S.wff, S.Type(CONSTANT)), already, nothing)) == [already]
 
-    # Test 2: else-branch needs eval (fallthrough to nested unify).
-    # !(test (unify &self (Constant y (Type "$c"))
-    #          (Error (Constant y) "already declared")
-    #          (unify &self (Var y 0 (Type "$v"))
-    #            (Error (Var y) "active variable conflict")
-    #            ()))
+    # Test 2: else-branch needs eval (fallthrough to nested unify)
+    # !(test (unify &self (Constant y (Type "$c")) (Error (Constant y) "already declared")
+    #          (unify &self (Var y 0 (Type "$v")) (Error (Var y) "active variable conflict") ()))
     #        ())
-    yield m.eval(
-        S.test(
-            S.unify(
-                S["&self"],
-                S.Constant(S.y, S.Type(val("$c"))),
-                S.Error(S.Constant(S.y), val("already declared")),
-                S.unify(
-                    S["&self"],
-                    S.Var(S.y, 0, S.Type(val("$v"))),
-                    S.Error(S.Var(S.y), val("active variable conflict")),
-                    (),
-                ),
-            ),
-            (),
-        )
-    )
+    y_conflict = S.unify(here, S.Var(S.y, 0, S.Type(VARIABLE)), S.Error(S.Var(S.y), CONFLICT), nothing)
+    y_declared = S.Error(S.Constant(S.y), DECLARED)
+    assert m.eval(S.unify(here, S.Constant(S.y, S.Type(CONSTANT)), y_declared, y_conflict)) == [nothing]
 
-    # Test 3: else-branch nested unify hits (real conflict chain).
-    # !(test (unify &self (Constant x (Type "$c"))
-    #          (Error (Constant x) "already declared")
-    #          (unify &self (Var x 0 (Type "$v"))
-    #            (Error (Var x) "active variable conflict")
-    #            ()))
+    # Test 3: else-branch nested unify hits (real conflict chain)
+    # !(test (unify &self (Constant x (Type "$c")) (Error (Constant x) "already declared")
+    #          (unify &self (Var x 0 (Type "$v")) (Error (Var x) "active variable conflict") ()))
     #        (Error (Var x) "active variable conflict"))
-    conflict = S.Error(S.Var(S.x), val("active variable conflict"))
-    yield m.eval(
-        S.test(
-            S.unify(
-                S["&self"],
-                S.Constant(S.x, S.Type(val("$c"))),
-                S.Error(S.Constant(S.x), val("already declared")),
-                S.unify(
-                    S["&self"],
-                    S.Var(S.x, 0, S.Type(val("$v"))),
-                    conflict,
-                    (),
-                ),
-            ),
-            conflict,
-        )
-    )
+    x_conflicted = S.Error(S.Var(S.x), CONFLICT)
+    x_conflict = S.unify(here, S.Var(S.x, 0, S.Type(VARIABLE)), x_conflicted, nothing)
+    x_declared = S.Error(S.Constant(S.x), DECLARED)
+    assert m.eval(S.unify(here, S.Constant(S.x, S.Type(CONSTANT)), x_declared, x_conflict)) == [x_conflicted]
 
-    # Test 4: arithmetic in branches (minimal reproducer).
+    # Test 4: arithmetic in branches (minimal reproducer)
     # !(test (unify &self (Constant wff (Type "$c")) (+ 1 2) 0) 3)
-    yield m.eval(
-        S.test(
-            S.unify(
-                S["&self"],
-                S.Constant(S.wff, S.Type(val("$c"))),
-                S["+"](1, 2),
-                0,
-            ),
-            3,
-        )
-    )
+    assert m.eval(S.unify(here, S.Constant(S.wff, S.Type(CONSTANT)), S["+"](1, 2), 0)) == [3]
 
-    # Test 5: arithmetic in else-branch.
+    # Test 5: arithmetic in else-branch
     # !(test (unify &self (Constant NOSUCH (Type "$c")) 0 (+ 10 20)) 30)
-    yield m.eval(
-        S.test(
-            S.unify(
-                S["&self"],
-                S.Constant(S.NOSUCH, S.Type(val("$c"))),
-                0,
-                S["+"](10, 20),
-            ),
-            30,
-        )
-    )
+    assert m.eval(S.unify(here, S.Constant(S.NOSUCH, S.Type(CONSTANT)), 0, S["+"](10, 20))) == [30]

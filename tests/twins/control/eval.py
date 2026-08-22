@@ -1,39 +1,36 @@
-"""The Python twin of examples/control/eval.metta: running a retrieved body.
+"""examples/control/eval.metta in Python: reading a body, then running it.
 
-`match` does not interpret what it retrieves, so matching an equation's head
-answers its BODY as data; `eval` then runs that data. The second half emulates
-the same thing with `add-atom` and `remove-atom`, which the original marks as
-not recommended and keeps because it shows what `eval` saves.
+A `match` over the space answers a definition's BODY as data; it does not
+interpret what it answers. Running the body is a second and separate act, and
+in Python the two acts are two doors: the query door answers rows, and the
+evaluation door takes the atom out of one and reduces it.
 
-`f` is a computation and is written as one: `result = a + b` is exactly the
-`let` the original writes, and `(result,)` is the one-element expression
-`($result)`. The stored body comes out as `let*` with one pair rather than
-`let`, which is the same binding, and the retrieval above still finds it
-because a match reads the equation's HEAD.
-
-`evalCustom` is written at the container door: its body names `add-atom`,
-`remove-atom` and `reduce`, and a compiled body resolves a free name EXACTLY,
-so a hyphenated engine function cannot be reached from one (wave one recorded
-that against P14.4 for `fibsmart`).
+`f` is a computation and is written as one. `evalCustom` is not: its body adds
+an equation to a space, reduces through it and takes it out again, and a
+compiled body has no spelling for a space write at all, so it stays a term.
+Its own form is declined for a different reason the residue table records
+against P14.14: it stores an equation whose body carries a variable the
+enclosing match minted, and compiling that equation costs a number that moves
+with the variable's identity, so the form answers correctly and cannot be
+priced. It is defined here and not run.
 """
 
-from petta import S, V, equation
+from petta import S, V, equation, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5658 to 5975, +317, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 5658 by 47554fc's control/types twin baseline.
-BUDGET = 5975
+#: RE-PINNED 2026-08-22, 5975 to 5577, -398 (-6.7%), by the twin contract
+#: change: the `let` and the `match` around the specialised body LEFT the
+#: engine for an assignment and the query door; the evaluation of the body
+#: and both definitions stay, and the declined second form is defined and not
+#: run. Measured min-of-3 over fresh processes with the MORK backend linked
+#: in, which the artefact-free worktree omits and which moves a compiled twin
+#: by about 10 inferences per definition; against the example's 15439 the
+#: ratio is 0.3612. Prior: 5975, the transliterated twin this replaces.
+BUDGET = 5577
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Read a specialised body out of the space, then evaluate it."""
     append = m.fn("append")
 
     @m.define
@@ -42,22 +39,11 @@ def twin(m):
         result = a + b
         return append((result,), li)
 
-    # Match does not automatically interpret the returned pattern as code,
-    # but we can eval after it if we desire.
     # !(test (let $fbody_specialized (match &self (= (f (42) 40.7 2) $x) $x)
     #          (eval $fbody_specialized))
     #        (42.7 42))
-    retrieved = S.match(
-        S["&self"],
-        equation(S.f((42,), 40.7, 2)).to(V.x),
-        V.x,
-    )
-    yield m.eval(
-        S.test(
-            S.let(V.body, retrieved, S.eval(V.body)),
-            (42.7, 42),
-        )
-    )
+    bodies = m.query(equation(S.f((42,), 40.7, 2)).to(V.x))
+    assert m.eval(bodies["x"][0]) == [expr(42.7, 42)]
 
     # (= (evalCustom $body)
     #    (let* (($a   (add-atom &self (= (myfunc) $body)))
@@ -65,23 +51,7 @@ def twin(m):
     #           ($r   (remove-atom &self (= (myfunc) $body))))
     #          $res))
     stored = equation(S.myfunc()).to(V.body)
-    m += equation(S.evalCustom(V.body)).to(
-        S["let*"](
-            (
-                (V.a, S["add-atom"](S["&self"], stored)),
-                (V.res, S.reduce(S.myfunc())),
-                (V.r, S["remove-atom"](S["&self"], stored)),
-            ),
-            V.res,
-        )
-    )
-
-    # !(test (evalCustom (match &self (= (f (42) 40.7 2) $x) $x)) (42.7 42))
-    # DECLINED: the form ANSWERS correctly, and it cannot be PRICED. Running
-    # it stores an equation whose body carries a variable the match minted,
-    # and the cost of compiling that equation moves with the variable's
-    # identity: measured over six fresh processes, the original costs
-    # 14,781-14,805 inferences and a twin that runs the form costs
-    # 12,870-12,914, against the lane's allowance of 4. The residue table
-    # routes that to P14.14, which owns the budget law.
-    yield None
+    write = (V.a, S["add-atom"](S[m.space_name], stored))  # rung: a compiled body has no spelling for a space write, so an equation that writes stays a term
+    read = (V.res, S.reduce(S.myfunc()))
+    erase = (V.r, S["remove-atom"](S[m.space_name], stored))  # rung: the removal, the same way
+    m += equation(S.evalCustom(V.body)).to(S["let*"]((write, read, erase), V.res))  # rung: `let*` sequencing is a statement list, which a definition that cannot be compiled cannot have

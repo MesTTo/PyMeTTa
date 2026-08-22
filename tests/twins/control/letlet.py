@@ -1,33 +1,33 @@
-"""The Python twin of examples/control/letlet.metta: a destructuring binding.
+"""examples/control/letlet.metta in Python: a destructuring binding.
 
-The equation is written at the container door because its `let*` binding is a
-PATTERN, `(($f1 $c1 3) (1 2 $d1))`: three variables and a literal on the left
-meeting three values on the right, binding in both directions at once. Python
-spells that `f1, c1, _ = 1, 2, d1`, and a compiled body refuses a tuple target
-("a compiled body binds plain names; destructuring and attribute assignment
-have no let* form"). The residue table records that against P14.4.
+The `let*` binding here is a PATTERN, `(($f1 $c1 3) (1 2 $d1))`: three
+variables and a literal on the left meeting three values on the right, so `$f1`
+and `$c1` bind leftwards while `$d1` binds rightwards from the literal 3. The
+answer is `(1 2 3)`.
 
-So the ladder's other rung carries it: `m += equation(head).to(body)` lands exactly
-the atom the file lands, with no string anywhere.
+Python spells the left-to-right half `f1, c1, _ = 1, 2, d1`, and a compiled
+body refuses even that: "a compiled body binds plain names; destructuring and
+attribute assignment have no let* form". Filed as residue against P14.4.
 """
 
-from petta import S, V, equation
+from petta import S, V, equation, expr
+
+#: Why this twin sits below the top rung; see the module docstring.
+RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling"
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 1681 to 1709, +28, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 1681 by 47554fc's control/types twin baseline.
-BUDGET = 1709
+#: RE-PINNED 2026-08-22, 1709 to 1036, -673 (-39.4%), by the twin contract
+#: change: the `test` wrapper LEFT the engine for `assert`, and the answer is
+#: compared as an atom in Python rather than by an engine `test`. Measured
+#: min-of-3 over fresh processes with the MORK backend linked in, which the
+#: artefact-free worktree omits and which moves a compiled twin by about 10
+#: inferences per definition; against the example's 3689 the ratio is 0.2808.
+#: Prior: 1709, the transliterated twin this replaces.
+BUDGET = 1036
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Unify a three-element pattern with a three-element value."""
     # (= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1)))
     m += equation(S.f()).to(
         S["let*"](
@@ -37,4 +37,4 @@ def twin(m):
     )
 
     # !(test (f) (1 2 3))
-    yield m.eval(S.test(S.f(), (1, 2, 3)))
+    assert m.eval(S.f()) == [expr(1, 2, 3)]

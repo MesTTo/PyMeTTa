@@ -1,70 +1,71 @@
-"""The Python twin of examples/control/letstarcomputed.metta: bindings as a value.
+"""examples/control/letstarcomputed.metta in Python: bindings as a value.
 
-The bindings of a `let*` are usually written out, and then they are syntax.
-They do not have to be: a bindings argument that arrives as a VALUE is
-rewritten when it arrives, so a program can decide its own bindings while it
-runs, which is what lets it give `let*` another name.
+The bindings of a `let*` are usually written out, and then they are syntax:
+the form rewrites them into nested `let`s once. They do not have to be written
+out. A bindings argument that arrives as a VALUE is rewritten when it arrives,
+so a program can decide its own bindings while it runs, which is what lets
+`let*` be given another name as an ordinary definition.
 
-`mylet`'s declaration `(: mylet (-> Atom Atom %Undefined%))` is the metatype
-that stops the arguments evaluating on the way in, and it is written as the
-atom it is. The annotation door writes the same atom where the equation is a
-compiled function, `def mylet(bindings: Atom, body: Atom)`, since `Atom` the
-Python class projects to `Atom` the MeTTa metatype; this equation is not one,
-because its body applies `let*` and `let*` is not a Python identifier.
+That is the shape Python has no word for. An assignment binds a name the
+author wrote, so a definition whose bindings ARRIVE has no compiled spelling,
+and neither has a binding whose left side is a pattern. Written-out bindings
+sit beside handed-over ones here on purpose, so writing half of them as Python
+assignments would break the pairing the file exists to show. Filed as residue
+against P14.4.
+
+Three things do move into Python: an answer set that is empty is an empty
+list, a refusal crosses the seam as a Python exception so `catch` is `except`,
+and `repr` of an atom is Python's own `str`.
 """
 
 from petta import S, V, equation, val
+from petta.errors import MettaOperationError
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+#: What the unapplied form prints as, carried whole rather than parsed.
+UNAPPLIED = val("(partial let* (foo ok))")
+
+#: Why this twin sits below the top rung; see the module docstring.
+RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 8608 to 8844, +236, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 8608 by 47554fc's control/types twin baseline.
-BUDGET = 8844
+#: RE-PINNED 2026-08-22, 8844 to 8934, +90 (+1.0%), by the twin contract
+#: change: eight `test` wrappers, one collapse and one `repr` LEFT the engine
+#: for `assert`s, an empty list and Python's `str`, while `car-atom`/`catch`
+#: became `except`; the total barely moves because the eight `mylet` and
+#: `let*` calls are the whole cost and they all still run there. Measured
+#: min-of-3 over fresh processes with the MORK backend linked in, which the
+#: artefact-free worktree omits and which moves a compiled twin by about 10
+#: inferences per definition; against the example's 18590 the ratio is
+#: 0.4806. Prior: 8844, the transliterated twin this replaces.
+BUDGET = 8934
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Hand bindings over, write them out, and refuse a list that is not one."""
     # (: mylet (-> Atom Atom %Undefined%))
+    # The body has to reach the definition unevaluated for the bindings to
+    # bind anything in it, and `Atom` is the metatype that says so.
     m += S[":"](S.mylet, S["->"](S.Atom, S.Atom, S["%Undefined%"]))
     # (= (mylet $bindings $body) (let* $bindings $body))
     m += equation(S.mylet(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
 
+    written = ((V.x, 1), (V.y, 2))
+
     # !(test (mylet (($x 1) ($y 2)) (+ $x $y)) 3)
-    yield m.eval(
-        S.test(
-            S.mylet(((V.x, 1), (V.y, 2)), V.x + V.y),
-            3,
-        )
-    )
+    assert m.eval(S.mylet(written, V.x + V.y)) == [3]
 
     # Handed over or written out, the same bindings answer the same thing.
     # !(test (let* (($x 1) ($y 2)) (+ $x $y)) 3)
-    yield m.eval(
-        S.test(
-            S["let*"](((V.x, 1), (V.y, 2)), V.x + V.y),
-            3,
-        )
-    )
+    assert m.eval(S["let*"](written, V.x + V.y)) == [3]
 
     # A binding is a (pattern value) pair, not only (variable value), and a
     # pattern that does not match gives the whole form no answer.
     # !(test (mylet ((($a $b) (1 2))) $b) 2)
-    yield m.eval(S.test(S.mylet((((V.a, V.b), (1, 2)),), V.b), 2))
+    assert m.eval(S.mylet((((V.a, V.b), (1, 2)),), V.b)) == [2]
     # !(test (mylet ((5 5)) matched) matched)
-    yield m.eval(S.test(S.mylet(((5, 5),), S.matched), S.matched))
+    assert m.eval(S.mylet(((5, 5),), S.matched)) == [S.matched]
     # !(test (collapse (mylet ((5 6)) matched)) ())
-    yield m.eval(S.test(S.collapse(S.mylet(((5, 6),), S.matched)), ()))
+    assert m.eval(S.mylet(((5, 6),), S.matched)) == []
 
     # Without the `Atom` metatype the arguments evaluate on the way in, so
     # this is the other way to hand bindings over: `noeval` carries them as
@@ -73,30 +74,20 @@ def twin(m):
     m += equation(S["mylet-evaluating"](V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
 
     # !(test (mylet-evaluating (noeval (($x 1))) $x) 1)
-    yield m.eval(
-        S.test(
-            S["mylet-evaluating"](S.noeval(((V.x, 1),)), V.x),
-            1,
-        )
-    )
+    assert m.eval(S["mylet-evaluating"](S.noeval(((V.x, 1),)), V.x)) == [1]
 
-    # Bindings are checked when they arrive, because nothing after that
-    # point can check them.
+    # Bindings are checked when they arrive, because nothing after that point
+    # can check them.
     # !(test (car-atom (catch (mylet-evaluating (noeval ((1 2 3))) done))) Error)
-    yield m.eval(
-        S.test(
-            S["car-atom"](S.catch(S["mylet-evaluating"](S.noeval(((1, 2, 3),)), S.done))),
-            S.Error,
-        )
-    )
+    try:
+        m.eval(S["mylet-evaluating"](S.noeval(((1, 2, 3),)), S.done))
+        refused = None
+    except MettaOperationError as error:
+        refused = error
+    assert refused is not None
 
     # A bindings argument that is no list at all is not bindings, it is a
     # program using the name as data, and it stays the unapplied form it
     # always was.
     # !(test (repr (let* foo ok)) "(partial let* (foo ok))")
-    yield m.eval(
-        S.test(
-            S.repr(S["let*"](S.foo, S.ok)),
-            val("(partial let* (foo ok))"),
-        )
-    )
+    assert str(m.eval(S["let*"](S.foo, S.ok))[0]) == UNAPPLIED
