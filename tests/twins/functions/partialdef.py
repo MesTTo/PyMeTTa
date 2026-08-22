@@ -39,6 +39,8 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # (= (mp) (+))
+    # rung: below the function shape: the body is `(+)`, a zero-argument application of
+    #   an operator head, which no Python spelling reaches (residue, P14.4)
     m += equation(S.mp()).to((S["+"],))
 
     # !(test (mp 1 1) 2)
@@ -50,6 +52,8 @@ def twin(m):
         return f1(f2(arg))
 
     # (= (plus1times2) (.. (* 2) (+ 1)))
+    # rung: below the function shape: the body calls `..`, which no Python identifier
+    #   spells, and holds two operator partials (residue, P14.4)
     m += equation(S.plus1times2()).to(S[".."]((S["*"], 2), (S["+"], 1)))
 
     # !(test (plus1times2 1) 4)

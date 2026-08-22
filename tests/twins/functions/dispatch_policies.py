@@ -39,6 +39,8 @@ def twin(m):
     policy = S["dispatch-policy"](S["only-a"], S.NoMatchEnum, S.NoMatchFail)
 
     # (= (only-a A) hit)
+    # rung: below the function shape: the head fixes the SYMBOL A, and a stacked
+    #   clause's literal default is a bool, int, float or str (residue, P14.4)
     m += equation(S["only-a"](S.A)).to(S.hit)
 
     # !(test (only-a B) (only-a B))

@@ -45,6 +45,8 @@ def twin(m):
         return x
 
     # (: f (-> Atom Number Atom))
+    # rung: below the ANNOTATION door, both declarations: this head carries two arrows
+    #   and a Python signature emits one (residue, P14.9)
     m += S[":"](S.f, S["->"](S.Atom, S.Number, S.Atom))
     # (: f (-> Atom String Atom))
     m += S[":"](S.f, S["->"](S.Atom, S.String, S.Atom))

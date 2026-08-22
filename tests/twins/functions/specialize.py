@@ -39,6 +39,10 @@ from petta import S, equation, rules
 #: but their own parameters, so they need no engine and live at module
 #: level. `twin` adds each one where the original defines it.
 
+# rung: below the function shape, all four of them: every head fixes `()` or
+#   `(cons $x $xs)`, and a stacked clause's literal default is a bool, int,
+#   float or str. The two (: ...) declarations below follow from the same drop,
+#   since the annotation door needs a decorated definition (residue, P14.4)
 @rules
 def flat(f, x, xs):
     """The two `map-flat` equations: the function argument comes FIRST."""
@@ -143,6 +147,8 @@ def twin(m):
     # !(test (map-flat4 (x (p1 (1 2)))) (2 3))
     yield m.eval(S.test(S["map-flat4"]((S.x, S.p1((1, 2)))), (2, 3)))
 
+    # rung: below the function shape: the body names `map-flat`, and a compiled body
+    #   resolves a free name EXACTLY (residue, P14.4)
     @rules
     def wrapper(f, items):
         # (= (wrapper $f $list) (map-flat $f $list))
@@ -161,6 +167,9 @@ def twin(m):
     # !(test (wrapper2 (+ 1)) (+ 1))
     yield m.eval(S.test(S.wrapper2((S["+"], 1)), (S["+"], 1)))
 
+    # rung: below the function shape: the body tests with `=`, MeTTa's unification,
+    #   for which Python's `==` is not a spelling, and calls the operator partial
+    #   `(+ 2)` (residue, P14.4)
     @rules
     def tricky(f):
         # (= (trickyspec $f) (if (= ($f 1) 2) (trickyspec (+ 2)) ($f 1)))
@@ -179,6 +188,8 @@ def twin(m):
     # !(test (trickyspec (+ 1)) 3)
     yield m.eval(S.test(S.trickyspec((S["+"], 1)), 3))
 
+    # rung: below the function shape: one head fixes `()` and the other `(cons $x
+    #   $xs)`, neither of which a literal default can be (residue, P14.4)
     @rules
     def folded(f, init, x, xs):
         # (= (fold-nested $f $init ()) $init)
@@ -206,6 +217,9 @@ def twin(m):
         return (a(1), b(1))
 
     # (= (fun2) (higher-order-fun (+ 1) (* 1)))
+    # rung: below the function shape, both of them: each body holds two operator
+    #   partials, `(+ 1)` and `(* 1)`, which no Python operator spells (residue,
+    #   P14.4)
     m += equation(S.fun2()).to(S["higher-order-fun"]((S["+"], 1), (S["*"], 1)))
     # (= (fun3) (higher-order-fun (* 1) (+ 1)))
     m += equation(S.fun3()).to(S["higher-order-fun"]((S["*"], 1), (S["+"], 1)))

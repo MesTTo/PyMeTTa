@@ -32,6 +32,9 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
 
+    # rung: below the function shape: the two clauses are ALTERNATIVES that both
+    #   answer, which stacked @m.define clauses read as first-match (residue,
+    #   P14.4; the design is P14.3's own note)
     @rules
     def mycalc(x, y):
         # (= (mycalc $x $y) (+ $x $y))

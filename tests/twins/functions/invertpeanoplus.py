@@ -44,6 +44,8 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
 
+    # rung: below the function shape: one head fixes the symbol Z and the other a whole
+    #   subterm, neither of which a literal default can be (residue, P14.4)
     @rules
     def plus(x, y):
         # (= (plus Z $y) $y)

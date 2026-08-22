@@ -74,8 +74,12 @@ def twin(m):
     )
 
     # (= (living garfield) True) ... (= (small cat42) True)
+    # rung: below the function shape: each head fixes a SYMBOL, and a stacked clause's
+    #   literal default is a bool, int, float or str (residue, P14.4)
     m.add(*(equation(rel(who)).to(TRUE) for who, rels in FACTS.items() for rel in rels))
 
+    # rung: below the function shape: the body binds $constraint, a variable it never
+    #   reads, which an assignment would mint and store as let* (residue, P14.4)
     @rules
     def constrained(c, x, constraint):
         # (= (only $C $X) (let $constraint $C $X))
@@ -92,6 +96,8 @@ def twin(m):
         # (= (animal $X) (only ((living $X) (being $X)) $X))
         return only((living(x), being(x)), x)
 
+    # rung: below the function shape: the body mints $X, a hole for unification to
+    #   fill, which a compiled body cannot introduce (residue, P14.4)
     @rules
     def cat(a, x):
         # (= (cat $A) (let $A (animal $X) (only (small $X) $X)))

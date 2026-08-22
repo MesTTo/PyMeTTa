@@ -46,6 +46,9 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
 
+    # rung: below the function shape: `in` is a Python KEYWORD, so no function can
+    #   carry that name and no body can call it, and `is-member` is hyphenated,
+    #   which a body cannot name either (residue, P14.4)
     @rules
     def constrained(a, b, x, y, items):
         # (= (in $x $L) (let True (is-member $x $L) $x))

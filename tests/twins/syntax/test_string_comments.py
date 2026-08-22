@@ -69,6 +69,8 @@ def twin(m):
 
     # Test 8: an ordinary definition, with a comment after it.
     # (= (test-func) result)
+    # rung: below the function shape: the body is the lowercase symbol `result`, which
+    #   a compiled body reads as a call it cannot resolve (residue, P14.4)
     m += equation(S["test-func"]()).to(S.result)
     # !(test (test-func) result)
     yield m.eval(S.test(S["test-func"](), S.result))

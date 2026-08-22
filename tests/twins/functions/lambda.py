@@ -58,6 +58,10 @@ def twin(m):
     # (: apply (-> Atom %Undefined% %Undefined%))
     m += S[":"](S.apply, S["->"](S.Atom, S["%Undefined%"], S["%Undefined%"]))
 
+    # rung: below the function shape: `apply`'s head takes the PATTERN (lambda $var
+    #   $body) apart, and applyL1 and applyL2 build lambda data holding $x and $y,
+    #   variables no parameter supplies. The declaration above follows from the same
+    #   drop, since the annotation door needs a decorated definition (residue, P14.4)
     @rules
     def fake(var, body, arg, x, y):
         # (= (apply (lambda $var $body) $arg) (eval (let $var $arg $body)))

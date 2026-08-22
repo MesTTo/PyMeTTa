@@ -50,6 +50,9 @@ def twin(m):
         # (= (myfunc $A $B) (append (append (42) $A) $B))
         return append(append((42,), a), b)
 
+    # rung: below the function shape: both bodies mint $B, a HOLE for the backwards
+    #   call's unification to fill, which a compiled body cannot introduce
+    #   (residue, P14.4)
     @rules
     def constrained(a, c, b):
         # (= (h_old $A $C) (if (= $A (myfunc (10) $B)) ($B $C) (empty)))

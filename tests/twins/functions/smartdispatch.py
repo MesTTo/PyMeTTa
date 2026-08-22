@@ -50,6 +50,9 @@ def twin(m):
         # (= (f $x) (* $x 2))
         return x * 2
 
+    # rung: below the function shape: the body names `justdata`, a lowercase symbol
+    #   used as DATA, which a compiled body reads as a call it cannot resolve
+    #   (residue, P14.4)
     @rules
     def data_heads(f, x):
         # (= (g $f $x) (justdata $f $x))
@@ -68,6 +71,9 @@ def twin(m):
         return f
 
     # (= (datawithnondatacomponent) ((lol (f 42))))
+    # rung: below the function shape: the body names `lol`, a lowercase symbol used as
+    #   DATA, which a compiled body reads as a call it cannot resolve (residue,
+    #   P14.4)
     m += equation(S.datawithnondatacomponent()).to((S.lol(S.f(42)),))
 
     # !(test ((f 21) (g f 2) (h f 2) ((notjustdata 42) 21) (datawithnondatacomponent))

@@ -75,6 +75,8 @@ def twin(m):
         return c + (a + b)
 
     # (= (show) (repr (f 1)))
+    # rung: below the function shape: `repr` in a compiled body is PYTHON's repr, which
+    #   the subset routes to py-repr, not the engine's own (residue, P14.4)
     m += equation(S.show()).to(S.repr(S.f(1)))
 
     # !(test (repr (f 1)) "(partial f (1))")
@@ -121,6 +123,9 @@ def twin(m):
     yield m.eval(S.test(S.empty(1, 2), S.empty(1, 2)))
 
     # A gap between overloaded arities is still a valid partial application.
+    # rung: below the function shape: two @m.define clauses of one name that fix no
+    #   literal head raise IndexError today, and would be a redefinition rather than
+    #   two arities if they did not (residue, P14.4)
     @rules
     def overloaded(a, b, c):
         # (= (overloaded-curry $a) $a)

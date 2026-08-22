@@ -45,6 +45,9 @@ def twin(m):
         # (= (g $x) (+ $x 1))
         return x + 1
 
+    # rung: below the function shape: the two clauses are ALTERNATIVES that both
+    #   answer, which stacked @m.define clauses read as first-match (residue,
+    #   P14.4; the design is P14.3's own note)
     @rules
     def clauses(g):
         # (= (f $g) ($g 1))

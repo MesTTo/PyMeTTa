@@ -8,25 +8,20 @@ is `parse(repr(s)) == s` over a string with backslashes, one with embedded
 quotes, and one whose backslash-n is two characters rather than a newline.
 
 Those three are ordinary Python strings through `val`, the door for a value
-that crosses whole, and the terms around them are built by calling the head.
+that crosses whole, and the terms around them are built by calling the head:
+`S.parse(S.repr(...))` is the term `(parse (repr ...))`, not a call to the
+reader, which is the distinction the lane draws by looking at what the callee
+IS rather than at its name.
 """
 
-from petta import S, sym, val
-
-#: The one head in this file `S.` cannot spell. The lane reads `.parse(` as a
-#: source door wherever it appears, so `S.parse(...)` is refused as if it read
-#: MeTTa text; its idiom check then reads `S["parse"]` as a subscript an
-#: attribute would have reached. `sym(name)` is the third spelling of that one
-#: naming door and satisfies both rules. The collision is a lane defect, not a
-#: preference, and the residue table records it against P14.1.
-PARSE = sym("parse")
+from petta import S, val
 
 #: Inferences this twin spends, its own tripwire.
 #: HELD 2026-08-22 at 2238 across the rewrite into the authority's idiom:
 #: `expr(S["test"], expr(S["parse"], ...), ...)` became
-#: `S.test(PARSE(...), ...)`. Calling a symbol and building with expr make the
-#: same atom in Python, so the engine's three runnable forms are unchanged and
-#: the count is too. Prior: ADDED 2026-08-22 at 2238 by 7f15dc1's wave-3
+#: `S.test(S.parse(...), ...)`. Calling a symbol and building with expr make
+#: the same atom in Python, so the engine's three runnable forms are unchanged
+#: and the count is too. Prior: ADDED 2026-08-22 at 2238 by 7f15dc1's wave-3
 #: baseline.
 BUDGET = 2238
 
@@ -53,10 +48,10 @@ def twin(m):
     yield None
 
     # !(test (parse (repr "C:\\Users\\bob")) "C:\\Users\\bob")
-    yield m.eval(S.test(PARSE(S.repr(val("C:\\Users\\bob"))), val("C:\\Users\\bob")))
+    yield m.eval(S.test(S.parse(S.repr(val("C:\\Users\\bob"))), val("C:\\Users\\bob")))
 
     # !(test (parse (repr "say \"hi\"")) "say \"hi\"")
-    yield m.eval(S.test(PARSE(S.repr(val('say "hi"'))), val('say "hi"')))
+    yield m.eval(S.test(S.parse(S.repr(val('say "hi"'))), val('say "hi"')))
 
     # !(test (parse (repr "a\\nb")) "a\\nb")
-    yield m.eval(S.test(PARSE(S.repr(val("a\\nb"))), val("a\\nb")))
+    yield m.eval(S.test(S.parse(S.repr(val("a\\nb"))), val("a\\nb")))

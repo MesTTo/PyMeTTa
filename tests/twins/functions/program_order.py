@@ -35,6 +35,8 @@ def twin(m):
     yield m.eval(S["p121-example-respond"](S.me))
 
     # (= (p121-example-respond me) hello)
+    # rung: below the function shape: the head fixes the SYMBOL me, and a stacked
+    #   clause's literal default is a bool, int, float or str (residue, P14.4)
     m += equation(S["p121-example-respond"](S.me)).to(S.hello)
 
     # !(test (p121-example-respond me) hello)

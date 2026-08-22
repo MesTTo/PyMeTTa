@@ -42,6 +42,8 @@ def twin(m):
         # (= (f $X $Y) (append ($X) $Y))
         return append((x,), y)
 
+    # rung: below the function shape: the body names `#+`, which no Python identifier
+    #   spells (residue, P14.4)
     @rules
     def constrained(x, y, z):
         # (= (g $X $Y $Z) (append ((#+ $X $Z)) $Y))
