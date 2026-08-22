@@ -4,6 +4,8 @@ Guarantees:
     [tested test_literal_defaults_are_head_patterns_and_clauses_stack]
   - twin views see definitions added after an earlier twin was compiled
     [tested test_existing_twin_sees_later_redefinition]
+  - a twin that cannot run names the eager Defined call as the engine door
+    [tested: test_twin_refuses_engine_only_bodies; commit=WORKTREE]
 Guarded by:
   - _TWIN_LOCK serializes dispatcher creation, view publication, and clause
     replacement [tested test_define_from_two_threads_is_serialized]
@@ -111,7 +113,7 @@ def hazard_twin(
         msg = (
             f"{name}.py cannot run this clause in Python: its body uses "
             f"{reasons}, which exist only in the engine. Evaluate through "
-            f"the space instead: m.eval({name}(...))."
+            "the Defined object instead; calling it evaluates through its space."
         )
         raise RuntimeError(
             msg

@@ -23,6 +23,9 @@ Guarantees:
   - lazy query paths are public immutable values and keep their root opaque
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]
+  - equation and rules are public package-level authoring helpers [tested:
+    test_a_rules_generator_scopes_its_variables_to_its_parameters;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -205,6 +208,7 @@ from .foreign import (  # noqa: E402
 from .ops import REFLECTION_SPACE, record  # noqa: E402
 from .paths import Attr, Key, Path, path  # noqa: E402
 from .results import Row, Rows  # noqa: E402
+from .rules import equation, rules  # noqa: E402
 from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
 from .subscribe import Subscription, bridge  # noqa: E402
 
@@ -406,6 +410,7 @@ __all__ = [
     "default_engine",
     "encode",
     "engine_thread",
+    "equation",
     "eval",
     "expr",
     "fn",
@@ -427,6 +432,7 @@ __all__ = [
     "register_object_repr_protocol",
     "remote",
     "remove",
+    "rules",
     "run",
     "sym",
     "tables",

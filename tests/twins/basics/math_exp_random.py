@@ -96,8 +96,10 @@ def twin(m):
 
     # The random generators answer inside their bounds, every draw.
     # !(test (in-range 1 6 (random-int 1 6)) true)
-    yield m.eval(S.test(in_range(1, 6, S["random-int"](1, 6)), TRUE))
+    yield m.eval(S.test(S["in-range"](1, 6, S["random-int"](1, 6)), TRUE))
     # !(test (in-range 0.0 1.0 (random-float 0.0 1.0)) true)
-    yield m.eval(S.test(in_range(0.0, 1.0, S["random-float"](0.0, 1.0)), TRUE))
+    yield m.eval(
+        S.test(S["in-range"](0.0, 1.0, S["random-float"](0.0, 1.0)), TRUE)
+    )
     # !(test (in-range 5 5 (random-int 5 5)) true)
-    yield m.eval(S.test(in_range(5, 5, S["random-int"](5, 5)), TRUE))
+    yield m.eval(S.test(S["in-range"](5, 5, S["random-int"](5, 5)), TRUE))

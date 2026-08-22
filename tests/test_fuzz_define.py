@@ -388,7 +388,7 @@ def _answers_agree(metta, tmp_path_factory, program, data, rounds: int) -> None:
     for _ in range(rounds):
         a = data.draw(st.integers(-9, 9))
         b = data.draw(st.integers(-9, 9))
-        engine = metta.eval(defined(a, b))
+        engine = defined(a, b)
         twin = defined.py(a, b)
         assert [_normalize(e) for e in engine] == [_normalize(twin)], source
 
@@ -438,7 +438,7 @@ def test_generator_answers_match_in_order(metta, tmp_path_factory, program, data
     defined = metta.define(fn)
     a = data.draw(st.integers(-9, 9))
     b = data.draw(st.integers(-9, 9))
-    engine = metta.eval(defined(a, b))
+    engine = defined(a, b)
     twin = list(defined.py(a, b))
     assert [_normalize(e) for e in engine] == [_normalize(v) for v in twin], source
 
@@ -450,7 +450,7 @@ def test_collection_bridge_agrees(metta, tmp_path_factory, program, data):  # no
     fn = _load(tmp_path_factory, source, name)
     defined = metta.define(fn)
     xs = tuple(data.draw(st.integers(-9, 9)) for _ in range(4))
-    engine = metta.eval(defined(xs))
+    engine = defined(xs)
     try:
         twin = defined.py(xs)
     except IndexError:
@@ -485,7 +485,7 @@ def test_the_define_twin_survives_integer_division_past_the_float_range(
     )
     fn = _load(tmp_path_factory, source, "grown_mix")
     defined = metta.define(fn)
-    engine = metta.eval(defined(3, 4))
+    engine = defined(3, 4)
     assert [_normalize(e) for e in engine] == [4], (
         "the engine saturates acc / 1 to inf, 4 == inf is False, so the "
         "else branch answers"

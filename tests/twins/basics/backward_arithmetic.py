@@ -59,9 +59,9 @@ def twin(m):
         return 2 * x
 
     # !(test (double 5) 10)
-    yield m.eval(S.test(double(5), 10))
+    yield m.eval(S.test(S.double(5), 10))
     # !(test (let 10 (double $x) $x) 5)
-    yield m.eval(S.test(S["let"](10, double(V.x), V.x), 5))
+    yield m.eval(S.test(S["let"](10, S.double(V.x), V.x), 5))
 
     # Each operator solves for its one unbound slot.
     # !(test (let 5 (+ $p 2) $p) 3)
@@ -76,7 +76,7 @@ def twin(m):
     # No integer answers it, so it FAILS rather than erroring: the empty
     # collapse IS the answer.
     # !(test (collapse (let 7 (double $x) $x)) ())
-    yield m.eval(S.test(S["collapse"](S["let"](7, double(V.x), V.x)), expr()))
+    yield m.eval(S.test(S["collapse"](S["let"](7, S.double(V.x), V.x)), expr()))
 
     @m.define
     def square(x):
@@ -88,7 +88,7 @@ def twin(m):
     # !(test (collapse (let 25 (square $x) $x)) (noeval (-5 5)))
     yield m.eval(
         S.test(
-            S["collapse"](S["let"](25, square(V.x), V.x)),
+            S["collapse"](S["let"](25, S.square(V.x), V.x)),
             S.noeval(expr(-5, 5)),
         )
     )
@@ -115,7 +115,7 @@ def twin(m):
     yield m.eval(
         S.test(
             S["collapse"](
-                S["let"](TRUE, S["#>="](V.x, 0), S["let"](25, square(V.x), V.x))
+                S["let"](TRUE, S["#>="](V.x, 0), S["let"](25, S.square(V.x), V.x))
             ),
             expr(5),
         )

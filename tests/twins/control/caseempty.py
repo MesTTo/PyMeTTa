@@ -45,7 +45,7 @@ def twin(m):
     # (= (wu2) (case (f) ((42 ok) (Empty nok))))
     m += S["="](
         S.wu2(),
-        S["case"](f(), expr(expr(42, S.ok), expr(S.Empty, S.nok))),
+        S["case"](S.f(), expr(expr(42, S.ok), expr(S.Empty, S.nok))),
     )
 
     # !(test (wu) 42)

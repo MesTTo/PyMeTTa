@@ -60,7 +60,7 @@ def twin(m):
     yield m.eval(
         S.test(
             S["with-pragma!"](
-                expr(expr(S["max-stack-depth"], 100000000)), fib(30)
+                expr(expr(S["max-stack-depth"], 100000000)), S.fib(30)
             ),
             832040,
         )

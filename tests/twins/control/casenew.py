@@ -54,4 +54,4 @@ def twin(m):
         yield wu2()
 
     # !(test (wu) (full))
-    yield m.eval(S.test(wu(), S.full()))
+    yield m.eval(S.test(S.wu(), S.full()))

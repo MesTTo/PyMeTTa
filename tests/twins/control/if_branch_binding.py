@@ -51,7 +51,7 @@ def twin(m):
         return b
 
     # !(test (pick-else 1 2) 2)
-    yield m.eval(S.test(pick_else(1, 2), 2))
+    yield m.eval(S.test(S["pick-else"](1, 2), 2))
 
     @m.define(name="pick-then")
     def pick_then(a, b):
@@ -62,7 +62,7 @@ def twin(m):
         return b
 
     # !(test (pick-then 1 2) 1)
-    yield m.eval(S.test(pick_then(1, 2), 1))
+    yield m.eval(S.test(S["pick-then"](1, 2), 1))
 
     # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
     m += S["="](
@@ -89,6 +89,6 @@ def twin(m):
         return b
 
     # !(test (both 5 2) 5)
-    yield m.eval(S.test(both(5, 2), 5))
+    yield m.eval(S.test(S.both(5, 2), 5))
     # !(test (both 2 5) 5)
-    yield m.eval(S.test(both(2, 5), 5))
+    yield m.eval(S.test(S.both(2, 5), 5))

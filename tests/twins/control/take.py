@@ -9,12 +9,10 @@ The Python is named `count_up` because `from` is a Python keyword, and
 `name="from"` puts the MeTTa name on the equation; recursion inside the body
 resolves to the equation's own name either way.
 
-The recursive call is `yield count_up(n + 1)`, not `yield from count_up(n + 1)`.
-That is MeTTa's own reading, where an element of a superposition contributes
-its own answers, and it is NOT Python's, where `yield f()` would answer a
-generator object. `yield from` is the spelling a Python author reaches for and
-it compiles wrongly here, silently: the residue table records that against
-P14.4 with its reproducer.
+The recursive call is `yield from count_up(n + 1)`. Self-recursion is known to
+be nondeterministic while its body compiles, so the call delegates whole.
+Other call-shaped uses whose cardinality is unknown are refused with the two
+explicit spellings, which closes the old silent-splice residue.
 """
 
 from petta import S, V, expr
@@ -65,12 +63,12 @@ def twin(m):
     def count_up(n):
         # (= (from $n) (superpose ($n (from (+ $n 1)))))
         yield n
-        yield count_up(n + 1)
+        yield from count_up(n + 1)
 
     # This counts up forever and take ends it.
     # !(test (collapse (take 4 (from 0))) (0 1 2 3))
     yield m.eval(
-        S.test(S["collapse"](S["take"](4, count_up(0))), expr(0, 1, 2, 3))
+        S.test(S["collapse"](S["take"](4, S["from"](0))), expr(0, 1, 2, 3))
     )
 
     # A count that is not a whole number is a mistake rather than an empty

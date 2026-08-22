@@ -13,10 +13,10 @@ what they are; nothing here is a signature Python could carry. `speak` is a
 computation and is written as one, and its body is a MeTTa STRING literal,
 which a compiled body spells as a Python string literal.
 
-The declaration is written before the equation rather than as an annotation on
-it, because `@m.define` writes its declaration AFTER the equation and the
-ordering matters; types/outputtype.py is the reproducer and the residue table
-routes it to P14.9.
+The `speak` declaration stays an atom because `Animal` is a dynamic MeTTa type,
+not a sound Python annotation for the host function. Annotation-derived
+declarations now publish before their equations; outputtype.py exercises that
+door directly.
 """
 
 from petta import S, V, expr, val
@@ -67,7 +67,7 @@ def twin(m):
         return "some noise"
 
     # !(test (speak Rex) "some noise")
-    yield m.eval(S.test(speak(S.Rex), val("some noise")))
+    yield m.eval(S.test(S.speak(S.Rex), val("some noise")))
 
     # It is transitive, because widening repeats over what the previous
     # round added.

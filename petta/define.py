@@ -19,6 +19,16 @@ Guarantees:
     derived from the parsed function and exposed as immutable facts [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+  - ``yield from`` delegates only a statically known-nondeterministic call
+    and refuses an ambiguous engine call instead of silently splicing it
+    [tested:
+    test_yield_from_a_call_delegates_only_when_nondeterminism_is_known;
+    commit=WORKTREE]
+  - calling a Defined object evaluates its application except in a rules
+    builder's scope-local staging context [tested:
+    test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
+    test_a_rules_generator_scopes_its_variables_to_its_parameters;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,8 +52,9 @@ from ._define_twins import (
     _python_twin,
 )
 from ._type_annotations import type_atoms_for
-from .atoms import Atom, Expr, Gnd, Sym, Var, encode, map_atoms
+from .atoms import Atom, Expr, Gnd, Sym, Undefined, Var, encode, map_atoms
 from .errors import CompileError
+from .rules import _defined_calls_are_staged
 
 __all__ = ["Defined", "DefinitionFacts", "PrologBacked", "SourceSpan", "compile_function"]
 
@@ -206,10 +217,11 @@ def canonical_aux_set(equations: tuple[Expr, ...], name: str) -> tuple[Expr, ...
 class Defined(Generic[_P, _R]):
     """A function that exists twice: as MeTTa equations and as Python.
 
-    Calling the name builds the term, exactly as applying a symbol does; the
-    Python body stays reachable as `.py`, with recursion inside it resolving
-    to itself. That pair is a differential oracle carried in one object:
-    m.eval(fact(5)) against fact.py(5), for every ground input.
+    Calling the name evaluates its application and returns every engine
+    answer; applying ``S[name]`` stages the term explicitly. The Python body
+    stays reachable as ``.py``, with recursion inside it resolving to itself.
+    That pair is a differential oracle carried in one object: ``fact(5)``
+    against ``fact.py(5)``, for every ground input.
     """
 
     __slots__ = (
@@ -256,13 +268,16 @@ class Defined(Generic[_P, _R]):
         self.__name__ = name
         self.__wrapped__ = py
 
-    def __call__(self, *args: Any) -> Expr:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def __call__(self, *args: Any) -> Expr | list[Atom | Undefined]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if len(args) != len(self.params):
             msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
             raise TypeError(
                 msg
             )
-        return Expr([Sym(self.name), *(encode(a) for a in args)])
+        term = Expr([Sym(self.name), *(encode(a) for a in args)])
+        if _defined_calls_are_staged():
+            return term
+        return self.space.eval(term)
 
     @property
     def py(self) -> Callable[_P, _R]:
@@ -689,16 +704,36 @@ class _Compiler(
         return Expr([Sym("let"), Var(var), Expr([Sym("superpose"), source]), body])
 
     def _yield_from(self, node: ast.YieldFrom) -> Atom:
-        """`yield from e`: a nondeterministic call answers directly, one
-        yield per answer; any other iterable superposes its elements.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """Delegate known generators and refuse call-shaped ambiguity.
+
+        ``superpose`` expands an expression's children, so wrapping an engine
+        call silently splices its function name and arguments. Delegating every
+        call is also wrong: a deterministic call may return iterable data.
+        Self-recursion is a generator while its body compiles, and registered
+        many-answer operations carry explicit nondeterminism metadata. Every
+        other known engine call must choose one of the two unambiguous forms
+        named by the refusal.
+        """
         value = node.value
-        if (
-            isinstance(value, ast.Call)
-            and isinstance(value.func, ast.Name)
-            and self.nondet(value.func.id)
-        ):
-            return self.expression(value)
+        if isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
+            called = value.func.id
+            if called in self._builtins and called not in self.scope:
+                return Expr([Sym("superpose"), self.expression(value)])
+            if called in (self.pyname, self.name) or self.nondet(called):
+                return self.expression(value)
+            if called in self.lifted or self.known(called):
+                self.expression(value)  # Validate the call before the ruling.
+                msg = (
+                    f"yield from {called}(...) cannot tell whether to delegate "
+                    "engine answers or iterate returned data; use "
+                    f"yield {called}(...) to delegate answers, or bind the "
+                    "returned data and then yield from that value"
+                )
+                raise CompileError(
+                    msg,
+                    construct="yield from call",
+                    line=node.lineno,
+                )
         return Expr([Sym("superpose"), self.expression(value)])
 
     def _bind(self, name: str) -> str:

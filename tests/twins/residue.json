@@ -67,15 +67,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/control/metta4_streams.metta",
-      "form": null,
-      "missing": "`yield from` a generator the engine does not know yet, which SPLICES the call instead of delegating to it",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "`yield from f(...)` lowers through _define_statements._yield_from to (superpose <call>) when f is not known-nondeterministic, and _superpose then splices any (superpose <Expr>) member into the enclosing alternatives. For a CALL that is wrong and silent: `def counter(k, n): yield k; yield from counter(k+1, n)` compiles to (= (range $k $n) (superpose ((if (< $k $n) (superpose ($k range (+ $k 1) $n)) (empty))))) and (collapse (range 1 5)) answers (1 range 2 5) rather than (1 2 3 4). Two paths reach it, both measured. Self-recursion always does, because the definition is not installed while its own body compiles. So does a cross-space call: `known` is space.is_function, which answers engine-wide, while _is_nondeterministic reads _DEFINED_GENERATORS, which is keyed (space_name, name), so a generator defined on another space is nameable and not known-nondet, and `@m.define def consumer(n): yield from gen2(n); yield 99` stores (= (consumer $n) (superpose (gen2 $n 99))). A name= mismatch does NOT reach it: the body cannot spell the Python name at all and fails earlier with the free-identifier refusal. Splicing is not the whole defect either, since (superpose (f x)) already means the two elements f and x; the fix is a ruling on what `yield from <call>` means when nondeterminism is unknown, delegate or refuse. The twins write `yield counter(k + 1, n)`, MeTTa's own reading, where an element of a superposition contributes its own answers. Correct today: `yield from` a bound value ((superpose $xs), the argument is a Var so nothing splices), `yield from` an already-installed generator of the same name (the call itself), and a `for` loop over either. [measured: (collapse (range 1 5)) answers (1 range 2 5) from the yield-from spelling and (1 2 3 4) from the yield spelling; command=@m.define(name=\"range\") over `if k < n: yield k; yield from counter(k + 1, n)` against the same body with `yield counter(k + 1, n)`; commit=47554fc7db6d8ead9319b6d00e98b1ade675b62d]"
-    },
-    {
-      "kind": "friction",
       "example": "examples/control/case.metta",
       "form": null,
       "missing": "Python's `match` statement, which is what a MeTTa `case` is",
@@ -118,15 +109,6 @@
       "row": "P14.3",
       "section": "§4 the ergonomic tier over the container door",
       "detail": "define()'s _parameters reads a literal default as the head pattern for that position and refuses anything else, so `def g(n=0)` writes (= (g 0) ...) and there is no spelling for (= (Greater (S $x) Z) True). The container door writes it, m += S[\"=\"](S.Greater(SUCC(V.x), S.Z), TRUE), which wave one established is a working door; the gap is the taught form P14.3 ships. Derived demand from this wave: types/recursive_types2 (3 equations), types/inplace_annotations (6), types/types (testf), control/take's edge facts and every case-based equation above."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/outputtype.metta",
-      "form": null,
-      "missing": "an annotation-emitted declaration that reaches the engine BEFORE its own equation",
-      "row": "P14.9",
-      "section": "§4 the typing front",
-      "detail": "_space_definitions._install_define_locked stores the equation and only then calls _declare_definition, so a declaration derived from the signature arrives after the equation it types. An INPUT type still works, because it is read at the call site: types/functiontypes.py declares (: wu1 (-> Number Atom %Undefined%)) from `def wu1(a: int, b: Atom) -> Any` and the second argument does arrive unevaluated. An OUTPUT type does not. Measured on this tree 2026-08-22: `@m.define def g(x: int) -> Atom: return x + 42` puts (: g (-> Number Atom)) in the space and m.eval(g(S[\"+\"](1, 1))) still answers Gnd(44), where m += S[\":\"](S.g, S[\"->\"](S.Number, S.Atom)) before the identical compiled equation answers Expr('(+ 2 42)'). So types/outputtype.py, types/subtyping.py and types/types_dependent.py declare at the container door and compile the equation unannotated. [measured: annotation-declared g answers Gnd(44), atom-declared g answers Expr('(+ 2 42)'), same compiled equation; command=@m.define def g(x: int) -> Atom: return x + 42 against m += S[\":\"](S.g, S[\"->\"](S.Number, S.Atom)) then the unannotated def; commit=47554fc7db6d8ead9319b6d00e98b1ade675b62d]"
     }
   ],
   "retired": [
@@ -138,6 +120,24 @@
       "row": "P14.8",
       "retired": "2026-08-22",
       "detail": "CLOSED by P14.8. petta_py_eval_all/3 now wraps its findall in petta_run_with_fuel/3, the same fuel scope engine/translator.pl's translate_runnable_expr/4 wraps a runnable form in, so max-stack-depth applies through m.eval and a runaway branch answers (Error <culprit> StackOverflow) instead of exhausting SWI's stack. petta_py_eval_term_bounded/3 and petta_py_eval_status_all/3 take the same scope, so eval_using and eval_status agree with eval. The twin yields m.eval(S[\"bounded-factorial\"](5)) and the lane reads 148/148 forms alpha-equal where it read 147/148. The differential is test_the_same_source_answers_the_same_error_through_both_doors, which runs the identical source through both doors in separate interpreters and requires the same answers. CONSEQUENCE, recorded because it is user-visible: m.eval is now BOUNDED by default at the same 100,000 reductions a runnable form is bounded at, so a workload above that answers StackOverflow through m.eval exactly as it always did through `!`, and declares (pragma! max-stack-depth ...) to raise it. Two benchmark workloads were relying on the unbounded door and now declare it, as examples/basics/time_and_pragmas.metta already does for (fib 30)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/metta4_streams.metta",
+      "form": null,
+      "missing": "`yield from` a call whose nondeterminism is unknown without silently splicing or changing iterable semantics",
+      "row": "P14.4",
+      "retired": "2026-08-22",
+      "detail": "CLOSED by the P14.4 ruling. A self-recursive call, including a function whose Python and MeTTa names differ through name=, and a registry-known many-answer operation delegate whole. Any other known engine call is ambiguous: direct delegation would change a deterministic function returning iterable data from many Python values into one expression answer, while wrapping the call in superpose splices its application children. The compiler now refuses that shape and names both exact remedies: `yield f(...)` delegates engine answers; binding the returned data and then `yield from values` iterates data. Runtime deferral was rejected because superpose cannot recover whether an expression is a call or returned data after evaluation. test_yield_from_a_call_delegates_only_when_nondeterminism_is_known pins self/name= delegation plus cross-space and deterministic-call refusal. The metta4_streams and take twins now use the corrected self-recursive `yield from` spelling."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/outputtype.metta",
+      "form": null,
+      "missing": "an annotation-emitted declaration that reaches the engine before its own equation",
+      "row": "P14.9",
+      "retired": "2026-08-22",
+      "detail": "CLOSED by P14.9. _install_define_locked publishes annotation-derived declarations immediately before _store_clause and removes newly published declarations if equation publication fails. test_a_declared_output_type_takes_effect_through_the_decorator_door proves that `def g(x: int) -> Atom: return x + 42` answers the unreduced `(+ 2 42)`. The outputtype twin now uses annotations for f, g and h; the dynamic refinement types in subtyping and types_dependent remain explicit MeTTa declarations because they are not sound Python annotations."
     }
   ]
 }

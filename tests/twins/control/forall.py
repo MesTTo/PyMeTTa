@@ -82,7 +82,7 @@ def twin(m):
 
     # Arg-ful generator function plus check function.
     # !(test (forall (g $x) P) false)
-    yield m.eval(S.test(S["forall"](g_one(V.x), S.P), FALSE))
+    yield m.eval(S.test(S["forall"](S.g(V.x), S.P), FALSE))
 
     # Arg-ful generator lambda plus check function.
     # !(test (let $genlambda (|-> ($x) (g $x)) (forall ($genlambda $z) P)) false)
@@ -104,7 +104,7 @@ def twin(m):
             S["let"](
                 V.checklambda,
                 _check(2),
-                S["forall"](g_one(2), V.checklambda),
+                S["forall"](S.g(2), V.checklambda),
             ),
             FALSE,
         )
@@ -115,7 +115,7 @@ def twin(m):
             S["let"](
                 V.checklambda,
                 _check(2),
-                S["forall"](g_one(1), V.checklambda),
+                S["forall"](S.g(1), V.checklambda),
             ),
             TRUE,
         )
@@ -126,7 +126,7 @@ def twin(m):
             S["let"](
                 V.checklambda,
                 _check(2),
-                S["forall"](g_one(2), V.checklambda),
+                S["forall"](S.g(2), V.checklambda),
             ),
             FALSE,
         )

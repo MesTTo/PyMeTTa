@@ -27,6 +27,10 @@ Guarantees:
   - define accepts source-bearing Python functions and refuses callable
     objects before reading compiler metadata [tested
     test_define_refuses_callable_objects]
+  - define returns a Defined whose call evaluates in its owning space while
+    its Python reference stays available as .py [tested:
+    test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself;
+    commit=WORKTREE]
   - query, prepare, and stream preserve distinct variable columns in first
     appearance order [tested test_query_surfaces_share_column_order]
   - public name and save-format annotations distinguish their string
@@ -2423,7 +2427,8 @@ class MeTTa:
             def add_one(n):
                 return n + 1
 
-            m.run("!(add-one 5)")       # [[6]]
+            add_one(5)                  # [6], evaluated by the engine
+            S.add_one(5)                # (add_one 5), staged as data
             add_one.py(5)               # 6, ordinary Python
 
         The equation's name is the Python name, verbatim, or `name=`
@@ -2495,7 +2500,7 @@ class MeTTa:
             def fib(n):
                 return n if n < 2 else fib(n - 1) + fib(n - 2)
 
-            m.eval(fib(25))       # linear, not exponential
+            fib(25)               # [75025], linear rather than exponential
             fib.cache_info()      # {'tables': 26, 'answers': 26, ...}
             fib.cache_clear()
 

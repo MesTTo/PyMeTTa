@@ -9,7 +9,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import CompileError, MeTTa, S
+from petta import CompileError, MeTTa, S, equation, rules
 
 m = MeTTa().new_space()
 
@@ -23,7 +23,22 @@ def fact(n):
 
 check("equations run", m.run("!(fact 6)"), [[720]])
 check("the Python twin agrees", fact.py(6), 720)
-check("calling the name builds the term", str(fact(6)), "(fact 6)")
+check("calling the name evaluates", fact(6), [720])
+check("the S door builds the term", str(S.fact(6)), "(fact 6)")
+
+
+@m.define
+def twice(value):
+    return value + value
+
+
+@rules
+def arithmetic(value):
+    yield equation(S.via_rule(value)).to(twice(value))
+
+
+m.add(*arithmetic)
+check("rules are ordinary atoms", m.eval(S.via_rule(6)), [12])
 
 
 @m.define

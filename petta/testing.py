@@ -18,6 +18,9 @@ Guarantees:
     test_a_repeated_variable_liar_is_caught_by_the_folded_pattern,
     test_a_ground_only_matcher_is_caught_by_the_open_pattern;
     commit=dcfc20be4933c19140ccb5759291401d13058301].
+  - check_twin consumes a Defined call's eager answer list exactly once
+    [tested: test_the_prolog_twin_is_checked_against_its_reference;
+    commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -782,7 +785,7 @@ def check_twin(defined, cases) -> list[str]:
     ran: list[str] = []
     for case in cases:
         arguments = tuple(case)
-        engine = [_comparable(answer) for answer in defined.space.eval(defined(*arguments))]
+        engine = [_comparable(answer) for answer in defined(*arguments)]
         try:
             twin = _twin_answers(defined, arguments)
         except Exception as refused:

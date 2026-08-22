@@ -56,6 +56,6 @@ def twin(m):
         return 42 if xor(source == destination, source > destination) else 0
 
     # !(test (check_xor 2 2) 42)
-    yield m.eval(S.test(check_xor(2, 2), 42))
+    yield m.eval(S.test(S.check_xor(2, 2), 42))
     # !(test (check_xor 4 2) 42)
-    yield m.eval(S.test(check_xor(4, 2), 42))
+    yield m.eval(S.test(S.check_xor(4, 2), 42))

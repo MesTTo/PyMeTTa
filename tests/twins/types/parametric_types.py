@@ -29,12 +29,12 @@ from petta import S, V, val
 TRUE, FALSE = val(value=True), val(value=False)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5599 to 5694, +95, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 5599 by 47554fc's control/types twin baseline.
-BUDGET = 5694
+#: RE-PINNED 2026-08-22, 5694 to 5543, -151, by P14.9's declaration-order
+#: correction: @define now adds the annotation-derived parametric signature
+#: before storing `apply`'s equation, so clause compilation sees its type.
+#: Three fresh processes measured 5543, 5543, 5543. Prior: RE-PINNED
+#: 2026-08-22 at 5694 by P14.8's m.eval fuel-scope alignment.
+BUDGET = 5543
 
 TX = TypeVar(name="TX")
 TY = TypeVar(name="TY")
@@ -54,9 +54,9 @@ def twin(m):
         return (f, x)
 
     # !(apply not False) answers (True)
-    yield m.eval(apply(S["not"], FALSE))
+    yield m.eval(S.apply(S["not"], FALSE))
     # !(get-type (apply not False)) answers (Bool)
-    yield m.eval(S["get-type"](apply(S["not"], FALSE)))
+    yield m.eval(S["get-type"](S.apply(S["not"], FALSE)))
     # !(test (let (get-type apply) (-> (-> Bool Bool) Bool $result) $result) Bool)
     yield m.eval(
         S.test(

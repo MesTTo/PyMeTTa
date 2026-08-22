@@ -56,4 +56,4 @@ def twin(m):
         return 1 if n == 0 else n * fac_f(n - 1)
 
     # !(test (facF 10) 3628800)
-    yield m.eval(S.test(fac_f(10), 3628800))
+    yield m.eval(S.test(S["facF"](10), 3628800))

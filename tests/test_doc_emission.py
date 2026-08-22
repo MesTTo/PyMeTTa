@@ -78,5 +78,5 @@ def test_a_docstring_emits_the_whole_doc_vocabulary() -> None:
     assert str(group[0]) == _documentation(metta, "docemit_cube")
 
     # And the definitions still run.
-    assert metta.eval(docemit_cube(3)) == [27]
-    assert metta.eval(docemit_partly(1, 2)) == [3]
+    assert docemit_cube(3) == [27]
+    assert docemit_partly(1, 2) == [3]

@@ -85,7 +85,7 @@ def twin(m):
     last = expr(42, 43)
     yield m.eval(
         S.test(
-            program4(),
+            S.program4(),
             expr(
                 expr(first, 1, last),
                 expr(first, 2, last),

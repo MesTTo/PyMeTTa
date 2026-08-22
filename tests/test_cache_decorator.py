@@ -36,7 +36,7 @@ def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
         return n if n < 2 else cachedec_fib(n - 1) + cachedec_fib(n - 2)
 
     with metta.stats() as tabled:
-        assert metta.eval(cachedec_fib(_N)) == [75025]
+        assert cachedec_fib(_N) == [75025]
 
     # The counters are the TABLE's, under lru_cache's names.
     info = cachedec_fib.cache_info()
@@ -55,7 +55,7 @@ def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
         return n if n < 2 else cachedec_plain(n - 1) + cachedec_plain(n - 2)
 
     with plain.stats() as untabled:
-        overrun = plain.eval(cachedec_plain(_N))
+        overrun = cachedec_plain(_N)
 
     assert [str(atom) for atom in overrun] == ["(Error 1 StackOverflow)"]
     assert untabled.inferences > 100 * tabled.inferences
@@ -69,7 +69,7 @@ def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
     def cachedec_named(n):
         return n if n < 2 else cachedec_named(n - 1) + cachedec_named(n - 2)
 
-    assert metta.eval(cachedec_named(20)) == [6765]
+    assert cachedec_named(20) == [6765]
     assert cachedec_named.cache_info()["answers"] == 21
 
 

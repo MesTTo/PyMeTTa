@@ -16,6 +16,11 @@ Guarantees:
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - an annotation-derived declaration lands before the equation it governs
+    and rolls back if equation publication fails [tested:
+    test_a_declared_output_type_takes_effect_through_the_decorator_door,
+    test_failed_equation_publication_rolls_back_its_early_declaration;
+    commit=WORKTREE]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -404,19 +409,27 @@ def _declare_definition(
     fn: types.FunctionType,
     name: str,
     params: list[str],
-) -> None:
+) -> tuple[Expr, ...]:
     annotated = resolved_annotations(fn)
     key = (space.space_name, name)
     if not any(label != "return" for label in annotated) or _DECLARED_DEFINES.get(key):
-        return
+        return ()
     annotations = [annotated.get(param, _inspect.Parameter.empty) for param in params]
     ret_annotation = annotated.get("return", _inspect.Parameter.empty)
-    for declaration in declaration_exprs(name, annotations, ret_annotation):
-        space.add(declaration)
+    declarations = [*declaration_exprs(name, annotations, ret_annotation)]
     for cls in referenced_classes([*annotations, ret_annotation]):
-        for extra in class_declarations(cls):
-            space.add(extra)
+        declarations.extend(class_declarations(cls))
+    added: list[Expr] = []
+    try:
+        for declaration in declarations:
+            space.add(declaration)
+            added.append(declaration)
+    except BaseException:
+        for declaration in reversed(added):
+            space.remove(declaration)
+        raise
     _DECLARED_DEFINES[key] = True
+    return tuple(added)
 
 
 def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None = None):
@@ -509,7 +522,9 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     else:
         prospective[replaced] = record
     _sync_definition_facts(space, name, prospective)
+    declared: tuple[Expr, ...] = ()
     try:
+        declared = _declare_definition(space, fn, name, params)
         _store_clause(
             space,
             earlier,
@@ -521,13 +536,14 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
             replaced=replaced,
         )
     except BaseException:
+        for declaration in reversed(declared):
+            space.remove(declaration)
+        if declared:
+            _DECLARED_DEFINES.pop((space.space_name, name), None)
         _sync_definition_facts(space, name, earlier)
         raise
     defined = _defined_result(space, name, compiled, body, dispatcher)
     _document_definition(space, name, dispatcher)
-    # Annotations declare the type, exactly as they do for operations,
-    # once per name so stacked clauses do not repeat the declaration.
-    _declare_definition(space, fn, name, params)
     if compiled.generator:
         _DEFINED_GENERATORS.add((space.space_name, name))
     return defined

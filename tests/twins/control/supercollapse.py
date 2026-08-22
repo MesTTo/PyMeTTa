@@ -67,5 +67,5 @@ def twin(m):
 
     # !(test (range 1 10) (1 2 3 4 5 6 7 8 9))
     yield m.eval(
-        S.test(count_from(1, 10), expr(1, 2, 3, 4, 5, 6, 7, 8, 9))
+        S.test(S["range"](1, 10), expr(1, 2, 3, 4, 5, 6, 7, 8, 9))
     )

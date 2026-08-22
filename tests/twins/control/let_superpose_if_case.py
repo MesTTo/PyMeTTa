@@ -52,7 +52,7 @@ def twin(m):
                 S["case"](
                     expr(1, V.y),
                     expr(
-                        expr(expr(1, 3), f(0)),
+                        expr(expr(1, 3), S.f(0)),
                         expr(expr(1, 4), expr(42, 42)),
                         expr(V.otherwise, expr(42, 42, 42)),
                     ),

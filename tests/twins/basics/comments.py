@@ -50,4 +50,4 @@ def twin(m):
         return 42
 
     # !(test (f) 42)
-    yield m.eval(S.test(f(), 42))
+    yield m.eval(S.test(S.f(), 42))

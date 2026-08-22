@@ -13,10 +13,11 @@ second extension also matches a CONSTRUCTOR in its head, `(get-type (cons
 $head $tail))`, where a compiled head takes plain parameters. `=alpha` is not
 a Python identifier either, so no alias reaches it.
 
-`f` and `g` are computations and are written as ones, with their declarations
-as atoms written first: `@m.define` writes an annotation's declaration AFTER
-the equation, which types/outputtype.py reproduces and the residue table
-routes to P14.9.
+`f` and `g` are computations and are written as ones. Their declarations stay
+atoms because `EvenNumber` and `EvenNumberList` are computed MeTTa refinement
+types, not sound Python annotations for the host functions. Annotation-derived
+declarations now publish before their equations; outputtype.py exercises that
+door directly.
 """
 
 from petta import S, V, expr, val
@@ -68,7 +69,7 @@ def twin(m):
         return x + y
 
     # !(test (f 2 4) 6)
-    yield m.eval(S.test(f(2, 4), 6))
+    yield m.eval(S.test(S.f(2, 4), 6))
 
     # (= (get-type (cons $head $tail))
     #    (if (=alpha (get-type $head) EvenNumber)
@@ -98,4 +99,4 @@ def twin(m):
         return True
 
     # !(test (g (2 4 6)) True)
-    yield m.eval(S.test(g(expr(2, 4, 6)), TRUE))
+    yield m.eval(S.test(S.g(expr(2, 4, 6)), TRUE))

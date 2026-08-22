@@ -83,7 +83,7 @@ def twin(m):
     # !(test (sqrt-math (math-string)) (Error (sqrt-math "s") (BadArgType 1 Number String)))
     yield m.eval(
         S.test(
-            S["sqrt-math"](math_string()),
+            S["sqrt-math"](S["math-string"]()),
             S.Error(S["sqrt-math"](val("s")), S.BadArgType(1, S.Number, S.String)),
         )
     )

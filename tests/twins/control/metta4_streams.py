@@ -14,12 +14,12 @@ with no `else` contributes `(empty)`, so the base case needs no writing. Then
 `foldall` folds over it: three consumers, one producer, and the producer is an
 ordinary Python function.
 
-Two spellings the compiled subset does not have decide the rest. The recursive
-call is `yield counter(...)`, not `yield from counter(...)`: `yield from` a
-generator the engine does not yet know SPLICES the call's own children into the
-superposition, silently, and the residue table records that against P14.4 with
-its reproducer. And `gen`'s three clauses fix nothing, so they are written at
-the container door, where non-exclusive equations on one head live.
+The recursive call deliberately uses `yield from counter(...)`. The compiler
+knows self-recursion is nondeterministic even before registration and delegates
+the call whole. Other engine calls whose cardinality is unknown are refused
+with the two explicit spellings, so the old silent child splice cannot recur.
+`gen`'s three clauses fix nothing, so they are written at the container door,
+where non-exclusive equations on one head live.
 
 The Python function is `counter` because `range` is a Python BUILTIN: a
 compiled body lowers a call to one before it looks for the definition's own
@@ -53,14 +53,14 @@ def twin(m):
         #        (empty)))
         if k < n:
             yield k
-            yield counter(k + 1, n)
+            yield from counter(k + 1, n)
 
     # Add every range item to space &s1 using metta4's for; an item
     # returning false "breaks" the loop.
     # !(forall (range 1 5) (|-> ($x) (add-atom &s1 (num $x)))) answers (True)
     yield m.eval(
         S["forall"](
-            counter(1, 5),
+            S["range"](1, 5),
             S["|->"](
                 expr(V.x), S["add-atom"](S["&s1"], S.num(V.x))
             ),
@@ -72,7 +72,7 @@ def twin(m):
     yield m.eval(
         S["let"](
             V.x,
-            S["once"](counter(1, 5)),
+            S["once"](S["range"](1, 5)),
             S["add-atom"](S["&s2"], S.num(V.x)),
         )
     )

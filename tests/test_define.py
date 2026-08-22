@@ -75,8 +75,8 @@ def test_define_from_two_threads_is_serialized(m):  # noqa: D103  -- pytest disc
     with ThreadPoolExecutor(max_workers=2) as workers:
         left, right = workers.map(m.define, (thread_left, thread_right))
 
-    assert m.eval(left(4)) == [5]
-    assert m.eval(right(4)) == [8]
+    assert left(4) == [5]
+    assert right(4) == [8]
 
 
 def test_existing_twin_sees_later_redefinition(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -114,7 +114,8 @@ def test_recursion_compiles_and_runs(m):  # noqa: D103  -- pytest discovers or i
 
     assert m.run("!(dfact 5)") == [[120]]
     assert dfact.py(5) == 120
-    assert dfact(5) == expr(S.dfact, 5)  # calling the name builds the term
+    assert dfact(5) == [120]
+    assert S.dfact(5) == expr(S.dfact, 5)  # the S door stages explicitly
     assert "(= (dfact $n)" in dfact.source()
 
 
@@ -445,7 +446,7 @@ def test_twin_agrees_on_ground_inputs(metta, n):
 
         test_twin_agrees_on_ground_inputs._defined = dtwin
     dtwin = test_twin_agrees_on_ground_inputs._defined
-    (engine_answer,) = metta.eval(dtwin(n))
+    (engine_answer,) = dtwin(n)
     assert engine_answer == dtwin.py(n)
 
 
@@ -455,7 +456,7 @@ def test_modulo_matches_python_on_signs(metta):  # noqa: D103  -- pytest discove
         return a % b
 
     for a, b in [(-7, 3), (5, -2), (7, 3), (-5, -2)]:
-        (engine_answer,) = metta.eval(dmod(a, b))
+        (engine_answer,) = dmod(a, b)
         assert engine_answer == dmod.py(a, b) == a % b
 
 
@@ -749,6 +750,7 @@ def test_twin_refuses_engine_only_bodies(m):  # noqa: D103  -- pytest discovers 
     with pytest.raises(RuntimeError) as caught:
         dseek.py()
     assert "match against the space" in str(caught.value)
+    assert "calling it evaluates through its space" in str(caught.value)
 
 
 def test_same_head_redefinition_replaces(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -784,7 +786,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):  # noqa: D
             n -= 1
         return total
 
-    assert m.one(daux_replace(3)) == 3
+    assert daux_replace(3) == [3]
 
     @m.define
     def daux_replace(n):
@@ -794,7 +796,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):  # noqa: D
             n -= 1
         return total
 
-    assert m.one(daux_replace(3)) == 6
+    assert daux_replace(3) == [6]
     assert daux_replace.py(3) == 6
 
     @m.define
@@ -805,7 +807,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):  # noqa: D
             n -= 1
         return total
 
-    assert m.one(daux_replace(3)) == 6
+    assert daux_replace(3) == [6]
     assert daux_replace.py(3) == 6
     helpers = [
         atom for atom in m.atoms() if str(atom).startswith("(= (daux_replace--loop")
@@ -884,7 +886,7 @@ def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, f
         return sum(x * y for x, y in zip(a, b, strict=True))
 
     # The engine answers from the Prolog, and the Python is still callable.
-    assert m.eval(dt_dot((1, 2, 3), (4, 5, 6))) == [32]
+    assert dt_dot((1, 2, 3), (4, 5, 6)) == [32]
     assert dt_dot.py((1, 2, 3), (4, 5, 6)) == 32
     assert dt_dot.name == "dt-dot"
     # There is no compiled equation to print, so source() says where it came from.

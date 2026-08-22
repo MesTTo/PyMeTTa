@@ -22,12 +22,12 @@ from typing import Any
 from petta import Atom, S, V, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 9635 to 10035, +400, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 9635 by 47554fc's control/types twin baseline.
-BUDGET = 10035
+#: RE-PINNED 2026-08-22, 10035 to 9738, -297, by P14.9's declaration-order
+#: correction: @define now adds each annotation-derived `(: name type)` before
+#: storing its equation, so type-directed clause compilation sees `wu1` and
+#: `wu2` as declared. Three fresh processes measured 9738, 9738, 9738. Prior:
+#: RE-PINNED 2026-08-22 at 10035 by P14.8's m.eval fuel-scope alignment.
+BUDGET = 9738
 
 #: (a list not a number), the answer that is data rather than arithmetic.
 NOT_A_NUMBER = expr(S.a, S["list"], S["not"], S.a, S.number)
@@ -69,13 +69,13 @@ def twin(m):
     # !(test (wu1 (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
     yield m.eval(
         S.test(
-            wu1(S["+"](2, 4), S["+"](4, 2)),
+            S.wu1(S["+"](2, 4), S["+"](4, 2)),
             S.noeval(expr(42, 6, S["+"](4, 2))),
         )
     )
 
     # !(test (wu2 (+ 2 4) (+ 4 2)) 12)
-    yield m.eval(S.test(wu2(S["+"](2, 4), S["+"](4, 2)), 12))
+    yield m.eval(S.test(S.wu2(S["+"](2, 4), S["+"](4, 2)), 12))
 
     # !(test (wu3 42 0) (a list not a number))
     yield m.eval(S.test(S.wu3(42, 0), NOT_A_NUMBER))

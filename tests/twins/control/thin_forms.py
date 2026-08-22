@@ -195,7 +195,7 @@ def twin(m):
         S.test(
             S["collapse"](
                 S["let"](
-                    V.b, tx_body(), S["atomically"](V.b)
+                    V.b, S["tx-body"](), S["atomically"](V.b)
                 )
             ),
             expr(2, 4),
@@ -207,7 +207,7 @@ def twin(m):
             S["size-atom"](
                 S["collapse"](
                     S["let"](
-                        V.b, tx_body(), S["atomically"](V.b)
+                        V.b, S["tx-body"](), S["atomically"](V.b)
                     )
                 )
             ),
@@ -220,7 +220,7 @@ def twin(m):
             S["size-atom"](
                 S["collapse"](
                     S["let"](
-                        V.b, tx_body(), S["transaction"](V.b)
+                        V.b, S["tx-body"](), S["transaction"](V.b)
                     )
                 )
             ),
