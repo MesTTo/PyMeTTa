@@ -1,320 +1,69 @@
-"""The Python twin of examples/reasoning/permutations.metta.
+"""The Python twin of examples/reasoning/permutations.metta: 9! by joining.
 
-Every source form is rebuilt as atoms through ``S``, ``V``, ``expr``,
-and ``val``. Definitions enter through the container protocol and
-runnable forms enter through ``m.eval``; no source-reading door is used.
+Three kinds of knowledge, each written the way Python already writes it.
+
+The 56 inequality FACTS are every ordered pair of distinct positions, so they
+are a nested `for` and a tuple: MeTTa's `(1 != 2)` is Python's `(1, NE, 2)`,
+and anything that yields tuples is a fact stream.
+
+The nine `E` facts move one hole through the nine slots of a row, so the hole's
+position is the loop variable and the row is built by slicing the eight
+placeholders around it. `___` cannot come from the `S` factory at all: the
+namespace refuses every name beginning with `__`, and the subscript door
+forwards to the same guard, so the hole is `sym("___")`. That is filed as
+residue against P14.5.
+
+The query stays one term because a `match` conjunction IS a term: the 28
+conjuncts keep the original's own triangular layout, which is the file's
+documentation of the constraint graph, with `ne(left, right)` naming the
+`($_left != $_right)` shape so a row still fits on a line.
 """
 
-from petta import S, V, expr, sym
+from petta import S, V, sym
+
+#: The inequality symbol, named once because it is neither a Python identifier
+#: nor a Python operator here: `!=` on atoms is structural inequality, and
+#: `(1 != 2)` in this example is a stored FACT with `!=` in the middle rather
+#: than a comparison term with `!=` at the head.
+NE = S["!="]
+
+#: The hole the nine `E` facts move through the nine positions of a row.
+HOLE = sym("___")
+
+#: The eight placeholder variables every fact and the query share.
+SLOT = (V._1, V._2, V._3, V._4, V._5, V._6, V._7, V._8)
 
 #: Inferences this twin spends, its own tripwire.
+#: HELD 2026-08-22 at 17626924 across the rewrite: the loops and tuples build
+#: the same 65 atoms the unrolled `expr` calls built, which the atom-level
+#: differential confirms byte-for-byte. Prior: ADDED 2026-08-22 at 17626924 by
+#: the wave-3 twin baseline.
 BUDGET = 17626924
 
 
+def ne(left, right):
+    """`($_left != $_right)`, the query's own inequality conjunct."""
+    return (SLOT[left - 1], NE, SLOT[right - 1])
+
+
 def twin(m):
-    """Yield one answer group per runnable form, in source order."""
-    # (1 != 2)
-    m += expr(1, S["!="], 2)
-
-    # (1 != 3)
-    m += expr(1, S["!="], 3)
-
-    # (1 != 4)
-    m += expr(1, S["!="], 4)
-
-    # (1 != 5)
-    m += expr(1, S["!="], 5)
-
-    # (1 != 6)
-    m += expr(1, S["!="], 6)
-
-    # (1 != 7)
-    m += expr(1, S["!="], 7)
-
-    # (1 != 8)
-    m += expr(1, S["!="], 8)
-
-    # (2 != 1)
-    m += expr(2, S["!="], 1)
-
-    # (2 != 3)
-    m += expr(2, S["!="], 3)
-
-    # (2 != 4)
-    m += expr(2, S["!="], 4)
-
-    # (2 != 5)
-    m += expr(2, S["!="], 5)
-
-    # (2 != 6)
-    m += expr(2, S["!="], 6)
-
-    # (2 != 7)
-    m += expr(2, S["!="], 7)
-
-    # (2 != 8)
-    m += expr(2, S["!="], 8)
-
-    # (3 != 1)
-    m += expr(3, S["!="], 1)
-
-    # (3 != 2)
-    m += expr(3, S["!="], 2)
-
-    # (3 != 4)
-    m += expr(3, S["!="], 4)
-
-    # (3 != 5)
-    m += expr(3, S["!="], 5)
-
-    # (3 != 6)
-    m += expr(3, S["!="], 6)
-
-    # (3 != 7)
-    m += expr(3, S["!="], 7)
-
-    # (3 != 8)
-    m += expr(3, S["!="], 8)
-
-    # (4 != 1)
-    m += expr(4, S["!="], 1)
-
-    # (4 != 2)
-    m += expr(4, S["!="], 2)
-
-    # (4 != 3)
-    m += expr(4, S["!="], 3)
-
-    # (4 != 5)
-    m += expr(4, S["!="], 5)
-
-    # (4 != 6)
-    m += expr(4, S["!="], 6)
-
-    # (4 != 7)
-    m += expr(4, S["!="], 7)
-
-    # (4 != 8)
-    m += expr(4, S["!="], 8)
-
-    # (5 != 1)
-    m += expr(5, S["!="], 1)
-
-    # (5 != 2)
-    m += expr(5, S["!="], 2)
-
-    # (5 != 3)
-    m += expr(5, S["!="], 3)
-
-    # (5 != 4)
-    m += expr(5, S["!="], 4)
-
-    # (5 != 6)
-    m += expr(5, S["!="], 6)
-
-    # (5 != 7)
-    m += expr(5, S["!="], 7)
-
-    # (5 != 8)
-    m += expr(5, S["!="], 8)
-
-    # (6 != 1)
-    m += expr(6, S["!="], 1)
-
-    # (6 != 2)
-    m += expr(6, S["!="], 2)
-
-    # (6 != 3)
-    m += expr(6, S["!="], 3)
-
-    # (6 != 4)
-    m += expr(6, S["!="], 4)
-
-    # (6 != 5)
-    m += expr(6, S["!="], 5)
-
-    # (6 != 7)
-    m += expr(6, S["!="], 7)
-
-    # (6 != 8)
-    m += expr(6, S["!="], 8)
-
-    # (7 != 1)
-    m += expr(7, S["!="], 1)
-
-    # (7 != 2)
-    m += expr(7, S["!="], 2)
-
-    # (7 != 3)
-    m += expr(7, S["!="], 3)
-
-    # (7 != 4)
-    m += expr(7, S["!="], 4)
-
-    # (7 != 5)
-    m += expr(7, S["!="], 5)
-
-    # (7 != 6)
-    m += expr(7, S["!="], 6)
-
-    # (7 != 8)
-    m += expr(7, S["!="], 8)
-
-    # (8 != 1)
-    m += expr(8, S["!="], 1)
-
-    # (8 != 2)
-    m += expr(8, S["!="], 2)
-
-    # (8 != 3)
-    m += expr(8, S["!="], 3)
-
-    # (8 != 4)
-    m += expr(8, S["!="], 4)
-
-    # (8 != 5)
-    m += expr(8, S["!="], 5)
-
-    # (8 != 6)
-    m += expr(8, S["!="], 6)
-
-    # (8 != 7)
-    m += expr(8, S["!="], 7)
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 1 (___ $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        1,
-        expr(sym("___"), V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"]),
-    )
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 2 ($_1 ___ $_2 $_3 $_4 $_5 $_6 $_7 $_8) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        2,
-        expr(V["_1"], sym("___"), V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"]),
-    )
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 3 ($_1 $_2 ___ $_3 $_4 $_5 $_6 $_7 $_8) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        3,
-        expr(V["_1"], V["_2"], sym("___"), V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"]),
-    )
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 4 ($_1 $_2 $_3 ___ $_4 $_5 $_6 $_7 $_8) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        4,
-        expr(V["_1"], V["_2"], V["_3"], sym("___"), V["_4"], V["_5"], V["_6"], V["_7"], V["_8"]),
-    )
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 5 ($_1 $_2 $_3 $_4 ___ $_5 $_6 $_7 $_8) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        5,
-        expr(V["_1"], V["_2"], V["_3"], V["_4"], sym("___"), V["_5"], V["_6"], V["_7"], V["_8"]),
-    )
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 6 ($_1 $_2 $_3 $_4 $_5 ___ $_6 $_7 $_8) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        6,
-        expr(V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], sym("___"), V["_6"], V["_7"], V["_8"]),
-    )
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 7 ($_1 $_2 $_3 $_4 $_5 $_6 ___ $_7 $_8) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        7,
-        expr(V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], sym("___"), V["_7"], V["_8"]),
-    )
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 8 ($_1 $_2 $_3 $_4 $_5 $_6 $_7 ___ $_8) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        8,
-        expr(V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], sym("___"), V["_8"]),
-    )
-
-    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 9 ($_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 ___) )
-    m += expr(
-        S["E"],
-        V["_1"],
-        V["_2"],
-        V["_3"],
-        V["_4"],
-        V["_5"],
-        V["_6"],
-        V["_7"],
-        V["_8"],
-        9,
-        expr(V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"], sym("___")),
-    )
+    """One answer group per runnable form of the original, in source order.
+
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
+    every other form says its own answer in the comment above it.
+    """
+    # (1 != 2) (1 != 3) ... (8 != 6) (8 != 7): every ordered pair of distinct
+    # positions, the original's four rows of fourteen.
+    for left in range(1, 9):
+        for right in range(1, 9):
+            if left != right:
+                m += (left, NE, right)
+
+    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 1 (___ $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8))
+    # ... through ...
+    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 9 ($_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 ___))
+    for slot in range(1, 10):
+        m += S.E(*SLOT, slot, (*SLOT[: slot - 1], HOLE, *SLOT[slot - 1 :]))
 
     # !(test (length (collapse (match &self
     #                                 (, ($_1 != $_2)
@@ -328,65 +77,25 @@ def twin(m):
     #                                 (state1 $state))))
     #        362880)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["length"],
-                expr(
-                    S["collapse"],
-                    expr(
-                        S["match"],
+        S.test(
+            S.length(
+                S.collapse(
+                    S.match(
                         S["&self"],
-                        expr(
-                            S[","],
-                            expr(V["_1"], S["!="], V["_2"]),
-                            expr(V["_2"], S["!="], V["_3"]),
-                            expr(V["_3"], S["!="], V["_1"]),
-                            expr(V["_3"], S["!="], V["_4"]),
-                            expr(V["_4"], S["!="], V["_2"]),
-                            expr(V["_4"], S["!="], V["_1"]),
-                            expr(V["_4"], S["!="], V["_5"]),
-                            expr(V["_5"], S["!="], V["_3"]),
-                            expr(V["_5"], S["!="], V["_2"]),
-                            expr(V["_5"], S["!="], V["_1"]),
-                            expr(V["_5"], S["!="], V["_6"]),
-                            expr(V["_6"], S["!="], V["_4"]),
-                            expr(V["_6"], S["!="], V["_3"]),
-                            expr(V["_6"], S["!="], V["_2"]),
-                            expr(V["_6"], S["!="], V["_1"]),
-                            expr(V["_6"], S["!="], V["_7"]),
-                            expr(V["_7"], S["!="], V["_5"]),
-                            expr(V["_7"], S["!="], V["_4"]),
-                            expr(V["_7"], S["!="], V["_3"]),
-                            expr(V["_7"], S["!="], V["_2"]),
-                            expr(V["_7"], S["!="], V["_1"]),
-                            expr(V["_7"], S["!="], V["_8"]),
-                            expr(V["_8"], S["!="], V["_6"]),
-                            expr(V["_8"], S["!="], V["_5"]),
-                            expr(V["_8"], S["!="], V["_4"]),
-                            expr(V["_8"], S["!="], V["_3"]),
-                            expr(V["_8"], S["!="], V["_2"]),
-                            expr(V["_8"], S["!="], V["_1"]),
-                            expr(
-                                S["E"],
-                                V["_1"],
-                                V["_2"],
-                                V["_3"],
-                                V["_4"],
-                                V["_5"],
-                                V["_6"],
-                                V["_7"],
-                                V["_8"],
-                                V["x"],
-                                V["state"],
-                            ),
+                        S[","](
+                            ne(1, 2),
+                            ne(2, 3), ne(3, 1),
+                            ne(3, 4), ne(4, 2), ne(4, 1),
+                            ne(4, 5), ne(5, 3), ne(5, 2), ne(5, 1),
+                            ne(5, 6), ne(6, 4), ne(6, 3), ne(6, 2), ne(6, 1),
+                            ne(6, 7), ne(7, 5), ne(7, 4), ne(7, 3), ne(7, 2), ne(7, 1),
+                            ne(7, 8), ne(8, 6), ne(8, 5), ne(8, 4), ne(8, 3), ne(8, 2), ne(8, 1),
+                            S.E(*SLOT, V.x, V.state),
                         ),
-                        expr(S["state1"], V["state"]),
-                    ),
-                ),
+                        S.state1(V.state),
+                    )
+                )
             ),
             362880,
         )
     )
-
-    yield from ()
