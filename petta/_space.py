@@ -21,6 +21,10 @@ Guarantees:
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``Space`` is a grounded ``Handle`` that crosses as a term operand, and
+    ``peek`` and ``take`` expose the engine's event-driven Linda operations
+    [tested: test_space_handles_are_term_operands_and_round_trip,
+    test_space_handle_peek_and_take_are_linda_verbs; commit=WORKTREE]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
@@ -55,6 +59,7 @@ from typing import (
 
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
+from ._atom_wire import _remember_space_name
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import (
     clear_definitions,
@@ -101,6 +106,7 @@ from .atoms import (
     Atom,
     Expression,
     Grounded,
+    Handle,
     Symbol,
     Undefined,
     Variable,
@@ -303,7 +309,7 @@ def _to_stored_atom(value: Any) -> Expression:
     return atom
 
 
-class Space:
+class Space(Handle):
     """A space bound to the engine: the way in from Python.
 
     PeTTa keeps one engine per process; every context shares it. The
@@ -335,6 +341,12 @@ class Space:
         m.add(S.Parent(S.Tom, S.Bob))
         m.query(S.Parent(V.x, S.Bob))
     """
+
+    def __setattr__(self, name: str, value: Any, /) -> None:
+        object.__setattr__(self, name, value)
+
+    def __delattr__(self, name: str, /) -> None:
+        object.__delattr__(self, name)
 
     def __init__(
         self,
@@ -372,6 +384,7 @@ class Space:
         self._backing: Any = None
         self._owns_backing = False
         self._context_tokens: list[Any] = []
+        _remember_space_name(self._name)
 
     @property
     def _space(self) -> _SpaceId:
@@ -501,6 +514,41 @@ class Space:
     def __repr__(self) -> str:
         state = ", dropped" if self._dropped else ""
         return f"Space({self._name!r}{state})"
+
+    def __str__(self) -> str:
+        return str(self._name)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Symbol):
+            return self._name == other.name
+        return (
+            isinstance(other, Space)
+            and self._rt is other._rt
+            and self._name == other._name
+        )
+
+    def __hash__(self) -> int:
+        # The engine has one atom for this reference and the legacy Symbol
+        # spelling, so equal Python operands must share its symbol hash.
+        return hash(("sym", self._name))
+
+    def to_wire(self) -> list:
+        """Encode the live engine reference as a portable space operand."""
+        return ["p", str(self._space)]
+
+    @property
+    def metatype(self) -> str:
+        return "Grounded"
+
+    def __reduce__(self):
+        return Space, (str(self._space),)
+
+    def __deepcopy__(self, _memo: dict[int, Any]) -> Space:
+        msg = (
+            "a space handle owns live engine state and cannot be deep-copied; "
+            "use space.copy() to clone its stored atoms"
+        )
+        raise TypeError(msg)
 
     def bind(
         self,
@@ -831,6 +879,64 @@ class Space:
         wires = self._rt.apply_must("petta_py_atoms", self._space)
         return [_atom_from_wire(w) for w in wires]
 
+    def peek(self, pattern: Any, *, deadline: float | None = None) -> Atom:
+        """Wait for one matching atom and leave it in this space.
+
+        A finite deadline raises ``TimeoutError`` when no match arrives.
+        """
+        return self._wait_for_atom("peek-atom", pattern, deadline)
+
+    def take(self, pattern: Any, *, deadline: float | None = None) -> Atom:
+        """Wait for and remove exactly one matching atom from this space.
+
+        Competing takers cannot receive the same occurrence. A finite
+        deadline raises ``TimeoutError`` when no match arrives.
+        """
+        return self._wait_for_atom("take-atom", pattern, deadline)
+
+    def _wait_for_atom(
+        self, operation: str, pattern: Any, deadline: float | None
+    ) -> Atom:
+        if deadline is not None and (
+            isinstance(deadline, bool)
+            or not isinstance(deadline, (int, float))
+            or deadline < 0
+        ):
+            msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
+            raise ValueError(msg)
+        self.eval(
+            Expression(
+                [
+                    Symbol("import!"),
+                    self,
+                    Expression([Symbol("library"), Symbol("lib_thread")]),
+                ]
+            )
+        )
+        arguments: list[Atom] = [self, _to_atom(pattern)]
+        if deadline is not None:
+            arguments.append(Grounded(deadline))
+        target = Expression([Symbol(operation), *arguments])
+        answers = self.eval(target)
+        if not answers:
+            if deadline is None:
+                msg = f"{operation} ended without an answer"
+                raise EngineError(msg)
+            msg = (
+                f"no atom matching {pattern!r} arrived in {self._name} "
+                f"within {deadline} seconds"
+            )
+            raise TimeoutError(msg)
+        raise_error_answers(answers, space=self._space, target=target)
+        if len(answers) != 1:
+            msg = f"{operation} returned {len(answers)} answers, expected one"
+            raise EngineError(msg)
+        answer = answers[0]
+        if not isinstance(answer, Atom):
+            msg = f"{operation} returned {answer!r}, not an Atom"
+            raise EngineError(msg)
+        return answer
+
     @overload
     def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
 
@@ -945,7 +1051,8 @@ class Space:
         _refuse_in_batch(self._space, "clear")
         clear_definitions(self)
 
-    def __iadd__(self, atom: Any) -> Self:
+    # A handle mutates its store while an atom's + constructs a term.
+    def __iadd__(self, atom: Any) -> Self:  # type: ignore[override]
         """add()'s operator spelling, one atom per use: `m += [1, 2]`
         LIFTS the list into one expression atom, exactly as m.add([1, 2])
         does, so the two spellings never read one operand two ways. The
@@ -954,11 +1061,13 @@ class Space:
         self.add(atom)
         return self
 
-    def __isub__(self, atom: Any) -> Self:
+    # A handle mutates its store while an atom's - constructs a term.
+    def __isub__(self, atom: Any) -> Self:  # type: ignore[override]
         self.remove(atom)
         return self
 
-    def __ior__(self, other: Any) -> Self:
+    # A handle merges stores while an atom's | constructs a term.
+    def __ior__(self, other: Any) -> Self:  # type: ignore[override]
         """Merge into this space in one bulk crossing: every atom of
         another space, of a registered space name, or of an iterable.
 
@@ -1014,7 +1123,7 @@ class Space:
         """Iterate the stored atoms: for atom in m."""
         return iter(self.atoms())
 
-    def __getitem__(self, pattern: Any) -> Rows:
+    def __getitem__(self, i: Any) -> Rows:
         """Subscription is query: m[pattern] answers query(pattern), and
         m[p1, p2] arrives as a tuple, so the comma spells the join:
 
@@ -1025,6 +1134,7 @@ class Space:
         readings have their own doors, query(limit=) for a bounded answer
         set and stream() for rows pulled until you have seen enough.
         """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
+        pattern = i
         if isinstance(pattern, slice):
             msg = (
                 "a space cannot be sliced; query(limit=n) bounds the "
@@ -2398,7 +2508,7 @@ class Space:
         # The declaration lives in lib_tabling, which is an ordinary library
         # import rather than a load: import! skips a file already in the space,
         # so a second @m.cache in the same space costs one lookup.
-        self.eval(Expression([Symbol("import!"), Symbol("&self"),
+        self.eval(Expression([Symbol("import!"), self,
                         Expression([Symbol("library"), Symbol("lib_tabling")])]))
         if unchecked:
             self.add(Expression([Symbol("cache"), Symbol(defined.name), Symbol("unchecked")]))

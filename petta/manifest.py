@@ -17,6 +17,9 @@ Guarantees:
     test_bridge_declarations_gather_and_source_order_holds]
   - each performed form lands as its own (boot ...) atom in the booted
     space [tested test_load_and_serve_assemble_and_record]
+  - manifest space operands accept decoded Space handles as well as the
+    legacy symbol spelling [tested: test_load_and_serve_assemble_and_record;
+    commit=WORKTREE]
 Owns: the servers its serve forms started. Boot.close() stops them, on
   the failure path too; the engine and the registered providers stay,
   because passive state belongs to the space story, not to the assembler.
@@ -39,7 +42,7 @@ from typing import Any, Self, cast
 from . import remote as _remote
 from . import tables as _tables
 from ._engine import runtime
-from ._space import Space as MeTTa
+from ._space import Space
 from .atoms import Atom, Expression, Grounded, Symbol, _expr, parse
 from .errors import PettaError
 
@@ -74,7 +77,9 @@ def _is_text(atom: Any) -> bool:
 
 
 def _space_name(atom: Any) -> str | None:
-    """The space a manifest names: a symbol, &-prefixed by convention."""
+    """The space a manifest names: an executable handle."""
+    if isinstance(atom, Space):
+        return str(atom.name)
     if isinstance(atom, Symbol) and atom.name.startswith("&"):
         return atom.name
     return None
@@ -163,7 +168,7 @@ class Boot:
     Registered providers and loaded knowledge stay, they are space state.
     """
 
-    def __init__(self, m: MeTTa, servers: tuple, performed: tuple) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+    def __init__(self, m: Space, servers: tuple, performed: tuple) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self.m = m
         self.servers = servers
         self.performed = performed
@@ -186,7 +191,7 @@ class Boot:
 def boot(
     manifest: str | os.PathLike[str],
     *,
-    m: MeTTa | None = None,
+    m: Space | None = None,
     connections: Mapping[str, Any] | None = None,
     host: str = "127.0.0.1",
     token: str | None = None,
@@ -218,7 +223,7 @@ def boot(
     path = Path(os.fspath(manifest))
     directives = _validated(path, dict(connections or {}))
     assembler = _Assembler(
-        m if m is not None else MeTTa(),
+        m if m is not None else Space(),
         path,
         dict(connections or {}),
         {
@@ -303,7 +308,7 @@ class _Assembler:
 
     def __init__(
         self,
-        m: MeTTa,
+        m: Space,
         path: Path,
         connections: dict,
         serve_policy: dict,
