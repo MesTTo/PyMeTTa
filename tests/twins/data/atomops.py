@@ -1,136 +1,87 @@
-"""The Python twin of examples/data/atomops.metta: the structural operations.
+"""examples/data/atomops.metta in Python: structure, and what refuses.
 
-Every form is one call over data, so the whole twin is the term door: a symbol
-calls to build, and a plain Python tuple is the expression it is called on.
-`(1 2 3)` reads `(1, 2, 3)` and `()` reads `()`.
+The file has two halves and they belong on different rungs. Taking apart an
+expression that IS an expression is Python's own work and costs no engine at
+all: `e[0]` is the head, `e[1:]` is the rest, `e[i]` is a position, `expr(0,
+*e)` builds a new one. Those claims are written that way.
 
-The hyphenated names are subscripted because `cons-atom` is not a Python
-identifier; `S.cons_atom` would name a different symbol, so the subscript is
-the only spelling and not a drop from a shorter one.
+The other half is about what the operations do with an argument they cannot
+use, and Python cannot say it: `e[5]` raises IndexError where `index-atom`
+answers `()`, and `len(5)` raises TypeError where `size-atom` answers `()`.
+Answering rather than raising IS the claim, so those go to the operations
+themselves, by name.
 
-The second half is about REFUSAL. Until 2026-08-19 a structural operation
-handed an unbound variable unified it with a fresh cell and answered from it;
-now it refuses, and the forms below read that refusal through
-`(if-error (catch ...) refused answered)`. The refusal is narrow: a bound
-argument is untouched, and `index-atom`'s second argument stays relational, so
-an unbound index still enumerates every position.
+The last block is sharper still. An unbound VARIABLE is not a value Python
+has, and handing one where an expression is expected used to be answered
+instead of refused: `(car-atom $u)` unified its argument with a fresh cons
+cell and answered its head. Each of those claims names its own operation
+because the refusal belongs to that operation.
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
-
-#: The example's own phrasing of what a structural operation says when it is
-#: handed something that is not an expression.
-NOT_AN_EXPRESSION = val("Atom is not an ExpressionAtom")
+from petta import S, V, alpha_eq, expr, val
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 17624 to 17624, +0, by the wave-4 idiom rewrite: the
-#: forms are the same terms built at the same door, so the rewrite is a
-#: SPELLING change and the counter says so.
-BUDGET = 17624
-
-
-def refuses(call):
-    """The shape the refusal half of this example takes.
-
-    `(test (if-error (catch call) refused answered) refused)`, named once so
-    each case below reads as the call it makes.
-    """
-    return S.test(
-        S["if-error"](S.catch(call), S.refused, S.answered), S.refused
-    )
+#: RE-PINNED 2026-08-22, 17624 to 8889, -8735 (-49.56%), by the twin-shape
+#: rewrite: twenty-six `test` wrappers left the engine for `assert`, and four
+#: claims left it entirely: `e[0]`, `e[1:]`, `e[i]` and `expr(0, *e)` are
+#: native operations on an atom already held in Python. What stays is the
+#: half about refusals, which only the operations themselves can answer.
+#: Against the example's 31211 the ratio is 0.2848 [measured 2026-08-22 min-
+#: of-3: `twin_coverage.py --measure examples/data/atomops.metta`]. Prior:
+#: RE-PINNED at 17624 by the wave-4 idiom rewrite.
+BUDGET = 8889
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Take an expression apart, then ask what refuses and how."""
+    e = expr(1, 2, 3)
+    pair = S.A(S.B)
+    nothing = [expr()]
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(test (cons-atom 0 (1 2 3)) (0 1 2 3))
-    yield m.eval(S.test(S["cons-atom"](0, (1, 2, 3)), (0, 1, 2, 3)))
-    # !(test (car-atom (1 2 3)) 1)
-    yield m.eval(S.test(S["car-atom"]((1, 2, 3)), 1))
-    # !(test (cdr-atom (1 2 3)) (2 3))
-    yield m.eval(S.test(S["cdr-atom"]((1, 2, 3)), (2, 3)))
-    # !(test (index-atom (1 2 3) 1) 2)
-    yield m.eval(S.test(S["index-atom"]((1, 2, 3), 1), 2))
+    def guarded(call):
+        """Whether an operation refuses a call or answers it."""
+        return m.eval(S["if-error"](S.catch(call), S.refused, S.answered))
 
-    # !(test (id 5) 5)
-    yield m.eval(S.test(S.id(5), 5))
+    # Structure, in Python, with no crossing at all.
+    assert expr(0, *e) == expr(0, 1, 2, 3)
+    assert e[0] == 1
+    assert list(e[1:]) == [2, 3]
+    assert e[1] == 2
 
-    # !(test (=alpha (Father $X) (Father $Y)) True)
-    yield m.eval(S.test(S["=alpha"](S.Father(V.X), S.Father(V.Y)), TRUE))
-    # !(test (=alpha (Father $X) (Son $X)) False)
-    yield m.eval(S.test(S["=alpha"](S.Father(V.X), S.Son(V.X)), FALSE))
+    assert m.fn("id")(5) == 5
+    assert alpha_eq(S.Father(V.X), S.Father(V.Y))
+    assert not alpha_eq(S.Father(V.X), S.Son(V.X))
+    assert m.fn("first-from-pair")(pair) == S.A
+    assert m.fn("second-from-pair")(pair) == S.B
 
-    # !(test (first-from-pair (A B)) A)
-    yield m.eval(S.test(S["first-from-pair"]((S.A, S.B)), S.A))
-    # !(test (second-from-pair (A B)) B)
-    yield m.eval(S.test(S["second-from-pair"]((S.A, S.B)), S.B))
+    # An argument the operation cannot use is answered, not raised.
+    assert m.fn("index-atom").all(e, 5) == nothing
+    assert m.fn("index-atom").all(e, S.a) == nothing
+    assert m.fn("size-atom").all(5) == nothing
+    assert m.fn("sort-atom").all(5) == nothing
+    assert m.fn("unique-atom").all(5) == nothing
+    assert m.fn("alpha-unique-atom").all(5) == nothing
+    assert m.fn("intersection-atom").all(5, S.a()) == nothing
 
-    # An index past the end, and one that is not a number, have no answer.
-    # !(test (index-atom (1 2 3) 5) ())
-    yield m.eval(S.test(S["index-atom"]((1, 2, 3), 5), ()))
-    # !(test (index-atom (1 2 3) a) ())
-    yield m.eval(S.test(S["index-atom"]((1, 2, 3), S.a), ()))
+    # Two of them answer an Error that quotes the call instead.
+    not_expression = val("Atom is not an ExpressionAtom")
+    smallest, largest = S["min-atom"](5), S["max-atom"](5)  # rung: the expected Error QUOTES the call, so each head is written as itself
+    assert m.fn("min-atom").all(5) == [S.Error(smallest, not_expression)]
+    assert m.fn("max-atom").all(5) == [S.Error(largest, not_expression)]
 
-    # A non-expression has no size, order or unique children.
-    # !(test (size-atom 5) ())
-    yield m.eval(S.test(S["size-atom"](5), ()))
-    # !(test (sort-atom 5) ())
-    yield m.eval(S.test(S["sort-atom"](5), ()))
-    # !(test (unique-atom 5) ())
-    yield m.eval(S.test(S["unique-atom"](5), ()))
-    # !(test (alpha-unique-atom 5) ())
-    yield m.eval(S.test(S["alpha-unique-atom"](5), ()))
-
-    # min and max say so with an error atom instead, which is an ordinary
-    # answer built the same way as any other.
-    # !(test (min-atom 5) (Error (min-atom 5) "Atom is not an ExpressionAtom"))
-    yield m.eval(
-        S.test(S["min-atom"](5), S.Error(S["min-atom"](5), NOT_AN_EXPRESSION))
-    )
-    # !(test (max-atom 5) (Error (max-atom 5) "Atom is not an ExpressionAtom"))
-    yield m.eval(
-        S.test(S["max-atom"](5), S.Error(S["max-atom"](5), NOT_AN_EXPRESSION))
-    )
-
-    # !(test (intersection-atom 5 (a)) ())
-    yield m.eval(S.test(S["intersection-atom"](5, (S.a,)), ()))
-
-    # An UNBOUND VARIABLE is a program error, not a pattern to solve for.
-    # !(test (if-error (catch (car-atom $unbound)) refused answered) refused)
-    yield m.eval(refuses(S["car-atom"](V.unbound)))
-    # !(test (if-error (catch (size-atom $unbound)) refused answered) refused)
-    yield m.eval(refuses(S["size-atom"](V.unbound)))
-    # !(test (if-error (catch (sort-atom $unbound)) refused answered) refused)
-    yield m.eval(refuses(S["sort-atom"](V.unbound)))
-    # !(test (if-error (catch (index-atom $unbound 0)) refused answered) refused)
-    yield m.eval(refuses(S["index-atom"](V.unbound, 0)))
-    # !(test (if-error (catch (subtraction-atom $unbound (a b))) refused answered)
-    #        refused)
-    yield m.eval(refuses(S["subtraction-atom"](V.unbound, (S.a, S.b))))
+    # An unbound variable is a program error, and every guarded position
+    # refuses it by name rather than solving for it.
+    assert guarded(S["car-atom"](V.unbound)) == [S.refused]  # rung: the claim is this operation's own refusal of an unbound argument
+    assert guarded(S["size-atom"](V.unbound)) == [S.refused]  # rung: same claim, this operation
+    assert guarded(S["sort-atom"](V.unbound)) == [S.refused]  # rung: same claim, this operation
+    assert guarded(S["index-atom"](V.unbound, 0)) == [S.refused]  # rung: same claim, this operation
+    assert guarded(S["subtraction-atom"](V.unbound, S.a(S.b))) == [S.refused]
 
     # A bound argument is untouched, which is the half that makes the refusal
     # worth anything.
-    # !(test (if-error (catch (car-atom (1 2))) refused answered) answered)
-    yield m.eval(
-        S.test(
-            S["if-error"](S.catch(S["car-atom"]((1, 2))), S.refused, S.answered),
-            S.answered,
-        )
-    )
-    # !(test (car-atom (1 2)) 1)
-    yield m.eval(S.test(S["car-atom"]((1, 2)), 1))
+    assert guarded(S["car-atom"](expr(1, 2))) == [S.answered]  # rung: the same guarded position, now given a real expression
+    assert expr(1, 2)[0] == 1
 
-    # index-atom's SECOND argument is relational by design.
-    # !(test (collapse (index-atom (a b c) $i)) (a b c))
-    yield m.eval(
-        S.test(
-            S.collapse(S["index-atom"]((S.a, S.b, S.c), V.i)), (S.a, S.b, S.c)
-        )
-    )
+    # The refusal is narrow: index-atom's SECOND argument is relational by
+    # design, so an unbound index still enumerates every position in turn.
+    assert m.fn("index-atom").all(S.a(S.b, S.c), V.i) == [S.a, S.b, S.c]

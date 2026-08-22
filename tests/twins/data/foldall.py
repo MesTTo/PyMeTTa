@@ -1,168 +1,83 @@
-"""The Python twin of examples/data/foldall.metta: folding a generator.
+"""examples/data/foldall.metta in Python: aggregating a generator's answers.
 
-`foldall` takes an aggregating function and a GENERATOR, and folds the
-generator's answers. The example varies both halves: the aggregator is a named
-function or a `|->` lambda, and the generator is a call with no arguments, a
-call with one, or a lambda applied to a free variable.
+`foldall` takes an aggregator, a GENERATOR TERM and a seed, and folds every
+answer the generator gives. The term matters: `(f)` answers 2 and then 3, and
+foldall sees both, so the argument cannot be evaluated on the way in. That is
+why the calls here build the term and hand it over rather than calling anything
+in Python first.
 
-`merge` and `g` are computations and are written as ones. `g`'s two clauses
-are two `def`s whose literal defaults are their head patterns, which is the
-compiled subset's own spelling for stacked equations.
+The ten claims are the same fold with the aggregator and the generator each
+written four ways: a defined function, a lambda, a lambda bound by a `let`,
+and a lambda applied to a variable. A `let` that only names a value is Python's
+own assignment, so the bindings become locals and only the two `if`-wrapped
+forms keep a term of their own.
 
-`f` is the one that drops a rung. Its two clauses share a nullary head, so
-there is no head pattern to tell one `def` from the other and a second `def f`
-REBINDS the name rather than stacking a clause; the equivalent Python is a
-generator, which stores `(= (f) (superpose (2 3)))` instead of two equations.
-The answers are the same multiset, which is what `foldall` folds, and the
-residue table records the missing spelling against P14.4.
-
-The `let`, `let*` and `|->` forms stay at the term door because they are
-runnable FORMS rather than function bodies: there is no Python statement
-position to spell a `let` in, and the aggregator being bound is the thing each
-form is about.
+`f` and `g` are the two shapes of stacked clause. `g`'s clauses fix a LITERAL
+in an argument position, which is what a compiled default is, so `g` is two
+ordinary defs. `f` is nullary and has no argument position to fix, so a second
+`def f()` would REBIND the Python name and lose the first equation; those two
+clauses are written as the equations they are (filed as friction).
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE = val(value=True)
-
-#: The aggregating lambda `(|-> ($x $y) (+ $x $y))`, named once because the
-#: seven forms that use it differ in how it is BOUND, not in what it is. The
-#: generating lambdas stay inline: each one wraps a different call.
-add2 = S["|->"]((V.x, V.y), V.x + V.y)
+from petta import S, V, equation, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 22960 to 24789, +1829 (+7.97%), by the wave-4 idiom
-#: rewrite moving `f`, `g` and `merge` onto @m.define. COMPILING a definition
-#: costs more than STORING one, and the difference is paid once per process
-#: plus a little per definition, never per call: four trivial one-parameter
-#: definitions in a fresh process measured 2221 / 2986 / 3751 / 4516
-#: inferences through @m.define against 592 / 1164 / 1736 / 2308 through
-#: `m += equation(...).to(...)`, so the first compiled definition costs 1,629
-#: more and each one after it 193 more. The net here is smaller than four
-#: times that because the generator spelling of `f` stores ONE equation where
-#: the original stores two: measured all-container 22960, generator `f` alone
-#: 24339, compiled `merge` alone 24589, compiled `g` alone 24653.
-BUDGET = 24789
+#: RE-PINNED 2026-08-22, 24789 to 22717, -2072 (-8.36%), by the twin-shape
+#: rewrite: ten `test` wrappers left the engine for `assert`, and the `let`
+#: and `let*` terms that bound the lambdas became Python locals, so nothing
+#: reduces to bind them. `f` moved the other way, from one compiled generator
+#: to the TWO stored equations the original writes: the generator spelling
+#: stores `(= (f) (superpose (2 3)))`, one clause where the example has two,
+#: and the same file with it measures 22660, so faithfulness costs 57 here.
+#: Against the example's 35344 the ratio is 0.6427 [measured 2026-08-22 min-
+#: of-3: `twin_coverage.py --measure examples/data/foldall.metta`]. Prior:
+#: RE-PINNED at 24789 by the wave-4 idiom rewrite.
+BUDGET = 22717
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Fold two answers into five, ten ways round."""
+    add = S["|->"]((V.x, V.y), V.x + V.y)
+    answering_f = S["|->"]((V.z,), S.f())
+    answering_g = S["|->"]((V.z,), S.g(V.z))
+    twice_g = S["|->"]((V.z,), 2 * S.g(V.z))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
+    def fold(aggregate, generator, start=0):
+        """Aggregate every answer of `generator`, starting from `start`."""
+        return m.eval(S.foldall(aggregate, generator, start))
+
+    m += equation(S.f()).to(2)
+    m += equation(S.f()).to(3)
 
     @m.define
-    def f():
-        # (= (f) 2) (= (f) 3), as one generator: yield IS superpose
-        yield 2
-        yield 3
-
-    @m.define
-    def g(_n=1):
-        # (= (g 1) 2): a literal default is the head pattern for that
-        # position, so the parameter is MATCHED and never read, which is what
-        # the underscore says
+    def g(x=1):  # noqa: ARG001  -- the default IS the head pattern, and this clause answers a constant
         return 2
 
     @m.define
-    def g(_n=2):  # noqa: F811  -- a second clause of the same equation, not a redefinition
-        # (= (g 2) 3)
+    def g(x=2):  # noqa: ARG001, F811  -- stacked clauses are stacked equations, so the second def adds one rather than replacing it
         return 3
 
     @m.define
     def merge(a, b):
-        # (= (merge $A $B) (+ $A $B))
         return a + b
 
-    # agg function plus arg-free generator
-    # !(test (foldall merge (f) 0) 5)
-    yield m.eval(S.test(S.foldall(S.merge, S.f(), 0), 5))
+    # A named aggregator over an argument-free and then an argument-ful
+    # generator.
+    assert fold(S.merge, S.f()) == [5]
+    assert fold(S.merge, S.g(V.x)) == [5]
 
-    # agg function plus arg-ful generator
-    # !(test (foldall merge (g $x) 0) 5)
-    yield m.eval(S.test(S.foldall(S.merge, S.g(V.x), 0), 5))
+    # The same folds with a lambda. `(let $agg <lambda> ...)` is this local.
+    assert fold(add, S.f()) == [5]
+    assert fold(add, S.g(V.z)) == [5]
+    assert fold(add, S.g(V.z)) == [5]
 
-    # agg lambda plus arg-free generator
-    # !(test (let $agglambda (|-> ($x $y) (+ $x $y)) (foldall $agglambda (f) 0)) 5)
-    yield m.eval(
-        S.test(S.let(V.agglambda, add2, S.foldall(V.agglambda, S.f(), 0)), 5)
-    )
+    # A lambda generator, applied to a variable it ignores and then uses.
+    assert fold(add, expr(answering_f, V.x)) == [5]
+    assert fold(add, expr(answering_g, V.x)) == [5]
+    assert fold(add, expr(answering_g, V.w)) == [5]
 
-    # agg lambda plus arg-ful generator, written twice in the original
-    # !(test (let $agglambda (|-> ($x $y) (+ $x $y)) (foldall $agglambda (g $z) 0)) 5)
-    for _ in range(2):
-        yield m.eval(
-            S.test(
-                S.let(V.agglambda, add2, S.foldall(V.agglambda, S.g(V.z), 0)), 5
-            )
-        )
-
-    # agg lambda plus lambda arg-free generator
-    # !(test (let* (($agglambda (|-> ($x $y) (+ $x $y)))
-    #               ($genlambda (|-> ($z) (f))))
-    #             (foldall $agglambda ($genlambda $x) 0)) 5)
-    yield m.eval(
-        S.test(
-            S["let*"](
-                ((V.agglambda, add2), (V.genlambda, S["|->"]((V.z,), S.f()))),
-                S.foldall(V.agglambda, (V.genlambda, V.x), 0),
-            ),
-            5,
-        )
-    )
-
-    # agg lambda plus lambda arg-ful generator
-    # !(test (let* (($agglambda (|-> ($x $y) (+ $x $y)))
-    #               ($genlambda (|-> ($z) (g $z))))
-    #             (foldall $agglambda ($genlambda $x) 0)) 5)
-    yield m.eval(
-        S.test(
-            S["let*"](
-                (
-                    (V.agglambda, add2),
-                    (V.genlambda, S["|->"]((V.z,), S.g(V.z))),
-                ),
-                S.foldall(V.agglambda, (V.genlambda, V.x), 0),
-            ),
-            5,
-        )
-    )
-
-    # lambdas as arg directly
-    # !(test (foldall (|-> ($x $y) (+ $x $y)) ((|-> ($z) (g $z)) $w) 0) 5)
-    yield m.eval(
-        S.test(
-            S.foldall(add2, (S["|->"]((V.z,), S.g(V.z)), V.w), 0),
-            5,
-        )
-    )
-
-    # lambdas as arg directly within syntactic construct
-    # !(test (foldall (if True (let $f (|-> ($x $y) (+ $x $y)) $f) (empty))
-    #                 ((|-> ($z) (g $z)) $w) 0) 5)
-    yield m.eval(
-        S.test(
-            S.foldall(
-                S["if"](TRUE, S.let(V.f, add2, V.f), S.empty()),
-                (S["|->"]((V.z,), S.g(V.z)), V.w),
-                0,
-            ),
-            5,
-        )
-    )
-    # !(test (foldall (if True (let $f (|-> ($x $y) (+ $x $y)) $f) (empty))
-    #                 ((|-> ($z) (* 2 (g $z))) $w) 0) 10)
-    yield m.eval(
-        S.test(
-            S.foldall(
-                S["if"](TRUE, S.let(V.f, add2, V.f), S.empty()),
-                (S["|->"]((V.z,), 2 * S.g(V.z)), V.w),
-                0,
-            ),
-            10,
-        )
-    )
+    # And the aggregator arriving out of a syntactic construct rather than
+    # out of a name.
+    chosen = S["if"](True, S.let(V.agg, add, V.agg), S.empty())  # rung: the aggregator must reach foldall as a TERM, so its `if` and `let` stay terms too  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert fold(chosen, expr(answering_g, V.w)) == [5]
+    assert fold(chosen, expr(twice_g, V.w)) == [10]

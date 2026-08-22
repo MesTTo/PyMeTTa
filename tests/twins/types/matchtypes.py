@@ -1,66 +1,45 @@
-"""The Python twin of examples/types/matchtypes.metta: comparing two types.
+"""examples/types/matchtypes.metta in Python: types compared as ordinary atoms.
 
-A type is an ordinary atom, so comparing two of them is `==` and nothing more.
-`match-types` is that comparison wrapped in an `if`, and `match-type-or` layers
-one on top: answer True when the two types agree, and the value itself when
-they do not.
+`match-types` takes two TYPES and two branches and answers one of them. Nothing
+about it is special: a type is an atom, `==` compares atoms, and the whole
+function is one conditional. `match-type-or` is built on top and answers True
+when the two types agree and its own value otherwise.
 
-Both equations are written at the container door, and `match-types` has a second
-reason wave one did not record: it is already an engine builtin, so
-`@m.define(name="match-types")` refuses with "'match-types' is already a
-function this space answers" before the body is even read. `match-type-or`'s
-body then CALLS it, and a compiled body resolves a free name EXACTLY, so a
-hyphenated function cannot be reached from one (wave one recorded that against
-P14.4 for `fibsmart`). Writing one of the pair at each door would say the two
-equations differ in kind, and they do not.
-
-The two strings the first two forms answer are DATA, `val(...)`-marked: they
-are what the program computes, not what it is written in.
+Both clauses are written at the container door, because the definitional
+decorator refuses a name the space already answers, `match-types` among them,
+and stacking a clause onto an existing definition is exactly what the original
+does. The bodies are terms for the same reason, which is why the `if` and the
+`==` are named rather than written as Python's own.
 """
 
-from petta import S, V, equation, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 7016 to 7492, +476, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 7016 by 47554fc's control/types twin baseline.
-BUDGET = 7492
-
-MATCHED, MISSED = val("Matched!"), val("Didn't match")
+#: RE-PINNED 2026-08-22, 7492 to 4378, -3114 (-41.56%), by the twin-shape
+#: rewrite: the four `test` wrappers left the engine for `assert`; the two
+#: stacked clauses and the six calls over them are all that is left. Against
+#: the example's 13774 the ratio is 0.3178 [measured 2026-08-22 min-of-3:
+#: `twin_coverage.py --measure examples/types/matchtypes.metta`]. Prior: RE-
+#: PINNED at 7492 by P14.8's m.eval fuel-scope alignment.
+BUDGET = 4378
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # (= (match-types $A $B $Then $Else) (if (== $A $B) $Then $Else))
-    m += equation(S["match-types"](V.a, V.b, V.then, V.els)).to(S["if"](V.a.eq(V.b), V.then, V.els))
-
-    # !(match-types Atom Atom "Matched!" "Didn't match") answers ("Matched!")
-    yield m.eval(S["match-types"](S.Atom, S.Atom, MATCHED, MISSED))
-    # !(match-types Atom Number "Matched!" "Didn't match")
-    # answers ("Didn't match")
-    yield m.eval(S["match-types"](S.Atom, S.Number, MATCHED, MISSED))
-
-    # (= (match-type-or $value $type1 $type2) (match-types $type1 $type2 True $value))
-    m += equation(S["match-type-or"](V.value, V.first, V.second)).to(
-        S["match-types"](V.first, V.second, TRUE, V.value)
+    """Define the two functions, then compare four pairs of types."""
+    m += equation(S["match-types"](V.A, V.B, V.Then, V.Else)).to(
+        S["if"](V.A.eq(V.B), V.Then, V.Else)  # rung: the clause is a built term, so its `if` is one too (P14.4)
+    )
+    m += equation(S["match-type-or"](V.value, V.type1, V.type2)).to(
+        S["match-types"](V.type1, V.type2, True, V.value)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     )
 
-    # !(test (match-type-or True Number Number) True)
-    yield m.eval(S.test(S["match-type-or"](TRUE, S.Number, S.Number), TRUE))
-    # !(test (match-type-or False Number Number) True)
-    yield m.eval(S.test(S["match-type-or"](FALSE, S.Number, S.Number), TRUE))
-    # !(test (match-type-or True Number Bool) True)
-    yield m.eval(S.test(S["match-type-or"](TRUE, S.Number, S.Bool), TRUE))
-    # !(test (match-type-or False Number Bool) False)
-    yield m.eval(S.test(S["match-type-or"](FALSE, S.Number, S.Bool), FALSE))
+    matched = m.fn("match-types")
+    assert matched(S.Atom, S.Atom, S.yes, S.no) == S.yes
+    assert matched(S.Atom, S.Number, S.yes, S.no) == S.no
+
+    # The two types agree, so the value never gets a say; when they differ it
+    # is the answer.
+    assert m.fn("match-type-or")(True, S.Number, S.Number) is True  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert m.fn("match-type-or")(False, S.Number, S.Number) is True  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert m.fn("match-type-or")(True, S.Number, S.Bool) is True  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert m.fn("match-type-or")(False, S.Number, S.Bool) is False  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch

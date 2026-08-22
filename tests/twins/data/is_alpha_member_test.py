@@ -1,158 +1,73 @@
-"""The Python twin of examples/data/is_alpha_member_test.metta.
+"""examples/data/is_alpha_member_test.metta in Python: membership modulo renaming.
 
-`is-alpha-member` asks whether an expression holds a child equal to the given
-one up to renaming its variables, so every case is the same question over a
-different pair, and `member` names that question once. The cases then read as
-the data they are: a plain Python tuple IS the expression its children make.
+`is-alpha-member` asks whether a list holds a term that is the same as the one
+you have UP TO the names of its variables, so `(f $x)` is a member of
+`((f $y) (g $z))` while Python's own `in`, which compares structurally, says it
+is not. That difference is the whole subject, so the claims go to the operation
+itself, and the two spellings are put side by side once to show where they part.
 
-Two edges worth reading off the answers. Alpha-equivalence is structural, so
-`(f $x)` is a member of `((f $y) (g $z))` but not of `((f $x $y) (g $z))`,
-because arity differs. And a bare variable is a member of a list of variables
-and of nothing else, which is why case 2 answers false and case 12 answers
-true.
+The cases walk the edges: an empty list, a variable against ground terms, a
+ground term, nested structure, a repeated variable that must repeat in the
+match too, differing arities, numbers, and the empty expression as a member.
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `true` and `false` mean inside a term.
-#: Named rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import S, V, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 16069 to 16069, +0, by the wave-4 idiom rewrite: the
-#: forms are the same terms built at the same door, so the rewrite is a
-#: SPELLING change and the counter says so.
-BUDGET = 16069
-
-
-def member(needle, haystack, expected):
-    """The one form every case of this example takes.
-
-    `(test (is-alpha-member needle haystack) expected)`.
-    """
-    return S.test(S["is-alpha-member"](needle, haystack), expected)
+#: RE-PINNED 2026-08-22, 16069 to 12361, -3708 (-23.08%), by the twin-shape
+#: rewrite: twenty-two `test` wrappers left the engine for `assert`; every
+#: membership question still runs in the engine, because alpha-equivalence is
+#: what Python's own `in` does NOT do, and the twin says so with a claim.
+#: Against the example's 29435 the ratio is 0.4199 [measured 2026-08-22 min-
+#: of-3: `twin_coverage.py --measure
+#: examples/data/is_alpha_member_test.metta`]. Prior: RE-PINNED at 16069 by
+#: the wave-4 idiom rewrite.
+BUDGET = 12361
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Ask about membership for twenty-two shapes of needle and haystack."""
+    member = m.fn("is-alpha-member")
+    letters = S.a(S.b, S.c)
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # Test 1: Empty list should return false
-    # !(test (is-alpha-member x ()) false)
-    yield m.eval(member(S.x, (), FALSE))
+    assert member(S.x, expr()) is False
+    assert member(V.x, letters) is False
+    assert member(S.a, letters) is True
+    assert member(S.d, letters) is False
 
-    # Test 2: Variable in list of atoms should not match
-    # !(test (is-alpha-member $x (a b c)) false)
-    yield m.eval(member(V.x, (S.a, S.b, S.c), FALSE))
+    # Alpha-equivalence: the variable names differ and the structure does not.
+    assert member(S.f(V.x), expr(S.f(V.y), S.g(V.z))) is True
+    assert member(S.f(V.x), expr(S.f(V.y), S.f(V.y))) is True
+    assert S.f(V.x) not in expr(S.f(V.y), S.g(V.z))
 
-    # Test 3: Ground term membership
-    # !(test (is-alpha-member a (a b c)) true)
-    yield m.eval(member(S.a, (S.a, S.b, S.c), TRUE))
-    # !(test (is-alpha-member d (a b c)) false)
-    yield m.eval(member(S.d, (S.a, S.b, S.c), FALSE))
+    # Nested structure, and a repeated variable that must repeat in the match.
+    assert member(S.f(S.g(V.x), V.y), expr(S.f(S.g(V.a), V.b), S.h(V.c, V.d))) is True
+    assert member(S.f(S.g(V.x), V.x), expr(S.f(S.g(V.a), V.b), S.f(S.g(V.c), V.c))) is True
 
-    # Test 4: Alpha-equivalence with variables
-    # !(test (is-alpha-member (f $x) ((f $y) (g $z))) true)
-    yield m.eval(member(S.f(V.x), (S.f(V.y), S.g(V.z)), TRUE))
-    # !(test (is-alpha-member (f $x) ((f $y) (f $y))) true)
-    yield m.eval(member(S.f(V.x), (S.f(V.y), S.f(V.y)), TRUE))
+    # Different arities never match.
+    assert member(S.f(V.x), expr(S.f(V.x, V.y), S.g(V.z))) is False
 
-    # Test 5: Complex nested structures
-    # !(test (is-alpha-member (f (g $x) $y) ((f (g $a) $b) (h $c $d))) true)
-    yield m.eval(
-        member(
-            S.f(S.g(V.x), V.y),
-            (S.f(S.g(V.a), V.b), S.h(V.c, V.d)),
-            TRUE,
-        )
-    )
-    # !(test (is-alpha-member (f (g $x) $x) ((f (g $a) $b) (f (g $c) $c))) true)
-    yield m.eval(
-        member(
-            S.f(S.g(V.x), V.x),
-            (S.f(S.g(V.a), V.b), S.f(S.g(V.c), V.c)),
-            TRUE,
-        )
-    )
+    assert member(42, expr(1, 2, 42, 3)) is True
+    assert member(99, expr(1, 2, 42, 3)) is False
 
-    # Test 6: Different arities should fail
-    # !(test (is-alpha-member (f $x) ((f $x $y) (g $z))) false)
-    yield m.eval(member(S.f(V.x), (S.f(V.x, V.y), S.g(V.z)), FALSE))
+    assert member(expr(1, V.x), expr(expr(1, 2), expr(3, 4))) is True
+    assert member(expr(1, V.x), expr(expr(2, 3), expr(4, 5))) is False
 
-    # Test 7: Numbers and atoms
-    # !(test (is-alpha-member 42 (1 2 42 3)) true)
-    yield m.eval(member(42, (1, 2, 42, 3), TRUE))
-    # !(test (is-alpha-member 99 (1 2 42 3)) false)
-    yield m.eval(member(99, (1, 2, 42, 3), FALSE))
+    assert member(S.a, S.a(S.b, S.a, S.c)) is True
+    assert member(S.f(V.x, V.y), expr(S.f(V.a, V.b), S.f(V.c, V.d))) is True
 
-    # Test 8: Nested lists
-    # !(test (is-alpha-member (1 $x) ((1 2) (3 4))) true)
-    yield m.eval(member((1, V.x), ((1, 2), (3, 4)), TRUE))
-    # !(test (is-alpha-member (1 $x) ((2 3) (4 5))) false)
-    yield m.eval(member((1, V.x), ((2, 3), (4, 5)), FALSE))
+    assert member(S.a, S.a()) is True
+    assert member(S.b, S.a()) is False
 
-    # Test 9: Multiple occurrences
-    # !(test (is-alpha-member a (a b a c)) true)
-    yield m.eval(member(S.a, (S.a, S.b, S.a, S.c), TRUE))
+    # Every element is a variable, and so is the needle.
+    assert member(V.x, expr(V.y, V.z, V.w)) is True
 
-    # Test 10: Complex terms with same structure but different variables
-    # !(test (is-alpha-member (f $x $y) ((f $a $b) (f $c $d))) true)
-    yield m.eval(
-        member(S.f(V.x, V.y), (S.f(V.a, V.b), S.f(V.c, V.d)), TRUE)
-    )
+    assert member(S.a(S.b(S.c(V.x))), expr(S.a(S.b(S.c(V.d))), S.e(V.f))) is True
+    assert member(S.f(V.x), expr(S.g(V.y), S.h(V.z))) is False
 
-    # Test 11: Single element list
-    # !(test (is-alpha-member a (a)) true)
-    yield m.eval(member(S.a, (S.a,), TRUE))
-    # !(test (is-alpha-member b (a)) false)
-    yield m.eval(member(S.b, (S.a,), FALSE))
+    # The empty expression is an ordinary member.
+    assert member(expr(), expr(expr(), S.a, S.b)) is True
+    assert member(expr(), S.a(S.b, S.c)) is False
 
-    # Test 12: List with variables as elements
-    # !(test (is-alpha-member $x ($y $z $w)) true)
-    yield m.eval(member(V.x, (V.y, V.z, V.w), TRUE))
-
-    # Test 13: Deeply nested structures
-    # !(test (is-alpha-member (a (b (c $x))) ((a (b (c $d))) (e $f))) true)
-    yield m.eval(
-        member(
-            S.a(S.b(S.c(V.x))),
-            (S.a(S.b(S.c(V.d))), S.e(V.f)),
-            TRUE,
-        )
-    )
-
-    # Test 14: Terms with different functors
-    # !(test (is-alpha-member (f $x) ((g $y) (h $z))) false)
-    yield m.eval(member(S.f(V.x), (S.g(V.y), S.h(V.z)), FALSE))
-
-    # Test 15: Empty complex terms
-    # !(test (is-alpha-member () (() a b)) true)
-    yield m.eval(member((), ((), S.a, S.b), TRUE))
-    # !(test (is-alpha-member () (a b c)) false)
-    yield m.eval(member((), (S.a, S.b, S.c), FALSE))
-
-    # The closing form prints rather than tests: a let* chain whose last two
-    # pairs name their results only to run them for the printing.
-    # !(let* (($pat (hi name boss))
-    #         ($dummy1 (println! (pattern:- $pat)))
-    #         ($bool (is-alpha-member $new $pat))
-    #         ($dummy2 (println! (is member:- $bool in pattern:- $pat))))
-    #        ())
-    yield m.eval(
-        S["let*"](
-            (
-                (V.pat, (S.hi, S.name, S.boss)),
-                (V.dummy1, S["println!"](S["pattern:-"](V.pat))),
-                (V.bool, S["is-alpha-member"](V.new, V.pat)),
-                (
-                    V.dummy2,
-                    S["println!"](
-                        (S["is"], S["member:-"], V.bool, S["in"], S["pattern:-"], V.pat)
-                    ),
-                ),
-            ),
-            (),
-        )
-    )
+    pattern = S.hi(S.name, S.boss)
+    print(pattern, member(V.new, pattern))

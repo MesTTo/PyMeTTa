@@ -1,81 +1,58 @@
-"""The Python twin of examples/types/types_nondet.metta: one name, two signatures.
+"""examples/types/types_nondet.metta in Python: one name, two signatures.
 
-`f` is declared for `Type1` AND for `Type2`, so an argument arrives as either
-and the OUTPUT type has to agree with the branch that ran. `T3in` is a `Type1`
-whose branch answers a `Type2`, so the call has no answer at all; declaring
-`T3in` a `Type2` as well makes the same call answer.
+`f` is declared for Type1 AND for Type2, so its argument arrives as either and
+the OUTPUT type decides which calls survive. `T3in` is a Type1, and a Type1
+argument cannot reach a Type2 answer, so `(f T3in)` has no answer at all until
+`T3in` is also declared a Type2, at which point the Tdefault branch is
+acceptable and answers.
 
-The comparison is `=alpha` rather than `==` and the reason is the file's own
-subject: `(== T2in T1in)` compares two KNOWN and different types, which `==`
-refuses by name. Both references refuse the `==` spelling too.
-
-`f` is written at the container door: `=alpha` is not a Python identifier, so
-no compiled body can name it, and no alias reaches it either, since a body
-resolves a free name EXACTLY and an alias would store the alias.
+The clause is written as an equation because its body compares with `=alpha`,
+which a compiled body has no name for, and because this file's own subject
+says why `=alpha` and not `==`: `(== T2in T1in)` compares two KNOWN and
+different types, which `==` refuses by name. Both references refuse the `==`
+spelling too, hyperon and the mechanised interpreter alike.
 """
 
-from petta import S, V, equation
+from petta import S, V, equation, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 8674 to 9449, +775, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 8674 by 47554fc's control/types twin baseline.
-BUDGET = 9449
+#: RE-PINNED 2026-08-22, 9449 to 4773, -4676 (-49.49%), by the twin-shape
+#: rewrite: three `test` wrappers left the engine for `assert`, and the
+#: fourth claim still runs in the engine, through `collapse`, because a flat
+#: call at the Python door skips the output-type filter. Against the
+#: example's 16134 the ratio is 0.2958 [measured 2026-08-22 min-of-3:
+#: `twin_coverage.py --measure examples/types/types_nondet.metta`]. Prior:
+#: RE-PINNED at 9449 by P14.8's m.eval fuel-scope alignment.
+BUDGET = 4773
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Declare two arrows for one name, then watch the output type filter."""
+    typed, arrow = S[":"], S["->"]
     alpha = S["=alpha"]
 
-    # (: f (-> Type1 Type1))
-    m += S[":"](S.f, S["->"](S.Type1, S.Type1))
-    # (: f (-> Type2 Type2))
-    m += S[":"](S.f, S["->"](S.Type2, S.Type2))
+    m += typed(S.f, arrow(S.Type1, S.Type1))
+    m += typed(S.f, arrow(S.Type2, S.Type2))
 
-    # (= (f $a)
-    #    (if (=alpha $a T1in)
-    #        T1out
-    #        (if (=alpha $a T2in)
-    #            T2out
-    #            Tdefault)))
-    m += equation(S.f(V.a)).to(
-        S["if"](
-            alpha(V.a, S.T1in),
-            S.T1out,
-            S["if"](alpha(V.a, S.T2in), S.T2out, S.Tdefault),
-        )
-    )
+    otherwise = S["if"](alpha(V.a, S.T2in), S.T2out, S.Tdefault)  # rung: the clause is a term because its test is `=alpha` (P14.4)
+    m += equation(S.f(V.a)).to(S["if"](alpha(V.a, S.T1in), S.T1out, otherwise))  # rung: same clause, same reason
 
-    # (: T1in Type1)
-    m += S[":"](S.T1in, S.Type1)
-    # (: T1out Type1)
-    m += S[":"](S.T1out, S.Type1)
-    # (: T2in Type2)
-    m += S[":"](S.T2in, S.Type2)
-    # (: T2out Type2)
-    m += S[":"](S.T2out, S.Type2)
+    m += typed(S.T1in, S.Type1)
+    m += typed(S.T1out, S.Type1)
+    m += typed(S.T2in, S.Type2)
+    m += typed(S.T2out, S.Type2)
+    m += typed(S.T3in, S.Type1)
+    m += typed(S.Tdefault, S.Type2)
 
-    # (: T3in Type1)
-    m += S[":"](S.T3in, S.Type1)
-    # (: Tdefault Type2)
-    m += S[":"](S.Tdefault, S.Type2)
+    assert m.fn("f")(S.T1in) == S.T1out
+    assert m.fn("f")(S.T2in) == S.T2out
 
-    # !(test (f T1in) T1out)
-    yield m.eval(S.test(S.f(S.T1in), S.T1out))
-    # !(test (f T2in) T2out)
-    yield m.eval(S.test(S.f(S.T2in), S.T2out))
-    # Type1 of T3in does not go along with Type2 output.
-    # !(test-no-answer (f T3in)) answers (True)
-    yield m.eval(S["test-no-answer"](S.f(S.T3in)))
+    # Type1 in, Type2 out: no signature admits that, so nothing answers.
+    # This one is asked through collapse because a FLAT call at the Python
+    # door skips the output-type filter the engine's own form applies and
+    # answers Tdefault (filed as friction, with the reproduction).
+    assert m.eval(S.collapse(S.f(S.T3in))) == [expr()]  # rung: collapse is list(), but list() over the Python call door would collect an answer the engine does not give
 
-    # But if we make T3in also of Type2 then it is fine if output is Type2.
-    # (: T3in Type2)
-    m += S[":"](S.T3in, S.Type2)
-    # !(test (f T3in) Tdefault)
-    yield m.eval(S.test(S.f(S.T3in), S.Tdefault))
+    # Declare T3in a Type2 as well and the Type2 signature admits it.
+    m += typed(S.T3in, S.Type2)
+    assert m.fn("f")(S.T3in) == S.Tdefault

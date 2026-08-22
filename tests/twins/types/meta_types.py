@@ -1,43 +1,48 @@
-"""The Python twin of examples/types/meta_types.metta: the four metatypes.
+"""examples/types/meta_types.metta in Python: the metatype IS the Python class.
 
-Every atom is one of four kinds, and `get-metatype` says which: `Expression`,
-`Grounded`, `Variable`, `Symbol`. The Python surface has one builder per kind
-and they line up exactly, which is what this file is: a Python tuple builds an
-Expression, `val(...)` a Grounded, `V.x` a Variable and `S.a` a Symbol.
+MeTTa's four kinds are four Python classes here, so `get-metatype` and Python's
+own `type()` answer the same question and this twin asks both of every atom the
+example asks about. `Sym`, `Var`, `Expr` and `Gnd` are the classes; `Symbol`,
+`Variable`, `Expression` and `Grounded` are the names the engine answers with.
 
-A grounded number written as a bare `1` in an argument list encodes to the
-same `Gnd(1)`, so `S["get-metatype"](1)` is the Grounded case without any
-marking.
+One atom answers differently on the two sides, and it is the interesting one:
+`+` is a Symbol as Python holds it, because a name built at the `S.` door is
+just a name, and Grounded as the engine reads it, because the engine resolves
+that name to a builtin operation. The class is what the atom IS; the metatype
+is what the engine MAKES of it.
 """
 
-from petta import S, V
+from petta import Expr, Gnd, S, Sym, V, Var, val
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 1936 to 2046, +110, by P14.8's
-#: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
-#: reduction as it does under `!`, less the two-inference-per-runnable-form
-#: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
-#: 2026-08-22 at 1936 by 47554fc's control/types twin baseline.
-BUDGET = 2046
+#: RE-PINNED 2026-08-22, 2046 to 1077, -969 (-47.36%), by the twin-shape
+#: rewrite: the six `test` wrappers left the engine for `assert`, and every
+#: claim gained a Python-side half, `type(atom) is Sym`, which IS the
+#: metatype and costs no engine. Against the example's 4594 the ratio is
+#: 0.2344 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/types/meta_types.metta`]. Prior: RE-PINNED at 2046 by P14.8's
+#: m.eval fuel-scope alignment.
+BUDGET = 1077
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Ask both sides for the metatype of one atom of every kind."""
+    metatype = m.fn("get-metatype")
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    metatype = S["get-metatype"]
+    # An expression, however it was built.
+    assert type(S.foo(1, 2)) is Expr
+    assert metatype(S.foo(1, 2)) == S.Expression
+    assert type(S.a(S.b)) is Expr
+    assert metatype(S.a(S.b)) == S.Expression
 
-    # !(test (get-metatype (foo 1 2)) Expression)
-    yield m.eval(S.test(metatype(S.foo(1, 2)), S.Expression))
-    # !(test (get-metatype (a b)) Expression)
-    yield m.eval(S.test(metatype((S.a, S.b)), S.Expression))
-    # !(test (get-metatype 1) Grounded)
-    yield m.eval(S.test(metatype(1), S.Grounded))
-    # !(test (get-metatype +) Grounded)
-    yield m.eval(S.test(metatype(S["+"]), S.Grounded))
-    # !(test (get-metatype $x) Variable)
-    yield m.eval(S.test(metatype(V.x), S.Variable))
-    # !(test (get-metatype a) Symbol)
-    yield m.eval(S.test(metatype(S.a), S.Symbol))
+    # A ground value, a variable and a plain symbol.
+    assert type(val(1)) is Gnd
+    assert metatype(val(1)) == S.Grounded
+    assert type(V.x) is Var
+    assert metatype(V.x) == S.Variable
+    assert type(S.a) is Sym
+    assert metatype(S.a) == S.Symbol
+
+    # The one disagreement, and it is not a defect on either side.
+    assert type(S["+"]) is Sym
+    assert metatype(S["+"]) == S.Grounded

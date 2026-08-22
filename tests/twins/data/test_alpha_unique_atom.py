@@ -1,149 +1,89 @@
-"""The Python twin of examples/data/test_alpha_unique_atom.metta.
+"""examples/data/test_alpha_unique_atom.metta in Python: dedupe modulo renaming.
 
-`alpha-unique-atom` keeps one representative of each group of children that
-are equal up to renaming their variables, so every form here asks the same
-question of a different expression, and `check` is that question named once.
-Naming the shared shape is the composition the design teaches: the cases below
-then read as the DATA they are, plain Python tuples holding the children.
+`alpha-unique-atom` drops a later element when an earlier one is the same term
+up to the names of its variables, so three links that differ only in their
+variable survive as one. Every claim compares with `=alpha` rather than `==`,
+for the same reason the operation exists: the surviving element carries
+whichever variable came first, and the expected answer names a different one.
 
-Comparing with `=alpha` rather than `==` is the point of the example: the
-answer's variables are fresh, so only alpha-equivalence can judge it.
+The Python route is `petta.structures.AlphaSet`, whose membership is that same
+equivalence, so a four-line walk over it does what the operation does. The last
+claim runs both and holds them to one answer.
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE = val(value=True)
-
-#: The one symbol every group in this example is built around.
-human = S.human
+from petta import S, V, alpha_eq, expr
+from petta.structures import AlphaSet
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 15730 to 15730, +0, by the wave-4 idiom rewrite: the
-#: forms are the same terms built at the same door, so the rewrite is a
-#: SPELLING change and the counter says so.
-BUDGET = 15730
-
-
-def check(given, expected):
-    """The one form every case of this example takes.
-
-    `(test (=alpha (alpha-unique-atom given) expected) True)`.
-    """
-    return S.test(S["=alpha"](S["alpha-unique-atom"](given), expected), TRUE)
+#: RE-PINNED 2026-08-22, 15730 to 9313, -6417 (-40.79%), by the twin-shape
+#: rewrite: thirteen `test` wrappers left the engine for `assert`, and the
+#: `=alpha` comparison in each of them became `petta.alpha_eq` on the Python
+#: side, which costs no engine; the dedupe itself still runs in the engine,
+#: with one claim holding it against the AlphaSet walk that does the same
+#: thing. Against the example's 30476 the ratio is 0.3056 [measured
+#: 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/data/test_alpha_unique_atom.metta`]. Prior: RE-PINNED at 15730 by
+#: the wave-4 idiom rewrite.
+BUDGET = 9313
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Dedupe thirteen expressions modulo variable renaming."""
+    dedupe = m.fn("alpha-unique-atom")
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # 1 Basic duplicates with different variables
-    # !(test (=alpha (alpha-unique-atom ((link $x human) (link $y human) (link $z human)))
-    #                ((link $a human))) True)
-    yield m.eval(
-        check(
-            (S.link(V.x, human), S.link(V.y, human), S.link(V.z, human)),
-            (S.link(V.a, human),),
-        )
-    )
-    # !(test (=alpha (alpha-unique-atom ((parent $x human) (parent $y human) (child $z human)))
-    #                ((parent $a human) (child $b human))) True)
-    yield m.eval(
-        check(
-            (S.parent(V.x, human), S.parent(V.y, human), S.child(V.z, human)),
-            (S.parent(V.a, human), S.child(V.b, human)),
-        )
-    )
+    def first_of_each(items):
+        """The same walk in Python: AlphaSet membership IS alpha-equivalence."""
+        seen, kept = AlphaSet(), []
+        for atom in items:
+            if atom not in seen:
+                seen.add(atom)
+                kept.append(atom)
+        return expr(*kept)
 
-    # 2 Different functors
-    # !(test (=alpha (alpha-unique-atom ((parent $x human) (child $y human) (friend $z human)))
-    #                ((parent $a human) (child $b human) (friend $c human))) True)
-    yield m.eval(
-        check(
-            (S.parent(V.x, human), S.child(V.y, human), S.friend(V.z, human)),
-            (S.parent(V.a, human), S.child(V.b, human), S.friend(V.c, human)),
-        )
-    )
-    # !(test (=alpha (alpha-unique-atom ((likes $x) (hates $y) (knows $z)))
-    #                ((likes $a) (hates $b) (knows $c))) True)
-    yield m.eval(
-        check(
-            (S.likes(V.x), S.hates(V.y), S.knows(V.z)),
-            (S.likes(V.a), S.hates(V.b), S.knows(V.c)),
-        )
-    )
+    link, human = S.link, S.human
 
-    # 3 Nested structures
-    # !(test (=alpha (alpha-unique-atom ((link (foo $x) human) (link (foo $y) human)
-    #                                    (link (bar $z) human)))
-    #                ((link (foo $a) human) (link (bar $b) human))) True)
-    yield m.eval(
-        check(
-            (
-                S.link(S.foo(V.x), human),
-                S.link(S.foo(V.y), human),
-                S.link(S.bar(V.z), human),
-            ),
-            (S.link(S.foo(V.a), human), S.link(S.bar(V.b), human)),
-        )
-    )
-    # !(test (=alpha (alpha-unique-atom ((parent (child $x) human) (parent (child $y) human)
-    #                                    (parent (child $x) human)))
-    #                ((parent (child $a) human))) True)
-    yield m.eval(
-        check(
-            (
-                S.parent(S.child(V.x), human),
-                S.parent(S.child(V.y), human),
-                S.parent(S.child(V.x), human),
-            ),
-            (S.parent(S.child(V.a), human),),
-        )
-    )
+    # Duplicates that differ only in their variable.
+    assert alpha_eq(dedupe(expr(link(V.x, human), link(V.y, human), link(V.z, human))),
+                    expr(link(V.a, human)))
+    assert alpha_eq(dedupe(expr(S.parent(V.x, human), S.parent(V.y, human),
+                                S.child(V.z, human))),
+                    expr(S.parent(V.a, human), S.child(V.b, human)))
 
-    # 4 Mix of unique and duplicates
-    # !(test (=alpha (alpha-unique-atom ((link $x human) (parent $x human) (link $y human)
-    #                                    (parent $z human) (link $x human)))
-    #                ((link $a human) (parent $a human))) True)
-    yield m.eval(
-        check(
-            (
-                S.link(V.x, human),
-                S.parent(V.x, human),
-                S.link(V.y, human),
-                S.parent(V.z, human),
-                S.link(V.x, human),
-            ),
-            (S.link(V.a, human), S.parent(V.a, human)),
-        )
-    )
-    # !(test (=alpha (alpha-unique-atom ((foo $x) (foo $y) (bar $x) (foo $x) (bar $y)))
-    #                ((foo $a) (bar $a))) True)
-    yield m.eval(
-        check(
-            (S.foo(V.x), S.foo(V.y), S.bar(V.x), S.foo(V.x), S.bar(V.y)),
-            (S.foo(V.a), S.bar(V.a)),
-        )
-    )
+    # Different functors are all distinct.
+    assert alpha_eq(dedupe(expr(S.parent(V.x, human), S.child(V.y, human),
+                                S.friend(V.z, human))),
+                    expr(S.parent(V.a, human), S.child(V.b, human),
+                         S.friend(V.c, human)))
+    assert alpha_eq(dedupe(expr(S.likes(V.x), S.hates(V.y), S.knows(V.z))),
+                    expr(S.likes(V.a), S.hates(V.b), S.knows(V.c)))
 
-    # 5 Numbers and atoms
-    # !(test (=alpha (alpha-unique-atom (1 2 2 3 1 4 4 5)) (1 2 3 4 5)) True)
-    yield m.eval(check((1, 2, 2, 3, 1, 4, 4, 5), (1, 2, 3, 4, 5)))
-    # !(test (=alpha (alpha-unique-atom (a b a c b d e a)) (a b c d e)) True)
-    yield m.eval(
-        check(
-            (S.a, S.b, S.a, S.c, S.b, S.d, S.e, S.a),
-            (S.a, S.b, S.c, S.d, S.e),
-        )
-    )
+    # Nested structure is compared all the way down.
+    assert alpha_eq(dedupe(expr(link(S.foo(V.x), human), link(S.foo(V.y), human),
+                                link(S.bar(V.z), human))),
+                    expr(link(S.foo(V.a), human), link(S.bar(V.b), human)))
+    assert alpha_eq(dedupe(expr(S.parent(S.child(V.x), human),
+                                S.parent(S.child(V.y), human),
+                                S.parent(S.child(V.x), human))),
+                    expr(S.parent(S.child(V.a), human)))
 
-    # 6 Empty and single-element lists
-    # !(test (=alpha (alpha-unique-atom ()) ()) True)
-    yield m.eval(check((), ()))
-    # !(test (=alpha (alpha-unique-atom (1)) (1)) True)
-    yield m.eval(check((1,), (1,)))
-    # !(test (=alpha (alpha-unique-atom ((link $x human))) ((link $a human))) True)
-    yield m.eval(check((S.link(V.x, human),), (S.link(V.a, human),)))
+    # A mix of unique elements and duplicates keeps the first of each.
+    assert alpha_eq(dedupe(expr(link(V.x, human), S.parent(V.x, human),
+                                link(V.y, human), S.parent(V.z, human),
+                                link(V.x, human))),
+                    expr(link(V.a, human), S.parent(V.a, human)))
+    assert alpha_eq(dedupe(expr(S.foo(V.x), S.foo(V.y), S.bar(V.x), S.foo(V.x),
+                                S.bar(V.y))),
+                    expr(S.foo(V.a), S.bar(V.a)))
+
+    # Numbers and plain symbols need no renaming at all.
+    assert alpha_eq(dedupe(expr(1, 2, 2, 3, 1, 4, 4, 5)), expr(1, 2, 3, 4, 5))
+    assert alpha_eq(dedupe(S.a(S.b, S.a, S.c, S.b, S.d, S.e, S.a)),
+                    S.a(S.b, S.c, S.d, S.e))
+
+    # The empty and the single-element cases.
+    assert alpha_eq(dedupe(expr()), expr())
+    assert alpha_eq(dedupe(expr(1)), expr(1))
+
+    singleton = expr(link(V.x, human))
+    assert alpha_eq(dedupe(singleton), expr(link(V.a, human))) and alpha_eq(
+        first_of_each(singleton), expr(link(V.a, human)))
