@@ -5,34 +5,35 @@ body with that name in scope. Python spells that with an ordinary assignment
 statement, and a second assignment nests inside the first exactly as a second
 `chain` nests inside the first, which is what `summed` below reads like.
 
-The first form is stated as a term rather than as a second compiled function,
-and the reason is the lane's price: a second `@m.define` costs 1,603
-inferences and two of them put this twin at 4,415 against a ceiling of
-4,282 (measured 2026-08-22, min of three fresh processes). Filed against
-P14.14.
+Both forms are compiled now. The first was written as a term while the band
+priced two definitions against an example that authors none; with the
+authoring allowance in place the two definitions cost 4,415 against a ceiling
+of 7,268, so the file says in Python what it had been describing in a comment.
 """
 
-from petta import S, V
-
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 2146 to 3918, +1772 (+82.6%), by the twin contract
-#: change: the nested chain ENTERED the engine as a compiled body of two
-#: assignments, which is what a `chain` is, and pays `@m.define`'s fixed
-#: registration; the `test` wrappers LEFT for `assert`s. The first form stays
-#: a term because a second definition costs 1,603 more and would put the twin
-#: at 4,415 against the band's ceiling of 4,282. Measured min-of-3 over fresh
-#: processes with the MORK backend linked in, which the artefact-free
-#: worktree omits and which moves a compiled twin by about 10 inferences per
-#: definition; against the example's 3893 the ratio is 1.0064. Prior: 2146,
-#: the transliterated twin this replaces.
-BUDGET = 3918
+#: RE-PINNED 2026-08-22, 3918 to 4415, +497 (+12.7%), by lifting this twin to
+#: the definitional door now that the band pays for authoring: the first
+#: chain ENTERED the engine as a second compiled definition, so both forms
+#: are now assignments rather than one being a term. The increase is one
+#: decoration's marginal cost and nothing else. Measured min-of-3 over fresh
+#: processes with the MORK backend linked in; against the example's 3893 the
+#: ratio is 1.1341, and the ceiling is 7268, the example plus 10% plus 2986
+#: to author 2 definitions. Prior: 3918, the term-door twin the old band
+#: forced.
+BUDGET = 4415
 
 
 def twin(m):
     """Name one intermediate result, then two."""
+    @m.define
+    def scaled():
+        # (chain (+ 2 4) $n (* 3 $n))
+        n = 2 + 4
+        return 3 * n
+
     # !(test (chain (+ 2 4) $n (* 3 $n)) 18)
-    # rung: `n = 2 + 4` then `return 3 * n` is this form in a compiled body, and a second @m.define does not fit the band
-    assert m.eval(S.chain(S["+"](2, 4), V.n, 3 * V.n)) == [18]
+    assert scaled() == [18]
 
     @m.define
     def summed():

@@ -3,36 +3,33 @@
 The companion of if2: there the argument was a symbol and `is-var` answered
 False, here it is `$A` and the then arm runs, which is itself an `if`.
 
-Written at the term door for if2's second reason: `@m.define` costs 3,197
-inferences for this body against the example's whole 2,317 and a ceiling of
-2,548 (measured 2026-08-22, three fresh processes), so the Python spelling of
-a one-form example cannot fit the band that prices it. Filed against P14.14.
+Both `if`s are Python conditional expressions, compiled; the condition is
+asked at the call for if2's reason, that `is-var` is hyphenated and a compiled
+body reaches a function only by a name it can write. `lol` is capitalised for
+the same reason a compiled body reads `Lol` as data and `lol` as a function to
+call.
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE = val(value=True)
-
-#: Why this twin sits below the top rung; see the module docstring.
-RUNG = "@m.define costs 3197 inferences here against the band's ceiling of 2548"
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 955 to 806, -149 (-15.6%), by the twin contract
-#: change: the `test` wrapper LEFT the engine for `assert`; the form stays a
-#: term for if2's reason, 3,197 against a ceiling of 2,548. Measured min-of-3
-#: over fresh processes with the MORK backend linked in, which the artefact-
-#: free worktree omits and which moves a compiled twin by about 10 inferences
-#: per definition; against the example's 2317 the ratio is 0.3479. Prior:
-#: 955, the transliterated twin this replaces.
-BUDGET = 806
+#: RE-PINNED 2026-08-22, 806 to 3921, +3115 (+386.5%), by lifting this twin
+#: to the definitional door now that the band pays for authoring: both `if`s
+#: ENTERED the engine as compiled Python conditional expressions, with the
+#: condition still crossing as a term for if2's hyphen reason. Measured min-
+#: of-3 over fresh processes with the MORK backend linked in; against the
+#: example's 2317 the ratio is 1.6923, and the ceiling is 4770, the example
+#: plus 10% plus 2221 to author 1 definition. Prior: 806, the term-door twin
+#: the old band forced.
+BUDGET = 3921
 
 
 def twin(m):
     """Ask whether a variable is a variable, and take the arm that answers."""
+    @m.define
+    def chosen(flag):
+        # (if <flag> (if True 42 lol) (+ 2 2))
+        return (42 if True else Lol) if flag else 2 + 2  # noqa: F821  -- a capitalised free name in a compiled body is MeTTa data, which has no Python value to bind
+
     # !(test (if (is-var $A) (if True 42 lol) (+ 2 2)) 42)
-    assert m.eval(
-        S["if"](S["is-var"](V.A), S["if"](TRUE, 42, S.lol), S["+"](2, 2))
-    ) == [42]
+    assert chosen(S["is-var"](V.A)) == [42]
