@@ -65,7 +65,7 @@ Guarantees:
   - Handle is the common grounded species for executable references, while
     native blobs retain process-local registry identity
     [tested: test_space_handles_are_term_operands_and_round_trip;
-    commit=WORKTREE]
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]

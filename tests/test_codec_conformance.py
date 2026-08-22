@@ -20,7 +20,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - both Python codecs preserve a p-tagged executable space reference
     [tested: test_both_shipped_codecs_pass_the_shared_golden_corpus;
-    commit=WORKTREE]
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 
 Open Obligations:
   To Do: None

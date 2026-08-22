@@ -17,11 +17,11 @@ Guarantees:
     BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
   - p decodes a canonical space name into the executable Space handle for
     the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
-    commit=WORKTREE]
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - strict decoding preserves explicit s and p tags, while engine decoding
     restores only space names registered by Space plus the reserved future
     namespace [tested: test_an_ampersand_symbol_is_not_reclassified_as_a_space;
-    commit=WORKTREE]
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Open Obligations:
   To Do: None
   Hacks: None

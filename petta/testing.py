@@ -23,7 +23,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321].
   - minted-space conformance recognizes decoded Space handles in provider
     answers [tested: test_fabricated_space_identities_are_refused;
-    commit=WORKTREE]
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Open Obligations:
   To Do: None
   Hacks: None

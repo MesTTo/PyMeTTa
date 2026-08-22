@@ -62,7 +62,7 @@
 %     engine atoms retain the s tag, leaving Python to restore only names it
 %     registered as spaces without reclassifying an ampersand operator
 %     [tested: test_space_handles_are_term_operands_and_round_trip;
-%     commit=WORKTREE]
+%     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 %   - the n tag carries signed-i64 Number integers and wider BigInt integers
 %     through Janus without changing their exact value
 %     [tested 2026-08-20: test_janus_carries_bigint_losslessly]

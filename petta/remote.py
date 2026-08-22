@@ -11,7 +11,7 @@ speed and reach, never trust.
 Guarantees:
   - remote JSON decoding preserves explicit s and p tags instead of applying
     process-local engine provenance [tested:
-    test_space_handles_are_term_operands_and_round_trip; commit=WORKTREE]
+    test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - the ask/next/stop lifecycle answers a chunk at a time and never looks
     ahead, so taking two answers of an enumeration costs two answers'
     engine work whatever the enumeration's size [measured 2026-08-20 over

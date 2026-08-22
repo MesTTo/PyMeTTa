@@ -19,7 +19,7 @@ Guarantees:
     space [tested test_load_and_serve_assemble_and_record]
   - manifest space operands accept decoded Space handles as well as the
     legacy symbol spelling [tested: test_load_and_serve_assemble_and_record;
-    commit=WORKTREE]
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Owns: the servers its serve forms started. Boot.close() stops them, on
   the failure path too; the engine and the registered providers stay,
   because passive state belongs to the space story, not to the assembler.

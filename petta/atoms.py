@@ -9,7 +9,7 @@ Guarantees:
     test_parse_keeps_variable_names]
   - engine results restore registered ampersand names as Space operands while
     the public wire decoder keeps explicit s and p tags distinct [tested:
-    test_space_handles_are_term_operands_and_round_trip; commit=WORKTREE]
+    test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - exact-type formatter registrations have exact removal counterparts [tested
     test_object_repr_registrations_can_be_removed_exactly]
   - the immutable operator lowering table is public data [tested:

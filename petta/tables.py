@@ -35,7 +35,7 @@ knowledge and the attach is one line.
 Guarantees:
   - tagged atom cells preserve explicit s and p species instead of applying
     process-local engine provenance [tested:
-    test_space_handles_are_term_operands_and_round_trip; commit=WORKTREE]
+    test_space_handles_are_term_operands_and_round_trip; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - a database row becomes an atom from its typed cell values; plain text is
     always a symbol, NULL is Grounded(None), and a structured value is one tagged
     TEXT cell carrying the atom wire rather than the source parser [tested:

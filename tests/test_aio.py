@@ -15,7 +15,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async peek and take mirror the Space handle's Linda wait verbs on the
     engine worker [tested: test_async_peek_and_take_mirror_the_space_handle;
-    commit=WORKTREE]
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Open Obligations:
   To Do: None
   Hacks: None

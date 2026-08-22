@@ -3,11 +3,11 @@
 Guarantees:
   - import!, metta/3, Linda waits, built writes, spawned writes, computed
     targets, context-space, and Python constants accept Space directly
-    [tested: this module; commit=WORKTREE]
+    [tested: this module; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - a carried Space survives the public wire codec, strict writer, text and
     fast snapshots, and content digest without becoming a Symbol or object
     [tested: test_space_handles_are_term_operands_and_round_trip;
-    commit=WORKTREE]
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Open Obligations:
   To Do: None.
   Hacks: None.

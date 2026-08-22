@@ -52,7 +52,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async peek and take keep event-loop threads unblocked while the engine
     worker performs the synchronous Linda wait [tested:
-    test_async_peek_and_take_mirror_the_space_handle; commit=WORKTREE]
+    test_async_peek_and_take_mirror_the_space_handle; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
