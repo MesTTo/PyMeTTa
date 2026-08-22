@@ -4096,6 +4096,231 @@
       "row": "P14.4",
       "section": "\u00a79d rule 1: map/filter/reduce for map-atom/filter-atom/foldl-atom",
       "detail": "Three of this file's four higher-order forms are already Python syntax in the compiled subset, measured 2026-08-22: `[x + 1 for x in (1, 2, 3)]` compiles to `(map-atom (1 2 3) (|-> ($x) (+ $x 1)))`, adding an `if` compiles to a `filter-atom` inside it, and `sum((1, 2, 3, 4))` compiles to `(foldl-atom (1 2 3 4) 0 +)`. The fourth has no spelling: folding with a NAMED function is `functools.reduce(foldfun, items, 0)`, and `reduce` is neither in the compiler's Python-builtin bridge (_define_expression._PYBUILTIN_CALLS carries len, abs, min, max, sum, sorted, pow, str, repr, round, range) nor resolvable as an engine name, so `f1b` is written as the term `S[\"foldl-atom\"](expr(1, 2, 3, 4), 0, S.foldfun)` under a declared rung. Bridging `functools.reduce` to foldl-atom is the same one-spelling lowering as `sum`, with the seed as the third argument. Sibling of this example's existing entry, which files the other half of the same wall (a hyphenated engine name cannot be written in a compiled body at all); the fixes are different, one bridging a Python builtin and one admitting a name."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/python.metta",
+      "form": null,
+      "missing": "a `py-call` that accepts a Python object held by a Python name",
+      "row": "P14.15",
+      "section": "\u00a79f host-bound operations; \u00a75 the three lanes",
+      "detail": "An object made inside the engine cannot be held by a Python name and handed back. `(py-call (types.SimpleNamespace))` answers Gnd(<SimpleNamespace>) whose `.value` IS the real object, but passing that atom, or any Python-side object through `val()`, back into `(py-call (setattr ...))` gives the callee janus's `Box` wrapper instead of the object, and setattr raises `'Box' object has no attribute 'foo'` [measured 2026-08-22 on three shapes: the engine-made namespace, a Python-made types.SimpleNamespace, and a plain class instance; all three fail identically]. So the example's three-step chain stays one `let*` term rather than three Python statements, which is the twin's one rung line."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/py_numpy.metta",
+      "form": null,
+      "missing": "a Python view of a grounded value's own Python type, and a keyword-argument spelling for a MeTTa-side call",
+      "row": "P14.15",
+      "section": "\u00a79f host-bound operations",
+      "detail": "Two halves. A numpy SCALAR does not survive the crossing back into Python: inside the engine `(py-dot (np-abs -5) __class__)` says int64, which is the tutorial's own point, while `m.eval` and `m.one` both hand Python an ordinary `int` (Gnd(5), value type int), so that claim can only be asked engine-side. An ndarray DOES survive, by reference, which is why the array claim is plain `isinstance`. And `Kwargs` remains the seam's own spelling for keyword arguments in a MeTTa-side call, with no Python-authored alternative that still crosses; \u00a78c filed the design decision and nothing has landed."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/git_import.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "`import!` has no Python spelling. `space.load(path)` is a source door the lane refuses, and the library itself writes `Expr([Sym(\"import!\"), Sym(\"&self\"), ...])` internally (space.py _cache_define), so naming the space as a symbol is the only route. Evaluating on a named handle does NOT rebind `&self`: `m.space('&x').eval(S['import!'](S['&self'], path))` imports into `&self` [measured 2026-08-22]. Every import-bearing twin in this folder carries the same one-line rung."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_duplicate_cycle.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta: the space is named as a symbol because no import door hangs off the handle."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_error_surface.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta. The error ALGEBRA itself needs no Python door: `catch` answers an `(Error ...)` atom and `e[0]` reads its head at no engine cost, which is what replaced `if-error` here."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_relative_nested.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta, beside the already-filed relative-path entry."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_space_identity.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "The sharpest instance: every OTHER door this example needs already hangs off the handle. `bind! (new-space)` is `m.space(name)`, `(match &s p present)` is `space[p]`, and `(metta t %Undefined% &s)` is `space.eval(t)`; only `import!` still takes the space by name."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/python_import.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta, beside the already-filed relative-path entry."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_extension/c_extension.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta. The rest of this example DID dissolve: `import_prolog_functions_from_file` is `m.register_prolog(path=, names=)` and the `file-exists` guard is `Path.exists()`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_extension/handle.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_space/c_space.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta. The C-backed space itself needed no rung at all: `store += atom`, `store[pattern]` and `store -= atom` are the ordinary container doors, and `(let \"cstore.pl\" (consult_global) provider)` is `m.register_prolog(path=)`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/newtons_method.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta, beside the already-filed batch-loading entry."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nars_tuffy.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Same wall as git_import.metta."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_space/c_space.metta",
+      "form": null,
+      "missing": "a compliance kit that reaches a Prolog or C provider, not only a Python one",
+      "row": "P14.15",
+      "section": "\u00a79i the catalog's four doors",
+      "detail": "`petta.testing.check_space_provider(provider)` takes a Python SpaceProvider OBJECT, so the seam's own proof harness is unreachable for a provider whose clauses live in Prolog and whose store lives in C. The MeTTa door `(check-space-provider &cstore)` is the only route, and it names the space as a symbol, which is the twin's second rung line."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_extension/handle.metta",
+      "form": null,
+      "missing": "`Handle` as a `Gnd` species, and `atom.metatype` answering the symbol rather than its name",
+      "row": "P14.5",
+      "section": "\u00a79d the concept map, \"the Python CLASS of an atom to its metatype\"",
+      "detail": "The design's rule is that the Python class of an atom IS its metatype, so `isinstance(a, Gnd)` should answer what `(get-metatype a)` answers. It does not for a native handle: `Handle.__mro__` is (Handle, Atom, object), `issubclass(Handle, Gnd)` is False, and the engine still says Grounded [measured 2026-08-22]. Separately `atom.metatype` answers the STRING 'Grounded' rather than `S.Grounded`, so the claim reads `vector.metatype == S.Grounded.name`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nilbc.metta",
+      "form": null,
+      "missing": "`typed(x, T)` exported as the declaration-term builder, and `a.alpha_eq(b)` as a method",
+      "row": "P14.5",
+      "section": "\u00a79e builders promoted from warts; \u00a79d the method forms",
+      "detail": "\u00a79e names `typed(x, T)` as the builder for `(: x T)` precisely so nobody writes `S[':'](x, T)`, and it is not exported, so this twin defines its own three-line `typed`. And \u00a79d settles `a.alpha_eq(b)` as a method while only the module function exists: `Expr` has no `alpha_eq` attribute, which this twin met as an AttributeError and now spells `alpha_eq(answer, expected)`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/logicprogset.metta",
+      "form": null,
+      "missing": "an answers view that carries an evaluation's BINDINGS",
+      "row": "P14.7",
+      "section": "\u00a79d the Rows retirement; decision 11's carrier note",
+      "detail": "`(if (once (myf $M)) $M)` asks for the BINDING of $M, and `m.eval` answers values. `m.query` binds only over stored atoms and nothing here is stored, so the variable has to leave through the term and the `if` cannot become Python's. The same wall appears in plntestdirect (`let $derivation ... $TV`) and twenty-five times in constructive_negation (`let True (f $x) $x`); P14.7 already owns the fix and this is what its absence costs the surface."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/plntestdirect.metta",
+      "form": null,
+      "missing": "an answers view that carries an evaluation's BINDINGS",
+      "row": "P14.7",
+      "section": "\u00a79d the Rows retirement; decision 11's carrier note",
+      "detail": "Same wall as logicprogset.metta: `(let $derivation (sentence (Inheritance a c) $TV) $TV)` carries $TV out of the evaluation because no Python door hands back an evaluation's bindings."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/constructive_negation.metta",
+      "form": null,
+      "missing": "an answers view that carries an evaluation's BINDINGS",
+      "row": "P14.7",
+      "section": "\u00a79d the Rows retirement; decision 11's carrier note",
+      "detail": "Same wall as logicprogset.metta, twenty-five times over: every `(collapse (let True (f $x) $x))` claim in this file loses its `collapse` to Python's answer list and keeps its `let`, because the `let` is what carries the binding out."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/peanofast.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "\u00a79e the performance note; \u00a75 the three lanes",
+      "detail": "The dissolution table makes `(length (collapse (match ...)))` into `len(space[pattern])`, and on deep answers that is asymptotically wrong. Counting 2500 Peano terms of depth up to K: the Python query door costs 251,831 inferences at K=250, 1,003,611 at 500, 4,007,233 at 1000 and 16,014,711 at 2000, quadrupling per doubling (\u0398(K\u00b2)), against the engine's own collapse-and-length at 1,308 / 2,058 / 3,558 / 6,558, which is linear; at K=2000 that is 2,442x [measured 2026-08-22, ai-tmp/probe/f_query_scaling.py]. Pushing a small TEMPLATE down restores linearity, 5,802 / 11,304 / 22,302, which is what MeTTa's own `match` template does and the Python door has no spelling for; even that costs +15.6% over the whole example here [ai-tmp/probe/f_peanofast_routes.py]. So four twins keep the engine's own count."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/peano.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "\u00a79e the performance note; \u00a75 the three lanes",
+      "detail": "The same wall peanofast.metta measures. Here `len(m.eval(S['demo-peano'](300)))` costs 2,549,185 inferences against the engine's 2,186,259, +16.2%, past the lane's 10% band [measured 2026-08-22, ai-tmp/probe/f_peano_reasoning_routes.py]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/permutations.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "\u00a79e the performance note; \u00a75 the three lanes",
+      "detail": "Python's own conjunction door exists and is correct: `m[p1, p2, ...]` answers the 362,880-row join. Counting through it costs 41,213,543 inferences against the engine's 17,626,820, +134%, because every row's ten bindings become Python atoms [measured 2026-08-22, ai-tmp/probe/f_perm_routes.py]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/matespacefast.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "\u00a79e the performance note; \u00a75 the three lanes",
+      "detail": "The extreme of the same wall: `len(m.eval(S['mate-space-demo'](19)))` tries to build 1,572,862 Python atoms and OVERFLOWS the Prolog stack before it can count them, where the engine's own `(length (collapse ...))` never materialises one [measured 2026-08-22: the twin failed to run with `set_prolog_flag(stack_limit, 16_000_000_000)` in the message]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/superpose_primes.metta",
+      "form": null,
+      "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
+      "row": "P14.14",
+      "section": "\u00a79b control and modes are with-blocks",
+      "detail": "`m.limits(timeout=, inferences=)` is the shipped mode block and it does not carry the branch allowance, so `(with-pragma! ((max-stack-depth 1000000)) ...)` stays a term. It is not decorative: without it these four divisor searches answer `(Error (find-divisor 54734431 2988) StackOverflow)` at 451,784 inferences [measured 2026-08-22]. holbenchmark.metta needs the same allowance four times."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/holbenchmark.metta",
+      "form": null,
+      "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
+      "row": "P14.14",
+      "section": "\u00a79b control and modes are with-blocks",
+      "detail": "Same wall as superpose_primes.metta: all four million-step kernels state the allowance above the evaluator's 100000 default and `m.limits` cannot."
     }
   ],
   "retired": [

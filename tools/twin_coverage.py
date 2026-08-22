@@ -79,6 +79,7 @@ import argparse
 import ast
 import json
 import keyword
+import os
 import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -708,8 +709,33 @@ def _read(text: str, outcome: parity.Outcome) -> Run:
 
 
 def _launch(source: str, root: Path) -> Run:
+    _pin_path()
     outcome, text = parity._run([sys.executable, "-c", source], root)
     return _read(text, outcome)
+
+
+#: The environment every measurement runs under. A benchmark harness DEFINES
+#: its environment rather than inheriting one, and this lane has to: an
+#: inference count here moves with the NUMBER OF PATH ENTRIES the caller
+#: happens to have. Measured 2026-08-22 on
+#: examples/integration/git_import.metta, whose `git-import!` reaches for an
+#: executable: 2 entries cost 46390, 3 cost 46435, 6 cost 46570, exactly 45
+#: inferences per entry, so something walks PATH inside a counted path. That
+#: made the same twin read 47921 under `sh check.sh`, which prepends the
+#: virtualenv's bin, and 47845 when the lane was run directly, and it would
+#: read a third figure on any other machine. `git` and `swipl` both live in
+#: /usr/bin here, so this covers what the corpus shells out to
+#: [commit=WORKTREE].
+MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
+
+
+def _pin_path() -> None:
+    """Fix PATH to MEASURED_PATH, so a budget means the same thing whoever
+    runs the lane and on whatever machine.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    canonical = os.pathsep.join(MEASURED_PATH)
+    if os.environ.get("PATH") != canonical:
+        os.environ["PATH"] = canonical
 
 
 def run_example(path: Path, root: Path = REPO) -> Run:

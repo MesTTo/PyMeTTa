@@ -9,10 +9,6 @@ The Prolog step is Python's own door: `m.register_prolog(path=, names=)` is what
 the predicates to export in the same order. The other three stay terms because
 `import!` and `git-import!` have no Python spelling; the space they write is
 therefore named as a symbol, which the residue records.
-
-One wart the lane forces and the surface should not: a twin may write a string
-constant only as an atom's name or as `val()` data, so a path bound for a
-PYTHON door has to be carried as marked data and unwrapped at the call.
 """
 
 from petta import S, val
@@ -20,29 +16,28 @@ from petta import S, val
 #: The space every import writes.
 SELF = S["&self"]  # rung: no import door hangs off the space handle
 
-#: The fixture's Prolog file and the directory `git-import!` clones into.
-#: Marked data rather than bare strings, which is the only spelling a twin has
-#: for a path; `.value` is where one is handed to a Python parameter.
-FIXTURE_PL = val("examples/integration/_fixtures/git_fixture.pl")
+#: The directory `git-import!` clones into, marked because it is data for a
+#: MeTTa call. The fixture's Prolog path is not, because it is a host path for
+#: a Python door, and it sits at the call that takes it.
 REPOS = val("./repos")
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 48663 to 47921, -742 (-1.52%), by the twin contract
-#: change: the `test` wrapper left the engine for Python's own `assert`, and
-#: `import_prolog_functions_from_file` left it for `m.register_prolog`, which
-#: registers the same one predicate through the Python door. Against the
-#: example's 52069 the ratio is 0.9203. This file still has TWO reproducible
-#: costs and the variable is still PATH, re-measured today: with the
-#: virtualenv's `bin` prepended, as `sh check.sh` prepends it, the twin costs
-#: 47921 and the example 52069; with an unmodified PATH they cost 47845 and
-#: 51993. The gap is exactly 76 on BOTH sides, so the ratio does not move. The
-#: pin is the figure the GATE produces, since `sh check.sh twins` is what judges
-#: this file [measured 2026-08-22 min-of-3: `env PATH=<venv>/bin:$PATH
-#: twin_coverage.py --measure examples/integration/git_import.metta`, against
-#: the same command without it]. Prior: RE-PINNED at 48663, +377, when the same
-#: PATH difference was first isolated; ADDED 2026-08-22 at 48286 by the wave-3
-#: twin baseline.
-BUDGET = 47921
+#: RE-PINNED 2026-08-22, 47921 to 46435, -1486 (-3.10%), by two changes with
+#: separate causes. The larger is the LANE's: an inference count here moved
+#: with the number of PATH entries the caller happened to have, 45 per entry,
+#: because `git-import!` reaches for an executable, so the same twin read 47921
+#: under `sh check.sh` and 47845 run directly and would read a third figure on
+#: another machine. The lane now fixes PATH to `MEASURED_PATH` for every
+#: measurement, and this figure is the same from every ambient environment
+#: tested. The smaller is this file's: the fixture's Prolog path is a HOST path
+#: for a Python door, so it no longer crosses as `val()` data to be unwrapped,
+#: which the lane used to force and no longer does. Against the example's 50583
+#: the ratio is 0.9180 [measured 2026-08-22 min-of-3]. Prior: RE-PINNED at
+#: 47921 by the twin contract change, when `import_prolog_functions_from_file`
+#: became `m.register_prolog`; at 48663 when the PATH difference was first
+#: isolated but read as a two-valued constant rather than a per-entry one;
+#: ADDED at 48286 by the wave-3 twin baseline.
+BUDGET = 46435
 
 
 def twin(m):
@@ -51,7 +46,10 @@ def twin(m):
 
     # The URL comes from Prolog, which register_prolog installs as a MeTTa
     # function of one argument: the base directory in, the clone URL out.
-    m.register_prolog(path=FIXTURE_PL.value, names=[S.git_fixture_url.name])
+    m.register_prolog(
+        path="examples/integration/_fixtures/git_fixture.pl",
+        names=["git_fixture_url"],
+    )
     m.eval(S["git-import!"](S.git_fixture_url(REPOS)))
 
     # The clone is now an ordinary named library.
