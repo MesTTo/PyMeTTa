@@ -12,13 +12,22 @@ Guarantees:
     test_an_empirical_envelope_passes_its_observations_and_fails_new_spread,
     test_an_empirical_envelope_cannot_license_another_protocol;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-  - malformed or legacy spread declarations cannot silently widen a budget
-    [tested: test_an_empirical_envelope_requires_complete_measurement_metadata,
-    test_spread_is_not_a_budget_door; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+  - malformed or legacy spread declarations cannot silently widen a budget,
+    and a malformed one is reported rather than raised [tested:
+    test_an_empirical_envelope_requires_complete_measurement_metadata,
+    test_spread_is_not_a_budget_door,
+    test_a_malformed_budget_is_reported_and_not_a_traceback;
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4]
   - expected printing text is written as Python text while strings carried as
-    MeTTa data still require val() [tested:
+    MeTTa data still require ground() [tested:
     test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4]
+  - every door the surface tracks landed reads clean, and every name they
+    retired is a finding that says what replaced it [tested:
+    test_the_landed_doors_read_clean,
+    test_a_retired_name_is_a_finding_naming_its_replacement,
+    test_an_exact_bracket_spelling_is_not_the_attribute_one;
+    commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -112,16 +121,18 @@ def test_the_source_scan_catches_a_planted_string(tmp_path):
         "BUDGET = 1\n"
         "def twin(m):\n"
         '    m.run("(= (f) 42) !(f)")\n'
-        '    yield m.eval("(+ 1 2)")\n'
-        '    yield m.eval(S.test(S.f(), "(f a)"))\n'
-        '    yield m.eval(m.parse("(f a)"))\n',
+        '    assert m.eval("(+ 1 2)") == [3]\n'
+        '    assert m.eval(S.f("(f a)")) == []\n'
+        '    assert m.eval(m.parse("(f a)")) == []\n'
+        '    assert m.forms("(f a) (g b)") == []\n',
         encoding="utf-8",
     )
     findings = "\n".join(coverage.scan(planted))
     assert "calls run(), which takes MeTTa source" in findings
     assert "calls parse(), which takes MeTTa source" in findings
-    assert "'(+ 1 2)' is neither a name nor val() data" in findings
-    assert "'(f a)' is neither a name nor val() data" in findings
+    assert "calls forms(), which takes MeTTa source" in findings
+    assert "'(+ 1 2)' is neither a name nor ground() data" in findings
+    assert "'(f a)' is neither a name nor ground() data" in findings
     # The docstring says (f a) too, and a docstring is documentation.
     assert findings.count("'(f a)'") == 2, findings
 
@@ -134,26 +145,30 @@ def test_the_source_scan_passes_the_shipped_twins():
 
 
 def test_a_name_and_marked_data_are_not_programs(tmp_path):
-    """The four positions a string is allowed in, and nothing else.
+    """The positions a string is allowed in, and nothing else.
 
-    `val()` is the whole escape: it says "this is a Python value carried
-    whole", which is what a MeTTa string literal is.
+    `ground()` is the whole escape: it says "this is a Python value carried
+    whole", which is what a MeTTa string literal is. The other three are the
+    naming factories' brackets, a space's own name, and a declared `name=`.
     """
     allowed = tmp_path / "allowed.py"
     allowed.write_text(
         '"""Allowed."""\n'
-        "from petta import S, sym, val\n"
+        "import petta\n"
+        "from petta import S, ground\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
-        '    yield m.eval(S["sread-command"](val("(f a)")))\n'
-        '    yield m.eval(sym("#>=")(1, 2))\n'
-        '    yield m.eval(m.fn("xor")(True, False))\n'
+        '    kb = petta.space("&kb")\n'
+        '    assert kb.eval(S["sread-command"](ground("(f a)"))) == []\n'
+        '    assert kb.eval(S["#>="](1, 2)) == [True]\n'
+        '    assert kb.eval(m.fn["xor"](True, False)) == [True]\n'
         "    @m.define(name='math-string')\n"
         "    def math_string():\n"
         '        return "s"\n',
         encoding="utf-8",
     )
     assert coverage.scan(allowed) == []
+    assert coverage.retired(allowed) == []
 
 
 def test_printing_text_is_not_forced_through_the_value_carrier(tmp_path):
@@ -161,30 +176,31 @@ def test_printing_text_is_not_forced_through_the_value_carrier(tmp_path):
     printing = tmp_path / "printing.py"
     printing.write_text(
         '"""Printing."""\n'
-        "from petta import S, val\n"
+        "from petta import S, ground\n"
         "BUDGET = 1\n"
         'PRINTED = ((S.a, "a"), (S.b, "b"))\n'
         "def twin(m):\n"
         "    assert str(S.a) == 'a'\n"
-        "    assert m.one(S.repr(S.b)) == 'b'\n"
-        "    assert [m.fn('repr')(atom) for atom, _ in PRINTED] == "
+        "    assert m.answers(m.fn.repr(S.b)).one() == 'b'\n"
+        "    assert [m.fn['repr'](atom) for atom, _ in PRINTED] == "
         "[text for _, text in PRINTED]\n"
-        "    assert val('data') == val('data')\n",
+        "    assert ground('data') == ground('data')\n",
         encoding="utf-8",
     )
     assert coverage.scan(printing) == []
+    assert coverage.retired(printing) == []
 
     data = tmp_path / "data.py"
     data.write_text(
         '"""Data."""\n'
         "BUDGET = 1\n"
         "def twin(m):\n"
-        "    assert m.one(S.identity('data')) == 'data'\n",
+        "    assert m.answers(S.identity('data')).one() == 'data'\n",
         encoding="utf-8",
     )
     findings = coverage.scan(data)
     assert len(findings) == 2
-    assert all("neither a name nor val() data" in finding for finding in findings)
+    assert all("neither a name nor ground() data" in finding for finding in findings)
 
 
 def test_a_twin_that_does_not_parse_is_a_finding_and_not_a_traceback(tmp_path):
@@ -220,6 +236,185 @@ def test_a_string_in_a_compiled_body_is_a_metta_literal(tmp_path):
     findings = coverage.scan(planted)
     assert len(findings) == 1
     assert "calls run(), which takes MeTTa source" in findings[0]
+
+
+def test_a_host_operation_body_holds_python_text(tmp_path):
+    """An operation RUNS in Python, so its strings are Python arguments.
+
+    The guide's own exemplar for the door slugs a title, and the lane sends a
+    twin that wrote `register_op` to `space.op(...)`, so refusing
+    `title.replace(" ", "-")` there would refuse the door it recommends. The
+    source doors stay refused inside an operation for the reason they are
+    refused inside a compiled body: a door is a call.
+    """
+    planted = tmp_path / "op.py"
+    planted.write_text(
+        '"""Op."""\n'
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    @m.op\n"
+        "    def slug(title: str) -> str:\n"
+        '        return title.lower().replace(" ", "-")\n'
+        "    @m.op\n"
+        "    def cheat() -> str:\n"
+        '        return m.run("(f)")\n',
+        encoding="utf-8",
+    )
+    findings = coverage.scan(planted)
+    assert len(findings) == 1, findings
+    assert "calls run(), which takes MeTTa source" in findings[0]
+    # An operation registers a grounding; it authors no equation, so it buys
+    # none of the band's authoring allowance.
+    assert coverage.definitions(planted) == 0
+
+
+# ----------------------------------------------------------- the finished surface
+
+
+#: Every door the surface tracks landed, written the way a twin writes it. This
+#: is the lane's own acceptance for the vocabulary: a door that reads as a
+#: string, a transliteration or a retired name here would report a correct twin
+#: [source: ai-briefs/twins-wave.md, Stage L's door list; commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4].
+LANDED_DOORS = (
+    '"""Purpose: every landed door, once."""\n'
+    "import math\n"
+    "import operator\n"
+    "import petta\n"
+    "from petta import (\n"
+    "    FALSE, HERE, TRUE, UNIT, Expression, G, S, State, V,\n"
+    "    and_, arrow, equation, ground, if_, in_, not_, or_, solve, typed,\n"
+    ")\n"
+    "BUDGET = 1\n"
+    "def twin(m):\n"
+    '    kb = petta.space("&doors")\n'
+    "    kb += (S.Parent, S.Tom, S.Bob)\n"
+    '    kb += ground({"port": 80})\n'
+    "    kb += G(1) + 2\n"
+    "    @m.define\n"
+    "    def square(x):\n"
+    "        return x * x\n"
+    "    @m.define\n"
+    "    def rooted(x):\n"
+    "        return math.sqrt(operator.abs(x))\n"
+    "    @m.define\n"
+    "    class Account:\n"
+    "        owner: str\n"
+    "        balance: int\n"
+    "    @m.rules\n"
+    "    def linalg(x, y):\n"
+    "        yield equation(S.transpose(S.transpose(x))).to(x)\n"
+    "        yield equation(S.t_mul(x, y)).to(S.t_mul(y, x))\n"
+    "    linalg.lower(S.topdown, requires=S.blas)\n"
+    "    answers = m.answers(square(3))\n"
+    "    assert answers.one() == 9\n"
+    "    assert answers.first(default=UNIT) == 9\n"
+    "    assert m.fn.xor(TRUE, FALSE) == [True]\n"
+    '    assert m.fn["=="](1, 1) == [True]\n'
+    "    assert str(m.fn.repr(S.a)) is not None\n"
+    "    assert m.type(S.Tom) is not None\n"
+    "    assert m.solve(S.Parent(S.Tom, V.child), HERE) is not None\n"
+    "    assert solve(4, V.x - 1) is not None\n"
+    "    assert typed(S.f, arrow(int, int)) is not None\n"
+    "    assert if_(V.n > 0, S.yes, S.no) is not None\n"
+    "    assert not_(and_(or_(TRUE, FALSE), in_(S.a, S.b))) is not None\n"
+    "    assert State[int](0, space=m) is not None\n"
+    "    assert operator.add is not None\n"
+    "    for _event in m.watch((S.Alert, V.message)):\n"
+    "        break\n"
+    "    assert m.peek((S.Job, V.n)) is not None\n"
+    "    assert m.take((S.Job, V.n)) is not None\n"
+    "    assert Expression((V.x,)) is not None\n"
+)
+
+
+def test_the_landed_doors_read_clean(tmp_path):
+    """Every door R1, R2, R3, R5 and R6 landed passes all three checks.
+
+    A class body's bare `balance: int` is an annotation with NO value, and
+    reading it as a subtree raised `AttributeError: 'NoneType' object has no
+    attribute '_fields'` out of the lane, so the class door took the whole run
+    down rather than reporting anything.
+    """
+    doors = tmp_path / "doors.py"
+    doors.write_text(LANDED_DOORS, encoding="utf-8")
+    assert coverage.scan(doors) == []
+    assert coverage.idiom(doors) == []
+    assert coverage.retired(doors) == []
+    # The two functions, the class and the rules bundle all author equations,
+    # so the band's authoring allowance counts every compiling door.
+    assert coverage.definitions(doors) == 4
+
+
+def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
+    """A deleted name reads as ordinary Python, so only the lane can say so.
+
+    `ImportError: cannot import name 'val'` says the name is gone and nothing
+    about what replaced it, which is the whole reason this names the current
+    spelling on the line that wrote the old one.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "import petta\n"
+        "from petta import Expr, S, alpha_eq, sym, val, var\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        '    kb = m.new_space("&kb")\n'
+        "    kb.register_op(print)\n"
+        '    assert kb.space_name == "&kb"\n'
+        '    assert m.fn("xor")(True, False) == [True]\n'
+        "    assert m.one(S.f(1)) == 1\n"
+        "    assert m.count() == 1\n"
+        '    assert val("data") == val("data")\n'
+        '    assert sym("f") == var("f")\n'
+        "    assert alpha_eq(S.a, S.a)\n"
+        "    assert Expr is not None\n"
+        "    assert petta.record is not None\n",
+        encoding="utf-8",
+    )
+    findings = "\n".join(coverage.retired(planted))
+    for retired_name, current in (
+        ("Expr", "write Expression"),
+        ("alpha_eq", "write a.alpha_eq(b)"),
+        ("sym", "write S[...] or S.name"),
+        ("val", "write ground(...) or G(...)"),
+        ("var", "write V[...] or V.name"),
+        ("new_space", "write petta.space(name)"),
+        ("register_op", "write space.op(...)"),
+        ("space_name", "write space.name"),
+        ("record", "write @space.define on the class"),
+        ("fn", 'write the fn namespace: fn.name, or fn["name"]'),
+        ("one", "write answers.one()"),
+        ("count", "write len(space)"),
+    ):
+        assert f"{retired_name} is retired" in findings or (
+            f"{retired_name}(...) is retired" in findings
+        ), retired_name
+        assert current in findings, current
+
+
+def test_an_exact_bracket_spelling_is_not_the_attribute_one(tmp_path):
+    """Rung 4's map is total, so a bracket name with an underscore STAYS.
+
+    `S.my_var` is the atom `my-var` and `S["my_var"]` is `my_var`; reporting
+    the bracket as redundant would have every rewriting agent silently rename
+    the atom. A plain lowercase name has no such gap and is still reported.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S, V\n"
+        "def twin(m):\n"
+        '    m += S["my_var"]\n'
+        '    m += V["_"]\n'
+        '    m += S["Ω"]\n'
+        '    m += S["lambda"]\n'
+        '    m += S["plain"]\n'
+        '    m += m.fn["car_atom"]\n',
+        encoding="utf-8",
+    )
+    findings = coverage.idiom(planted)
+    assert findings == ['line 8: S["plain"] is S.plain'], findings
 
 
 # -------------------------------------------------------------- alpha equality
@@ -337,6 +532,7 @@ def test_a_budget_is_two_sided():
     """
     twin = coverage.twin_for(REPO / "examples" / "basics" / "factorial.metta")
     budget = coverage.budget_of(twin)
+    assert isinstance(budget, int), "factorial's twin pins a POINT budget"
     left = _run(["(True)"], cost=budget)
     for observed in (budget + coverage.TOLERANCE + 1, budget // 2):
         findings = coverage._price("x.metta", twin, left, _run([], cost=observed))
@@ -458,6 +654,20 @@ def test_an_empirical_envelope_requires_complete_measurement_metadata(
         coverage.budget_of(twin)
 
 
+def test_a_malformed_budget_is_reported_and_not_a_traceback(tmp_path):
+    """A REPORT lane says what is wrong with a twin, here too.
+
+    The refusal above left `budget` as None while the finding list was already
+    non-empty, and the point-budget arithmetic below then read None as a
+    number: `unsupported operand type(s) for -: 'int' and 'NoneType'` left the
+    whole corpus run instead of one twin's finding.
+    """
+    twin = _empirical_twin(tmp_path, {"minimum": 1_000, "maximum": 1_014})
+    findings = coverage._price("x.metta", twin, _run([], cost=2_000), _run([], cost=1_007))
+    assert len(findings) == 1, findings
+    assert "BUDGET empirical envelope must contain exactly" in findings[0]
+
+
 def test_spread_is_not_a_budget_door(tmp_path):
     """The guessed symmetric allowance was deleted, not retained as a shim."""
     twin = tmp_path / "legacy.py"
@@ -484,6 +694,7 @@ def test_the_band_refuses_a_twin_that_costs_more_than_it_was_pinned_to_allow():
     """
     twin = coverage.twin_for(REPO / "examples" / "basics" / "factorial.metta")
     budget = coverage.budget_of(twin)
+    assert isinstance(budget, int), "factorial's twin pins a POINT budget"
     twin_run = _run([], cost=budget)
 
     # The example costing what the twin costs leaves the whole band spare.
@@ -630,6 +841,30 @@ def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_pa
     assert "'+'" in operators[0]
 
 
+def test_a_rules_body_carries_literals_but_lowers_no_operator(tmp_path):
+    """`@rules` stores equations, so its strings are MeTTa string literals.
+
+    Its body is EXECUTED rather than lowered from syntax, though: `x == y` on
+    two rule variables is Python's own structural equality and answers a bool,
+    so `.eq(...)` is the building spelling there and the operator rule would
+    report a correct bundle.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S, equation\n"
+        "def twin(m):\n"
+        "    @m.rules\n"
+        "    def laws(x, y):\n"
+        '        yield equation(S.label(x)).to("a literal")\n'
+        '        yield equation(S.same(x, y)).to(S["=="](x, y))\n',
+        encoding="utf-8",
+    )
+    assert coverage.scan(planted) == []
+    assert not [f for f in coverage.idiom(planted) if "operator" in f]
+    assert coverage.definitions(planted) == 1
+
+
 def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
     """`S.parse(text)` builds the term `(parse text)`; only a real call takes
     MeTTa source. Reading every call by name alone left a twin with no way to
@@ -638,9 +873,10 @@ def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
     planted = tmp_path / "head.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, val\n"
+        "from petta import S, ground\n"
         "def twin(m):\n"
-        "    assert m.eval(S.parse(val('(f a)'))) == []\n",
+        "    assert m.eval(S.parse(ground('(f a)'))) == []\n"
+        "    assert m.eval(m.fn.parse(ground('(f a)'))) == []\n",
         encoding="utf-8",
     )
     assert coverage.scan(planted) == []
@@ -650,7 +886,7 @@ def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
     real.write_text(
         '"""Doc."""\n'
         "def twin(m):\n"
-        "    yield m.run('!(f a)')\n",
+        "    assert m.run('!(f a)') == []\n",
         encoding="utf-8",
     )
     assert coverage.scan(real)
@@ -725,6 +961,27 @@ def test_a_dissolved_head_names_the_python_spelling_it_replaces(tmp_path):
     assert any("names a SPACE as a symbol" in finding for finding in findings)
 
 
+def test_an_engine_function_may_be_named_with_an_ampersand(tmp_path):
+    """The ampersand marks a space at the SYMBOL factory and nothing elsewhere.
+
+    The combinator library ships functions called `&&&` and `&^&`, so reading
+    every ampersand-prefixed factory name as a space would report two correct
+    lines in `libraries/roman_test.py` alone.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S\n"
+        "def twin(m):\n"
+        '    assert list(m.fn["&&&"](S["+"](2), S["*"](2), 1)) == [3, 2]\n'
+        '    m += S["&self"]\n',
+        encoding="utf-8",
+    )
+    findings = coverage.idiom(planted)
+    assert len(findings) == 1, findings
+    assert "'&self' names a SPACE as a symbol" in findings[0]
+
+
 def test_a_yielding_twin_is_a_finding(tmp_path):
     """A yield in twin() is the form-by-form mirror, and that is the defect.
 
@@ -757,8 +1014,8 @@ def test_a_yielding_twin_is_a_finding(tmp_path):
 def test_a_variable_headed_expression_keeps_its_only_spelling(tmp_path):
     """`Expression((V.x,))` builds ($x) and nothing shorter reaches it.
 
-    `Var` is not callable, so the Expression() rule must fire on a SYMBOL head
-    only; firing on a variable would demand a spelling that does not exist.
+    `Variable` is not callable, so the Expression() rule must fire on a SYMBOL
+    head only; firing on a variable would demand a spelling that does not exist.
     """
     planted = tmp_path / "planted.py"
     planted.write_text(

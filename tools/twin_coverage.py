@@ -41,8 +41,16 @@ Assumes:
     section 9d rule 1, "assert and pytest for the assert family"]
 Guarantees:
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
-    the four source doors and any string that is not a name or val()-marked
+    the five source doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
+  - a twin naming something the narrow core deleted is a finding that names the
+    current spelling, so `val`, `sym`, `var`, `m.new_space` and `m.fn("name")`
+    cannot pass as vocabulary [tested:
+    test_a_retired_name_is_a_finding_naming_its_replacement; commit=8c057bb8055459cc13127d89b418deb634b90ae4]
+  - every door the surface tracks landed reads clean: the naming factories,
+    the answer view, the keyword builders, the coordination verbs, the class
+    door and the standard-module mentions inside a compiled body
+    [tested: test_the_landed_doors_read_clean; commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the
@@ -82,6 +90,10 @@ Fails when:
   - an example's answers are nondeterministically ordered, which the same
     comparison in example_parity already documents: groups are compared in
     order and a genuinely unordered answer set would read as a difference
+  - a retired name can only be told from a live one by the RECEIVER'S TYPE.
+    `m.space(name)` on a handle is deleted while `ctx.space(name)` is the live
+    door, and reading types is not this lane's job, so the twin's own run
+    reports it as `'Space' object has no attribute 'space'` instead
 Open Obligations:
   To Do: None
   Hacks: None
@@ -97,6 +109,7 @@ import keyword
 import os
 import re
 import sys
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -157,17 +170,20 @@ SERIAL_PROTOCOL = "serial"
 FULL_LANE_PROTOCOL = "full-lane"
 FULL_LANE_WORKERS = 32
 
-#: The four doors that take MeTTa source text. A twin may not use any of them:
-#: that is the whole of "zero s-expression strings".
-SOURCE_DOORS = frozenset({"run", "load", "parse", "save"})
+#: The five doors that take MeTTa source text. A twin may not use any of them:
+#: that is the whole of "zero s-expression strings". `forms` is the narrow
+#: core's name for the old `parse_all`, and reads a whole program's worth of
+#: source, so it belongs beside `parse` rather than outside the rule.
+SOURCE_DOORS = frozenset({"run", "load", "parse", "save", "forms"})
 
 #: Calls whose string argument is a NAME or a marked datum rather than a
-#: program: sym/var name an atom, fn names an engine function, space and
-#: new_space name a space, and val carries a Python value whole.
+#: program: `space` and `attach` name a space, and `ground`/`G` carry a Python
+#: value whole. The retired carriers `val`, `sym`, `var` and `new_space` are
+#: NOT here; RETIRED_ROOT and RETIRED_HANDLE name them and their replacements.
 NAMING_CALLS = frozenset({
-    "sym", "var", "val", "fn", "space", "new_space",
-    # TypeVar("X") names a type variable exactly as sym("x") names an atom,
-    # and a twin declaring a parametric type needs it [found 2026-08-22 by the
+    "ground", "G", "space", "attach",
+    # TypeVar("X") names a type variable exactly as S["x"] names an atom, and
+    # a twin declaring a parametric type needs it [found 2026-08-22 by the
     # types agent, which worked around it with the name= keyword].
     "TypeVar",
 })
@@ -177,8 +193,19 @@ NAMING_CALLS = frozenset({
 #: `print()` by the table below, so the scan has to let a twin print.
 HOST_TEXT_CALLS = frozenset({"print", "Path", "open", "warning", "info", "debug"})
 
-#: The two factories whose subscript is an atom's name.
-NAMING_NAMESPACES = frozenset({"S", "V"})
+#: The factories whose attribute or subscript spells a NAME rather than calling
+#: a library door: `S.f` and `S["+"]` name an atom, `V.x` a variable, and
+#: `fn.car_atom` and `m.fn["=="]` an engine function. A name reached through one
+#: of them is never a source door, because naming a head that shares a door's
+#: name builds the term instead of taking text.
+NAMING_NAMESPACES = frozenset({"S", "V", "fn"})
+
+#: The subset that mints ANY name, where attribute access reaches the same atom
+#: the bracket spells. `fn` is deliberately absent: its catalog is generated and
+#: closed, so a bracket name it does not alias has no attribute spelling at all
+#: [source: bindings/python/petta/_name_mapping.py generated_aliases;
+#: commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+MINTING_NAMESPACES = frozenset({"S", "V"})
 
 #: Module-level constants a twin declares ABOUT itself rather than as
 #: program text: the inference pin, and the reason it sits below the top
@@ -238,13 +265,97 @@ DISSOLVED = {
     "trace!": "print(), or logging",
     "format-args": "an f-string",
     "bind!": "a Python name binding",
-    "new-space": "space.new_space()",
-    # NOT here, though section 9e assigns them: `get-type` and `get-doc`. The
-    # ledger DESIGNS `space.type(atom)` and `space.doc(atom)`; the surface has
-    # not shipped either, so naming the head is the only spelling a twin has
-    # and demanding another would be demanding a door that does not exist
-    # [measured 2026-08-22: `MeTTa.type` is the class-declaration decorator
-    # and `MeTTa` has no `doc`; P14.25 is the row that closes them].
+    "new-space": "petta.space(), the one space-creation door",
+    "get-type": "space.type(atom)",
+    # NOT here, though section 9e assigns it: `get-doc`. The ledger DESIGNS
+    # `space.doc(atom)` and the surface has not shipped it, so naming the head
+    # is the only spelling a twin has and demanding another would be demanding
+    # a door that does not exist. `get-type` left this note when R5 shipped
+    # `Space.type(atom)` as the accessor and moved the class declaration onto
+    # `Space.define` [source: ai-report-p14-r5.md, built surface item 5;
+    # commit=8c057bb8055459cc13127d89b418deb634b90ae4] [measured 2026-08-23: `Space.doc` does not exist, so
+    # P14.25 is still the row that closes it; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+}
+
+
+#: Python names the narrow core DELETED, and the current spelling of each. A
+#: twin naming one is writing the previous surface, and the message has to say
+#: what replaced it or the author is left to guess. The table is keyed the way
+#: Ruff's own TID251 `banned-api` is keyed, by the imported member, and it
+#: carries that rule's honest scope: it flags accidental use and does not chase
+#: every way a name could be reached [source:
+#: https://docs.astral.sh/ruff/rules/banned-api; the rewrite map is
+#: ai-narrow-core-renames.md's twin-visible table; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+RETIRED_ROOT = {
+    "Expr": "Expression",
+    "Gnd": "Grounded",
+    "Sym": "Symbol",
+    "Var": "Variable",
+    "MettaName": "Symbol",
+    "SpaceName": "Handle",
+    "DECLINE": "NotReducible",
+    "Decline": "NotReducible",
+    "REFLECTION_SPACE": "petta.reflection",
+    "alpha_eq": "a.alpha_eq(b)",
+    "atom_from_wire": "petta.wire.atom_from_wire(x)",
+    "backend_info": "petta.engine().info()",
+    "bridge": "a declaration, a fold, or the += pipe",
+    "default_engine": "petta.engine()",
+    "expr": "Expression(...), or calling the head",
+    "fresh_space": "petta.space()",
+    "is_ground": "not a.vars",
+    "map_atoms": "a.map(f)",
+    "object_view": "view(...)",
+    "order_key": "sorted(atoms); atoms carry the engine's order",
+    "parse_all": "petta.forms(source)",
+    "pretty": "repr(a)",
+    "record": "@space.define on the class",
+    "register_object_repr": "petta.integrate.register_repr(...)",
+    "register_object_repr_protocol": "petta.integrate.register_repr(...)",
+    "sym": "S[...] or S.name",
+    "unregister_object_repr": "petta.integrate, the owning satellite",
+    "unregister_object_repr_protocol": "petta.integrate, the owning satellite",
+    "val": "ground(...) or G(...)",
+    "var": "V[...] or V.name",
+    "variables": "a.vars",
+}
+
+#: The same table for verbs the handle lost, whose names nothing live shares.
+#: These are read at every attribute position, not only at an import, because a
+#: handle arrives as `twin`'s own parameter and is never imported. The verbs
+#: whose names DO survive elsewhere are in RETIRED_CALL_SHAPES below, separated
+#: by arity rather than by guessing the receiver's type. One case is neither:
+#: `m.space(name)` on a handle is deleted while `ctx.space(name)` is the live
+#: door, and only the receiver's type tells them apart, so the twin's own run
+#: reports it as `'Space' object has no attribute 'space'`.
+RETIRED_HANDLE = {
+    "add_table": "petta.tables.add(space, head, data)",
+    "disassemble": "no public door; diagnostics are internal",
+    "new_space": "petta.space(name) or ctx.space(name)",
+    "register_op": "space.op(...), or @space.op",
+    "register_space": "petta.attach(name, provider)",
+    "space_name": "space.name",
+    "unregister": "space.unregister_op(...)",
+    "unregister_space": "space.drop()",
+}
+
+#: Retired CALL SHAPES rather than retired names: each name survives on
+#: another object, so only the number of POSITIONAL arguments separates the
+#: deleted door from the live one. `answers.one()` and
+#: `answers.first(default=...)` take none where `space.one(pattern)` took one;
+#: `space.count()` took none where a sequence's own `count(value)` takes one;
+#: and `fn` survives as the namespace and died as a function of a name string,
+#: 366 times in the old corpus. Only a call through a RECEIVER is read, so a
+#: twin's own local helper named `one` is nobody's business but its own
+#: [source: bindings/python/petta/results.py Answers.one, Answers.first and
+#: Answers.count; ai-report-p14-r3.md corpus counts; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+RETIRED_CALL_SHAPES = {
+    #  name: (positional arguments that mark the retired call, current spelling)
+    "count": (0, "len(space)"),
+    "first": (1, "answers.first(default=...)"),
+    "fn": (1, 'the fn namespace: fn.name, or fn["name"] for an exact spelling'),
+    "one": (1, "answers.one()"),
+    "stream": (1, "iterating the answers"),
 }
 
 
@@ -349,41 +460,92 @@ def _callee(node: ast.Call) -> str | None:
     return None
 
 
-def _defines(node: ast.FunctionDef) -> bool:
-    """Whether a function is compiled into equations. Its body is Python read
-    as SYNTAX, so a string constant inside it is a MeTTa string literal in an
-    equation, the way `(= (math-string) "s")` writes one, and not source
-    text. The source doors are still refused there, because a door is a call
-    and the call rule does not care where the call sits.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+def _factory(node: ast.expr) -> tuple[str, str] | None:
+    """The namespace and name a factory access spells, or nothing.
+
+    One reader for every spelling of the same door, because the namespace
+    arrives bare (`S.f`, `fn["=="]`) and through a receiver (`m.fn.xor`,
+    `petta.S.done`) and the rules below must not care which
+    [tested: test_a_term_may_name_a_head_that_shares_a_source_doors_name;
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+    """
+    if isinstance(node, ast.Attribute):
+        root, name = node.value, node.attr
+    elif isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+        if not isinstance(node.slice.value, str):
+            return None
+        root, name = node.value, node.slice.value
+    else:
+        return None
+    if isinstance(root, ast.Name):
+        namespace = root.id
+    elif isinstance(root, ast.Attribute):
+        namespace = root.attr
+    else:
+        return None
+    return (namespace, name) if namespace in NAMING_NAMESPACES else None
+
+
+#: Decorators that turn a Python body into stored equations. A string constant
+#: inside one is a MeTTa string literal in an equation, the way
+#: `(= (math-string) "s")` writes one, and not source text; the source doors
+#: are still refused there, because a door is a call and the call rule does not
+#: care where the call sits. `cache` compiles a body exactly as `define` does,
+#: and a cached definition's match() must name its space as a string constant,
+#: because the two-argument form lowers to (context-space) which caching
+#: refuses as impure [found 2026-08-22 by the libraries agent, which lost the
+#: @m.cache spelling and fn.cache_info() to this]. `rules` joined them when R3
+#: landed the bundle door [source: ai-report-p14-r3.md, rules and per-yield
+#: equation emission; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+COMPILING_DECORATORS = frozenset({"define", "cache", "rules"})
+
+#: The subset whose body is LOWERED from Python syntax, where `a + b` emits
+#: `(+ $a $b)`. A `@rules` body is EXECUTED instead, so its `a == b` is
+#: Python's own structural equality and `.eq(...)` is the building spelling
+#: there; the operator rule below would report a correct bundle
+#: [source: bindings/python/petta/_rules.py rules, which calls the generator
+#: with Variable arguments; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+LOWERING_DECORATORS = frozenset({"define", "cache"})
+
+#: Decorators whose body is HOST PYTHON rather than knowledge. An operation
+#: RUNS in Python, so the `" "` in `title.replace(" ", "-")` is an argument to
+#: a Python method and never a program; the guide's own exemplar for the door
+#: is a string-slugging function. Without this the lane sent an author through
+#: `space.op(...)`, which is what it tells a twin that wrote `register_op`, and
+#: then refused the ordinary Python inside it [source: ai-python-conventions.md
+#: section 3.11, the grounded boundary; commit=6b87bbfcd4666764cafe29d0f57ddf7082c33225]
+#: [tested: test_a_host_operation_body_holds_python_text; commit=6b87bbfcd4666764cafe29d0f57ddf7082c33225].
+HOST_BODY_DECORATORS = frozenset({"op"})
+
+#: What the string rule reads: a compiled body's constants are MeTTa string
+#: literals and a host body's are Python arguments, and neither is source text.
+#: The source doors stay refused in both, because a door is a call and the call
+#: rule does not care where the call sits.
+LITERAL_BODY_DECORATORS = COMPILING_DECORATORS | HOST_BODY_DECORATORS
+
+
+def _decorated(node: ast.FunctionDef | ast.ClassDef, names: frozenset[str]) -> bool:
+    """Whether a definition carries one of `names` as a decorator."""
     for decorator in node.decorator_list:
         reached = decorator.func if isinstance(decorator, ast.Call) else decorator
         name = reached.attr if isinstance(reached, ast.Attribute) else getattr(reached, "id", None)
-        # `cache` compiles a body exactly as `define` does, and a cached
-        # definition's match() must name its space as a string constant,
-        # because the two-argument form lowers to (context-space) which
-        # caching refuses as impure [found 2026-08-22 by the libraries agent,
-        # which lost the @m.cache spelling and fn.cache_info() to this].
-        if name in {"define", "cache"}:
+        if name in names:
             return True
     return False
 
 
-def _prints_text(node: ast.AST) -> bool:
-    """Whether a subtree reaches Python or MeTTa's textual repr door."""
-    for inner in ast.walk(node):
+def _prints_text(node: ast.AST | None) -> bool:
+    """Whether a subtree reaches Python or MeTTa's textual repr door.
+
+    The engine's own `repr` arrives through the function namespace as
+    `m.fn.repr(atom)` or `m.fn["repr"](atom)`, so the factory reader answers
+    the bracket spelling and `_callee` the attribute one.
+    """
+    for inner in ast.walk(node) if node is not None else ():
         if not isinstance(inner, ast.Call):
             continue
-        if _callee(inner) in {"repr", "str"}:
-            return True
-        called = inner.func
-        if (
-            isinstance(called, ast.Call)
-            and _callee(called) == "fn"
-            and called.args
-            and isinstance(called.args[0], ast.Constant)
-            and called.args[0].value == "repr"
-        ):
+        reached = _factory(inner.func)
+        if (_callee(inner) or (reached[1] if reached else None)) in {"repr", "str"}:
             return True
     return False
 
@@ -396,7 +558,7 @@ def _printing_strings(tree: ast.Module) -> set[int]:
     unrelated string merely because the same function also prints something
     [source: ai-python-first-revamp-discussion.md section 9q.2;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-    """  # noqa: D205 -- the second paragraph states the dataflow boundary
+    """
     printed_names = {
         target.id
         for node in ast.walk(tree)
@@ -428,7 +590,11 @@ def _printing_strings(tree: ast.Module) -> set[int]:
         if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
     }
     for node in ast.walk(tree):
-        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+        # A class body's bare `balance: int` is an AnnAssign with NO value,
+        # which the class door made ordinary: reading it as a subtree crashed
+        # the whole lane on the first twin that declared a record
+        # [tested: test_the_landed_doors_read_clean; commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4].
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
             continue
         targets = node.targets if isinstance(node, ast.Assign) else [node.target]
         if not any(isinstance(target, ast.Name) and target.id in names for target in targets):
@@ -441,94 +607,88 @@ def _printing_strings(tree: ast.Module) -> set[int]:
     return permitted
 
 
+def _text_ids(nodes: Iterable[ast.AST]) -> set[int]:
+    """Every string constant of the given subtrees, by identity."""
+    return {
+        id(inner)
+        for node in nodes
+        for inner in ast.walk(node)
+        if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+    }
+
+
+def _declared_strings(node: ast.Module | ast.FunctionDef | ast.ClassDef) -> set[int]:
+    """The strings a definition writes ABOUT itself rather than as program text.
+
+    The docstring; a declared rung's REASON, which is documentation exactly as
+    the docstring above it is, so the source scan must not read it as a
+    program; and an empirical BUDGET's protocol, which rides inside a literal
+    mapping. Without the rung line the two checks contradict each other and
+    declaring a rung turns the lane red, which makes the ladder's own escape
+    unusable, found 2026-08-22 by two twin agents at once [tested:
+    test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
+    commit=6b87bbfcd4666764cafe29d0f57ddf7082c33225].
+    """
+    permitted: set[int] = set()
+    head = node.body[0] if node.body else None
+    if isinstance(head, ast.Expr) and isinstance(head.value, ast.Constant):
+        permitted.add(id(head.value))
+    permitted |= _text_ids(
+        statement.value
+        for statement in node.body
+        if isinstance(statement, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id in DECLARATION_NAMES
+            for target in statement.targets
+        )
+    )
+    if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and _decorated(
+        node, LITERAL_BODY_DECORATORS
+    ):
+        permitted |= _text_ids([node])
+    return permitted
+
+
+def _call_strings(node: ast.Call) -> set[int]:
+    """The strings one call takes as data rather than as a program.
+
+    A string in a KEYWORD argument is host data, never a program: the source
+    doors are caught by call name, whatever shape their arguments take, so
+    `names=["c-bump"]` and `path=Path("...")` need no ceremony [found
+    2026-08-22 by the reasoning agent, which had to write `[S["c-bump"].name]`].
+    A twin may also SAY things, since the dissolution table sends `println!` to
+    print(); and a naming call takes names and marked data wherever they sit,
+    keywords and nested containers included, so `space(grants=["file"])` names
+    capabilities [found 2026-08-22 by the spaces agent, which had to write
+    `S.file.name` to get past this].
+    """
+    permitted = _text_ids(word.value for word in node.keywords)
+    if _callee(node) in HOST_TEXT_CALLS | NAMING_CALLS:
+        permitted |= _text_ids([node])
+    permitted.update(id(word.value) for word in node.keywords if word.arg == "name")
+    return permitted
+
+
 def _named_strings(tree: ast.Module) -> set[int]:
     """The string constants that are names, marked data, or documentation.
 
-    Identity rather than value, so `val("(f a)")` in one place does not
+    Identity rather than value, so `ground("(f a)")` in one place does not
     excuse a bare `"(f a)"` in another.
     """
     permitted = _printing_strings(tree)
     for node in ast.walk(tree):
         # A raised message is prose for a reader, the same as a docstring.
         if isinstance(node, ast.Raise):
-            permitted.update(
-                id(inner)
-                for inner in ast.walk(node)
-                if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
-            )
+            permitted |= _text_ids([node])
         if isinstance(node, (ast.Module, ast.FunctionDef, ast.ClassDef)):
-            head = node.body[0] if node.body else None
-            if isinstance(head, ast.Expr) and isinstance(head.value, ast.Constant):
-                permitted.add(id(head.value))
-            # A declared rung's REASON is documentation, exactly like the
-            # docstring above it, so the source scan must not read it as a
-            # program. Without this the two checks contradict each other and
-            # declaring a rung turns the lane red, which makes the ladder's
-            # own escape unusable [found 2026-08-22 by two twin agents at once].
-            for statement in node.body:
-                if not isinstance(statement, ast.Assign) or not any(
-                    isinstance(target, ast.Name) and target.id in DECLARATION_NAMES
-                    for target in statement.targets
-                ):
-                    continue
-                # An empirical BUDGET carries a protocol string inside a
-                # literal mapping. It is declaration metadata, just as a
-                # scalar RUNG reason is, and never program source [tested:
-                # test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
-                # commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-                permitted.update(
-                    id(inner)
-                    for inner in ast.walk(statement.value)
-                    if isinstance(inner, ast.Constant)
-                    and isinstance(inner.value, str)
-                )
-            if isinstance(node, ast.FunctionDef) and _defines(node):
-                permitted.update(
-                    id(inner)
-                    for inner in ast.walk(node)
-                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
-                )
+            permitted |= _declared_strings(node)
         elif isinstance(node, ast.Subscript):
-            # Any subscript KEY is a name: `S["f"]` names an atom and
-            # `answers["x"]` names a binding, and no door takes MeTTa source
-            # text through a subscript.
+            # Any subscript KEY is a name: `S["f"]` names an atom, `fn["=="]`
+            # an engine function and `answers["x"]` a binding, and no door
+            # takes MeTTa source text through a subscript.
             permitted.add(id(node.slice))
         elif isinstance(node, ast.Call):
-            # A string in a KEYWORD argument is host data, never a program:
-            # the four source doors are caught by call name above, whatever
-            # shape their arguments take, so `names=["c-bump"]` and
-            # `path=Path("...")` need no ceremony [found 2026-08-22 by the
-            # reasoning agent, which had to write `[S["c-bump"].name]`].
-            permitted.update(
-                id(inner)
-                for word in node.keywords
-                for inner in ast.walk(word.value)
-                if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
-            )
-            # A twin may SAY things. The dissolution table sends `println!` to
-            # print(), so refusing print's own message contradicted this
-            # module's own rule, and three C-extension twins returned silently
-            # where their example says why it skipped.
-            if _callee(node) in HOST_TEXT_CALLS:
-                permitted.update(
-                    id(inner)
-                    for inner in ast.walk(node)
-                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
-                )
-            if _callee(node) in NAMING_CALLS:
-                # Every argument, keyword and nested container included: a
-                # naming call takes names and marked data wherever they sit,
-                # and `new_space(grants=["file"])` names capabilities
-                # [found 2026-08-22 by the spaces agent, which had to write
-                # `S.file.name` to get past this].
-                permitted.update(
-                    id(inner)
-                    for inner in ast.walk(node)
-                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
-                )
-            permitted.update(
-                id(keyword.value) for keyword in node.keywords if keyword.arg == "name"
-            )
+            permitted |= _call_strings(node)
     return permitted
 
 
@@ -553,8 +713,9 @@ def _rung_reason(tree: ast.Module) -> str | None:
     is the defect this check exists for.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     for node in tree.body:
-        targets = node.targets if isinstance(node, ast.Assign) else []
-        for target in targets:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
             if isinstance(target, ast.Name) and target.id == "RUNG":
                 value = node.value
                 if isinstance(value, ast.Constant) and isinstance(value.value, str):
@@ -562,30 +723,30 @@ def _rung_reason(tree: ast.Module) -> str | None:
     return None
 
 
-def _subscripted_name(node: ast.Subscript) -> str | None:
-    """The name a `S["foo"]` or `V["x"]` subscript spells, when that name is
-    an ordinary Python identifier and attribute access would have reached it.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if not (isinstance(node.value, ast.Name) and node.value.id in NAMING_NAMESPACES):
-        return None
-    key = node.slice
-    if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
-        return None
-    name = key.value
-    return name if name.isidentifier() and not keyword.iskeyword(name) else None
+def _subscripted_name(node: ast.Subscript) -> tuple[str, str] | None:
+    """The namespace and name a redundant `S["foo"]` subscript spells.
 
-
-def _head_symbol(node: ast.expr) -> str | None:
-    """The MeTTa head a term-building expression is rooted at, whether it was
-    written `S.f`, `S["+"]`, or the first item of `Expression((...))`.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-        return node.attr if node.value.id in NAMING_NAMESPACES else None
-    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name):
-        key = node.slice
-        if node.value.id in NAMING_NAMESPACES and isinstance(key, ast.Constant):
-            return key.value if isinstance(key.value, str) else None
-    return None
+    Redundant means attribute access reaches THE SAME atom. Rung 4's map is
+    total, every underscore becoming a hyphen, so `S["my_var"]` is the atom
+    `my_var` while `S.my_var` is `my-var`; and Python normalizes an identifier
+    to NFKC while parsing, so a non-ASCII spelling changes at the attribute
+    door too. Both keep the bracket, which is rung 5 doing its job
+    [source: bindings/python/petta/_name_mapping.py attribute_name;
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4]
+    [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one;
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+    """
+    reached = _factory(node)
+    if reached is None or reached[0] not in MINTING_NAMESPACES:
+        return None
+    namespace, name = reached
+    redundant = (
+        name.isidentifier()
+        and name.isascii()
+        and not keyword.iskeyword(name)
+        and "_" not in name
+    )
+    return (namespace, name) if redundant else None
 
 
 def _symbol_head(node: ast.expr) -> str | None:
@@ -594,15 +755,12 @@ def _symbol_head(node: ast.expr) -> str | None:
     `Expression((S.f, a))` says with a constructor what `S.f(a)` says with a
     call, but `Expression((V.x,))` has no shorter spelling at all: a
     variable-headed expression is the one shape the builders do not reach,
-    because `Var` is not callable
+    because `Variable` is not callable
     [measured 2026-08-22: `V.x()` raises TypeError; filed as residue against
     P14.4].
     """
-    named = _head_symbol(node)
-    if named is None:
-        return None
-    root = node.value if isinstance(node, (ast.Attribute, ast.Subscript)) else None
-    return named if isinstance(root, ast.Name) and root.id == "S" else None
+    reached = _factory(node)
+    return reached[1] if reached is not None and reached[0] == "S" else None
 
 
 def _expression_parts(node: ast.Call) -> list[ast.expr] | None:
@@ -639,14 +797,15 @@ def idiom(twin: Path) -> list[str]:
         if RUNG_LINE.search(line)
     }
     # The operator rule below only holds where an operator would BUILD the
-    # term, which is inside a compiled body. Outside one `val(5) + 5` computes
-    # 10 and `S.x == 1` is Python's own structural equality, so naming the head
-    # is the deliberate spelling [found 2026-08-22: 33 findings in
+    # term, which is inside a lowered body. Outside one `ground(5) + 5`
+    # computes 10 and `S.x == 1` is Python's own structural equality, so naming
+    # the head is the deliberate spelling [found 2026-08-22: 33 findings in
     # twins/libraries, every one of this shape and none of them a defect].
-    compiled = {
+    lowered = {
         id(inner)
         for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef) and _defines(node)
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef))
+        and _decorated(node, LOWERING_DECORATORS)
         for inner in ast.walk(node)
     }
     findings: list[tuple[int, str]] = [
@@ -658,16 +817,25 @@ def idiom(twin: Path) -> list[str]:
     ]
     for node in ast.walk(tree):
         if isinstance(node, ast.Subscript):
-            spelled = _head_symbol(node)
-            if spelled is not None and spelled.startswith("&"):
+            reached = _factory(node)
+            # A MINTING factory only: the engine's own catalog holds function
+            # names such as `&&&` and `&^&`, so `fn["&&&"]` names a combinator
+            # and not a space [source: bindings/python/tests/twins/libraries/
+            # roman_test.py; tested: test_an_engine_function_may_be_named_with_
+            # an_ampersand; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+            if (
+                reached is not None
+                and reached[0] in MINTING_NAMESPACES
+                and reached[1].startswith("&")
+            ):
                 findings.append((
                     node.lineno,
-                    f"{spelled!r} names a SPACE as a symbol; a space is a "
+                    f"{reached[1]!r} names a SPACE as a symbol; a space is a "
                     f"handle, and every context-relative door hangs off it",
                 ))
-            name = _subscripted_name(node)
-            if name is not None:
-                namespace = node.value.id
+            redundant = _subscripted_name(node)
+            if redundant is not None:
+                namespace, name = redundant
                 findings.append(
                     (node.lineno, f'{namespace}["{name}"] is {namespace}.{name}')
                 )
@@ -678,9 +846,10 @@ def idiom(twin: Path) -> list[str]:
                 findings.append(
                     (node.lineno, "Expression(...) builds what calling the head builds")
                 )
-            called = _head_symbol(node.func)
+            reached = _factory(node.func)
+            called = reached[1] if reached is not None else None
             operator = called if called in OPERATOR_HEADS else head
-            dissolved = DISSOLVED.get(called) or DISSOLVED.get(head)
+            dissolved = DISSOLVED.get(called or "") or DISSOLVED.get(head or "")
             if dissolved is not None:
                 findings.append((
                     node.lineno,
@@ -691,7 +860,7 @@ def idiom(twin: Path) -> list[str]:
             arity = len(parts) - 1 if parts is not None else len(node.args)
             if (
                 operator in OPERATOR_HEADS
-                and id(node) in compiled
+                and id(node) in lowered
                 and arity == (1 if operator == "not" else 2)
             ):
                 findings.append(
@@ -741,8 +910,8 @@ def scan(twin: Path) -> list[str]:
     """What a twin says that is MeTTa source text rather than Python.
 
     Read as syntax, not as text: a door is a CALL and a program is a string
-    CONSTANT in a position that is neither a name nor `val()`-marked data, so
-    a mention inside a comment or a docstring is not a finding and a door
+    CONSTANT in a position that is neither a name nor `ground()`-marked data,
+    so a mention inside a comment or a docstring is not a finding and a door
     reached through a receiver is.
     """
     tree = _parse(twin)
@@ -754,12 +923,13 @@ def scan(twin: Path) -> list[str]:
         if (
             isinstance(node, ast.Call)
             and _callee(node) in SOURCE_DOORS
-            # `S.parse(text)` BUILDS the term `(parse text)`; only a real call
-            # takes MeTTa source. Without this a twin cannot name a head that
-            # shares a door's name at all, because the idiom check refuses the
+            # `S.parse(text)` BUILDS the term `(parse text)` and `m.fn.parse`
+            # names the engine's own function; only a real call takes MeTTa
+            # source. Without this a twin cannot name a head that shares a
+            # door's name at all, because the idiom check refuses the
             # subscripted spelling too [found 2026-08-22 by the functions
-            # agent, which had to fall back to sym("parse")].
-            and _head_symbol(node.func) is None
+            # agent, which had no other spelling for the head].
+            and _factory(node.func) is None
         ):
             findings.append(
                 (node.lineno, f"calls {_callee(node)}(), which takes MeTTa source")
@@ -772,10 +942,49 @@ def scan(twin: Path) -> list[str]:
             findings.append(
                 (
                     node.lineno,
-                    f"the string {node.value!r} is neither a name nor val() data",
+                    f"the string {node.value!r} is neither a name nor ground() data",
                 )
             )
     return [f"line {line}: {what}" for line, what in sorted(findings)]
+
+
+def retired(twin: Path) -> list[str]:
+    """Where a twin names something the narrow core deleted.
+
+    An import from `petta` and an attribute on the handle are the two places a
+    retired name can still be written and read as ordinary Python, so those are
+    the two places this reads. Every finding names the current spelling, which
+    is the whole value of the check: an `ImportError` three seconds later says
+    the name is gone and nothing about what replaced it.
+    """
+    tree = _parse(twin)
+    if tree is None:
+        return []
+    findings: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            root = (node.module or "").split(".")[0]
+            findings.extend(
+                (node.lineno, f"{alias.name} is retired; write {RETIRED_ROOT[alias.name]}")
+                for alias in node.names
+                if root == "petta" and alias.name in RETIRED_ROOT
+            )
+        elif isinstance(node, ast.Attribute):
+            package = isinstance(node.value, ast.Name) and node.value.id == "petta"
+            current = RETIRED_HANDLE.get(node.attr) or (
+                RETIRED_ROOT.get(node.attr) if package else None
+            )
+            if current is not None:
+                findings.append(
+                    (node.lineno, f"{node.attr} is retired; write {current}")
+                )
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            shape = RETIRED_CALL_SHAPES.get(node.func.attr)
+            if shape is not None and len(node.args) == shape[0]:
+                findings.append(
+                    (node.lineno, f"{node.func.attr}(...) is retired; write {shape[1]}")
+                )
+    return [f"line {line}: {what}" for line, what in sorted(set(findings))]
 
 
 # ---------------------------------------------------------------------- running
@@ -816,7 +1025,8 @@ _EPILOGUE = (
 
 def _read(text: str, outcome: parity.Outcome) -> Run:
     """One run's marker lines, the cost and heads read beside the groups."""
-    cost, heads = None, ()
+    cost: int | None = None
+    heads: tuple[str, ...] = ()
     for line in text.splitlines():
         if line.startswith(COST):
             cost = int(line[len(COST):].strip())
@@ -916,7 +1126,7 @@ class EmpiricalBudget:
     standard deviation [source:
     https://github.com/google/benchmark/blob/192ef10025eb2c4cdd392bc502f0c852196baa48/docs/user_guide.md#L1145-L1196;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
 
     minimum: int
     maximum: int
@@ -978,8 +1188,9 @@ def budget_of(twin: Path) -> int | EmpiricalBudget | None:
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     tree = _parse(twin)
     for node in tree.body if tree else []:
-        targets = node.targets if isinstance(node, ast.Assign) else []
-        for target in targets:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
             if isinstance(target, ast.Name) and target.id == "BUDGET":
                 value = ast.literal_eval(node.value)
                 if isinstance(value, dict):
@@ -1096,6 +1307,7 @@ def check(
     relative = str(example.relative_to(root))
     findings = [f"{relative}: {finding}" for finding in scan(twin)]
     findings += [f"{relative}: {finding}" for finding in idiom(twin)]
+    findings += [f"{relative}: {finding}" for finding in retired(twin)]
 
     left, right = run_example(example, root), run_twin(twin, root)
     if left.outcome.error or right.outcome.error:
@@ -1145,16 +1357,10 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
 ENGINE_FLOOR = 100
 
 
-def _price(
-    relative: str,
-    twin: Path,
-    left: Run,
-    right: Run,
-    stated: bool = False,  # noqa: FBT001, FBT002  -- one flag, and the call site reads better positionally than with a keyword
-    *,
-    protocol: str = SERIAL_PROTOCOL,
+def _budget_findings(
+    relative: str, twin: Path, right: Run, protocol: str
 ) -> list[str]:
-    """The two cost claims: a pinned budget, and a band against the original.
+    """The pinned-cost claim: what the twin declared against what it spent.
 
     The budget is TWO-SIDED, which a benchmark baseline is not. A benchmark
     only cares about getting slower; a twin that suddenly costs far less has
@@ -1167,41 +1373,59 @@ def _price(
     are deterministic across processes here, so pinning both sides costs
     nothing in flakiness and catches a twin that stopped being one.
     """
-    findings = []
     try:
         budget = budget_of(twin)
     except (TypeError, ValueError) as error:
-        budget = None
-        findings.append(f"{relative}: {error}")
-    if budget is None and not findings:
-        findings.append(f"{relative}: the twin states no BUDGET")
-    elif isinstance(budget, EmpiricalBudget):
+        # A malformed declaration reports the error and stops there; reading it
+        # as a number below raised TypeError out of the lane instead
+        # [tested: test_a_malformed_budget_is_reported_and_not_a_traceback;
+        # commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+        return [f"{relative}: {error}"]
+    if budget is None:
+        return [f"{relative}: the twin states no BUDGET"]
+    if isinstance(budget, EmpiricalBudget):
         if budget.protocol != protocol:
-            findings.append(
+            return [
                 f"{relative}: the empirical budget was measured under "
                 f"{budget.protocol!r} over {budget.observations} observations, "
                 f"but the current protocol is {protocol!r}; one scheduler's "
                 "envelope cannot license another"
-            )
-        elif right.cost is not None and not (
+            ]
+        if right.cost is not None and not (
             budget.minimum <= right.cost <= budget.maximum
         ):
             moved = "above" if right.cost > budget.maximum else "BELOW"
-            findings.append(
+            return [
                 f"{relative}: the twin cost {right.cost} inferences, {moved} "
                 f"its empirical budget {budget.minimum}..{budget.maximum} "
                 f"(spread {budget.spread}) measured under {budget.protocol!r} "
                 f"over {budget.observations} observations; the {TOLERANCE}-"
                 "inference deterministic tolerance is not added to empirical "
                 "bounds"
-            )
+            ]
     elif right.cost is not None and abs(right.cost - budget) > TOLERANCE:
         moved = "above" if right.cost > budget else "BELOW"
-        findings.append(
+        return [
             f"{relative}: the twin cost {right.cost} inferences, {moved} its "
             f"pinned budget of {budget} by more than the {TOLERANCE} "
             "deterministic allowance"
-        )
+        ]
+    return []
+
+
+def _price(
+    relative: str,
+    twin: Path,
+    left: Run,
+    right: Run,
+    stated: bool = False,  # noqa: FBT001, FBT002  -- one flag, and the call site reads better positionally than with a keyword
+    *,
+    protocol: str = SERIAL_PROTOCOL,
+) -> list[str]:
+    """The three cost claims: the pinned budget, the engine floor, and the band
+    against the original.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    findings = _budget_findings(relative, twin, right, protocol)
     if right.cost is not None and right.cost < ENGINE_FLOOR and not stated:
         findings.append(
             f"{relative}: the twin cost {right.cost} inferences, under the "
@@ -1232,11 +1456,18 @@ def definitions(twin: Path) -> int:
     """How many compiled definitions the twin AUTHORS.
 
     Counted from source, so the allowance cannot be inflated without adding a
-    decorator a reader sees in the diff.
+    decorator a reader sees in the diff. A decorated CLASS and a `@rules`
+    bundle author equations the same way a decorated function does, so the
+    count reads every door in COMPILING_DECORATORS
+    [assumed 2026-08-23: the per-definition figure below was measured on
+    `@define` functions and is applied to the class and bundle doors without a
+    second measurement; the band is loosened, never tightened, by the
+    extension; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
     """
     tree = _parse(twin)
     return sum(
-        isinstance(node, ast.FunctionDef) and _defines(node)
+        isinstance(node, (ast.FunctionDef, ast.ClassDef))
+        and _decorated(node, COMPILING_DECORATORS)
         for node in ast.walk(tree)
     ) if tree else 0
 
@@ -1322,8 +1553,8 @@ def _full_lane_round(examples: list[Path], entries: list[dict]) -> list[Verdict]
 
 def _observe(examples: list[Path], entries: list[dict], rounds: int) -> None:
     """Report empirical extrema without changing any declaration."""
-    samples = {example: [] for example in examples}
-    failures = {example: [] for example in examples}
+    samples: dict[Path, list[int]] = {example: [] for example in examples}
+    failures: dict[Path, list[str]] = {example: [] for example in examples}
     for round_number in range(1, rounds + 1):
         for verdict in _full_lane_round(examples, entries):
             if verdict.twin_cost is None:
@@ -1337,21 +1568,21 @@ def _observe(examples: list[Path], entries: list[dict], rounds: int) -> None:
     protocol = full_lane_protocol(len(examples))
     for example in examples:
         observed = samples[example]
-        failed = failures[example]
+        missed = failures[example]
         if not observed:
             print(
                 f"{example.relative_to(REPO)} protocol={protocol!r} "
-                f"observations=0 failures={len(failed)} samples=[]"
+                f"observations=0 failures={len(missed)} samples=[]"
             )
             continue
         minimum, maximum = min(observed), max(observed)
         print(
             f"{example.relative_to(REPO)} protocol={protocol!r} "
-            f"observations={len(observed)} failures={len(failed)} "
+            f"observations={len(observed)} failures={len(missed)} "
             f"minimum={minimum} maximum={maximum} spread={maximum - minimum} "
             f"samples={observed!r}"
         )
-        for failure in failed:
+        for failure in missed:
             print(f"  {failure}")
 
 
