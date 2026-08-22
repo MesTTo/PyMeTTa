@@ -10,7 +10,13 @@ Guarantees:
     [tested: test_instruction_join_workload_checks_both_projection_shapes;
     commit=ed2f4ffeb55dd524a87e35aac078094924b6994b].
   - the streaming answer curve measures bounded cursor memory without unique
-    wire names populating the separately measured intern caches.
+    wire names populating the separately measured intern caches [tested:
+    test_stream_curve_excludes_wire_cache_growth;
+    commit=2b2eb4641adf9f3c58147fd72c83165e8dbbce51].
+  - complete baseline comparison checks more than one pin without confusing the
+    pin mapping with an individual pinned value [tested:
+    test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
+    commit=WORKTREE].
 """
 
 import json
@@ -117,6 +123,9 @@ def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():  # noqa
     }
     baseline = baseline_document(result, cause_commit="a" * 40)
 
+    assert compare_baseline(result, baseline) == []
+    baseline["cases"]["second"] = json.loads(json.dumps(baseline["cases"][case.name]))
+    result["cases"]["second"] = json.loads(json.dumps(result["cases"][case.name]))
     assert compare_baseline(result, baseline) == []
     moved = json.loads(json.dumps(result))
     moved["cases"][case.name]["metrics"]["inferences"]["representative"][-1] *= 2

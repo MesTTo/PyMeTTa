@@ -24,7 +24,7 @@ Guarantees:
   - a selected curve run compares only the selected committed pins while a
     complete run still detects any missing pinned case [tested:
     test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
-    commit=2b2eb4641adf9f3c58147fd72c83165e8dbbce51]
+    commit=WORKTREE]
 Owns resources:
   - every workload drops or empties the spaces and temporary files it creates;
     the parent process joins, terminates, or kills every worker through the
@@ -1010,13 +1010,13 @@ def compare_baseline(
     failures: list[str] = []
     if baseline.get("schema") != SCHEMA_VERSION:
         return [f"memory-scale baseline schema is {baseline.get('schema')}, expected {SCHEMA_VERSION}"]
-    pinned = baseline["cases"]
-    selected = list(pinned) if names is None else list(names)
+    pinned_cases = baseline["cases"]
+    selected = list(pinned_cases) if names is None else list(names)
     for name in selected:
-        if name not in pinned:
+        if name not in pinned_cases:
             failures.append(f"missing baseline case {name}")
             continue
-        pin = pinned[name]
+        pin = pinned_cases[name]
         if name not in results["cases"]:
             failures.append(f"missing pinned case {name}")
             continue
@@ -1027,13 +1027,13 @@ def compare_baseline(
             continue
         if not pin["gated"]:
             continue
-        pinned = int(pin["representative"][-1])
+        pinned_value = int(pin["representative"][-1])
         current = int(metric["representative"][-1])
         band = max(int(pin["noise"]["absolute_max"]) * 2, 4)
-        allowance = max(band, math.ceil(abs(pinned) * 0.05))
-        if current > pinned + allowance:
+        allowance = max(band, math.ceil(abs(pinned_value) * 0.05))
+        if current > pinned_value + allowance:
             failures.append(
-                f"{name}: {pin['primary_metric']} moved {pinned} -> {current}; "
+                f"{name}: {pin['primary_metric']} moved {pinned_value} -> {current}; "
                 f"allowance is {allowance} from the pinned noise band and 5% margin"
             )
         expected_nrms = metric["fit"]["models"][pin["expected"]]["nrms"]
