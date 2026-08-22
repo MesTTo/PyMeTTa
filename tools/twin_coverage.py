@@ -111,6 +111,21 @@ DECLINED = "-"
 #: commit=c7191d87d9cbfce2870e586057168ec9103845ca].
 BAND_PERCENT = 10.0
 
+#: What AUTHORING a compiled definition costs, which the band must allow
+#: because the example it is priced against has no definition to author. The
+#: decorator writes reflection facts the container door never writes, and the
+#: compiler warms up once per process. MEASURED 2026-08-22, min of three fresh
+#: processes over files holding 0 to 4 one-line decorated definitions: 5,
+#: 2221, 2986, 3751, 4516 inferences, so the fit is exact and linear, 1456 once
+#: plus 765 for each definition. Without this the band SELECTED FOR
+#: TRANSLITERATION on exactly the files where Python's spelling is clearest:
+#: examples/control/if.metta costs 2092 with a ceiling of 2301, so one
+#: decorated definition could not fit and six control twins had to stay at the
+#: container door [found 2026-08-22 by the control agent, which said the rule
+#: was wrong and was right; commit=WORKTREE].
+DEFINITION_WARMUP = 1456
+DEFINITION_COST = 765
+
 #: The tree's own counter allowance, so a budget here reads the way a
 #: benchmark baseline reads [source: bindings/python/petta/benchmarking.py
 #: _COUNTER_TOLERANCE; commit=c7191d87d9cbfce2870e586057168ec9103845ca].
@@ -901,14 +916,35 @@ def _price(
             f"example the library is never asked about is a residue entry"
         )
     if left.cost and right.cost is not None:
-        ceiling = left.cost * (1.0 + BAND_PERCENT / 100.0)
+        defined = definitions(twin)
+        authoring = DEFINITION_WARMUP + DEFINITION_COST * defined if defined else 0
+        ceiling = left.cost * (1.0 + BAND_PERCENT / 100.0) + authoring
         if right.cost > ceiling:
+            allowed = (
+                f" plus {authoring} to author {defined} compiled "
+                f"definition{'s' if defined != 1 else ''}"
+                if authoring
+                else ""
+            )
             findings.append(
                 f"{relative}: the twin cost {right.cost} inferences against "
                 f"the example's {left.cost}, past the {BAND_PERCENT:g}% band "
-                f"ceiling of {ceiling:.0f}"
+                f"ceiling of {ceiling:.0f}{allowed}"
             )
     return findings
+
+
+def definitions(twin: Path) -> int:
+    """How many compiled definitions the twin AUTHORS.
+
+    Counted from source, so the allowance cannot be inflated without adding a
+    decorator a reader sees in the diff.
+    """
+    tree = _parse(twin)
+    return sum(
+        isinstance(node, ast.FunctionDef) and _defines(node)
+        for node in ast.walk(tree)
+    ) if tree else 0
 
 
 # --------------------------------------------------------------------- reporting

@@ -301,10 +301,50 @@ def test_the_band_refuses_a_twin_that_costs_more_than_it_was_pinned_to_allow():
     # The example costing what the twin costs leaves the whole band spare.
     assert coverage._price("x.metta", twin, _run([], cost=budget), twin_run) == []
 
-    # An example cheap enough that the pinned twin overruns the band.
-    cheaper = int(budget / (1.0 + coverage.BAND_PERCENT / 100.0)) - 1
+    # An example cheap enough that the pinned twin overruns the band, its
+    # authoring allowance included: factorial AUTHORS one compiled definition,
+    # and the band must let it pay for that.
+    authored = coverage.definitions(twin)
+    assert authored == 1, "factorial's twin authors exactly one definition"
+    allowance = coverage.DEFINITION_WARMUP + coverage.DEFINITION_COST * authored
+    cheaper = int((budget - allowance) / (1.0 + coverage.BAND_PERCENT / 100.0)) - 1
     outside = coverage._price("x.metta", twin, _run([], cost=cheaper), twin_run)
     assert any("band" in f for f in outside), outside
+    assert any("author 1 compiled definition" in f for f in outside), outside
+
+
+def test_the_band_pays_for_authoring_but_only_what_was_measured(tmp_path):
+    """A definition costs to WRITE, and the example has none to write.
+
+    Without the allowance the band selected for transliteration on exactly the
+    small examples where Python's spelling is clearest: measured 2026-08-22,
+    examples/control/if.metta costs 2092 against a ceiling of 2301, and one
+    decorated definition costs 2221 in a fresh process.
+    """
+    plain = tmp_path / "plain.py"
+    plain.write_text('"""D."""\nBUDGET = 2000\ndef twin(m):\n    assert m\n', encoding="utf-8")
+    assert coverage.definitions(plain) == 0
+
+    authored = tmp_path / "authored.py"
+    authored.write_text(
+        '"""D."""\n'
+        "BUDGET = 2000\n"
+        "def twin(m):\n"
+        "    @m.define\n"
+        "    def f(x):\n"
+        "        return x\n"
+        "    assert f(1) == [1]\n",
+        encoding="utf-8",
+    )
+    assert coverage.definitions(authored) == 1
+
+    # One example, one twin cost, two verdicts: the twin that AUTHORS is given
+    # the measured room and the one that does not is given none.
+    cost = 2000
+    example = _run([], cost=100)
+    spent = _run([], cost=cost)
+    assert any("band" in f for f in coverage._price("x", plain, example, spent))
+    assert coverage._price("x", authored, example, spent) == []
 
 
 # ----------------------------------------------------------------- end to end
