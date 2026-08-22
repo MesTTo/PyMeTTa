@@ -323,17 +323,75 @@ def test_the_idiom_check_catches_a_planted_transliteration(tmp_path):
         '"""Doc."""\n'
         "from petta import S, V, expr\n"
         "def twin(m):\n"
-        '    m += expr(S["="], expr(S["f"], V["x"]), expr(S["+"], V["x"], 1))\n',
+        '    m += expr(S["="], expr(S["f"], V["x"]), 1)\n',
         encoding="utf-8",
     )
     assert coverage.scan(planted) == []
-    findings = coverage.idiom(planted)
-    assert findings, "the transliteration was not caught"
-    joined = " ".join(findings)
+    joined = " ".join(coverage.idiom(planted))
     assert 'S["f"] is S.f' in joined
     assert 'V["x"] is V.x' in joined
     assert "expr(...) builds what calling the head builds" in joined
-    assert "a Python operator builds" in joined
+
+
+def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_path):
+    """`a + b` builds `(+ $a $b)` INSIDE a compiled body, so writing the head
+    there is a transliteration. Outside one the same spelling is deliberate,
+    because Python's `+` on ground values computes and its `==` is structural
+    equality, so the rule would report a correct twin. The arity matters for
+    the same reason: `S["+"](1)` is a partial application Python cannot spell.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    outside = tmp_path / "outside.py"
+    outside.write_text(
+        '"""Doc."""\n'
+        "from petta import S, V\n"
+        "def twin(m):\n"
+        '    m += S["+"](V.a, V.b)\n',
+        encoding="utf-8",
+    )
+    assert not [f for f in coverage.idiom(outside) if "operator" in f]
+
+    inside = tmp_path / "inside.py"
+    inside.write_text(
+        '"""Doc."""\n'
+        "from petta import S, V\n"
+        "def twin(m):\n"
+        "    @m.define\n"
+        "    def add(a, b):\n"
+        '        return S["+"](a, b)\n'
+        "    @m.define\n"
+        "    def partial(a):\n"
+        '        return S["+"](a)\n',
+        encoding="utf-8",
+    )
+    operators = [f for f in coverage.idiom(inside) if "operator" in f]
+    assert len(operators) == 1, operators
+    assert "'+'" in operators[0]
+
+
+def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
+    """`S.parse(text)` builds the term `(parse text)`; only a real call takes
+    MeTTa source. Reading every call by name alone left a twin with no way to
+    write that head at all, since the idiom check refuses `S["parse"]` too.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    planted = tmp_path / "head.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S, val\n"
+        "def twin(m):\n"
+        "    yield m.eval(S.parse(val('(f a)')))\n",
+        encoding="utf-8",
+    )
+    assert coverage.scan(planted) == []
+    assert coverage.idiom(planted) == []
+
+    real = tmp_path / "real.py"
+    real.write_text(
+        '"""Doc."""\n'
+        "def twin(m):\n"
+        "    yield m.run('!(f a)')\n",
+        encoding="utf-8",
+    )
+    assert coverage.scan(real)
 
 
 def test_a_declared_rung_is_a_documented_drop_rather_than_a_finding(tmp_path):
@@ -358,3 +416,26 @@ def test_a_declared_rung_is_a_documented_drop_rather_than_a_finding(tmp_path):
         encoding="utf-8",
     )
     assert coverage.idiom(declared) == []
+    # BOTH checks have to accept the declaration, or the escape is unusable:
+    # the reason is a module-level string, and the source scan refuses those
+    # unless they are documentation. Asserting only idiom() is what let the
+    # contradiction ship [found 2026-08-22 by two twin agents at once].
+    assert coverage.scan(declared) == []
+
+
+def test_a_line_may_state_its_own_rung(tmp_path):
+    """A twin idiomatic everywhere but one line excuses that line rather than
+    the whole file, in the shape of the tree's noqa grammar.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    planted = tmp_path / "line.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S\n"
+        "def twin(m):\n"
+        '    m += S["f"](1)  # rung: the head is built by a caller that needs the string\n'
+        '    m += S["g"](2)\n',
+        encoding="utf-8",
+    )
+    findings = coverage.idiom(planted)
+    assert len(findings) == 1, findings
+    assert 'S["g"] is S.g' in findings[0]

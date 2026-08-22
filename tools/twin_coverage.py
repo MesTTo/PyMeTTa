@@ -53,6 +53,7 @@ from __future__ import annotations
 import argparse
 import ast
 import keyword
+import re
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -101,6 +102,11 @@ NAMING_CALLS = frozenset({"sym", "var", "val", "fn", "space", "new_space"})
 
 #: The two factories whose subscript is an atom's name.
 NAMING_NAMESPACES = frozenset({"S", "V"})
+
+#: Module-level constants a twin declares ABOUT itself rather than as
+#: program text: the inference pin, and the reason it sits below the top
+#: rung. Both are read from source the way the lane reads BUDGET.
+DECLARATION_NAMES = frozenset({"BUDGET", "RUNG"})
 
 
 def twin_for(example: Path, root: Path = REPO) -> Path:
@@ -169,6 +175,21 @@ def _named_strings(tree: ast.Module) -> set[int]:
             head = node.body[0] if node.body else None
             if isinstance(head, ast.Expr) and isinstance(head.value, ast.Constant):
                 permitted.add(id(head.value))
+            # A declared rung's REASON is documentation, exactly like the
+            # docstring above it, so the source scan must not read it as a
+            # program. Without this the two checks contradict each other and
+            # declaring a rung turns the lane red, which makes the ladder's
+            # own escape unusable [found 2026-08-22 by two twin agents at once].
+            permitted.update(
+                id(statement.value)
+                for statement in node.body
+                if isinstance(statement, ast.Assign)
+                and isinstance(statement.value, ast.Constant)
+                and any(
+                    isinstance(target, ast.Name) and target.id in DECLARATION_NAMES
+                    for target in statement.targets
+                )
+            )
             if isinstance(node, ast.FunctionDef) and _defines(node):
                 permitted.update(
                     id(inner)
@@ -192,6 +213,10 @@ def _named_strings(tree: ast.Module) -> set[int]:
 #: through expr() spells with a function what the language spells with a
 #: character. The lowering table in petta._operator_lowerings is the
 #: authority for which these are; this is the subset a twin can reach.
+#: A line-level rung declaration, in the shape of the tree's noqa grammar.
+RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
+
+
 OPERATOR_HEADS = frozenset({
     "+", "-", "*", "/", "//", "%", "**", "==", "!=", "<", ">", "<=", ">=",
     "and", "or", "not",
@@ -254,6 +279,25 @@ def idiom(twin: Path) -> list[str]:
     tree = _parse(twin)
     if tree is None or _rung_reason(tree) is not None:
         return []
+    # A line may state its own reason, for a twin that is idiomatic
+    # everywhere else: `# rung: <reason>` reads like the noqa grammar the
+    # rest of the tree uses, and keeps the exemption next to what it excuses.
+    excused = {
+        number
+        for number, line in enumerate(twin.read_text(encoding="utf-8").splitlines(), 1)
+        if RUNG_LINE.search(line)
+    }
+    # The operator rule below only holds where an operator would BUILD the
+    # term, which is inside a compiled body. Outside one `val(5) + 5` computes
+    # 10 and `S.x == 1` is Python's own structural equality, so naming the head
+    # is the deliberate spelling [found 2026-08-22: 33 findings in
+    # twins/libraries, every one of this shape and none of them a defect].
+    compiled = {
+        id(inner)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and _defines(node)
+        for inner in ast.walk(node)
+    }
     findings: list[tuple[int, str]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Subscript):
@@ -270,12 +314,23 @@ def idiom(twin: Path) -> list[str]:
                     (node.lineno, f"expr(...) builds what calling the head builds")
                 )
             called = _head_symbol(node.func)
-            if called in OPERATOR_HEADS or head in OPERATOR_HEADS:
-                built = called if called in OPERATOR_HEADS else head
+            operator = called if called in OPERATOR_HEADS else head
+            # At the operator's OWN arity only: `S["+"](1)` is a partial
+            # application, which Python has no operator spelling for.
+            arity = len(node.args) - (1 if head is not None else 0)
+            if (
+                operator in OPERATOR_HEADS
+                and id(node) in compiled
+                and arity == (1 if operator == "not" else 2)
+            ):
                 findings.append(
-                    (node.lineno, f"the head {built!r} is what a Python operator builds")
+                    (node.lineno, f"the head {operator!r} is what a Python operator builds")
                 )
-    return [f"line {line}: {what}" for line, what in sorted(set(findings))]
+    return [
+        f"line {line}: {what}"
+        for line, what in sorted(set(findings))
+        if line not in excused
+    ]
 
 
 def _parse(twin: Path) -> ast.Module | None:
@@ -303,7 +358,16 @@ def scan(twin: Path) -> list[str]:
     permitted = _named_strings(tree)
     findings: list[tuple[int, str]] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and _callee(node) in SOURCE_DOORS:
+        if (
+            isinstance(node, ast.Call)
+            and _callee(node) in SOURCE_DOORS
+            # `S.parse(text)` BUILDS the term `(parse text)`; only a real call
+            # takes MeTTa source. Without this a twin cannot name a head that
+            # shares a door's name at all, because the idiom check refuses the
+            # subscripted spelling too [found 2026-08-22 by the functions
+            # agent, which had to fall back to sym("parse")].
+            and _head_symbol(node.func) is None
+        ):
             findings.append(
                 (node.lineno, f"calls {_callee(node)}(), which takes MeTTa source")
             )
