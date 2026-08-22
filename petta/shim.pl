@@ -122,12 +122,12 @@
 %     columns, while all eager, limited, guarded, prepared and streamed answer
 %     doors preserve first-appearance column order and variable sharing
 %     [tested: test_wide_query_projection_is_identical_through_every_answer_door;
-%     commit=WORKTREE]
+%     commit=d1421012bb1716d0143f9becd2abd7984b69a809]
 % Decides:
 %   - 64 projected columns is the list-to-hash crossover, keeping small rows on
 %     their lower-overhead list path and making wide distinct columns linear
 %     [tested: test_wide_query_projection_is_identical_through_every_answer_door;
-%     commit=WORKTREE]
+%     commit=d1421012bb1716d0143f9becd2abd7984b69a809]
 % Open Obligations:
 %   To Do: None
 %   Hacks: None
