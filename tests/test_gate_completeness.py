@@ -92,7 +92,11 @@ RUFF_FAMILY_BURN_DOWN = {
     # concept and Python's convention wins), and these two suppressions go
     # when it lands. Measured on the merged tree, after the last merge.
     "D": 2148,
-    "ARG": 139,
+    # 140 not 139 since 095b259: control/caseconstrain.py's twin(m) does not
+    # use its engine, because MeTTa's `case` has no compiled Python spelling
+    # and the destructuring it demonstrates is native Python. The suppression
+    # there names the residue entry; --ignore-noqa still counts the site.
+    "ARG": 140,
     "PERF": 0,
     "C90": 24,
     "TRY": 23,
