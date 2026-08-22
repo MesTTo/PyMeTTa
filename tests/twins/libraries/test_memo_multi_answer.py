@@ -1,49 +1,43 @@
-"""The Python twin of examples/libraries/test_memo_multi_answer.metta.
+"""examples/libraries/test_memo_multi_answer.metta in Python: caching a function that answers twice.
 
-A memoized function with two answers gives both, on the call that misses and
-on the call that hits.
+Two equations share one head, so they are two ALTERNATIVES rather than a
+redefinition, and `@rules` is the door that says that: the generator's
+parameter IS the equations' variable, and both land through one write.
 
-`yield` IS nondeterminism, so the source's two equations for one head are one
-`@m.define` generator whose body superposes the two alternatives. A second
-decorator under the same head would REPLACE the first rather than stack beside
-it, which is what makes the generator the spelling here rather than a taste;
-the residue table records that against P14.4. The definition is installed ahead
-of the runnable forms for the loader-ordering reason recorded on the same row.
+The answers are compared as a sorted multiset rather than in clause order.
+`memoize` recompiles by removing each equation and adding it back, which
+reverses the order the clauses answer in, and answer order is unspecified while
+multiplicity is not, so the set is what the claim can be about.
 """
 
-from petta import S
+from petta import S, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 128335 to 129174, +839 (+0.65%), by the P14 twin-
-#: style rewrite: the two equations for one head become one @m.define
-#: generator whose body superposes the alternatives, and the compile replaces
-#: one of the two container-door atom adds. Prior: ADDED 2026-08-22 at 128335
-#: by the wave-3 libraries baseline, which recorded no cause.
-BUDGET = 129174
+#: RE-PINNED 2026-08-22, 129174 to 124847, -4327 (-3.35%), by the idiomatic
+#: rewrite: two `test` wrappers and the tuple comparison left the engine for
+#: `assert` over a sorted multiset; the two alternatives now arrive through
+#: one `@rules` write. Measured min-of-three with the MORK backend linked
+#: into this worktree, which the earlier figure may not have been. Prior:
+#: 129174 was the last figure for the generator twin that yielded
+#: `m.eval(S.test(...))` once per runnable form.
+BUDGET = 124847
+
+#: Both answers for `(choose 7)`, in the order `sorted(key=str)` puts them.
+BOTH = [S.Pair(7, 7), 7]
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Two answers for one call, before and after the cache."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-
-    @m.define
+    @rules
     def choose(x):
-        # (= (choose $x) $x)
-        # (= (choose $x) (Pair $x $x))
-        yield x
-        yield Pair(x, x)  # noqa: F821  -- a capitalized free name is a MeTTa data constructor, which is how the compiled subset spells one
+        yield equation(S.choose(x)).to(x)
+        yield equation(S.choose(x)).to(S.Pair(x, x))
 
-    # !(import! &self (library lib_memo))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))
+    m.add(*choose)
+    m.eval(S.memoize(S.choose))
 
-    # Enable memoization for a function that returns multiple answers.
-    # !(memoize choose)
-    yield m.eval(S.memoize(S.choose))
-
-    # First call misses, second hits from cache.
-    # !(test (choose 7) (7 (Pair 7 7)))
-    yield m.eval(S.test(S.choose(7), (7, S.Pair(7, 7))))
-    # !(test (choose 7) (7 (Pair 7 7)))
-    yield m.eval(S.test(S.choose(7), (7, S.Pair(7, 7))))
+    answers = m.fn("choose")
+    assert sorted(answers.all(7), key=str) == BOTH
+    assert sorted(answers.all(7), key=str) == BOTH

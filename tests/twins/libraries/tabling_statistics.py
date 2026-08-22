@@ -1,92 +1,84 @@
-"""The Python twin of examples/libraries/tabling_statistics.metta.
+"""examples/libraries/tabling_statistics.metta in Python: what the incremental machinery DID.
 
-What the incremental machinery actually did, rather than what it is meant to do:
-a write under a key the subgoal reads invalidates its table, a write under any
-other key does not, and re-evaluation waits for the next call.
+A write to a space a tabled function reads invalidates its table, and the next
+call re-evaluates it. Until these counters existed the guarantee was testable
+only by its EFFECT, a fresh answer, which a table rebuilt from scratch produces
+just as well. Six claims read the counters instead.
 
-`reach` is written by `@m.define`, whose compiled `match(...)` names the space
-as a literal and the pattern structurally. The counter tuples are Python tuples,
-which is what a MeTTa expression of pairs already is.
+The finding worth keeping is the middle one: a write under a key this subgoal
+does not read does not invalidate the table at all, and neither does an atom
+with a different head in the same space. That is finer than the manual's own
+summary, which says invalidation "is done at the level of tables. Notably
+asserting a clause invalidates all affected tables" and closes with "Future
+versions may implement a more fine grained approach". Reading the counters
+BEFORE the next call is what shows it, because they are cumulative.
+
+`reach` is written by `@m.define` and tabled by hand rather than by `@m.cache`,
+whose `cache_info()` is this counter set under Python's own name, for the reason
+tabling_space_write gives: the lane reads a string inside a `define`-decorated
+body as an equation's literal and does not yet know that `cache` compiles a body
+too, and the compiled `match(...)` has to name its space.
 """
 
 from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 104258 to 105819, +1561 (+1.50%), by the P14
-#: twin-style rewrite: reach's equation is now compiled from Python syntax by
-#: @m.define instead of added as an already-built atom. Prior: ADDED
-#: 2026-08-22 at 104258 by the wave-3 libraries baseline, which recorded no
-#: cause.
-BUDGET = 105819
+#: RE-PINNED 2026-08-22, 105819 to 99288, -6531 (-6.17%), by the idiomatic
+#: rewrite: six `test` wrappers and two `collapse`s left the engine, and
+#: reading the counters is now a list comparison in Python rather than a term
+#: compared by `test`. Measured min-of-three with the MORK backend linked
+#: into this worktree, which the earlier figure may not have been. Prior:
+#: 105819 was the last figure for the generator twin that yielded
+#: `m.eval(S.test(...))` once per runnable form.
+BUDGET = 99288
 
-def stats(tables, answers, complete, invalidated, reevaluated):
-    """The five counters in the order `table-stats` answers them.
-
-    Written once because the same shape is asserted five times below and
-    only the numbers move.
-    """
-    return (
-        (S.tables, tables),
-        (S.answers, answers),
-        (S["complete-call"], complete),
-        (S.invalidated, invalidated),
-        (S.reevaluated, reevaluated),
-    )
+#: One call, one answer, nothing invalidated: what the first three claims all
+#: expect, because the two writes between them are writes the subgoal never read.
+UNTOUCHED = [
+    S.tables(1), S.answers(1), S["complete-call"](1),
+    S.invalidated(0), S.reevaluated(0),
+]
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Call a tabled reader once, then write around it and watch its counters."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_tabling)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_tabling))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_tabling)))
-
-    # !(add-atom &self (edge a b))
-    yield m.eval(S["add-atom"](S["&self"], S.edge(S.a, S.b)))
+    m += S.edge(S.a, S.b)
 
     @m.define
     def reach(x, y):
-        # (= (reach $x $y) (match &self (edge $x $y) $y))
         return match("&self", edge(x, y), y)  # noqa: F821  -- match reads its pattern as syntax: `edge` is the relation symbol and `x`, `y` are the parameters
 
-    # !(tabled (reach $x $y))
-    yield m.eval(S.tabled(S.reach(V.x, V.y)))
+    m.eval(S.tabled(S.reach(V.x, V.y)))
+    counters = m.fn("table-stats")
 
     # Nothing has happened yet: one call, one answer, no invalidation.
-    # !(collapse (reach a $y))
-    yield m.eval(S.collapse(S.reach(S.a, V.y)))
-    # !(test (table-stats (reach $x $y))
-    #        ((tables 1) (answers 1) (complete-call 1) (invalidated 0) (reevaluated 0)))
-    yield m.eval(S.test(S["table-stats"](S.reach(V.x, V.y)), stats(1, 1, 1, 0, 0)))
+    reach(S.a, V.y)
+    assert list(counters(S.reach(V.x, V.y))) == UNTOUCHED
 
     # A write under a key this subgoal does not read leaves the table alone.
-    # !(add-atom &self (edge b d))
-    yield m.eval(S["add-atom"](S["&self"], S.edge(S.b, S.d)))
-    # !(test (table-stats (reach $x $y))
-    #        ((tables 1) (answers 1) (complete-call 1) (invalidated 0) (reevaluated 0)))
-    yield m.eval(S.test(S["table-stats"](S.reach(V.x, V.y)), stats(1, 1, 1, 0, 0)))
+    # Not "leaves the answers alone", which a rebuild would too: the table is
+    # never invalidated at all.
+    m += S.edge(S.b, S.d)
+    assert list(counters(S.reach(V.x, V.y))) == UNTOUCHED
 
     # Nor does an atom with a different head in the same space.
-    # !(add-atom &self (unrelated x y))
-    yield m.eval(S["add-atom"](S["&self"], S.unrelated(S.x, S.y)))
-    # !(test (table-stats (reach $x $y))
-    #        ((tables 1) (answers 1) (complete-call 1) (invalidated 0) (reevaluated 0)))
-    yield m.eval(S.test(S["table-stats"](S.reach(V.x, V.y)), stats(1, 1, 1, 0, 0)))
+    m += S.unrelated(S.x, S.y)
+    assert list(counters(S.reach(V.x, V.y))) == UNTOUCHED
 
-    # A write under a key it DOES read invalidates.
-    # !(add-atom &self (edge a c))
-    yield m.eval(S["add-atom"](S["&self"], S.edge(S.a, S.c)))
-    # !(test (table-stats (reach $x $y))
-    #        ((tables 1) (answers 1) (complete-call 1) (invalidated 1) (reevaluated 0)))
-    yield m.eval(S.test(S["table-stats"](S.reach(V.x, V.y)), stats(1, 1, 1, 1, 0)))
+    # A write under a key it DOES read invalidates, and only that.
+    m += S.edge(S.a, S.c)
+    assert list(counters(S.reach(V.x, V.y))) == [
+        S.tables(1), S.answers(1), S["complete-call"](1),
+        S.invalidated(1), S.reevaluated(0),
+    ]
 
-    # Re-evaluation is on demand, so it takes a call.
-    # !(test (sort-atom (collapse (reach a $y))) (b c))
-    yield m.eval(
-        S.test(S["sort-atom"](S.collapse(S.reach(S.a, V.y))), (S.b, S.c))
-    )
-    # !(test (table-stats (reach $x $y))
-    #        ((tables 1) (answers 2) (complete-call 3) (invalidated 1) (reevaluated 1)))
-    yield m.eval(S.test(S["table-stats"](S.reach(V.x, V.y)), stats(1, 2, 3, 1, 1)))
+    # Re-evaluation is on demand, so it takes a call. reevaluated LOWER than
+    # invalidated would be SWI deciding a dependency changed without changing
+    # this table's answers, which is the incremental win rather than a rebuild.
+    assert sorted(reach(S.a, V.y), key=str) == [S.b, S.c]
+    assert list(counters(S.reach(V.x, V.y))) == [
+        S.tables(1), S.answers(2), S["complete-call"](3),
+        S.invalidated(1), S.reevaluated(1),
+    ]

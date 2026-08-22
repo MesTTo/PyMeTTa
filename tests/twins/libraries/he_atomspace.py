@@ -1,86 +1,57 @@
-"""The Python twin of examples/libraries/he_atomspace.metta.
+"""examples/libraries/he_atomspace.metta in Python: writing, matching and typing atoms.
 
-Storing a definition unreduced against storing its reduct, and the space-relative
-readings of get-type and unify.
+`add-atom` and `add-reduct` differ in one thing, which the two claims here
+draw: add-atom stores the definition as written, and add-reduct reduces the
+body to a VALUE first. Python spells the pair with one write door and an
+explicit evaluation, which is the composition the ledger asks for rather than a
+second method.
 
-`(+ 1 3)` is a term over two GROUND numbers, and Python's own `+` on two ground
-numbers is Python arithmetic: it answers 4 before any term exists. So the head is
-named instead.
+Reading them back is matching the space for `(= (addnormal) $X)`, which
+`equation(...).to(...)` builds as a pattern the same way it builds an atom, so
+the subscript door answers the stored body.
 
-The twins lane reports a named operator head as a dropped rung, which is a
-false positive it cannot see past; the residue table records the refinement
-against P14.1.
+The containment claims are Python's `in`: `(unify &self (hello world) Yes No)`
+asks whether anything in the space unifies with a pattern, which is exactly
+what `pattern in space` asks, so the twin answers True and False rather than
+Yes and No.
 
-`equation(...).to(...)` builds the `(= ...)` term in both positions it is needed:
-as the datum `add-atom` stores, and as the PATTERN `match` looks for. That is the
-same builder doing the same job, which is what makes an equation ordinary data
-here rather than a special form.
+`get-type-space` stays named. The dissolution table's `space.type(atom)` is not
+on the handle (`type` there is the class-declaration decorator), which the
+residue table records.
 """
 
 from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 11625 to 11625, +0 (+0.00%), by the P14 twin-style
-#: rewrite: the twin's atoms are unchanged: equation(...).to(...) builds what
-#: S["="](...) built, in both the datum and the pattern position. Prior:
-#: ADDED 2026-08-22 at 11625 by the wave-3 libraries baseline, which recorded
-#: no cause.
-BUDGET = 11625
+#: RE-PINNED 2026-08-22, 11625 to 8389, -3236 (-27.84%), by the idiomatic
+#: rewrite: the two `match` forms, their `collapse`s and the two `unify`
+#: calls left the engine for the subscript door and Python's `in`, and add-
+#: reduct's reduction is now one evaluation whose answer Python hands back to
+#: the write door. Measured min-of-three with the MORK backend linked into
+#: this worktree, which the earlier figure may not have been. Prior: 11625
+#: was the last figure for the generator twin that yielded
+#: `m.eval(S.test(...))` once per runnable form.
+BUDGET = 8389
 
-#: `(+ 1 3)` is a term over two GROUND numbers, and Python's own `+` on two
-#: ground numbers is Python arithmetic: it answers 4 before any term exists. So
-#: the head is named, which is the door the design authority gives for exactly
-#: this ("operators build terms on symbolic operands and compute on ground
-#: ones", §9b). Nothing else in this file drops a rung; the residue table
-#: records the check refinement against P14.1.
+
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Write one definition each way, read both back, then type and unify."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_he))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_he)))
+    m += equation(S.addnormal()).to(S["+"](1, 3))
+    m += equation(S.addreduct()).to(m.one(S["+"](1, 3)))
 
-    # !(add-atom &self (= (addnormal) (+ 1 3)))
-    yield m.eval(
-        S["add-atom"](S["&self"], equation(S.addnormal()).to(S["+"](1, 3)))
-    )
-    # !(add-reduct &self (= (addreduct) (+ 1 3)))
-    yield m.eval(
-        S["add-reduct"](S["&self"], equation(S.addreduct()).to(S["+"](1, 3)))
-    )
+    # The stored body, as written.
+    assert m[equation(S.addnormal()).to(V.body)]["body"] == [S["+"](1, 3)]
+    # And reduced, because add-reduct's Python spelling evaluates first.
+    assert m[equation(S.addreduct()).to(V.body)]["body"] == [4]
 
-    # quote retains its wrapper in LeaTTa types-meta/30_evaluation_control.metta;
-    # noeval holds the stored body without adding that wrapper.
-    # !(test (match &self (= (addnormal) $X) $X) (noeval (+ 1 3)))
-    yield m.eval(
-        S.test(
-            S.match(S["&self"], equation(S.addnormal()).to(V.X), V.X),
-            S.noeval(S["+"](1, 3)),
-        )
-    )
-    # 4, not (4). add-reduct is an engine builtin now and reduces the
-    # definition's body to a VALUE.
-    # !(test (match &self (= (addreduct) $X) (noeval $X)) 4)
-    yield m.eval(
-        S.test(
-            S.match(S["&self"], equation(S.addreduct()).to(V.X), S.noeval(V.X)),
-            4,
-        )
-    )
-
-    # !(get-type 1)
-    yield m.eval(S["get-type"](1))
-
-    # (: a A)
+    # A declared type is an ordinary atom, and asking for it names the space,
+    # because the answer depends on which space you ask.
     m += S[":"](S.a, S.A)
-    # !(test (get-type-space &self a) A)
-    yield m.eval(S.test(S["get-type-space"](S["&self"], S.a), S.A))
+    assert m.fn("get-type-space")(S["&self"], S.a) == S.A  # rung: the queried space is this function's ARGUMENT; the dissolution table's space.type(atom) is not on the handle, so the space is named
 
-    # (hello world)
+    # Containment is a match, so it is Python's `in`.
     m += S.hello(S.world)
-    # !(test (unify &self (hello world) Yes No) Yes)
-    yield m.eval(S.test(S.unify(S["&self"], S.hello(S.world), S.Yes, S.No), S.Yes))
-    # !(test (unify &self (hello dream) Yes No) No)
-    yield m.eval(S.test(S.unify(S["&self"], S.hello(S.dream), S.Yes, S.No), S.No))
+    assert S.hello(S.world) in m
+    assert S.hello(S.dream) not in m

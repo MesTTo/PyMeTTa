@@ -1,87 +1,48 @@
-"""The Python twin of examples/libraries/he_minimalmetta.metta.
+"""examples/libraries/he_minimalmetta.metta in Python: the minimal instruction set, by hand.
 
-Division by repeated subtraction, written in the core instructions themselves.
+This one file is deliberately NOT idiomatic in its body, and the reason is its
+subject: `div` is written in minimal MeTTa, out of `chain`, `eval` and `unify`
+alone, to exercise the instruction set 70,000 recursions deep. Assignment
+lowers to `let*`, not to `chain`, so a compiled Python body would store a
+different program and stop being the exercise. The equation therefore goes to
+the container door and says exactly what the example says, which the residue
+table records against P14.4.
 
-The equation stays at the container door because the instruction tier IS the
-exercise: `chain`, `eval` and `unify` are what this file demonstrates, and a
-compiled body spells sequencing as assignment, which lowers to `let*`. That is
-a different program with a different instruction count, and the 350,000-step
-run this file makes is exactly the measurement the difference would spoil.
-Python's own operators still build the arithmetic operands, because those take
-a variable and so read as terms rather than as arithmetic.
+Everything outside the equation is Python: the definition is built once and
+named, and the claim is an ordinary comparison.
+
+`with-pragma!` is named too. Modes are with-blocks on this surface, but
+`m.limits` covers inferences and timeout, and the stack depth this exercise
+raises has no block of its own.
 """
 
-from petta import S, V, equation, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 83244559 to 83244559, +0 (+0.00%), by the P14
-#: twin-style rewrite: the twin's atoms are unchanged: the instruction-tier
-#: equation stays a container-door atom and equation(...).to(...) builds what
-#: S["="](...) built. Prior: ADDED 2026-08-22 at 83244559 by the wave-3
-#: libraries baseline, which recorded no cause.
-BUDGET = 83244559
+#: RE-PINNED 2026-08-22, 83244559 to 83244402, -157 (-0.00%), by the
+#: idiomatic rewrite: nothing moved. The 70,000 recursions are the whole
+#: cost, the equation is the same atom built the same way, and the difference
+#: is one `test` wrapper. Measured min-of-three with the MORK backend linked
+#: into this worktree, which the earlier figure may not have been. Prior:
+#: 83244559 was the last figure for the generator twin that yielded
+#: `m.eval(S.test(...))` once per runnable form.
+BUDGET = 83244402
+
+#: The 70,000-step interpreter exercise states a budget above the engine default.
+DEEP_STACK = (S["max-stack-depth"](1_000_000),)
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Write integer division as chain, eval and unify, then run it 70,000 deep."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(import! &self (library lib_he))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_he)))
-
-    # (= (div $x $y $accum)
-    #    (chain (eval (- $x $y)) $r1
-    #      (chain (eval (< $r1 0)) $r2
-    #        (chain (unify $r2 True
-    #          $accum
-    #          (chain (eval (+ 1 $accum)) $inc
-    #            (chain (eval (div $r1 $y $inc)) $r4 $r4)
-    #          )) $r3 $r3
-    #        )
-    #      )
-    #    )
-    # )
     m += equation(S.div(V.x, V.y, V.accum)).to(
-        S.chain(
-            S.eval(V.x - V.y),
-            V.r1,
-            S.chain(
-                S.eval(V.r1 < 0),
-                V.r2,
-                S.chain(
-                    S.unify(
-                        V.r2,
-                        TRUE,
-                        V.accum,
-                        S.chain(
-                            S.eval(1 + V.accum),
-                            V.inc,
-                            S.chain(S.eval(S.div(V.r1, V.y, V.inc)), V.r4, V.r4),
-                        ),
-                    ),
-                    V.r3,
-                    V.r3,
-                ),
-            ),
-        )
-    )
+        S.chain(S.eval(S["-"](V.x, V.y)), V.r1,
+          S.chain(S.eval(S["<"](V.r1, 0)), V.r2,
+            S.chain(S.unify(V.r2, True,  # noqa: FBT003  -- True is the ATOM the comparison answers, matched against, not a flag
+              V.accum,
+              S.chain(S.eval(S["+"](1, V.accum)), V.inc,
+                S.chain(S.eval(S.div(V.r1, V.y, V.inc)), V.r4, V.r4))), V.r3, V.r3))))
 
-    # The 70000-step interpreter exercise states a budget above the engine default.
-    # !(test (with-pragma! ((max-stack-depth 1000000))
-    #                      (chain (eval (div 350000 5 0)) $rr $rr))
-    #        70000)
-    yield m.eval(
-        S.test(
-            S["with-pragma!"](
-                ((S["max-stack-depth"], 1000000),),
-                S.chain(S.eval(S.div(350000, 5, 0)), V.rr, V.rr),
-            ),
-            70000,
-        )
-    )
+    counted = S.chain(S.eval(S.div(350000, 5, 0)), V.rr, V.rr)
+    assert m.one(S["with-pragma!"](DEEP_STACK, counted)) == 70000

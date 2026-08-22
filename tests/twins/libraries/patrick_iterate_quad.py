@@ -1,56 +1,47 @@
-"""The Python twin of examples/libraries/patrick_iterate_quad.metta.
+"""examples/libraries/patrick_iterate_quad.metta in Python: a triangular walk under iterate.
 
-A double sum written as one iterate: the step carries (row, column, total) and
-advances the column until it meets the row.
+The step carries a triple, (t i sum), and walks the lower triangle of a
+thousand-by-thousand grid: when i reaches t the row is finished, so t advances
+and i restarts, and otherwise i advances. `iterate` runs it n(n+1)/2 times and
+`last` takes the final state. Both are lib_patrick's own and stay named.
 
-Both equations stay at the container door for the reasons P14.4 records:
-`quad-step` destructures its second argument IN THE HEAD, where a decorator
-takes only a literal parameter default, and `quad-sum` passes `quad-step` by a
-hyphenated name a compiled body cannot spell. Every arithmetic operand here
-carries a variable, so Python's own operators build those terms; only `(== $i $t)`
-names its head, because Python's `==` between atoms answers structural equality
-rather than building a term.
+Both equations are at the container door for the reasons
+patrick_iterate_fib gives: `quad-step`'s head destructures its second argument,
+and `quad-sum`'s body passes `quad-step` as data.
 
-The twins lane reports a named operator head as a dropped rung, which is a
-false positive it cannot see past; the residue table records the refinement
-against P14.1.
+Inside those built bodies, `==` and `if` are written as heads rather than as
+Python punctuation, and that is the deliberate spelling: outside a compiled
+body `V.i == V.t` is Python's own structural equality between two variables,
+which is False, and Python's conditional expression evaluates rather than
+building the term an equation has to store.
 """
 
-from petta import S, V, equation
+from petta import S, V, equation, expr
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 35565297 to 35565297, +0 (+0.00%), by the P14
-#: twin-style rewrite: the twin's atoms are unchanged: both equations stay
-#: container-door atoms and equation(...).to(...) builds what S["="](...)
-#: built. Prior: ADDED 2026-08-22 at 35565297 by the wave-3 libraries
-#: baseline, which recorded no cause.
-BUDGET = 35565297
+#: RE-PINNED 2026-08-22, 35565297 to 35564694, -603 (-0.00%), by the
+#: idiomatic rewrite: the one `test` wrapper left the engine for `assert`;
+#: the triangular walk over half a million steps is the whole cost. Measured
+#: min-of-three with the MORK backend linked into this worktree, which the
+#: earlier figure may not have been. Prior: 35565297 was the last figure for
+#: the generator twin that yielded `m.eval(S.test(...))` once per runnable
+#: form.
+BUDGET = 35564694
+
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Sum t*i over the lower triangle of a thousand rows."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_patrick)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(import! &self (library lib_patrick))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_patrick)))
-
-    # (= (quad-step $dummy ($t $i $sum))
-    #    (if (== $i $t)
-    #        ( (+ $t 1) 1 (+ $sum (* $t $i)) )
-    #        ( $t (+ $i 1) (+ $sum (* $t $i)) )))
-    m += equation(S["quad-step"](V.dummy, (V.t, V.i, V.sum))).to(
-        S["if"](
+    m += equation(S["quad-step"](V.dummy, expr(V.t, V.i, V.sum))).to(
+        S["if"](  # rung: this `if` is the BODY of a stored equation, and Python's conditional expression evaluates rather than building the term the equation has to hold
             S["=="](V.i, V.t),
-            (V.t + 1, 1, V.sum + V.t * V.i),
-            (V.t, V.i + 1, V.sum + V.t * V.i),
+            expr(V.t + 1, 1, V.sum + V.t * V.i),
+            expr(V.t, V.i + 1, V.sum + V.t * V.i),
         )
     )
-
-    # (= (quad-sum $n)
-    #    (last (iterate 0 (/ (* $n (+ $n 1)) 2) (1 1 0) quad-step)))
     m += equation(S["quad-sum"](V.n)).to(
         S.last(S.iterate(0, V.n * (V.n + 1) / 2, (1, 1, 0), S["quad-step"]))
     )
 
-    # !(test (quad-sum 1000) 125417041750)
-    yield m.eval(S.test(S["quad-sum"](1000), 125417041750))
+    assert m.fn("quad-sum")(1000) == 125417041750

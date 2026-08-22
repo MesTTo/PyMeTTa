@@ -1,71 +1,54 @@
-"""The Python twin of examples/libraries/derived_forms.metta.
+"""examples/libraries/derived_forms.metta in Python: swapping a fused form for its expansion.
 
-`once` is a form the compiler fuses AND a form MeTTa can write, and this file
-swaps one for the other in a live session and shows the answers do not move.
+The engine fuses `once` into the compiler, and lib_derived writes the same form
+as an ordinary MeTTa equation that rewrites the call into `(take 1 ...)`. This
+file swaps one for the other in a live session and shows the answers do not
+move, so `once` is the subject throughout and stays named.
 
-`noisy` stays at the container door, recorded against P14.4: its body calls
-`add-atom`, and a compiled body reaches a free name exactly as written, so a
-hyphenated MeTTa name has no Python spelling.
+`noisy` stays at the container door for two reasons, and the second is the
+interesting one: its body calls `add-atom`, which a compiled body cannot spell,
+and it NAMES a space, which is what an equation must do. An equation is data
+that outlives the process, so the atom carries the space's name where Python
+holds a handle.
 """
 
 from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 15606 to 15603, -3 (-0.02%), by the P14 twin-style
-#: rewrite: reading the source's own anonymous variable as one: the let in (=
-#: (noisy $x) ...) binds $_ where the previous twin renamed it $_1210, and an
-#: A/B that renames it back restores 15606 exactly, so the whole move is
-#: those three inferences. Prior: ADDED 2026-08-22 at 15606 by the wave-3
-#: libraries baseline, which recorded no cause.
-BUDGET = 15603
+#: RE-PINNED 2026-08-22, 15603 to 13485, -2118 (-13.57%), by the idiomatic
+#: rewrite: seven `test` wrappers and three `collapse`s left the engine for
+#: `assert` and `.all()`; `once`, the library swap and the side-effecting
+#: generator still run there. Measured min-of-three with the MORK backend
+#: linked into this worktree, which the earlier figure may not have been.
+#: Prior: 15603 was the last figure for the generator twin that yielded
+#: `m.eval(S.test(...))` once per runnable form.
+BUDGET = 13485
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Answer with the compiler's `once`, then the library's, then the compiler's."""
+    once = m.fn("once")
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
     # Before the import, `once` is the compiler's own clause.
-    # !(test (once (superpose (1 2 3))) 1)
-    yield m.eval(S.test(S.once(S.superpose((1, 2, 3))), 1))
+    assert once(S.superpose((1, 2, 3))) == 1
 
-    # !(import! &self (library lib_derived))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_derived)))
+    m.eval(S["import!"](S["&self"], S.library(S.lib_derived)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    # After it, `once` is an ordinary MeTTa equation that rewrites the call into
-    # `(take 1 ...)`, and it answers exactly the same thing.
-    # !(test (once (superpose (1 2 3))) 1)
-    yield m.eval(S.test(S.once(S.superpose((1, 2, 3))), 1))
-    # !(test (collapse (once (superpose (1 2 3)))) (1))
-    yield m.eval(S.test(S.collapse(S.once(S.superpose((1, 2, 3)))), (1,)))
-    # !(test (collapse (once (empty))) ())
-    yield m.eval(S.test(S.collapse(S.once(S.empty())), ()))
+    # After it, `once` is an ordinary MeTTa equation, and it answers the same.
+    assert once(S.superpose((1, 2, 3))) == 1
+    assert once.all(S.superpose((1, 2, 3))) == [1]
+    assert once.all(S.empty()) == []
 
-    # It is still the first answer of a generator that has side effects, so the
+    # It is still the FIRST answer of a generator with side effects, so the
     # rest of the generator does not run.
-    # !(bind! &seen (new-space))
-    yield m.eval(S["bind!"](S["&seen"], S["new-space"]()))
+    seen = m.space("&seen")
+    m += equation(S.noisy(V.x)).to(S.let(V._, S["add-atom"](S["&seen"], S.saw(V.x)), V.x))  # rung: an equation is DATA, so the space it writes to is carried by name; a Python handle is a process-local object and cannot be stored in an atom
 
-    # (= (noisy $x) (let $_ (add-atom &seen (saw $x)) $x))
-    m += equation(S.noisy(V.x)).to(
-        S.let(V._, S["add-atom"](S["&seen"], S.saw(V.x)), V.x)
-    )
+    assert once(S.superpose((S.noisy(S.a), S.noisy(S.b)))) == S.a
+    assert list(seen) == [S.saw(S.a)]
 
-    # !(test (once (superpose ((noisy a) (noisy b)))) a)
-    yield m.eval(
-        S.test(S.once(S.superpose((S.noisy(S.a), S.noisy(S.b)))), S.a)
-    )
-    # !(test (collapse (get-atoms &seen)) ((saw a)))
-    yield m.eval(
-        S.test(S.collapse(S["get-atoms"](S["&seen"])), (S.saw(S.a),))
-    )
+    # The swap is a session decision, not a per-call one: registering is
+    # global, and removing puts the compiler's own clause back in charge.
+    m.eval(S["remove-translator-rule!"](S.once))
 
-    # The swap is a session decision, not a per-call one: `add-translator-rule!`
-    # registers globally. `remove-translator-rule!` puts the compiler's own
-    # clause back in charge.
-    # !(remove-translator-rule! once)
-    yield m.eval(S["remove-translator-rule!"](S.once))
-
-    # !(test (once (superpose (1 2 3))) 1)
-    yield m.eval(S.test(S.once(S.superpose((1, 2, 3))), 1))
+    assert once(S.superpose((1, 2, 3))) == 1

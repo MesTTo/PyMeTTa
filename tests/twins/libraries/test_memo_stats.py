@@ -1,46 +1,40 @@
-"""The Python twin of examples/libraries/test_memo_stats.metta.
+"""examples/libraries/test_memo_stats.metta in Python: one miss, then two hits.
 
-One miss and two hits on the same key, all answering 81.
+`sq` is an ordinary compiled definition and `memoize` is lib_memo's own
+declaration, so it stays named: caching by dependency-aware invalidation is
+what the library is for and Python has no word for it.
 
-`@m.define` writes the equation; the definition is installed ahead of the
-runnable forms for the loader-ordering reason the residue table records against
-P14.4.
+What this twin cannot show is the caching itself. A memoized function called
+through `m.eval`, and therefore through every door over it, does not reach
+lib_memo's dispatch hook: with the definition and the memoize both written by a
+file, two calls from Python record no hit and no miss where two `!` forms in a
+file record one of each. The claims here hold either way, because 81 is 81; the
+divergence is in the residue table with its reproduction.
 """
 
 from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 127317 to 128946, +1629 (+1.28%), by the P14
-#: twin-style rewrite: the equation is now written by @m.define, which
-#: COMPILES the body from Python syntax where the container door added an
-#: already-built atom. The compile costs 1,629 inferences, once per decorated
-#: function: test_memo_stats holds one define too and moved by the same
-#: amount. Prior: ADDED 2026-08-22 at 127317 by the wave-3 libraries
-#: baseline, which recorded no cause.
-BUDGET = 128946
+#: RE-PINNED 2026-08-22, 128946 to 125604, -3342 (-2.59%), by the idiomatic
+#: rewrite: three `test` wrappers left the engine for `assert`; `sq` is now
+#: compiled by `@m.define` where the source wrote the equation. Measured min-
+#: of-three with the MORK backend linked into this worktree, which the
+#: earlier figure may not have been. Prior: 128946 was the last figure for
+#: the generator twin that yielded `m.eval(S.test(...))` once per runnable
+#: form.
+BUDGET = 125604
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
+    """Square nine three times over a memoized definition."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
     @m.define
     def sq(x):
-        # (= (sq $x) (* $x $x))
         return x * x
 
-    # !(import! &self (library lib_memo))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))
+    m.eval(S.memoize(S.sq))
 
-    # !(memoize sq)
-    yield m.eval(S.memoize(S.sq))
-
-    # One miss, then two hits on the same key (9*9 = 81).
-    # !(test (sq 9) 81)
-    yield m.eval(S.test(S.sq(9), 81))
-    # !(test (sq 9) 81)
-    yield m.eval(S.test(S.sq(9), 81))
-    # !(test (sq 9) 81)
-    yield m.eval(S.test(S.sq(9), 81))
+    assert sq(9) == [81]
+    assert sq(9) == [81]
+    assert sq(9) == [81]

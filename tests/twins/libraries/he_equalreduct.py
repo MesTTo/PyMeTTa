@@ -1,52 +1,38 @@
-"""The Python twin of examples/libraries/he_equalreduct.metta.
+"""examples/libraries/he_equalreduct.metta in Python: equality and reduction, HE's vocabulary.
 
-Identity, alpha-equality, and the equality-guarded branch.
+`=alpha` has a Python name already: `petta.alpha_eq`, whose own docstring calls
+it "PeTTa's =alpha", so the two claims about it are ordinary Python truth tests
+and the twin never spells the MeTTa head. `id` and `if-equal` are lib_he's own
+functions and stay named.
 
-`(= (add 1 2) 3)` is an equation whose head is all literals, and a literal
-parameter default IS the head pattern for that position, so the decorator writes
-it whole and the parameters never appear in the equation. The underscores say
-that to a Python reader as well.
+`(= (add 1 2) 3)` goes to the container door. Its head carries LITERAL
+arguments, and a decorated Python function's parameters are always variables,
+so `@m.define` would store `(= (add $x $y) 3)`, a different equation.
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import S, V, alpha_eq, equation, val
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 9738 to 11367, +1629 (+16.73%), by the P14
-#: twin-style rewrite: the literal-headed equation (= (add 1 2) 3) is now
-#: compiled from Python syntax by @m.define, whose literal parameter defaults
-#: ARE the head patterns, instead of added as an already-built atom. Prior:
-#: ADDED 2026-08-22 at 9738 by the wave-3 libraries baseline, which recorded
-#: no cause.
-BUDGET = 11367
+#: RE-PINNED 2026-08-22, 11367 to 7441, -3926 (-34.54%), by the idiomatic
+#: rewrite: the two `=alpha` claims left the engine entirely for
+#: `petta.alpha_eq`, whose own docstring names it PeTTa's =alpha, and four
+#: `test` wrappers went with them. Measured min-of-three with the MORK
+#: backend linked into this worktree, which the earlier figure may not have
+#: been. Prior: 11367 was the last figure for the generator twin that yielded
+#: `m.eval(S.test(...))` once per runnable form.
+BUDGET = 7441
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Store an equation with a literal head, then ask three equality questions."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(import! &self (library lib_he))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_he)))
+    m += equation(S.add(1, 2)).to(3)
 
-    @m.define(name="add")
-    def add_one_two(_x=1, _y=2):
-        # (= (add 1 2) 3)
-        return 3
+    assert m.fn("id")(5) == 5
 
-    # !(test (id 5) 5)
-    yield m.eval(S.test(S.id(5), 5))
+    # Alpha equality is equality up to a consistent renaming of variables.
+    assert alpha_eq(S.Father(V.X), S.Father(V.Y))
+    assert not alpha_eq(S.Father(V.X), S.Son(V.X))
 
-    # !(test (=alpha (Father $X) (Father $Y)) True)
-    yield m.eval(S.test(S["=alpha"](S.Father(V.X), S.Father(V.Y)), TRUE))
-    # !(test (=alpha (Father $X) (Son $X)) False)
-    yield m.eval(S.test(S["=alpha"](S.Father(V.X), S.Son(V.X)), FALSE))
-
-    # !(test (if-equal 1 1 "Equal" "Not Equal") "Equal")
-    yield m.eval(
-        S.test(S["if-equal"](1, 1, val("Equal"), val("Not Equal")), val("Equal"))
-    )
+    assert m.fn("if-equal")(1, 1, val("Equal"), val("Not Equal")) == val("Equal")

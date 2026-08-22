@@ -1,68 +1,50 @@
-"""The Python twin of examples/libraries/test_memo_same_name_multi_arity.metta.
+"""examples/libraries/test_memo_same_name_multi_arity.metta in Python: two arities, cached apart.
 
-One name at two arities, each with its own cache, memoized one at a time.
+`mix` answers at one and at two arguments, and each arity carries its own
+cache: memoizing one leaves the other alone, which is what `is-memoized`
+reports here five times. Both equations come through `@rules`, for the reason
+test_memo_per_arity gives.
 
-`mix` at arity 1 is written by `@m.define`; arity 2 is written at the container
-door because a SECOND `@m.define` under one MeTTa name raises IndexError from
-the twin dispatcher rather than defining another arity, which the residue table
-records against P14.4.
+`is-memoized` answers a boolean, so the claims are `is True` and `is False`
+rather than comparisons against the symbols the example prints.
 """
 
-from petta import S, V, equation, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import S, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 133122 to 134736, +1614 (+1.21%), by the P14
-#: twin-style rewrite: the arity-1 equation is now compiled from Python
-#: syntax by @m.define instead of added as an already-built atom, and the
-#: compile costs 1,614 inferences once. Prior: ADDED 2026-08-22 at 133122 by
-#: the wave-3 libraries baseline, which recorded no cause.
-BUDGET = 134736
+#: RE-PINNED 2026-08-22, 134736 to 127720, -7016 (-5.21%), by the idiomatic
+#: rewrite: nine `test` wrappers left the engine for `assert`, and the two
+#: arities arrive through one `@rules` write. Measured min-of-three with the
+#: MORK backend linked into this worktree, which the earlier figure may not
+#: have been. Prior: 134736 was the last figure for the generator twin that
+#: yielded `m.eval(S.test(...))` once per runnable form.
+BUDGET = 127720
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Cache one arity of a name, then the other, and watch both report."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
+    @rules
+    def mix(x, y):
+        yield equation(S.mix(x)).to(x + 1)
+        yield equation(S.mix(x, y)).to(x + y)
 
-    @m.define(name="mix")
-    def mix_one(x):
-        # (= (mix $x) (+ $x 1))
-        return x + 1
+    m.add(*mix)
+    m.eval(S.memoize(S.mix, 1))
 
-    # (= (mix $x $y) (+ $x $y))
-    m += equation(S.mix(V.x, V.y)).to(V.x + V.y)
+    memoized = m.fn("is-memoized")
+    assert memoized(S.mix, 1) is True
+    assert memoized(S.mix, 2) is False
 
-    # !(import! &self (library lib_memo))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))
+    mixed = m.fn("mix")
+    assert mixed(5) == 6
+    assert mixed(5) == 6
 
-    # !(memoize mix 1)
-    yield m.eval(S.memoize(S.mix, 1))
-    # !(test (is-memoized mix 1) true)
-    yield m.eval(S.test(S["is-memoized"](S.mix, 1), TRUE))
-    # !(test (is-memoized mix 2) false)
-    yield m.eval(S.test(S["is-memoized"](S.mix, 2), FALSE))
+    assert mixed(3, 4) == 7
+    assert mixed(3, 4) == 7
 
-    # !(test (mix 5) 6)
-    yield m.eval(S.test(S.mix(5), 6))
-    # !(test (mix 5) 6)
-    yield m.eval(S.test(S.mix(5), 6))
-
-    # !(test (mix 3 4) 7)
-    yield m.eval(S.test(S.mix(3, 4), 7))
-    # !(test (mix 3 4) 7)
-    yield m.eval(S.test(S.mix(3, 4), 7))
-
-    # !(memoize mix 2)
-    yield m.eval(S.memoize(S.mix, 2))
-    # !(test (is-memoized mix 2) true)
-    yield m.eval(S.test(S["is-memoized"](S.mix, 2), TRUE))
-    # !(test (mix 8 9) 17)
-    yield m.eval(S.test(S.mix(8, 9), 17))
-    # !(test (mix 8 9) 17)
-    yield m.eval(S.test(S.mix(8, 9), 17))
+    m.eval(S.memoize(S.mix, 2))
+    assert memoized(S.mix, 2) is True
+    assert mixed(8, 9) == 17
+    assert mixed(8, 9) == 17

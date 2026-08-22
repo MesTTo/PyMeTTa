@@ -1,94 +1,78 @@
-"""The Python twin of examples/libraries/tabling_space_write.metta.
+"""examples/libraries/tabling_space_write.metta in Python: a table over a space stays fresh.
 
-A table over a space stays fresh when the space changes: the engine declares the
-storage predicates the function reads incremental, so SWI invalidates and
-re-evaluates the table on the next call by itself.
+The engine declares the storage predicates a tabled function reads incremental,
+so SWI invalidates and re-evaluates the table on the next call by itself. Six
+claims watch that happen across an add, a remove, and a conjunction that reads
+two patterns.
 
-`reach` is written by `@m.define`, whose compiled `match(...)` names the space
-as a literal and the pattern structurally, which is exactly the source's own
-shape. `twohop` and `bypattern` stay at the container door, both recorded
-against P14.4: a conjunction pattern `(, p q)` has no compiled spelling, since a
+`reach` is written by `@m.define`, whose compiled `match(...)` names its space
+and reads its pattern as syntax, which is the source's own shape, and the table
+is declared after it exactly as the example declares it. The `@m.cache` door
+would say both in one act, and does in tabling_fib; it cannot here, because the
+lane reads a string inside a `define`-decorated body as an equation's own
+literal and does not yet know that `cache` compiles a body too.
+
+`twohop` and `bypattern` stay at the container door, both already in the residue
+table. A conjunction pattern `(, p q)` has no compiled spelling, because a
 Python tuple of patterns builds `(p q)` and `,` is not a name Python can put in
 head position; and `bypattern` takes its pattern as a PARAMETER, which the
-compiled `match(...)` refuses because it reads its pattern as syntax.
+compiled `match(...)` refuses because it reads its pattern as syntax. That
+refusal is the last claim's subject, so it is asked for deliberately.
+
+The last claim is compared with `alpha_eq` rather than against printed text. The
+engine names the unresolved variable freshly, so the example's `$_0` is `$_558`
+here and would be a third name tomorrow; alpha equality is the relation the law
+already defines for exactly this.
 """
 
-from petta import S, V, equation, val
+from petta import S, V, alpha_eq, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 85285 to 86854, +1569 (+1.84%), by the P14
-#: twin-style rewrite: reach's equation is now compiled from Python syntax by
-#: @m.define; twohop and bypattern stay container-door atoms, so one compile
-#: of 1,569 inferences is the whole of the move. Prior: ADDED 2026-08-22 at
-#: 85285 by the wave-3 libraries baseline, which recorded no cause.
-BUDGET = 86854
+#: RE-PINNED 2026-08-22, 86854 to 82560, -4294 (-4.94%), by the idiomatic
+#: rewrite: six `test` wrappers, five `collapse`s, a `sort-atom` and a `repr`
+#: left the engine for `assert`, `.all()`, `sorted` and `alpha_eq`; the two
+#: tables and their invalidations still run there. Measured min-of-three with
+#: the MORK backend linked into this worktree, which the earlier figure may
+#: not have been. Prior: 86854 was the last figure for the generator twin
+#: that yielded `m.eval(S.test(...))` once per runnable form.
+BUDGET = 82560
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Table two readers of a space, then write to the space under them."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_tabling)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(import! &self (library lib_tabling))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_tabling)))
-
-    # !(add-atom &self (edge a b))
-    yield m.eval(S["add-atom"](S["&self"], S.edge(S.a, S.b)))
-    # !(add-atom &self (edge b c))
-    yield m.eval(S["add-atom"](S["&self"], S.edge(S.b, S.c)))
+    m += S.edge(S.a, S.b)
+    m += S.edge(S.b, S.c)
 
     @m.define
     def reach(x, y):
-        # (= (reach $x $y) (match &self (edge $x $y) $y))
         return match("&self", edge(x, y), y)  # noqa: F821  -- match reads its pattern as syntax: `edge` is the relation symbol and `x`, `y` are the parameters
 
-    # (= (twohop $x $z) (match &self (, (edge $x $y) (edge $y $z)) $z))
-    m += equation(S.twohop(V.x, V.z)).to(
-        S.match(S["&self"], S[","](S.edge(V.x, V.y), S.edge(V.y, V.z)), V.z)
-    )
+    m += equation(S.twohop(V.x, V.z)).to(S.match(S["&self"], S[","](S.edge(V.x, V.y), S.edge(V.y, V.z)), V.z))  # rung: an equation is DATA, so it carries its space by name; and the conjunction `,` has no Python head spelling, which is why this one is built rather than compiled
 
-    # !(tabled (reach $x $y))
-    yield m.eval(S.tabled(S.reach(V.x, V.y)))
-    # !(tabled (twohop $x $z))
-    yield m.eval(S.tabled(S.twohop(V.x, V.z)))
+    m.eval(S.tabled(S.reach(V.x, V.y)))
+    m.eval(S.tabled(S.twohop(V.x, V.z)))
 
-    # !(test (collapse (reach a $y)) (b))
-    yield m.eval(S.test(S.collapse(S.reach(S.a, V.y)), (S.b,)))
-    # !(test (collapse (twohop a $z)) (c))
-    yield m.eval(S.test(S.collapse(S.twohop(S.a, V.z)), (S.c,)))
+    assert reach(S.a, V.y) == [S.b]
+    assert m.fn("twohop").all(S.a, V.z) == [S.c]
 
-    # Adding an atom the table read. sort-atom for the same reason as
+    # Adding an atom the table read. Sorted for the same reason as
     # tabling_equation_change: a tabled function answers from its trie, not in
     # clause order, so only the answer SET is stable.
-    # !(add-atom &self (edge a c))
-    yield m.eval(S["add-atom"](S["&self"], S.edge(S.a, S.c)))
-    # !(test (sort-atom (collapse (reach a $y))) (b c))
-    yield m.eval(
-        S.test(S["sort-atom"](S.collapse(S.reach(S.a, V.y))), (S.b, S.c))
-    )
+    m += S.edge(S.a, S.c)
+    assert sorted(reach(S.a, V.y), key=str) == [S.b, S.c]
 
     # Removing one.
-    # !(remove-atom &self (edge a b))
-    yield m.eval(S["remove-atom"](S["&self"], S.edge(S.a, S.b)))
-    # !(test (collapse (reach a $y)) (c))
-    yield m.eval(S.test(S.collapse(S.reach(S.a, V.y)), (S.c,)))
+    m -= S.edge(S.a, S.b)
+    assert reach(S.a, V.y) == [S.c]
 
     # A conjunction reads each of its patterns, so it tracks them all.
-    # !(add-atom &self (edge c d))
-    yield m.eval(S["add-atom"](S["&self"], S.edge(S.c, S.d)))
-    # !(test (collapse (twohop b $z)) (d))
-    yield m.eval(S.test(S.collapse(S.twohop(S.b, V.z)), (S.d,)))
+    m += S.edge(S.c, S.d)
+    assert m.fn("twohop").all(S.b, V.z) == [S.d]
 
-    # A read the engine cannot resolve to one space predicate is refused
-    # rather than tabled without the guarantee.
-    # (= (bypattern $p) (match &self $p $p))
-    m += equation(S.bypattern(V.p)).to(S.match(S["&self"], V.p, V.p))
-
-    # !(test (repr (catch (tabled (bypattern $p))))
-    #        "(Error (petta_tabling_unresolved_read match $_0) none)")
-    yield m.eval(
-        S.test(
-            S.repr(S.catch(S.tabled(S.bypattern(V.p)))),
-            val("(Error (petta_tabling_unresolved_read match $_0) none)"),
-        )
-    )
+    # A read the engine cannot resolve to one space predicate is refused rather
+    # than tabled without the guarantee.
+    m += equation(S.bypattern(V.p)).to(S.match(S["&self"], V.p, V.p))  # rung: as above, and the pattern is a PARAMETER, which is the refusal this claim asks for
+    [refused] = m.eval(S.catch(S.tabled(S.bypattern(V.p))))
+    assert alpha_eq(refused, S.Error(S.petta_tabling_unresolved_read(S.match, V.p), S.none))
