@@ -1,199 +1,168 @@
-"""The Python twin of examples/data/foldall.metta.
+"""The Python twin of examples/data/foldall.metta: folding a generator.
 
-Every source form is rebuilt as atoms through ``S``, ``V``, ``expr``,
-and ``val``. Definitions enter through the container protocol and
-runnable forms enter through ``m.eval``; no source-reading door is used.
+`foldall` takes an aggregating function and a GENERATOR, and folds the
+generator's answers. The example varies both halves: the aggregator is a named
+function or a `|->` lambda, and the generator is a call with no arguments, a
+call with one, or a lambda applied to a free variable.
+
+`merge` and `g` are computations and are written as ones. `g`'s two clauses
+are two `def`s whose literal defaults are their head patterns, which is the
+compiled subset's own spelling for stacked equations.
+
+`f` is the one that drops a rung. Its two clauses share a nullary head, so
+there is no head pattern to tell one `def` from the other and a second `def f`
+REBINDS the name rather than stacking a clause; the equivalent Python is a
+generator, which stores `(= (f) (superpose (2 3)))` instead of two equations.
+The answers are the same multiset, which is what `foldall` folds, and the
+residue table records the missing spelling against P14.4.
+
+The `let`, `let*` and `|->` forms stay at the term door because they are
+runnable FORMS rather than function bodies: there is no Python statement
+position to spell a `let` in, and the aggregator being bound is the thing each
+form is about.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, val
+
+#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
+#: rather than written inline because a bare boolean in an argument list
+#: reads as a Python flag, and these are answers.
+TRUE = val(value=True)
+
+#: The aggregating lambda `(|-> ($x $y) (+ $x $y))`, named once because the
+#: seven forms that use it differ in how it is BOUND, not in what it is. The
+#: generating lambdas stay inline: each one wraps a different call.
+add2 = S["|->"]((V.x, V.y), V.x + V.y)
 
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 22960
+#: RE-PINNED 2026-08-22, 22960 to 24789, +1829 (+7.97%), by the wave-4 idiom
+#: rewrite moving `f`, `g` and `merge` onto @m.define. COMPILING a definition
+#: costs more than STORING one, and the difference is paid once per process
+#: plus a little per definition, never per call: four trivial one-parameter
+#: definitions in a fresh process measured 2221 / 2986 / 3751 / 4516
+#: inferences through @m.define against 592 / 1164 / 1736 / 2308 through
+#: `m += equation(...).to(...)`, so the first compiled definition costs 1,629
+#: more and each one after it 193 more. The net here is smaller than four
+#: times that because the generator spelling of `f` stores ONE equation where
+#: the original stores two: measured all-container 22960, generator `f` alone
+#: 24339, compiled `merge` alone 24589, compiled `g` alone 24653.
+BUDGET = 24789
 
 
 def twin(m):
-    """Yield one answer group per runnable form, in source order."""
-    # (= (f) 2)
-    m += expr(S["="], expr(S["f"]), 2)
+    """One answer group per runnable form of the original, in source order.
 
-    # (= (f) 3)
-    m += expr(S["="], expr(S["f"]), 3)
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
+    """
 
-    # (= (g 1) 2)
-    m += expr(S["="], expr(S["g"], 1), 2)
+    @m.define
+    def f():
+        # (= (f) 2) (= (f) 3), as one generator: yield IS superpose
+        yield 2
+        yield 3
 
-    # (= (g 2) 3)
-    m += expr(S["="], expr(S["g"], 2), 3)
+    @m.define
+    def g(_n=1):
+        # (= (g 1) 2): a literal default is the head pattern for that
+        # position, so the parameter is MATCHED and never read, which is what
+        # the underscore says
+        return 2
 
-    # (= (merge $A $B) (+ $A $B))
-    m += expr(S["="], expr(S["merge"], V["A"], V["B"]), expr(S["+"], V["A"], V["B"]))
+    @m.define
+    def g(_n=2):  # noqa: F811  -- a second clause of the same equation, not a redefinition
+        # (= (g 2) 3)
+        return 3
 
-    # !(test (foldall merge (f) 0)
-    #        5)
-    yield m.eval(expr(S["test"], expr(S["foldall"], S["merge"], expr(S["f"]), 0), 5))
+    @m.define
+    def merge(a, b):
+        # (= (merge $A $B) (+ $A $B))
+        return a + b
 
-    # !(test (foldall merge (g $x) 0)
-    #        5)
-    yield m.eval(expr(S["test"], expr(S["foldall"], S["merge"], expr(S["g"], V["x"]), 0), 5))
+    # agg function plus arg-free generator
+    # !(test (foldall merge (f) 0) 5)
+    yield m.eval(S.test(S.foldall(S.merge, S.f(), 0), 5))
 
-    # !(test (let $agglambda (|-> ($x $y) (+ $x $y))
-    #             (foldall $agglambda (f) 0))
-    #        5)
+    # agg function plus arg-ful generator
+    # !(test (foldall merge (g $x) 0) 5)
+    yield m.eval(S.test(S.foldall(S.merge, S.g(V.x), 0), 5))
+
+    # agg lambda plus arg-free generator
+    # !(test (let $agglambda (|-> ($x $y) (+ $x $y)) (foldall $agglambda (f) 0)) 5)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["let"],
-                V["agglambda"],
-                expr(S["|->"], expr(V["x"], V["y"]), expr(S["+"], V["x"], V["y"])),
-                expr(S["foldall"], V["agglambda"], expr(S["f"]), 0),
-            ),
-            5,
-        )
+        S.test(S.let(V.agglambda, add2, S.foldall(V.agglambda, S.f(), 0)), 5)
     )
 
-    # !(test (let $agglambda (|-> ($x $y) (+ $x $y))
-    #             (foldall $agglambda (g $z) 0))
-    #        5)
-    yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["let"],
-                V["agglambda"],
-                expr(S["|->"], expr(V["x"], V["y"]), expr(S["+"], V["x"], V["y"])),
-                expr(S["foldall"], V["agglambda"], expr(S["g"], V["z"]), 0),
-            ),
-            5,
+    # agg lambda plus arg-ful generator, written twice in the original
+    # !(test (let $agglambda (|-> ($x $y) (+ $x $y)) (foldall $agglambda (g $z) 0)) 5)
+    for _ in range(2):
+        yield m.eval(
+            S.test(
+                S.let(V.agglambda, add2, S.foldall(V.agglambda, S.g(V.z), 0)), 5
+            )
         )
-    )
 
-    # !(test (let $agglambda (|-> ($x $y) (+ $x $y))
-    #             (foldall $agglambda (g $z) 0))
-    #        5)
-    yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["let"],
-                V["agglambda"],
-                expr(S["|->"], expr(V["x"], V["y"]), expr(S["+"], V["x"], V["y"])),
-                expr(S["foldall"], V["agglambda"], expr(S["g"], V["z"]), 0),
-            ),
-            5,
-        )
-    )
-
+    # agg lambda plus lambda arg-free generator
     # !(test (let* (($agglambda (|-> ($x $y) (+ $x $y)))
     #               ($genlambda (|-> ($z) (f))))
-    #             (foldall $agglambda ($genlambda $x) 0))
-    #        5)
+    #             (foldall $agglambda ($genlambda $x) 0)) 5)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["let*"],
-                expr(
-                    expr(
-                        V["agglambda"],
-                        expr(S["|->"], expr(V["x"], V["y"]), expr(S["+"], V["x"], V["y"])),
-                    ),
-                    expr(V["genlambda"], expr(S["|->"], expr(V["z"]), expr(S["f"]))),
-                ),
-                expr(S["foldall"], V["agglambda"], expr(V["genlambda"], V["x"]), 0),
+        S.test(
+            S["let*"](
+                ((V.agglambda, add2), (V.genlambda, S["|->"]((V.z,), S.f()))),
+                S.foldall(V.agglambda, (V.genlambda, V.x), 0),
             ),
             5,
         )
     )
 
+    # agg lambda plus lambda arg-ful generator
     # !(test (let* (($agglambda (|-> ($x $y) (+ $x $y)))
     #               ($genlambda (|-> ($z) (g $z))))
-    #             (foldall $agglambda ($genlambda $x) 0))
-    #        5)
+    #             (foldall $agglambda ($genlambda $x) 0)) 5)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["let*"],
-                expr(
-                    expr(
-                        V["agglambda"],
-                        expr(S["|->"], expr(V["x"], V["y"]), expr(S["+"], V["x"], V["y"])),
-                    ),
-                    expr(V["genlambda"], expr(S["|->"], expr(V["z"]), expr(S["g"], V["z"]))),
+        S.test(
+            S["let*"](
+                (
+                    (V.agglambda, add2),
+                    (V.genlambda, S["|->"]((V.z,), S.g(V.z))),
                 ),
-                expr(S["foldall"], V["agglambda"], expr(V["genlambda"], V["x"]), 0),
+                S.foldall(V.agglambda, (V.genlambda, V.x), 0),
             ),
             5,
         )
     )
 
-    # !(test (foldall (|-> ($x $y) (+ $x $y))
-    #                 ((|-> ($z) (g $z)) $w) 0)
-    #        5)
+    # lambdas as arg directly
+    # !(test (foldall (|-> ($x $y) (+ $x $y)) ((|-> ($z) (g $z)) $w) 0) 5)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["foldall"],
-                expr(S["|->"], expr(V["x"], V["y"]), expr(S["+"], V["x"], V["y"])),
-                expr(expr(S["|->"], expr(V["z"]), expr(S["g"], V["z"])), V["w"]),
+        S.test(
+            S.foldall(add2, (S["|->"]((V.z,), S.g(V.z)), V.w), 0),
+            5,
+        )
+    )
+
+    # lambdas as arg directly within syntactic construct
+    # !(test (foldall (if True (let $f (|-> ($x $y) (+ $x $y)) $f) (empty))
+    #                 ((|-> ($z) (g $z)) $w) 0) 5)
+    yield m.eval(
+        S.test(
+            S.foldall(
+                S["if"](TRUE, S.let(V.f, add2, V.f), S.empty()),
+                (S["|->"]((V.z,), S.g(V.z)), V.w),
                 0,
             ),
             5,
         )
     )
-
     # !(test (foldall (if True (let $f (|-> ($x $y) (+ $x $y)) $f) (empty))
-    #                 ((|-> ($z) (g $z)) $w) 0)
-    #        5)
+    #                 ((|-> ($z) (* 2 (g $z))) $w) 0) 10)
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["foldall"],
-                expr(
-                    S["if"],
-                    val(value=True),
-                    expr(
-                        S["let"],
-                        V["f"],
-                        expr(S["|->"], expr(V["x"], V["y"]), expr(S["+"], V["x"], V["y"])),
-                        V["f"],
-                    ),
-                    expr(S["empty"]),
-                ),
-                expr(expr(S["|->"], expr(V["z"]), expr(S["g"], V["z"])), V["w"]),
-                0,
-            ),
-            5,
-        )
-    )
-
-    # !(test (foldall (if True (let $f (|-> ($x $y) (+ $x $y)) $f) (empty))
-    #                 ((|-> ($z) (* 2 (g $z))) $w) 0)
-    #        10)
-    yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["foldall"],
-                expr(
-                    S["if"],
-                    val(value=True),
-                    expr(
-                        S["let"],
-                        V["f"],
-                        expr(S["|->"], expr(V["x"], V["y"]), expr(S["+"], V["x"], V["y"])),
-                        V["f"],
-                    ),
-                    expr(S["empty"]),
-                ),
-                expr(expr(S["|->"], expr(V["z"]), expr(S["*"], 2, expr(S["g"], V["z"]))), V["w"]),
+        S.test(
+            S.foldall(
+                S["if"](TRUE, S.let(V.f, add2, V.f), S.empty()),
+                (S["|->"]((V.z,), 2 * S.g(V.z)), V.w),
                 0,
             ),
             10,
         )
     )
-
-    yield from ()

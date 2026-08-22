@@ -1,25 +1,28 @@
-"""The Python twin of examples/data/nestedcons.metta.
+"""The Python twin of examples/data/nestedcons.metta: a nested head pattern.
 
-Every source form is rebuilt as atoms through ``S``, ``V``, ``expr``,
-and ``val``. Definitions enter through the container protocol and
-runnable forms enter through ``m.eval``; no source-reading door is used.
+`f` reads the SECOND element of a list by matching two cons cells in its head,
+which is the whole example: `(a b c d)` is `(cons a (cons b (c d)))` and the
+pattern names `$b`.
+
+The clause stays at the container door because its head argument is a
+PATTERN. A compiled definition spells a head pattern as a literal default,
+`def fib(n=0)`, so a structural one has no `def` spelling, and the residue
+table records that against P14.4.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 BUDGET = 1252
 
 
 def twin(m):
-    """Yield one answer group per runnable form, in source order."""
-    # (= (f (cons $a (cons $b $L)))
-    #    $b)
-    m += expr(
-        S["="], expr(S["f"], expr(S["cons"], V["a"], expr(S["cons"], V["b"], V["L"]))), V["b"]
-    )
+    """One answer group per runnable form of the original, in source order.
+
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
+    """
+    # (= (f (cons $a (cons $b $L))) $b)
+    m += equation(S.f(S.cons(V.a, S.cons(V.b, V.L)))).to(V.b)
 
     # !(test (f (a b c d)) b)
-    yield m.eval(expr(S["test"], expr(S["f"], expr(S["a"], S["b"], S["c"], S["d"])), S["b"]))
-
-    yield from ()
+    yield m.eval(S.test(S.f((S.a, S.b, S.c, S.d)), S.b))
