@@ -39,7 +39,8 @@ Guarantees:
     test_dropped_space_name_reinstalls_integrations]
   - dropping a named space clears its life without putting that public name
     into the anonymous new_space pool [tested:
-    test_a_named_space_drop_never_enters_the_anonymous_pool; commit=WORKTREE]
+    test_a_named_space_drop_never_enters_the_anonymous_pool;
+    commit=950d32968b86edbba32d7a24e5e2438e245a74ac]
   - new_space(inherits=parent) creates a child-first read view whose writes and
     lifecycle stay local [tested:
     test_a_child_space_reads_through_its_parent_and_writes_locally;

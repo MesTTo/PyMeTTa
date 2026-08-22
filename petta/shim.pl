@@ -34,7 +34,8 @@
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 %   - petta_py_drop_space/1 releases named-space state without admitting its
 %     public name to petta_py_free_space/1 [tested:
-%     test_a_named_space_drop_never_enters_the_anonymous_pool; commit=WORKTREE]
+%     test_a_named_space_drop_never_enters_the_anonymous_pool;
+%     commit=950d32968b86edbba32d7a24e5e2438e245a74ac]
 %   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]
