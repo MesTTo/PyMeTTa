@@ -568,3 +568,34 @@ def test_a_variable_headed_expression_keeps_its_only_spelling(tmp_path):
     )
     assert coverage.scan(planted) == []
     assert coverage.idiom(planted) == []
+
+
+def test_a_failing_assertion_is_a_finding(tmp_path):
+    """A false claim fails the twin, which is what makes the count an oracle.
+
+    The contract says a twin running to completion has PROVED every claim it
+    states. That only holds if a false assertion stops it, so this runs a real
+    twin against a real engine rather than a fixture: the AssertionError has to
+    leave the process, and the lane has to read that as an error rather than as
+    a twin with nothing to say.
+    """
+    twin = tmp_path / "false.py"
+    twin.write_text(
+        '"""A twin that claims something untrue."""\n'
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert 1 == 2\n",
+        encoding="utf-8",
+    )
+    run = coverage.run_twin(twin)
+    assert run.outcome.error is not None, "a raised assertion must leave the run in error"
+    assert "AssertionError" in run.outcome.error, run.outcome.error
+
+    twin.write_text(
+        '"""A twin whose claim holds."""\n'
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert 1 == 1\n",
+        encoding="utf-8",
+    )
+    assert coverage.run_twin(twin).outcome.error is None

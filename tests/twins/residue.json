@@ -3690,7 +3690,7 @@
       "missing": "a collapse that gathers answers into one ATOM, which `list()` is not",
       "row": "P14.4",
       "section": "correction to \u00a79e's dissolution table: `collapse` is `list()`",
-      "detail": "The third instance, and the mildest: `(collapse (superpose ()))` is `()` while `list(no answers)` is `[]`, and the file's first three claims are exactly that difference. The twin writes `expr(*answers)` for the atom form, which is the ledger's own `Expression(ans)` door under the name that ships. Stating that spelling in the dissolution table beside `list()` would close all three entries in this family."
+      "detail": "The third instance, and the mildest: `(collapse (superpose ()))` is `()` while `list(no answers)` is `[]`, and the file's first three claims are exactly that difference. The twin writes `expr(*answers)` for the atom form, which is the ledger's own collect-into-one-expression door under the name that ships. Stating that spelling in the dissolution table beside `list()` would close all three entries in this family."
     },
     {
       "kind": "friction",

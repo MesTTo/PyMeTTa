@@ -50,7 +50,7 @@ Guarantees:
     [tested: test_a_hidden_definition_is_a_finding]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
-    test_a_dissolved_head_names_its_python_spelling,
+    test_a_dissolved_head_names_the_python_spelling_it_replaces,
     test_a_yielding_twin_is_a_finding]
 Decides:
   - twins live under `bindings/python/tests/twins/<folder>/<name>.py`, the

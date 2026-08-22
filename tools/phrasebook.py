@@ -106,7 +106,15 @@ TOOLS = Path(__file__).resolve().parent
 REPO = TOOLS.parents[2]
 PAGE = REPO / "website" / "reference" / "stdlib-phrasebook.md"
 ANSWERS = TOOLS / "phrasebook_answers.json"
-LEATTA = Path("/home/user/Dev/LeaTTa")
+#: The oracle checkout, reached the way every other lane that consults it does:
+#: LEATTA_PATH names it, and the default is the sibling of this repository's own
+#: parent, so nothing tracked cites an absolute workspace path
+#: [tested: test_no_tracked_file_cites_an_absolute_workspace_path].
+LEATTA = (
+    Path(os.environ["LEATTA_PATH"])
+    if "LEATTA_PATH" in os.environ
+    else REPO.parents[1] / "LeaTTa"
+)
 LEATTA_MANIFEST = LEATTA / "tests" / "conformance" / "stdlib-manifest.json"
 LEATTA_BINARY = LEATTA / ".lake" / "build" / "bin" / "LeaTTa"
 

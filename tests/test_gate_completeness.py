@@ -40,7 +40,13 @@ RUFF_SCOPE = ("petta", "tests", "bench.py")
 REQUIRED_RUFF_FAMILIES = frozenset({"FBT", "N", "A", "D", "ARG", "PERF", "C90", "TRY", "EM"})
 RUFF_SUPPRESSION_GUARDS = frozenset({"RUF100", "RUF103"})
 RUFF_FAMILY_BURN_DOWN = {
-    "FBT": 55,
+    # 67, from 55 before the idiomatic twin corpus. The twelve new sites are
+    # boolean LITERALS crossing as atom or wire data, not behaviour switches:
+    # `m.fn("match-type-or")(True, S.Number, S.Number)` asks the engine about
+    # the atom True. Each carries a suppression saying so, and the corpus's own
+    # named-constant convention (`TRUE, FALSE = val(value=True), ...`) is used
+    # where the value is reused rather than asked about once.
+    "FBT": 67,
     "N": 35,
     "A": 8,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
@@ -91,12 +97,16 @@ RUFF_FAMILY_BURN_DOWN = {
     # emitter strips one trailing period, because a docstring is Python's
     # concept and Python's convention wins), and these two suppressions go
     # when it lands. Measured on the merged tree, after the last merge.
-    "D": 2148,
-    # 140 not 139 since 095b259: control/caseconstrain.py's twin(m) does not
-    # use its engine, because MeTTa's `case` has no compiled Python spelling
-    # and the destructuring it demonstrates is native Python. The suppression
-    # there names the residue entry; --ignore-noqa still counts the site.
-    "ARG": 140,
+    # 2149 after the phrasebook lane joined the tree. Measured on the merged
+    # tree, after the last merge.
+    "D": 2149,
+    # 145, from 139 before the idiomatic twin corpus. Every one of the six new
+    # sites is a `twin(m)` whose example needs no engine, because the form it
+    # demonstrates is native Python (destructuring, `len`, `max`), or a
+    # callback parameter a protocol fixes. Each carries a suppression naming
+    # its reason, and --ignore-noqa counts the site whatever the suppression
+    # says, which is the point of a burn-down.
+    "ARG": 145,
     "PERF": 0,
     "C90": 24,
     "TRY": 23,
