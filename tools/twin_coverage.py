@@ -50,7 +50,7 @@ Guarantees:
   - every door the surface tracks landed reads clean: the naming factories,
     the answer view, the keyword builders, the coordination verbs, the class
     door and the standard-module mentions inside a compiled body
-    [tested: test_the_landed_doors_read_clean; commit=8c057bb8055459cc13127d89b418deb634b90ae4]
+    [tested: test_the_landed_doors_read_clean; commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the
@@ -577,7 +577,7 @@ def _printing_strings(tree: ast.Module) -> set[int]:
         # A class body's bare `balance: int` is an AnnAssign with NO value,
         # which the class door made ordinary: reading it as a subtree crashed
         # the whole lane on the first twin that declared a record
-        # [tested: test_the_landed_doors_read_clean; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+        # [tested: test_the_landed_doors_read_clean; commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4].
         if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
             continue
         targets = node.targets if isinstance(node, ast.Assign) else [node.target]
