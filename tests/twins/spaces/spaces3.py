@@ -4,8 +4,21 @@ Two atoms go into a space, `(wu)` and `(wu 42)`. Four queries over them differ
 only in the pattern: `($x)` is a one-element expression and selects only the
 one-element atom, while a bare `$x` selects everything, which is what
 enumerating the space already gives you. The example's template argument has no
-counterpart here and needs none: a query answers BINDINGS, and building a term
-out of a binding is ordinary Python.
+counterpart here: a query answers BINDINGS, and building a term out of a
+binding is ordinary Python.
+
+Where that stops being true is worth knowing, because it is a SIZE limit and
+not a taste one. Counting through the Python door materialises every answer as
+a Python atom, so it pays for the answers' SIZE, where the engine's own
+`(length (collapse ...))` pays only for their number. Measured 2026-08-22 over
+one stored atom whose payload is a Peano term of depth K, at K =
+250/500/1000/2000: the Python door costs 2,082 / 8,104 / 20,128 / 44,150
+inferences, linear in the depth, while the engine costs 570 / 266 / 272 / 278,
+flat. Over N answers of depth K that is N*K against N. Two atoms of depth two
+is the shallow end, where the difference is nothing; a corpus twin that counts
+1,572,862 answers is the other end, where the Python door exhausts the Prolog
+stack before it can finish. Four twins in `reasoning/` and `performance/`
+therefore keep the engine's count and say so.
 """
 
 from petta import S, V, expr

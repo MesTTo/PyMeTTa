@@ -26,6 +26,13 @@ from petta import S, V
 #: with the MORK backend linked into this worktree, which the earlier figure
 #: may not have been. Prior: 159619 was the last figure for the generator
 #: twin that yielded `m.eval(S.test(...))` once per runnable form.
+#: How far this twin's counter may move. It runs REAL THREADS, and the lane
+#: runs 175 examples at once, so a concurrent reading is perturbed where a
+#: serial one is not: measured 2026-08-22, seven of eight fresh serial
+#: processes answered 155074 exactly and one full concurrent lane run answered
+#: 155088. The figure below is right; the spread is the lane observing it.
+SPREAD = 20
+
 BUDGET = 155074
 
 

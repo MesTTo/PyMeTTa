@@ -146,13 +146,18 @@ NAMING_CALLS = frozenset({
     "TypeVar",
 })
 
+#: Calls whose string arguments are HOST text rather than a program: a message
+#: a twin prints, a filesystem path it opens. `println!` dissolves into
+#: `print()` by the table below, so the scan has to let a twin print.
+HOST_TEXT_CALLS = frozenset({"print", "Path", "open", "warning", "info", "debug"})
+
 #: The two factories whose subscript is an atom's name.
 NAMING_NAMESPACES = frozenset({"S", "V"})
 
 #: Module-level constants a twin declares ABOUT itself rather than as
 #: program text: the inference pin, and the reason it sits below the top
 #: rung. Both are read from source the way the lane reads BUDGET.
-DECLARATION_NAMES = frozenset({"BUDGET", "RUNG"})
+DECLARATION_NAMES = frozenset({"BUDGET", "RUNG", "SPREAD"})
 
 #: The example heads that STATE A CLAIM. Their Python image is the `assert`
 #: statement, so the lane counts them against the twin's assertions rather
@@ -384,6 +389,27 @@ def _named_strings(tree: ast.Module) -> set[int]:
             # text through a subscript.
             permitted.add(id(node.slice))
         elif isinstance(node, ast.Call):
+            # A string in a KEYWORD argument is host data, never a program:
+            # the four source doors are caught by call name above, whatever
+            # shape their arguments take, so `names=["c-bump"]` and
+            # `path=Path("...")` need no ceremony [found 2026-08-22 by the
+            # reasoning agent, which had to write `[S["c-bump"].name]`].
+            permitted.update(
+                id(inner)
+                for word in node.keywords
+                for inner in ast.walk(word.value)
+                if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+            )
+            # A twin may SAY things. The dissolution table sends `println!` to
+            # print(), so refusing print's own message contradicted this
+            # module's own rule, and three C-extension twins returned silently
+            # where their example says why it skipped.
+            if _callee(node) in HOST_TEXT_CALLS:
+                permitted.update(
+                    id(inner)
+                    for inner in ast.walk(node)
+                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+                )
             if _callee(node) in NAMING_CALLS:
                 # Every argument, keyword and nested container included: a
                 # naming call takes names and marked data wherever they sit,
@@ -724,6 +750,29 @@ def run_twin(twin: Path, root: Path = REPO) -> Run:
     )
 
 
+def spread_of(twin: Path) -> int:
+    """How far this twin's counter may move, when it is genuinely not
+    deterministic.
+
+    Almost every twin is exact: inferences do not vary across processes here,
+    which is why the allowance is 4 and not a percentage. A twin running REAL
+    THREADS is the exception, and the lane's own ThreadPoolExecutor makes it
+    worse by running 175 examples at once. Measured 2026-08-22:
+    libraries/thread_linda answers 155074 in seven of eight fresh serial
+    processes and answered 155088 once inside a full concurrent lane run, so
+    the figure is right and the reading is perturbed. A twin that needs room
+    SAYS SO, rather than the lane widening for everyone or a flake being
+    pinned at a guessed midpoint.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    tree = _parse(twin)
+    for node in tree.body if tree else []:
+        targets = node.targets if isinstance(node, ast.Assign) else []
+        for target in targets:
+            if isinstance(target, ast.Name) and target.id == "SPREAD":
+                return max(TOLERANCE, int(ast.literal_eval(node.value)))
+    return TOLERANCE
+
+
 def budget_of(twin: Path) -> int | None:
     """The twin's own pinned inference count, read from its BUDGET
     assignment without importing it: reading the source keeps this usable
@@ -902,11 +951,12 @@ def _price(
     budget = budget_of(twin)
     if budget is None:
         findings.append(f"{relative}: the twin states no BUDGET")
-    elif right.cost is not None and abs(right.cost - budget) > TOLERANCE:
+    elif right.cost is not None and abs(right.cost - budget) > spread_of(twin):
+        allowance = spread_of(twin)
         moved = "above" if right.cost > budget else "BELOW"
         findings.append(
             f"{relative}: the twin cost {right.cost} inferences, {moved} its "
-            f"pinned budget of {budget} by more than the {TOLERANCE} allowance"
+            f"pinned budget of {budget} by more than the {allowance} allowance"
         )
     if right.cost is not None and right.cost < ENGINE_FLOOR and not stated:
         findings.append(
