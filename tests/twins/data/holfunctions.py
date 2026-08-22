@@ -1,94 +1,98 @@
-"""The Python twin of examples/data/holfunctions.metta.
+"""The Python twin of examples/data/holfunctions.metta: higher-order folds.
 
-Every source form is rebuilt as atoms through ``S``, ``V``, ``expr``,
-and ``val``. Definitions enter through the container protocol and
-runnable forms enter through ``m.eval``; no source-reading door is used.
+Each of `foldl-atom`, `map-atom` and `filter-atom` takes its step either as an
+inline TEMPLATE, naming the variables it binds, or as a FUNCTION passed by
+name. The example writes both and checks they agree.
+
+`foldfun`, `mapfun`, `filterfun` and `foldfun2` are computations and are
+written as ones; `foldfun2` shows that a body may name an engine function the
+engine knows under a Python-spellable name, which `append` is.
+
+The six `f...` definitions stay at the container door. Their bodies name
+`foldl-atom`, `map-atom` and `filter-atom`, and a compiled body resolves a
+free name EXACTLY, so a hyphenated engine function cannot be reached from one;
+the template forms additionally bind `$acc` and `$x` inside the call, which is
+not a Python binding position at all. Both are recorded against P14.4.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 14069
+#: RE-PINNED 2026-08-22, 14069 to 16362, +2293 (+16.30%), by the wave-4 idiom
+#: rewrite moving `foldfun`, `mapfun`, `filterfun` and `foldfun2` onto
+#: @m.define.
+#: COMPILING a definition costs more than STORING one, and the difference is
+#: paid once per process plus a little per definition, never per call: four
+#: trivial one-parameter definitions in a fresh process measured
+#: 2221 / 2986 / 3751 / 4516 inferences through @m.define against
+#: 592 / 1164 / 1736 / 2308 through `m += equation(...).to(...)`, so the first
+#: compiled definition costs 1,629 more and each one after it 193 more.
+#: Four definitions here measured 16362 against 14069 for the same four at the
+#: container door, the whole of the move; the 85 above 1629 + 3*193 is these
+#: bodies being larger than the trivial ones the rate was taken on.
+BUDGET = 16362
 
 
 def twin(m):
-    """Yield one answer group per runnable form, in source order."""
-    # (= (f1a)
-    #    (foldl-atom (1 2 3 4) 0 $acc $x (+ $acc $x)))
-    m += expr(
-        S["="],
-        expr(S["f1a"]),
-        expr(
-            S["foldl-atom"], expr(1, 2, 3, 4), 0, V["acc"], V["x"], expr(S["+"], V["acc"], V["x"])
-        ),
+    """One answer group per runnable form of the original, in source order.
+
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
+    the last form says its own answer in the comment above it.
+    """
+    # (= (f1a) (foldl-atom (1 2 3 4) 0 $acc $x (+ $acc $x)))
+    m += equation(S.f1a()).to(
+        S["foldl-atom"]((1, 2, 3, 4), 0, V.acc, V.x, V.acc + V.x)
     )
+    # (= (f2a) (map-atom (1 2 3) $x (+ $x 1)))
+    m += equation(S.f2a()).to(S["map-atom"]((1, 2, 3), V.x, V.x + 1))
+    # (= (f3a) (filter-atom (1 2 3 4 5) $x (> $x 3)))
+    m += equation(S.f3a()).to(S["filter-atom"]((1, 2, 3, 4, 5), V.x, V.x > 3))
 
-    # (= (f2a)
-    #    (map-atom (1 2 3) $x (+ $x 1)))
-    m += expr(
-        S["="], expr(S["f2a"]), expr(S["map-atom"], expr(1, 2, 3), V["x"], expr(S["+"], V["x"], 1))
-    )
+    @m.define
+    def foldfun(a, b):
+        # (= (foldfun $a $b) (+ $a $b))
+        return a + b
 
-    # (= (f3a)
-    #    (filter-atom (1 2 3 4 5) $x (> $x 3)))
-    m += expr(
-        S["="],
-        expr(S["f3a"]),
-        expr(S["filter-atom"], expr(1, 2, 3, 4, 5), V["x"], expr(S[">"], V["x"], 3)),
-    )
+    @m.define
+    def mapfun(a):
+        # (= (mapfun $a) (+ $a 1))
+        return a + 1
 
-    # (= (foldfun $a $b) (+ $a $b))
-    m += expr(S["="], expr(S["foldfun"], V["a"], V["b"]), expr(S["+"], V["a"], V["b"]))
+    @m.define
+    def filterfun(x):
+        # (= (filterfun $x) (> $x 3))
+        return x > 3
 
-    # (= (mapfun $a) (+ $a 1))
-    m += expr(S["="], expr(S["mapfun"], V["a"]), expr(S["+"], V["a"], 1))
-
-    # (= (filterfun $x) (> $x 3))
-    m += expr(S["="], expr(S["filterfun"], V["x"]), expr(S[">"], V["x"], 3))
-
-    # (= (f1b)
-    #    (foldl-atom (1 2 3 4) 0 foldfun))
-    m += expr(S["="], expr(S["f1b"]), expr(S["foldl-atom"], expr(1, 2, 3, 4), 0, S["foldfun"]))
-
-    # (= (f2b)
-    #    (map-atom (1 2 3) mapfun))
-    m += expr(S["="], expr(S["f2b"]), expr(S["map-atom"], expr(1, 2, 3), S["mapfun"]))
-
-    # (= (f3b)
-    #    (filter-atom (1 2 3 4 5) filterfun))
-    m += expr(S["="], expr(S["f3b"]), expr(S["filter-atom"], expr(1, 2, 3, 4, 5), S["filterfun"]))
+    # (= (f1b) (foldl-atom (1 2 3 4) 0 foldfun))
+    m += equation(S.f1b()).to(S["foldl-atom"]((1, 2, 3, 4), 0, S.foldfun))
+    # (= (f2b) (map-atom (1 2 3) mapfun))
+    m += equation(S.f2b()).to(S["map-atom"]((1, 2, 3), S.mapfun))
+    # (= (f3b) (filter-atom (1 2 3 4 5) filterfun))
+    m += equation(S.f3b()).to(S["filter-atom"]((1, 2, 3, 4, 5), S.filterfun))
 
     # !(test (f1a) 10)
-    yield m.eval(expr(S["test"], expr(S["f1a"]), 10))
-
+    yield m.eval(S.test(S.f1a(), 10))
     # !(test (f2a) (2 3 4))
-    yield m.eval(expr(S["test"], expr(S["f2a"]), expr(2, 3, 4)))
-
+    yield m.eval(S.test(S.f2a(), (2, 3, 4)))
     # !(test (f3a) (4 5))
-    yield m.eval(expr(S["test"], expr(S["f3a"]), expr(4, 5)))
+    yield m.eval(S.test(S.f3a(), (4, 5)))
 
     # !(test (f1b) 10)
-    yield m.eval(expr(S["test"], expr(S["f1b"]), 10))
-
+    yield m.eval(S.test(S.f1b(), 10))
     # !(test (f2b) (2 3 4))
-    yield m.eval(expr(S["test"], expr(S["f2b"]), expr(2, 3, 4)))
-
+    yield m.eval(S.test(S.f2b(), (2, 3, 4)))
     # !(test (f3b) (4 5))
-    yield m.eval(expr(S["test"], expr(S["f3b"]), expr(4, 5)))
+    yield m.eval(S.test(S.f3b(), (4, 5)))
 
-    # (= (foldfun2 $a $b) (append $a $b))
-    m += expr(S["="], expr(S["foldfun2"], V["a"], V["b"]), expr(S["append"], V["a"], V["b"]))
+    @m.define
+    def foldfun2(a, b):
+        # (= (foldfun2 $a $b) (append $a $b))
+        return append(a, b)  # noqa: F821  -- append is the engine's, resolved by name
 
+    # A fold that builds an expression rather than a number; answers (1 2 3 4 5 6)
     # !(foldl-atom ((1 2) (3 4) (5 6)) () $acc $x (append $acc $x))
     yield m.eval(
-        expr(
-            S["foldl-atom"],
-            expr(expr(1, 2), expr(3, 4), expr(5, 6)),
-            expr(),
-            V["acc"],
-            V["x"],
-            expr(S["append"], V["acc"], V["x"]),
+        S["foldl-atom"](
+            ((1, 2), (3, 4), (5, 6)), (), V.acc, V.x, S.append(V.acc, V.x)
         )
     )
-
-    yield from ()
