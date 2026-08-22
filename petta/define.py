@@ -24,6 +24,10 @@ Guarantees:
     [tested:
     test_yield_from_a_call_delegates_only_when_nondeterminism_is_known;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - namespace builders are recognized by lexical identity and mapped catalog
+    callees keep their nondeterministic role [tested:
+    test_rejected_attributes_never_execute_host_objects,
+    test_mapped_nondeterministic_calls_keep_their_call_role; commit=WORKTREE]
   - calling a Defined object evaluates its application except in a rules
     builder's scope-local staging context [tested:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
@@ -48,16 +52,26 @@ from ._define_expression import ExpressionCompilerMixin
 from ._define_facts import DefinitionFacts, SourceSpan, derive_definition_facts
 from ._define_loops import LoopCompilerMixin
 from ._define_statements import StatementCompilerMixin, _is_generator, _superpose
-from ._define_twins import (
-    _python_twin,
-)
+from ._define_twins import _python_twin
+from ._fn import fn as fn_namespace
+from ._name_mapping import resolve_known_name
 from ._rules import _defined_calls_are_staged
 from ._type_annotations import type_atoms_for
-from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _encode, _map_atoms
+from .atoms import (
+    Atom,
+    Expression,
+    Grounded,
+    S,
+    Symbol,
+    Undefined,
+    V,
+    Variable,
+    _encode,
+    _map_atoms,
+)
 from .errors import CompileError
 
 __all__ = ["Defined", "DefinitionFacts", "PrologBacked", "SourceSpan", "compile_function"]
-
 
 
 def _provided[T](value: T | None, default: T) -> T:
@@ -268,9 +282,7 @@ class Defined[**P, R]:
     def __call__(self, *args: Any) -> Expression | list[Atom | Undefined]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if len(args) != len(self.params):
             msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
-            raise TypeError(
-                msg
-            )
+            raise TypeError(msg)
         term = Expression([Symbol(self.name), *(_encode(a) for a in args)])
         if _defined_calls_are_staged():
             return term
@@ -438,9 +450,7 @@ def compile_function(
     definition = tree.body[0]
     if not isinstance(definition, (ast.FunctionDef, ast.AsyncFunctionDef)):
         msg = f"{fn.__name__} is not a function definition"
-        raise CompileError(
-            msg, construct="def"
-        )
+        raise CompileError(msg, construct="def")
     if isinstance(definition, ast.AsyncFunctionDef):
         msg = "an async function has no MeTTa equation; register it as an operation instead"
         raise CompileError(
@@ -454,9 +464,21 @@ def compile_function(
     # variable in the body's scope; naming it there would shadow the match.
     scope = [p for p in params if p not in patterns]
     closure_names = set(fn.__code__.co_freevars)
+    closure_values: dict[str, Any] = {}
+    for identifier, cell in zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True):
+        try:
+            closure_values[identifier] = cell.cell_contents
+        except ValueError:
+            continue
+    host_values = fn.__globals__ | closure_values
+    builders = frozenset(
+        identifier
+        for identifier, expected in {"S": S, "V": V, "fn": fn_namespace}.items()
+        if host_values.get(identifier) is expected
+    )
 
     def host(identifier: str) -> bool:
-        return identifier in fn.__globals__ or identifier in closure_names
+        return identifier in host_values or identifier in closure_names
 
     compiler = _Compiler(
         metta_name or fn.__name__,
@@ -465,6 +487,7 @@ def compile_function(
         nondet=nondet,
         pyname=fn.__name__,
         host=host,
+        builders=builders,
         annotation_resolver=_annotation_resolver(fn),
     )
     generator = _is_generator(definition)
@@ -529,8 +552,7 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
     patterns: dict[str, Atom] = {}
     for arg, default in zip(reversed(a.args), reversed(a.defaults), strict=False):
         if not (
-            isinstance(default, ast.Constant)
-            and isinstance(default.value, (bool, int, float, str))
+            isinstance(default, ast.Constant) and isinstance(default.value, (bool, int, float, str))
         ):
             msg = (
                 "a default here is a head pattern, so it must be a literal: "
@@ -573,6 +595,7 @@ class _Compiler(
         closer: Callable[[_Compiler], Atom] | None = None,
         pyname: str | None = None,
         host: Callable[[str], bool] | None = None,
+        builders: frozenset[str] = frozenset(),
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
@@ -586,6 +609,7 @@ class _Compiler(
         # closure cell): a capitalized name that does is a module constant,
         # not a data constructor, and compiles to a refusal.
         self.host = _provided(host, _never)
+        self.builders = builders
         # The prelude operations this definition leans on, and the reasons
         # its Python twin cannot run (a match, a constructor); both shared
         # across every compiler of the definition, like aux.
@@ -633,6 +657,19 @@ class _Compiler(
             return lifted[2]
         return self._given_nondet(called)
 
+    def _resolved_call_name(self, called: str) -> str:
+        """Apply the compiled body's exact-then-mapped callee rule."""
+        if called in self.lifted or called in (self.pyname, self.name):
+            return called
+        return (
+            resolve_known_name(
+                called,
+                self.known,
+                allow_mapped=not self.host(called),
+            )
+            or called
+        )
+
     def _fork(self) -> _Compiler:
         """A compiler for one branch: its own scope, the shared minted set."""
         return self._nested_compiler(self.scope.copy())
@@ -649,6 +686,7 @@ class _Compiler(
             closer=self.closer,
             pyname=self.pyname,
             host=self.host,
+            builders=self.builders,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
@@ -679,6 +717,7 @@ class _Compiler(
             closer=closer,
             pyname=self.pyname,
             host=self.host,
+            builders=self.builders,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
@@ -694,11 +733,13 @@ class _Compiler(
         if (
             isinstance(iter_node, ast.Call)
             and isinstance(iter_node.func, ast.Name)
-            and self.nondet(iter_node.func.id)
+            and self.nondet(self._resolved_call_name(iter_node.func.id))
         ):
             return Expression([Symbol("let"), Variable(var), self.expression(iter_node), body])
         source = self.expression(iter_node)
-        return Expression([Symbol("let"), Variable(var), Expression([Symbol("superpose"), source]), body])
+        return Expression(
+            [Symbol("let"), Variable(var), Expression([Symbol("superpose"), source]), body]
+        )
 
     def _yield_from(self, node: ast.YieldFrom) -> Atom:
         """Delegate known generators and refuse call-shaped ambiguity.
@@ -714,11 +755,12 @@ class _Compiler(
         value = node.value
         if isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
             called = value.func.id
+            resolved = self._resolved_call_name(called)
             if called in self._builtins and called not in self.scope:
                 return Expression([Symbol("superpose"), self.expression(value)])
-            if called in (self.pyname, self.name) or self.nondet(called):
+            if resolved in (self.pyname, self.name) or self.nondet(resolved):
                 return self.expression(value)
-            if called in self.lifted or self.known(called):
+            if called in self.lifted or self.known(resolved):
                 self.expression(value)  # Validate the call before the ruling.
                 msg = (
                     f"yield from {called}(...) cannot tell whether to delegate "

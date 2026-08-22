@@ -4,6 +4,9 @@ Guarantees:
     test_nested_loops_carry_the_outer_state]
   - compiled loops execute without growing the Python or Prolog stack
     [tested test_loops_run_in_constant_stack]
+  - mechanically mapped generator calls remain nondeterministic loop sources
+    [tested: test_mapped_nondeterministic_calls_keep_their_call_role;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -90,7 +93,9 @@ class LoopCompilerMixin(CompilerContext):
         body = body_compiler.block(node.body)
         exit_branch = exit_compiler.block(rest)
         head = Expression([Symbol(helper), *(Variable(n) for n in state)])
-        self.aux.append(Expression([Symbol("="), head, Expression([Symbol("if"), test, body, exit_branch])]))
+        self.aux.append(
+            Expression([Symbol("="), head, Expression([Symbol("if"), test, body, exit_branch])])
+        )
         return Expression([Symbol(helper), *(Variable(self.scope[n]) for n in state)])
 
     def _for_statement(self, node: ast.For, rest: list[ast.stmt]) -> Atom:
@@ -142,7 +147,9 @@ class LoopCompilerMixin(CompilerContext):
         exit_branch = exit_compiler.block(rest)
         head = Expression([Symbol(helper), Variable(sequence), *(Variable(n) for n in state)])
         test = Expression([Symbol("=="), Variable(sequence), Expression([])])
-        self.aux.append(Expression([Symbol("="), head, Expression([Symbol("if"), test, exit_branch, body])]))
+        self.aux.append(
+            Expression([Symbol("="), head, Expression([Symbol("if"), test, exit_branch, body])])
+        )
         source = self._materialized(node.iter)
         return Expression([Symbol(helper), source, *(Variable(self.scope[n]) for n in state)])
 
@@ -153,7 +160,7 @@ class LoopCompilerMixin(CompilerContext):
         if (
             isinstance(iter_node, ast.Call)
             and isinstance(iter_node.func, ast.Name)
-            and self.nondet(iter_node.func.id)
+            and self.nondet(self._resolved_call_name(iter_node.func.id))
         ):
             return Expression([Symbol("collapse"), self.expression(iter_node)])
         return self.expression(iter_node)

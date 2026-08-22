@@ -146,7 +146,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
         return value
 
     assert [row.kind for row in reflection.query(Expression(S.op, S[name], 1, V.kind))] == [
-        S.raw_det
+        S["raw_det"]
     ]
     assert [
         row.effect for row in reflection.query(Expression(S.effect, S[name], V.effect))

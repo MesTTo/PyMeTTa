@@ -9,6 +9,9 @@ Guarantees:
     whose free variables are reported [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+  - purity checks resolve compiled callees under the same catalog spelling
+    rule as expression lowering [tested:
+    test_mapped_nondeterministic_calls_keep_their_call_role; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,6 +28,8 @@ import types
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import NamedTuple
+
+from ._name_mapping import resolve_known_name
 
 
 class SourceSpan(NamedTuple):
@@ -76,8 +81,7 @@ def _function_table(
         candidates = [
             table
             for table in _tables(root)
-            if table.get_type() == "function"
-            and table.get_name() == fn.__name__
+            if table.get_type() == "function" and table.get_name() == fn.__name__
         ]
         exact = [table for table in candidates if table.get_lineno() == absolute_line]
         if len(exact) == 1:
@@ -113,8 +117,8 @@ class _Purity(ast.NodeVisitor):
                 or name in _PURE_PYTHON_CALLS
             ):
                 pass
-            elif self.known(name):
-                self.result = self.result and self.is_declared_pure(name)
+            elif (resolved := resolve_known_name(name, self.known)) is not None:
+                self.result = self.result and self.is_declared_pure(resolved)
             elif not name[:1].isupper():
                 # An unknown capitalized call is a data constructor. An
                 # unknown lowercase call will be refused by compilation, but
@@ -152,11 +156,7 @@ def derive_definition_facts(
 
     table = _function_table(fn, source, path, start_line)
     free_variables = tuple(
-        sorted(
-            name
-            for name in table.get_identifiers()
-            if table.lookup(name).is_free()
-        )
+        sorted(name for name in table.get_identifiers() if table.lookup(name).is_free())
     )
 
     local_functions = {

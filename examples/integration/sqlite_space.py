@@ -130,7 +130,7 @@ def demo() -> None:
     rows = m._at("&crm").query(
         petta.S.document(
             petta.S.manual,
-            path("data", 0, to=petta.V.first_byte),
+            path("data", 0, to=petta.V["first_byte"]),
         )
     )
     check("a lazy path reads one byte from the opaque BLOB",

@@ -144,7 +144,7 @@ def test_a_typed_dict_annotation_agrees_with_its_value(metta):
         return config
 
     metta.op(echo_config)
-    assert metta.eval(Expression([S.echo_config, projected.atom])) == [projected.atom]
+    assert metta.eval(Expression([S["echo_config"], projected.atom])) == [projected.atom]
     claims = {str(atom) for atom in metta.atoms()}
     assert "(annotation echo_config (param 1 (TypedDict Config (field retries Number) (field label String))))" in claims
     assert "(annotation echo_config (return (TypedDict Config (field retries Number) (field label String))))" in claims

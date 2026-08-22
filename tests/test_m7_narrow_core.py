@@ -40,7 +40,7 @@ from petta import atoms as atom_module
 BASELINE_METTA_METHODS = 90
 BASELINE_PETTA_EXPORTS = 152
 FINAL_METTA_METHODS = 20
-FINAL_PETTA_EXPORTS = 61
+FINAL_PETTA_EXPORTS = 62
 
 SATELLITES = {
     "aio",
@@ -161,7 +161,6 @@ REMOVED_FROM_ROOT = {
     "default_engine",
     "encode",
     "expr",
-    "fn",
     "functools",
     "importlib",
     "is_ground",
