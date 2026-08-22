@@ -20,13 +20,6 @@ out.
 
 from petta import S, V, equation, rules, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: two drops. `tx-three`'s three clauses have identical heads, so no literal default
-#: stacks them and `@rules` writes them instead; `spin` answers the lowercase SYMBOL `done` and
-#: stays at the container door. And the `(+ 1 1)`-shaped arguments reach their special forms as
-#: unevaluated DATA with two GROUND operands, where Python's `+` computes the sum.
-RUNG = "@rules for tx-three's identical heads, container door for spin's lowercase `done`, plus ground operands in the sums"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

@@ -28,11 +28,6 @@ equation stores.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `TupleConcat`'s body superposes two BOUND values, and `superpose(ev1)` in a compiled
-#: body means `(superpose ($ev1))`, one alternative that happens to be `$ev1`.
-RUNG = "container door for TupleConcat: superpose over a bound value has no compiled spelling"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 6633 to 7810, +1177, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

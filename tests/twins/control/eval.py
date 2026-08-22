@@ -19,11 +19,6 @@ that against P14.4 for `fibsmart`).
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `evalCustom`'s `let*` names `add-atom`, `reduce` and `remove-atom`, and a compiled body
-#: resolves a free name EXACTLY, so a hyphenated engine function cannot be reached from one.
-RUNG = "container door for evalCustom, whose let* names add-atom, reduce and remove-atom"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 5658 to 5975, +317, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

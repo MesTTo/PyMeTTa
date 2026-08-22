@@ -30,12 +30,6 @@ capitalised Python function name is not a Python spelling at all.
 
 from petta import S, V, equation, rules, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `f`'s two clauses have identical heads, so there is no literal default to stack them
-#: with, and a second `@m.define` under one name either replaces the first equation or raises.
-#: `@rules` is the definitional door that writes a clause set without deriving a guard.
-RUNG = "@rules for f: two clauses with identical heads have no stacked @m.define spelling"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

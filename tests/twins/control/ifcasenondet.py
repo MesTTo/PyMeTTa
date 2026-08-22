@@ -17,12 +17,6 @@ P14.4 for `time_and_pragmas`.
 
 from petta import S, V, equation, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: two holes in one file. `superpose` over a BOUND value has no compiled spelling, since
-#: `superpose(y)` in a body means `(superpose ($y))`; and `case` is Python's `match` statement,
-#: which the compiled subset has no lowering for.
-RUNG = "container door: superpose over a bound value has no compiled spelling, and case has no match-statement lowering"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

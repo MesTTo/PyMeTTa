@@ -19,12 +19,6 @@ is already the name of the symbol factory this module builds every atom with.
 
 from petta import S, equation, rules, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: every head matches a CONSTRUCTOR, `(Greater (S $x) Z)`, and a compiled head takes
-#: plain parameters or literal defaults, so `@rules` writes the three clauses with their two
-#: variables scoped to its parameters; the `(: ...)` declarations have no `typed(x, T)` builder.
-RUNG = "@rules: every head matches a constructor a compiled head cannot spell, and (: ...) has no typed(x, T) builder"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

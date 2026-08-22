@@ -15,12 +15,6 @@ its own residue entry, filed against P14.9 by types/outputtype.py.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: three drops in three atoms. The equation's body names the hyphenated `get-metatype`;
-#: the two `(: ...)` declarations are claims about names with no `typed(x, T)` builder to write
-#: them; and `(+ 1 2)` reaches `inspect-opaque` as DATA with two GROUND operands.
-RUNG = "container door: the body names the hyphenated get-metatype and (: ...) has no typed(x, T) builder; ground operands in (+ 1 2)"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1510 to 1544, +34, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

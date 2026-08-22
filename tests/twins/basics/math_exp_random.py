@@ -12,12 +12,6 @@ records the hole against P14.4.
 
 from petta import S, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `(* e e)` has two GROUND operands, so Python's `*` computes the product instead of
-#: building the term the original compares against. The two enclosing `<` and `-` terms do have an
-#: atom operand and are ordinary operators.
-RUNG = "ground operands: (* e e) has two, where Python's * computes the product"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

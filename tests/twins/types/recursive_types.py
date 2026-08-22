@@ -14,11 +14,6 @@ this file declares neither.
 
 from petta import S
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: four `(: ...)` claims about bare SYMBOLS, with no class or function to hang an
-#: annotation on and no `typed(x, T)` builder to write one as a term.
-RUNG = "declarations as atoms: (: ...) claims about bare symbols, with no typed(x, T) builder"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4121 to 4238, +117, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

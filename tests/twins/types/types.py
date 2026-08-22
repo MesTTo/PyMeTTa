@@ -17,12 +17,6 @@ the `match` statement, which the compiled subset has no lowering for yet
 
 from petta import S, V, equation, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: two drops. The `(: ...)` claims are about bare SYMBOLS with no `typed(x, T)` builder to
-#: write them. And `mid`'s body is a `let` whose pattern is an expression while `testf`'s head fixes
-#: a SYMBOL, neither of which a compiled body or head spells.
-RUNG = "declarations as atoms plus a container door for mid's let pattern and testf's symbol head"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10603 to 10954, +351, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

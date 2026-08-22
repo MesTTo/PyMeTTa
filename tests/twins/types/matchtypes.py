@@ -20,12 +20,6 @@ are what the program computes, not what it is written in.
 
 from petta import S, V, equation, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `match-types` is already an engine builtin, so the decorator refuses to stack a clause
-#: onto it, and `match-type-or`'s body then names it hyphenated, which a compiled body cannot
-#: resolve.
-RUNG = "container door: match-types is an engine builtin the decorator refuses to stack onto"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

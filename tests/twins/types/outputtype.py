@@ -16,11 +16,6 @@ from typing import Any
 
 from petta import Atom, S
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: the `(+ 1 1)` arguments are DATA whose evaluation three declarations decide, and they
-#: have two GROUND operands, where Python's `+` computes the sum instead of building the term.
-RUNG = "ground operands: the (+ 1 1) arguments have two, where Python's + computes the sum"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 6895 to 7006, +111, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

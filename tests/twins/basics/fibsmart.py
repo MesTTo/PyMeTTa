@@ -14,12 +14,6 @@ The residue table records that against P14.4.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `fib`'s equation is written at the container door: its body names `fib-tr`, and a
-#: compiled body resolves a free name EXACTLY, so a hyphenated engine function cannot be reached
-#: from one.
-RUNG = "container door for fib, whose body names fib-tr and a compiled body resolves a free name exactly"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 8880 to 8679, -201 (-2.26%), by
 #: INLINING the fuel charge into the compiled clause instead of calling a

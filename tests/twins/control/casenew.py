@@ -21,12 +21,6 @@ the generator below names it the way it names `wu1`.
 
 from petta import S, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `wu2`'s body is the lowercase term `(full)`, and a compiled body resolves a lowercase
-#: free name as a FUNCTION and reads a capitalised one as a constructor, so neither spelling stores
-#: this atom.
-RUNG = "container door for wu2, whose body is the lowercase term (full)"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4638 to 4695, +57, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

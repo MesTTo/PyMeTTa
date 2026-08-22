@@ -21,14 +21,6 @@ from typing import Any
 
 from petta import Atom, S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: two drops. `wu3`'s second branch answers `(a list not a number)`, four lowercase
-#: SYMBOLS a compiled body has no spelling for. And the `(+ 2 4)` arguments have two GROUND operands
-#: each, where Python's `+` computes the sum instead of building the term `wu1` receives unrun.
-RUNG = (
-    "container door for wu3's four lowercase symbols, plus ground operands in the (+ 2 4) arguments"
-)
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10035 to 9738, -297, by P14.9's declaration-order
 #: correction: @define now adds each annotation-derived `(: name type)` before

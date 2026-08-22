@@ -12,11 +12,6 @@ the pairs are lowercase data a compiled body has no spelling for.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `progme`'s body is a `case`, which Python's `match` statement would spell and the
-#: compiled subset has no lowering for one.
-RUNG = "container door for progme, whose case Python's match statement would spell"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 5625 to 5934, +309, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

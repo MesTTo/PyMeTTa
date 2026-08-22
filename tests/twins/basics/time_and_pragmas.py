@@ -17,15 +17,6 @@ and prune the branch the example is about: `@rules` is that door.
 
 from petta import S, V, equation, rules, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: two drops. `spin` is written at the container door because its body answers the lowercase
-#: SYMBOL `done`; `bounded-factorial` uses `@rules` rather than `@m.define`, because its two
-#: clauses must stay NON-EXCLUSIVE and stacked `@m.define` clauses derive a first-match guard
-#: (`(if (== $n 0) (empty) ...)`, measured 2026-08-22) that prunes the runaway branch this file is
-#: about. And four forms hand a special form `(+ 1 2)` or `(+ 20 22)` as unevaluated DATA, where
-#: Python's `+` over two ground operands computes the sum.
-RUNG = "container door for spin's lowercase `done`, @rules for bounded-factorial's non-exclusive clauses, plus ground operands in the sums handed to special forms"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

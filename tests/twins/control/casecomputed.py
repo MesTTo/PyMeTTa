@@ -15,11 +15,6 @@ free name EXACTLY, so a hyphenated engine function cannot be reached from one
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `case` has no `match`-statement lowering, and `numbered-cases` additionally names the
-#: hyphenated `cons-atom`, which a compiled body cannot resolve.
-RUNG = "container door: case has no match-statement lowering, and numbered-cases names the hyphenated cons-atom"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 11131 to 10558, -573, by P14.8's native switch:
 #: five switch calls now take translate_special_dl/5 instead of this file's

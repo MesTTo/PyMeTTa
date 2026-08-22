@@ -21,11 +21,6 @@ door directly.
 
 from petta import S, V, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: the `(:< ...)` edges and the `(: ...)` claims are about bare SYMBOLS and dynamic MeTTa
-#: types, so no Python annotation carries one and the surface has no `typed(x, T)` builder either.
-RUNG = "declarations as atoms: (:< ...) edges and (: ...) claims with no typed(x, T) builder"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9315 to 9506, +191, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

@@ -24,13 +24,6 @@ whose value slot is not a variable and is data nothing looks inside.
 
 from petta import S, V, equation, rules
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: every head here matches a structural pattern, `(= (greet (: $x Person)) ...)`, and a
-#: compiled head takes plain parameters or literal defaults. Python's own construct for a
-#: structural head is the `match` statement, which the compiled subset has no lowering for.
-#: `list-length`'s two clauses are one definition, so `@rules` writes them as a group.
-RUNG = "container door and @rules: every head matches a structural pattern, which a compiled head has no spelling for"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 21908 to 21927, +19, by lifting the 2-clause equation set from
 #: repeated `m += equation(...).to(...)` to `@rules` plus one `m.add(*group)`. The whole of the

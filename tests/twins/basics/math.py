@@ -7,18 +7,17 @@ so `val(7) / 0` raises ZeroDivisionError in Python instead of building
 door, `S["/"](7, 0)`, which is also what makes the error atoms below
 constructible as the DATA they are.
 
+The method forms do not close the gap either. `a.eq(b)` is the table's spelling
+for the taken `==` and does build `(== a b)`, but it wants an atom on the left,
+which two bare literals are not; and `a.ne(b)` builds `(not (== a b))`, a
+different atom from the `(!= 1.0 1)` the original writes.
+
 And an error is an ordinary answer here, so the expected value of a failing
 operation is a term like `(Error (/ 7 0) DivisionByZero)`, built the same way
 as any other.
 """
 
 from petta import S, val
-
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: every arithmetic and comparison term here has GROUND operands: a Python operator over two of
-#: them is that value's own arithmetic, `val(7) / 0` raises ZeroDivisionError, and the taken `!=`
-#: has no method form that builds this atom either, since `ne` builds `(not (== a b))`.
-RUNG = "ground operands: every term here has two, and != has no method form that builds it"
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list

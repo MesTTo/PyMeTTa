@@ -12,12 +12,6 @@ branch value, so the hole is the statement, not the fork.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: a `case` is what Python's `match` statement would spell and the compiled subset has no
-#: lowering for one. Inside a compiled body `superpose(What, What2)` would spell the branch VALUE,
-#: so the hole is the statement, not the fork.
-RUNG = "container door: a case is Python's match statement, which the compiled subset has no lowering for"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1518 to 1546, +28, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

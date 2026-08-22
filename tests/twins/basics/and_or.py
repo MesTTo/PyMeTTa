@@ -2,17 +2,16 @@
 
 `&` and `|` on a built term are MeTTa's `and` and `or`: the operator table
 lowers them, so `expr | TRUE` writes the `(or ...)` the example writes by
-hand. The inner `(and true false)` is the exception, and RUNG says why.
+hand.
+
+The inner `(and true false)` is the exception, because both its operands are
+GROUND: a Python operator over two ground atoms is that value's own arithmetic,
+so `TRUE & FALSE` answers Python's `False` instead of building the term `if` is
+handed here. Only the outer `|`, whose left operand is the built `(and ...)`,
+is an operator.
 """
 
 from petta import S, val
-
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `(and true false)` has two GROUND operands, and a Python operator over two ground atoms is that
-#: value's own arithmetic: `TRUE & FALSE` answers Python's `False` instead of building the term
-#: `if` is handed here. Only the outer `|`, whose left operand is the built `(and ...)`, is an
-#: operator.
-RUNG = "ground operands: (and true false) has two, where Python's & computes the conjunction"
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list

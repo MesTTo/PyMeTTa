@@ -11,11 +11,6 @@ before any atom exists, so `S[">"](1, 2)` is how a comparison stays a term.
 
 from petta import S
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `(> 1 2)` has two GROUND operands, where Python's `>` computes the comparison and
-#: answers `False` before any atom exists.
-RUNG = "ground operands: (> 1 2) has two, where Python's > computes the comparison"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 852 to 887, +35, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

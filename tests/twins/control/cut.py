@@ -14,12 +14,6 @@ choice for the same reason.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `match-single` applies `match` to a SPACE, a PATTERN and a TEMPLATE that are all
-#: parameters, and the compiled subset's own `match(...)` takes a literal space name and a
-#: structural pattern read as syntax.
-RUNG = "container door for match-single, whose space, pattern and template are all parameters"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 2560 to 2605, +45, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

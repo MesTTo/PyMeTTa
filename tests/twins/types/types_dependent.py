@@ -22,12 +22,6 @@ door directly.
 
 from petta import S, V, equation, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: the `get-type` extensions name a hyphenated function and one matches a CONSTRUCTOR
-#: head, and the `(: f ...)` declarations are about computed refinement types with no `typed(x, T)`
-#: builder to write them.
-RUNG = "container door: the get-type extensions name a hyphenated function and match a constructor head"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

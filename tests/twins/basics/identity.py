@@ -13,11 +13,6 @@ citing the other.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check
-#: reads. `@m.define` is the top rung for a definition; here it costs 2,878
-#: against a ceiling of 2,835.
-RUNG = "@m.define costs 2878 against the band ceiling of 2835 on this one-form example"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1251 to 1249, -2, by reading the fuel
 #: balance with the deterministic b_getval/2 instead of the nondeterministic

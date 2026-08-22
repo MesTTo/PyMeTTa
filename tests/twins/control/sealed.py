@@ -17,12 +17,6 @@ against P14.4 for `time_and_pragmas`.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: two drops. `mk-tagger`'s lambda mints `(tagged $item $fresh)` from a lowercase free
-#: name and a variable no parameter names, neither of which a compiled body spells. And `(+ 1 2)`
-#: reaches `sealed` as DATA with two GROUND operands, where Python's `+` computes the sum.
-RUNG = "container door for mk-tagger's lambda, plus ground operands in the (+ 1 2) sealed is handed"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9491 to 9793, +302, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

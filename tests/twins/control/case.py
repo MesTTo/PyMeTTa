@@ -11,11 +11,6 @@ branches are matched, never evaluated, so they are terms either way.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: a `case` is what Python's `match` statement would spell and the compiled subset has no
-#: lowering for one, so the equation is written at the container door. P14.4 owns the growth.
-RUNG = "container door: a case is Python's match statement, which the compiled subset has no lowering for"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1501 to 1529, +28, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

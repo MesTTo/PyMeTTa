@@ -28,11 +28,6 @@ original's `(let $z 4 $z)`, which binds a constant and answers it.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `program2`'s inner form is `(superpose $L)`, a superposition over a BOUND value, and
-#: `superpose(l)` in a compiled body means `(superpose ($l))` instead.
-RUNG = "container door for program2: superpose over a bound value has no compiled spelling"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10073 to 10668, +595, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

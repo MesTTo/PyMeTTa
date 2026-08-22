@@ -13,11 +13,6 @@ quotes are the whole reason it is a string.
 
 from petta import S, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `(+ 1 2)` and `(+ 10 20)` are branches `unify` is handed as DATA and have two GROUND
-#: operands each, where Python's `+` computes the sum instead of building the term.
-RUNG = "ground operands: the branches (+ 1 2) and (+ 10 20) have two each, where Python's + computes the sum"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 11955 to 12097, +142, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

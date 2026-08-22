@@ -20,12 +20,6 @@ P14.4 for `fibsmart`).
 
 from petta import S, V, equation, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: two drops. `note` and `note2` are written at the container door because their bodies
-#: name `add-atom`, and a compiled body resolves a free name EXACTLY. And the four `(> 2 1)`-shaped
-#: conditions have two GROUND operands each, where Python's `>` computes the comparison.
-RUNG = "container door for note and note2, whose bodies name add-atom, plus ground operands in the comparisons"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

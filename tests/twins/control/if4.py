@@ -8,12 +8,6 @@ numbers is Python's own arithmetic.
 
 from petta import S, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `(== 42 42)` and `(+ 2 2)` have two GROUND operands each. Python's `==` is structural
-#: equality on atoms rather than a builder, and its method form `val(42).eq(42)` would have to mint
-#: an atom the source does not otherwise need; `+` computes the sum.
-RUNG = "ground operands: (== 42 42) and (+ 2 2) have two each, where == is structural equality and + computes"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

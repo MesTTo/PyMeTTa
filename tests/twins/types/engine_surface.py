@@ -15,11 +15,6 @@ the atoms they are, and every query is a term.
 
 from petta import S, V, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: the annotation door would add `(: ...)` atoms this example COUNTS, and the file's last
-#: two claims are exactly that count, so both program declarations stay the atoms they are.
-RUNG = "declarations as atoms: the annotation door would add (: ...) atoms this example counts"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 15430 to 18710, +3280, by P14.8's typed state cell
 #: plus fuel-scope parity: the source grew from two state queries to five; a

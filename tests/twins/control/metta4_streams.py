@@ -40,12 +40,6 @@ make instead.
 
 from petta import S, V, equation, rules
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `gen`'s three clauses have identical heads, so there is no literal default to stack
-#: them with, and a second `@m.define` under one name either replaces the first equation or raises.
-#: `@rules` is the definitional door that writes a clause set without deriving a guard.
-RUNG = "@rules for gen: three clauses with identical heads have no stacked @m.define spelling"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 11690 to 11712, +22, by lifting the 3-clause equation set from
 #: repeated `m += equation(...).to(...)` to `@rules` plus one `m.add(*group)`. The whole of the

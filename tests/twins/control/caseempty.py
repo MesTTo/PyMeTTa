@@ -13,12 +13,6 @@ The two `case` equations are written at the container door, since Python's
 
 from petta import S, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: the two `case` equations are written at the container door, because a `case` is what
-#: Python's `match` statement would spell and the compiled subset has no lowering for one. `f` is a
-#: computation and is written as one.
-RUNG = "container door for the two case equations, which Python's match statement would spell"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4710 to 4784, +74, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

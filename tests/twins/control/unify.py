@@ -14,11 +14,6 @@ a free name EXACTLY, so a hyphenated engine function cannot be reached from one
 
 from petta import S, V, equation, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: the two probe equations name `chain` with a variable of its own and `add-atom`, and a
-#: compiled body resolves a free name EXACTLY, so neither is reachable from one.
-RUNG = "container door for the two probe equations, whose bodies name chain and add-atom"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9027 to 9314, +287, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

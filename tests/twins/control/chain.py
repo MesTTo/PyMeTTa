@@ -11,12 +11,6 @@ built as the term it is.
 
 from petta import S, V
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `(+ 2 4)` and `(+ 1 3)` reach `chain` as unevaluated DATA and have two GROUND operands
-#: each, where Python's `+` computes the sum instead of building the term. The `(* 3 $n)` and
-#: `(+ $n $m)` bodies do have a variable operand and are ordinary operators.
-RUNG = "ground operands: the sums chain is handed as data have two, where Python's + computes"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 2073 to 2146, +73, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

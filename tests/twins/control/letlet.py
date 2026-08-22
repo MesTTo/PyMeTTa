@@ -13,11 +13,6 @@ the atom the file lands, with no string anywhere.
 
 from petta import S, V, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: the `let*` binding is a destructuring PATTERN, and a compiled body binds plain names:
-#: "destructuring and attribute assignment have no let* form".
-RUNG = "container door for f, whose let* binding is a destructuring pattern"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1681 to 1709, +28, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

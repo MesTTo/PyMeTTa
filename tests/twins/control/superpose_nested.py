@@ -14,11 +14,6 @@ store the wrong atom; wave one recorded that against P14.4 for
 
 from petta import S, equation
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `progme`'s every answer is a lowercase SYMBOL, and a compiled body resolves a lowercase
-#: free name as a function and reads a capitalised one as a constructor.
-RUNG = "container door for progme, whose every answer is a lowercase symbol"
-
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4844 to 4872, +28, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every

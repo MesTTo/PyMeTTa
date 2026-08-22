@@ -21,12 +21,6 @@ defect lives in. `case-else` is the same shape through `case`, which Python's
 
 from petta import S, V, equation, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: `case-else` is written at the container door: a `case` is what Python's `match`
-#: statement would spell and the compiled subset has no lowering for one. The other three equations
-#: are compiled functions.
-RUNG = "container door for case-else, which Python's match statement would spell"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.

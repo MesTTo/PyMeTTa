@@ -15,12 +15,6 @@ because its body applies `let*` and `let*` is not a Python identifier.
 
 from petta import S, V, equation, val
 
-#: Why this twin sits below the top rung, in the form the lane's idiom check reads:
-#: two drops. `let*` applied to a bindings VALUE is not a Python identifier, so no
-#: compiled body can name it; and `(: mylet (-> Atom Atom %Undefined%))` is a declaration about a
-#: name rather than a signature on a function, and the surface has no `typed(x, T)` builder.
-RUNG = "container door: let* applied to a bindings value is not a Python identifier, and (: mylet ...) has no typed(x, T) builder"
-
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
 #: reads as a Python flag, and these are answers.
