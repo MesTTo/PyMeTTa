@@ -310,3 +310,51 @@ def test_the_residue_json_is_the_one_definition_of_what_is_missing():
     document = json.loads(coverage.RESIDUE.read_text(encoding="utf-8"))
     assert document["schema"] == "petta-twin-residue-1"
     assert document["entries"] == coverage.residue()
+
+
+def test_the_idiom_check_catches_a_planted_transliteration(tmp_path):
+    """A twin can avoid MeTTa source TEXT and still be MeTTa source with
+    Python punctuation, which is what this check exists for: the string scan
+    passes the planted file below and the idiom check refuses it, naming the
+    spelling Python already has.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S, V, expr\n"
+        "def twin(m):\n"
+        '    m += expr(S["="], expr(S["f"], V["x"]), expr(S["+"], V["x"], 1))\n',
+        encoding="utf-8",
+    )
+    assert coverage.scan(planted) == []
+    findings = coverage.idiom(planted)
+    assert findings, "the transliteration was not caught"
+    joined = " ".join(findings)
+    assert 'S["f"] is S.f' in joined
+    assert 'V["x"] is V.x' in joined
+    assert "expr(...) builds what calling the head builds" in joined
+    assert "a Python operator builds" in joined
+
+
+def test_a_declared_rung_is_a_documented_drop_rather_than_a_finding(tmp_path):
+    """The ladder keeps every rung, so sitting below the top one is legal
+    when the twin SAYS why. A silent drop is the defect; a declared one is
+    documentation, and the lane reads the declaration the way it reads BUDGET.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    body = (
+        '"""Doc."""\n'
+        "from petta import S, V, expr\n"
+        "%s"
+        "def twin(m):\n"
+        '    m += expr(S["="], expr(S["f"], V["x"]), 1)\n'
+    )
+    silent = tmp_path / "silent.py"
+    silent.write_text(body % "", encoding="utf-8")
+    assert coverage.idiom(silent)
+
+    declared = tmp_path / "declared.py"
+    declared.write_text(
+        body % 'RUNG = "the compiled subset has no lowering for this form yet"\n',
+        encoding="utf-8",
+    )
+    assert coverage.idiom(declared) == []

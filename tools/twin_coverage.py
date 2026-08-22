@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import keyword
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -185,6 +186,96 @@ def _named_strings(tree: ast.Module) -> set[int]:
                 id(keyword.value) for keyword in node.keywords if keyword.arg == "name"
             )
     return permitted
+
+
+#: Heads Python's own syntax already builds, so writing them as a call or
+#: through expr() spells with a function what the language spells with a
+#: character. The lowering table in petta._operator_lowerings is the
+#: authority for which these are; this is the subset a twin can reach.
+OPERATOR_HEADS = frozenset({
+    "+", "-", "*", "/", "//", "%", "**", "==", "!=", "<", ">", "<=", ">=",
+    "and", "or", "not",
+})
+
+
+def _rung_reason(tree: ast.Module) -> str | None:
+    """The twin's own declaration that it deliberately sits below the top
+    rung, as `RUNG = "<reason>"`. A drop with a stated reason is
+    documentation, which is why the ladder keeps every rung; a silent drop
+    is the defect this check exists for.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    for node in tree.body:
+        targets = node.targets if isinstance(node, ast.Assign) else []
+        for target in targets:
+            if isinstance(target, ast.Name) and target.id == "RUNG":
+                value = node.value
+                if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                    return value.value.strip() or None
+    return None
+
+
+def _subscripted_name(node: ast.Subscript) -> str | None:
+    """The name a `S["foo"]` or `V["x"]` subscript spells, when that name is
+    an ordinary Python identifier and attribute access would have reached it.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    if not (isinstance(node.value, ast.Name) and node.value.id in NAMING_NAMESPACES):
+        return None
+    key = node.slice
+    if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
+        return None
+    name = key.value
+    return name if name.isidentifier() and not keyword.iskeyword(name) else None
+
+
+def _head_symbol(node: ast.expr) -> str | None:
+    """The MeTTa head a term-building expression is rooted at, whether it was
+    written `S.f`, `S["+"]`, or the first argument of `expr(...)`.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+        return node.attr if node.value.id in NAMING_NAMESPACES else None
+    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name):
+        key = node.slice
+        if node.value.id in NAMING_NAMESPACES and isinstance(key, ast.Constant):
+            return key.value if isinstance(key.value, str) else None
+    return None
+
+
+def idiom(twin: Path) -> list[str]:
+    """Where a twin spells in library calls what Python's own syntax spells.
+
+    A twin avoiding MeTTa source text can still be MeTTa source text with
+    Python punctuation, which is the failure this catches: `S["merge"]` where
+    `S.merge` reads, `expr(S["="], a, b)` where `S["="](a, b)` reads, and
+    `expr(S["+"], a, b)` where `a + b` already builds that term. The design
+    authority is ai-python-first-revamp-discussion.md, sections 9c and 9k.
+    A twin that declares `RUNG = "<reason>"` is exempt, because a drop with a
+    stated reason is what the ladder is for.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    tree = _parse(twin)
+    if tree is None or _rung_reason(tree) is not None:
+        return []
+    findings: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Subscript):
+            name = _subscripted_name(node)
+            if name is not None:
+                namespace = node.value.id
+                findings.append(
+                    (node.lineno, f'{namespace}["{name}"] is {namespace}.{name}')
+                )
+        elif isinstance(node, ast.Call):
+            head = _head_symbol(node.args[0]) if _callee(node) == "expr" and node.args else None
+            if head is not None:
+                findings.append(
+                    (node.lineno, f"expr(...) builds what calling the head builds")
+                )
+            called = _head_symbol(node.func)
+            if called in OPERATOR_HEADS or head in OPERATOR_HEADS:
+                built = called if called in OPERATOR_HEADS else head
+                findings.append(
+                    (node.lineno, f"the head {built!r} is what a Python operator builds")
+                )
+    return [f"line {line}: {what}" for line, what in sorted(set(findings))]
 
 
 def _parse(twin: Path) -> ast.Module | None:
@@ -441,6 +532,7 @@ def check(example: Path, entries: list[dict], root: Path = REPO) -> Verdict:
     twin = twin_for(example, root)
     relative = str(example.relative_to(root))
     findings = [f"{relative}: {finding}" for finding in scan(twin)]
+    findings += [f"{relative}: {finding}" for finding in idiom(twin)]
 
     left, right = run_example(example, root), run_twin(twin, root)
     if left.outcome.error or right.outcome.error:

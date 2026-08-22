@@ -51,11 +51,11 @@ def twin(m):
 
     # Backwards: `let` binds the RESULT and solves for the unknown.
     # !(test (let 5 (#+ $x 2) $x) 3)
-    yield m.eval(S.test(S["let"](5, S["#+"](V.x, 2), V.x), 3))
+    yield m.eval(S.test(S.let(5, S["#+"](V.x, 2), V.x), 3))
     # !(test (let 12 (#* $y 4) $y) 3)
-    yield m.eval(S.test(S["let"](12, S["#*"](V.y, 4), V.y), 3))
+    yield m.eval(S.test(S.let(12, S["#*"](V.y, 4), V.y), 3))
     # !(test (let 6 (#- $z 4) $z) 10)
-    yield m.eval(S.test(S["let"](6, S["#-"](V.z, 4), V.z), 10))
+    yield m.eval(S.test(S.let(6, S["#-"](V.z, 4), V.z), 10))
 
     # Integer division, remainder, and the two extremes.
     # !(test (#div 13 4) 3)
@@ -89,4 +89,4 @@ def twin(m):
 
     # Composed, and still solvable backwards through two constraints.
     # !(test (let 20 (#* (#+ $a 1) 4) $a) 4)
-    yield m.eval(S.test(S["let"](20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))
+    yield m.eval(S.test(S.let(20, S["#*"](S["#+"](V.a, 1), 4), V.a), 4))
