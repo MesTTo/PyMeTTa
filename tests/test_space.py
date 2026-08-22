@@ -29,6 +29,10 @@ Guarantees:
   - strict and raw execution choices use scopes and named transport rather
     than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
     test_eval_using_carries_identity; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - wide query projection preserves order, sharing and values across eager,
+    limited, guarded, prepared and streamed answer doors
+    [tested: test_wide_query_projection_is_identical_through_every_answer_door;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -268,6 +272,37 @@ def test_query_surfaces_share_column_order(m):  # noqa: D103  -- pytest discover
     assert m.prepare(*patterns).columns == expected
     with m.stream(*patterns) as cursor:
         assert cursor.columns == expected
+
+
+def test_wide_query_projection_is_identical_through_every_answer_door(m):  # noqa: D103
+    variables = [V[f"column_{index:08x}"] for index in range(64)]
+    relations = [S[f"wide_{index:08x}"] for index in range(64)]
+    m.add(*(relation(S.only) for relation in relations), S.repeat(S.only))
+    patterns = [
+        *(relation(variable) for relation, variable in zip(relations, variables, strict=True)),
+        S.repeat(variables[0]),
+    ]
+    columns = tuple(f"column_{index:08x}" for index in range(64))
+    expected = tuple(S.only for _ in variables)
+    guard = variables[-1].eq(S.only)
+
+    surfaces = [
+        m.query(*patterns),
+        m.query(*patterns, limit=1),
+        m.query(*patterns, where=guard, limit=1),
+        m.prepare(*patterns).solve(limit=1),
+        m.prepare(*patterns, where=guard).solve(limit=1),
+    ]
+    for rows in surfaces:
+        assert rows.columns == columns
+        assert tuple(rows.one()) == expected
+
+    with m.stream(*patterns) as cursor:
+        assert cursor.columns == columns
+        assert tuple(next(cursor)) == expected
+    with m.stream(*patterns, where=guard) as cursor:
+        assert cursor.columns == columns
+        assert tuple(next(cursor)) == expected
 
 
 def test_atoms_count_contains_remove_clear(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
