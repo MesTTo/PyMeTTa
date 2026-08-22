@@ -1,4 +1,4 @@
-"""examples/basics/constraint_domains.metta in Python: CLP(Q) and CLP(B).
+"""Purpose: examples/basics/constraint_domains.metta in Python: CLP(Q) and CLP(B).
 
 Both solvers take their constraint AS WRITTEN, unevaluated, which is exactly
 what a built term is: `S.clpq(equation(2 * V.x).to(1))` hands over
@@ -18,14 +18,20 @@ way out; two separate calls from Python would ask a question with nothing
 standing. That scope is MeTTa's `(let True <constraint> <question>)`, the same
 guard form examples/functions/functionhead3.metta's twin names, and Python has
 no spelling for it.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+  - expected constraint reprs are plain Python text rather than grounded data
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import TRUE, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-23, 92108 to 92903, +795, by the p14-tabling merge, the
@@ -64,7 +70,7 @@ def twin(m):
     # through repr, because the reader has no rational literal to write 1r2
     # as: it would read back as a symbol and compare unequal to the number.
     half = S.clpq(equation(2 * V.x).to(1))
-    assert m.one(where(half, S.repr(V.x))) == val("1r2")
+    assert m.one(where(half, S.repr(V.x))) == "1r2"
     assert m.one(where(half, 2 * V.x)) == 1
 
     # Entailment: is this constraint already implied by what has been posted?
@@ -92,7 +98,7 @@ def twin(m):
         S.clpq(V.f >= 0),
         where(S.clpq(S["=<"](V.f, 3)), S.repr(S["residual-goals"](V.f))),
     )
-    assert m.one(residuals) == val("(({} (, (>= $_0 0) (=< $_0 3))))")
+    assert m.one(residuals) == "(({} (, (>= $_0 0) (=< $_0 3))))"
 
     # ---------------------------------------------------------------- CLP(B)
     # `(card (1) ($p $q))` is "exactly one of these is true": a list of

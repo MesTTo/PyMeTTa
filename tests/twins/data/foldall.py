@@ -1,4 +1,4 @@
-"""examples/data/foldall.metta in Python: aggregating a generator's answers.
+"""Purpose: examples/data/foldall.metta in Python: aggregating a generator's answers.
 
 `foldall` takes an aggregator, a GENERATOR TERM and a seed, and folds every
 answer the generator gives. The term matters: `(f)` answers 2 and then 3, and
@@ -17,9 +17,16 @@ in an argument position, which is what a compiled default is, so `g` is two
 ordinary defs. `f` is nullary and has no argument position to fix, so a second
 `def f()` would REBIND the Python name and lose the first equation; those two
 clauses are written as the equations they are (filed as friction).
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 24789 to 22717, -2072 (-8.36%), by the twin-shape
@@ -72,12 +79,12 @@ def twin(m):
     assert fold(add, S.g(V.z)) == [5]
 
     # A lambda generator, applied to a variable it ignores and then uses.
-    assert fold(add, expr(answering_f, V.x)) == [5]
-    assert fold(add, expr(answering_g, V.x)) == [5]
-    assert fold(add, expr(answering_g, V.w)) == [5]
+    assert fold(add, Expression((answering_f, V.x))) == [5]
+    assert fold(add, Expression((answering_g, V.x))) == [5]
+    assert fold(add, Expression((answering_g, V.w))) == [5]
 
     # And the aggregator arriving out of a syntactic construct rather than
     # out of a name.
     chosen = S["if"](True, S.let(V.agg, add, V.agg), S.empty())  # rung: the aggregator must reach foldall as a TERM, so its `if` and `let` stay terms too  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert fold(chosen, expr(answering_g, V.w)) == [5]
-    assert fold(chosen, expr(twice_g, V.w)) == [10]
+    assert fold(chosen, Expression((answering_g, V.w))) == [5]
+    assert fold(chosen, Expression((twice_g, V.w))) == [10]

@@ -1,4 +1,4 @@
-"""examples/spaces/spaces3.metta in Python: what a pattern's SHAPE selects.
+"""Purpose: examples/spaces/spaces3.metta in Python: what a pattern's SHAPE selects.
 
 Two atoms go into a space, `(wu)` and `(wu 42)`. Four queries over them differ
 only in the pattern: `($x)` is a one-element expression and selects only the
@@ -19,9 +19,16 @@ is the shallow end, where the difference is nothing; a corpus twin that counts
 1,572,862 answers is the other end, where the Python door exhausts the Prolog
 stack before it can finish. Four twins in `reasoning/` and `performance/`
 therefore keep the engine's count and say so.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, expr
+from petta import Expression, S, V, space
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4090 to 449, -3641 (-89.0%), by the twin contract
@@ -36,17 +43,17 @@ from petta import S, V, expr
 BUDGET = 449
 
 
-def twin(m):
+def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the default handle stays untouched
     """Write two atoms, then ask four questions about them."""
-    wuspace = m.space("&wuspace")
+    wuspace = space("&wuspace")
     wuspace += S.wu()
     wuspace += (S.wu, 42)
 
     # `($x)` is an expression of one element, so only `(wu)` matches it, and
     # $x binds to that element rather than to the whole atom.
-    one = wuspace.query(expr(V.x))
+    one = wuspace.query(Expression((V.x,)))
     assert [row.x for row in one] == [S.wu]
-    assert [expr(row.x) for row in one] == [S.wu()]
+    assert [Expression((row.x,)) for row in one] == [S.wu()]
     assert [S.hu(row.x) for row in one] == [S.hu(S.wu)]
 
     # A bare variable matches every atom, which is what iterating a space is.

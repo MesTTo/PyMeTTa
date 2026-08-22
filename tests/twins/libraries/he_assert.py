@@ -1,4 +1,4 @@
-"""examples/libraries/he_assert.metta in Python: the assert family itself.
+"""Purpose: examples/libraries/he_assert.metta in Python: the assert family itself.
 
 Python's `assert` is what MeTTa's assert family dissolves into, which is why
 this one file cannot dissolve it: the twelve functions here ARE the subject, so
@@ -14,9 +14,16 @@ add a failure message and otherwise behave as their bases.
 
 `adder` stays at the container door: its body is a bare MeTTa variable, which a
 compiled body has no spelling for.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, val
+from petta import Expression, S, V, equation, val
 
 #: Why this twin sits below the top rung: every claim here is about a member of
 #: the assert family, so naming them is the file's subject rather than MeTTa
@@ -49,8 +56,8 @@ def twin(m):
     assert to_result(S["+"](1, 2), (3,)) is True
     assert to_result(S.superpose((1, 2)), (1, 2)) is True
 
-    m += equation(S.adder()).to(expr(V.x))
-    assert m.fn("assertAlphaEqualToResult")(S.adder(), (expr(V.y),)) is True
+    m += equation(S.adder()).to(Expression((V.x,)))
+    assert m.fn("assertAlphaEqualToResult")(S.adder(), (Expression((V.y,)),)) is True
 
     # Every expected result must appear among those produced.
     includes = m.fn("assertIncludes")
@@ -61,4 +68,4 @@ def twin(m):
     assert m.fn("assertEqualMsg")(S["+"](1, 2), S["-"](6, 3), val("sums differ")) is True
     assert m.fn("assertAlphaEqualMsg")(S.h(V.x, V.y), S.h(V.a, V.b), val("not alpha equal")) is True
     assert m.fn("assertEqualToResultMsg")(S["+"](1, 2), (3,), val("not the expected result")) is True
-    assert m.fn("assertAlphaEqualToResultMsg")(S.adder(), (expr(V.y),), val("not alpha equal")) is True
+    assert m.fn("assertAlphaEqualToResultMsg")(S.adder(), (Expression((V.y,)),), val("not alpha equal")) is True

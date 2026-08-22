@@ -1,4 +1,4 @@
-"""examples/reasoning/constructive_negation.metta in Python: negation that answers.
+"""Purpose: examples/reasoning/constructive_negation.metta in Python: negation that answers.
 
 `not-provable` answers True for what an expression cannot prove and False for
 what it can, and over an infinite domain it CONSTRAINS rather than enumerates.
@@ -26,9 +26,17 @@ and `*` are themselves, and `x.eq(y)` is the equality TERM because `==` between
 atoms is Python's own structural equality. Where it cannot, the tuple is:
 MeTTa's `(> 1 2)` reads as `(GT, 1, 2)`, because `1 > 2` computes and
 `V.r != 5` compares the atom rather than building `(!= $r 5)`.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import REFLECTION_SPACE, Atom, S, V, equation, val
+from petta import FALSE, REFLECTION_SPACE, TRUE, Atom, S, V, equation
 
 #: Why this file sits below the top rung: every equation body is MeTTa's `and`,
 #: a `case`, or a `match` against a named space, and every claim that reads a
@@ -39,10 +47,6 @@ RUNG = "the equation bodies are MeTTa's and, a case, and a match against a named
 #: own operators would compute on, or would build the wrong term for: `!=` on
 #: atoms is structural inequality and `==` is structural equality.
 NE, GT, EQ = S["!="], S[">"], S["=="]
-
-#: MeTTa's booleans. Named rather than written inline because a bare boolean in
-#: an argument list reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
 
 #: The nine relations the example gives NoMatchFail, so a missing proof is
 #: relational failure instead of the P3 residual-call dispatch value.

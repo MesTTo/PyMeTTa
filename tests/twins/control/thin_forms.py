@@ -1,4 +1,4 @@
-"""examples/control/thin_forms.metta in Python: the forms almost nothing uses.
+"""Purpose: examples/control/thin_forms.metta in Python: the forms almost nothing uses.
 
 This file exists because of `sealed`. It had ZERO uses anywhere in the tree,
 it was broken, and nothing said so, so a low usage count is a warning rather
@@ -17,26 +17,30 @@ Two places where the dissolution table's `collapse` is `list()` does not
 hold, both measured 2026-08-22 and both filed against P14.4. Collapsing
 gathers the answers into one ATOM, so the collapse of no answers is `()` while
 the list of no answers is `[]`, which is the distinction the first three
-claims are about; `expr(*answers)` is the atom form and is used for them. And
+claims are about; `Expression(answers)` is the ordered atom form. And
 `(let $b (tx-body) (transaction $b))` binds the body so the special form sees
 a VARIABLE holding a value; substituting the term in Python instead would hand
 `transaction` the term itself, and it would run rather than come back unrun.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, order_key, rules
+from petta import Expression, S, V, equation, order_key, rules
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 34016 to 25608, -8408 (-24.7%), by the twin contract
-#: change: `size-atom` became `len`, `msort` became `sorted`, two matches
-#: became the query door, `(timeout 5 ...)` became `m.eval(term, timeout=5)`,
-#: and twenty-four `test` wrappers became `assert`s; the special forms
-#: themselves still run where they did, and three collapses stay in the
-#: engine where the claim is about the collapsed ATOM. Measured min-of-3 over
-#: fresh processes with the MORK backend linked in, which the artefact-free
-#: worktree omits and which moves a compiled twin by about 10 inferences per
-#: definition; against the example's 60100 the ratio is 0.4261. Prior: 34016,
-#: the transliterated twin this replaces.
-BUDGET = 25608
+#: Successful costs from two complete concurrent ten-round observations plus
+#: eight subsequent complete gate-protocol observations
+#: [measured: 26649..53210 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
+BUDGET = {
+    "minimum": 26649,
+    "maximum": 53210,
+    "observations": 28,
+    "protocol": "full-lane/218/workers=32",
+}
 
 
 def twin(m):
@@ -50,9 +54,9 @@ def twin(m):
     # !(test-no-answer (superpose ()))
     assert m.eval(nothing) == []
     # !(test (collapse (superpose ())) ())
-    assert expr(*m.eval(nothing)) == expr()
+    assert Expression(m.eval(nothing)) == Expression(())
     # !(test (collapse ()) (()))
-    assert expr(*m.eval(expr())) == expr(expr())
+    assert Expression(m.eval(Expression(()))) == Expression((Expression(()),))
 
     # ----------------------------------------------------- prog1 and progn
     # Both run every form; they differ in which one they answer.
@@ -78,7 +82,7 @@ def twin(m):
     # its body did, and add-atom answers the unit value.
     # !(test (collapse (transaction (add-atom &self (tx-kept a)))) (()))
     keeps = S["add-atom"](here, S["tx-kept"](S.a))  # rung: the same, for the committing case
-    assert m.eval(S.transaction(keeps)) == [expr()]
+    assert m.eval(S.transaction(keeps)) == [Expression(())]
     # !(test (collapse (match &self (tx-kept $x) $x)) (a))
     assert m.query(S["tx-kept"](V.x))["x"] == [S.a]
 
@@ -100,7 +104,7 @@ def twin(m):
     #                                           (add-atom &self (tx-each 2))))))
     #        (() ()))
     each = S.superpose((S["add-atom"](here, S["tx-each"](1)), S["add-atom"](here, S["tx-each"](2))))  # rung: two writes inside one transaction, which the Python door cannot spell for the same reason
-    assert m.eval(S.transaction(each)) == [expr(), expr()]
+    assert m.eval(S.transaction(each)) == [Expression(()), Expression(())]
     # !(test (collapse (match &self (tx-each $x) $x)) (1 2))
     assert m.query(S["tx-each"](V.x))["x"] == [1, 2]
 
@@ -161,10 +165,9 @@ def twin(m):
     # Runs its branches concurrently, so `once` over an expensive branch and a
     # cheap one answers as soon as the cheap one is done.
     # !(test (once (hyperpose ((spin 3000000) (spin 3)))) done)
-    # DECLINED: the form answers correctly and cannot be PRICED, because
-    # hyperpose RACES its branches and how far the three-million-step branch
-    # gets before `once` cuts it is what the race decides. The residue table
-    # routes that to P14.14, which owns the budget law.
+    # The empirical BUDGET admits the measured scheduler envelope, while a
+    # later run outside it remains a two-sided finding.
+    assert m.eval(S.once(S.hyperpose((S.spin(3_000_000), S.spin(3))))) == [S.Done]
     #
     # Both branches ran and both answers came back, which is what collapsing
     # over hyperpose observes. The sort is the assertion's, not the form's:
@@ -176,11 +179,11 @@ def twin(m):
     # Reaches a Prolog predicate with no registration at all, which is the
     # point: msort/2 is SWI's and nothing here imported it.
     # !(test (call (msort (3 1 2))) (1 2 3))
-    assert m.eval(S.call(S.msort((3, 1, 2)))) == [expr(1, 2, 3)]
+    assert m.eval(S.call(S.msort((3, 1, 2)))) == [Expression((1, 2, 3))]
 
     # ----------------------------------------------------- translatePredicate
     # Compiles ONE goal inline. It is a statement rather than a value, so it is
     # written inside a progn whose last form is the variable the goal bound.
     # !(test (progn (translatePredicate (msort (3 1 2) $s)) $s) (1 2 3))
     inline = S.translatePredicate(S.msort((3, 1, 2), V.s))
-    assert m.eval(S.progn(inline, V.s)) == [expr(1, 2, 3)]
+    assert m.eval(S.progn(inline, V.s)) == [Expression((1, 2, 3))]

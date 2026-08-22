@@ -31,15 +31,17 @@ Assumes:
   - discovery comes from example_parity.corpus/1 and nowhere else, so a twin's
     path is DERIVED from its example's path rather than walked separately
     [tested: test_the_twin_set_is_derived_from_the_one_corpus]
-  - inferences are deterministic across processes, so one sample decides a
-    budget [measured 2026-08-22: examples/basics/factorial.metta answered 4748
-    inferences on three fresh interpreters, 0.0000% spread; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a point budget is deterministic within TOLERANCE; a counter that varies
+    declares an empirical minimum, maximum, observation count, and protocol
+    instead [tested: test_a_budget_is_two_sided,
+    test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - an assert-family head states one claim, and Python's `assert` is its image
     [source: engine/prelude.metta 56-103; ai-python-first-revamp-discussion.md
     section 9d rule 1, "assert and pytest for the assert family"]
 Guarantees:
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
-    the four source doors and any string that is not a name or ground()-marked
+    the four source doors and any string that is not a name or val()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
@@ -52,6 +54,10 @@ Guarantees:
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,
     test_a_yielding_twin_is_a_finding]
+  - empirical budgets license only the protocol that measured them, and the
+    deterministic point tolerance never widens their observed extrema
+    [tested: test_an_empirical_envelope_cannot_license_another_protocol;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Decides:
   - twins live under `bindings/python/tests/twins/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
@@ -63,6 +69,15 @@ Decides:
   - the budget lives in the twin as BUDGET, not in a side table, so a twin
     file is the whole of what it claims and the number is reviewed in the
     same diff as the code it prices
+  - an integer BUDGET is a point claim; a mapping BUDGET is an empirical
+    envelope with exactly minimum, maximum, observations, and protocol, so a
+    reviewer can falsify both its bounds and the conditions that produced it
+    [tested: test_an_empirical_envelope_requires_complete_measurement_metadata;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+  - a full-lane protocol fixes both corpus width and executor width; empirical
+    observations can be reproduced with --observe [tested:
+    test_the_full_lane_protocol_names_every_scheduling_input;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Fails when:
   - an example's answers are nondeterministically ordered, which the same
     comparison in example_parity already documents: groups are compared in
@@ -109,7 +124,7 @@ DECLINED = "-"
 #: looser; the overrun itself is priced with its mechanism in
 #: ai-report-p14-coverage.md rather than hidden inside the band
 #: [measured 2026-08-22: `twin_coverage.py --measure`, ai-tmp/p14c-measure.log;
-#: commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+#: commit=c7191d87d9cbfce2870e586057168ec9103845ca].
 BAND_PERCENT = 10.0
 
 #: What AUTHORING a compiled definition costs, which the band must allow
@@ -123,25 +138,35 @@ BAND_PERCENT = 10.0
 #: examples/control/if.metta costs 2092 with a ceiling of 2301, so one
 #: decorated definition could not fit and six control twins had to stay at the
 #: container door [found 2026-08-22 by the control agent, which said the rule
-#: was wrong and was right; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+#: was wrong and was right; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 DEFINITION_WARMUP = 1456
 DEFINITION_COST = 765
 
-#: The tree's own counter allowance, so a budget here reads the way a
-#: benchmark baseline reads [source: bindings/python/petta/benchmarking.py
-#: _COUNTER_TOLERANCE; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+#: The tree's own POINT-counter allowance. It applies to an integer BUDGET
+#: only; adding it to empirical extrema would silently widen what was observed
+#: [source: bindings/python/petta/benchmarking.py _COUNTER_TOLERANCE;
+#: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 TOLERANCE = 4
+
+#: A direct check is serial. The shipped lane fixes and names both its executor
+#: width and corpus size, so either scheduling change invalidates an old
+#: empirical claim visibly instead of changing the scheduler under one label
+#: [tested: test_an_empirical_envelope_cannot_license_another_protocol;
+#: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
+SERIAL_PROTOCOL = "serial"
+FULL_LANE_PROTOCOL = "full-lane"
+FULL_LANE_WORKERS = 32
 
 #: The four doors that take MeTTa source text. A twin may not use any of them:
 #: that is the whole of "zero s-expression strings".
 SOURCE_DOORS = frozenset({"run", "load", "parse", "save"})
 
 #: Calls whose string argument is a NAME or a marked datum rather than a
-#: program: Symbol/Variable name an atom, fn names an engine function, space
-#: names a space, and ground carries a Python value whole.
+#: program: sym/var name an atom, fn names an engine function, space and
+#: new_space name a space, and val carries a Python value whole.
 NAMING_CALLS = frozenset({
-    "Symbol", "Variable", "ground", "fn", "space",
-    # TypeVar("X") names a type variable exactly as Symbol("x") names an atom,
+    "sym", "var", "val", "fn", "space", "new_space",
+    # TypeVar("X") names a type variable exactly as sym("x") names an atom,
     # and a twin declaring a parametric type needs it [found 2026-08-22 by the
     # types agent, which worked around it with the name= keyword].
     "TypeVar",
@@ -158,12 +183,12 @@ NAMING_NAMESPACES = frozenset({"S", "V"})
 #: Module-level constants a twin declares ABOUT itself rather than as
 #: program text: the inference pin, and the reason it sits below the top
 #: rung. Both are read from source the way the lane reads BUDGET.
-DECLARATION_NAMES = frozenset({"BUDGET", "RUNG", "SPREAD"})
+DECLARATION_NAMES = frozenset({"BUDGET", "RUNG"})
 
 #: The example heads that STATE A CLAIM. Their Python image is the `assert`
 #: statement, so the lane counts them against the twin's assertions rather
 #: than asking the twin to call them [source: engine/prelude.metta lines
-#: 56-103, the assert family; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+#: 56-103, the assert family; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 ASSERT_HEADS = frozenset({
     "test", "test-no-answer", "assert", "assertEqual", "assertAlphaEqual",
     "assertEqualToResult", "assertAlphaEqualToResult", "assertIncludes",
@@ -176,7 +201,7 @@ ASSERT_HEADS = frozenset({
 #: 1 of the terminology law takes Python's spelling where it does
 #: [source: ai-python-first-revamp-discussion.md section 9e, the
 #: dissolves-into-Python-protocols bucket, and section 9d rule 1;
-#: commit=f88aa8be03cb64cb59d3307515ded8701f418321]. A twin whose SUBJECT is one of these functions says so
+#: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. A twin whose SUBJECT is one of these functions says so
 #: on the line, `# rung: <reason>`, which is how the ladder keeps the rung
 #: while making the drop visible.
 DISSOLVED = {
@@ -213,7 +238,7 @@ DISSOLVED = {
     "trace!": "print(), or logging",
     "format-args": "an f-string",
     "bind!": "a Python name binding",
-    "new-space": "space._new_space()",
+    "new-space": "space.new_space()",
     # NOT here, though section 9e assigns them: `get-type` and `get-doc`. The
     # ledger DESIGNS `space.type(atom)` and `space.doc(atom)`; the surface has
     # not shipped either, so naming the head is the only spelling a twin has
@@ -344,13 +369,85 @@ def _defines(node: ast.FunctionDef) -> bool:
     return False
 
 
+def _prints_text(node: ast.AST) -> bool:
+    """Whether a subtree reaches Python or MeTTa's textual repr door."""
+    for inner in ast.walk(node):
+        if not isinstance(inner, ast.Call):
+            continue
+        if _callee(inner) in {"repr", "str"}:
+            return True
+        called = inner.func
+        if (
+            isinstance(called, ast.Call)
+            and _callee(called) == "fn"
+            and called.args
+            and isinstance(called.args[0], ast.Constant)
+            and called.args[0].value == "repr"
+        ):
+            return True
+    return False
+
+
+def _printing_strings(tree: ast.Module) -> set[int]:
+    """Text literals that state what a printed atom or exception must say.
+
+    The exemption follows data through one named fixture, enough for a table
+    such as ``PRINTED = ((atom, "text"), ...)``. It does not exempt an
+    unrelated string merely because the same function also prints something
+    [source: ai-python-first-revamp-discussion.md section 9q.2;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
+    """  # noqa: D205 -- the second paragraph states the dataflow boundary
+    printed_names = {
+        target.id
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and _prints_text(node.value)
+        for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+        if isinstance(target, ast.Name)
+    }
+    comparisons = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Compare):
+            continue
+        loaded = {
+            inner.id
+            for inner in ast.walk(node)
+            if isinstance(inner, ast.Name) and isinstance(inner.ctx, ast.Load)
+        }
+        if _prints_text(node) or loaded & printed_names:
+            comparisons.append(node)
+    names = {
+        inner.id
+        for comparison in comparisons
+        for inner in ast.walk(comparison)
+        if isinstance(inner, ast.Name) and isinstance(inner.ctx, ast.Load)
+    }
+    permitted = {
+        id(inner)
+        for comparison in comparisons
+        for inner in ast.walk(comparison)
+        if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+    }
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if not any(isinstance(target, ast.Name) and target.id in names for target in targets):
+            continue
+        permitted.update(
+            id(inner)
+            for inner in ast.walk(node.value)
+            if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+        )
+    return permitted
+
+
 def _named_strings(tree: ast.Module) -> set[int]:
     """The string constants that are names, marked data, or documentation.
 
-    Identity rather than value, so `ground("(f a)")` in one place does not
+    Identity rather than value, so `val("(f a)")` in one place does not
     excuse a bare `"(f a)"` in another.
     """
-    permitted: set[int] = set()
+    permitted = _printing_strings(tree)
     for node in ast.walk(tree):
         # A raised message is prose for a reader, the same as a docstring.
         if isinstance(node, ast.Raise):
@@ -368,16 +465,23 @@ def _named_strings(tree: ast.Module) -> set[int]:
             # program. Without this the two checks contradict each other and
             # declaring a rung turns the lane red, which makes the ladder's
             # own escape unusable [found 2026-08-22 by two twin agents at once].
-            permitted.update(
-                id(statement.value)
-                for statement in node.body
-                if isinstance(statement, ast.Assign)
-                and isinstance(statement.value, ast.Constant)
-                and any(
+            for statement in node.body:
+                if not isinstance(statement, ast.Assign) or not any(
                     isinstance(target, ast.Name) and target.id in DECLARATION_NAMES
                     for target in statement.targets
+                ):
+                    continue
+                # An empirical BUDGET carries a protocol string inside a
+                # literal mapping. It is declaration metadata, just as a
+                # scalar RUNG reason is, and never program source [tested:
+                # test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
+                # commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
+                permitted.update(
+                    id(inner)
+                    for inner in ast.walk(statement.value)
+                    if isinstance(inner, ast.Constant)
+                    and isinstance(inner.value, str)
                 )
-            )
             if isinstance(node, ast.FunctionDef) and _defines(node):
                 permitted.update(
                     id(inner)
@@ -473,7 +577,7 @@ def _subscripted_name(node: ast.Subscript) -> str | None:
 
 def _head_symbol(node: ast.expr) -> str | None:
     """The MeTTa head a term-building expression is rooted at, whether it was
-    written `S.f`, `S["+"]`, or the first argument of `Expression(...)`.
+    written `S.f`, `S["+"]`, or the first item of `Expression((...))`.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
         return node.attr if node.value.id in NAMING_NAMESPACES else None
@@ -487,9 +591,10 @@ def _head_symbol(node: ast.expr) -> str | None:
 def _symbol_head(node: ast.expr) -> str | None:
     """The head of a term-building expression, when that head is a SYMBOL.
 
-    `Expression(S.f, a)` says with a function what `S.f(a)` says with a call, but
-    `Expression(V.x)` has no shorter spelling at all: a variable-headed expression
-    is the one shape the builders do not reach, because `Variable` is not callable
+    `Expression((S.f, a))` says with a constructor what `S.f(a)` says with a
+    call, but `Expression((V.x,))` has no shorter spelling at all: a
+    variable-headed expression is the one shape the builders do not reach,
+    because `Var` is not callable
     [measured 2026-08-22: `V.x()` raises TypeError; filed as residue against
     P14.4].
     """
@@ -500,13 +605,24 @@ def _symbol_head(node: ast.expr) -> str | None:
     return named if isinstance(root, ast.Name) and root.id == "S" else None
 
 
+def _expression_parts(node: ast.Call) -> list[ast.expr] | None:
+    """Literal ordered parts passed to Expression, when visible in syntax."""
+    if _callee(node) != "Expression" or len(node.args) != 1 or node.keywords:
+        return None
+    value = node.args[0]
+    if not isinstance(value, (ast.Tuple, ast.List)):
+        return None
+    return value.elts
+
+
 def idiom(twin: Path) -> list[str]:
     """Where a twin spells in library calls what Python's own syntax spells.
 
     A twin avoiding MeTTa source text can still be MeTTa source text with
     Python punctuation, which is the failure this catches: `S["merge"]` where
-    `S.merge` reads, `Expression(S["="], a, b)` where `S["="](a, b)` reads, and
-    `Expression(S["+"], a, b)` where `a + b` already builds that term. The design
+    `S.merge` reads, `Expression((S["="], a, b))` where `S["="](a, b)` reads,
+    and `Expression((S["+"], a, b))` where `a + b` already builds that term.
+    The design
     authority is ai-python-first-revamp-discussion.md, sections 9c and 9k.
     A twin that declares `RUNG = "<reason>"` is exempt, because a drop with a
     stated reason is what the ladder is for.
@@ -523,7 +639,7 @@ def idiom(twin: Path) -> list[str]:
         if RUNG_LINE.search(line)
     }
     # The operator rule below only holds where an operator would BUILD the
-    # term, which is inside a compiled body. Outside one `ground(5) + 5` computes
+    # term, which is inside a compiled body. Outside one `val(5) + 5` computes
     # 10 and `S.x == 1` is Python's own structural equality, so naming the head
     # is the deliberate spelling [found 2026-08-22: 33 findings in
     # twins/libraries, every one of this shape and none of them a defect].
@@ -556,11 +672,8 @@ def idiom(twin: Path) -> list[str]:
                     (node.lineno, f'{namespace}["{name}"] is {namespace}.{name}')
                 )
         elif isinstance(node, ast.Call):
-            head = (
-                _symbol_head(node.args[0])
-                if _callee(node) == "Expression" and node.args
-                else None
-            )
+            parts = _expression_parts(node)
+            head = _symbol_head(parts[0]) if parts else None
             if head is not None:
                 findings.append(
                     (node.lineno, "Expression(...) builds what calling the head builds")
@@ -575,7 +688,7 @@ def idiom(twin: Path) -> list[str]:
                 ))
             # At the operator's OWN arity only: `S["+"](1)` is a partial
             # application, which Python has no operator spelling for.
-            arity = len(node.args) - (1 if head is not None else 0)
+            arity = len(parts) - 1 if parts is not None else len(node.args)
             if (
                 operator in OPERATOR_HEADS
                 and id(node) in compiled
@@ -628,7 +741,7 @@ def scan(twin: Path) -> list[str]:
     """What a twin says that is MeTTa source text rather than Python.
 
     Read as syntax, not as text: a door is a CALL and a program is a string
-    CONSTANT in a position that is neither a name nor `ground()`-marked data, so
+    CONSTANT in a position that is neither a name nor `val()`-marked data, so
     a mention inside a comment or a docstring is not a finding and a door
     reached through a receiver is.
     """
@@ -645,7 +758,7 @@ def scan(twin: Path) -> list[str]:
             # takes MeTTa source. Without this a twin cannot name a head that
             # shares a door's name at all, because the idiom check refuses the
             # subscripted spelling too [found 2026-08-22 by the functions
-            # agent, which had to fall back to Symbol("parse")].
+            # agent, which had to fall back to sym("parse")].
             and _head_symbol(node.func) is None
         ):
             findings.append(
@@ -659,7 +772,7 @@ def scan(twin: Path) -> list[str]:
             findings.append(
                 (
                     node.lineno,
-                    f"the string {node.value!r} is neither a name nor ground() data",
+                    f"the string {node.value!r} is neither a name nor val() data",
                 )
             )
     return [f"line {line}: {what}" for line, what in sorted(findings)]
@@ -727,14 +840,14 @@ def _launch(source: str, root: Path) -> Run:
 #: inferences, 3 cost 46435 and 6 cost 46570, exactly 45 per entry, so
 #: something walks PATH inside a counted path and the same twin read a
 #: different figure under `sh check.sh` than run directly. `git` and `swipl`
-#: both live in /usr/bin here [commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+#: both live in /usr/bin here [commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 #:
 #: It is PASSED to the child, never written into this process. Writing it into
 #: `os.environ` is what the first version did, and under pytest that escaped
 #: the lane: `test_twin_coverage.py` calls run_twin, so every later test in the
 #: same process lost `~/.elan/bin` from PATH and the two LeaTTa conformance
 #: tests failed to find `lake` [source: bindings/python/petta/benchmarking.py
-#: builds its child environment the same way and says why; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+#: builds its child environment the same way and says why; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
 
 #: What the child keeps from this process, beside the pinned PATH. HOME and the
@@ -791,30 +904,74 @@ def run_twin(twin: Path, root: Path = REPO) -> Run:
     )
 
 
-def spread_of(twin: Path) -> int:
-    """How far this twin's counter may move, when it is genuinely not
-    deterministic.
+@dataclass(frozen=True, slots=True)
+class EmpiricalBudget:
+    """Observed extrema from repeated runs under one named protocol.
 
-    Almost every twin is exact: inferences do not vary across processes here,
-    which is why the allowance is 4 and not a percentage. A twin running REAL
-    THREADS is the exception, and the lane's own ThreadPoolExecutor makes it
-    worse by running 175 examples at once. Measured 2026-08-22:
-    libraries/thread_linda answers 155074 in seven of eight fresh serial
-    processes and answered 155088 once inside a full concurrent lane run, so
-    the figure is right and the reading is perturbed. A twin that needs room
-    SAYS SO, rather than the lane widening for everyone or a flake being
-    pinned at a guessed midpoint.
+    This is an empirical envelope, not a confidence interval. Google
+    Benchmark keeps repetition count separate from dispersion statistics and
+    supports a maximum statistic for a hard bound; Criterion keeps sample
+    count and measurement environment explicit and retains outliers. The lane
+    therefore records absolute extrema and observations, never mean +/-
+    standard deviation [source:
+    https://github.com/google/benchmark/blob/192ef10025eb2c4cdd392bc502f0c852196baa48/docs/user_guide.md#L1145-L1196;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    tree = _parse(twin)
-    for node in tree.body if tree else []:
-        targets = node.targets if isinstance(node, ast.Assign) else []
-        for target in targets:
-            if isinstance(target, ast.Name) and target.id == "SPREAD":
-                return max(TOLERANCE, int(ast.literal_eval(node.value)))
-    return TOLERANCE
+
+    minimum: int
+    maximum: int
+    observations: int
+    protocol: str
+
+    @property
+    def spread(self) -> int:
+        """The measured max-minus-min spread."""
+        return self.maximum - self.minimum
 
 
-def budget_of(twin: Path) -> int | None:
+def full_lane_protocol(examples: int) -> str:
+    """The scheduler protocol for one complete concurrent corpus run."""
+    if isinstance(examples, bool) or not isinstance(examples, int) or examples <= 0:
+        msg = f"full-lane protocol needs a positive example count, got {examples!r}"
+        raise ValueError(msg)
+    return f"{FULL_LANE_PROTOCOL}/{examples}/workers={FULL_LANE_WORKERS}"
+
+
+def _empirical_budget(value: dict, twin: Path) -> EmpiricalBudget:
+    """Validate one literal empirical BUDGET declaration."""
+    required = {"minimum", "maximum", "observations", "protocol"}
+    if set(value) != required:
+        msg = (
+            f"{twin}: BUDGET empirical envelope must contain exactly "
+            f"{sorted(required)!r}"
+        )
+        raise ValueError(msg)
+    minimum, maximum = value["minimum"], value["maximum"]
+    observations, protocol = value["observations"], value["protocol"]
+    bounds_are_ints = all(
+        isinstance(bound, int) and not isinstance(bound, bool)
+        for bound in (minimum, maximum)
+    )
+    if not bounds_are_ints or minimum <= 0 or maximum <= minimum:
+        msg = (
+            f"{twin}: BUDGET empirical envelope needs positive integer "
+            "minimum < maximum"
+        )
+        raise ValueError(msg)
+    if (
+        isinstance(observations, bool)
+        or not isinstance(observations, int)
+        or observations < 2
+    ):
+        msg = f"{twin}: BUDGET empirical envelope needs at least 2 observations"
+        raise ValueError(msg)
+    if not isinstance(protocol, str) or not protocol.strip():
+        msg = f"{twin}: BUDGET empirical envelope needs a non-empty protocol"
+        raise ValueError(msg)
+    return EmpiricalBudget(minimum, maximum, observations, protocol)
+
+
+def budget_of(twin: Path) -> int | EmpiricalBudget | None:
     """The twin's own pinned inference count, read from its BUDGET
     assignment without importing it: reading the source keeps this usable
     on a twin that cannot run.
@@ -824,7 +981,17 @@ def budget_of(twin: Path) -> int | None:
         targets = node.targets if isinstance(node, ast.Assign) else []
         for target in targets:
             if isinstance(target, ast.Name) and target.id == "BUDGET":
-                return ast.literal_eval(node.value)
+                value = ast.literal_eval(node.value)
+                if isinstance(value, dict):
+                    return _empirical_budget(value, twin)
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, int)
+                    or value <= 0
+                ):
+                    msg = f"{twin}: BUDGET point must be a positive integer"
+                    raise ValueError(msg)
+                return value
     return None
 
 
@@ -917,7 +1084,13 @@ def compare(
     return owed, min(stated, owed), findings
 
 
-def check(example: Path, entries: list[dict], root: Path = REPO) -> Verdict:
+def check(
+    example: Path,
+    entries: list[dict],
+    root: Path = REPO,
+    *,
+    protocol: str = SERIAL_PROTOCOL,
+) -> Verdict:
     """Run one example and its twin, and answer everything the lane claims."""
     twin = twin_for(example, root)
     relative = str(example.relative_to(root))
@@ -938,7 +1111,7 @@ def check(example: Path, entries: list[dict], root: Path = REPO) -> Verdict:
     findings.extend(differences)
     findings.extend(_visible(relative, left, right))
     stated = any(entry["example"] == relative for entry in entries)
-    findings.extend(_price(relative, twin, left, right, stated))
+    findings.extend(_price(relative, twin, left, right, stated, protocol=protocol))
     return Verdict(example, claims, covered, left.cost, right.cost, tuple(findings))
 
 
@@ -948,7 +1121,7 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
     the space answers a `(= $head $body)` match with, never as Python-side
     state [source: ai-python-first-revamp-discussion.md section 1b point 2,
     "any revamp design that would make a Python-defined function invisible
-    to match is wrong by this test"; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+    to match is wrong by this test"; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     missing = set(left.heads) - set(right.heads)
     if not missing:
@@ -968,12 +1141,18 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
 #: inferences, and the cheapest twin that still queries a space cost 449
 #: [measured 2026-08-22: examples/control/caseconstrain.metta and
 #: examples/spaces/spaces3.metta, `twin_coverage.py --measure`;
-#: commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+#: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 ENGINE_FLOOR = 100
 
 
 def _price(
-    relative: str, twin: Path, left: Run, right: Run, stated: bool = False  # noqa: FBT001, FBT002  -- one flag, and the call site reads better positionally than with a keyword
+    relative: str,
+    twin: Path,
+    left: Run,
+    right: Run,
+    stated: bool = False,  # noqa: FBT001, FBT002  -- one flag, and the call site reads better positionally than with a keyword
+    *,
+    protocol: str = SERIAL_PROTOCOL,
 ) -> list[str]:
     """The two cost claims: a pinned budget, and a band against the original.
 
@@ -984,20 +1163,44 @@ def _price(
     invites: "matching their text is a far cheaper route to pass the tests
     than implementing the spec" [source:
     https://www.christianfindlay.com/blog/basilisk-conformance-apology,
-    the python/typing conformance suite, 2026-08; commit=f88aa8be03cb64cb59d3307515ded8701f418321]. Inferences
+    the python/typing conformance suite, 2026-08; commit=c7191d87d9cbfce2870e586057168ec9103845ca]. Inferences
     are deterministic across processes here, so pinning both sides costs
     nothing in flakiness and catches a twin that stopped being one.
     """
     findings = []
-    budget = budget_of(twin)
-    if budget is None:
+    try:
+        budget = budget_of(twin)
+    except (TypeError, ValueError) as error:
+        budget = None
+        findings.append(f"{relative}: {error}")
+    if budget is None and not findings:
         findings.append(f"{relative}: the twin states no BUDGET")
-    elif right.cost is not None and abs(right.cost - budget) > spread_of(twin):
-        allowance = spread_of(twin)
+    elif isinstance(budget, EmpiricalBudget):
+        if budget.protocol != protocol:
+            findings.append(
+                f"{relative}: the empirical budget was measured under "
+                f"{budget.protocol!r} over {budget.observations} observations, "
+                f"but the current protocol is {protocol!r}; one scheduler's "
+                "envelope cannot license another"
+            )
+        elif right.cost is not None and not (
+            budget.minimum <= right.cost <= budget.maximum
+        ):
+            moved = "above" if right.cost > budget.maximum else "BELOW"
+            findings.append(
+                f"{relative}: the twin cost {right.cost} inferences, {moved} "
+                f"its empirical budget {budget.minimum}..{budget.maximum} "
+                f"(spread {budget.spread}) measured under {budget.protocol!r} "
+                f"over {budget.observations} observations; the {TOLERANCE}-"
+                "inference deterministic tolerance is not added to empirical "
+                "bounds"
+            )
+    elif right.cost is not None and abs(right.cost - budget) > TOLERANCE:
         moved = "above" if right.cost > budget else "BELOW"
         findings.append(
             f"{relative}: the twin cost {right.cost} inferences, {moved} its "
-            f"pinned budget of {budget} by more than the {allowance} allowance"
+            f"pinned budget of {budget} by more than the {TOLERANCE} "
+            "deterministic allowance"
         )
     if right.cost is not None and right.cost < ENGINE_FLOOR and not stated:
         findings.append(
@@ -1105,11 +1308,64 @@ def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> N
             )
 
 
+def _full_lane_round(examples: list[Path], entries: list[dict]) -> list[Verdict]:
+    """One observation of the same scheduler and work mix the gate runs."""
+    protocol = full_lane_protocol(len(examples))
+    with ThreadPoolExecutor(max_workers=FULL_LANE_WORKERS) as pool:
+        return list(
+            pool.map(
+                lambda path: check(path, entries, protocol=protocol),
+                examples,
+            )
+        )
+
+
+def _observe(examples: list[Path], entries: list[dict], rounds: int) -> None:
+    """Report empirical extrema without changing any declaration."""
+    samples = {example: [] for example in examples}
+    failures = {example: [] for example in examples}
+    for round_number in range(1, rounds + 1):
+        for verdict in _full_lane_round(examples, entries):
+            if verdict.twin_cost is None:
+                failed = "; ".join(
+                    finding for finding in verdict.findings if "failed to run" in finding
+                ) or "the lane produced no twin cost"
+                failures[verdict.example].append(f"round {round_number}: {failed}")
+            else:
+                samples[verdict.example].append(verdict.twin_cost)
+
+    protocol = full_lane_protocol(len(examples))
+    for example in examples:
+        observed = samples[example]
+        failed = failures[example]
+        if not observed:
+            print(
+                f"{example.relative_to(REPO)} protocol={protocol!r} "
+                f"observations=0 failures={len(failed)} samples=[]"
+            )
+            continue
+        minimum, maximum = min(observed), max(observed)
+        print(
+            f"{example.relative_to(REPO)} protocol={protocol!r} "
+            f"observations={len(observed)} failures={len(failed)} "
+            f"minimum={minimum} maximum={maximum} spread={maximum - minimum} "
+            f"samples={observed!r}"
+        )
+        for failure in failed:
+            print(f"  {failure}")
+
+
 def main() -> int:
     """Run the lane, or measure it."""
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--measure", action="store_true",
-                        help="print min-of-3 costs for pinning, and change nothing")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--measure", action="store_true",
+                      help="print serial min-of-N point costs, and change nothing")
+    mode.add_argument(
+        "--observe",
+        action="store_true",
+        help="report repeated full-lane empirical extrema, and change nothing",
+    )
     parser.add_argument("--rounds", type=int, default=3)
     parser.add_argument("paths", nargs="*", help="examples, default every twinned one")
     arguments = parser.parse_args()
@@ -1122,6 +1378,14 @@ def main() -> int:
             return 2
     examples = named or written()
 
+    if arguments.observe:
+        if named:
+            parser.error("--observe measures the complete lane; omit individual paths")
+        if arguments.rounds < 10:
+            parser.error("--observe needs at least 10 full-lane observations")
+        _observe(examples, residue(), arguments.rounds)
+        return 0
+
     if arguments.measure:
         for example in examples:
             twin = twin_for(example)
@@ -1132,8 +1396,7 @@ def main() -> int:
         return 0
 
     entries = residue()
-    with ThreadPoolExecutor() as pool:
-        verdicts = list(pool.map(lambda path: check(path, entries), examples))
+    verdicts = _full_lane_round(examples, entries)
 
     findings = [finding for verdict in verdicts for finding in verdict.findings]
     findings.extend(

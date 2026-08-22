@@ -1,4 +1,4 @@
-"""examples/control/tests.metta in Python: four programs, one answer set.
+"""Purpose: examples/control/tests.metta in Python: four programs, one answer set.
 
 `program4` collapses a three-element expression whose middle element answers
 three times, so the whole thing answers three times and the collapse gathers
@@ -10,9 +10,16 @@ assignment, `superpose` over written-out alternatives is the form itself, and
 `collapse` and `superpose` are bound from `m.fn` so that names a compiled body
 reads as MeTTa are names Python can see too; `list()` does not lower to
 `collapse` inside a compiled body, which supercollapse records against P14.4.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import expr
+from petta import Expression
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10668 to 8999, -1669 (-15.6%), by the twin contract
@@ -60,9 +67,9 @@ def twin(m):
         # (= (program4) (collapse ((program1 42) (program2 42) (program3 2))))
         return collapse((program1(42), program2(42), program3(2)))
 
-    first = expr(12, 46)
-    last = expr(42, 43)
+    first = Expression((12, 46))
+    last = Expression((42, 43))
 
     # !(test (program4)
     #        (((12 46) 1 (42 43)) ((12 46) 2 (42 43)) ((12 46) 3 (42 43))))
-    assert program4() == [expr(*(expr(first, n, last) for n in (1, 2, 3)))]
+    assert program4() == [Expression(Expression((first, n, last)) for n in (1, 2, 3))]

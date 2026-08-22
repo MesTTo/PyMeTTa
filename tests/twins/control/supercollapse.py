@@ -1,4 +1,4 @@
-"""examples/control/supercollapse.metta in Python: appending through answer sets.
+"""Purpose: examples/control/supercollapse.metta in Python: appending through answer sets.
 
 `TupleConcat` takes two expressions apart into answers and gathers the answers
 back into one expression, which is how a program written entirely in answer
@@ -17,9 +17,16 @@ that a compiled body lowers to `py-range` before it looks for the definition's
 own name; `name="range"` puts the MeTTa name on the equation and the recursion
 resolves to it. `()` is the empty tuple, which is the empty expression, so the
 base case needs no spelling of its own.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, expr
+from petta import Expression, S
 
 #: The equation's own name, so a compiled body and a Python reader see the
 #: same spelling. A compiled body resolves a free name EXACTLY, so
@@ -60,4 +67,4 @@ def twin(m):
         return TupleConcat((k,), count_from(k + 1, n)) if k < n else ()
 
     # !(test (range 1 10) (1 2 3 4 5 6 7 8 9))
-    assert count_from(1, 10) == [expr(1, 2, 3, 4, 5, 6, 7, 8, 9)]
+    assert count_from(1, 10) == [Expression((1, 2, 3, 4, 5, 6, 7, 8, 9))]

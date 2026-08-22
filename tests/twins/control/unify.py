@@ -1,4 +1,4 @@
-"""examples/control/unify.metta in Python: the matching conditional.
+"""Purpose: examples/control/unify.metta in Python: the matching conditional.
 
 `(unify a b then else)` runs the then branch once per binding set under which
 a and b match, and the else branch exactly when no binding set exists. The
@@ -18,9 +18,16 @@ lowercase free name as a function and a capitalised one as data, the gap case2
 records against P14.4; and `m.add` refuses a bare symbol, "a stored atom is a
 non-empty expression", where MeTTa's own `add-atom` stores one, so the marker
 is `(Ran ThenRan)` rather than `then-ran`. Both are filed as residue.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import Atom, S, V, expr, val
+from petta import Atom, Expression, S, V, val
 
 #: The two strings the ground decisions compare, carried whole.
 STRING_X, STRING_Y = val("x"), val("y")
@@ -121,4 +128,4 @@ def twin(m):
     # unify answers `[Sym('Empty')]` where collapsing it first answers `()`.
     # !(test (collapse (unify a b then Empty)) ())
     removed = S.unify(S.a, S.b, S.then, S.Empty)
-    assert m.eval(S.collapse(removed)) == [expr()]  # rung: `collapse` is what drops the Empty marker, and a Python list does not
+    assert m.eval(S.collapse(removed)) == [Expression(())]  # rung: `collapse` is what drops the Empty marker, and a Python list does not

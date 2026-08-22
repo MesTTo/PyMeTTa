@@ -1,4 +1,4 @@
-"""examples/functions/smartdispatch.metta in Python: which heads run.
+"""Purpose: examples/functions/smartdispatch.metta in Python: which heads run.
 
 Five questions about the same two symbols. `(f 21)` reduces; `(g f 2)` keeps
 `f` as DATA inside `(justdata f 2)`; `(h f 2)` applies it; `((notjustdata 42)
@@ -21,9 +21,16 @@ takes the `@rules` shape of the definitional decorator;
 `datawithnondatacomponent` has none, so it is one `equation(...).to(...)` and
 a generator around it would say nothing. The residue table records the gap
 against P14.4.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, equation, expr, rules
+from petta import Expression, S, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9049 to 7964, -1085 (-12.0%), by the twin contract
@@ -71,4 +78,4 @@ def twin(m):
     assert m.eval(S.g(S.f, 2)) == [S.justdata(S.f, 2)]
     assert h(S.f, 2) == [4]
     assert m.eval((S.notjustdata(42), 21)) == [42]
-    assert m.eval(S.datawithnondatacomponent()) == [expr(S.lol(84))]
+    assert m.eval(S.datawithnondatacomponent()) == [Expression((S.lol(84),))]

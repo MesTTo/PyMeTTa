@@ -1,4 +1,4 @@
-"""examples/basics/booleansolver.metta in Python: solving for a boolean.
+"""Purpose: examples/basics/booleansolver.metta in Python: solving for a boolean.
 
 `and` and `or` are generate-and-test over two values, so an unbound variable
 in one is SOLVED FOR rather than read, and one form answers twice. `|` and `&`
@@ -13,14 +13,17 @@ solutions. Measured on this engine 2026-08-22.
 
 The answers are pairs, so Python reads them as pairs: an expression is a
 sequence and `tuple(pair)` is the unpacking.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE = val(value=True)
+from petta import TRUE, S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1231 to 880, -351 (-28.5%), by the twin contract

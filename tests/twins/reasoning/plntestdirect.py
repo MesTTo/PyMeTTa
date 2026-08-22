@@ -1,4 +1,4 @@
-"""examples/reasoning/plntestdirect.metta in Python: PLN deduction, driven by search.
+"""Purpose: examples/reasoning/plntestdirect.metta in Python: PLN deduction, driven by search.
 
 The same deduction formula as plntest.metta beside it, but reached differently:
 instead of applying a syllogistic rule to two premises, `sentence` is a
@@ -15,9 +15,17 @@ ordinary atom.
 
 The claim keeps its `let` for the reason logicprogset.py states: an evaluation
 answers VALUES and `$TV` is a BINDING, so the variable leaves through the term.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, val
+from petta import TRUE, S, V, equation
 
 #: Why this file sits below the top rung: every definition but `clamp` is at
 #: the container door, and the claim carries a binding out through a `let`.
@@ -26,10 +34,6 @@ RUNG = "every definition but clamp divides, uses MeTTa's and, destructures in th
 #: The comparison head this file needs with a GROUND left operand, which is the
 #: one shape Python's own operators cannot build: `<` reflects into `>`.
 LT = S["<"]
-
-#: MeTTa's true. Named rather than written inline because a bare boolean in an
-#: argument list reads as a Python flag, and this one is an answer.
-TRUE = val(value=True)
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 34231 to 33556, -675 (-1.97%), by the twin contract

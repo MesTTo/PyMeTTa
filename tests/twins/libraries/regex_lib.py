@@ -1,4 +1,4 @@
-"""examples/libraries/regex_lib.metta in Python: PCRE2 through lib_regex.
+"""Purpose: examples/libraries/regex_lib.metta in Python: PCRE2 through lib_regex.
 
 Every claim is about one of the library's six functions, so the twin names all
 six. Two things are Python's: the patterns, written as raw strings so a
@@ -9,9 +9,16 @@ the answer shapes, which are lists and plain values.
 rather than a `collapse` around it; `re-captures` answers whole-match, named
 and typed groups in one expression, which stays an expression because that is
 what the library returns.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, expr, val
+from petta import Expression, S, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 60456 to 55103, -5353 (-8.85%), by the idiomatic
@@ -40,7 +47,7 @@ def twin(m):
     captures = m.fn("re-captures")(
         val(r"(?<year_I>\d\d\d\d)-(?<month_I>\d\d)"), val("2017-04-20")
     )
-    assert list(captures) == [expr(0, val("2017-04")), S.month(4), S.year(2017)]
+    assert list(captures) == [Expression((0, val("2017-04"))), S.month(4), S.year(2017)]
 
     # Split keeps the separator it matched, so the pieces and the gaps alternate.
     pieces = m.fn("re-split")(val(r":\s*"), val("Age: 33"))

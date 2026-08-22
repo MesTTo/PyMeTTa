@@ -1,4 +1,4 @@
-"""examples/control/ifcasenondet.metta in Python: a nondeterministic test.
+"""Purpose: examples/control/ifcasenondet.metta in Python: a nondeterministic test.
 
 `if` and `case` both take their condition from an ordinary expression, so a
 condition that answers three times makes the whole form answer three times.
@@ -15,14 +15,17 @@ spell and the compiled subset has no lowering for (P14.4), so writing it as an
 The two answers are capitalised. A compiled body reads a lowercase free name
 as a function and a capitalised one as data, which case2 records against
 P14.4.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import FALSE, TRUE, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 3789 to 5441, +1652 (+43.6%), by the twin contract

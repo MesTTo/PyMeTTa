@@ -1,4 +1,4 @@
-"""examples/control/forall.metta in Python: a check over every answer.
+"""Purpose: examples/control/forall.metta in Python: a check over every answer.
 
 `forall` runs its check on every answer its generator gives and stops at the
 first one that fails. Both slots take a function name, a call with an unbound
@@ -17,14 +17,17 @@ one out as data: the lambda's parameter folds into the head's arity, so
 closure symbol. Measured 2026-08-22; filed as residue against P14.4. So the
 two lambdas are built at the term door, once each, and the `let` and `let*`
 that bind them are Python name bindings, which is what a `let` is.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, rules, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE = val(value=True)
+from petta import TRUE, S, V, equation, rules
 
 #: `(|-> ($x) (g $x))`, the generator lambda the original writes inline.
 GENERATOR = S["|->"]((V.x,), S.g(V.x))

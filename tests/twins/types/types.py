@@ -1,4 +1,4 @@
-"""examples/types/types.metta in Python: what a type is and where it lives.
+"""Purpose: examples/types/types.metta in Python: what a type is and where it lives.
 
 Three groups of claims. Concrete types are declarations about SYMBOLS, so they
 are atoms written into the space: there is no Python signature that says
@@ -14,9 +14,16 @@ expression or a ground value, goes through `get-type` itself.
 `mid` and `testf` are written at the container door. `mid`'s body is a `let`
 whose pattern is an EXPRESSION, so it unifies rather than binds, and `testf`
 fixes a SYMBOL in its head; a compiled parameter list reaches neither.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, Var, equation, expr, val
+from petta import Expression, S, V, Var, equation, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10954 to 5616, -5338 (-48.73%), by the twin-shape
@@ -61,7 +68,7 @@ def twin(m):
     # Function types.
     m += typed(S.mid, arrow(V.a, V.a))
     m += equation(S.mid(V.x)).to(S.let((S.a, S.b), V.x, V.x))  # rung: this let's pattern is an EXPRESSION, so it unifies where Python's assignment binds a name (P14.4)
-    assert m.fn("mid")(expr(V.a, S.b)) == S.a(S.b)
+    assert m.fn("mid")(Expression((V.a, S.b))) == S.a(S.b)
 
     m += typed(S.testx, arrow(V.a, V.b, V.a))
     assert kind(S.testx(1, val("f"))) == S.Number

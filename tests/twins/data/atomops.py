@@ -1,9 +1,9 @@
-"""examples/data/atomops.metta in Python: structure, and what refuses.
+"""Purpose: examples/data/atomops.metta in Python: structure, and what refuses.
 
 The file has two halves and they belong on different rungs. Taking apart an
 expression that IS an expression is Python's own work and costs no engine at
-all: `e[0]` is the head, `e[1:]` is the rest, `e[i]` is a position, `expr(0,
-*e)` builds a new one. Those claims are written that way.
+all: `e[0]` is the head, `e[1:]` is the rest, `e[i]` is a position, and
+`Expression((0, *e))` builds a new one. Those claims are written that way.
 
 The other half is about what the operations do with an argument they cannot
 use, and Python cannot say it: `e[5]` raises IndexError where `index-atom`
@@ -16,14 +16,22 @@ has, and handing one where an expression is expected used to be answered
 instead of refused: `(car-atom $u)` unified its argument with a fresh cons
 cell and answered its head. Each of those claims names its own operation
 because the refusal belongs to that operation.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, alpha_eq, expr, val
+from petta import Expression, S, V, alpha_eq, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 17624 to 8889, -8735 (-49.56%), by the twin-shape
 #: rewrite: twenty-six `test` wrappers left the engine for `assert`, and four
-#: claims left it entirely: `e[0]`, `e[1:]`, `e[i]` and `expr(0, *e)` are
+#: claims left it entirely: `e[0]`, `e[1:]`, `e[i]` and
+#: `Expression((0, *e))` are
 #: native operations on an atom already held in Python. What stays is the
 #: half about refusals, which only the operations themselves can answer.
 #: Against the example's 31211 the ratio is 0.2848 [measured 2026-08-22 min-
@@ -34,16 +42,16 @@ BUDGET = 8889
 
 def twin(m):
     """Take an expression apart, then ask what refuses and how."""
-    e = expr(1, 2, 3)
+    e = Expression((1, 2, 3))
     pair = S.A(S.B)
-    nothing = [expr()]
+    nothing = [Expression(())]
 
     def guarded(call):
         """Whether an operation refuses a call or answers it."""
         return m.eval(S["if-error"](S.catch(call), S.refused, S.answered))
 
     # Structure, in Python, with no crossing at all.
-    assert expr(0, *e) == expr(0, 1, 2, 3)
+    assert Expression((0, *e)) == Expression((0, 1, 2, 3))
     assert e[0] == 1
     assert list(e[1:]) == [2, 3]
     assert e[1] == 2
@@ -79,8 +87,8 @@ def twin(m):
 
     # A bound argument is untouched, which is the half that makes the refusal
     # worth anything.
-    assert guarded(S["car-atom"](expr(1, 2))) == [S.answered]  # rung: the same guarded position, now given a real expression
-    assert expr(1, 2)[0] == 1
+    assert guarded(S["car-atom"](Expression((1, 2)))) == [S.answered]  # rung: the same guarded position, now given a real expression
+    assert Expression((1, 2))[0] == 1
 
     # The refusal is narrow: index-atom's SECOND argument is relational by
     # design, so an unbound index still enumerates every position in turn.

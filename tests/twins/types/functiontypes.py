@@ -1,4 +1,4 @@
-"""examples/types/functiontypes.metta in Python: what a signature does.
+"""Purpose: examples/types/functiontypes.metta in Python: what a signature does.
 
 Three functions over one shape of body, and the declared signature decides what
 reaches it and what comes back. `wu1` takes its second argument as `Atom`, so
@@ -16,11 +16,18 @@ reads a lowercase free name as a function to call.
 Note what the twin does NOT need: the example wraps its expected answers in
 `noeval` because MeTTa's `test` evaluates them. Python's `==` evaluates
 nothing, so the expected term is written as itself.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
 from typing import Any
 
-from petta import Atom, S, V, equation, expr
+from petta import Atom, Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9738 to 7371, -2367 (-24.31%), by the twin-shape
@@ -51,7 +58,7 @@ def twin(m):
 
     # The Atom-typed argument arrives unevaluated; the Number-typed one does
     # not, so only the first of the two sums survives into the answer.
-    assert wu1(S["+"](2, 4), S["+"](4, 2)) == [expr(42, 6, S["+"](4, 2))]
+    assert wu1(S["+"](2, 4), S["+"](4, 2)) == [Expression((42, 6, S["+"](4, 2)))]
     assert wu2(S["+"](2, 4), S["+"](4, 2)) == [12]
 
     # %Undefined% output: either branch is acceptable to the checker.

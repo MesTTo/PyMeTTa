@@ -1,4 +1,4 @@
-"""examples/functions/invertpeanoplus.metta in Python: Peano addition, run every way.
+"""Purpose: examples/functions/invertpeanoplus.metta in Python: Peano addition, run every way.
 
 Two equations define `plus` forwards. Unifying the SUM with what the call
 produces then runs it backwards: fix the sum and one operand and the other
@@ -16,9 +16,16 @@ The numerals are built by a Python function, since `(S (S (S (S Z))))` is just
 `S` applied four times, and writing that out in three different forms is what
 made the original hard to read. `once` dissolves too: `m.first` is the first
 answer, which is the cardinality door Python's own vocabulary already has.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, rules
+from petta import Expression, S, V, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 12781 to 8164, -4617 (-36.1%), by the twin
@@ -73,9 +80,8 @@ def twin(m):
 
     # inverted: every input pair that reaches 4.
     pairs = m.eval(solve(S.plus(V.A, V.B), peano(4), (V.A, V.B)))
-    assert pairs == [expr(peano(a), peano(4 - a)) for a in range(5)]
+    assert pairs == [Expression((peano(a), peano(4 - a))) for a in range(5)]
 
     # inverted, first answer only: (0, 4).
-    assert m.first(solve(S.plus(V.A, V.B), peano(4), (V.A, V.B))) == expr(
-        peano(0), peano(4)
-    )
+    assert m.first(solve(S.plus(V.A, V.B), peano(4), (V.A, V.B))) == Expression(
+        (peano(0), peano(4)))

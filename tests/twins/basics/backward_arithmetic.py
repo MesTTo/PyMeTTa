@@ -1,4 +1,4 @@
-"""examples/basics/backward_arithmetic.metta in Python: arithmetic run backwards.
+"""Purpose: examples/basics/backward_arithmetic.metta in Python: arithmetic run backwards.
 
 `+ - * /` are RELATIONS: give any two of the three and the engine solves for
 the third, so a function written forwards reads backwards for free. Past one
@@ -17,14 +17,17 @@ An expected answer is a Python tuple, which encodes to the expression the
 original writes, and a collapse is the list an evaluation already answers, so
 the original's `(noeval ...)` wrappers have nothing to guard against here: a
 Python list is data and is never evaluated a second time.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, val
-
-#: MeTTa's boolean ATOM, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and this is an answer.
-TRUE = val(value=True)
+from petta import TRUE, S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-23, 32289 to 32229, -60, by the p14-tabling merge, the

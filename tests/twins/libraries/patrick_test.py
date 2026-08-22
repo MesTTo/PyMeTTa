@@ -1,4 +1,4 @@
-"""examples/libraries/patrick_test.metta in Python: as-patterns, comprehension, and a lambda.
+"""Purpose: examples/libraries/patrick_test.metta in Python: as-patterns, comprehension, and a lambda.
 
 Three of lib_patrick's own forms, so all three stay named.
 
@@ -17,9 +17,16 @@ it is. A Python `lambda i, x: x + i` is accepted in that position and answers
 46 too, at 465 inferences against this spelling's 5,174, and the twin does NOT
 take it: the counter does not see the ten janus crossings it spends, one per
 element, which is the crossing the three-lane model prices per collection.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 28309 to 27332, -977 (-3.45%), by the idiomatic
@@ -47,4 +54,4 @@ def twin(m):
     kept = m.fn("for").all(V.x, (1, 2, 3, 4, 5, 6), S["if"](V.x > 3, V.x))  # rung: a two-armed `if` answers NOTHING for what it rejects, which is what makes this a filter; Python's conditional expression has no such form
     assert kept == [4, 5, 6]
 
-    assert m.fn("iterate")(0, 10, 1, S["|->"](expr(V.i, V.x), V.x + V.i)) == 46
+    assert m.fn("iterate")(0, 10, 1, S["|->"](Expression((V.i, V.x)), V.x + V.i)) == 46

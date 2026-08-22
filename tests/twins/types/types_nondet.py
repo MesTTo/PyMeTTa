@@ -1,4 +1,4 @@
-"""examples/types/types_nondet.metta in Python: one name, two signatures.
+"""Purpose: examples/types/types_nondet.metta in Python: one name, two signatures.
 
 `f` is declared for Type1 AND for Type2, so its argument arrives as either and
 the OUTPUT type decides which calls survive. `T3in` is a Type1, and a Type1
@@ -11,9 +11,16 @@ which a compiled body has no name for, and because this file's own subject
 says why `=alpha` and not `==`: `(== T2in T1in)` compares two KNOWN and
 different types, which `==` refuses by name. Both references refuse the `==`
 spelling too, hyperon and the mechanised interpreter alike.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9449 to 4773, -4676 (-49.49%), by the twin-shape
@@ -51,7 +58,7 @@ def twin(m):
     # This one is asked through collapse because a FLAT call at the Python
     # door skips the output-type filter the engine's own form applies and
     # answers Tdefault (filed as friction, with the reproduction).
-    assert m.eval(S.collapse(S.f(S.T3in))) == [expr()]  # rung: collapse is list(), but list() over the Python call door would collect an answer the engine does not give
+    assert m.eval(S.collapse(S.f(S.T3in))) == [Expression(())]  # rung: collapse is list(), but list() over the Python call door would collect an answer the engine does not give
 
     # Declare T3in a Type2 as well and the Type2 signature admits it.
     m += typed(S.T3in, S.Type2)

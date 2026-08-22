@@ -1,4 +1,4 @@
-"""examples/functions/functionhead3.metta in Python: one constraint per argument.
+"""Purpose: examples/functions/functionhead3.metta in Python: one constraint per argument.
 
 `in` keeps a value only when it is a member of a list, and `myplus` chains one
 constraint per argument, so the relation runs in BOTH directions: give it two
@@ -19,14 +19,17 @@ P14.4, where the hyphenated-name gap already sits.
 Every `collapse` dissolves, because an evaluation already answers the list of
 its answers. The last form's guard is `(> (myplus $x 2) 3)`, and there Python's
 own operator builds the term.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, rules, val
-
-#: MeTTa's boolean ATOM, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list reads
-#: as a Python flag, and this is an answer.
-TRUE = val(value=True)
+from petta import TRUE, S, V, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 9302 to 6201, -3101 (-33.3%), by the twin contract

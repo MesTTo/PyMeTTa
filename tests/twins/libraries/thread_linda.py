@@ -1,4 +1,4 @@
-"""examples/libraries/thread_linda.metta in Python: Linda's two blocking binds.
+"""Purpose: express the thread-Linda example through Python blocking binds.
 
 A space is a tuple space. `peek-atom` waits until a matching atom is there and
 answers it LEAVING it, which is Linda's rd; `take-atom` does the same and
@@ -14,26 +14,37 @@ space, because a space handle does not encode as an atom and the handle carries
 no take or peek of its own; both are in the residue table. Everything else is
 Python: writing is `+=`, enumerating is `list`, the example's `let` chains are
 assignments, and taking the number out of a `(job N)` atom is `atom[1]`.
+
+Assumes:
+  - every engine-owned future is awaited before the isolated twin process exits
+    [tested: bindings/python/tools/twin_coverage.py --measure --rounds 1
+    examples/libraries/thread_linda.metta; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Guarantees:
+  - the empirical budget applies only to the complete concurrent lane named in
+    its declaration [tested:
+    test_an_empirical_envelope_cannot_license_another_protocol;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
 from petta import S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 159619 to 155074, -4545 (-2.85%), by the idiomatic
-#: rewrite: ten `test` wrappers, three `collapse (get-atoms ...)` and the two
-#: `let` chains left the engine for `assert`, `list` and assignment; the
-#: peeks, the takes and the rendezvous still run there. Measured min-of-three
-#: with the MORK backend linked into this worktree, which the earlier figure
-#: may not have been. Prior: 159619 was the last figure for the generator
-#: twin that yielded `m.eval(S.test(...))` once per runnable form.
-#: How far this twin's counter may move. It runs REAL THREADS, and the lane
-#: runs 175 examples at once, so a concurrent reading is perturbed where a
-#: serial one is not: measured 2026-08-22, seven of eight fresh serial
-#: processes answered 155074 exactly and one full concurrent lane run answered
-#: 155088. The figure below is right; the spread is the lane observing it.
-SPREAD = 20
-
-BUDGET = 155074
+#: Successful costs from two complete concurrent ten-round observations and
+#: eight subsequent complete gate-protocol observations. One original attempt
+#: failed to rendezvous and is not a cost observation
+#: [measured: 154894..154908 over 27 observations and 1 twin failure; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
+#: A separate ten-process serial probe observed 154894..154908; it is a
+#: separate population and does not license this concurrent declaration
+#: [measured: 154894..154908 over 10 observations; command=PYTHONPATH=bindings/python python -c "import sys; from pathlib import Path; sys.path.insert(0, 'bindings/python/tools'); import twin_coverage as c; e=Path('examples/libraries/thread_linda.metta').resolve(); print([c.run_twin(c.twin_for(e)).cost for _ in range(10)])"; fixture=serial fresh processes; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
+BUDGET = {
+    "minimum": 154894,
+    "maximum": 154908,
+    "observations": 27,
+    "protocol": "full-lane/218/workers=32",
+}
 
 
 def twin(m):

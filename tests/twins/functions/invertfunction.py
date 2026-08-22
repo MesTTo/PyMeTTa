@@ -1,4 +1,4 @@
-"""examples/functions/invertfunction.metta in Python: functions run backwards.
+"""Purpose: examples/functions/invertfunction.metta in Python: functions run backwards.
 
 Unifying a pattern with what a call PRODUCES makes the call run backwards and
 its variables come out bound, so destructuring a list with `cons` and
@@ -12,9 +12,16 @@ where the one-element Python tuple is the one-element expression.
 `g` takes the `@rules` shape of the definitional decorator, because its body
 names `#+`, which no Python identifier spells; in the equational shape it is
 the ordinary subscripted symbol the subscript form exists for.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, rules
+from petta import Expression, S, V, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 8043 to 6756, -1287 (-16.0%), by the twin contract
@@ -57,7 +64,7 @@ def twin(m):
     m.add(*constrained)
 
     items = (1, 2, 3, 4, 5, 6)
-    split = expr(1, (2, 3, 4, 5, 6))
+    split = Expression((1, (2, 3, 4, 5, 6)))
 
     # List destructuring, through the cons constructor.
     assert m.one(solve(S.cons(V.Head, V.Tail), items, (V.Head, V.Tail))) == split
@@ -66,4 +73,4 @@ def twin(m):
     # A more complex case: the constraint solves 42 = $X + 35.
     assert m.one(
         solve(S.g(V.X, V.Y, 35), (42, 2, 3), (V.X, V.Y, 40))
-    ) == expr(7, (2, 3), 40)
+    ) == Expression((7, (2, 3), 40))

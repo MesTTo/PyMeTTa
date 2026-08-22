@@ -1,4 +1,4 @@
-"""examples/functions/functionhead2.metta in Python: a relational constraint, chained.
+"""Purpose: examples/functions/functionhead2.metta in Python: a relational constraint, chained.
 
 `animal` keeps whatever is living AND a being; `cat` takes what `animal`
 produces and keeps whatever is also small. `small` is put under a
@@ -23,14 +23,17 @@ introduce neither.
 
 The claim dissolves twice over: `collapse` is the list an evaluation already
 answers, and `msort` is Python's own `sorted`.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, rules, val
-
-#: MeTTa's boolean ATOM, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list reads
-#: as a Python flag, and this is an answer.
-TRUE = val(value=True)
+from petta import TRUE, S, V, equation, rules
 
 #: The knowledge, as the table it is: each animal and what holds of it, in the
 #: original's own order.

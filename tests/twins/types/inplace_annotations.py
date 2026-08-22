@@ -1,4 +1,4 @@
-"""examples/types/inplace_annotations.metta in Python: a type where it prunes.
+"""Purpose: examples/types/inplace_annotations.metta in Python: a type where it prunes.
 
 `(: $x Person)` in a head or a match pattern matches anything of type Person
 and binds `$x` to it. It is not a new relation: it desugars to a plain variable
@@ -16,9 +16,16 @@ The two gates that make the position rule work are claims too. A pattern that
 IS a colon expression stays structural, so the knowledge base still answers
 with the declarations somebody wrote; and only `(: $variable expected)` is an
 annotation, so `(: a tail)` and the tutorial's `::` list stay ordinary data.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 21927 to 12585, -9342 (-42.61%), by the twin-shape
@@ -86,9 +93,9 @@ def twin(m):
 
     # `::` means nothing special to the engine, which is the point of not
     # having taken it. Here is the tutorial's own list program, verbatim.
-    m += equation(S["list-length"](expr())).to(0)
+    m += equation(S["list-length"](Expression(()))).to(0)
     m += equation(S["list-length"](cons(V.x, V.xs))).to(1 + S["list-length"](V.xs))
-    assert m.fn("list-length")(cons(S.A, cons(S.B, cons(S.C, expr())))) == 3
+    assert m.fn("list-length")(cons(S.A, cons(S.B, cons(S.C, Expression(()))))) == 3
 
     # GATE 2: the annotation position must hold a VARIABLE, or the form stays
     # structural and nothing looks inside it.

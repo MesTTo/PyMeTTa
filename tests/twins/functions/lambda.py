@@ -1,4 +1,4 @@
-"""examples/functions/lambda.metta in Python: two kinds of lambda.
+"""Purpose: examples/functions/lambda.metta in Python: two kinds of lambda.
 
 The first kind is FAKE, and works in any MeTTa: `(lambda $var $body)` is
 ordinary data that `apply` takes apart, substituting through `let` and then
@@ -31,14 +31,16 @@ cannot be overloaded, and `.eq` builds `==`, because the `==` operator is
 taken by Python's own structural equality. And `$lambda` is `V["lambda"]`,
 since `lambda` is a Python keyword, which is exactly what the subscript is
 for.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, rules, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list reads
-#: as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import FALSE, Expression, S, V, equation, rules, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 17054 to 17056, +2 (+0.0%), by the twin contract
@@ -88,7 +90,7 @@ def twin(m):
         # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
         return maplist(lambda a: 1 + a, items)
 
-    assert increment_all((1, 2, 3)) == [expr(2, 3, 4)]
+    assert increment_all((1, 2, 3)) == [Expression((2, 3, 4))]
 
     # Applied where it stands, which a compiled body will not do.
     folding = S["|->"]((V.acc, V.e), val(1).eq(V.e) | V.acc)
@@ -107,10 +109,10 @@ def twin(m):
         g = lambda x: f((x, 2, 3))  # noqa: E731  -- the binding IS the point: it stores (|-> ($x) ...)
         return g(43)
 
-    assert through_partial() == [expr(42, 43, 2, 3)]
+    assert through_partial() == [Expression((42, 43, 2, 3))]
 
     # Partially applied: one argument now, the other later.
-    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [expr(42, 43, 44)]
+    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [Expression((42, 43, 44))]
 
     @m.define
     def myfunc2(mylambda):
@@ -124,4 +126,4 @@ def twin(m):
         k = 45
         return myfunc2(lambda x, y: (42, x, y, k))
 
-    assert closed() == [expr(42, 43, 44, 45)]
+    assert closed() == [Expression((42, 43, 44, 45))]

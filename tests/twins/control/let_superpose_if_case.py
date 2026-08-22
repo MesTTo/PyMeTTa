@@ -1,4 +1,4 @@
-"""examples/control/let_superpose_if_case.metta in Python: four forms at once.
+"""Purpose: examples/control/let_superpose_if_case.metta in Python: four forms at once.
 
 One equation binds a superposition, tests each answer, dispatches the ones
 that pass, and answers a default for the one that fails. Every layer has a
@@ -11,9 +11,16 @@ asks in Python's own words.
 `answertoeverything` is capitalised: a compiled body reads a lowercase free
 name as a function and a capitalised one as data, the gap case2 records
 against P14.4.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, expr
+from petta import Expression, S
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 5934 to 7063, +1129 (+19.0%), by the twin contract
@@ -54,4 +61,4 @@ def twin(m):
                 yield Answertoeverything  # noqa: F821  -- a capitalised free name in a compiled body is MeTTa data, which has no Python value to bind
 
     # !(test (collapse (progme)) (answertoeverything 42 (42 42) (42 42 42)))
-    assert progme() == [S.Answertoeverything, 42, expr(42, 42), expr(42, 42, 42)]
+    assert progme() == [S.Answertoeverything, 42, Expression((42, 42)), Expression((42, 42, 42))]

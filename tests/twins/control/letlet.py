@@ -1,4 +1,4 @@
-"""examples/control/letlet.metta in Python: a destructuring binding.
+"""Purpose: examples/control/letlet.metta in Python: a destructuring binding.
 
 The `let*` binding here is a PATTERN, `(($f1 $c1 3) (1 2 $d1))`: three
 variables and a literal on the left meeting three values on the right, so `$f1`
@@ -8,9 +8,16 @@ answer is `(1 2 3)`.
 Python spells the left-to-right half `f1, c1, _ = 1, 2, d1`, and a compiled
 body refuses even that: "a compiled body binds plain names; destructuring and
 attribute assignment have no let* form". Filed as residue against P14.4.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling"
@@ -37,4 +44,4 @@ def twin(m):
     )
 
     # !(test (f) (1 2 3))
-    assert m.eval(S.f()) == [expr(1, 2, 3)]
+    assert m.eval(S.f()) == [Expression((1, 2, 3))]

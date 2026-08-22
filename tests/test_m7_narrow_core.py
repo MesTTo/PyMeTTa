@@ -40,7 +40,9 @@ from petta import atoms as atom_module
 BASELINE_METTA_METHODS = 90
 BASELINE_PETTA_EXPORTS = 152
 FINAL_METTA_METHODS = 20
-FINAL_PETTA_EXPORTS = 61
+# 61 at the narrow-core commit; +4 when the R6 merge promoted the canonical
+# atoms TRUE, FALSE, UNIT and HERE to root values the twins can name.
+FINAL_PETTA_EXPORTS = 65
 
 SATELLITES = {
     "aio",

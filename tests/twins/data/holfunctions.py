@@ -1,4 +1,4 @@
-"""examples/data/holfunctions.metta in Python: the higher-order forms.
+"""Purpose: examples/data/holfunctions.metta in Python: the higher-order forms.
 
 `map-atom`, `filter-atom` and `foldl-atom` take a TEMPLATE or a function and
 walk an expression with it. Python has all three in its own syntax, and the
@@ -15,9 +15,16 @@ compiled body has no name for, so that clause is written as the term it is.
 
 Every one of these definitions is nullary, so each has exactly one clause and
 no stacking question arises.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 16462 to 19082, +2620 (+15.92%), by the twin-shape
@@ -62,7 +69,7 @@ def twin(m):
     def f3a():
         return [x for x in (1, 2, 3, 4, 5) if x > 3]
 
-    m += equation(S.f1b()).to(S["foldl-atom"](expr(1, 2, 3, 4), 0, S.foldfun))  # rung: folding with a NAMED function is functools.reduce, which a compiled body cannot name (P14.4)
+    m += equation(S.f1b()).to(S["foldl-atom"](Expression((1, 2, 3, 4)), 0, S.foldfun))  # rung: folding with a NAMED function is functools.reduce, which a compiled body cannot name (P14.4)
 
     @m.define
     def f2b():
@@ -77,14 +84,14 @@ def twin(m):
         return append(a, b)  # noqa: F821  -- append is an engine function, resolved by name in a compiled body
 
     assert m.fn("f1a")() == 10
-    assert m.fn("f2a")() == expr(2, 3, 4)
-    assert m.fn("f3a")() == expr(4, 5)
+    assert m.fn("f2a")() == Expression((2, 3, 4))
+    assert m.fn("f3a")() == Expression((4, 5))
 
     assert m.fn("f1b")() == 10
-    assert m.fn("f2b")() == expr(2, 3, 4)
-    assert m.fn("f3b")() == expr(4, 5)
+    assert m.fn("f2b")() == Expression((2, 3, 4))
+    assert m.fn("f3b")() == Expression((4, 5))
 
     # The template variant of the same fold, appending expressions rather than
     # adding numbers.
-    joined = S["foldl-atom"](expr(expr(1, 2), expr(3, 4), expr(5, 6)), expr(), V.acc, V.x, S.append(V.acc, V.x))  # rung: a fold whose template BINDS its own variables has no Python binding position at all (P14.4)
-    assert m.eval(joined) == [expr(1, 2, 3, 4, 5, 6)]
+    joined = S["foldl-atom"](Expression((Expression((1, 2)), Expression((3, 4)), Expression((5, 6)))), Expression(()), V.acc, V.x, S.append(V.acc, V.x))  # rung: a fold whose template BINDS its own variables has no Python binding position at all (P14.4)
+    assert m.eval(joined) == [Expression((1, 2, 3, 4, 5, 6))]

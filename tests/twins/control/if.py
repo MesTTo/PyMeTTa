@@ -1,4 +1,4 @@
-"""examples/control/if.metta in Python: the three-argument `if`.
+"""Purpose: examples/control/if.metta in Python: the three-argument `if`.
 
 Both arms are expressions, `(3 4)` and `(5 6)`, and a Python tuple is one. The
 condition is false, so the answer is the second arm.
@@ -9,9 +9,16 @@ and the arm that is not taken is never evaluated on either side. This file used
 to say that in a comment and write the term instead, because a single
 `@m.define` cost more than the band allowed an example this small; the band now
 pays for authoring a definition, so the sentence and the code agree.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import expr
+from petta import Expression
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 654 to 2861, +2207 (+337.5%), by lifting this twin
@@ -36,4 +43,4 @@ def twin(m):
         return (3, 4) if 1 > 2 else (5, 6)  # noqa: PLR0133  -- comparing two constants is the example's own program: the engine reduces `(> 1 2)`, and folding it in Python would leave the `if` nothing to decide
 
     # !(test (if (> 1 2) (3 4) (5 6)) (5 6))
-    assert pick() == [expr(5, 6)]
+    assert pick() == [Expression((5, 6))]

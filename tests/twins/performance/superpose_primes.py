@@ -1,4 +1,4 @@
-"""examples/performance/superpose_primes.metta in Python: four divisor searches.
+"""Purpose: examples/performance/superpose_primes.metta in Python: four divisor searches.
 
 Four eight-digit primes, each found by trial division, sharing one branch
 budget. The two equations are what the benchmark IS, so they stay in the engine
@@ -21,9 +21,16 @@ walls are filed as friction.
 `with-pragma!` stays too: the four searches overflow the evaluator's default
 stack depth without it, measured here, and `m.limits` bounds inferences and
 time but not stack depth.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, val
+from petta import TRUE, Expression, S, V, equation
 
 #: Why this file sits below the top rung: both equations ARE the benchmark and
 #: neither can be compiled, so their MeTTa bodies stay MeTTa. `find-divisor`
@@ -35,10 +42,6 @@ RUNG = "both equations are the benchmark and neither compiles: a hyphenated recu
 #: The equality head, needed with a GROUND left operand, which is the one shape
 #: Python's own operators cannot build: `0 == x` compares rather than building.
 EQ = S["=="]
-
-#: MeTTa's true, named rather than written inline because a bare boolean in an
-#: argument list reads as a Python flag and this one is an answer.
-TRUE = val(value=True)
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 536577 to 536319, -258 (-0.048%), by the twin contract
@@ -67,4 +70,4 @@ def twin(m):
                 S["prime?"](54218443), S["prime?"](54734431))
     assert m.eval(
         S["with-pragma!"]((S["max-stack-depth"](1000000),), searches)
-    ) == [expr(TRUE, TRUE, TRUE, TRUE)]
+    ) == [Expression((TRUE, TRUE, TRUE, TRUE))]

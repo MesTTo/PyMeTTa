@@ -1,4 +1,4 @@
-"""examples/types/typing_rules.metta in Python: a user rule in the checker.
+"""Purpose: examples/types/typing_rules.metta in Python: a user rule in the checker.
 
 `add-typing-rule!` installs a refusal into the same checker every typed call
 already consults, so `typing-rule-demo` stops accepting an undeclared argument
@@ -16,9 +16,16 @@ argument check, so it answers `(seen unknown-demo)` where the engine's own
 form answers the Error. That divergence is filed as friction with its
 reproduction; every other spelling of the same call, nested, let-bound or
 collapsed, agrees with the engine.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 5359 to 2794, -2565 (-47.86%), by the twin-shape
@@ -47,7 +54,7 @@ def twin(m):
     refusal = S.BadArgType(1, S.DemoPayload, S["%Undefined%"],
                            S.TypingRuleRefusal(rule, words))
     refused = m.eval(S.collapse(demo(payload)))  # rung: collapse is list(), but a FLAT call at the Python door skips the argument check this claim is about
-    assert refused == [expr(S.Error(demo(payload), refusal))]
+    assert refused == [Expression((S.Error(demo(payload), refusal),))]
 
     m.eval(S["remove-typing-rule!"](rule))
     assert m.fn("typing-rule-demo")(payload) == S.seen(payload)

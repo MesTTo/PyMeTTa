@@ -1,4 +1,4 @@
-"""examples/reasoning/logicprog.metta in Python: a recursive relation over facts.
+"""Purpose: examples/reasoning/logicprog.metta in Python: a recursive relation over facts.
 
 Six successor facts and a transitive closure over them, asked backwards: which
 letters come before `d`. The two dispatch policies go into the reflection space
@@ -13,13 +13,16 @@ read as first-match, which would make the recursive one unreachable; and the
 second clause's `$Z` appears in neither head, while a free name in a compiled
 body is a parameter, a known function or a data constructor, never a fresh
 variable. So the equation is built as the term it is, with `&` for `and`.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import REFLECTION_SPACE, S, V, equation, expr, val
-
-#: MeTTa's true. Named rather than written inline because a bare boolean in an
-#: argument list reads as a Python flag, and this one is an answer.
-TRUE = val(value=True)
+from petta import REFLECTION_SPACE, TRUE, Expression, S, V, equation
 
 #: Six letters, each with the one before it.
 SUCCESSORS = ((S.b, S.a), (S.c, S.b), (S.d, S.c), (S.e, S.d), (S.f, S.e), (S.g, S.f))
@@ -54,5 +57,5 @@ def twin(m):
     # Asking with the second argument open enumerates every letter before d,
     # nearest first, each paired with the True its clause answered.
     assert m.eval((S["later-in-alphabet"](S.d, V.earlier), V.earlier)) == [
-        expr(TRUE, S.c), expr(TRUE, S.b), expr(TRUE, S.a),
+        Expression((TRUE, S.c)), Expression((TRUE, S.b)), Expression((TRUE, S.a)),
     ]

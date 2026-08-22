@@ -38,6 +38,10 @@ from typing import Any as _Any
 from ._config import Config, config
 from ._version import __version__
 from .atoms import (
+    FALSE,
+    HERE,
+    TRUE,
+    UNIT,
     Atom,
     Expression,
     G,
@@ -322,6 +326,10 @@ def eval(target: _Any, **kwargs: _Any):  # noqa: A001 -- eval is the ruled publi
 
 
 __all__ = [
+    "FALSE",
+    "HERE",
+    "TRUE",
+    "UNIT",
     "Answer",
     "Atom",
     "Bindings",
