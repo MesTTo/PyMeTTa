@@ -123,7 +123,13 @@ SOURCE_DOORS = frozenset({"run", "load", "parse", "save"})
 #: Calls whose string argument is a NAME or a marked datum rather than a
 #: program: sym/var name an atom, fn names an engine function, space and
 #: new_space name a space, and val carries a Python value whole.
-NAMING_CALLS = frozenset({"sym", "var", "val", "fn", "space", "new_space"})
+NAMING_CALLS = frozenset({
+    "sym", "var", "val", "fn", "space", "new_space",
+    # TypeVar("X") names a type variable exactly as sym("x") names an atom,
+    # and a twin declaring a parametric type needs it [found 2026-08-22 by the
+    # types agent, which worked around it with the name= keyword].
+    "TypeVar",
+})
 
 #: The two factories whose subscript is an atom's name.
 NAMING_NAMESPACES = frozenset({"S", "V"})
@@ -307,7 +313,12 @@ def _defines(node: ast.FunctionDef) -> bool:
     for decorator in node.decorator_list:
         reached = decorator.func if isinstance(decorator, ast.Call) else decorator
         name = reached.attr if isinstance(reached, ast.Attribute) else getattr(reached, "id", None)
-        if name == "define":
+        # `cache` compiles a body exactly as `define` does, and a cached
+        # definition's match() must name its space as a string constant,
+        # because the two-argument form lowers to (context-space) which
+        # caching refuses as impure [found 2026-08-22 by the libraries agent,
+        # which lost the @m.cache spelling and fn.cache_info() to this].
+        if name in {"define", "cache"}:
             return True
     return False
 
