@@ -37,6 +37,9 @@ Guarantees:
     test_cast_target_is_positional_only]
   - dropping a space releases its integration installation records [tested
     test_dropped_space_name_reinstalls_integrations]
+  - dropping a named space clears its life without putting that public name
+    into the anonymous new_space pool [tested:
+    test_a_named_space_drop_never_enters_the_anonymous_pool; commit=WORKTREE]
   - new_space(inherits=parent) creates a child-first read view whose writes and
     lifecycle stay local [tested:
     test_a_child_space_reads_through_its_parent_and_writes_locally;
@@ -505,12 +508,14 @@ class MeTTa:
         return MeTTa(name)
 
     def space_names(self) -> list[str]:
-        """Every space name this engine registers, sorted: '&self' and
-        '&petta' from boot, every native space that has been written to,
-        and every foreign space currently bound. Naming a space never
+        """Every space name this engine registers, sorted.
+
+        The list includes '&self' and '&petta' from boot, every native space
+        that has been written to, and every foreign space currently bound.
+        Naming a space never
         registers it, only writing or binding does, so a bind! token's
         target appears here once something is stored under it.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
         row = self._rt.once("petta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
 
@@ -556,15 +561,15 @@ class MeTTa:
         return fresh
 
     def drop(self) -> None:
-        """Clear this space and release its name for reuse. Dropping a
-        foreign space releases the binding and leaves the provider's own
-        data alone; &self, the engine's own space, is cleared but its name
-        never released. Subscriptions on the space cancel with it: a
-        pooled name reused later must not deliver to the old life's
-        watchers. The handle itself dies here: every later call through it
-        refuses, because its name may already belong to another space.
-        Dropping twice is a no-op, as closing twice is.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """Clear this space and release an anonymous name for reuse.
+
+        Dropping a foreign space releases its binding and provider state.
+        A named space's public name is not an anonymous allocation and never
+        enters the new_space pool. &self is cleared but never released.
+        Subscriptions on the space cancel with it: a pooled name reused later
+        must not deliver to the old life's watchers. The handle itself dies
+        here, and dropping twice is a no-op, as closing twice is.
+        """
         if self._dropped:
             return
         if self._space != "&self":
@@ -577,7 +582,10 @@ class MeTTa:
             unregister_provider(self._rt, self._space)
         self.clear()
         if self._space != "&self":
-            self._rt.must("petta_py_release_space(Space)", Space=self._space)
+            predicate = (
+                "petta_py_release_space" if self._ephemeral else "petta_py_drop_space"
+            )
+            self._rt.must(f"{predicate}(Space)", Space=self._space)
         _integrate._forget_space(self._space)
         self._dropped = True
 

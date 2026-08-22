@@ -13,6 +13,8 @@ Guarantees:
   - what a recycled name DOES carry is the process-wide registrations, which
     belong to no space [tested
     test_a_recycled_name_still_sees_process_wide_registrations]
+  - named spaces are never admitted to the anonymous reuse pool [tested:
+    test_a_named_space_drop_never_enters_the_anonymous_pool; commit=WORKTREE]
   - an inherited space reads its own multiset before its ancestors, joins
     across those layers, and mutates only its own store
     [tested: test_a_child_space_reads_through_its_parent_and_writes_locally;
@@ -53,6 +55,20 @@ def test_a_dropped_name_comes_back(drained):
     second = drained.new_space()
     assert second.space_name == name
     second.drop()
+
+
+def test_a_named_space_drop_never_enters_the_anonymous_pool(drained):
+    """Only a name allocated by new_space may be returned by new_space."""
+    named = drained.space("&public-lifecycle-name")
+    named.add(S.owned(1))
+    named.drop()
+
+    fresh = drained.new_space()
+    try:
+        assert fresh.space_name.startswith("&pyspace_")
+        assert fresh.space_name != "&public-lifecycle-name"
+    finally:
+        fresh.drop()
 
 
 def _execution_module_owns(metta, space_name):

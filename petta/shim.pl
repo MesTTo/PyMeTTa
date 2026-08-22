@@ -32,6 +32,9 @@
 %     declarations aligned with anonymous-name reuse [tested:
 %     test_a_recycled_child_name_may_choose_a_different_parent;
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+%   - petta_py_drop_space/1 releases named-space state without admitting its
+%     public name to petta_py_free_space/1 [tested:
+%     test_a_named_space_drop_never_enters_the_anonymous_pool; commit=WORKTREE]
 %   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]
@@ -1253,11 +1256,15 @@ petta_py_space_releasable(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     metta_assert_space_releasable(Name).
 
-%Release a space: everything cleared, inheritance unlinked, the execution
-%base forgotten, and only then the name pooled for reuse.
+%Drop any non-default space: everything cleared, inheritance unlinked, and the
+%execution base forgotten. Only the anonymous release door pools its name.
+petta_py_drop_space(Name0) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    metta_release_space(Name).
+
 petta_py_release_space(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    metta_release_space(Name),
+    petta_py_drop_space(Name),
     petta_py_pool_space(Name).
 
 %%%%%%%%%% Query %%%%%%%%%%
