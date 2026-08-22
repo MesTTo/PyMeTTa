@@ -4,22 +4,22 @@ Guarantees:
     test_postponed_annotations_generate_declarations]
   - union expansion is bounded by the configured declaration limit and its
     refusal points to unannotated wrappers plus explicit declaration atoms
-    [tested: test_union_expansion_is_bounded; commit=WORKTREE]
+    [tested: test_union_expansion_is_bounded; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every host atom class keeps its engine metatype at the annotation seam
     [tested: test_the_four_metatypes_stay_distinct_across_the_seam;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - full container parameters survive as matchable annotation atoms while
     the runtime type stays MeTTa's Expression
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - advanced typing constructs retain a target type and a full annotation
     claim rather than collapsing to an undefined type
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Annotated metadata remains matchable in annotation claims while its base
     type continues to determine arrow types and runtime conversion [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

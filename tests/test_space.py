@@ -25,10 +25,10 @@ Guarantees:
     test_removing_an_equation_from_a_named_space_stops_its_answers]
   - eval returns a non-reducible term directly and exposes no residual flag
     [tested: test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - strict and raw execution choices use scopes and named transport rather
     than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
-    test_eval_using_carries_identity; commit=WORKTREE]
+    test_eval_using_carries_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

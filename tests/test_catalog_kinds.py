@@ -10,7 +10,7 @@ Assumes:
 Guarantees:
   - generated vocabulary aliases preserve declared CamelCase names
     [tested: test_generated_alias_preserves_declared_camel_case;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

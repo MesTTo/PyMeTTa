@@ -3,7 +3,7 @@
 Guarantees:
   - the current runtime adapter and the retained upstream module globals bind
     the same helper query [tested: test_run_helper_binds_verbose_atom and
-    test_upstream_source_wrapper_binds_verbose_atom; commit=WORKTREE]
+    test_upstream_source_wrapper_binds_verbose_atom; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

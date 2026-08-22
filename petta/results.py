@@ -19,7 +19,7 @@ Guarantees:
   - a one-column Rows rebuilds constructor expressions through build(cls),
     and rows_into selects that path for query(into=cls) [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Rows.to_dicts returns one Python-native mapping per row, including empty
     mappings for zero-column rows [tested test_rows_to_dicts_returns_plain_records]
   - eager query results explain empty pattern, join, and guard outcomes [tested

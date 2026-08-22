@@ -3,15 +3,15 @@ Python annotations, project matching values, and rebuild those values.
 Guarantees:
   - tuple, list, dict, and set hooks receive the full parameterized type on
     every route [tested: test_the_four_containers_share_one_parameterised_treatment;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - TypedDict fields drive both its constructor declaration and its value
     image, with optional or mismatched keys refused before data is lost
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - bare and abstract sequence, mapping, and set annotations select the same
     full-annotation hooks as their builtin concrete forms
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - container values use MeTTa's one bare-expression image; mappings contain
     ``(entry key value)`` children and sets are ordered by the atom order for

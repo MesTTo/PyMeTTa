@@ -5,26 +5,26 @@ Assumes:
     persistence, eager decoding, and diagnostic implementation [source:
     bindings/python/petta/_space_query.py, _space_definitions.py,
     _space_execution.py, _space_persistence.py, _space_objects.py, and
-    _space_diagnostics.py; commit=WORKTREE]
+    _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
-    test_m7_narrow_core_surface; commit=WORKTREE]
+    test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``MeTTa.space()`` creates named or anonymous handles through one door
     [tested: test_module_tier_is_sugar_over_one_default_engine;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``Space.query``, every ``declare_*`` verb, and the write door retain their
     established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
-    test_the_python_remove_door_subtracts_one_copy; commit=WORKTREE]
+    test_the_python_remove_door_subtracts_one_copy; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -2560,7 +2560,7 @@ class Space:
         amplitude programs, for example, must explicitly declare ``finite``,
         ``contractive`` and ``staged`` [tested:
         test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-        commit=WORKTREE]. Declaring replaces any earlier row for the
+        commit=f88aa8be03cb64cb59d3307515ded8701f418321]. Declaring replaces any earlier row for the
         context, so the reader never meets two disagreeing atoms.
         """
         algebra_api = _satellite("algebra")

@@ -6,7 +6,7 @@ Guarantees:
   - operations returning explicit bindings request evaluated Atom wrappers
     through `(arguments name atoms)` declarations [tested:
     test_a_generator_op_answers_bindings,
-    test_a_det_op_answers_bindings_with_a_value; commit=WORKTREE]
+    test_a_det_op_answers_bindings_with_a_value; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

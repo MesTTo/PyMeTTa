@@ -1,24 +1,24 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
   - the published before/after counts are exact for ``MeTTa`` and ``petta``
-    [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+    [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every retired root, context, and atom name is absent rather than aliased
-    [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+    [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - plain import and ``dir(petta)`` load no satellite, while either explicit
     import order preserves real module identity [tested:
-    test_m7_satellites_are_lazy_and_identity_stable; commit=WORKTREE]
+    test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the retained upstream package path resolves to the canonical module and
     keeps the original two-method ``PeTTa`` wrapper [tested:
-    test_upstream_python_package_path_is_canonical; commit=WORKTREE]
+    test_upstream_python_package_path_is_canonical; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns:
   - subprocesses used for clean import-order probes are waited synchronously
     by ``subprocess.run(check=True)`` [tested:
-    test_m7_satellites_are_lazy_and_identity_stable; commit=WORKTREE]
+    test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - ``BASELINE_*`` and ``FINAL_*`` are the published M7 surface metrics
     [measured: 90 to 20 MeTTa names and 152 to 61 petta names on 2026-08-22;
     command=python -m pytest bindings/python/tests/test_m7_narrow_core.py -q;
-    fixture=a142938d baseline and WORKTREE final; commit=WORKTREE]
+    fixture=a142938d baseline and WORKTREE final; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -9,7 +9,7 @@ Guarantees:
     colon patterns remain data [tested:
     test_an_annotated_binding_emits_its_claim,
     translator_typed_let:a_source_colon_pair_stays_a_pattern;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

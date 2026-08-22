@@ -4,11 +4,11 @@ Guarantees:
   - Annotated values of one base type retain distinct matchable metadata
     claims without changing their arrow slots [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - container annotation acceptance selects its own callable's declarations
     from the session space instead of assuming no earlier registration exists
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

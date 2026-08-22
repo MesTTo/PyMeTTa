@@ -5,11 +5,11 @@ Guarantees:
   - a cached definition answers from SWI's answer trie, so an exponential
     recursion becomes linear, and its counters and clear are reachable under
     functools.lru_cache's own names.
-  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=WORKTREE]
+  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a table normalises duplicate answers away, which the arbiter SPECIFIES for
     an untabled function, so the decorator is where a program asks for that
     trade rather than something it discovers.
-  [tested: test_a_cached_definition_normalises_duplicate_answers_away; commit=WORKTREE]
+  [tested: test_a_cached_definition_normalises_duplicate_answers_away; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when: read as a fixed-size cache. A table holds the answers for the calls
   that were made and has no maxsize; `unchecked=True` is the staleness the
   engine's own `(cache <name> unchecked)` accepts, not a size.

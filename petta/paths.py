@@ -3,10 +3,10 @@ Guarantees:
   - a path keeps its root opaque and reads only the named attributes or keys
     after the engine has matched that root [tested:
     test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - repeated object identities terminate the path as a non-match [tested:
     test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

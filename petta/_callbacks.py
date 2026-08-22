@@ -3,10 +3,10 @@
 Guarantees:
   - the facade owns no registry state and each callback is the exact object
     from its owning module [tested: test_callback_facade_owns_no_state_and_delegates;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - importing the callback facade does not import event, provider, or path
     satellites [tested: test_m7_satellites_are_lazy_and_identity_stable;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

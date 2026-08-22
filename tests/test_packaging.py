@@ -3,10 +3,10 @@ and version source that wheel builds publish.
 Guarantees:
   - release history and citation metadata exist and enter source archives
     [tested: test_release_and_citation_metadata_ship_in_source_archives;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the Python gate uses the fixed load-tested worker protocol
     [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

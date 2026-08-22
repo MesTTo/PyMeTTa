@@ -6,17 +6,17 @@ query that happens to be fully consumed.
 Guarantees:
   - a conjunctive match answers every row it found, through templates that
     remove the atoms the later conjuncts would have read
-    [tested: test_match_snapshots_rows_before_template_effects; commit=WORKTREE]
+    [tested: test_match_snapshots_rows_before_template_effects; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a single pattern gets the same guarantee from the logical update view and
     keeps streaming, so a first answer off a large space does not walk it
-    [tested: test_a_single_pattern_snapshot_costs_nothing_extra; commit=WORKTREE]
+    [tested: test_a_single_pattern_snapshot_costs_nothing_extra; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a CONJUNCTION under `once` or `take N` stops at the bound instead of
     walking the join, and stops only where nothing between the row and the
     answer could fail
-    [tested: test_a_bounded_conjunctive_match_stops_at_the_bound; commit=WORKTREE]
+    [tested: test_a_bounded_conjunctive_match_stops_at_the_bound; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the bounded forms keep match/4's answer-shaped refusal, which the fused
     template-and-result spelling had lost
-    [tested: test_a_bounded_match_on_an_unbound_space_answers_the_error; commit=WORKTREE]
+    [tested: test_a_bounded_match_on_an_unbound_space_answers_the_error; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

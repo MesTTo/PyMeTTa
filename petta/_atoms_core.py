@@ -8,7 +8,7 @@ Guarantees:
     distinct, NaN self-equal), the same split Java makes between == and
     Double.equals so collections of values stay coherent
     [tested: test_python_equality_is_engine_equality,
-    test_atom_equality_is_engine_unification; commit=WORKTREE]
+    test_atom_equality_is_engine_unification; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
   - Expression is a complete immutable Sequence with iterative equality and hashing
@@ -45,23 +45,23 @@ Guarantees:
   - __metta__ is discovered on the class, so instance fallback and properties
     cannot run merely because encoding checked for an explicit hook
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Box publishes its transport value through the reserved
     __petta_wire_value__ protocol, so host bridges can remove the wire layer
     without importing the Python package [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Atom operator methods are installed from the immutable 22-entry lowering
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - symbolic operator rows specialize into direct constructors once at import,
     so term-operators costs 660489697 instructions:u, 27.86% below its
     915593600 baseline [measured: minimum of 660489757, 660489704,
     660489697 on 2026-08-21;
     command=python -m benchmarks.check_instructions term-operators;
     fixture=CPython 3.14 controlled perf lane;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -158,7 +158,7 @@ def _ground_identical(mine: Any, theirs: Any) -> bool:
     integer atom never matches a float atom where (== 0 0.0) answers True,
     0.0 and -0.0 are two float values where == answers one, and one NaN
     matches another where == answers False [measured 2026-08-21: space.query
-    over the live engine for each pair; commit=WORKTREE]. Matching,
+    over the live engine for each pair; commit=f88aa8be03cb64cb59d3307515ded8701f418321]. Matching,
     membership, removal and every dict of atoms follow this relation, so a
     Counter of atoms counts what the space stores.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

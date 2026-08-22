@@ -13,19 +13,19 @@ Guarantees:
   - every position the engine's type surface declares strict, on a builtin
     PeTTa defines, refuses an unbound argument and names the MeTTa operation
     [tested: test_every_builtin_refuses_an_unbound_input_by_name;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - no such refusal names a Prolog predicate the MeTTa program never wrote
     [tested: test_a_raising_builtin_names_the_metta_operation_not_the_host_predicate;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - `+ - * /` invert one unbound slot among integers, CLP(FD) solves the
     nonlinear cases past that, and every backward query outside both refuses
     with a named reason rather than a bare instantiation error
     [tested: test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the four cross-file residual inputs and the already-repaired surface match
     path refuse under their own written names
     [tested: test_the_residual_positions_refuse_by_their_own_names;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

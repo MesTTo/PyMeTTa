@@ -7,7 +7,7 @@ Guarantees:
     test_mapped_passes_the_conformance_kit]
   - an object view joins stored atoms to live fields and writes with setattr
     [tested: test_a_query_joins_stored_atoms_with_live_object_fields;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -4,7 +4,7 @@ Guarantees:
   - a constructor receives the complete matched lexeme and may return either
     an Atom or any value accepted by encode; both cross as the same Atom wire
     [tested: test_a_registered_token_class_parses_like_a_shipped_one;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -7,14 +7,14 @@ Guarantees:
   - inspect.getdoc supplies one cleaned description, or no atom when the
     source has no documentation [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - compiled definitions use the same portable atom and cleaned text [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an Args section becomes one (@param ...) per PARAMETER OF THE SIGNATURE, in
     signature order, and a Returns section becomes (@return ...), which is the
     engine's own shape [tested:
-    test_a_docstring_emits_the_whole_doc_vocabulary; commit=WORKTREE]
+    test_a_docstring_emits_the_whole_doc_vocabulary; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when: a docstring documents a parameter the signature does not have. The
   signature decides the list and its order, so the stray entry is dropped
   rather than shifting every later parameter's description onto the wrong one.

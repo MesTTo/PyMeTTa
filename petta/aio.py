@@ -25,31 +25,31 @@ Guarantees:
     optional engine bridge [tested test_aio_empty_shutdown_does_not_import_janus]
   - async names and save formats retain the synchronous surface's contextual
     types [tested: test_canonical_context_types_replace_public_newtypes;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async declaration methods reuse the catalog-generated policy aliases and
     own no duplicate Literal lists [tested: tests/check_policy_inventory.py;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
     test_cast_target_is_positional_only]
   - async space forwards anonymous-space inheritance, restriction, and grants
     on the owning worker [tested:
-    test_async_space_forwards_restriction_and_grants; commit=WORKTREE]
+    test_async_space_forwards_restriction_and_grants; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - reader-token registration and removal run on the owning engine worker and
     mirror the synchronous surface [tested:
-    test_aio_plain_methods_forward_on_the_worker; commit=WORKTREE]
+    test_aio_plain_methods_forward_on_the_worker; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async eval mirrors the synchronous single answer shape without a
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - execution-policy scopes cross the worker hop and never change awaited
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - declare_image reaches the synchronous declaration owner on the engine
     worker [tested: test_aio_covers_the_whole_synchronous_surface;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested

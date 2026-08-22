@@ -8,7 +8,7 @@ ai-tabling-review.md section 3 pinned.
 Guarantees:
   - Undefined carries only the answer and its delay condition [tested:
     test_undefined_answers_cross_as_undefined;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

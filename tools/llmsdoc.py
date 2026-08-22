@@ -11,17 +11,17 @@ Assumes:
   - petta imports here, unlike bindings/python/tools/reference.py, which reads the AST
     so it can run without janus. Builtin names come from the running self-space
     handle and there is no static inventory exposed to this checker
-    [assumed: the supported builtin inventory is runtime-defined; commit=WORKTREE]
+    [assumed: the supported builtin inventory is runtime-defined; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a backticked token containing a slash and ending in a known extension is
     a path claim, and nothing else in the file is shaped that way
-    [source: bindings/python/tools/llmsdoc.py:PATH_LIKE and check; commit=WORKTREE]
+    [source: bindings/python/tools/llmsdoc.py:PATH_LIKE and check; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - every petta name, MeTTa method, path, count, special form, derived form,
     builtin and library named in llms.txt exists, and the two modules it says
     are gone really are gone
-    [tested: GATE_ONLY=1 sh check.sh llms; commit=WORKTREE]
+    [tested: GATE_ONLY=1 sh check.sh llms; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all failures are reported at once, not just the first
-    [source: bindings/python/tools/llmsdoc.py:check and main; commit=WORKTREE]
+    [source: bindings/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when:
   - a claim is prose rather than a name, a count or a path. Those stay the
     reader's job; this checks what a machine can check

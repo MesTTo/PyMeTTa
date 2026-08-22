@@ -7,7 +7,7 @@ Guarantees:
     test_dropped_space_name_reinstalls_integrations]
   - module operations use one transport selector and infer declarations from
     annotations [tested: test_module_ops_bulk_registers_a_stdlib_module;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

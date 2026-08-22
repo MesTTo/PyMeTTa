@@ -7,7 +7,7 @@ Guarantees:
     the registration transaction, replacement, ownership, and unregister
     lifecycle [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -6,12 +6,12 @@ differential fuzz.
 Guarantees:
   - subscription hook clauses track whether the active space set is empty
     [tested: test_subscription_hooks_follow_the_active_space_set;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - capture, atomic, and speculative execution compose as scopes without
     per-call shape or mode flags [tested: test_run_capture_collects_printed_output,
     test_atomic_run_commits_or_rolls_back_whole,
     test_speculative_run_answers_and_discards;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

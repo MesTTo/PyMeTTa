@@ -5,16 +5,16 @@ Guarantees:
   - one source docstring reaches Defined.doc, help(), and the definition
     space's @doc atom [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a local annotated assignment emits and enforces its in-place type claim
     without reinterpreting source-level colon data [tested:
     test_an_annotated_binding_emits_its_claim,
     translator_typed_let:a_source_colon_pair_stays_a_pattern;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every definition derives source, documentation, captures, and purity from
     its AST and retires stale reflection on replacement and clear [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]

@@ -5,13 +5,13 @@ Guarantees:
   - capture never changes an answer shape, and atomic, speculative, and
     strict execution policy scopes compose without per-call flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
   - ordinary evaluation returns an unreduced term directly and has no
     residual-shape flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

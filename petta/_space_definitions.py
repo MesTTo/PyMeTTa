@@ -7,20 +7,20 @@ Guarantees:
   - a definition is exposed only after its first twin clause exists, and its
     canonical first-clause documentation follows replacement and clearing
     [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - source spans, AST documentation, free variables, and derived purity
     replace atomically across clause replacement and leave reflection on
     clear [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - generated class-method operations declare their Atom delivery policy in
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an annotation-derived declaration lands before the equation it governs
     and rolls back if equation publication fails [tested:
     test_a_declared_output_type_takes_effect_through_the_decorator_door,
     test_failed_equation_publication_rolls_back_its_early_declaration;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]

@@ -1,25 +1,25 @@
 """Purpose: validate, write, replace, and load named-space snapshots.
 Guarantees:
   - a completed sibling is synced before it replaces the destination
-    [tested: test_save_syncs_before_replacing; commit=WORKTREE]
+    [tested: test_save_syncs_before_replacing; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - validation and write failures preserve the old destination [tested
     test_save_validation_preserves_existing_file,
-    test_text_save_write_failure_preserves_existing_file; commit=WORKTREE]
+    test_text_save_write_failure_preserves_existing_file; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - fast cache headers are validated before payload loading [tested
     test_fast_load_refuses_a_different_swi_version_before_payload;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - text snapshots use UTF-8 regardless of the process locale [tested
-    test_text_save_uses_utf8_for_plain_and_gzip_files; commit=WORKTREE]
+    test_text_save_uses_utf8_for_plain_and_gzip_files; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the save format type admits exactly metta and fast [tested:
-    test_canonical_context_types_replace_public_newtypes; commit=WORKTREE]
+    test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - save validation consumes the generated save-format catalog tuple rather
     than owning a second closed list [tested:
     test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save
-    [tested: test_save_failure_preserves_existing_file; commit=WORKTREE]
+    [tested: test_save_failure_preserves_existing_file; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

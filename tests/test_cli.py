@@ -2,7 +2,7 @@
 Guarantees:
   - both retained upstream and current runtime layouts keep their own command
     contracts [tested: test_main_retains_the_upstream_layout and
-    test_main_forwards_arguments_and_exit_status; commit=WORKTREE]
+    test_main_forwards_arguments_and_exit_status; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

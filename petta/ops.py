@@ -5,47 +5,47 @@ annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
   - registration distinguishes a MeTTa function name from its declaration
     space [tested: test_canonical_context_types_replace_public_newtypes;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - registration asks the engine grammar whether the requested name reads as
     one symbol and refuses before reflecting or registering anything [tested:
     test_register_op_refuses_a_name_metta_cannot_read;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - overload stubs each contribute their declared arrow and annotation claims
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - unreachable **kwargs refuses and a typed zero-parameter operation still
     emits its return arrow
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - callable code flags, through partials, wrappers, bound methods, and
     callable objects, classify generators and refuse coroutine functions
     before registration changes any engine or registry state [tested:
     test_register_op_reads_co_flags_and_refuses_or_awaits;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every documented operation owns its portable @doc atom in the
     declaration space, independent of type annotations, under the same transactional
     lifecycle and reference count as type declarations [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - each registered arity owns the arrow for exactly the arguments that call
     form accepts, including repeated variadic annotations [tested:
     test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Annotated MeTTa parameters retain metadata without losing engine
     injection [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - transport, evaluation order, typing, and purity are expressed by op,
     type, and effect atoms rather than boolean decorator flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the first Python owner refuses to adopt a source-owned declaration, while
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -25,7 +25,7 @@ Guarantees:
   - the restricted-space formal maps to SpaceCapabilityError before the
     generic operation and engine classifiers [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares

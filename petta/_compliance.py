@@ -56,7 +56,7 @@ Guarantees:
   - the cross-space join witness carries the shared value and inspects the
     collapse result's children, so one joined row cannot look like no answer
     [tested: test_the_provider_joins_with_a_native_space;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns: one registered space name per test, unregistered in the fixture's
   teardown whatever the test did
 Decides: which of the engine's expectations are general enough to hold of ANY

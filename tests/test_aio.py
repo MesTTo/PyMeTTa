@@ -5,14 +5,14 @@ Guarantees:
   - AsyncMeTTa.eval mirrors the synchronous single answer shape and exposes
     no residuals parameter [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - capture and execution-policy scopes cross the worker hop without changing
     awaited return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async space is the single named, anonymous, and provider-backed creation
     door [tested: test_aio_space_attaches_a_provider_without_a_register_alias;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

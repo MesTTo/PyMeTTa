@@ -5,7 +5,7 @@ Guarantees:
   - a docstring emits (@desc ...), one (@param ...) per SIGNATURE parameter in
     source order, and (@return ...), which is the shape engine/prelude.metta's
     own @doc atoms have; an unsectioned docstring stays one description.
-  [tested: test_a_docstring_emits_the_whole_doc_vocabulary; commit=WORKTREE]
+  [tested: test_a_docstring_emits_the_whole_doc_vocabulary; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when: read as a claim that every docstring style parses. Only the Google
   section headers are read; anything else is one description, which is what it
   was before.

@@ -1,7 +1,7 @@
 """Purpose: validate endpoints and issue bounded HTTP client requests.
 Guarantees:
   - validated_http_base accepts only absolute HTTP and HTTPS URLs with a host
-    [tested: test_remote_connect_refuses_non_http_urls; commit=WORKTREE]
+    [tested: test_remote_connect_refuses_non_http_urls; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - client timeouts are finite and positive and response bodies stop at a
     fixed byte limit [tested test_network_clients_refuse_invalid_timeouts,
     test_http_endpoint_closes_transport_resources]

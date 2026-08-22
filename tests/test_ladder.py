@@ -8,7 +8,7 @@ Guarantees:
   - query(into=) and Rows.build rebuild a complete constructor expression,
     while cast returns the admitted atom [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

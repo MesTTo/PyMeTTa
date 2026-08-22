@@ -13,11 +13,11 @@ implementations in two languages, which is what the corpus is for.
 Guarantees:
   - a renderer refusal is licensed only where the corpus marks the spelling
     as non-invertible [tested:
-    test_a_renderer_may_refuse_only_a_non_round_trip_text; commit=WORKTREE]
+    test_a_renderer_may_refuse_only_a_non_round_trip_text; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - undefined truth has one value-and-delay frame without a residual-program
     variant [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 
 Open Obligations:
   To Do: None

@@ -11,24 +11,24 @@ Guarantees:
   - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
     docstring after the twin dispatcher contains that clause [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - local annotated assignments resolve through a syntax-limited namespace
     reader and compile to enforceable in-place type claims [tested:
-    test_an_annotated_binding_emits_its_claim; commit=WORKTREE]
+    test_an_annotated_binding_emits_its_claim; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - source spans, source docstrings, lexical captures, and call purity are
     derived from the parsed function and exposed as immutable facts [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``yield from`` delegates only a statically known-nondeterministic call
     and refuses an ambiguous engine call instead of silently splicing it
     [tested:
     test_yield_from_a_call_delegates_only_when_nondeterminism_is_known;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - calling a Defined object evaluates its application except in a rules
     builder's scope-local staging context [tested:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

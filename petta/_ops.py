@@ -6,7 +6,7 @@ Importable as petta_ops, the name the Prolog side uses.
 Guarantees:
   - operation records distinguish MeTTa names from declaration-space names
     [tested: test_canonical_context_types_replace_public_newtypes;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - protocol type registrations can be removed by exact identity [tested
     test_protocol_and_reflector_registrations_can_be_removed]
   - a release that FAILS reaches the caller. Left to the deallocator,
@@ -17,16 +17,16 @@ Guarantees:
   - resolved parameter and return annotations select conversion in both
     directions, so an annotation cannot describe one image while carrying
     another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - type_names removes every __petta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Atom annotations select syntax-level delivery, while an `(arguments ...
     atoms)` seam declaration selects Atom wrappers after ordinary evaluation
     without a pass_atoms boolean [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that

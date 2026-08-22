@@ -2,7 +2,7 @@
 Guarantees:
   - type checkers distinguish engine space identifiers from operation names
     without exporting either implementation detail [tested:
-    test_canonical_context_types_replace_public_newtypes; commit=WORKTREE]
+    test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

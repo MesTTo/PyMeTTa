@@ -19,7 +19,7 @@ about the translation, and one nobody runs rots within a week. Running the
 MeTTa form beside its Python spelling makes each row a DIFFERENTIAL, the same
 instrument the twins lane and `example_parity` use one level up
 [source: bindings/python/tools/twin_coverage.py, the count-against-count
-contract; commit=WORKTREE].
+contract; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 
 The five buckets, and what each CLAIMS:
   - `dissolves`: Python already has the concept, so there is no petta name at
@@ -43,23 +43,23 @@ Assumes:
   - a fresh space isolates equations, so 377 rows share one engine instead of
     377 processes [measured 2026-08-22: a definition made in `m._new_space()`
     is invisible to `&self` and to a sibling space, and fifty fresh spaces
-    with a definition and a call cost 0.007s; commit=WORKTREE]
+    with a definition and a call cost 0.007s; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a second `MeTTa()` in one process is the SAME engine, which is why
     isolation is per space and never per engine [measured 2026-08-22: a
     definition made through a second `MeTTa()` is visible to the first;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - `&pb` in a row's MeTTa form is that row's own space. On this engine the
     name is made unique per row before the form runs, because `bind!` here
     keeps the old contents when a bound name is re-bound; on LeaTTa each row
     is its own process, so the written name is used as written [measured
     2026-08-22: re-binding a bound name leaves `(f 1)` in place here, while
     LeaTTa refuses the second `bind!` with
-    `(Error ... (BadArgType 1 Symbol SpaceType))`; commit=WORKTREE]
+    `(Error ... (BadArgType 1 Symbol SpaceType))`; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - LeaTTa lives outside this repository and CI never clones it, so its column
     is frozen into `phrasebook_answers.json` and re-measured only under
     `--learn`, exactly as the upstream parity baseline freezes its numbers
     [source: tests/check_upstream_parity.py; tests/conformance/leatta.py, its
-    Assumes block; commit=WORKTREE]
+    Assumes block; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - every LeaTTa stdlib name has exactly one row, so the coverage denominator
     cannot quietly shrink [tested: test_the_phrasebook_covers_every_leatta_name]
@@ -193,7 +193,7 @@ def leatta_answers(entry: Entry, scratch: Path) -> tuple[str, ...]:
     the oracle reads the directory its file sits in, so a crowded `/tmp`
     makes every row 875 times slower [measured 2026-08-22: `!(+ 1 2)` costs
     0.008s from an empty directory and 7.0s from a `/tmp` holding 829
-    entries, on this box; commit=WORKTREE].
+    entries, on this box; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
     """
     path = scratch / "row.metta"
     path.write_text(entry.metta if entry.metta.endswith("\n") else entry.metta + "\n")
@@ -268,7 +268,7 @@ def quiet() -> Any:
     `redirect_stdout` would catch only one of the two. Swapping the descriptor
     catches both, and both streams are flushed inside the swap so nothing
     buffered arrives after it [measured 2026-08-22: without the flush the
-    engine's `hello` reappears under the report; commit=WORKTREE].
+    engine's `hello` reappears under the report; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
     """
     sys.stdout.flush()
     saved = os.dup(1)
@@ -666,7 +666,7 @@ def cost(engine: Any, entries: list[Entry]) -> list[tuple[str, int, int]]:
     # needs a space it did not pay for, so both are made outside the block and
     # the floor is subtracted [measured 2026-08-22: an empty `with
     # m.stats()` block reads 5 inferences and `m._new_space()` costs 35;
-    # commit=WORKTREE].
+    # commit=f88aa8be03cb64cb59d3307515ded8701f418321].
     with engine.stats() as empty:
         pass
     floor = empty.inferences

@@ -19,11 +19,11 @@ Guarantees:
   - all 44 installed operation names own arity-accurate arrows, and
     broadcast-shape relates compatible dimensions before any array exists
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - array transport and Atom-delivery choices use the same declaration
     surface as every registered operation [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]

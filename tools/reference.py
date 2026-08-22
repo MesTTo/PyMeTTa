@@ -13,12 +13,12 @@ Guarantees:
     [tested test_the_reference_pages_are_up_to_date]
   - prose continuations indented beneath a list item still escape HTML-shaped
     words, while true indented code blocks remain literal
-    [tested: test_an_indented_prose_continuation_escapes_tags; commit=WORKTREE]
+    [tested: test_an_indented_prose_continuation_escapes_tags; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - only public module-level classes and functions, and public methods of
     those classes, are documented, which is the set the pages already carried
     [source: bindings/python/tools/reference.py:entries, the three
     `startswith("_")` refusals at module level, class level and method level;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when:
   - a page documents a module with runtime-generated members; those are
     invisible to the AST and would silently go missing

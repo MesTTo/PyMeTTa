@@ -4,16 +4,16 @@ Guarantees:
   - one ground expression identifies one isolated storage and execution
     context, and context-space exposes its parameters to local equations
     [tested: test_two_instances_of_a_parametric_space_answer_independently;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - malformed identifiers fail before any native or execution cache entry is
     published [tested: test_invalid_parametric_names_publish_no_cache_entry;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - derivation leaves recover the expression identity from its canonical
     storage module [tested: test_a_parametric_fact_leaf_names_its_space;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a callable family head cannot evaluate a registered identity at a space
     door [tested: test_a_callable_family_head_does_not_replace_the_identity;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

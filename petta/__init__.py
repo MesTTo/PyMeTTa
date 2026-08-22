@@ -3,24 +3,24 @@
 Assumes:
   - ``petta._space.MeTTa`` owns runtime context and ``petta._space.Space``
     owns storage and query verbs [source:
-    bindings/python/petta/_space.py:306 and :3090; commit=WORKTREE]
+    bindings/python/petta/_space.py:306 and :3090; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - ``dir(petta)`` is exactly the curated public surface and loads no
-    satellites [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+    satellites [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - satellite modules are imported only by attribute access, following PEP
     562 with their real module identity intact [tested:
-    test_m7_satellites_are_lazy_and_identity_stable; commit=WORKTREE]
+    test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``space()`` is the only space-creation door and cannot be overwritten by
     an implementation submodule [tested: test_m7_space_factory_keeps_identity;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``PeTTa`` retains the upstream source-string wrapper for a legacy
     ``src/main.pl`` tree without widening the curated root [tested:
     test_upstream_python_package_path_is_canonical and
-    test_upstream_source_wrapper_binds_verbose_atom; commit=WORKTREE]
+    test_upstream_source_wrapper_binds_verbose_atom; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
     stack policy [source: PeTTa-base/python/petta/__init__.py:8;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

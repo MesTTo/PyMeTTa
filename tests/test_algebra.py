@@ -2,7 +2,7 @@
 
 Guarantees:
   - the required P4.20 names exercise only public PeTTa surfaces
-    [tested: this module; commit=WORKTREE]
+    [tested: this module; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

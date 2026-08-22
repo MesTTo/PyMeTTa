@@ -11,11 +11,11 @@ Guarantees:
   - each supported container reconstructs through the same specialised hook
     that projected its full annotation
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - buffer projections rebuild the exact carried exporter rather than copying
     or discarding its layout
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -4,17 +4,17 @@ Guarantees:
   - ``yield from`` delegates only when nondeterminism is known and refuses
     ambiguous engine calls before they can splice application children [tested:
     test_yield_from_a_call_delegates_only_when_nondeterminism_is_known;
-    commit=WORKTREE].
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
   - a decorator-derived output declaration is stored before the equation it
     governs [tested:
     test_a_declared_output_type_takes_effect_through_the_decorator_door;
-    commit=WORKTREE].
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
   - Defined calls evaluate by default, stage inside rules, and resolve the
     same exact name through text and data [tested:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
     test_one_name_resolution_rule_across_every_door,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=WORKTREE].
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 Open Obligations:
   To Do: None
   Hacks: None

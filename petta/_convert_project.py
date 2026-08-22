@@ -8,23 +8,23 @@ Guarantees:
   - the four builtin containers share MeTTa's bare-expression image and keep
     reconstruction detail in the full-annotation hook
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - scalar Enum subclasses and composite Flags retain the member and type
     declarations that distinguish them from their scalar payloads
     [tested: test_int_str_and_flag_enums_each_project_with_their_declarations;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a TypedDict's full annotation selects the same named constructor image
     and field declaration as its value
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - explicit projection discovers __metta__ on the class and never asks an
     instance proxy whether an arbitrary attribute exists
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an otherwise opaque buffer carries its identity together with shape,
     format, item size, dimensionality, strides, and access metadata
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

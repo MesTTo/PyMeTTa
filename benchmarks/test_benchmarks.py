@@ -5,7 +5,7 @@ Guarantees:
   - every mutable engine case receives a fresh space outside its measured
     window [tested benchmark_case]
   - raw and encoded operation cases select one named transport mode [tested:
-    test_raw_operation, test_encoded_operation; commit=WORKTREE]
+    test_raw_operation, test_encoded_operation; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

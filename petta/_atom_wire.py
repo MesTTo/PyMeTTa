@@ -12,7 +12,7 @@ Guarantees:
   - undefined truth has one value-and-delay frame with no optional constraint
     payload [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - n decodes Python integers without a width conversion, so Number and
     BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
 Open Obligations:

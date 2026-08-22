@@ -3,7 +3,7 @@ Guarantees:
   - the minimal library remains idempotent after signature-registration and
     cross-space specialization traffic
     [tested: test_minimal_lib_install_is_idempotent_after_cross_file_traffic;
-    commit=WORKTREE].
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 Open Obligations:
   To Do: None
   Hacks: None

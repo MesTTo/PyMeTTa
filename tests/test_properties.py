@@ -7,9 +7,9 @@ Guarantees:
   - every generated atom either survives the engine writer-reader round trip
     or receives the writer's explicit loss-of-identity refusal [tested:
     test_every_generated_atom_survives_the_write_parse_round_trip;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - booleans use MeTTa's canonical True and False text [tested:
-    test_swrite_writes_mettas_own_boolean_literal; commit=WORKTREE]
+    test_swrite_writes_mettas_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

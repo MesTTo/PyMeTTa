@@ -2,7 +2,7 @@
 Guarantees:
   - path markers join stored facts to current object fields and stop at cycles
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

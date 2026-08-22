@@ -4,7 +4,7 @@ stats block, print output captured beside the answers, and rows crossing
 into a DataFrame.
 Guarantees:
   - capture collects print output without changing the run result shape
-    [tested: test_example_runs_and_verifies_itself; commit=WORKTREE]
+    [tested: test_example_runs_and_verifies_itself; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

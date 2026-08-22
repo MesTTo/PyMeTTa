@@ -4,7 +4,7 @@ Assumes: SWI's generator answers `random_property(state(S))` and takes
 Guarantees:
   - a seeded scope repeats its draws exactly, different seeds give different
     ones, and the generator outside the scope is where it was.
-  [tested: test_a_seed_scope_repeats_its_draws_and_leaves_the_outside_alone; commit=WORKTREE]
+  [tested: test_a_seed_scope_repeats_its_draws_and_leaves_the_outside_alone; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when: read as a claim about cryptographic quality. It is reproducibility,
   the property a simulation and a test need; the generator is SWI's own.
 Open Obligations:

@@ -9,9 +9,9 @@ classes below are the whole translation; the solve side is the query
 surface the space already has.
 Guarantees:
   - grounding scopes each template run atomically without a call-shape flag
-    [tested: test_example_runs_and_verifies_itself; commit=WORKTREE]
+    [tested: test_example_runs_and_verifies_itself; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - reachability is a relation whose absent horizons fail instead of returning
-    residual calls [tested: integration/multishot_solving; commit=WORKTREE]
+    residual calls [tested: integration/multishot_solving; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

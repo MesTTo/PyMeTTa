@@ -15,18 +15,18 @@ Guarantees:
   - registered operation kinds inhabit OpKind and `(op ...)` terms inhabit
     OpDecl [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - compiled-definition source, capture, and effect facts are typed ordinary
     declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - callable argument delivery is a typed `(arguments name atoms|values)`
     policy in &petta [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - context image declarations state whether one Python type crosses as a
     handle or a structural expression [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

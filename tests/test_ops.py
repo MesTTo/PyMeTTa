@@ -5,11 +5,11 @@ Guarantees:
   - an Atom annotation preserves the written call while an unconstrained
     parameter receives its reduction [tested:
     test_an_atom_annotation_changes_evaluation_order_as_documented;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - execution modes are scopes, return shapes are invariant, and callable
     policy is reflected by atoms rather than boolean flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -14,7 +14,7 @@ number of routes.
 Guarantees:
   - handler registration derives declarations from the callable rather than
     selecting an untyped boolean mode [tested:
-    test_example_runs_and_verifies_itself; commit=WORKTREE]
+    test_example_runs_and_verifies_itself; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

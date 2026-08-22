@@ -21,11 +21,11 @@ Guarantees:
   - discovery refuses duplicate names, missing dependencies, and named
     dependency cycles, and installs acyclic entries in topological order
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - module and reflection helpers express transport and Atom delivery without
     boolean registration pairs [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested

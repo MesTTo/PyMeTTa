@@ -24,7 +24,7 @@ Guarantees:
     test_a_moved_tier_fails_the_gate]
   - raw operation measurements select the reflected transport kind without a
     boolean registration pair [tested: test_extension_cost_rows_are_marginal;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

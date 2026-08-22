@@ -11,7 +11,7 @@ test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code].
 Guarantees:
   - numeric print probes collect text through a shape-preserving capture scope
     [tested: test_finite_floats_print_the_arbiters_layout,
-    test_gnd_str_spells_numbers_the_engines_way; commit=WORKTREE]
+    test_gnd_str_spells_numbers_the_engines_way; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

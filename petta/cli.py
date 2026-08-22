@@ -3,7 +3,7 @@ Guarantees:
   - an upstream ``src/main.pl`` tree retains its original command and optional
     MORK preload, while the current ``engine/main.pl`` tree delegates backend
     discovery to the engine [tested: test_main_retains_the_upstream_layout and
-    test_main_asks_for_native_backends_and_names_none; commit=WORKTREE]
+    test_main_asks_for_native_backends_and_names_none; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

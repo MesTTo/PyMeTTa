@@ -9,11 +9,11 @@ Guarantees:
   - each installed array operation has at least one arrow declaration and
     broadcast-shape works forwards and backwards as a CLP(FD) relation
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=WORKTREE]
+     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the module fixture retires its process-global operation registrations, so
     later suites do not inherit array callables [tested: python -m pytest
     bindings/python/tests/test_arrays.py bindings/python/tests/test_operator_documentation.py;
-    commit=WORKTREE]
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

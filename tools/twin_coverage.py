@@ -33,7 +33,7 @@ Assumes:
     [tested: test_the_twin_set_is_derived_from_the_one_corpus]
   - inferences are deterministic across processes, so one sample decides a
     budget [measured 2026-08-22: examples/basics/factorial.metta answered 4748
-    inferences on three fresh interpreters, 0.0000% spread; commit=WORKTREE]
+    inferences on three fresh interpreters, 0.0000% spread; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an assert-family head states one claim, and Python's `assert` is its image
     [source: engine/prelude.metta 56-103; ai-python-first-revamp-discussion.md
     section 9d rule 1, "assert and pytest for the assert family"]
@@ -109,7 +109,7 @@ DECLINED = "-"
 #: looser; the overrun itself is priced with its mechanism in
 #: ai-report-p14-coverage.md rather than hidden inside the band
 #: [measured 2026-08-22: `twin_coverage.py --measure`, ai-tmp/p14c-measure.log;
-#: commit=WORKTREE].
+#: commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 BAND_PERCENT = 10.0
 
 #: What AUTHORING a compiled definition costs, which the band must allow
@@ -123,13 +123,13 @@ BAND_PERCENT = 10.0
 #: examples/control/if.metta costs 2092 with a ceiling of 2301, so one
 #: decorated definition could not fit and six control twins had to stay at the
 #: container door [found 2026-08-22 by the control agent, which said the rule
-#: was wrong and was right; commit=WORKTREE].
+#: was wrong and was right; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 DEFINITION_WARMUP = 1456
 DEFINITION_COST = 765
 
 #: The tree's own counter allowance, so a budget here reads the way a
 #: benchmark baseline reads [source: bindings/python/petta/benchmarking.py
-#: _COUNTER_TOLERANCE; commit=WORKTREE].
+#: _COUNTER_TOLERANCE; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 TOLERANCE = 4
 
 #: The four doors that take MeTTa source text. A twin may not use any of them:
@@ -163,7 +163,7 @@ DECLARATION_NAMES = frozenset({"BUDGET", "RUNG", "SPREAD"})
 #: The example heads that STATE A CLAIM. Their Python image is the `assert`
 #: statement, so the lane counts them against the twin's assertions rather
 #: than asking the twin to call them [source: engine/prelude.metta lines
-#: 56-103, the assert family; commit=WORKTREE].
+#: 56-103, the assert family; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 ASSERT_HEADS = frozenset({
     "test", "test-no-answer", "assert", "assertEqual", "assertAlphaEqual",
     "assertEqualToResult", "assertAlphaEqualToResult", "assertIncludes",
@@ -176,7 +176,7 @@ ASSERT_HEADS = frozenset({
 #: 1 of the terminology law takes Python's spelling where it does
 #: [source: ai-python-first-revamp-discussion.md section 9e, the
 #: dissolves-into-Python-protocols bucket, and section 9d rule 1;
-#: commit=WORKTREE]. A twin whose SUBJECT is one of these functions says so
+#: commit=f88aa8be03cb64cb59d3307515ded8701f418321]. A twin whose SUBJECT is one of these functions says so
 #: on the line, `# rung: <reason>`, which is how the ladder keeps the rung
 #: while making the drop visible.
 DISSOLVED = {
@@ -727,14 +727,14 @@ def _launch(source: str, root: Path) -> Run:
 #: inferences, 3 cost 46435 and 6 cost 46570, exactly 45 per entry, so
 #: something walks PATH inside a counted path and the same twin read a
 #: different figure under `sh check.sh` than run directly. `git` and `swipl`
-#: both live in /usr/bin here [commit=WORKTREE].
+#: both live in /usr/bin here [commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 #:
 #: It is PASSED to the child, never written into this process. Writing it into
 #: `os.environ` is what the first version did, and under pytest that escaped
 #: the lane: `test_twin_coverage.py` calls run_twin, so every later test in the
 #: same process lost `~/.elan/bin` from PATH and the two LeaTTa conformance
 #: tests failed to find `lake` [source: bindings/python/petta/benchmarking.py
-#: builds its child environment the same way and says why; commit=WORKTREE].
+#: builds its child environment the same way and says why; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
 
 #: What the child keeps from this process, beside the pinned PATH. HOME and the
@@ -948,7 +948,7 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
     the space answers a `(= $head $body)` match with, never as Python-side
     state [source: ai-python-first-revamp-discussion.md section 1b point 2,
     "any revamp design that would make a Python-defined function invisible
-    to match is wrong by this test"; commit=WORKTREE].
+    to match is wrong by this test"; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     missing = set(left.heads) - set(right.heads)
     if not missing:
@@ -968,7 +968,7 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
 #: inferences, and the cheapest twin that still queries a space cost 449
 #: [measured 2026-08-22: examples/control/caseconstrain.metta and
 #: examples/spaces/spaces3.metta, `twin_coverage.py --measure`;
-#: commit=WORKTREE].
+#: commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 ENGINE_FLOOR = 100
 
 
@@ -984,7 +984,7 @@ def _price(
     invites: "matching their text is a far cheaper route to pass the tests
     than implementing the spec" [source:
     https://www.christianfindlay.com/blog/basilisk-conformance-apology,
-    the python/typing conformance suite, 2026-08; commit=WORKTREE]. Inferences
+    the python/typing conformance suite, 2026-08; commit=f88aa8be03cb64cb59d3307515ded8701f418321]. Inferences
     are deterministic across processes here, so pinning both sides costs
     nothing in flakiness and catches a twin that stopped being one.
     """

@@ -1,22 +1,22 @@
 """Purpose: exercise the public typing and policy contracts introduced by P3.
 Guarantees:
   - all six dispatch axes are catalog-readable and patchable per function.
-  [tested: test_every_dispatch_axis_is_readable_settable_and_defaulted; commit=WORKTREE]
+  [tested: test_every_dispatch_axis_is_readable_settable_and_defaulted; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - type faults remain ordinary Error values that ``if-error`` can observe.
-  [tested: test_an_argument_type_fault_is_a_value_a_program_can_catch; commit=WORKTREE]
+  [tested: test_an_argument_type_fault_is_a_value_a_program_can_catch; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - DontEvalType declarations mask evaluation without relying on a type name.
-  [tested: test_a_user_declared_lazy_type_receives_its_argument_unevaluated; commit=WORKTREE]
+  [tested: test_a_user_declared_lazy_type_receives_its_argument_unevaluated; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a source duplicate is idempotent, operation registration refuses to adopt
     its existing row, and a duplicate public batch is rejected atomically.
-  [tested: test_a_duplicate_declaration_names_the_first_one; commit=WORKTREE]
+  [tested: test_a_duplicate_declaration_names_the_first_one; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - pragma! validates bound values before a working setting can change,
     keeps the arbiter's HE spellings accepted and unenforced, and refuses
     only keys outside the closed registry.
-  [tested: test_pragma_validates_values_and_refuses_only_unknown_keys; commit=WORKTREE]
+  [tested: test_pragma_validates_values_and_refuses_only_unknown_keys; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - under-applied arrow heads have no type instead of a tuple fallback.
-  [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=WORKTREE]
+  [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - empty-expression type observers report unit without changing classifiers.
-  [tested: test_the_empty_expressions_type_follows_the_arbiters_ruling; commit=WORKTREE]
+  [tested: test_the_empty_expressions_type_follows_the_arbiters_ruling; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None

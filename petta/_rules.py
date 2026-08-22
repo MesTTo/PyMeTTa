@@ -4,9 +4,9 @@ Guarantees:
   - each decorated generator parameter becomes a rule-local MeTTa variable,
     and every yielded value is an ordinary binary equation [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=WORKTREE].
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321].
   - equation halves share one static type parameter [tested:
-    sh check.sh mypy ty; commit=WORKTREE].
+    sh check.sh mypy ty; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 Open Obligations:
   To Do: None
   Hacks: None

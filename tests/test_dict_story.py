@@ -5,7 +5,7 @@ Guarantees:
   - a dict is a SPACE of (key value) atoms, a key holds one value, and the
     operations a comprehension needs are there: build from pairs, put,
     remove, size, membership, and the pair list back.
-  [tested: test_a_dict_is_a_space_a_comprehension_can_build; commit=WORKTREE]
+  [tested: test_a_dict_is_a_space_a_comprehension_can_build; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when: read as a claim about key ORDER. get-keys answers in the space's
   own order, which is insertion order here, and lib_dict.metta says so rather
   than promising it; the arbiter carries no dict ruling to check it against.
