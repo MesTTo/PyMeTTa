@@ -6,10 +6,12 @@ matches. `merge` is a computation and is written as one.
 `countitem` and `spacecount` stay at the container door, each for its own
 reason. A compiled `match(space, pattern, template)` reads its PATTERN in a
 scope where a lowercase name is a fresh variable, but it reads its TEMPLATE
-with the ordinary expression compiler, so the template `(foo $1)` raises
-"'foo' is not a function the engine knows"; a relation that is data on both
-sides of a match has no compiled spelling, and the residue table records that
-against P14.4. `spacecount`'s body names `foldall`, which is not a function
+with the ordinary expression compiler, which resolves a lowercase free name
+as a FUNCTION, so the template `(foo $1)` raises a refusal saying `foo` is
+not a parameter of `countitem`, not a function the engine knows, and not a
+capitalized data constructor. A relation that is data on both sides of a
+match has no compiled spelling, and the residue table records that against
+P14.4. `spacecount`'s body names `foldall`, which is not a function
 the engine knows either, so a body cannot reach it.
 """
 

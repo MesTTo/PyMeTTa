@@ -3,9 +3,9 @@
 `iter-next` answers a PAIR of the current value and the next state, so the
 whole iterator protocol is one equation over a number. Both definitions are
 computations and are written as ones: assignment in a compiled body IS
-MeTTa's `let`, so `x = n` and `nxt = n + 1` are the two `let*` pairs the
-original writes, and the returned Python tuple `(x, nxt)` is the expression
-`($X $Next)`.
+MeTTa's `let`, so `x = n` and `nxt = n + 1` are the two bindings the
+original's `let*` writes, compiled as nested one-pair `let*`s, and the
+returned Python tuple `(x, nxt)` is the expression `($X $Next)`.
 
 The runnable form stays at the container door because its `let*` pairs
 DESTRUCTURE: `(($x1 $it1) (iter-next $it))` binds two names from one answer,
