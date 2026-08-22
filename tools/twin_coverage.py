@@ -1,12 +1,31 @@
 """Purpose: turn "how much of MeTTa can be written in pure Python today" into a
 measured number with a derived backlog. Each example under `examples/` may gain
 a Python TWIN under `bindings/python/tests/twins/`, mirroring its path; this
-lane runs the example and its twin, requires their answers to agree under
-ALPHA-EQUIVALENCE, requires the twin to have used no MeTTa source text, and
-prices the twin against the original on the engine's own inference counter.
-Whatever a twin cannot say is a RESIDUE entry naming the missing spelling and
-the plan row it lands on, so the backlog derives itself instead of being
-believed.
+lane runs the example and its twin, requires the twin to prove every claim the
+example makes, to make the example's definitions matchable, to use no MeTTa
+source text, and to spell in Python what Python already spells. Whatever a twin
+cannot say is a RESIDUE entry naming the missing spelling and the plan row it
+lands on, so the backlog derives itself instead of being believed.
+
+A TWIN IS AN ORDINARY PYTHON PROGRAM, and its shape is its own. Until
+2026-08-22 this lane required one yielded answer group per runnable form of the
+example, in source order, and compared the groups pairwise. That contract made
+TRANSLITERATION MANDATORY: the ledger's own worked example, `@m.define` plus
+`assert f(1) == [1]`, scored zero forms and zero coverage, because it yields
+nothing and never calls `test`; the only passing shape was
+`yield m.eval(S.test(...))` once per form, which is why the corpus that grew
+under it held 1,313 of those and not one `assert`. The check above it read
+punctuation, so tightening it made better transliterations rather than fewer
+[measured 2026-08-22: the idiomatic twin refused by the old lane, restored;
+ai-python-first-revamp-discussion.md sections 7, 9b and 9k are the design
+authority and the corpus contradicted all three].
+
+What replaced the pairwise comparison is a count against a count. The example
+states a claim per assert-family form; the twin states one per `assert`; a twin
+that runs to completion has PROVED every claim it states, because a false
+assertion raises. Nothing about either file's shape is observed, so a twin may
+loop where the example repeats, may name an intermediate, and may do in Python
+what the example asked the engine to do.
 
 Assumes:
   - discovery comes from example_parity.corpus/1 and nowhere else, so a twin's
@@ -15,18 +34,24 @@ Assumes:
   - inferences are deterministic across processes, so one sample decides a
     budget [measured 2026-08-22: examples/basics/factorial.metta answered 4748
     inferences on three fresh interpreters, 0.0000% spread; commit=c7191d87d9cbfce2870e586057168ec9103845ca]
+  - an assert-family head states one claim, and Python's `assert` is its image
+    [source: engine/prelude.metta 56-103; ai-python-first-revamp-discussion.md
+    section 9d rule 1, "assert and pytest for the assert family"]
 Guarantees:
   - a twin that reaches the engine through MeTTa source text is REFUSED, both
     the four source doors and any string that is not a name or val()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
-  - answers are compared up to consistent renaming of variables, never by the
-    spelling of a variable name [tested: test_a_renamed_variable_still_agrees,
-    test_a_wrong_answer_is_still_refused]
+  - a twin stating fewer claims than its example is a finding, so a skip
+    cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
+  - a false claim fails the twin, because a raised AssertionError leaves the
+    run in error [tested: test_a_failing_assertion_is_a_finding]
   - a twin's definitions are visible to `match` where the original's are, so a
     Python-authored definition cannot pass by hiding in Python-side state
     [tested: test_a_hidden_definition_is_a_finding]
-  - every form a twin declines carries a residue entry, so a skip cannot be
-    silent [tested: test_an_undeclared_skip_is_a_finding]
+  - a twin writing MeTTa in Python punctuation is a finding naming the Python
+    spelling it should have used [tested:
+    test_a_dissolved_head_names_its_python_spelling,
+    test_a_yielding_twin_is_a_finding]
 Decides:
   - twins live under `bindings/python/tests/twins/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
@@ -52,9 +77,9 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import keyword
 import re
-import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -107,6 +132,126 @@ NAMING_NAMESPACES = frozenset({"S", "V"})
 #: program text: the inference pin, and the reason it sits below the top
 #: rung. Both are read from source the way the lane reads BUDGET.
 DECLARATION_NAMES = frozenset({"BUDGET", "RUNG"})
+
+#: The example heads that STATE A CLAIM. Their Python image is the `assert`
+#: statement, so the lane counts them against the twin's assertions rather
+#: than asking the twin to call them [source: engine/prelude.metta lines
+#: 56-103, the assert family; commit=WORKTREE].
+ASSERT_HEADS = frozenset({
+    "test", "test-no-answer", "assert", "assertEqual", "assertAlphaEqual",
+    "assertEqualToResult", "assertAlphaEqualToResult", "assertIncludes",
+    "assertEqualMsg", "assertAlphaEqualMsg", "assertEqualToResultMsg",
+    "assertAlphaEqualToResultMsg",
+})
+
+#: What Python already spells, and how. A twin naming one of these heads is
+#: writing MeTTa in Python punctuation: the concept exists in Python and rule
+#: 1 of the terminology law takes Python's spelling where it does
+#: [source: ai-python-first-revamp-discussion.md section 9e, the
+#: dissolves-into-Python-protocols bucket, and section 9d rule 1;
+#: commit=WORKTREE]. A twin whose SUBJECT is one of these functions says so
+#: on the line, `# rung: <reason>`, which is how the ladder keeps the rung
+#: while making the drop visible.
+DISSOLVED = {
+    "test": "Python's own assert",
+    "assert": "Python's own assert",
+    "assertEqual": "Python's own assert",
+    "assertAlphaEqual": "assert, with a.alpha_eq(b)",
+    "assertEqualToResult": "Python's own assert",
+    "assertAlphaEqualToResult": "assert, with a.alpha_eq(b)",
+    "assertIncludes": "assert, with Python's `in`",
+    "add-atom": "space += atom",
+    "add-reduct": "space += the evaluated atom",
+    "remove-atom": "space -= atom",
+    "match": "space[pattern], the subscript door",
+    "collapse": "list()",
+    "car-atom": "e[0]",
+    "cdr-atom": "e[1:]",
+    "decons-atom": "head, *tail = e",
+    "cons-atom": "building the term by calling its head",
+    "size-atom": "len(e)",
+    "index-atom": "e[i]",
+    "map-atom": "a comprehension, or map()",
+    "filter-atom": "a comprehension, or filter()",
+    "foldl-atom": "functools.reduce",
+    "max-atom": "max()",
+    "min-atom": "min()",
+    "sort-strings": "sorted()",
+    "if": "Python's own if, or its conditional expression",
+    "let": "assignment",
+    "let*": "assignment",
+    "case": "Python's match statement",
+    "switch": "Python's match statement",
+    "println!": "print()",
+    "trace!": "print(), or logging",
+    "format-args": "an f-string",
+    "bind!": "a Python name binding",
+    "get-type": "space.type(atom)",
+    "get-doc": "help(), or space.doc(atom)",
+    "new-space": "space()",
+}
+
+
+def example_forms(example: Path) -> list[str]:
+    """The head of every runnable `!` form of an example, in source order.
+
+    Read by balancing parentheses over the source rather than by running the
+    engine, so the lane can say what KIND of claim a form makes without
+    paying for a second run of an example that costs 260 million inferences
+    [tested: test_the_form_reader_agrees_with_the_engines_own_count].
+    """
+    text, out, index, size = example.read_text(encoding="utf-8"), [], 0, 0
+    source = text
+    size = len(source)
+    while index < size:
+        char = source[index]
+        if char == ";":
+            index = source.find("\n", index)
+            if index < 0:
+                break
+            continue
+        if char == '"':
+            index = _past_string(source, index)
+            continue
+        if char == "!" and index + 1 < size and source[index + 1] == "(":
+            start = index
+            index = _past_form(source, index + 1)
+            head = re.match(r"!\(\s*([^\s()]+)", source[start:index])
+            out.append(head.group(1) if head else "")
+            continue
+        index += 1
+    return out
+
+
+def _past_string(source: str, index: int) -> int:
+    """The index just past a double-quoted literal starting at `index`."""
+    index += 1
+    while index < len(source) and source[index] != '"':
+        index += 2 if source[index] == "\\" else 1
+    return index + 1
+
+
+def _past_form(source: str, index: int) -> int:
+    """The index just past the parenthesised form opening at `index`."""
+    depth, size = 0, len(source)
+    while index < size:
+        char = source[index]
+        if char == ";":
+            index = source.find("\n", index)
+            if index < 0:
+                return size
+            continue
+        if char == '"':
+            index = _past_string(source, index)
+            continue
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+        index += 1
+    return size
 
 
 def twin_for(example: Path, root: Path = REPO) -> Path:
@@ -197,9 +342,10 @@ def _named_strings(tree: ast.Module) -> set[int]:
                     if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
                 )
         elif isinstance(node, ast.Subscript):
-            named = isinstance(node.value, ast.Name) and node.value.id in NAMING_NAMESPACES
-            if named:
-                permitted.add(id(node.slice))
+            # Any subscript KEY is a name: `S["f"]` names an atom and
+            # `answers["x"]` names a binding, and no door takes MeTTa source
+            # text through a subscript.
+            permitted.add(id(node.slice))
         elif isinstance(node, ast.Call):
             if _callee(node) in NAMING_CALLS:
                 permitted.update(id(argument) for argument in node.args)
@@ -265,6 +411,22 @@ def _head_symbol(node: ast.expr) -> str | None:
     return None
 
 
+def _symbol_head(node: ast.expr) -> str | None:
+    """The head of a term-building expression, when that head is a SYMBOL.
+
+    `expr(S.f, a)` says with a function what `S.f(a)` says with a call, but
+    `expr(V.x)` has no shorter spelling at all: a variable-headed expression
+    is the one shape the builders do not reach, because `Var` is not callable
+    [measured 2026-08-22: `V.x()` raises TypeError; filed as residue against
+    P14.4].
+    """
+    named = _head_symbol(node)
+    if named is None:
+        return None
+    root = node.value if isinstance(node, (ast.Attribute, ast.Subscript)) else None
+    return named if isinstance(root, ast.Name) and root.id == "S" else None
+
+
 def idiom(twin: Path) -> list[str]:
     """Where a twin spells in library calls what Python's own syntax spells.
 
@@ -275,7 +437,7 @@ def idiom(twin: Path) -> list[str]:
     authority is ai-python-first-revamp-discussion.md, sections 9c and 9k.
     A twin that declares `RUNG = "<reason>"` is exempt, because a drop with a
     stated reason is what the ladder is for.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """
     tree = _parse(twin)
     if tree is None or _rung_reason(tree) is not None:
         return []
@@ -298,9 +460,22 @@ def idiom(twin: Path) -> list[str]:
         if isinstance(node, ast.FunctionDef) and _defines(node)
         for inner in ast.walk(node)
     }
-    findings: list[tuple[int, str]] = []
+    findings: list[tuple[int, str]] = [
+        (node.lineno, "twin() yields, so it mirrors the example FORM BY FORM; "
+                      "a twin is an ordinary function that does what the "
+                      "example does")
+        for node in _twin_body(tree)
+        if isinstance(node, (ast.Yield, ast.YieldFrom))
+    ]
     for node in ast.walk(tree):
         if isinstance(node, ast.Subscript):
+            spelled = _head_symbol(node)
+            if spelled is not None and spelled.startswith("&"):
+                findings.append((
+                    node.lineno,
+                    f"{spelled!r} names a SPACE as a symbol; a space is a "
+                    f"handle, and every context-relative door hangs off it",
+                ))
             name = _subscripted_name(node)
             if name is not None:
                 namespace = node.value.id
@@ -308,13 +483,19 @@ def idiom(twin: Path) -> list[str]:
                     (node.lineno, f'{namespace}["{name}"] is {namespace}.{name}')
                 )
         elif isinstance(node, ast.Call):
-            head = _head_symbol(node.args[0]) if _callee(node) == "expr" and node.args else None
+            head = _symbol_head(node.args[0]) if _callee(node) == "expr" and node.args else None
             if head is not None:
                 findings.append(
-                    (node.lineno, f"expr(...) builds what calling the head builds")
+                    (node.lineno, "expr(...) builds what calling the head builds")
                 )
             called = _head_symbol(node.func)
             operator = called if called in OPERATOR_HEADS else head
+            dissolved = DISSOLVED.get(called) or DISSOLVED.get(head)
+            if dissolved is not None:
+                findings.append((
+                    node.lineno,
+                    f"the head {(called or head)!r} is {dissolved}",
+                ))
             # At the operator's OWN arity only: `S["+"](1)` is a partial
             # application, which Python has no operator spelling for.
             arity = len(node.args) - (1 if head is not None else 0)
@@ -331,6 +512,28 @@ def idiom(twin: Path) -> list[str]:
         for line, what in sorted(set(findings))
         if line not in excused
     ]
+
+
+def _twin_body(tree: ast.Module) -> list[ast.AST]:
+    """Every node of the twin's own `twin(m)` body, excluding the nested
+    functions it defines: a `@m.define`-compiled generator SHOULD yield,
+    because there yield is nondeterminism, while a yield in twin() itself is
+    the form-by-form mirror this lane exists to refuse.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == "twin":
+            nested = {
+                id(inner)
+                for statement in ast.walk(node)
+                if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda))
+                and statement is not node
+                for inner in ast.walk(statement)
+            }
+            return [
+                inner for inner in ast.walk(node)
+                if id(inner) not in nested
+            ]
+    return []
 
 
 def _parse(twin: Path) -> ast.Module | None:
@@ -453,18 +656,23 @@ def run_example(path: Path, root: Path = REPO) -> Run:
 
 
 def run_twin(twin: Path, root: Path = REPO) -> Run:
-    """The twin, in its own process, priced the same way. The module's
-    twin(m) is a generator, so consuming it inside the block counts the
-    definitions it installs as well as the forms it evaluates.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The twin, in its own process, priced the same way.
+
+    `twin(m)` is an ordinary function and its assertions are the claims it
+    proves, so running it to completion IS the check: an AssertionError
+    propagates and the lane reads it as a failed claim. Nothing about the
+    twin's SHAPE is observed here, which is the point of the contract change
+    [tested: test_a_failing_assertion_is_a_finding].
+    """
     return _launch(
         _PREAMBLE
         + "import importlib.util\n"
         f"_spec = importlib.util.spec_from_file_location('petta_twin', {str(twin)!r})\n"
         "_module = importlib.util.module_from_spec(_spec)\n"
         "_spec.loader.exec_module(_module)\n"
+        "groups = []\n"
         "with m.stats() as spent:\n"
-        "    groups = [None if g is None else list(g) for g in _module.twin(m)]\n"
+        "    _module.twin(m)\n"
         + _EPILOGUE,
         root,
     )
@@ -485,24 +693,6 @@ def budget_of(twin: Path) -> int | None:
 
 
 # ------------------------------------------------------------------ comparison
-
-
-def agree(left: str, right: str) -> bool:
-    """Two written answer groups, compared up to consistent renaming of
-    variables. `=alpha` is the law's own relation and the library ships it;
-    comparing the spelling of a variable name instead would make two
-    identical answers differ because the two sides numbered a fresh variable
-    differently.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    from petta.atoms import (  # noqa: PLC0415  -- deferred so the corpus queries above need no engine
-        Atom,
-        alpha_eq,
-    )
-
-    first, second = parity._value(left), parity._value(right)
-    if isinstance(first, Atom) and isinstance(second, Atom):
-        return alpha_eq(first, second)
-    return first == second
 
 
 #: A form no Python spelling reaches, so the twin declines it; and a form a
@@ -548,47 +738,47 @@ class Verdict:
         return self.twin_cost / self.example_cost
 
 
+def assertions(twin: Path) -> int:
+    """How many claims the twin STATES, counted as `assert` statements.
+
+    Python's own assert is the image of the example's assert family (rule 1
+    of the terminology law: where Python has the concept, Python's spelling
+    wins), so this is the twin's side of what the example claims. Counted
+    from source rather than from a run, so a twin that raises before its last
+    assertion still reports how many it meant to make.
+    """
+    tree = _parse(twin)
+    return sum(isinstance(node, ast.Assert) for node in ast.walk(tree)) if tree else 0
+
+
 def compare(
-    relative: str, left: Run, right: Run, declared: set[int | None]
-) -> tuple[int, list[str]]:
-    """How many of the example's forms the twin answered alpha-equal, and
-    everything that is wrong with the rest. A pure function of two runs, so
-    the comparison can be shown failing without an engine.
+    relative: str, example: Path, twin: Path, declared: set[int | None]
+) -> tuple[int, int, list[str]]:
+    """The claims the example makes, the ones the twin proves, and what is
+    wrong with the difference.
+
+    The example states a claim per assert-family form; the twin states one
+    per `assert`. A twin that runs to completion has PROVED every claim it
+    states, because a false assertion raises. So the comparison is a count
+    against a count, and nothing about either file's shape enters it. What
+    stops a twin from claiming less than its example is the count itself;
+    what stops it from claiming something cheap instead is the two-sided
+    budget in `_price`, which a twin that answers constants cannot meet.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    forms = len(left.outcome.groups)
-    if len(right.outcome.groups) != forms:
-        return 0, [
-            f"{relative}: the twin answered {len(right.outcome.groups)} forms, "
-            f"the example {forms}"
-        ]
+    heads = example_forms(example)
+    claims = sum(head in ASSERT_HEADS for head in heads)
+    declined = len([index for index in declared if index is not None])
+    owed = max(0, claims - declined)
+    stated = assertions(twin)
 
-    covered, findings = 0, []
-    for index, (want, got) in enumerate(
-        zip(left.outcome.groups, right.outcome.groups, strict=True)
-    ):
-        if got == DECLINED:
-            if index not in declared:
-                findings.append(
-                    f"{relative}: form {index} is declined by the twin and "
-                    f"declared by no residue entry"
-                )
-            continue
-        if not agree(want, got):
-            findings.append(
-                f"{relative}: form {index} answers {got} where the example "
-                f"answers {want}"
-            )
-            continue
-        covered += 1
-
-    missing = set(left.heads) - set(right.heads)
-    if missing:
+    findings = []
+    if stated < owed:
         findings.append(
-            f"{relative}: the twin's space does not answer a (= $head $body) "
-            f"match with {' '.join(sorted(missing))}, so a definition the "
-            f"example makes matchable is hidden in Python"
+            f"{relative}: the example states {claims} claims and the twin "
+            f"{stated} assertions, {owed - stated} short; a claim a twin "
+            f"cannot make is a residue entry, never a silent gap"
         )
-    return covered, findings
+    return owed, min(stated, owed), findings
 
 
 def check(example: Path, entries: list[dict], root: Path = REPO) -> Verdict:
@@ -603,21 +793,34 @@ def check(example: Path, entries: list[dict], root: Path = REPO) -> Verdict:
         side = "the example" if left.outcome.error else "the twin"
         error = left.outcome.error or right.outcome.error
         findings.append(f"{relative}: {side} failed to run: {error}")
-        return Verdict(example, len(left.outcome.groups), 0, None, None, tuple(findings))
+        claims = sum(head in ASSERT_HEADS for head in example_forms(example))
+        return Verdict(example, claims, 0, None, None, tuple(findings))
 
-    covered, differences = compare(
-        relative, left, right, _declined(entries, relative)
+    claims, covered, differences = compare(
+        relative, example, twin, _declined(entries, relative)
     )
     findings.extend(differences)
+    findings.extend(_visible(relative, left, right))
     findings.extend(_price(relative, twin, left, right))
-    return Verdict(
-        example,
-        len(left.outcome.groups),
-        covered,
-        left.cost,
-        right.cost,
-        tuple(findings),
-    )
+    return Verdict(example, claims, covered, left.cost, right.cost, tuple(findings))
+
+
+def _visible(relative: str, left: Run, right: Run) -> list[str]:
+    """The reflectivity check, and the one thing here that no restructuring
+    may weaken: a Python-authored definition must land as an ordinary atom
+    the space answers a `(= $head $body)` match with, never as Python-side
+    state [source: ai-python-first-revamp-discussion.md section 1b point 2,
+    "any revamp design that would make a Python-defined function invisible
+    to match is wrong by this test"; commit=WORKTREE].
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    missing = set(left.heads) - set(right.heads)
+    if not missing:
+        return []
+    return [
+        f"{relative}: the twin's space does not answer a (= $head $body) "
+        f"match with {' '.join(sorted(missing))}, so a definition the "
+        f"example makes matchable is hidden in Python"
+    ]
 
 
 def _price(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
@@ -659,7 +862,7 @@ def _price(relative: str, twin: Path, left: Run, right: Run) -> list[str]:
 
 
 def _folders(verdicts: list[Verdict], root: Path) -> dict[str, tuple[int, ...]]:
-    """Per folder: files passing, files in the corpus, forms covered, forms asked.
+    """Per folder: files passing, files in the corpus, claims proved, claims made.
 
     A file passes when its twin has NOTHING wrong with it, so a twin that runs
     but disagrees, overruns its budget or smuggles source text buys nothing.
@@ -681,12 +884,12 @@ def _folders(verdicts: list[Verdict], root: Path) -> dict[str, tuple[int, ...]]:
 
 
 def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> None:
-    print(f"{'example':44} {'forms':>5} {'twinned':>7} {'metta':>8} {'twin':>8} {'ratio':>6}")
+    print(f"{'example':44} {'claims':>6} {'proved':>6} {'metta':>8} {'twin':>8} {'ratio':>6}")
     for verdict in verdicts:
         ratio = verdict.ratio
         print(
             f"{verdict.example.relative_to(root)!s:44} "
-            f"{verdict.forms:5} {verdict.covered:7} "
+            f"{verdict.forms:6} {verdict.covered:6} "
             f"{verdict.example_cost if verdict.example_cost is not None else '-':>8} "
             f"{verdict.twin_cost if verdict.twin_cost is not None else '-':>8} "
             f"{f'{ratio:.2f}' if ratio else '-':>6}"
@@ -696,7 +899,7 @@ def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> N
     folders = _folders(verdicts, root)
     for folder, (passing, corpus_files, covered, forms) in sorted(folders.items()):
         answering = (
-            f", {covered}/{forms} forms of those files answering alpha-equal"
+            f", {covered}/{forms} claims of those files proved"
             if forms
             else ""
         )
@@ -704,7 +907,7 @@ def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> N
     totals = [sum(counts[index] for counts in folders.values()) for index in range(4)]
     print(
         f"coverage TOTAL: {totals[0]}/{totals[1]} files twinned and passing, "
-        f"{totals[2]}/{totals[3]} forms of those files answering alpha-equal"
+        f"{totals[2]}/{totals[3]} claims of those files proved"
     )
 
     for kind in (DECLINED_KIND, FRICTION_KIND):

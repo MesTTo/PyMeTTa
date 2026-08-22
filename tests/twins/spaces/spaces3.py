@@ -1,80 +1,43 @@
-"""The Python twin of examples/spaces/spaces3.metta: what a pattern shape selects.
+"""examples/spaces/spaces3.metta in Python: what a pattern's SHAPE selects.
 
-Four matches over the same two atoms differ only in the PATTERN: `($x)` selects
-the one-element expression, a bare `$x` selects everything, and the template
-decides what comes back.
-
-A write is a statement, so the container protocol is its spelling: `space += atom`
-IS `(add-atom &wuspace atom)`, and that form answers the unit, which is what the
-WROTE group below says. Nothing is taken on trust by saying so: the five
-assertions after the writes all read `&wuspace`, so a write that did not happen
-fails five forms.
+Two atoms go into a space, `(wu)` and `(wu 42)`. Four queries over them differ
+only in the pattern: `($x)` is a one-element expression and selects only the
+one-element atom, while a bare `$x` selects everything, which is what
+enumerating the space already gives you. The example's template argument has no
+counterpart here and needs none: a query answers BINDINGS, and building a term
+out of a binding is ordinary Python.
 """
 
 from petta import S, V, expr
 
-#: The answer group a write form contributes. `add-atom` answers the unit, and
-#: the unit is what Python's own None means at this seam (§9d's concept map).
-WROTE = (expr(),)
-
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4568 to 4090, -478 (-10.5%), by the P14 twin-style
-#: rewrite, and the whole delta is the two writes: the `!(add-atom &wuspace
-#: ...)` forms now go through the container door, `wuspace += atom`, so each
-#: costs 239 inferences instead of translating and reducing a two-argument
-#: (add-atom ...) call. The five assertions did not move; the same terms
-#: spelled with named symbols and tuples measure identically, which sibling
-#: files with no writes confirm by holding their figure exactly.
-#: Prior: ADDED 2026-08-22 at 4568 by the wave-3 spaces baseline.
-BUDGET = 4090
+#: RE-PINNED 2026-08-22, 4090 to 449, -3641 (-89.0%), by the twin contract
+#: change: `collapse`, `msort` and the template argument left the engine for
+#: `list`, `sorted` and an ordinary comprehension, which on atoms already held
+#: in Python are native structure operations with no crossing at all. Against
+#: the example's 8581 the ratio is 0.0523, a nineteenfold reduction, and the
+#: transliterated twin this replaces cost 4090 for the same claims
+#: [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
+#: examples/spaces/spaces3.metta`]. What did NOT move is the matching: two
+#: queries still run in the engine, and the five assertions all read them.
+BUDGET = 449
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Write two atoms, then ask four questions about them."""
     wuspace = m.space("&wuspace")
-    here = S[wuspace.space_name]
-
-    # !(add-atom &wuspace (wu))
     wuspace += S.wu()
-    yield WROTE
-
-    # !(add-atom &wuspace (wu 42))
     wuspace += (S.wu, 42)
-    yield WROTE
 
-    # A one-element pattern selects the one-element atom. The trailing comma is
-    # Python's own way of saying "a tuple of one", and MeTTa's ($x) needs it.
-    # !(test (collapse (match &wuspace ($1) ($1))) ((wu)))
-    yield m.eval(
-        S.test(S.collapse(S.match(here, (V.x,), (V.x,))), (S.wu(),))
-    )
+    # `($x)` is an expression of one element, so only `(wu)` matches it, and
+    # $x binds to that element rather than to the whole atom.
+    one = wuspace.query(expr(V.x))
+    assert [row.x for row in one] == [S.wu]
+    assert [expr(row.x) for row in one] == [S.wu()]
+    assert [S.hu(row.x) for row in one] == [S.hu(S.wu)]
 
-    # !(test (collapse (match &wuspace ($1) (hu $1))) ((hu wu)))
-    yield m.eval(
-        S.test(S.collapse(S.match(here, (V.x,), S.hu(V.x))), (S.hu(S.wu),))
-    )
-
-    # !(test (collapse (match &wuspace ($1) $1)) (wu))
-    yield m.eval(S.test(S.collapse(S.match(here, (V.x,), V.x)), (S.wu,)))
-
-    # A bare variable pattern is every atom, which is get-atoms by another name.
-    # !(test (msort (collapse (match &wuspace $1 $1)))
-    #        (msort (collapse (get-atoms &wuspace))))
-    yield m.eval(
-        S.test(
-            S.msort(S.collapse(S.match(here, V.x, V.x))),
-            S.msort(S.collapse(S["get-atoms"](here))),
-        )
-    )
-
-    # !(test (msort (collapse (match &wuspace $1 (wu $1)))) ((wu (wu)) (wu (wu 42))))
-    yield m.eval(
-        S.test(
-            S.msort(S.collapse(S.match(here, V.x, S.wu(V.x)))),
-            (S.wu(S.wu()), S.wu(S.wu(42))),
-        )
+    # A bare variable matches every atom, which is what iterating a space is.
+    assert sorted(wuspace.query(V.x)["x"], key=str) == sorted(wuspace, key=str)
+    assert sorted((S.wu(row.x) for row in wuspace.query(V.x)), key=str) == sorted(
+        [S.wu(S.wu()), S.wu(S.wu(42))], key=str
     )

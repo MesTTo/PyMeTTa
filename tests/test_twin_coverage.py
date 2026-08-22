@@ -175,69 +175,88 @@ def test_a_string_in_a_compiled_body_is_a_metta_literal(tmp_path):
 # -------------------------------------------------------------- alpha equality
 
 
-def test_a_renamed_variable_still_agrees():
-    """`=alpha` is the law's own relation.
+def test_the_form_reader_agrees_with_the_engines_own_count():
+    """The lane reads an example's forms without running it.
 
-    Two sides numbering a fresh variable differently answered the same thing.
+    Balancing parentheses over source is only usable if it counts what the
+    engine counts, so this holds it to the corpus rather than to a fixture.
     """
-    assert coverage.agree("((f $x))", "((f $y))")
-    assert coverage.agree("((f $x $x))", "((f $a $a))")
-    assert coverage.agree("(True)", "(true)"), "a spelling is not an answer"
+    for example in coverage.written():
+        heads = coverage.example_forms(example)
+        assert heads, example
+        assert all(head for head in heads), example
 
 
-def test_a_wrong_answer_is_still_refused():
-    """Renaming is not licence.
-
-    A different SHAPE is a different answer, and so is a variable used twice
-    where the other side used two.
-    """
-    assert not coverage.agree("((f $x))", "((g $x))")
-    assert not coverage.agree("((f $x $x))", "((f $a $b))")
-    assert not coverage.agree("(1 2)", "(1 3)")
-    assert not coverage.agree("(1 2)", "(1)")
+def test_a_test_form_is_read_as_a_claim():
+    """An assert-family head states a claim; every other head does not."""
+    heads = coverage.example_forms(REPO / "examples" / "integration" / "git_import.metta")
+    assert heads == [
+        "import!",
+        "import_prolog_functions_from_file",
+        "git-import!",
+        "import!",
+        "test",
+    ]
+    assert sum(head in coverage.ASSERT_HEADS for head in heads) == 1
 
 
 # ------------------------------------------------------------------ comparison
 
 
-def test_an_undeclared_skip_is_a_finding():
-    """A twin declining a form is honest only when the residue table says so.
+def _claims(tmp_path, example_text, twin_text, declared=frozenset()):
+    """One example and one twin, compared without an engine."""
+    example = tmp_path / "x.metta"
+    example.write_text(example_text, encoding="utf-8")
+    twin = tmp_path / "x.py"
+    twin.write_text(twin_text, encoding="utf-8")
+    return coverage.compare("x.metta", example, twin, set(declared))
 
-    Otherwise "covered" quietly means "skipped".
+
+def test_a_twin_that_claims_less_is_a_finding(tmp_path):
+    """A claim a twin cannot make is a residue entry, never a silent gap.
+
+    Without this, deleting an assertion would read as coverage rather than as
+    the hole it is.
     """
-    left, right = _run(["(True)", "(2)"]), _run(["(True)", coverage.DECLINED])
-    covered, findings = coverage.compare("x.metta", left, right, set())
-    assert covered == 1
-    assert any("declared by no residue entry" in f for f in findings)
+    two = "!(test (f 1) 1)\n!(test (f 2) 4)\n"
+    owed, proved, findings = _claims(tmp_path, two, "def twin(m):\n    assert f(1) == [1]\n")
+    assert (owed, proved) == (2, 1)
+    assert any("1 short" in finding for finding in findings)
 
-    covered, findings = coverage.compare("x.metta", left, right, {1})
-    assert (covered, findings) == (1, [])
+    owed, proved, findings = _claims(
+        tmp_path, two, "def twin(m):\n    assert f(1) == [1]\n", declared={1}
+    )
+    assert (owed, proved, findings) == (1, 1, [])
+
+
+def test_a_claim_stated_anywhere_counts(tmp_path):
+    """Shape is the twin's own business.
+
+    Two assertions inside a loop are two claims, which is the whole point of
+    dropping the form-by-form mirror.
+    """
+    twin = (
+        "def twin(m):\n"
+        "    for n in (1, 2):\n"
+        "        assert f(n) == [n * n]\n"
+        "        assert g(n) == [n]\n"
+    )
+    owed, proved, findings = _claims(tmp_path, "!(test (f 1) 1)\n!(test (f 2) 4)\n", twin)
+    assert (owed, proved, findings) == (2, 2, [])
 
 
 def test_a_hidden_definition_is_a_finding():
     """Self-reflectivity: a definition lands as a matchable atom or it is not one.
 
-    A twin answering right while defining nothing is exactly what this
-    refuses.
+    A twin proving its claims while defining nothing in the space is exactly
+    what this refuses, and no restructuring may weaken it.
     """
-    left = _run(["(True)"], heads=("facF/1",))
-    right = _run(["(True)"], heads=())
-    covered, findings = coverage.compare("x.metta", left, right, set())
-    assert covered == 1
-    assert any("hidden in Python" in f for f in findings)
-    assert any("facF/1" in f for f in findings)
-
-
-def test_a_twin_answering_a_different_number_of_forms_is_a_finding():
-    """Group counts align the comparison.
-
-    Misaligned, every later form would be compared against the wrong original.
-    """
-    covered, findings = coverage.compare(
-        "x.metta", _run(["(1)", "(2)"]), _run(["(1)"]), set()
+    findings = coverage._visible(
+        "x.metta", _run([], heads=("facF/1",)), _run([], heads=())
     )
-    assert covered == 0
-    assert any("answered 1 forms, the example 2" in f for f in findings)
+    assert any("hidden in Python" in finding for finding in findings)
+    assert any("facF/1" in finding for finding in findings)
+    assert coverage._visible("x.metta", _run([], heads=()), _run([], heads=("f/1",))) == []
 
 
 # ---------------------------------------------------------------- the budgets
@@ -292,7 +311,7 @@ def test_the_band_refuses_a_twin_that_costs_more_than_it_was_pinned_to_allow():
 
 
 @pytest.mark.parametrize(
-    "name", ["basics/factorial.metta", "basics/relational_arithmetic.metta"]
+    "name", ["basics/identity.metta", "spaces/spaces3.metta"]
 )
 def test_a_shipped_twin_agrees_with_its_example_end_to_end(name):
     """Two twins run for real.
@@ -378,7 +397,7 @@ def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
         '"""Doc."""\n'
         "from petta import S, val\n"
         "def twin(m):\n"
-        "    yield m.eval(S.parse(val('(f a)')))\n",
+        "    assert m.eval(S.parse(val('(f a)'))) == []\n",
         encoding="utf-8",
     )
     assert coverage.scan(planted) == []
@@ -439,3 +458,73 @@ def test_a_line_may_state_its_own_rung(tmp_path):
     findings = coverage.idiom(planted)
     assert len(findings) == 1, findings
     assert 'S["g"] is S.g' in findings[0]
+
+
+def test_a_dissolved_head_names_the_python_spelling_it_replaces(tmp_path):
+    """A concept Python already has is written Python's way.
+
+    This is the check the punctuation rules could not make: `S.test(...)` and
+    `S["add-atom"](...)` are perfectly good Python that say MeTTa, which is
+    what the corpus filled up with while the lane only read spelling.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S, V\n"
+        "def twin(m):\n"
+        "    m += S['add-atom'](S['&self'], S.fact(1))\n"
+        "    assert m.eval(S.test(S.f(1), 1)) == []\n",
+        encoding="utf-8",
+    )
+    findings = coverage.idiom(planted)
+    assert any("space += atom" in finding for finding in findings)
+    assert any("Python's own assert" in finding for finding in findings)
+    assert any("names a SPACE as a symbol" in finding for finding in findings)
+
+
+def test_a_yielding_twin_is_a_finding(tmp_path):
+    """A yield in twin() is the form-by-form mirror, and that is the defect.
+
+    A yield inside a `@m.define`d body is nondeterminism and must stay legal,
+    so the rule reads the twin's own body and not the functions it defines.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S\n"
+        "def twin(m):\n"
+        "    @m.define\n"
+        "    def colour():\n"
+        "        yield S.red\n"
+        "    assert set(colour()) == {S.red}\n",
+        encoding="utf-8",
+    )
+    assert coverage.idiom(planted) == []
+
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S\n"
+        "def twin(m):\n"
+        "    yield m.eval(S.f(1))\n",
+        encoding="utf-8",
+    )
+    assert any("FORM BY FORM" in finding for finding in coverage.idiom(planted))
+
+
+def test_a_variable_headed_expression_keeps_its_only_spelling(tmp_path):
+    """`expr(V.x)` builds ($x) and nothing shorter reaches it.
+
+    `Var` is not callable, so the expr() rule must fire on a SYMBOL head
+    only; firing on a variable would demand a spelling that does not exist.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from petta import S, V, expr\n"
+        "def twin(m):\n"
+        "    assert list(m.query(expr(V.x))) == []\n"
+        "    assert list(m.query(V.x)['x']) == []\n",
+        encoding="utf-8",
+    )
+    assert coverage.scan(planted) == []
+    assert coverage.idiom(planted) == []
