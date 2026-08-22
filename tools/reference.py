@@ -15,7 +15,7 @@ Guarantees:
     those classes, are documented, which is the set the pages already carried
     [source: bindings/python/tools/reference.py:entries, the three
     `startswith("_")` refusals at module level, class level and method level;
-    commit=WORKTREE]
+    commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
 Fails when:
   - a page documents a module with runtime-generated members; those are
     invisible to the AST and would silently go missing

@@ -7,7 +7,7 @@ Guarantees:
   - both doors answer the same atoms for the same source under the same
     pragma, and a runaway recursion answers (Error ... StackOverflow) rather
     than exhausting SWI's stack.
-  [tested: test_the_same_source_answers_the_same_error_through_both_doors; commit=WORKTREE]
+  [tested: test_the_same_source_answers_the_same_error_through_both_doors; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
 Fails when: the bound is read as a guarantee about wall clock or memory. It is
   branch-local reduction fuel, and a branch that finishes keeps its answer.
 Open Obligations:

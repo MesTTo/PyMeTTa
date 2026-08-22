@@ -4,10 +4,10 @@ Assumes: the engine answers through the ordinary MeTTa surface; no probe needs
 Guarantees:
   - every member of the vocabulary answers the exact atom the arbiter answers,
     and an operand whose evaluation produced one finishes the enclosing call.
-  [tested: test_the_error_vocabulary_answers_what_the_arbiter_answers; commit=WORKTREE]
+  [tested: test_the_error_vocabulary_answers_what_the_arbiter_answers; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
   - an under-applied operation answers a partial application and never takes
     the host process down.
-  [tested: test_an_underapplied_operation_answers_instead_of_aborting; commit=WORKTREE]
+  [tested: test_an_underapplied_operation_answers_instead_of_aborting; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
 Fails when: a probe is read as a claim about Hyperon rather than about LeaTTa;
   the arbiter is LeaTTa and every pin below cites the LeaTTa file it came from.
 Open Obligations:

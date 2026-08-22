@@ -5,7 +5,7 @@ Guarantees:
   - a cached definition answers from SWI's answer trie, so an exponential
     recursion becomes linear, and its counters and clear are reachable under
     functools.lru_cache's own names.
-  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=WORKTREE]
+  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
 Fails when: read as a fixed-size cache. A table holds the answers for the calls
   that were made and has no maxsize; `unchecked=True` is the staleness the
   engine's own `(cache <name> unchecked)` accepts, not a size.

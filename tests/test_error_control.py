@@ -4,11 +4,11 @@ Assumes: nothing beyond the ordinary MeTTa surface; both forms are engine
 Guarantees:
   - switch matches its rows in source order and reads a key that answered
     nothing as no answer, which is the single point it differs from case.
-  [tested: test_switch_reads_a_key_with_no_answers_as_no_answer; commit=WORKTREE]
+  [tested: test_switch_reads_a_key_with_no_answers_as_no_answer; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
   - a thrown reason becomes a produced error atom, so it finishes the enclosing
     call the way an engine-raised one does, and an already-raised reason is
     handed on rather than wrapped twice.
-  [tested: test_a_thrown_reason_travels_as_a_produced_error; commit=WORKTREE]
+  [tested: test_a_thrown_reason_travels_as_a_produced_error; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
 Open Obligations:
   To Do: None
   Hacks: None

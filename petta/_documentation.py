@@ -14,7 +14,7 @@ Guarantees:
   - an Args section becomes one (@param ...) per PARAMETER OF THE SIGNATURE, in
     signature order, and a Returns section becomes (@return ...), which is the
     engine's own shape [tested:
-    test_a_docstring_emits_the_whole_doc_vocabulary; commit=WORKTREE]
+    test_a_docstring_emits_the_whole_doc_vocabulary; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
 Fails when: a docstring documents a parameter the signature does not have. The
   signature decides the list and its order, so the stray entry is dropped
   rather than shifting every later parameter's description onto the wrong one.
