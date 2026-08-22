@@ -9,7 +9,7 @@ Guarantees:
   - a table normalises duplicate answers away, which the arbiter SPECIFIES for
     an untabled function, so the decorator is where a program asks for that
     trade rather than something it discovers.
-  [tested: test_a_cached_definition_normalises_duplicate_answers_away; commit=WORKTREE]
+  [tested: test_a_cached_definition_normalises_duplicate_answers_away; commit=be17bf27ac3fd74b5f5c00e430e924529a54f560]
 Fails when: read as a fixed-size cache. A table holds the answers for the calls
   that were made and has no maxsize; `unchecked=True` is the staleness the
   engine's own `(cache <name> unchecked)` accepts, not a size.
