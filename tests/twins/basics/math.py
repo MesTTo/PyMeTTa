@@ -7,12 +7,17 @@ so `val(7) / 0` raises ZeroDivisionError in Python instead of building
 door, `S["/"](7, 0)`, which is also what makes the error atoms below
 constructible as the DATA they are.
 
+The method forms do not close the gap either. `a.eq(b)` is the table's spelling
+for the taken `==` and does build `(== a b)`, but it wants an atom on the left,
+which two bare literals are not; and `a.ne(b)` builds `(not (== a b))`, a
+different atom from the `(!= 1.0 1)` the original writes.
+
 And an error is an ordinary answer here, so the expected value of a failing
 operation is a term like `(Error (/ 7 0) DivisionByZero)`, built the same way
 as any other.
 """
 
-from petta import S, expr, val
+from petta import S, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -69,8 +74,8 @@ def twin(m):
     # !(test (collapse (/ 7 0)) (noeval ((Error (/ 7 0) DivisionByZero))))
     yield m.eval(
         S.test(
-            S["collapse"](S["/"](7, 0)),
-            S.noeval(expr(S.Error(S["/"](7, 0), S.DivisionByZero))),
+            S.collapse(S["/"](7, 0)),
+            S.noeval((S.Error(S["/"](7, 0), S.DivisionByZero),)),
         )
     )
 
@@ -141,9 +146,9 @@ def twin(m):
     # !(test (isinf-math 0.0) False)
     yield m.eval(S.test(S["isinf-math"](0.0), FALSE))
     # !(test (min-atom (2 6 7 4 9 3)) 2)
-    yield m.eval(S.test(S["min-atom"](expr(2, 6, 7, 4, 9, 3)), 2))
+    yield m.eval(S.test(S["min-atom"]((2, 6, 7, 4, 9, 3)), 2))
     # !(test (max-atom (2 6 7 4 9 3)) 9)
-    yield m.eval(S.test(S["max-atom"](expr(2, 6, 7, 4, 9, 3)), 9))
+    yield m.eval(S.test(S["max-atom"]((2, 6, 7, 4, 9, 3)), 9))
     # !(test (isinf-math inf) True)
     yield m.eval(S.test(S["isinf-math"](S.inf), TRUE))
     # !(test (isnan-math nan) True)

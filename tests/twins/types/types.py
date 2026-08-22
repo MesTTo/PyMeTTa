@@ -15,7 +15,7 @@ the `match` statement, which the compiled subset has no lowering for yet
 (P14.4).
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10603 to 10954, +351, by P14.8's
@@ -60,9 +60,7 @@ def twin(m):
     # !(test (get-type B) %Undefined%)
     yield m.eval(S.test(kind(S.B), undefined))
     # !(test (get-type (a b)) (A B))
-    yield m.eval(
-        S.test(kind(expr(S.a, S.b)), expr(S.A, S.B))
-    )
+    yield m.eval(S.test(kind((S.a, S.b)), (S.A, S.B)))
     # !(test (get-type 42) Number)
     yield m.eval(S.test(kind(42), S.Number))
     # !(test (get-type "42") String)
@@ -70,8 +68,8 @@ def twin(m):
     # !(test (collapse (get-type x)) (Letter Buchstabe))
     yield m.eval(
         S.test(
-            S["collapse"](kind(S.x)),
-            expr(S.Letter, S.Buchstabe),
+            S.collapse(kind(S.x)),
+            (S.Letter, S.Buchstabe),
         )
     )
 
@@ -79,21 +77,15 @@ def twin(m):
     # (: mid (-> $a $a))
     m += S[":"](S.mid, S["->"](V.a, V.a))
     # (= (mid $x) (let (a b) $x $x))
-    m += S["="](
-        S.mid(V.x), S["let"](expr(S.a, S.b), V.x, V.x)
-    )
+    m += equation(S.mid(V.x)).to(S.let((S.a, S.b), V.x, V.x))
 
     # !(test (mid ($a b)) (a b))
-    yield m.eval(
-        S.test(S.mid(expr(V.a, S.b)), expr(S.a, S.b))
-    )
+    yield m.eval(S.test(S.mid((V.a, S.b)), (S.a, S.b)))
 
     # (: testx (-> $a $b $a))
     m += S[":"](S.testx, S["->"](V.a, V.b, V.a))
     # !(test (get-type (testx 1 "f")) Number)
-    yield m.eval(
-        S.test(kind(S.testx(1, val("f"))), S.Number)
-    )
+    yield m.eval(S.test(kind(S.testx(1, val("f"))), S.Number))
 
     # Non-deterministic types.
     # (: at A)
@@ -105,7 +97,7 @@ def twin(m):
     # (: testf (-> $a $a))
     m += S[":"](S.testf, S["->"](V.a, V.a))
     # (= (testf at) t)
-    m += S["="](S.testf(S.at), S.t)
+    m += equation(S.testf(S.at)).to(S.t)
 
     # !(test (testf at) t)
     yield m.eval(S.test(S.testf(S.at), S.t))

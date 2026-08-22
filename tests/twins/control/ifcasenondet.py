@@ -15,7 +15,7 @@ reads a capitalised one as a constructor, which wave one recorded against
 P14.4 for `time_and_pragmas`.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -38,35 +38,31 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # (= (if-nondet $y) (if (superpose $y) a b))
-    m += S["="](
-        S["if-nondet"](V.y),
-        S["if"](S["superpose"](V.y), S.a, S.b),
-    )
+    m += equation(S["if-nondet"](V.y)).to(S["if"](S.superpose(V.y), S.a, S.b))
 
     # (= (case-nondet $y)
     #    (case (superpose $y)
     #          ((True a)
     #           (False b))))
-    m += S["="](
-        S["case-nondet"](V.y),
-        S["case"](
-            S["superpose"](V.y),
-            expr(expr(TRUE, S.a), expr(FALSE, S.b)),
-        ),
+    m += equation(S["case-nondet"](V.y)).to(
+        S.case(
+            S.superpose(V.y),
+            ((TRUE, S.a), (FALSE, S.b)),
+        )
     )
 
     # !(test (collapse (if-nondet (True False True))) (a b a))
     yield m.eval(
         S.test(
-            S["collapse"](S["if-nondet"](expr(TRUE, FALSE, TRUE))),
-            expr(S.a, S.b, S.a),
+            S.collapse(S["if-nondet"]((TRUE, FALSE, TRUE))),
+            (S.a, S.b, S.a),
         )
     )
 
     # !(test (collapse (case-nondet (True False True))) (a b a))
     yield m.eval(
         S.test(
-            S["collapse"](S["case-nondet"](expr(TRUE, FALSE, TRUE))),
-            expr(S.a, S.b, S.a),
+            S.collapse(S["case-nondet"]((TRUE, FALSE, TRUE))),
+            (S.a, S.b, S.a),
         )
     )

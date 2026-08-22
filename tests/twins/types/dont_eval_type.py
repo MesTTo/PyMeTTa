@@ -13,7 +13,7 @@ annotation door writes its declaration AFTER the equation and that ordering is
 its own residue entry, filed against P14.9 by types/outputtype.py.
 """
 
-from petta import S, V
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1510 to 1544, +34, by P14.8's
@@ -33,17 +33,9 @@ def twin(m):
     # (: OpaquePayload DontEvalType)
     m += S[":"](S.OpaquePayload, S.DontEvalType)
     # (: inspect-opaque (-> OpaquePayload Symbol))
-    m += S[":"](
-        S["inspect-opaque"], S["->"](S.OpaquePayload, S.Symbol)
-    )
+    m += S[":"](S["inspect-opaque"], S["->"](S.OpaquePayload, S.Symbol))
     # (= (inspect-opaque $written) (get-metatype $written))
-    m += S["="](
-        S["inspect-opaque"](V.written), S["get-metatype"](V.written)
-    )
+    m += equation(S["inspect-opaque"](V.written)).to(S["get-metatype"](V.written))
 
     # !(test (inspect-opaque (+ 1 2)) Expression)
-    yield m.eval(
-        S.test(
-            S["inspect-opaque"](S["+"](1, 2)), S.Expression
-        )
-    )
+    yield m.eval(S.test(S["inspect-opaque"](S["+"](1, 2)), S.Expression))

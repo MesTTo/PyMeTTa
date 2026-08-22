@@ -3,6 +3,13 @@
 `@m.define` reads the function as syntax and writes the equation, so the
 Python `if`/`else` expression IS MeTTa's `if` and the recursive call is the
 same call the equation makes.
+
+One thing the stored equation does NOT match. A compiled body's `==` lowers to
+`(py-eq $n 0)`, the prelude's Python equality, where the original writes
+`(== $n 0)`; the operator table calls `==` taken for exactly that reason, and
+the method form `a.eq(b)` that builds `(== a b)` is a term-door spelling with
+no body equivalent. The two answer alike on every input this example has, and
+the residue table records the divergence against P14.4.
 """
 
 from petta import S

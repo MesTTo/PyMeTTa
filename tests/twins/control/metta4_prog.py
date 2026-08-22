@@ -34,17 +34,17 @@ def twin(m):
     #        tim)
     yield m.eval(
         S.test(
-            S["progn"](
+            S.progn(
                 S["add-atom"](S["&self"], S.friend(S.sam, S.tom)),
                 S["remove-atom"](S["&self"], S.friend(S.sam, S.tom)),
                 S["add-atom"](S["&self"], S.friend(S.sam, S.tim)),
-                S["match"](S["&self"], S.friend(S.sam, V.who), V.who),
+                S.match(S["&self"], S.friend(S.sam, V.who), V.who),
             ),
             S.tim,
         )
     )
 
     # !(test (prog1 1 2 3) 1)
-    yield m.eval(S.test(S["prog1"](1, 2, 3), 1))
+    yield m.eval(S.test(S.prog1(1, 2, 3), 1))
     # !(test (progn 1 2 3) 3)
-    yield m.eval(S.test(S["progn"](1, 2, 3), 3))
+    yield m.eval(S.test(S.progn(1, 2, 3), 3))

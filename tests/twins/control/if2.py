@@ -5,10 +5,11 @@ runs. `S.a` is that atom; a Python name `a` would be a Python binding and
 never reach the engine.
 
 The then arm `(() (+ 1 1))` is an expression whose first element is the empty
-expression, which `expr(expr(), ...)` spells: `()` is a term, not a hole.
+expression, and Python's own empty tuple is that atom, so `((), ...)` spells it:
+`()` is a term, not a hole.
 """
 
-from petta import S, expr
+from petta import S
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1138 to 1187, +49, by P14.8's
@@ -30,7 +31,7 @@ def twin(m):
         S.test(
             S["if"](
                 S["is-var"](S.a),
-                expr(expr(), S["+"](1, 1)),
+                ((), S["+"](1, 1)),
                 S["+"](2, 2),
             ),
             4,

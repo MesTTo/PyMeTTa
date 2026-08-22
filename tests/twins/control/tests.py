@@ -18,9 +18,15 @@ Three of the four are computations and are written as ones.
 `(superpose $L)`, a superposition over a BOUND value, and `superpose(l)` in a
 compiled body means `(superpose ($l))` instead; the residue table records that
 against P14.4.
+
+Two of the compiled equations are stored differently from the original's, both
+by lowering rather than by choice: an assignment is a one-pair `let*` where the
+original writes `let`, and `x == 2` is `(py-eq $x 2)` where it writes
+`(== $x 2)`. `program3`'s else arm is a source choice, `return 4` for the
+original's `(let $z 4 $z)`, which binds a constant and answers it.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10073 to 10668, +595, by P14.8's
@@ -50,17 +56,16 @@ def twin(m):
 
     # (= (program2 $Y)
     #    (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))
-    m += S["="](
-        S.program2(V.y),
-        S["let"](
+    m += equation(S.program2(V.y)).to(
+        S.let(
             V.answers,
-            S["let"](
+            S.let(
                 V.source,
-                expr(1, 2, 3),
-                S["collapse"](S["superpose"](V.source)),
+                (1, 2, 3),
+                S.collapse(S.superpose(V.source)),
             ),
-            S["superpose"](V.answers),
-        ),
+            S.superpose(V.answers),
+        )
     )
     program2 = m.fn("program2")
 
@@ -81,15 +86,15 @@ def twin(m):
 
     # !(test (program4)
     #        (((12 46) 1 (42 43)) ((12 46) 2 (42 43)) ((12 46) 3 (42 43))))
-    first = expr(12, 46)
-    last = expr(42, 43)
+    first = (12, 46)
+    last = (42, 43)
     yield m.eval(
         S.test(
             S.program4(),
-            expr(
-                expr(first, 1, last),
-                expr(first, 2, last),
-                expr(first, 3, last),
+            (
+                (first, 1, last),
+                (first, 2, last),
+                (first, 3, last),
             ),
         )
     )

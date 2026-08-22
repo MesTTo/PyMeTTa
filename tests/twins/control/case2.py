@@ -10,7 +10,7 @@ a `case` is Python's `match` and the compiled subset has no lowering for one
 branch value, so the hole is the statement, not the fork.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1518 to 1546, +28, by P14.8's
@@ -30,15 +30,12 @@ def twin(m):
     # (= (compile $stmt)
     #    (case $stmt
     #          (($stmt (superpose (what what2))))))
-    m += S["="](
-        S.compile(V.stmt),
-        S["case"](
+    m += equation(S.compile(V.stmt)).to(
+        S.case(
             V.stmt,
-            expr(expr(V.stmt, S["superpose"](expr(S.what, S.what2)))),
-        ),
+            ((V.stmt, S.superpose((S.what, S.what2))),),
+        )
     )
 
     # !(test (collapse (compile wat)) (what what2))
-    yield m.eval(
-        S.test(S["collapse"](S.compile(S.wat)), expr(S.what, S.what2))
-    )
+    yield m.eval(S.test(S.collapse(S.compile(S.wat)), (S.what, S.what2)))

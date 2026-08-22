@@ -12,7 +12,7 @@ the same definition with `once` in place of `cut`, and it makes the same
 choice for the same reason.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 2560 to 2605, +45, by P14.8's
@@ -38,21 +38,20 @@ def twin(m):
     #    (let* (($x (match $space $pat $ret))
     #           ($temp (cut)))
     #          $x))
-    m += S["="](
-        S["match-single"](V.space, V.pat, V.ret),
+    m += equation(S["match-single"](V.space, V.pat, V.ret)).to(
         S["let*"](
-            expr(
-                expr(V.x, S["match"](V.space, V.pat, V.ret)),
-                expr(V.temp, S["cut"]()),
+            (
+                (V.x, S.match(V.space, V.pat, V.ret)),
+                (V.temp, S.cut()),
             ),
             V.x,
-        ),
+        )
     )
 
     # !(let $x (match-single &self (foo $1) $1) (add-atom &self (bar $x)))
     # answers (())
     yield m.eval(
-        S["let"](
+        S.let(
             V.x,
             S["match-single"](S["&self"], S.foo(V.one), V.one),
             S["add-atom"](S["&self"], S.bar(V.x)),
@@ -62,9 +61,7 @@ def twin(m):
     # !(test (collapse (match &self (bar $1) (bar $1))) ((bar 1)))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](S["&self"], S.bar(V.one), S.bar(V.one))
-            ),
-            expr(S.bar(1)),
+            S.collapse(S.match(S["&self"], S.bar(V.one), S.bar(V.one))),
+            (S.bar(1),),
         )
     )

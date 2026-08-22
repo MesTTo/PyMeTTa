@@ -11,7 +11,7 @@ says which strings the engine sees as values. `"$c"` is not a variable; the
 quotes are the whole reason it is a string.
 """
 
-from petta import S, expr, val
+from petta import S, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 11955 to 12097, +142, by P14.8's
@@ -29,7 +29,7 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # !(import! &self (library lib_he)) answers (())
-    yield m.eval(S["import!"](S["&self"], expr(S.library, S.lib_he)))
+    yield m.eval(S["import!"](S["&self"], (S.library, S.lib_he)))
 
     # Knowledge base atoms, like pverify's Constant/Var declarations.
     # (Constant wff (Type "$c"))
@@ -45,11 +45,11 @@ def twin(m):
     declared = S.Error(S.Constant(S.wff), val("already declared"))
     yield m.eval(
         S.test(
-            S["unify"](
+            S.unify(
                 S["&self"],
                 S.Constant(S.wff, S.Type(val("$c"))),
                 declared,
-                expr(),
+                (),
             ),
             declared,
         )
@@ -64,20 +64,18 @@ def twin(m):
     #        ())
     yield m.eval(
         S.test(
-            S["unify"](
+            S.unify(
                 S["&self"],
                 S.Constant(S.y, S.Type(val("$c"))),
                 S.Error(S.Constant(S.y), val("already declared")),
-                S["unify"](
+                S.unify(
                     S["&self"],
                     S.Var(S.y, 0, S.Type(val("$v"))),
-                    S.Error(
-                        S.Var(S.y), val("active variable conflict")
-                    ),
-                    expr(),
+                    S.Error(S.Var(S.y), val("active variable conflict")),
+                    (),
                 ),
             ),
-            expr(),
+            (),
         )
     )
 
@@ -91,15 +89,15 @@ def twin(m):
     conflict = S.Error(S.Var(S.x), val("active variable conflict"))
     yield m.eval(
         S.test(
-            S["unify"](
+            S.unify(
                 S["&self"],
                 S.Constant(S.x, S.Type(val("$c"))),
                 S.Error(S.Constant(S.x), val("already declared")),
-                S["unify"](
+                S.unify(
                     S["&self"],
                     S.Var(S.x, 0, S.Type(val("$v"))),
                     conflict,
-                    expr(),
+                    (),
                 ),
             ),
             conflict,
@@ -110,7 +108,7 @@ def twin(m):
     # !(test (unify &self (Constant wff (Type "$c")) (+ 1 2) 0) 3)
     yield m.eval(
         S.test(
-            S["unify"](
+            S.unify(
                 S["&self"],
                 S.Constant(S.wff, S.Type(val("$c"))),
                 S["+"](1, 2),
@@ -124,7 +122,7 @@ def twin(m):
     # !(test (unify &self (Constant NOSUCH (Type "$c")) 0 (+ 10 20)) 30)
     yield m.eval(
         S.test(
-            S["unify"](
+            S.unify(
                 S["&self"],
                 S.Constant(S.NOSUCH, S.Type(val("$c"))),
                 0,

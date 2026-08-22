@@ -10,7 +10,7 @@ subset has no lowering for (P14.4), and its answers `answertoeverything` and
 the pairs are lowercase data a compiled body has no spelling for.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 5625 to 5934, +309, by P14.8's
@@ -42,36 +42,35 @@ def twin(m):
     #                                     ((1 4) (42 42))
     #                                     ($else (42 42 42))))
     #                       answertoeverything)))
-    m += S["="](
-        S.progme(),
-        S["let"](
+    m += equation(S.progme()).to(
+        S.let(
             V.y,
-            S["superpose"](expr(2, 3, 4, 5)),
+            S.superpose((2, 3, 4, 5)),
             S["if"](
-                S[">"](V.y, 2),
-                S["case"](
-                    expr(1, V.y),
-                    expr(
-                        expr(expr(1, 3), S.f(0)),
-                        expr(expr(1, 4), expr(42, 42)),
-                        expr(V.otherwise, expr(42, 42, 42)),
+                V.y > 2,
+                S.case(
+                    (1, V.y),
+                    (
+                        ((1, 3), S.f(0)),
+                        ((1, 4), (42, 42)),
+                        (V.otherwise, (42, 42, 42)),
                     ),
                 ),
                 S.answertoeverything,
             ),
-        ),
+        )
     )
 
     # !(test (collapse (progme))
     #        (answertoeverything 42 (42 42) (42 42 42)))
     yield m.eval(
         S.test(
-            S["collapse"](S.progme()),
-            expr(
+            S.collapse(S.progme()),
+            (
                 S.answertoeverything,
                 42,
-                expr(42, 42),
-                expr(42, 42, 42),
+                (42, 42),
+                (42, 42, 42),
             ),
         )
     )

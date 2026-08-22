@@ -5,16 +5,17 @@ expression must reach them UNEVALUATED. A built term is unevaluated by
 construction, so the term door is the natural Python spelling for all four
 and there is nothing to quote.
 
-One form of this file is DECLINED and the residue table says why: `!(bounded-
-factorial 5)` answers `(120 (Error -3 StackOverflow))` because the two
-equations are non-exclusive and `max-stack-depth` stops the runaway branch.
-Writing the two equations is not the problem, `m += S["="](head, body)` does
-that; the problem is that no zero-string evaluation door OPENS A FUEL SCOPE,
-so from Python the runaway branch overflows Prolog's stack instead of
-answering the error atom.
+`!(bounded-factorial 5)` answers `(120 (Error -3 StackOverflow))` because the
+two equations are NON-EXCLUSIVE and `max-stack-depth` stops the runaway
+branch. That form used to be declined, on the ground that no zero-string
+evaluation door opened a fuel scope; P14.8 closed it, `m.eval` opens the same
+scope a runnable form opens, and the retired residue entry records the
+correction. What the form still needs is a definitional door that derives no
+first-match guard, since `@m.define` would emit `(if (== $n 0) (empty) ...)`
+and prune the branch the example is about: `@rules` is that door.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, rules, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -22,7 +23,12 @@ from petta import S, V, expr, val
 TRUE, FALSE = val(value=True), val(value=False)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 48356 to 43530, -4826 (-9.98%), by
+#: RE-PINNED 2026-08-22, 43530 to 43549, +19, by lifting the 2-clause equation set from
+#: repeated `m += equation(...).to(...)` to `@rules` plus one `m.add(*group)`. The whole of the
+#: increase is the multi-atom add path, not the decorator: `rules` builds its equations in
+#: Python and spends nothing on the engine, and one `m.add` of n atoms costs 13 + 3n inferences
+#: more than n separate `m +=` calls (measured over three fresh processes each: 673 against 692
+#: at two atoms, 1042 against 1064 at three, 0.0000% spread). Prior: #: RE-PINNED 2026-08-22, 48356 to 43530, -4826 (-9.98%), by
 #: INLINING the fuel charge into the compiled clause instead of calling a
 #: shared petta_fuel_step/2. The cost of a charged reduction is a
 #: compile-time constant, so the charge is BUILT where the call used to be
@@ -54,7 +60,7 @@ TRUE, FALSE = val(value=True), val(value=False)
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 43530
+BUDGET = 43549
 
 
 def twin(m):
@@ -68,52 +74,48 @@ def twin(m):
     # compiled body resolves a lowercase free name as a function and reads a
     # capitalised one as a constructor, so it has no spelling for this atom.
     spin = S.spin
-    m += S["="](
-        spin(V.n), S["if"](S[">"](V.n, 0), spin(S["-"](V.n, 1)), S.done)
-    )
+    m += equation(spin(V.n)).to(S["if"](V.n > 0, spin(V.n - 1), S.done))
 
     # A bound that is not reached is invisible.
     # !(test (timeout 30 (spin 100)) done)
-    yield m.eval(S.test(S["timeout"](30, spin(100)), S.done))
+    yield m.eval(S.test(S.timeout(30, spin(100)), S.done))
     # !(test (timeout 30 (+ 1 2)) 3)
-    yield m.eval(S.test(S["timeout"](30, S["+"](1, 2)), 3))
+    yield m.eval(S.test(S.timeout(30, S["+"](1, 2)), 3))
 
     # Bounding an expression does NOT collapse it to one answer.
     # !(test (collapse (timeout 30 (superpose (1 2 3)))) (1 2 3))
     yield m.eval(
         S.test(
-            S["collapse"](S["timeout"](30, S["superpose"](expr(1, 2, 3)))),
-            expr(1, 2, 3),
+            S.collapse(S.timeout(30, S.superpose((1, 2, 3)))),
+            (1, 2, 3),
         )
     )
 
     # elapsed answers (Value Seconds); only the value is asserted.
     # !(test (car-atom (elapsed (spin 100))) done)
-    yield m.eval(S.test(S["car-atom"](S["elapsed"](spin(100))), S.done))
+    yield m.eval(S.test(S["car-atom"](S.elapsed(spin(100))), S.done))
     # !(test (sleep 0.01) True)
-    yield m.eval(S.test(S["sleep"](0.01), TRUE))
+    yield m.eval(S.test(S.sleep(0.01), TRUE))
 
     # metta/3 interprets an atom in a named space; evalc already is that.
     # !(test (metta (+ 1 2) %Undefined% &self) 3)
-    yield m.eval(
-        S.test(S["metta"](S["+"](1, 2), S["%Undefined%"], S["&self"]), 3)
-    )
+    yield m.eval(S.test(S.metta(S["+"](1, 2), S["%Undefined%"], S["&self"]), 3))
     # !(test (evalc (+ 1 2) &self) 3)
-    yield m.eval(S.test(S["evalc"](S["+"](1, 2), S["&self"]), 3))
+    yield m.eval(S.test(S.evalc(S["+"](1, 2), S["&self"]), 3))
 
     # Pragmas. Each answers the unit value ().
     # !(test (pragma! max-time 30) ())
-    yield m.eval(S.test(S["pragma!"](S["max-time"], 30), expr()))
+    yield m.eval(S.test(S["pragma!"](S["max-time"], 30), ()))
     # !(test (pragma! max-inferences 100000000) ())
-    yield m.eval(S.test(S["pragma!"](S["max-inferences"], 100000000), expr()))
+    yield m.eval(S.test(S["pragma!"](S["max-inferences"], 100000000), ()))
     # !(test (pragma! max-time none) ())
-    yield m.eval(S.test(S["pragma!"](S["max-time"], S.none), expr()))
+    yield m.eval(S.test(S["pragma!"](S["max-time"], S.none), ()))
     # !(test (pragma! max-inferences none) ())
-    yield m.eval(S.test(S["pragma!"](S["max-inferences"], S.none), expr()))
+    yield m.eval(S.test(S["pragma!"](S["max-inferences"], S.none), ()))
 
     # max-stack-depth answers its own error rather than raising.
     # !(test (pragma! max-stack-depth 0) ())
-    yield m.eval(S.test(S["pragma!"](S["max-stack-depth"], 0), expr()))
+    yield m.eval(S.test(S["pragma!"](S["max-stack-depth"], 0), ()))
     # !(test (pragma! max-stack-depth -1)
     #        (Error (pragma! max-stack-depth -1) UnsignedIntegerIsExpected))
     yield m.eval(
@@ -126,22 +128,24 @@ def twin(m):
         )
     )
     # !(test (pragma! max-stack-depth none) ())
-    yield m.eval(S.test(S["pragma!"](S["max-stack-depth"], S.none), expr()))
+    yield m.eval(S.test(S["pragma!"](S["max-stack-depth"], S.none), ()))
 
     # !(pragma! max-stack-depth 20) answers (())
     yield m.eval(S["pragma!"](S["max-stack-depth"], 20))
 
     # The two equations are NON-EXCLUSIVE: both apply at 0, which is what
-    # makes the runaway branch reachable. `@m.define`'s stacked clauses
-    # would derive a first-match guard and prune it, so the container door
-    # writes them as the atoms they are.
-    # (= (bounded-factorial 0) 1)
-    m += S["="](S["bounded-factorial"](0), 1)
-    # (= (bounded-factorial $n) (* $n (bounded-factorial (- $n 1))))
-    m += S["="](
-        S["bounded-factorial"](V.n),
-        S["*"](V.n, S["bounded-factorial"](S["-"](V.n, 1))),
-    )
+    # makes the runaway branch reachable. `@m.define` would derive a
+    # first-match guard, `(if (== $n 0) (empty) ...)`, and prune it; `@rules`
+    # writes the clauses without one, which is the whole difference between
+    # the two definitional doors and exactly what this example needs.
+    @rules
+    def bounded_factorial(n):
+        # (= (bounded-factorial 0) 1)
+        yield equation(S["bounded-factorial"](0)).to(1)
+        # (= (bounded-factorial $n) (* $n (bounded-factorial (- $n 1))))
+        yield equation(S["bounded-factorial"](n)).to(n * S["bounded-factorial"](n - 1))
+
+    m.add(*bounded_factorial)
     # !(bounded-factorial 5) answers (120 (Error -3 StackOverflow)).
     # Twinnable since P14.8: m.eval opens the same fuel scope a runnable form
     # opens, so max-stack-depth bounds the runaway branch here too and the
@@ -153,12 +157,12 @@ def twin(m):
 
     # (inferences $n $expr) is timeout's deterministic twin.
     # !(test (inferences 100000 (spin 100)) done)
-    yield m.eval(S.test(S["inferences"](100000, spin(100)), S.done))
+    yield m.eval(S.test(S.inferences(100000, spin(100)), S.done))
     # !(test (collapse (inferences 100000 (superpose (1 2 3)))) (1 2 3))
     yield m.eval(
         S.test(
-            S["collapse"](S["inferences"](100000, S["superpose"](expr(1, 2, 3)))),
-            expr(1, 2, 3),
+            S.collapse(S.inferences(100000, S.superpose((1, 2, 3)))),
+            (1, 2, 3),
         )
     )
 
@@ -166,9 +170,7 @@ def twin(m):
     # !(test (with-pragma! ((max-inferences 100000)) (+ 20 22)) 42)
     yield m.eval(
         S.test(
-            S["with-pragma!"](
-                expr(expr(S["max-inferences"], 100000)), S["+"](20, 22)
-            ),
+            S["with-pragma!"](((S["max-inferences"], 100000),), S["+"](20, 22)),
             42,
         )
     )
@@ -176,9 +178,9 @@ def twin(m):
     yield m.eval(
         S.test(
             S["with-pragma!"](
-                expr(
-                    expr(S["max-time"], 30),
-                    expr(S["max-inferences"], 100000),
+                (
+                    (S["max-time"], 30),
+                    (S["max-inferences"], 100000),
                 ),
                 spin(100),
             ),
@@ -190,12 +192,12 @@ def twin(m):
 
     # Relational integer arithmetic: one unbound argument solves for itself.
     # !(test (let 4 (- $x 1) $x) 5)
-    yield m.eval(S.test(S["let"](4, S["-"](V.x, 1), V.x), 5))
+    yield m.eval(S.test(S.let(4, V.x - 1, V.x), 5))
     # !(test (let 10 (+ $x 3) $x) 7)
-    yield m.eval(S.test(S["let"](10, S["+"](V.x, 3), V.x), 7))
+    yield m.eval(S.test(S.let(10, V.x + 3, V.x), 7))
     # !(test (let 6 (* $x 2) $x) 3)
-    yield m.eval(S.test(S["let"](6, S["*"](V.x, 2), V.x), 3))
+    yield m.eval(S.test(S.let(6, V.x * 2, V.x), 3))
     # !(test (let 3 (/ $x 2) $x) 6)
-    yield m.eval(S.test(S["let"](3, S["/"](V.x, 2), V.x), 6))
+    yield m.eval(S.test(S.let(3, V.x / 2, V.x), 6))
     # !(test (collapse (let 7 (* $x 2) $x)) ())
-    yield m.eval(S.test(S["collapse"](S["let"](7, S["*"](V.x, 2), V.x)), expr()))
+    yield m.eval(S.test(S.collapse(S.let(7, V.x * 2, V.x)), ()))

@@ -12,7 +12,7 @@ a Python class per MeTTa type and a function to hang the signature on, and
 this file declares neither.
 """
 
-from petta import S, expr
+from petta import S
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4121 to 4238, +117, by P14.8's
@@ -48,25 +48,25 @@ def twin(m):
     # !(test (collapse (get-type blacksmith)) ((-> Metal Sword) (-> Metal Paperclip)))
     yield m.eval(
         S.test(
-            S["collapse"](kind(S.blacksmith)),
-            expr(SWORD, PAPERCLIP),
+            S.collapse(kind(S.blacksmith)),
+            (SWORD, PAPERCLIP),
         )
     )
     # !(test (collapse (get-type (blacksmith iron))) (Sword Paperclip))
     yield m.eval(
         S.test(
-            S["collapse"](kind(S.blacksmith(S.iron))),
-            expr(S.Sword, S.Paperclip),
+            S.collapse(kind(S.blacksmith(S.iron))),
+            (S.Sword, S.Paperclip),
         )
     )
     # !(test (collapse (get-type (iron blacksmith)))
     #        ((Metal (-> Metal Sword)) (Metal (-> Metal Paperclip))))
     yield m.eval(
         S.test(
-            S["collapse"](kind(S.iron(S.blacksmith))),
-            expr(
-                expr(S.Metal, SWORD),
-                expr(S.Metal, PAPERCLIP),
+            S.collapse(kind(S.iron(S.blacksmith))),
+            (
+                (S.Metal, SWORD),
+                (S.Metal, PAPERCLIP),
             ),
         )
     )

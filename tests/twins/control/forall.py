@@ -14,16 +14,21 @@ clauses are two Python functions carrying one `name=`, because two functions
 of one name in one module is a redefinition to every Python reader and to
 ruff.
 
-`f` cannot use that door: its two clauses fix nothing, and the file's own point
-is that `(f)` answers twice, which stacked clauses read as first-match. So it
-is written at the container door, the same choice `basics/time_and_pragmas`
-makes for `bounded-factorial`.
+`f` cannot use that door: its two clauses fix nothing, so there is no literal
+default to tell them apart, and a literal default is the whole of what makes
+clauses stack. Measured 2026-08-22, two `@m.define` decorations under one name
+with identical heads do not stack: rebinding one Python name replaces the first
+equation, and two different Python functions raise `IndexError` out of
+`_define_twins.replace_twin_clause`. So `f` uses `@rules`, the definitional
+door that writes a clause set and derives no guard over it; that is the same
+choice `basics/time_and_pragmas` makes for `bounded-factorial`, where the
+guard would prune the branch the example exists to show.
 
 `P` is written `name="P"` over a lowercase Python function, because a
 capitalised Python function name is not a Python spelling at all.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, rules, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -31,20 +36,25 @@ from petta import S, V, expr, val
 TRUE, FALSE = val(value=True), val(value=False)
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 26188 to 27964, +1776, by P14.8's
+#: RE-PINNED 2026-08-22, 27964 to 27983, +19, by lifting the 2-clause equation set from
+#: repeated `m += equation(...).to(...)` to `@rules` plus one `m.add(*group)`. The whole of the
+#: increase is the multi-atom add path, not the decorator: `rules` builds its equations in
+#: Python and spends nothing on the engine, and one `m.add` of n atoms costs 13 + 3n inferences
+#: more than n separate `m +=` calls (measured over three fresh processes each: 673 against 692
+#: at two atoms, 1042 against 1064 at three, 0.0000% spread). Prior: #: RE-PINNED 2026-08-22, 26188 to 27964, +1776, by P14.8's
 #: m.eval fuel-scope alignment: petta_fuel_step/2 now charges every
 #: reduction as it does under `!`, less the two-inference-per-runnable-form
 #: saving from the deterministic b_getval/2 fuel-balance read. Prior: ADDED
 #: 2026-08-22 at 26188 by 47554fc's control/types twin baseline.
-BUDGET = 27964
+BUDGET = 27983
 
 #: (|-> ($x) (g $x)), the generator as a lambda, and the application of one.
-GENERATOR = S["|->"](expr(V.x), S.g(V.x))
+GENERATOR = S["|->"]((V.x,), S.g(V.x))
 
 
 def _check(bound):
     """(|-> ($v) (< $v <bound>)), the check as a lambda."""
-    return S["|->"](expr(V.v), S["<"](V.v, bound))
+    return S["|->"]((V.v,), V.v < bound)
 
 
 def twin(m):
@@ -53,10 +63,15 @@ def twin(m):
     A `test` form answers `(True)` and prints `is X, should Y. ✅`;
     every other form says its own answer in the comment above it.
     """
-    # (= (f) 1)
-    m += S["="](S.f(), 1)
-    # (= (f) 2)
-    m += S["="](S.f(), 2)
+
+    @rules
+    def f():
+        # (= (f) 1)
+        yield equation(S.f()).to(1)
+        # (= (f) 2)
+        yield equation(S.f()).to(2)
+
+    m.add(*f)
 
     # A literal default is the head PATTERN for that position, so the
     # parameter itself never appears in the equation and the underscore says
@@ -78,20 +93,20 @@ def twin(m):
 
     # Arg-free generator function plus check function.
     # !(test (forall (f) P) false)
-    yield m.eval(S.test(S["forall"](S.f(), S.P), FALSE))
+    yield m.eval(S.test(S.forall(S.f(), S.P), FALSE))
 
     # Arg-ful generator function plus check function.
     # !(test (forall (g $x) P) false)
-    yield m.eval(S.test(S["forall"](S.g(V.x), S.P), FALSE))
+    yield m.eval(S.test(S.forall(S.g(V.x), S.P), FALSE))
 
     # Arg-ful generator lambda plus check function.
     # !(test (let $genlambda (|-> ($x) (g $x)) (forall ($genlambda $z) P)) false)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 V.genlambda,
                 GENERATOR,
-                S["forall"](expr(V.genlambda, V.z), S.P),
+                S.forall((V.genlambda, V.z), S.P),
             ),
             FALSE,
         )
@@ -101,10 +116,10 @@ def twin(m):
     # !(test (let $checklambda (|-> ($v) (< $v 2)) (forall (g 2) $checklambda)) false)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 V.checklambda,
                 _check(2),
-                S["forall"](S.g(2), V.checklambda),
+                S.forall(S.g(2), V.checklambda),
             ),
             FALSE,
         )
@@ -112,10 +127,10 @@ def twin(m):
     # !(test (let $checklambda (|-> ($v) (< $v 2)) (forall (g 1) $checklambda)) true)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 V.checklambda,
                 _check(2),
-                S["forall"](S.g(1), V.checklambda),
+                S.forall(S.g(1), V.checklambda),
             ),
             TRUE,
         )
@@ -123,10 +138,10 @@ def twin(m):
     # !(test (let $checklambda (|-> ($v) (< $v 2)) (forall (g 2) $checklambda)) false)
     yield m.eval(
         S.test(
-            S["let"](
+            S.let(
                 V.checklambda,
                 _check(2),
-                S["forall"](S.g(2), V.checklambda),
+                S.forall(S.g(2), V.checklambda),
             ),
             FALSE,
         )
@@ -140,11 +155,11 @@ def twin(m):
     yield m.eval(
         S.test(
             S["let*"](
-                expr(
-                    expr(V.checklambda, _check(2)),
-                    expr(V.genlambda, GENERATOR),
+                (
+                    (V.checklambda, _check(2)),
+                    (V.genlambda, GENERATOR),
                 ),
-                S["forall"](expr(V.genlambda, V.z), V.checklambda),
+                S.forall((V.genlambda, V.z), V.checklambda),
             ),
             FALSE,
         )
@@ -152,34 +167,22 @@ def twin(m):
 
     # Lambdas as arguments directly.
     # !(test (forall ((|-> ($x) (g $x)) $z) (|-> ($v) (< $v 2))) false)
-    yield m.eval(
-        S.test(
-            S["forall"](expr(GENERATOR, V.z), _check(2)), FALSE
-        )
-    )
+    yield m.eval(S.test(S.forall((GENERATOR, V.z), _check(2)), FALSE))
     # !(test (forall ((|-> ($x) (g $x)) $z) (|-> ($v) (< $v 20))) true)
-    yield m.eval(
-        S.test(
-            S["forall"](expr(GENERATOR, V.z), _check(20)), TRUE
-        )
-    )
+    yield m.eval(S.test(S.forall((GENERATOR, V.z), _check(20)), TRUE))
 
     # A lambda wrapped in a syntactic construct is still a lambda.
     # !(test (forall ((|-> ($x) (g $x)) $z) (if True (|-> ($v) (< $v 2)) 42)) false)
     yield m.eval(
         S.test(
-            S["forall"](
-                expr(GENERATOR, V.z), S["if"](TRUE, _check(2), 42)
-            ),
+            S.forall((GENERATOR, V.z), S["if"](TRUE, _check(2), 42)),
             FALSE,
         )
     )
     # !(test (forall ((|-> ($x) (g $x)) $z) (if True (|-> ($v) (< $v 20)) 42)) true)
     yield m.eval(
         S.test(
-            S["forall"](
-                expr(GENERATOR, V.z), S["if"](TRUE, _check(20), 42)
-            ),
+            S.forall((GENERATOR, V.z), S["if"](TRUE, _check(20), 42)),
             TRUE,
         )
     )
@@ -188,10 +191,8 @@ def twin(m):
     #        false)
     yield m.eval(
         S.test(
-            S["forall"](
-                expr(
-                    S["|->"](expr(V.x), S["*"](100, S.g(V.x))), V.z
-                ),
+            S.forall(
+                (S["|->"]((V.x,), 100 * S.g(V.x)), V.z),
                 S["if"](TRUE, _check(20), 42),
             ),
             FALSE,

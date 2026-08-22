@@ -13,7 +13,7 @@ Python class projects to `Atom` the MeTTa metatype; this equation is not one,
 because its body applies `let*` and `let*` is not a Python identifier.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -38,16 +38,12 @@ def twin(m):
     # (: mylet (-> Atom Atom %Undefined%))
     m += S[":"](S.mylet, S["->"](S.Atom, S.Atom, S["%Undefined%"]))
     # (= (mylet $bindings $body) (let* $bindings $body))
-    m += S["="](
-        S.mylet(V.bindings, V.body), S["let*"](V.bindings, V.body)
-    )
+    m += equation(S.mylet(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
 
     # !(test (mylet (($x 1) ($y 2)) (+ $x $y)) 3)
     yield m.eval(
         S.test(
-            S.mylet(
-                expr(expr(V.x, 1), expr(V.y, 2)), S["+"](V.x, V.y)
-            ),
+            S.mylet(((V.x, 1), (V.y, 2)), V.x + V.y),
             3,
         )
     )
@@ -56,9 +52,7 @@ def twin(m):
     # !(test (let* (($x 1) ($y 2)) (+ $x $y)) 3)
     yield m.eval(
         S.test(
-            S["let*"](
-                expr(expr(V.x, 1), expr(V.y, 2)), S["+"](V.x, V.y)
-            ),
+            S["let*"](((V.x, 1), (V.y, 2)), V.x + V.y),
             3,
         )
     )
@@ -66,37 +60,22 @@ def twin(m):
     # A binding is a (pattern value) pair, not only (variable value), and a
     # pattern that does not match gives the whole form no answer.
     # !(test (mylet ((($a $b) (1 2))) $b) 2)
-    yield m.eval(
-        S.test(
-            S.mylet(expr(expr(expr(V.a, V.b), expr(1, 2))), V.b), 2
-        )
-    )
+    yield m.eval(S.test(S.mylet((((V.a, V.b), (1, 2)),), V.b), 2))
     # !(test (mylet ((5 5)) matched) matched)
-    yield m.eval(
-        S.test(S.mylet(expr(expr(5, 5)), S.matched), S.matched)
-    )
+    yield m.eval(S.test(S.mylet(((5, 5),), S.matched), S.matched))
     # !(test (collapse (mylet ((5 6)) matched)) ())
-    yield m.eval(
-        S.test(
-            S["collapse"](S.mylet(expr(expr(5, 6)), S.matched)), expr()
-        )
-    )
+    yield m.eval(S.test(S.collapse(S.mylet(((5, 6),), S.matched)), ()))
 
     # Without the `Atom` metatype the arguments evaluate on the way in, so
     # this is the other way to hand bindings over: `noeval` carries them as
     # data, and the body is a variable the same call site wrote.
     # (= (mylet-evaluating $bindings $body) (let* $bindings $body))
-    m += S["="](
-        S["mylet-evaluating"](V.bindings, V.body),
-        S["let*"](V.bindings, V.body),
-    )
+    m += equation(S["mylet-evaluating"](V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
 
     # !(test (mylet-evaluating (noeval (($x 1))) $x) 1)
     yield m.eval(
         S.test(
-            S["mylet-evaluating"](
-                S.noeval(expr(expr(V.x, 1))), V.x
-            ),
+            S["mylet-evaluating"](S.noeval(((V.x, 1),)), V.x),
             1,
         )
     )
@@ -106,13 +85,7 @@ def twin(m):
     # !(test (car-atom (catch (mylet-evaluating (noeval ((1 2 3))) done))) Error)
     yield m.eval(
         S.test(
-            S["car-atom"](
-                S["catch"](
-                    S["mylet-evaluating"](
-                        S.noeval(expr(expr(1, 2, 3))), S.done
-                    )
-                )
-            ),
+            S["car-atom"](S.catch(S["mylet-evaluating"](S.noeval(((1, 2, 3),)), S.done))),
             S.Error,
         )
     )
@@ -123,7 +96,7 @@ def twin(m):
     # !(test (repr (let* foo ok)) "(partial let* (foo ok))")
     yield m.eval(
         S.test(
-            S["repr"](S["let*"](S.foo, S.ok)),
+            S.repr(S["let*"](S.foo, S.ok)),
             val("(partial let* (foo ok))"),
         )
     )

@@ -1,8 +1,14 @@
 """The Python twin of examples/basics/and_or.metta: boolean connectives.
 
 `&` and `|` on a built term are MeTTa's `and` and `or`: the operator table
-lowers them, so the Python operators write the s-expression the example
-writes by hand.
+lowers them, so `expr | TRUE` writes the `(or ...)` the example writes by
+hand.
+
+The inner `(and true false)` is the exception, because both its operands are
+GROUND: a Python operator over two ground atoms is that value's own arithmetic,
+so `TRUE & FALSE` answers Python's `False` instead of building the term `if` is
+handed here. Only the outer `|`, whose left operand is the built `(and ...)`,
+is an operator.
 """
 
 from petta import S, val

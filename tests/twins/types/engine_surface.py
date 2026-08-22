@@ -13,7 +13,7 @@ That rules out the annotation door here, which the other type twins do use:
 the atoms they are, and every query is a term.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 15430 to 18710, +3280, by P14.8's typed state cell
@@ -46,36 +46,32 @@ def twin(m):
     # !(test (get-type let) (-> Atom %Undefined% Atom %Undefined%))
     yield m.eval(
         S.test(
-            kind(S["let"]),
+            kind(S.let),
             S["->"](S.Atom, undefined, S.Atom, undefined),
         )
     )
     # !(test (get-type chain) (-> Atom Variable Atom %Undefined%))
     yield m.eval(
         S.test(
-            kind(S["chain"]),
+            kind(S.chain),
             S["->"](S.Atom, S.Variable, S.Atom, undefined),
         )
     )
     # !(test (get-type quote) (-> Atom Atom))
-    yield m.eval(
-        S.test(kind(S["quote"]), S["->"](S.Atom, S.Atom))
-    )
+    yield m.eval(S.test(kind(S.quote), S["->"](S.Atom, S.Atom)))
     # !(test (get-type collapse) (-> Atom Atom))
-    yield m.eval(
-        S.test(kind(S["collapse"]), S["->"](S.Atom, S.Atom))
-    )
+    yield m.eval(S.test(kind(S.collapse), S["->"](S.Atom, S.Atom)))
     # !(test (get-type superpose) (-> Expression %Undefined%))
     yield m.eval(
         S.test(
-            kind(S["superpose"]),
+            kind(S.superpose),
             S["->"](S.Expression, undefined),
         )
     )
     # !(test (get-type match) (-> SpaceType Atom Atom %Undefined%))
     yield m.eval(
         S.test(
-            kind(S["match"]),
+            kind(S.match),
             S["->"](S.SpaceType, S.Atom, S.Atom, undefined),
         )
     )
@@ -83,19 +79,13 @@ def twin(m):
     yield m.eval(
         S.test(
             kind(S["map-atom"]),
-            S["->"](
-                S.Expression, S.Variable, S.Atom, S.Expression
-            ),
+            S["->"](S.Expression, S.Variable, S.Atom, S.Expression),
         )
     )
 
     # Expression structure, from the reference corelib dump.
     # !(test (get-type car-atom) (-> Expression %Undefined%))
-    yield m.eval(
-        S.test(
-            kind(S["car-atom"]), S["->"](S.Expression, undefined)
-        )
-    )
+    yield m.eval(S.test(kind(S["car-atom"]), S["->"](S.Expression, undefined)))
     # !(test (get-type cdr-atom) (-> Expression Expression))
     yield m.eval(
         S.test(
@@ -134,17 +124,11 @@ def twin(m):
         )
     )
     # !(test (get-type is-var) (-> Atom Bool))
-    yield m.eval(
-        S.test(kind(S["is-var"]), S["->"](S.Atom, S.Bool))
-    )
+    yield m.eval(S.test(kind(S["is-var"]), S["->"](S.Atom, S.Bool)))
     # !(test (get-type repr) (-> Atom String))
-    yield m.eval(
-        S.test(kind(S["repr"]), S["->"](S.Atom, S.String))
-    )
+    yield m.eval(S.test(kind(S.repr), S["->"](S.Atom, S.String)))
     # !(test (get-type current-time) (-> Number))
-    yield m.eval(
-        S.test(kind(S["current-time"]), S["->"](S.Number))
-    )
+    yield m.eval(S.test(kind(S["current-time"]), S["->"](S.Number)))
 
     # The state cell is a value whose type says what it holds, matching the
     # dump's parametric StateMonad signatures.
@@ -164,21 +148,11 @@ def twin(m):
         )
     )
     # !(test (get-type get-state) (-> (StateMonad $t) $t))
-    yield m.eval(
-        S.test(
-            kind(S["get-state"]), S["->"](S.StateMonad(V.t), V.t)
-        )
-    )
+    yield m.eval(S.test(kind(S["get-state"]), S["->"](S.StateMonad(V.t), V.t)))
     # !(test (get-type (new-state 5)) (StateMonad Number))
-    yield m.eval(
-        S.test(kind(S["new-state"](5)), S.StateMonad(S.Number))
-    )
+    yield m.eval(S.test(kind(S["new-state"](5)), S.StateMonad(S.Number)))
     # !(test (get-type (new-state "hi")) (StateMonad String))
-    yield m.eval(
-        S.test(
-            kind(S["new-state"](val("hi"))), S.StateMonad(S.String)
-        )
-    )
+    yield m.eval(S.test(kind(S["new-state"](val("hi"))), S.StateMonad(S.String)))
 
     # The surface is FACTS, not atoms in &self: a program still sees only
     # its own space.
@@ -187,12 +161,8 @@ def twin(m):
     # !(test (collapse (match &self (: $n $t) $n)) (program-own-type))
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["match"](
-                    S["&self"], S[":"](V.n, V.t), V.n
-                )
-            ),
-            expr(S["program-own-type"]),
+            S.collapse(S.match(S["&self"], S[":"](V.n, V.t), V.n)),
+            (S["program-own-type"],),
         )
     )
 
@@ -201,14 +171,12 @@ def twin(m):
     # (: car-atom MyOverride)
     m += S[":"](S["car-atom"], S.MyOverride)
     # !(test (car-atom (a b)) a)
-    yield m.eval(
-        S.test(S["car-atom"](expr(S.a, S.b)), S.a)
-    )
+    yield m.eval(S.test(S["car-atom"]((S.a, S.b)), S.a))
     # !(test (collapse (get-type car-atom)) (MyOverride (-> Expression %Undefined%)))
     yield m.eval(
         S.test(
-            S["collapse"](kind(S["car-atom"])),
-            expr(
+            S.collapse(kind(S["car-atom"])),
+            (
                 S.MyOverride,
                 S["->"](S.Expression, undefined),
             ),

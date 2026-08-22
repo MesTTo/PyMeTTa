@@ -13,7 +13,7 @@ free name EXACTLY, so a hyphenated engine function cannot be reached from one
 (wave one recorded that for `fibsmart`).
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 11131 to 10558, -573, by P14.8's native switch:
@@ -32,12 +32,12 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # (= (switch $value $cases) (case $value $cases))
-    m += S["="](S.switch(V.value, V.cases), S["case"](V.value, V.cases))
+    m += equation(S.switch(V.value, V.cases)).to(S.case(V.value, V.cases))
 
     # !(test (switch 2 ((1 one) (2 two))) two)
     yield m.eval(
         S.test(
-            S.switch(2, expr(expr(1, S.one), expr(2, S.two))),
+            S.switch(2, ((1, S.one), (2, S.two))),
             S.two,
         )
     )
@@ -46,17 +46,14 @@ def twin(m):
     # !(test (case 2 ((1 one) (2 two))) two)
     yield m.eval(
         S.test(
-            S["case"](2, expr(expr(1, S.one), expr(2, S.two))),
+            S.case(2, ((1, S.one), (2, S.two))),
             S.two,
         )
     )
 
     # Cases the program builds are cases too.
     # (= (numbered-cases) (cons-atom (1 one) ((2 two))))
-    m += S["="](
-        S["numbered-cases"](),
-        S["cons-atom"](expr(1, S.one), expr(expr(2, S.two))),
-    )
+    m += equation(S["numbered-cases"]()).to(S["cons-atom"]((1, S.one), ((2, S.two),)))
 
     # !(test (switch 1 (numbered-cases)) one)
     yield m.eval(S.test(S.switch(1, S["numbered-cases"]()), S.one))
@@ -66,23 +63,19 @@ def twin(m):
     # `Empty` is the branch a key with NO ANSWERS takes, and it means that
     # on both paths. Here the key is `(empty)`, so the default answers.
     # (= (key-of-nothing $cases) (case (empty) $cases))
-    m += S["="](
-        S["key-of-nothing"](V.cases), S["case"](S["empty"](), V.cases)
-    )
+    m += equation(S["key-of-nothing"](V.cases)).to(S.case(S.empty(), V.cases))
 
     # !(test (key-of-nothing ((1 one) (Empty none))) none)
     yield m.eval(
         S.test(
-            S["key-of-nothing"](expr(expr(1, S.one), expr(S.Empty, S.none))),
+            S["key-of-nothing"](((1, S.one), (S.Empty, S.none))),
             S.none,
         )
     )
     # !(test (case (empty) ((1 one) (Empty none))) none)
     yield m.eval(
         S.test(
-            S["case"](
-                S["empty"](), expr(expr(1, S.one), expr(S.Empty, S.none))
-            ),
+            S.case(S.empty(), ((1, S.one), (S.Empty, S.none))),
             S.none,
         )
     )
@@ -92,38 +85,32 @@ def twin(m):
     # !(test (collapse (switch 9 ((1 one) (Empty none)))) ())
     yield m.eval(
         S.test(
-            S["collapse"](
-                S.switch(9, expr(expr(1, S.one), expr(S.Empty, S.none)))
-            ),
-            expr(),
+            S.collapse(S.switch(9, ((1, S.one), (S.Empty, S.none)))),
+            (),
         )
     )
     # !(test (collapse (case 9 ((1 one) (Empty none)))) ())
     yield m.eval(
         S.test(
-            S["collapse"](
-                S["case"](9, expr(expr(1, S.one), expr(S.Empty, S.none)))
-            ),
-            expr(),
+            S.collapse(S.case(9, ((1, S.one), (S.Empty, S.none)))),
+            (),
         )
     )
 
     # One case pair handed over on its own is a pair too, and the definition
     # keeps the head it was written with.
     # (= (one-case $pair) (case 1 ($pair)))
-    m += S["="](S["one-case"](V.pair), S["case"](1, expr(V.pair)))
+    m += equation(S["one-case"](V.pair)).to(S.case(1, (V.pair,)))
 
     # !(test (one-case (1 hit)) hit)
-    yield m.eval(S.test(S["one-case"](expr(1, S.hit)), S.hit))
+    yield m.eval(S.test(S["one-case"]((1, S.hit)), S.hit))
 
     # Cases are checked when they arrive, because nothing after that point
     # can check them.
     # !(test (car-atom (catch (switch 1 foo))) Error)
-    yield m.eval(
-        S.test(S["car-atom"](S["catch"](S.switch(1, S.foo))), S.Error)
-    )
+    yield m.eval(S.test(S["car-atom"](S.catch(S.switch(1, S.foo))), S.Error))
 
     # Written out, `(case 1 foo)` is not a case with bad cases, it is a
     # program using the name as data, and it still reduces to itself.
     # !(test (case 1 foo) (case 1 foo))
-    yield m.eval(S.test(S["case"](1, S.foo), S["case"](1, S.foo)))
+    yield m.eval(S.test(S.case(1, S.foo), S.case(1, S.foo)))

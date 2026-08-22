@@ -10,7 +10,7 @@ S.Number)`, and a type VARIABLE in one is an ordinary variable, `V.a`, which is
 what makes `(-> $a $a Bool)` say that `==` compares two things of one type.
 """
 
-from petta import S, V, expr
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 142406 to 146130, +3724, by P14.8's
@@ -37,9 +37,7 @@ def twin(m):
     kind = S["get-type"]
 
     # !(import! &self (library lib_builtin_types)) answers (())
-    yield m.eval(
-        S["import!"](S["&self"], expr(S.library, S.lib_builtin_types))
-    )
+    yield m.eval(S["import!"](S["&self"], (S.library, S.lib_builtin_types)))
 
     # Type definitions of arithmetic operators.
     # !(test (get-type +) (-> Number Number Number))
@@ -102,19 +100,15 @@ def twin(m):
     # !(test (get-type atan-math) (-> Number Number))
     yield m.eval(S.test(kind(S["atan-math"]), UNARY_NUMBER))
     # !(test (get-type min-atom) (-> $a Number))
-    yield m.eval(
-        S.test(kind(S["min-atom"]), S["->"](V.a, S.Number))
-    )
+    yield m.eval(S.test(kind(S["min-atom"]), S["->"](V.a, S.Number)))
     # !(test (get-type max-atom) (-> $a Number))
-    yield m.eval(
-        S.test(kind(S["max-atom"]), S["->"](V.a, S.Number))
-    )
+    yield m.eval(S.test(kind(S["max-atom"]), S["->"](V.a, S.Number)))
     # !(test (get-type min) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["min"]), BINARY_NUMBER))
+    yield m.eval(S.test(kind(S.min), BINARY_NUMBER))
     # !(test (get-type max) (-> Number Number Number))
-    yield m.eval(S.test(kind(S["max"]), BINARY_NUMBER))
+    yield m.eval(S.test(kind(S.max), BINARY_NUMBER))
     # !(test (get-type exp) (-> Number Number))
-    yield m.eval(S.test(kind(S["exp"]), UNARY_NUMBER))
+    yield m.eval(S.test(kind(S.exp), UNARY_NUMBER))
 
     # Type definitions of isnan and isinf predicates.
     # !(test (get-type isnan-math) (-> Number Bool))
@@ -129,8 +123,6 @@ def twin(m):
     # !(test (get-type or) (-> Bool Bool Bool))
     yield m.eval(S.test(kind(S["or"]), boolean))
     # !(test (get-type not) (-> Bool Bool))
-    yield m.eval(
-        S.test(kind(S["not"]), S["->"](S.Bool, S.Bool))
-    )
+    yield m.eval(S.test(kind(S["not"]), S["->"](S.Bool, S.Bool)))
     # !(test (get-type xor) (-> Bool Bool Bool))
-    yield m.eval(S.test(kind(S["xor"]), boolean))
+    yield m.eval(S.test(kind(S.xor), boolean))

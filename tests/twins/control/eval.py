@@ -17,7 +17,7 @@ so a hyphenated engine function cannot be reached from one (wave one recorded
 that against P14.4 for `fibsmart`).
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 5658 to 5975, +317, by P14.8's
@@ -47,15 +47,15 @@ def twin(m):
     # !(test (let $fbody_specialized (match &self (= (f (42) 40.7 2) $x) $x)
     #          (eval $fbody_specialized))
     #        (42.7 42))
-    retrieved = S["match"](
+    retrieved = S.match(
         S["&self"],
-        S["="](S.f(expr(42), 40.7, 2), V.x),
+        equation(S.f((42,), 40.7, 2)).to(V.x),
         V.x,
     )
     yield m.eval(
         S.test(
-            S["let"](V.body, retrieved, S["eval"](V.body)),
-            expr(42.7, 42),
+            S.let(V.body, retrieved, S.eval(V.body)),
+            (42.7, 42),
         )
     )
 
@@ -64,17 +64,16 @@ def twin(m):
     #           ($res (reduce (myfunc)))
     #           ($r   (remove-atom &self (= (myfunc) $body))))
     #          $res))
-    equation = S["="](S.myfunc(), V.body)
-    m += S["="](
-        S.evalCustom(V.body),
+    stored = equation(S.myfunc()).to(V.body)
+    m += equation(S.evalCustom(V.body)).to(
         S["let*"](
-            expr(
-                expr(V.a, S["add-atom"](S["&self"], equation)),
-                expr(V.res, S["reduce"](S.myfunc())),
-                expr(V.r, S["remove-atom"](S["&self"], equation)),
+            (
+                (V.a, S["add-atom"](S["&self"], stored)),
+                (V.res, S.reduce(S.myfunc())),
+                (V.r, S["remove-atom"](S["&self"], stored)),
             ),
             V.res,
-        ),
+        )
     )
 
     # !(test (evalCustom (match &self (= (f (42) 40.7 2) $x) $x)) (42.7 42))

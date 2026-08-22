@@ -20,7 +20,7 @@ declarations now publish before their equations; outputtype.py exercises that
 door directly.
 """
 
-from petta import S, V, expr, val
+from petta import S, V, equation, val
 
 #: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
 #: rather than written inline because a bare boolean in an argument list
@@ -48,14 +48,7 @@ def twin(m):
     # =alpha throughout, not ==: each comparison crosses KNOWN and different
     # types, which == refuses by name.
     # (= (get-type $x) (catch (if (=alpha (% $x 2) 0) EvenNumber)))
-    m += S["="](
-        kind(V.x),
-        S["catch"](
-            S["if"](
-                alpha(S["%"](V.x, 2), 0), S.EvenNumber
-            )
-        ),
-    )
+    m += equation(kind(V.x)).to(S.catch(S["if"](alpha(V.x % 2, 0), S.EvenNumber)))
 
     # (: f (-> EvenNumber EvenNumber EvenNumber))
     m += S[":"](
@@ -76,16 +69,15 @@ def twin(m):
     #        (if (=alpha $tail ())
     #            EvenNumberList
     #            (get-type $tail))))
-    m += S["="](
-        kind(S.cons(V.head, V.tail)),
+    m += equation(kind(S.cons(V.head, V.tail))).to(
         S["if"](
             alpha(kind(V.head), S.EvenNumber),
             S["if"](
-                alpha(V.tail, expr()),
+                alpha(V.tail, ()),
                 S.EvenNumberList,
                 kind(V.tail),
             ),
-        ),
+        )
     )
 
     # (: g (-> EvenNumberList Bool))
@@ -99,4 +91,4 @@ def twin(m):
         return True
 
     # !(test (g (2 4 6)) True)
-    yield m.eval(S.test(S.g(expr(2, 4, 6)), TRUE))
+    yield m.eval(S.test(S.g((2, 4, 6)), TRUE))

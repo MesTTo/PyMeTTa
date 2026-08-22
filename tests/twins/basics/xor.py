@@ -7,6 +7,13 @@ P14.4. So the body names `xor` instead, which compiles because the engine
 knows that name. `m.fn("xor")` binds it so the Python is valid to read and to
 run: `check_xor.py(2, 2)` still answers, which is the twin `@m.define`
 promises.
+
+Two more places where the stored equation is not the original's, both
+lowerings rather than choices. A compiled body's `==` becomes `(py-eq ...)`,
+and a condition whose syntax is not boolean-valued wraps in `(py-truthy ...)`,
+so `(if (xor (== $s $d) (> $s $d)) 42 0)` is stored as
+`(if (py-truthy (xor (py-eq $s $d) (> $s $d))) 42 0)`. The answers agree; the
+residue table records the divergence against P14.4.
 """
 
 from petta import S

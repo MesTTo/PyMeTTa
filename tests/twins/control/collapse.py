@@ -3,10 +3,11 @@
 `(1 2 3)` is a term with three elements and no head to call, so it answers
 itself, and `collapse` gathers the ONE answer into a one-element expression.
 The doubled parentheses in the expected value are the whole point, and
-`expr(expr(1, 2, 3))` writes them.
+a Python tuple writes them, `((1, 2, 3),)`, with the trailing comma
+carrying the outer one.
 """
 
-from petta import S, expr
+from petta import S
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 596 to 617, +21, by P14.8's
@@ -24,4 +25,4 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # !(test (collapse (1 2 3)) ((1 2 3)))
-    yield m.eval(S.test(S["collapse"](expr(1, 2, 3)), expr(expr(1, 2, 3))))
+    yield m.eval(S.test(S.collapse((1, 2, 3)), ((1, 2, 3),)))

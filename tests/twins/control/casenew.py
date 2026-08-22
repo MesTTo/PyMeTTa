@@ -19,7 +19,7 @@ Two of the three equations do not fit a compiled body:
 the generator below names it the way it names `wu1`.
 """
 
-from petta import S
+from petta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4638 to 4695, +57, by P14.8's
@@ -44,7 +44,7 @@ def twin(m):
         return empty()
 
     # (= (wu2) (full))
-    m += S["="](S.wu2(), S.full())
+    m += equation(S.wu2()).to(S.full())
     wu2 = m.fn("wu2")
 
     @m.define

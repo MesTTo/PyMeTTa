@@ -18,7 +18,7 @@ compiled body means `(superpose ($ev1))`, one alternative that happens to be
 `$ev1`, not the superposition OF `$ev1`. The residue table records that
 against P14.4.
 
-The name is bound at module level, `TupleConcat = S["TupleConcat"]`, and it
+The name is bound at module level, `TupleConcat = S.TupleConcat`, and it
 has to be that exact spelling: a compiled body resolves a free name EXACTLY,
 so `tuple_concat` would reach nothing. Binding it as the symbol rather than as
 `m.fn(...)` keeps it at module scope, where CapWords is ordinary Python and
@@ -26,7 +26,7 @@ needs no naming suppression, and calling the symbol builds the same term the
 equation stores.
 """
 
-from petta import S, V, expr
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 6633 to 7810, +1177, by P14.8's
@@ -37,7 +37,7 @@ from petta import S, V, expr
 BUDGET = 7810
 
 #: The MeTTa name, kept verbatim, so the compiled body below can spell it.
-TupleConcat = S["TupleConcat"]
+TupleConcat = S.TupleConcat
 
 
 def twin(m):
@@ -48,13 +48,8 @@ def twin(m):
     """
     # (= (TupleConcat $Ev1 $Ev2)
     #    (collapse (superpose ((superpose $Ev1) (superpose $Ev2)))))
-    m += S["="](
-        TupleConcat(V.first, V.second),
-        S["collapse"](
-            S["superpose"](
-                expr(S["superpose"](V.first), S["superpose"](V.second))
-            )
-        ),
+    m += equation(TupleConcat(V.first, V.second)).to(
+        S.collapse(S.superpose((S.superpose(V.first), S.superpose(V.second))))
     )
 
     @m.define(name="range")
@@ -66,6 +61,4 @@ def twin(m):
         return TupleConcat((k,), count_from(k + 1, n)) if k < n else ()
 
     # !(test (range 1 10) (1 2 3 4 5 6 7 8 9))
-    yield m.eval(
-        S.test(S["range"](1, 10), expr(1, 2, 3, 4, 5, 6, 7, 8, 9))
-    )
+    yield m.eval(S.test(S.range(1, 10), (1, 2, 3, 4, 5, 6, 7, 8, 9)))

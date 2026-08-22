@@ -8,7 +8,7 @@ evaluates to 44. `(+ 3 44)` is 47.
 Nothing about that is a Python assignment, so the whole form is a term.
 """
 
-from petta import S, V, expr
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 1222 to 1264, +42, by P14.8's
@@ -28,10 +28,10 @@ def twin(m):
     # !(test (let ($x (42 (if (== $x 2) 43 44))) (3 (42 $z)) (+ $x $z)) 47)
     yield m.eval(
         S.test(
-            S["let"](
-                expr(V.x, expr(42, S["if"](S["=="](V.x, 2), 43, 44))),
-                expr(3, expr(42, V.z)),
-                S["+"](V.x, V.z),
+            S.let(
+                (V.x, (42, S["if"](V.x.eq(2), 43, 44))),
+                (3, (42, V.z)),
+                V.x + V.z,
             ),
             47,
         )

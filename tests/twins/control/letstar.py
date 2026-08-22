@@ -6,7 +6,7 @@ definition to hang statements on, though, so the form is built as the term it
 is, one `(pattern value)` pair per binding.
 """
 
-from petta import S, V, expr
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 714 to 742, +28, by P14.8's
@@ -27,8 +27,8 @@ def twin(m):
     yield m.eval(
         S.test(
             S["let*"](
-                expr(expr(V.x, 1), expr(V.y, 2)),
-                S["+"](V.x, V.y),
+                ((V.x, 1), (V.y, 2)),
+                V.x + V.y,
             ),
             3,
         )

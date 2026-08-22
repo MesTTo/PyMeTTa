@@ -27,18 +27,16 @@ def twin(m):
     every other form says its own answer in the comment above it.
     """
     # !(test (chain (+ 2 4) $n (* 3 $n)) 18)
-    yield m.eval(
-        S.test(S["chain"](S["+"](2, 4), V.n, S["*"](3, V.n)), 18)
-    )
+    yield m.eval(S.test(S.chain(S["+"](2, 4), V.n, 3 * V.n), 18))
 
     # Chains nest, and the inner one still sees the outer binding.
     # !(test (chain (+ 1 3) $n (chain (* 2 $n) $m (+ $n $m))) 12)
     yield m.eval(
         S.test(
-            S["chain"](
+            S.chain(
                 S["+"](1, 3),
                 V.n,
-                S["chain"](S["*"](2, V.n), V.m, S["+"](V.n, V.m)),
+                S.chain(2 * V.n, V.m, V.n + V.m),
             ),
             12,
         )

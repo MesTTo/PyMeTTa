@@ -31,6 +31,7 @@ def twin(m):
     A `test` form answers `(True)` and prints `is X, should Y. ✅`;
     every other form says its own answer in the comment above it.
     """
+
     @m.define
     def f(x: int) -> Any:
         # (= (f $x) (+ $x 42))
@@ -51,13 +52,11 @@ def twin(m):
     # quote retains its wrapper in LeaTTa; noeval is the payload-preserving
     # form these expected expressions require.
     # !(test (g (+ 1 1)) (noeval (+ 2 42)))
-    yield m.eval(
-        S.test(S.g(S["+"](1, 1)), S.noeval(S["+"](2, 42)))
-    )
+    yield m.eval(S.test(S.g(S["+"](1, 1)), S.noeval(S["+"](2, 42))))
     # !(test (h (+ 1 1)) (noeval (+ (+ 1 1) 42)))
     yield m.eval(
         S.test(
             S.h(S["+"](1, 1)),
-            S.noeval(S["+"](S["+"](1, 1), 42)),
+            S.noeval(S["+"](1, 1) + 42),
         )
     )
