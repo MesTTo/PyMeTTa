@@ -95,6 +95,7 @@ import ast
 import contextlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -162,8 +163,32 @@ def _one(value: Any) -> str:
     import petta  # noqa: PLC0415  -- deferred so the lane imports without an engine
 
     if isinstance(value, petta.Atom):
-        return str(value)
-    return str(petta.encode(value))
+        return _canonical(str(value))
+    return _canonical(str(petta.encode(value)))
+
+
+#: A variable the engine invented, which it numbers from a per-process counter.
+FRESH = re.compile(r"\$_\d+")
+
+
+def _canonical(printed: str) -> str:
+    """One answer, with the engine's FRESH VARIABLE ids canonicalised.
+
+    Answer equivalence is ALPHA-equivalence by the law (`=alpha`, and the
+    stdlib's own assertAlpha family), so a frozen transcript that records
+    `$_98110` records a fact about a counter rather than about an answer.
+    Measured 2026-08-23: the startup-perf merge, which changes no semantics at
+    all, moved one row from `($_98110 $_98518)` to `($_98120 $_98528)` purely
+    because the engine now reaches that point having invented ten fewer
+    variables. Renaming in order of first appearance makes the record stable
+    under every such change and still distinguishes two variables from one,
+    which is exactly what alpha-equivalence distinguishes. `bench.sh` learned
+    the same lesson by scar and alpha-renames before judging.
+    """
+    seen: dict[str, str] = {}
+    return FRESH.sub(
+        lambda hit: seen.setdefault(hit.group(0), f"$_{len(seen) + 1}"), printed
+    )
 
 
 #: What a row may spend before the lane calls it a runaway. No stdlib row is

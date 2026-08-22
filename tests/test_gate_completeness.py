@@ -97,16 +97,17 @@ RUFF_FAMILY_BURN_DOWN = {
     # emitter strips one trailing period, because a docstring is Python's
     # concept and Python's convention wins), and these two suppressions go
     # when it lands. Measured on the merged tree, after the last merge.
-    # 2149 after the phrasebook lane joined the tree. Measured on the merged
-    # tree, after the last merge.
-    "D": 2149,
+    # 2151 after the startup-perf merge, which added `petta/__main__.py` and
+    # its test. Measured on the merged tree, after the last merge.
+    "D": 2151,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
     # callback parameter a protocol fixes. Each carries a suppression naming
     # its reason, and --ignore-noqa counts the site whatever the suppression
     # says, which is the point of a burn-down.
-    "ARG": 145,
+    # 147 after the startup-perf merge; its two new files carry two sites.
+    "ARG": 147,
     "PERF": 0,
     "C90": 24,
     "TRY": 23,

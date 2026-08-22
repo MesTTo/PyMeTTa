@@ -275,7 +275,7 @@
   "leatta": [
    "(@return \"the sum\")"
   ],
-  "metta_inferences": 665,
+  "metta_inferences": 667,
   "petta": [
    "(@return \"the sum\")"
   ],
@@ -328,7 +328,7 @@
   "leatta": [
    "ErrorType"
   ],
-  "metta_inferences": 1280,
+  "metta_inferences": 1190,
   "petta": [
    "ErrorType"
   ],
@@ -571,7 +571,7 @@
   "leatta": [
    "()"
   ],
-  "metta_inferences": 1771,
+  "metta_inferences": 1769,
   "petta": [
    "True"
   ],
@@ -610,7 +610,7 @@
   "leatta": [
    "()"
   ],
-  "metta_inferences": 1540,
+  "metta_inferences": 1569,
   "petta": [
    "True"
   ],
@@ -999,7 +999,7 @@
   "leatta": [
    "(f 1)"
   ],
-  "metta_inferences": 1991,
+  "metta_inferences": 1993,
   "petta": [
    "(f 1)"
   ],
@@ -1012,7 +1012,7 @@
   "leatta": [
    "(@doc-formal (@item +) (@kind function) (@type (-> Number Number Number)) (@desc \"Sums two numbers\") (@params ((@param (@type Number) (@desc \"Addend\")) (@param (@type Number) (@desc \"Augend\")))) (@return (@type Number) (@desc \"Sum\")))"
   ],
-  "metta_inferences": 2327,
+  "metta_inferences": 1482,
   "petta": [],
   "python": [
    "\"Make a title into a slug.\""
@@ -1049,27 +1049,27 @@
   "leatta": [
    "Number"
   ],
-  "metta_inferences": 862,
+  "metta_inferences": 882,
   "petta": [
    "Number"
   ],
   "python": [
    "Number"
   ],
-  "python_inferences": 123
+  "python_inferences": 130
  },
  "get-type-space": {
   "leatta": [
    "Number"
   ],
-  "metta_inferences": 1431,
+  "metta_inferences": 1242,
   "petta": [
    "Number"
   ],
   "python": [
    "Number"
   ],
-  "python_inferences": 123
+  "python_inferences": 141
  },
  "git-import!": {
   "leatta": [
@@ -1233,7 +1233,7 @@
    "b",
    "c"
   ],
-  "metta_inferences": 2056,
+  "metta_inferences": 2101,
   "petta": [
    "b",
    "c"
@@ -1248,7 +1248,7 @@
   "leatta": [
    "(b c)"
   ],
-  "metta_inferences": 1248,
+  "metta_inferences": 1293,
   "petta": [
    "(b c)"
   ],
@@ -1419,7 +1419,7 @@
   "leatta": [
    "1.0"
   ],
-  "metta_inferences": 901,
+  "metta_inferences": 903,
   "petta": [
    "1"
   ],
@@ -1513,7 +1513,7 @@
   "leatta": [
    "()"
   ],
-  "metta_inferences": 616,
+  "metta_inferences": 614,
   "petta": [
    "()"
   ],
@@ -1697,7 +1697,7 @@
    "($x $y#0)"
   ],
   "python": [
-   "($_98110 $_98518)"
+   "($_1 $_2)"
   ],
   "python_inferences": 174
  },
@@ -1797,7 +1797,7 @@
    "a",
    "b"
   ],
-  "metta_inferences": 1898,
+  "metta_inferences": 1933,
   "petta": [
    "a",
    "b"
@@ -1812,7 +1812,7 @@
   "leatta": [
    "(a b)"
   ],
-  "metta_inferences": 1194,
+  "metta_inferences": 1229,
   "petta": [
    "(a b)"
   ],
@@ -1861,7 +1861,7 @@
   "leatta": [
    "0.0"
   ],
-  "metta_inferences": 777,
+  "metta_inferences": 775,
   "petta": [
    "0.0"
   ],
