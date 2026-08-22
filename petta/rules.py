@@ -6,7 +6,7 @@ Guarantees:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=88d2e764c999d89e8919172e5c1455be804b293d].
   - equation halves share one static type parameter [tested:
-    sh check.sh mypy ty; commit=WORKTREE].
+    sh check.sh mypy ty; commit=c4c2088210e4b6685c8dd2d185a1f546fa90a88d].
 """
 
 from __future__ import annotations
