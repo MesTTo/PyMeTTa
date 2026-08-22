@@ -6,8 +6,7 @@ Guarantees:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=88d2e764c999d89e8919172e5c1455be804b293d].
   - equation halves share one static type parameter [tested:
-    env CHECK_PY=/home/user/Dev/.venv-pypetta/bin/python sh check.sh mypy;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d].
+    sh check.sh mypy ty; commit=WORKTREE].
 """
 
 from __future__ import annotations
@@ -103,4 +102,4 @@ def rules(fn: Callable[..., Iterator[Expr]]) -> list[Expr]:
 if TYPE_CHECKING:
     _typed_equation = equation(1)
     _typed_equation.to(2)
-    _typed_equation.to("wrong")  # type: ignore[arg-type]
+    _typed_equation.to("wrong")  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
