@@ -21,6 +21,9 @@ Guarantees:
   - check_twin consumes a Defined call's eager answer list exactly once
     [tested: test_the_prolog_twin_is_checked_against_its_reference;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321].
+  - minted-space conformance recognizes decoded Space handles in provider
+    answers [tested: test_fabricated_space_identities_are_refused;
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,6 +36,7 @@ from types import GeneratorType
 
 from ._codec_kit import CodecDriver, check_codec, codec_corpus, codec_plan
 from ._optional import require_module
+from ._space import Space
 from .atoms import Expression, Grounded, Symbol, Variable, _alpha_eq, _encode
 from .atoms import parse as atoms_parse
 from .benchmarking import (
@@ -711,7 +715,9 @@ def check_minted_handles(provider, registered=()) -> list[str]:
 
 
 def _space_symbols(atom):
-    if isinstance(atom, Symbol) and atom.name.startswith("&"):
+    if isinstance(atom, Space):
+        yield str(atom.name)
+    elif isinstance(atom, Symbol) and atom.name.startswith("&"):
         yield atom.name
     elif isinstance(atom, Expression):
         for child in atom.children:

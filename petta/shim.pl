@@ -58,6 +58,11 @@
 %     does, so a tag is a claim about its payload rather than a label
 %     [tested 2026-08-20:
 %     shim_wire_decoding:a_payload_outside_its_tags_class_fails]
+%   - the canonical &self and &petta handles cross under the p tag while other
+%     engine atoms retain the s tag, leaving Python to restore only names it
+%     registered as spaces without reclassifying an ampersand operator
+%     [tested: test_space_handles_are_term_operands_and_round_trip;
+%     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 %   - the n tag carries signed-i64 Number integers and wider BigInt integers
 %     through Janus without changing their exact value
 %     [tested 2026-08-20: test_janus_carries_bigint_losslessly]
@@ -143,8 +148,8 @@
 % the booleans to strings too, so a bare term crossing the boundary loses its
 % metatype. Every term crosses tagged instead: ["s",Name] symbol, ["g",Text]
 % string, ["n",N] Number or BigInt, ["b",true|false] boolean,
-% ["v",Name] variable, ["e",[...]] expression, ["o",Ref] Python object
-% reference. The tag list itself is nested lists, which janus converts
+% ["v",Name] variable, ["e",[...]] expression, ["p",Name] space reference,
+% ["o",Ref] Python object reference. The tag list itself is nested lists, which janus converts
 % natively in both directions.
 
 %Encode a Prolog term as a tagged wire term:
@@ -175,6 +180,8 @@ petta_py_encode(T, ["v", Name]) :- var(T), !, term_to_atom(T, A), atom_string(A,
 petta_py_encode(T, ["n", T])    :- number(T), !.
 petta_py_encode(T, ["g", T])    :- string(T), !.
 petta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
+petta_py_encode('&self', ["p", "&self"]) :- !.
+petta_py_encode('&petta', ["p", "&petta"]) :- !.
 petta_py_encode(T, ["s", S])    :- atom(T), !, atom_string(T, S).
 petta_py_encode(T, ["o", T])    :- py_is_object(T), !.
 petta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(petta_py_encode, T, Es).
@@ -331,6 +338,9 @@ petta_py_decode_(n, [N], N)     :- number(N).
 petta_py_decode_(b, [B], A)     :- petta_py_wire_bool(B, A).
 petta_py_decode_(v, [Name], _)  :- ( atom(Name) -> true ; string(Name) ).
 petta_py_decode_(e, [Es], Term) :- maplist(petta_py_decode, Es, Term).
+petta_py_decode_(p, [S], Space) :-
+    ( atom(S) -> Space = S ; string(S), atom_string(Space, S) ),
+    sub_atom(Space, 0, 1, _, '&').
 
 %Decode sharing variables by name, so the $x in a head and in a body unify.
 %Bindings comes back as Name-Var pairs for reading answers off a query:

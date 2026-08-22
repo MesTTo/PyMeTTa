@@ -62,6 +62,10 @@ Guarantees:
     command=python -m benchmarks.check_instructions term-operators;
     fixture=CPython 3.14 controlled perf lane;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - Handle is the common grounded species for executable references, while
+    native blobs retain process-local registry identity
+    [tested: test_space_handles_are_term_operands_and_round_trip;
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Guarded by:
   - _STATE_LOCK protects box identity, formatter registries, and wire interns
     [tested test_atom_identity_caches_are_thread_safe]
@@ -492,11 +496,11 @@ class Atom:
 
         return unify(self, other)
 
-    def __setattr__(self, *_: Any) -> None:
+    def __setattr__(self, _name: str, _value: Any, /) -> None:
         msg = "atoms are immutable"
         raise AttributeError(msg)
 
-    def __delattr__(self, *_: Any) -> None:
+    def __delattr__(self, _name: str, /) -> None:
         msg = "atoms are immutable"
         raise AttributeError(msg)
 
@@ -563,6 +567,8 @@ class Symbol(Atom):
             return True
         if not isinstance(other, Atom):
             return NotImplemented
+        if isinstance(other, Handle):
+            return other == self
         return isinstance(other, Symbol) and other.name == self.name
 
     def __hash__(self) -> int:
@@ -634,6 +640,21 @@ class Variable(Atom):
 
 
 class Handle(Atom):
+    """A grounded executable reference carried as an atom.
+
+    Space handles and native extension handles are the two concrete species.
+    A handle owns behavior and identity outside the term tree while remaining
+    usable wherever MeTTa accepts a grounded operand.
+    """
+
+    __slots__ = ()
+
+    @property
+    def metatype(self) -> str:
+        return "Grounded"
+
+
+class _NativeHandle(Handle):
     """A native engine value held by reference: the identity carrier for
     anything a C extension hands back as a blob (EXTENDING.md section 3).
 
@@ -670,7 +691,7 @@ class Handle(Atom):
         return self.text
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Handle) and other.ident == self.ident
+        return isinstance(other, _NativeHandle) and other.ident == self.ident
 
     def __hash__(self) -> int:
         return hash(("handle", self.ident))
@@ -686,10 +707,6 @@ class Handle(Atom):
 
     def to_wire(self) -> list:
         return ["h", self.ident]
-
-    @property
-    def metatype(self) -> str:
-        return "Grounded"
 
     def __enter__(self) -> Self:
         return self

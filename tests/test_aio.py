@@ -13,6 +13,9 @@ Guarantees:
   - async space is the single named, anonymous, and provider-backed creation
     door [tested: test_aio_space_attaches_a_provider_without_a_register_alias;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - async peek and take mirror the Space handle's Linda wait verbs on the
+    engine worker [tested: test_async_peek_and_take_mirror_the_space_handle;
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -283,8 +286,13 @@ def test_aio_covers_the_whole_synchronous_surface():
         # A decorator cannot await the worker-side landing; async callers add
         # a bare rules bundle through the existing await m.add(*bundle) door.
         "rules",
+        # These are Space's Atom/Handle operand protocol, not engine calls.
+        "metatype",
+        "to_wire",
     }
-    sync = {name for name in dir(Space) if not name.startswith("_")}
+    # Atom and Handle methods are operand behavior inherited by Space, not
+    # engine calls for the async facade to mirror.
+    sync = {name for name in Space.__dict__ if not name.startswith("_")}
     missing = sync - set(dir(aio.AsyncMeTTa)) - excluded
     assert not missing, f"AsyncMeTTa lacks {sorted(missing)}"
     assert not excluded - sync, "the exclusion ledger names a method Space lost"
@@ -387,6 +395,19 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103
             await fresh.drop()
             await fresh.aclose()
             await am.drop()
+
+    asyncio.run(go())
+
+
+def test_async_peek_and_take_mirror_the_space_handle(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    async def go():
+        async with aio.AsyncMeTTa(metta=metta._new_space()) as am:
+            job = S.job(S.ready)
+            await am.add(job)
+            assert await am.peek(S.job(V.state), deadline=0.1) == job
+            assert await am.take(S.job(V.state), deadline=0.1) == job
+            with pytest.raises(TimeoutError, match="no atom matching"):
+                await am.take(S.job(V.state), deadline=0.001)
 
     asyncio.run(go())
 

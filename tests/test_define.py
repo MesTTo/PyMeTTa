@@ -198,7 +198,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     )
     assert len(source_rows) == 1
     source_row = source_rows[0]
-    assert source_row.space == S[m.name]
+    assert source_row.space == m
     assert source_row.path.value == str(Path(__file__).resolve())
     source_fact = Expression(
         S["source-span"],

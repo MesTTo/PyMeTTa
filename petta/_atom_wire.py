@@ -15,6 +15,13 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - n decodes Python integers without a width conversion, so Number and
     BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
+  - p decodes a canonical space name into the executable Space handle for
+    the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - strict decoding preserves explicit s and p tags, while engine decoding
+    restores only space names registered by Space plus the reserved future
+    namespace [tested: test_an_ampersand_symbol_is_not_reclassified_as_a_space;
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,6 +30,8 @@ Open Obligations:
 
 from __future__ import annotations
 
+import importlib
+import threading
 from typing import Any
 
 from ._atoms_core import (
@@ -30,7 +39,7 @@ from ._atoms_core import (
     Box,
     Expression,
     Grounded,
-    Handle,
+    _NativeHandle,
     _new_expression,
     _set_children,
     _set_hash,
@@ -38,6 +47,24 @@ from ._atoms_core import (
     _wire_var,
 )
 from .errors import PettaError
+
+_SPACE_NAMES: list[frozenset[str]] = [frozenset()]
+_SPACE_NAMES_LOCK = threading.RLock()
+
+
+def _remember_space_name(name: str) -> None:
+    with _SPACE_NAMES_LOCK:
+        _SPACE_NAMES[0] = _SPACE_NAMES[0] | {name}
+
+
+def _engine_ampersand_from_wire(payload: str) -> Atom:
+    # Readers take an immutable snapshot without a lock. Registering a name
+    # replaces the frozenset under the write lock, so free-threaded Python
+    # cannot observe a set mid-mutation and ordinary symbols keep the codec's
+    # measured direct path.
+    if payload in _SPACE_NAMES[0] or payload.startswith("&future-"):
+        return _space_from_wire(payload)
+    return _wire_sym(payload)
 
 
 class _PendingExpr:
@@ -52,12 +79,15 @@ class _PendingExpr:
         self.items: list[Atom | _PendingExpr] = []
 
 
-def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
+def _leaf_from_wire(tag: Any, payload: Any, *, engine: bool = False) -> Atom:
     """One non-expression wire term, its payload validated exactly: a wrong
     payload is a boundary bug and must say so, never coerce.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if tag == "s":
-        return _symbol_from_wire(payload)
+        payload = _text_payload(payload, "symbol")
+        if engine and payload.startswith("&"):
+            return _engine_ampersand_from_wire(payload)
+        return _wire_sym(payload)
     if tag == "g":
         return _string_from_wire(payload)
     if tag == "n":
@@ -68,6 +98,8 @@ def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
         return _variable_from_wire(payload)
     if tag == "o":
         return _object_from_wire(payload)
+    if tag == "p":
+        return _space_from_wire(payload)
     msg = f"unknown wire tag {tag!r}"
     raise ValueError(msg)
 
@@ -76,24 +108,27 @@ def _handle_from_wire(ident: Any, text: Any) -> Atom:
     if isinstance(ident, bool) or not isinstance(ident, int):
         msg = f"wire handle id must be an integer, got {ident!r}"
         raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-    if not isinstance(text, str):
-        msg = f"wire handle text must be a string, got {text!r}"
-        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-    return Handle(ident, text)
+    return _NativeHandle(ident, _text_payload(text, "handle", "a string"))
 
 
-def _symbol_from_wire(payload: Any) -> Atom:
+def _text_payload(payload: Any, kind: str, expected: str = "text") -> str:
     if not isinstance(payload, str):
-        msg = f"wire symbol payload must be text, got {payload!r}"
+        msg = f"wire {kind} payload must be {expected}, got {payload!r}"
         raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-    return _wire_sym(payload)
+    return payload
+
+
+def _space_from_wire(payload: Any) -> Atom:
+    payload = _text_payload(payload, "space")
+    if not payload.startswith("&"):
+        msg = f"wire space payload must start with &, got {payload!r}"
+        raise ValueError(msg)
+    space_type = importlib.import_module(f"{__package__}._space").Space
+    return space_type(payload)
 
 
 def _string_from_wire(payload: Any) -> Atom:
-    if not isinstance(payload, str):
-        msg = f"wire string payload must be text, got {payload!r}"
-        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-    return Grounded(payload)
+    return Grounded(_text_payload(payload, "string"))
 
 
 def _number_from_wire(payload: Any) -> Atom:
@@ -113,10 +148,7 @@ def _boolean_from_wire(payload: Any) -> Atom:
 
 
 def _variable_from_wire(payload: Any) -> Atom:
-    if not isinstance(payload, str):
-        msg = f"wire variable payload must be text, got {payload!r}"
-        raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-    return _wire_var(payload)
+    return _wire_var(_text_payload(payload, "variable"))
 
 
 def _object_from_wire(payload: Any) -> Atom:
@@ -205,7 +237,7 @@ def _finish_expression(pendings: list[_PendingExpr], root: _PendingExpr) -> Expr
     return root.built
 
 
-def _expression_from_wire(payload: Any) -> Expression:  # noqa: C901  -- _expression_from_wire keeps the tagged wire decoder together so its branches share one state
+def _expression_from_wire(payload: Any, *, engine: bool = False) -> Expression:  # noqa: C901  -- _expression_from_wire keeps the tagged wire decoder together so its branches share one state
     root = _PendingExpr()
     pendings: list[_PendingExpr] = [root]
     stack: list[tuple[Any, _PendingExpr]] = [(payload, root)]
@@ -235,7 +267,10 @@ def _expression_from_wire(payload: Any) -> Expression:  # noqa: C901  -- _expres
                 if not isinstance(payload, str):
                     msg = f"wire symbol payload must be text, got {payload!r}"
                     raise ValueError(msg)
-                items.append(wire_sym(payload))
+                if engine and payload.startswith("&"):
+                    items.append(_engine_ampersand_from_wire(payload))
+                else:
+                    items.append(wire_sym(payload))
             elif tag == "n":
                 if type(payload) not in (int, float):
                     msg = f"wire number payload must be numeric, got {payload!r}"
@@ -243,12 +278,14 @@ def _expression_from_wire(payload: Any) -> Expression:  # noqa: C901  -- _expres
                 items.append(gnd(payload))
             elif tag == "g":
                 items.append(string_from_wire(payload))
+            elif tag == "p":
+                items.append(_space_from_wire(payload))
             else:
                 append_nontext(tag, payload, items, pendings, stack)
     return _finish_expression(pendings, root)
 
 
-def _from_wire(wire: Any) -> Atom | Undefined:
+def _from_wire_mode(wire: Any, *, engine: bool) -> Atom | Undefined:
     """Rebuild an atom from the tagged wire form janus delivered.
 
     Iterative, because expression depth is data and must not meet Python's
@@ -262,21 +299,28 @@ def _from_wire(wire: Any) -> Atom | Undefined:
     # nests inside expressions, so it is handled at the entry alone.
     match wire:
         case ["u", value, why]:
-            return Undefined(_atom_from_wire(value), str(why))
+            return Undefined(_atom_from_wire_mode(value, engine=engine), str(why))
         case ["e", payload]:
-            return _expression_from_wire(payload)
+            return _expression_from_wire(payload, engine=engine)
         case ["h", ident, text]:
             return _handle_from_wire(ident, text)
         case [tag, payload]:
-            return _leaf_from_wire(tag, payload)
+            return _leaf_from_wire(tag, payload, engine=engine)
         case _:
             msg = f"malformed wire term: {wire!r}"
             raise ValueError(msg)
 
 
-def _atom_from_wire(wire: Any) -> Atom:
-    """Decode a wire value where the protocol requires a definite atom."""
-    value = _from_wire(wire)
+def _from_wire(wire: Any) -> Atom | Undefined:
+    return _from_wire_mode(wire, engine=False)
+
+
+def _from_engine_wire(wire: Any) -> Atom | Undefined:
+    return _from_wire_mode(wire, engine=True)
+
+
+def _atom_from_wire_mode(wire: Any, *, engine: bool) -> Atom:
+    value = _from_wire_mode(wire, engine=engine)
     if isinstance(value, Undefined):
         msg = (
             "undefined truth is valid only as a complete evaluation answer, "
@@ -286,3 +330,25 @@ def _atom_from_wire(wire: Any) -> Atom:
             msg
         )
     return value
+
+
+def _atom_from_wire(wire: Any) -> Atom:
+    """Decode a wire value where the protocol requires a definite atom."""
+    return _atom_from_wire_mode(wire, engine=False)
+
+
+def _atom_from_engine_wire(wire: Any) -> Atom:
+    """Decode an engine result, restoring known space-name provenance."""
+    # A leaf symbol is the dominant eval result (py-method-call crosses ten
+    # thousand of them). Keep its validated non-space path as direct as the
+    # strict decoder was before engine provenance existed; ampersand names
+    # alone need the registry decision.
+    if isinstance(wire, (list, tuple)) and len(wire) == 2 and wire[0] == "s":
+        payload = wire[1]
+        if not isinstance(payload, str):
+            msg = f"wire symbol payload must be text, got {payload!r}"
+            raise ValueError(msg)
+        if not payload.startswith("&"):
+            return _wire_sym(payload)
+        return _engine_ampersand_from_wire(payload)
+    return _atom_from_wire_mode(wire, engine=True)

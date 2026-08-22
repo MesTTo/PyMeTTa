@@ -18,6 +18,9 @@ Guarantees:
     variant [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - both Python codecs preserve a p-tagged executable space reference
+    [tested: test_both_shipped_codecs_pass_the_shared_golden_corpus;
+    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
 
 Open Obligations:
   To Do: None
@@ -36,7 +39,7 @@ from petta import _json, parse, testing, wire
 from petta.testing import check_codec, codec_corpus, codec_plan
 
 CORE = frozenset({"s", "v", "n", "g", "e"})
-FULL = CORE | {"b", "o", "h"}
+FULL = CORE | {"b", "o", "h", "p"}
 
 
 class JanusCodec:
@@ -110,15 +113,15 @@ class JanusCodec:
 class JsonWireCodec:
     """The remote wire: Python encodes and decodes, JSON bytes carry.
 
-    Its profile is the core five. b, o and h are outside it for three
-    different reasons and all three are visible in the plan: a JSON number
-    cannot be a host reference or a native handle at all, and the boolean
-    tag is one the reference server refuses, so a term carrying it is not
-    portable over this wire.
+    It carries the core five plus portable space references. b, o and h are
+    outside it for three different reasons and all three are visible in the
+    plan: JSON cannot be a host reference or a native handle at all, and the
+    boolean tag is one the reference server refuses, so a term carrying it
+    is not portable over this wire.
     """
 
     name = "json"
-    tags = CORE
+    tags = CORE | {"p"}
     frames = frozenset({"u"})
     printer = "python"
     reads_text = True

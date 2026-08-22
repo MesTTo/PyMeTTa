@@ -349,7 +349,12 @@ def test_the_binding_runs_every_leg_and_says_which_cases_it_does_not(node_driver
         # carries, which is the way a kit passes on a small profile.
         assert why.startswith(("tags [", "frame ")), f"{case} is out of profile: {why}"
         if why.startswith("tags ["):
-            assert why == "tags ['o']", f"{case} needs a tag beyond o: {why}"
+            # o is the host-object tag a wasm host cannot carry. p is the
+            # portable space reference R2 added; teaching the node bridge to
+            # decode it into its own handle species is filed as its own row,
+            # and until that lands the profile names it rather than claiming
+            # it.
+            assert why in ("tags ['o']", "tags ['p']"), f"{case} needs a tag beyond o and p: {why}"
 
 
 def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_report: dict) -> None:
