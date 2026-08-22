@@ -76,7 +76,15 @@ RUFF_FAMILY_BURN_DOWN = {
     # parameter is undocumented ON PURPOSE: that is the case the positional
     # (@param ...) list has to survive, so documenting it would delete the
     # fixture.
-    "D": 2141,
+    # 2141 -> 2146 with the twins lane's idiom check: five scenario
+    # docstrings across two commits carry the one-invariant D205 form. This
+    # ceiling was raised TWICE badly before it was raised right, which is the
+    # lesson: ddaa528 added two suppressions and did not move it at all, and
+    # then 598ffea moved it to 2145 while the same commit's three new tests
+    # took the count to 2146, so it was computed against the tree as it stood
+    # a moment earlier. A suppression and its ceiling belong in one commit AND
+    # the count belongs measured after the last edit, not before it.
+    "D": 2146,
     "ARG": 139,
     "PERF": 0,
     "C90": 24,
