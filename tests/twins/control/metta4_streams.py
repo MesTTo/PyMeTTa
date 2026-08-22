@@ -26,6 +26,16 @@ The Python function is `counter` because `range` is a Python BUILTIN: a
 compiled body lowers a call to one before it looks for the definition's own
 name, so a function actually called `range` would compile its own recursion to
 `py-range`.
+
+The stored equation carries one thing the original's does not: a generator's
+body is a superposition of its yielded answers, and with a single yielded form
+that is a ONE-element `(superpose (...))` around the `if`. A superposition over
+one alternative is that alternative, so the answers are identical and the
+wrapper is inert; a non-generator body,
+`return superpose(k, counter(k + 1, n)) if k < n else empty()`, stores the
+original's equation to the atom. The generator is kept because it is what this
+file is about, and the residue table records the elision the compiler could
+make instead.
 """
 
 from petta import S, V, equation, rules

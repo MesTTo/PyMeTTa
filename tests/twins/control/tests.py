@@ -18,6 +18,12 @@ Three of the four are computations and are written as ones.
 `(superpose $L)`, a superposition over a BOUND value, and `superpose(l)` in a
 compiled body means `(superpose ($l))` instead; the residue table records that
 against P14.4.
+
+Two of the compiled equations are stored differently from the original's, both
+by lowering rather than by choice: an assignment is a one-pair `let*` where the
+original writes `let`, and `x == 2` is `(py-eq $x 2)` where it writes
+`(== $x 2)`. `program3`'s else arm is a source choice, `return 4` for the
+original's `(let $z 4 $z)`, which binds a constant and answers it.
 """
 
 from petta import S, V, equation

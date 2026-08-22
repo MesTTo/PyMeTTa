@@ -6,6 +6,10 @@ because a compiled body resolves a free name EXACTLY and the engine knows
 `fib-tr`, not `fib_tr`; so the second equation is added as the atom it is,
 `m += equation(head).to(body)`, which is the container protocol writing a bare
 equation with no string anywhere.
+
+`fib-tr`'s stored body differs from the original's in one place: a compiled
+body's `==` lowers to `(py-eq $n 0)` where the original writes `(== $n 0)`.
+The residue table records that against P14.4.
 """
 
 from petta import S, V, equation
