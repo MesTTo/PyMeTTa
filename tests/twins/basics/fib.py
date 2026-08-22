@@ -41,7 +41,17 @@ from petta import S, expr
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 28278972
+#: RE-PINNED 2026-08-22, 28278972 to 26529, at P14.17 automatic tabling:
+#: fib's one RHS calls its recursive SCC twice, so the bag-preserving cache
+#: replaces exponential recomputation with linear replay; re-measured
+#: min-of-three fresh-process.
+#: RE-PINNED 2026-08-22, 26529 to 26559, at P14.17 per-function invalidation:
+#: fib's indexed ground event clause replaces the shared guarded handler and
+#: adds 30 inferences; re-measured min-of-three fresh-process.
+#: RE-PINNED 2026-08-22, 26559 to 26659, at P14.17 bounded-search safety:
+#: the admitted recursive RHS is scanned for once/take/top before the effect
+#: walk, adding 100 compile-time inferences; min-of-three fresh-process.
+BUDGET = 26659
 
 
 def twin(m):

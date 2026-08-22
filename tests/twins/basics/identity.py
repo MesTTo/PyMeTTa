@@ -29,7 +29,10 @@ from petta import S, V
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 1249
+#: RE-PINNED 2026-08-22, 1249 to 1271, at P14.17 automatic tabling: the
+#: isolated container-authored equation now publishes its RHS call heads;
+#: +22, re-measured min-of-three fresh-process.
+BUDGET = 1271
 
 
 def twin(m):

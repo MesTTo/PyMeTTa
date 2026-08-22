@@ -111,9 +111,9 @@ AnswerPolicy = Literal["depth", "fair", "best-first"]
 ATOMICITY = ("transactional", "atomic-single", "best-effort")
 Atomicity = Literal["transactional", "atomic-single", "best-effort"]
 
-#: (vocabulary cache-mode unchecked)
-CACHE_MODE = ("unchecked",)
-CacheMode = Literal["unchecked"]
+#: (vocabulary cache-mode unchecked force refuse)
+CACHE_MODE = ("unchecked", "force", "refuse")
+CacheMode = Literal["unchecked", "force", "refuse"]
 
 #: (vocabulary delivery at-most-once at-least-once per-write-exactly)
 DELIVERY = ("at-most-once", "at-least-once", "per-write-exactly")

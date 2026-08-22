@@ -4,8 +4,9 @@ Assumes: lib_tabling is importable from the space, which the decorator does
 Guarantees:
   - a cached definition answers from SWI's answer trie, so an exponential
     recursion becomes linear, and its counters and clear are reachable under
-    functools.lru_cache's own names.
-  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+    functools.lru_cache's own names; the uncached control declares the
+    automatic memo policy's explicit refusal.
+  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=WORKTREE]
   - a table normalises duplicate answers away, which the arbiter SPECIFIES for
     an untabled function, so the decorator is where a program asks for that
     trade rather than something it discovers.
@@ -47,18 +48,25 @@ def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
     assert cachedec_fib.cache_info()["tables"] == 0
 
     # The same definition without the table is exponential, and on this input
-    # it does not finish inside the default evaluation fuel at all.
+    # it does not finish inside the default evaluation fuel at all. Automatic
+    # bag-preserving memoization would deliberately accelerate this shape, so
+    # the control uses its public refuse declaration.
     plain = MeTTa("&cachedecorator-plain")
+    refusal = "(cache cachedec_plain refuse)"
+    plain.run(f"!(add-atom &petta {refusal})")
+    try:
 
-    @plain.define
-    def cachedec_plain(n):
-        return n if n < 2 else cachedec_plain(n - 1) + cachedec_plain(n - 2)
+        @plain.define
+        def cachedec_plain(n):
+            return n if n < 2 else cachedec_plain(n - 1) + cachedec_plain(n - 2)
 
-    with plain.stats() as untabled:
-        overrun = plain.eval(cachedec_plain(_N))
+        with plain.stats() as untabled:
+            overrun = plain.eval(cachedec_plain(_N))
 
-    assert [str(atom) for atom in overrun] == ["(Error 1 StackOverflow)"]
-    assert untabled.inferences > 100 * tabled.inferences
+        assert [str(atom) for atom in overrun] == ["(Error 1 StackOverflow)"]
+        assert untabled.inferences > 100 * tabled.inferences
+    finally:
+        plain.run(f"!(remove-atom &petta {refusal})")
 
     # The Python twin is untouched: a cached definition is still a definition.
     assert cachedec_fib.py(10) == 55

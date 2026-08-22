@@ -37,6 +37,7 @@ CASES = {
     "add-single": "test_add_single",
     "add-table-rows": "test_add_table_rows",
     "alpha-unique": "test_alpha_unique",
+    "automatic-tabling": "test_automatic_tabling_growth",
     "direct-join": "test_direct_join",
     "eval-arith": "test_eval_arithmetic",
     "file-load": "test_file_load",

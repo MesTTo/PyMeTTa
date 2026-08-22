@@ -43,7 +43,10 @@ TRUE, FALSE = val(value=True), val(value=False)
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 40680
+#: RE-PINNED 2026-08-22, 40680 to 40693, at P14.17 automatic tabling:
+#: two Python-authored equations now publish RHS call heads for the automatic
+#: decision; +13 total, re-measured min-of-three fresh-process.
+BUDGET = 40693
 
 
 def twin(m):

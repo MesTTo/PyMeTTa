@@ -40,7 +40,13 @@ from petta import S
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 5101
+#: RE-PINNED 2026-08-22, 5101 to 5586, at P14.17 automatic tabling: facF's
+#: single recursive call is detected and declined, pricing the isolated
+#: Python definition by +485; re-measured min-of-three fresh-process.
+#: RE-PINNED 2026-08-22, 5586 to 5628, at P14.17 per-function invalidation:
+#: its indexed ground event clause replaces the shared guarded handler and
+#: adds 42 inferences; re-measured min-of-three fresh-process.
+BUDGET = 5628
 
 
 def twin(m):

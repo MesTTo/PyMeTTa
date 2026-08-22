@@ -38,7 +38,13 @@ from petta import S
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 5500
+#: RE-PINNED 2026-08-22, 5500 to 5763, at P14.17 automatic tabling: the
+#: isolated check_xor equation now publishes its RHS call heads and crosses
+#: the SCC decision; +263, re-measured min-of-three fresh-process.
+#: RE-PINNED 2026-08-22, 5763 to 5799, at P14.17 per-function invalidation:
+#: its indexed ground event clause replaces the shared guarded handler and
+#: adds 36 inferences; re-measured min-of-three fresh-process.
+BUDGET = 5799
 
 
 def twin(m):

@@ -34,7 +34,10 @@ from petta import S
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 2543
+#: RE-PINNED 2026-08-22, 2543 to 2522, at P14.17 automatic tabling: the
+#: compile-path decision and lazy handler layout lowers this one-definition
+#: floor by 21; re-measured min-of-three fresh-process.
+BUDGET = 2522
 
 
 def twin(m):

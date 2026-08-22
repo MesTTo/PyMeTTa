@@ -54,7 +54,14 @@ TRUE, FALSE = val(value=True), val(value=False)
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 43530
+#: RE-PINNED 2026-08-22, 43530 to 44687, at P14.17 automatic tabling: spin
+#: and bounded-factorial publish their recursive call heads and both
+#: single-call bodies are declined; +1157, re-measured min-of-three
+#: fresh-process.
+#: RE-PINNED 2026-08-22, 44687 to 44789, at P14.17 per-function invalidation:
+#: indexed ground event clauses replace the shared guarded handler and add
+#: 102 inferences across the two definitions; min-of-three fresh-process.
+BUDGET = 44789
 
 
 def twin(m):

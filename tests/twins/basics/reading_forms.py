@@ -31,7 +31,10 @@ from petta import S, expr, val
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 14305
+#: RE-PINNED 2026-08-22, 14305 to 14295, at P14.17 automatic tabling: the
+#: imported-library decision and lazy handler layout lowers this floor by 10;
+#: re-measured min-of-three fresh-process.
+BUDGET = 14295
 
 READ = S["sread-command"]
 

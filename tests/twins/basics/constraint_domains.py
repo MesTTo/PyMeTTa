@@ -44,7 +44,13 @@ TRUE, FALSE = val(value=True), val(value=False)
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 94647
+#: RE-PINNED 2026-08-22, 94647 to 95317, at P14.17 automatic tabling:
+#: importing lib_constraints now publishes its equation call heads and
+#: reconciles its SCC decisions; +670, re-measured min-of-three fresh-process.
+#: RE-PINNED 2026-08-22, 95317 to 95391, at P14.17 per-function invalidation:
+#: indexed ground event clauses replace the shared guarded handler and add 74
+#: inferences across this import-heavy twin; min-of-three fresh-process.
+BUDGET = 95391
 
 
 def twin(m):

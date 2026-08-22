@@ -33,7 +33,13 @@ from petta import S
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 10566
+#: RE-PINNED 2026-08-22, 10566 to 11227, at P14.17 automatic tabling:
+#: importing fibsmart now publishes its equation call heads and declines its
+#: single-tail SCC; +661, re-measured min-of-three fresh-process.
+#: RE-PINNED 2026-08-22, 11227 to 11269, at P14.17 per-function invalidation:
+#: the imported indexed ground event clause replaces the shared guarded
+#: handler and adds 42 inferences; min-of-three fresh-process.
+BUDGET = 11269
 
 
 def twin(m):

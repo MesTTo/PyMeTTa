@@ -46,7 +46,10 @@ TRUE, FALSE = val(value=True), val(value=False)
 #: one took a step inside a scope from seven inferences to six, the error
 #: short circuit tests a call's computed operands for an error atom, and the
 #: prelude gained throw beside if-error.
-BUDGET = 21852
+#: RE-PINNED 2026-08-22, 21852 to 21833, at P14.17 automatic tabling: the
+#: compile-path decision and lazy handler layout lowers this one-definition
+#: floor by 19; re-measured min-of-three fresh-process.
+BUDGET = 21833
 
 
 def twin(m):
