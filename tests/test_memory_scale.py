@@ -5,6 +5,10 @@ Guarantees:
   - linear and quadratic synthetic curves are classified by their intended
     complexity families.
   - the CLI quick lane executes each point in a distinct spawned process.
+  - controlled projection workloads check both shared and distinct-column
+    answer shapes before they can publish an instruction sample
+    [tested: test_instruction_join_workload_checks_both_projection_shapes;
+    commit=WORKTREE].
 """
 
 import json
@@ -17,6 +21,7 @@ from benchmarks.memory_scale import (
     compare_baseline,
     fit_curve,
 )
+from benchmarks.pure import main as pure_benchmark_main
 
 
 def test_curve_fit_distinguishes_linear_and_quadratic_growth():  # noqa: D103
@@ -58,6 +63,33 @@ def test_aggregation_preserves_samples_and_noise_band():  # noqa: D103
     assert metric["representative"] == [10, 100, 1_000]
     assert metric["noise"]["absolute_max"] == 5
     assert result["worker_pids"]["10"] == [103, 104]
+
+
+def test_aggregation_accepts_controlled_instruction_samples():  # noqa: D103
+    case = CASES["join-projection"]
+    raw = {
+        size: [{"inferences": size, "_worker_pid": size}]
+        for size in case.sizes
+    }
+    instructions = {
+        size: [size * 100, size * 101, size * 102] for size in case.sizes
+    }
+
+    result = aggregate_samples(
+        case,
+        raw,
+        extra_metrics={"instructions": instructions},
+    )
+
+    assert result["primary_metric"] == "instructions"
+    assert result["metrics"]["instructions"]["representative"] == [
+        size * 100 for size in case.sizes
+    ]
+
+
+def test_instruction_join_workload_checks_both_projection_shapes():  # noqa: D103
+    assert pure_benchmark_main(["memory-join-shared", "--size", "10"]) == 0
+    assert pure_benchmark_main(["memory-join-projection", "--size", "10"]) == 0
 
 
 def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():  # noqa: D103
@@ -104,4 +136,3 @@ def test_memory_scale_cli_runs_fresh_workers(tmp_path):  # noqa: D103
     pids = [pid for samples in result["worker_pids"].values() for pid in samples]
     assert len(pids) == len(set(pids)) == 2
     assert result["metrics"]["storage_module_bytes"]["representative"][1] > 0
-

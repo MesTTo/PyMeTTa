@@ -13,6 +13,10 @@ Guarantees:
     term to atom-memory curves.
   - page-based process memory is reported but never gates the initial
     baseline; only deterministic SWI bytes/counts and inference shapes do.
+  - projection-width curves also use perf's controlled instructions:u window,
+    because SWI does not charge memberchk/2 traversal to its inference counter
+    [tested: test_aggregation_accepts_controlled_instruction_samples;
+    commit=WORKTREE]
 Owns resources:
   - every workload drops or empties the spaces and temporary files it creates;
     the parent process joins, terminates, or kills every worker through the
@@ -41,6 +45,7 @@ import json
 import math
 import os
 import resource
+import sys
 import tempfile
 import tracemalloc
 from collections.abc import Callable, Mapping, Sequence
@@ -50,6 +55,7 @@ from statistics import fmean
 from typing import Any, Literal
 
 from petta import MeTTa, S, V
+from petta.testing import measure_instructions
 
 STANDARD_SIZES = (10, 100, 1_000, 10_000)
 WIDE_SIZES = (1, 10, 100, 1_000)
@@ -74,6 +80,7 @@ _PROCESS_METRICS = frozenset(
         "vm_size_steady_bytes",
     }
 )
+_BINDING_ROOT = Path(__file__).resolve().parents[1]
 
 
 @dataclass(frozen=True)
@@ -86,6 +93,7 @@ class CurveCase:
     primary_metric: str
     workload: str
     gate: bool = True
+    instruction_case: str | None = None
 
 
 CASES: dict[str, CurveCase] = {
@@ -110,9 +118,11 @@ CASES: dict[str, CurveCase] = {
     ),
     "join-shared": CurveCase(
         "join-shared", WIDE_SIZES, "linear", "inferences", "join_shared",
+        instruction_case="memory-join-shared",
     ),
     "join-projection": CurveCase(
-        "join-projection", WIDE_SIZES, "linear", "inferences", "join_projection",
+        "join-projection", WIDE_SIZES, "linear", "instructions", "join_projection",
+        instruction_case="memory-join-projection",
     ),
     "compiled-equations": CurveCase(
         "compiled-equations", STANDARD_SIZES, "linear", "compiled_predicate_bytes",
@@ -756,6 +766,8 @@ def fit_curve(sizes: Sequence[int], values: Sequence[int | float]) -> dict[str, 
 def aggregate_samples(
     case: CurveCase,
     raw: Mapping[int, Sequence[Mapping[str, int]]],
+    *,
+    extra_metrics: Mapping[str, Mapping[int, Sequence[int]]] | None = None,
 ) -> dict[str, Any]:
     """Preserve samples, derive minima/noise, and fit every common metric."""
     sizes = sorted(raw)
@@ -787,6 +799,30 @@ def aggregate_samples(
             },
             "fit": fit_curve(sizes, representative),
             "gated": bool(case.gate and name == case.primary_metric and name not in _PROCESS_METRICS),
+        }
+    for name, values_by_size in (extra_metrics or {}).items():
+        samples_by_size = {
+            str(size): [int(value) for value in values_by_size[size]] for size in sizes
+        }
+        representative = [min(samples_by_size[str(size)]) for size in sizes]
+        spans = [
+            max(samples_by_size[str(size)]) - min(samples_by_size[str(size)])
+            for size in sizes
+        ]
+        relative = [
+            span / max(abs(min(samples_by_size[str(size)])), 1)
+            for size, span in zip(sizes, spans, strict=True)
+        ]
+        metrics[name] = {
+            "samples": samples_by_size,
+            "representative": representative,
+            "noise": {
+                "absolute_max": max(spans),
+                "relative_max": max(relative),
+                "resolution_bytes": 1,
+            },
+            "fit": fit_curve(sizes, representative),
+            "gated": bool(case.gate and name == case.primary_metric),
         }
     primary = metrics[case.primary_metric]
     expected_nrms = primary["fit"]["models"][case.expected]["nrms"]
@@ -908,6 +944,7 @@ def run_suite(  # noqa: C901  -- the loop keeps each process, payload, and failu
     """Run selected curve families, aggregate them, and compare or update pins."""
     selected = list(names or sorted(CASES))
     raw_cases: dict[str, dict[int, list[Mapping[str, int]]]] = {}
+    extra_cases: dict[str, dict[str, dict[int, Sequence[int]]]] = {}
     errors: list[str] = []
     for name in selected:
         case = CASES[name]
@@ -940,14 +977,49 @@ def run_suite(  # noqa: C901  -- the loop keeps each process, payload, and failu
                     if not keep_going:
                         return 1
         if all(case_raw.values()):
+            extras: dict[str, dict[int, Sequence[int]]] = {}
+            if case.instruction_case is not None:
+                instruction_samples: dict[int, Sequence[int]] = {}
+                for size in sizes:
+                    try:
+                        instruction_samples[size] = measure_instructions(
+                            [
+                                "/usr/bin/env",
+                                "-C",
+                                str(_BINDING_ROOT),
+                                sys.executable,
+                                "-m",
+                                "benchmarks.pure",
+                                case.instruction_case,
+                                "--size",
+                                str(size),
+                                "--controlled",
+                            ],
+                            rounds=max(repetitions, 3),
+                            controlled=True,
+                            timeout=timeout,
+                        )
+                    except (FileNotFoundError, RuntimeError, TimeoutError, ValueError) as error:
+                        detail = f"{name}[{size}] instructions: {error}"
+                        errors.append(detail)
+                        print(detail)
+                        if not keep_going:
+                            return 1
+                        break
+                if len(instruction_samples) == len(sizes):
+                    extras["instructions"] = instruction_samples
+                elif case.primary_metric == "instructions":
+                    continue
             raw_cases[name] = case_raw
+            extra_cases[name] = extras
 
     document: dict[str, Any] = {
         "schema": SCHEMA_VERSION,
         "repetitions": repetitions,
         "loadavg": Path("/proc/loadavg").read_text(encoding="ascii").strip(),
         "cases": {
-            name: aggregate_samples(CASES[name], raw) for name, raw in raw_cases.items()
+            name: aggregate_samples(CASES[name], raw, extra_metrics=extra_cases[name])
+            for name, raw in raw_cases.items()
         },
         "errors": errors,
     }
