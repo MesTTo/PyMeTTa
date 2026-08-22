@@ -1,60 +1,58 @@
-"""The Python twin of examples/spaces/spaces_find.metta: find as a branch filter.
+"""examples/spaces/spaces_find.metta in Python: a match used as a condition.
 
-`find` from lib_spaces succeeds once per matching row, so the nested ifs answer
-one `(FoundChain a b c)` for the chain that continues and one
-`(MissedSecondPiece)` for the row that does not.
+lib_spaces' `find` asks whether a pattern matches AND binds what it matched, so
+the original nests two of them and falls back twice: no continuation gives
+`MissedSecondPiece`, no starting link at all would give `MissedAllPieces`.
 
-`import!` stays a term because it is a directive rather than a value door: there
-is no Python spelling for it yet, and the residue names the gap (P14.13). The two
-facts are plain tuples, which is what the knowledge front reads.
+At the Python call door `find` answers True once per solution and nothing else:
+the bindings it made are not handed back, which is the answer-protocol gap the
+ledger's relational-op row owns (residue, P14.10). So the condition is asserted
+for what it does say, and the chain below reads its rows through the subscript
+door, where a row IS the bindings. Python's own `if` does the falling back,
+which is what the original's `if` is.
+
+`import!` is a directive with no Python door yet, so the library arrives
+through `m.fn` (residue, P14.13).
 """
 
 from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 20742 across the P14 twin-style rewrite: the two facts
-#: now enter as tuples and every term is built from named symbols, and both
-#: store and evaluate exactly what the nested expr() spellings did. Measured
-#: 20742 before and after, which also says the import! directive is where this
-#: file's cost lives rather than in any of its own forms.
-#: Prior: ADDED 2026-08-22 at 20742 by the wave-3 spaces baseline.
-BUDGET = 20742
+#: RE-PINNED 2026-08-22, 20742 to 19354, -1388 (-6.7%), by the twin contract
+#: change: the one `(test (collapse (if (find ...) ...)) ...)` term became two
+#: Python `assert`s over three subscript queries, so `test`, `collapse` and
+#: both `if`s left the engine while the matching they wrapped stayed in it and
+#: `find` itself is still asked. The library import is the bulk of both sides.
+#: Against the example's 24189 the ratio is 0.8001.
+#: Prior: 20742, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 19354
+
+
+def chains(space):
+    """Every friendship chain the space holds, with the original's fallbacks."""
+    starts = space[S.friend(V.a, V.b)]
+    if not starts:
+        return [S.MissedAllPieces()]
+    found = []
+    for start in starts:
+        onward = space[S.friend(start.b, V.c)]
+        found.extend(S.FoundChain(start.a, start.b, row.c) for row in onward)
+        if not onward:
+            found.append(S.MissedSecondPiece())
+    return found
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Import lib_spaces, store two friendships, then walk them."""
     here = S[m.space_name]
+    m.fn("import!")(here, S.library(S.lib_spaces))
 
-    # !(import! &self (library lib_spaces))
-    yield m.eval(S["import!"](here, S.library(S.lib_spaces)))
-
-    # (friend a b) (friend b c)
     m += (S.friend, S.a, S.b)
     m += (S.friend, S.b, S.c)
 
-    # !(test (collapse (if (find &self (friend $a $b))
-    #                      (if (find &self (friend $b $c))
-    #                          (FoundChain $a $b $c)
-    #                          (MissedSecondPiece))
-    #                      (MissedAllPieces)))
-    #        ((FoundChain a b c) (MissedSecondPiece)))
-    yield m.eval(
-        S.test(
-            S.collapse(
-                S["if"](
-                    S.find(here, S.friend(V.a, V.b)),
-                    S["if"](
-                        S.find(here, S.friend(V.b, V.c)),
-                        S.FoundChain(V.a, V.b, V.c),
-                        S.MissedSecondPiece(),
-                    ),
-                    S.MissedAllPieces(),
-                )
-            ),
-            (S.FoundChain(S.a, S.b, S.c), S.MissedSecondPiece()),
-        )
-    )
+    # What `find` says at this door: one True per solution, and no bindings.
+    assert m.fn("find").all(here, S.friend(V.a, V.b)) == [True, True]
+
+    assert chains(m) == [S.FoundChain(S.a, S.b, S.c), S.MissedSecondPiece()]

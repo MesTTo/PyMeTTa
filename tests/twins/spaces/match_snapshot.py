@@ -1,125 +1,79 @@
-"""The Python twin of examples/spaces/match_snapshot.metta: match finds every row first.
+"""examples/spaces/match_snapshot.metta in Python: the query is a snapshot.
 
-`match` finds all the rows BEFORE any output template runs, so a template that
-writes to the space cannot change what the match still has to answer. Three of
-the four links form a loop, all three rows are found before the first reversal
-breaks the cycle, and all three are reverted. The single-pattern case is the same
-property reduced to its detector: two rows, each template removing the OTHER, and
-a lazy query would lose the row it had not reached yet.
+`match` finds every row BEFORE any output template runs, so a template that
+writes to the space cannot change what the match still has to answer. The
+language specifies this rather than leaving it open, and the graph-rewriting
+example is why: reversing links one at a time as they are found would break the
+cycle after the first rewrite.
 
-The facts and the two snapshot items go in through the container protocol. The
-two `visit` equations stay at the container door because their heads carry a
-literal ARGUMENT, `(visit alpha)`, which the compiled subset spells only as a
-literal default, and their bodies call `remove-atom` and answer bare lowercase
-symbols, neither of which a compiled body can spell (residue, P14.4).
+The Python door says the same thing by being an ordinary sequence.
+`space[pattern]` answers a materialised view, so the three loop links are all
+found before the first `-=` runs, and the comprehension at the bottom pulls
+both `item` rows before the first `visit` call removes the other one. Nothing
+about that is special pleading: it is what `for row in rows` means.
+
+The two `visit` equations are at the container door. Each head fixes a literal
+symbol, `(visit alpha)`, where a compiled head pattern is a literal DEFAULT and
+reaches neither a structure nor a symbol, and each body writes with a
+hyphenated head no compiled body can spell (residue, P14.4).
 """
 
-from petta import S, V, equation, expr
+from collections import Counter
 
-#: The answer group a write form contributes: `bind!` and `add-atom` each
-#: answer the unit, which is what Python's own None means at this seam (§9d).
-WROTE = (expr(),)
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 7027 to 6003, -1024 (-14.6%), by the P14 twin-style
-#: rewrite, and the whole delta is the three write forms: the `bind!` became
-#: `m.space("&snapshot")` and the two item adds became `snapshot += item`, 341
-#: a form averaged, with the two plain writes inside this folder's 239-to-311
-#: band and the space binding the rest. The four link facts already entered at
-#: the container door, and the four assertions are unchanged terms.
-#: Prior: ADDED 2026-08-22 at 7027 by the wave-3 spaces baseline.
-BUDGET = 6003
+#: RE-PINNED 2026-08-22, 6003 to 2531, -3472 (-57.8%), by the twin contract
+#: change: four `(test (collapse ...) ...)` terms became four Python `assert`s,
+#: so `test` and `collapse` left the engine four times and the first form's
+#: match-with-a-writing-template became a Python loop over the same match. The
+#: rewriting, the two equations and both visits stayed in the engine. Against
+#: the example's 18311 the ratio is 0.1382.
+#: Prior: 6003, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 2531
+
+#: Upstream's own example, verbatim: three links form a loop, the fourth does
+#: not.
+LINKS = [(S.A, S.B), (S.B, S.C), (S.C, S.A), (S.C, S.E)]
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Reverse every link of a cycle, then watch two templates delete each other."""
+    for tail, head in LINKS:
+        m += S.link(tail, head)
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    add, remove, here = S["add-atom"], S["remove-atom"], S[m.space_name]
+    # All three rows are found before the first reversal breaks the cycle, so
+    # all three are reverted and (link C E) is left alone.
+    loop = m[S.link(V.x, V.y), S.link(V.y, V.z), S.link(V.z, V.x)]
+    assert len(loop) == 3
+    for row in loop:
+        m -= S.link(row.x, row.y)
+        m += S.link(row.y, row.x)
 
-    # Three links form a loop and the fourth does not.
-    # (link A B) (link B C) (link C A) (link C E)
-    m += (S.link, S.A, S.B)
-    m += (S.link, S.B, S.C)
-    m += (S.link, S.C, S.A)
-    m += (S.link, S.C, S.E)
-
-    # The template reverses each loop link it is given, and all three rows were
-    # found before the first reversal broke the cycle.
-    # !(test (collapse (match &self (, (link $x $y) (link $y $z) (link $z $x))
-    #                              (let () (remove-atom &self (link $x $y))
-    #                                      (add-atom &self (link $y $x)))))
-    #        (() () ()))
-    yield m.eval(
-        S.test(
-            S.collapse(
-                S.match(
-                    here,
-                    S[","](
-                        S.link(V.x, V.y),
-                        S.link(V.y, V.z),
-                        S.link(V.z, V.x),
-                    ),
-                    S.let(
-                        (),
-                        remove(here, S.link(V.x, V.y)),
-                        add(here, S.link(V.y, V.x)),
-                    ),
-                )
-            ),
-            ((), (), ()),
-        )
+    assert Counter(S.link(row.x, row.y) for row in m[S.link(V.x, V.y)]) == Counter(
+        [S.link(S.C, S.E), S.link(S.B, S.A), S.link(S.C, S.B), S.link(S.A, S.C)]
     )
 
-    # The four atoms upstream prints, as a set.
-    # !(test (collapse (match &self (link $x $y) ($x $y))) ((C E) (B A) (C B) (A C)))
-    yield m.eval(
-        S.test(
-            S.collapse(S.match(here, S.link(V.x, V.y), (V.x, V.y))),
-            (
-                (S.C, S.E),
-                (S.B, S.A),
-                (S.C, S.B),
-                (S.A, S.C),
-            ),
-        )
-    )
-
-    # The single-pattern detector: two rows, each template removing the OTHER.
-    # !(bind! &snapshot (new-space))
+    # The single-pattern case, reduced to its detector: two rows, and each
+    # template removes the OTHER one. A lazy query would lose the row it had
+    # not reached yet and answer once.
     snapshot = m.space("&snapshot")
     at_snapshot = S[snapshot.space_name]
-    yield WROTE
-
-    # !(add-atom &snapshot (item alpha))
     snapshot += S.item(S.alpha)
-    yield WROTE
-    # !(add-atom &snapshot (item beta))
     snapshot += S.item(S.beta)
-    yield WROTE
 
-    # (= (visit alpha) (let () (remove-atom &snapshot (item beta)) alpha))
-    m += equation(S.visit(S.alpha)).to(
-        S.let((), remove(at_snapshot, S.item(S.beta)), S.alpha)
-    )
-    # (= (visit beta) (let () (remove-atom &snapshot (item alpha)) beta))
-    m += equation(S.visit(S.beta)).to(
-        S.let((), remove(at_snapshot, S.item(S.alpha)), S.beta)
-    )
+    def visit(removed, answered):
+        """`(= (visit X) (let () (remove-atom &snapshot (item Y)) X))`."""
+        drop = S["remove-atom"](at_snapshot, S.item(removed))  # rung: an equation body is one term, where the container doors are Python statements
+        return S.let((), drop, answered)  # rung: as above
 
-    # A lazy query would lose the row it had not reached yet and answer once.
-    # !(test (collapse (match &snapshot (item $x) (visit $x))) (alpha beta))
-    yield m.eval(
-        S.test(
-            S.collapse(S.match(at_snapshot, S.item(V.x), S.visit(V.x))),
-            (S.alpha, S.beta),
-        )
-    )
+    m += equation(S.visit(S.alpha)).to(visit(S.beta, S.alpha))
+    m += equation(S.visit(S.beta)).to(visit(S.alpha, S.beta))
 
-    # Both removals happened, so the space is empty.
-    # !(test (collapse (get-atoms &snapshot)) ())
-    yield m.eval(
-        S.test(S.collapse(S["get-atoms"](at_snapshot)), ())
-    )
+    assert [m.one(S.visit(row.x)) for row in snapshot[S.item(V.x)]] == [S.alpha, S.beta]
+
+    # Both removals happened, so the space is empty: each row's template ran,
+    # and ran against the space the other row's template had written to.
+    assert not list(snapshot)

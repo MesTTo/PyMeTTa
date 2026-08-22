@@ -1,122 +1,86 @@
-"""The Python twin of examples/spaces/evalc.metta: naming the space you evaluate in.
+"""examples/spaces/evalc.metta in Python: naming the space you evaluate in.
 
 Each space compiles its own equations into its own module, so `distance` means
 feet in `&self` and metres in `&metric`, and `evalc` is how you reach the other
-one. Removing the named space's equation removes its compiled answer too, so the
-last assertion sees the inherited `&self` one.
+one. `space.eval(term)` IS evalc, to the letter: its signature is a term plus a
+space, and the space is the handle it hangs off. So the whole example reads as
+two handles and the same term asked of each.
 
-`bind! &metric (new-space)` is `m.space("&metric")`: naming a space IS Python's
-own name binding, and the space exists from its first write. Both definitions
-arrive through `@<space>.define`, so the twin shows the same name meaning two
-different functions in two spaces, and the removal is `-=` on the equation atom.
+`bind! &metric (new-space)` is `m.space("&metric")`, because binding a name to
+a space is Python's own name binding and a space exists from its first write.
+Both definitions arrive through the decorator, one per space, which is what
+makes the same name two different functions. The removal is `-=` on the
+equation atom, and it takes the compiled clause with it, so the last question
+sees the inherited `&self` answer.
 
-Three of this file's terms are arithmetic over two GROUND operands, `(+ 5 5)`
-twice and `(+ 1 1)` once, and those name their head at the `S["+"]` door rather
-than using Python's `+`. That is the deliberate spelling and not a dropped rung:
-on a grounded number Python's operators are that number's own arithmetic, so
-`val(5) + 5` is 10 rather than the term `(+ 5 5)`, and only inside a compiled
-body does `+` BUILD one. basics/math.py records the same rule for the same
-reason.
+Three terms here are arithmetic over two GROUND operands, `(+ 5 5)` twice and
+`(+ 1 1)` once, and they name their head at the `S["+"]` door rather than using
+Python's `+`. That is deliberate: on a grounded number Python's operators are
+that number's own arithmetic, so `val(5) + 5` is 10 rather than the term
+`(+ 5 5)`, and only inside a compiled body does `+` BUILD one (residue, P14.4).
 """
 
-from petta import S, V, equation, expr, val
-
-#: The answer group a write form contributes: `bind!`, `add-atom` and
-#: `remove-atom` each answer the unit, which is what Python's own None means at
-#: this seam (§9d).
-WROTE = (expr(),)
+from petta import MettaOperationError, S, V, equation, val
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 11267 to 11798, +531 (+4.7%), by the P14 twin-style
-#: rewrite, whose causes pull opposite ways and were split by re-measuring this
-#: file with only the decorator change reverted: 10,034, twice. The three
-#: write forms moved to their Python doors, `m.space("&metric")` for the bind!,
-#: `metric += equation(...)` for the add and `metric -= equation(...)` for the
-#: removal, worth -1233 between them. Both equations then moved to the
-#: decorator door, worth +1764 for two, one of them into a NAMED space, which
-#: is the same order as the +1629-plus-193 measured for two in &self. The ten
-#: assertions are the same terms spelled with named symbols and did not move.
-#: Prior: ADDED 2026-08-22 at 11267 by the wave-3 spaces baseline.
-BUDGET = 11798
+#: RE-PINNED 2026-08-22, 11798 to 7462, -4336 (-36.8%), by the twin contract
+#: change: ten `(test ...)` terms became ten Python `assert`s, so the `test`
+#: wrapper left the engine ten times over, and the type-error form dropped its
+#: `catch` and `repr` as well because a refusal at the Python door is an
+#: exception with a sentence. What did NOT move is the two definitions, the two
+#: writes, the removal and every evaluation. Against the example's 21008 the
+#: ratio is 0.3552.
+#: Prior: 11798, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 7462
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    evalc, context = S.evalc, S["context-space"]
-    here = S[m.space_name]
-
-    # !(bind! &metric (new-space))
+    """Give one name two meanings, one per space, and ask each of them."""
     metric = m.space("&metric")
-    at_metric = S[metric.space_name]
-    yield WROTE
 
-    # !(add-atom &metric (= (distance $x) (* $x 1000)))
     @metric.define(name="distance")
     def metric_distance(x):
         return x * 1000
 
-    yield WROTE
-
-    # (= (distance $x) (* $x 5280))
     @m.define
     def distance(x):
         return x * 5280
 
     # The ambient space answers in feet, the named one in metres.
-    # !(test (distance 2) 10560)
-    yield m.eval(S.test(S.distance(2), 10560))
-    # !(test (evalc (distance 2) &metric) 2000)
-    yield m.eval(S.test(evalc(S.distance(2), at_metric), 2000))
+    assert distance(2) == [10560]
+    assert metric.eval(S.distance(2)) == [2000]
 
-    # &self names the ambient space, so evalc there is eval.
-    # !(test (evalc (+ 5 5) &self) 10)
-    yield m.eval(S.test(evalc(S["+"](5, 5), here), 10))
-    # !(test (eval (+ 5 5)) 10)
-    yield m.eval(S.test(S.eval(S["+"](5, 5)), 10))
+    # &self names the ambient space, so evalc there is eval, and the two doors
+    # say so: this handle's own eval, and the engine's `eval` by name.
+    assert m.eval(S["+"](5, 5)) == [10]
+    assert m.fn("eval")(S["+"](5, 5)) == 10
 
-    # The expression is handed over unevaluated: were it not, it would already
-    # have been reduced here before the space argument could select another one.
-    # !(test (evalc (distance (+ 1 1)) &metric) 2000)
-    yield m.eval(S.test(evalc(S.distance(S["+"](1, 1)), at_metric), 2000))
+    # The expression is handed over unevaluated. Were it not, it would already
+    # have been reduced here before the space argument could select another.
+    assert metric.eval(S.distance(S["+"](1, 1))) == [2000]
 
-    # context-space, read inside evalc, reports the space evalc selected.
-    # !(test (context-space) &self)
-    yield m.eval(S.test(context(), here))
-    # !(test (evalc (context-space) &metric) &metric)
-    yield m.eval(S.test(evalc(context(), at_metric), at_metric))
+    # context-space, read inside evalc, reports the space evalc selected, and
+    # the handle it was asked through is where that name comes from.
+    assert str(m.fn("context-space")()) == m.space_name
+    assert str(metric.fn("context-space")()) == metric.space_name
 
     # The space argument is evaluated, so a function answering a space name can
-    # name it.
-    # (= (preferred-space) &metric)
-    m += equation(S["preferred-space"]()).to(at_metric)
-    # !(test (evalc (distance 2) (preferred-space)) 2000)
-    yield m.eval(
-        S.test(evalc(S.distance(2), S["preferred-space"]()), 2000)
-    )
+    # name it, and that call is not a handle: it goes to `evalc` by name.
+    m += equation(S["preferred-space"]()).to(S[metric.space_name])
+    assert m.fn("evalc")(S.distance(2), S["preferred-space"]()) == 2000
 
-    # A space is an atom beginning with &; anything else is a type error rather
-    # than a silently empty space.
-    # !(test (repr (catch (evalc (distance 2) 7)))
-    #        "(Error (type_error SpaceType 7) (context evalc invalid MeTTa operation argument))")
-    yield m.eval(
-        S.test(
-            S.repr(S.catch(evalc(S.distance(2), 7))),
-            val(
-                "(Error (type_error SpaceType 7) (context evalc invalid "
-                "MeTTa operation argument))"
-            ),
-        )
-    )
+    # A space is an atom beginning with &; anything else is refused with a
+    # sentence rather than read as a silently empty space.
+    refusal = None
+    try:
+        m.fn("evalc")(S.distance(2), 7)
+    except MettaOperationError as error:
+        refusal = error
+    assert str(refusal) == val("evalc: SpaceType expected, found 7")
 
     # The removal funnel owns the stored equation and its compiled clause, so
-    # the named 2000 answer leaves and the inherited &self equation is visible.
-    # !(remove-atom &metric (= (distance $x) (* $x 1000)))
+    # the metric answer leaves and the inherited &self one becomes visible.
     metric -= equation(S.distance(V.x)).to(V.x * 1000)
-    yield WROTE
-
-    # !(test (evalc (distance 2) &metric) 10560)
-    yield m.eval(S.test(evalc(S.distance(2), at_metric), 10560))
+    assert metric.eval(S.distance(2)) == [10560]

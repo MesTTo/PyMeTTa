@@ -1,93 +1,49 @@
-"""The Python twin of examples/translation/callquoteevalreduce2.metta.
+"""examples/translation/callquoteevalreduce2.metta in Python: four ways to not reduce.
 
-Four wrappers around the same call, differing only in which evaluation-control
-symbol they put in front of it, and the four answers are what the example
-teaches: `call` and `eval` and `reduce` all answer 5, and `quote` answers the
-term itself, unevaluated.
+One inner term, `(fib (myfunc))`, under four wrappers. `call` and `eval` and
+`reduce` all get to 5; `quote` holds the term as it was written. Each claim
+wraps the answer in a symbol of its own so the comparison sees what came back
+rather than what it would reduce to next.
 
-`fib` and `myfunc` are computations and are written as ones. `eval-fib` and
-`reduce-fib` are computations too: `eval` and `reduce` are functions the
-engine knows under exactly those names, so a compiled body reaches them and
-`@m.define(name=...)` gives each equation its hyphenated MeTTa name.
-
-`call-fib` and `quote-fib` drop to the container door for the reason that
-asymmetry documents: `call` and `quote` are interpreter forms rather than
-functions the engine knows, so a compiled body refuses their names, and the
-residue table records that against P14.4.
+`fib` and `myfunc` are ordinary compiled definitions. The four wrappers are
+terms: their names carry hyphens, which a compiled body resolves exactly as
+written, and `call` and `quote` are translator forms rather than registry
+functions, so `is_function` answers False for both (residue, P14.4).
 """
 
 from petta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 10973 to 13558, +2585 (+23.56%), by the wave-4 idiom
-#: rewrite moving `fib`, `myfunc`, `eval-fib` and `reduce-fib` onto @m.define.
-#: COMPILING a definition costs more than STORING one, and the difference is
-#: paid once per process plus a little per definition, never per call: four
-#: trivial one-parameter definitions in a fresh process measured
-#: 2221 / 2986 / 3751 / 4516 inferences through @m.define against
-#: 592 / 1164 / 1736 / 2308 through `m += equation(...).to(...)`, so the first
-#: compiled definition costs 1,629 more and each one after it 193 more.
-#: The whole move is those four: the same file with every definition stored
-#: instead measured 10973, the figure this twin was pinned at before. The 330
-#: above 1629 + 3*193 is `fib`'s body being larger than the trivial ones the
-#: rate was taken on.
-#: A second, smaller cause is in this figure: binding an engine function with
-#: `m.fn(...)` makes its name PYTHON-RESOLVABLE, so @m.define records no
-#: hazard and builds a RUNNABLE Python twin where it would otherwise build one
-#: that refuses. Measured by deleting only that binding line: 13511 against
-#: 13558. Without it `reduce_fib.py()` raises "reduce-fib.py cannot run this
-#: clause in Python: its body uses the engine function reduce, which exist
-#: only in the engine"; with it the twin runs and reaches `reduce`, which then
-#: has its own say about being handed an already-reduced 5.
-BUDGET = 13558
+#: RE-PINNED 2026-08-22, 13558 to 11859, -1699 (-12.5%), by the twin contract
+#: change: four `(test ...)` terms became four Python `assert`s, so the `test`
+#: wrapper left the engine four times while the six definitions and the four
+#: evaluations over them stayed in it. Against the example's 17576 the ratio is
+#: 0.6747.
+#: Prior: 13558, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 11859
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # The engine's own `reduce`, bound so the Python below stays valid. A
-    # compiled body resolves the NAME through the engine's registry rather
-    # than through this object, so the binding changes nothing it emits.
-    reduce = m.fn("reduce")
+    """Wrap one term four ways, and see which of them reduce."""
 
     @m.define
     def fib(n):
-        # (= (fib $N) (if (< $N 2) $N (+ (fib (- $N 1)) (fib (- $N 2)))))
         return n if n < 2 else fib(n - 1) + fib(n - 2)
 
     @m.define
     def myfunc():
-        # (= (myfunc) 5)
         return 5
 
-    # (= (call-fib) (call (fib (myfunc))))
-    m += equation(S["call-fib"]()).to(S.call(S.fib(S.myfunc())))
+    inner = S.fib(S.myfunc())
+    m += equation(S["call-fib"]()).to(S.call(inner))
+    m += equation(S["quote-fib"]()).to(S.quote(inner))
+    m += equation(S["eval-fib"]()).to(S.eval(inner))
+    m += equation(S["reduce-fib"]()).to(S.reduce(inner))
 
-    # (= (quote-fib) (quote (fib (myfunc))))
-    m += equation(S["quote-fib"]()).to(S.quote(S.fib(S.myfunc())))
-
-    @m.define(name="eval-fib")
-    def eval_fib():
-        # (= (eval-fib) (eval (fib (myfunc))))
-        return eval(fib(myfunc()))
-
-    @m.define(name="reduce-fib")
-    def reduce_fib():
-        # (= (reduce-fib) (reduce (fib (myfunc))))
-        return reduce(fib(myfunc()))
-
-    # !(test (fib-call (call-fib)) (fib-call 5))
-    yield m.eval(S.test(S["fib-call"](S["call-fib"]()), S["fib-call"](5)))
-    # !(test (fib-quote (quote-fib)) (fib-quote (quote (fib (myfunc)))))
-    yield m.eval(
-        S.test(
-            S["fib-quote"](S["quote-fib"]()),
-            S["fib-quote"](S.quote(S.fib(S.myfunc()))),
-        )
-    )
-    # !(test (fib-eval (eval-fib)) (fib-eval 5))
-    yield m.eval(S.test(S["fib-eval"](S["eval-fib"]()), S["fib-eval"](5)))
-    # !(test (fib-reduce (reduce-fib)) (fib-reduce 5))
-    yield m.eval(S.test(S["fib-reduce"](S["reduce-fib"]()), S["fib-reduce"](5)))
+    assert m.one(S["fib-call"](S["call-fib"]())) == S["fib-call"](5)
+    # quote keeps its wrapper AND the term under it, unreduced.
+    assert m.one(S["fib-quote"](S["quote-fib"]())) == S["fib-quote"](S.quote(inner))
+    assert m.one(S["fib-eval"](S["eval-fib"]())) == S["fib-eval"](5)
+    assert m.one(S["fib-reduce"](S["reduce-fib"]())) == S["fib-reduce"](5)

@@ -1,111 +1,91 @@
-"""The Python twin of examples/spaces/matespace.metta: a space grown by rewriting.
+"""examples/spaces/matespace.metta in Python: a space grown to a million atoms.
 
-`expand` doubles the set of `(num ...)` atoms 390 times and `mate` pairs the M
-and W branches, so the one assertion measures a space of 1,063,919 atoms built by
-nothing but matching and adding. It is this folder's scale test.
+`expand` doubles every `num` atom into an M-branch and a W-branch, `expandK`
+does that 390 times, `mate` pairs the branches, and the whole thing answers
+just over a million atoms. It is a scale example, and the scale is what its
+Python twin has to respect.
 
-Every equation is written at the container door, and one reason covers all five:
-a compiled body resolves a free name against the engine's function registry, and
-`case`, `once`, `super`-style forms and the hyphenated `add-atom` are all out of
-reach there, the first two because they are translator forms rather than registry
-functions and the last because Python cannot spell a hyphen (residue, P14.4).
-The single runnable form is an assertion, so it is a term either way.
+So this file counts IN THE ENGINE, and the measurement is the reason.
+`list(answers)` is what `collapse` dissolves into, and at this size that
+dissolution costs 111,707,981 inferences and 34.8 seconds against the engine's
+own 26,313,301 and 5.9 seconds, a 4.25x on the counter and a 5.9x on the clock,
+because a million atoms then cross the seam one at a time to be counted in
+Python [measured 2026-08-22 on this tree]. Cross per collection, never per
+element: here the collection is the answer set and the element is an atom, and
+the number is the only thing worth carrying across.
+
+Every definition is a term for reasons the residue already records: bodies
+naming `case`, `once` and `add-atom`, and a `match` whose space is a parameter
+(P14.4). The declaration below states that drop once rather than five times.
 """
 
-from petta import S, V, equation, expr
+from petta import S, V, equation
+
+#: Why this twin sits below the top rung, stated once for the whole file.
+RUNG = (
+    "every definition here is built as a term: their bodies name case, once "
+    "and add-atom, and add-atom-no-duplicate matches against a space its "
+    "CALLER names, none of which a compiled body reaches (residue, P14.4); "
+    "and the closing count stays in the engine because collapsing a million "
+    "answers into Python costs 4.25x the inferences (measured 2026-08-22)"
+)
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 26324213 across the P14 twin-style rewrite, and holding at
-#: 26.3 million is the strongest evidence in this folder that the rewrite is
-#: spelling and not semantics: equation().to() with named symbols and tuples
-#: stores the same five atoms the nested expr() calls stored, and the 390
-#: expansion rounds walk the same clauses. Measured 26324213 before and after.
-#: Prior: ADDED 2026-08-22 at 26324213 by the wave-3 spaces baseline.
-BUDGET = 26324213
+#: RE-PINNED 2026-08-22, 26324213 to 26324058, -155 (-0.0%), by the twin
+#: contract change: `(test (length (collapse ...)) 1063919)` became one
+#: `assert`, so the `test` wrapper left the engine while `length` and
+#: `collapse` stayed in it deliberately. The million-atom rewrite underneath is
+#: untouched, which is why the delta is three figures against twenty-six
+#: million. Against the
+#: example's 27400934 the ratio is 0.9607.
+#: Prior: 26324213, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 26324058
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    add, here = S["add-atom"], S[m.space_name]
-    once = S["add-atom-no-duplicate"]
+    """Grow a space by 390 doublings, mate the branches, and count what is left."""
+    here = S[m.space_name]
+    nodup = S["add-atom-no-duplicate"]
 
     # (= (add-atom-no-duplicate $Space $Atom)
     #    (if (== () (collapse (once (match $Space $Atom $Atom))))
     #        (add-atom $Space $Atom)
     #        (empty)))
-    m += equation(once(V.space, V.atom)).to(
-        S["if"](
-            expr().eq(
-                S.collapse(S.once(S.match(V.space, V.atom, V.atom)))
-            ),
-            add(V.space, V.atom),
-            S.empty(),
-        )
+    seen = S.collapse(S.once(S.match(V.space, V.atom, V.atom)))
+    m += equation(nodup(V.space, V.atom)).to(
+        S["if"](S["=="]((), seen), S["add-atom"](V.space, V.atom), S.empty())
     )
 
-    # (= (expand)
-    #    (case (match &self (num $t) $t)
-    #          (($t ((add-atom-no-duplicate &self (num (M $t)))
-    #                (add-atom-no-duplicate &self (num (W $t))))))))
+    # (= (expand) (case (match &self (num $t) $t) (($t ((add-atom-no-duplicate ...))))))
     m += equation(S.expand()).to(
         S.case(
             S.match(here, S.num(V.t), V.t),
-            (
-                (
-                    V.t,
-                    (
-                        once(here, S.num(S.M(V.t))),
-                        once(here, S.num(S.W(V.t))),
-                    ),
-                ),
-            ),
+            ((V.t, (nodup(here, S.num(S.M(V.t))), nodup(here, S.num(S.W(V.t))))),),
         )
     )
 
-    # (= (mate)
-    #    (case (match &self (num (M $t)) $t)
-    #          (($t (case (once (match &self (num (W $t)) $t))
-    #                     (($t (add-atom-no-duplicate &self (num (C $t))))))))))
+    # (= (mate) (case (match &self (num (M $t)) $t) (($t (case (once ...) ...)))))
+    paired = S.case(
+        S.once(S.match(here, S.num(S.W(V.t)), V.t)),
+        ((V.t, nodup(here, S.num(S.C(V.t)))),),
+    )
     m += equation(S.mate()).to(
-        S.case(
-            S.match(here, S.num(S.M(V.t)), V.t),
-            (
-                (
-                    V.t,
-                    S.case(
-                        S.once(S.match(here, S.num(S.W(V.t)), V.t)),
-                        ((V.t, once(here, S.num(S.C(V.t)))),),
-                    ),
-                ),
-            ),
-        )
+        S.case(S.match(here, S.num(S.M(V.t)), V.t), ((V.t, paired),))
     )
 
-    # Apply expand K times.
-    # (= (expandK $n)
-    #    (if (== $n 0) done (let $temp1 (expand) (expandK (- $n 1)))))
+    # (= (expandK $n) (if (== $n 0) done (let $temp1 (expand) (expandK (- $n 1)))))
     m += equation(S.expandK(V.n)).to(
-        S["if"](
-            V.n.eq(0),
-            S.done,
-            S.let(V.step, S.expand(), S.expandK(V.n - 1)),
-        )
+        S["if"](S["=="](V.n, 0), S.done, S.let(V.step, S.expand(), S.expandK(V.n - 1)))
     )
 
-    # Apply expand K times, then mate, then match.
-    # (= (mate-space-demo $K)
-    #    (let* (($s (add-atom &self (num Z)))
-    #           ($g (expandK $K))
-    #           ($h (mate)))
-    #           (match &self (num $1) (num $1))))
+    # (= (mate-space-demo $K) (let* (($s (add-atom ...)) ($g (expandK $K)) ($h (mate)))
+    #                               (match &self (num $1) (num $1))))
     m += equation(S["mate-space-demo"](V.k)).to(
         S["let*"](
             (
-                (V.seed, add(here, S.num(S.Z))),
+                (V.seed, S["add-atom"](here, S.num(S.Z))),
                 (V.grown, S.expandK(V.k)),
                 (V.mated, S.mate()),
             ),
@@ -113,9 +93,4 @@ def twin(m):
         )
     )
 
-    # !(test (length (collapse (mate-space-demo 390))) 1063919)
-    yield m.eval(
-        S.test(
-            S.length(S.collapse(S["mate-space-demo"](390))), 1063919
-        )
-    )
+    assert m.one(S.length(S.collapse(S["mate-space-demo"](390)))) == 1063919

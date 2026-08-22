@@ -1,91 +1,57 @@
-"""The Python twin of examples/spaces/restricted_spaces.metta: curated execution bases.
+"""examples/spaces/restricted_spaces.metta in Python: a curated execution base.
 
-A restricted space keeps ordinary computation and its own equations, and refuses
-everything it was not granted; the file operation reaches a runtime refusal that
-`catch` can inspect, and the same operation answers normally in a space created
-with that capability granted.
+A restricted space keeps ordinary computation and its own equations, refuses
+anything its base does not publish, and gains a capability only when the
+capability is granted at creation.
 
-Both creations stay TERMS, and the reason is in the answers: `new-space` answers
-the NAME it created, `&locked` and `&reader`, while `m.new_space(restricted=True)`
-answers a handle over a name the engine picked (`&pyspace_1`). A symbol is not a
-variable, so those two answers are not alpha-equal and no handle-door spelling
-can carry these forms. The residue files the missing door, a NAMED restricted
-space, against P14.10. Everything after the creation does use the handle:
-`m.space("&locked")` names the space that was just made and `@<space>.define`
-writes its equation.
+`m.new_space(restricted=True)` and `m.new_space(restricted=True, grants=...)`
+are those two spaces, and neither needs a name: every door the example uses
+hangs off the handle, and the named restricted form has no Python door
+(residue, P14.10). The refusal is an exception carrying its own sentence,
+which is the loud spelling the original reaches with `catch` and `if-error`.
+
+`grants` takes the capability's NAME, and the name is written `S.file.name`
+rather than as a bare string, because the lane reads a string constant as
+possible MeTTa source and a capability name is not source (residue, P14.1).
 """
 
-from petta import S, expr, val
-
-#: The answer group the definition write contributes: `add-atom` answers the
-#: unit, which is what Python's own None means at this seam (§9d).
-WROTE = (expr(),)
-
-#: The file the two capability probes ask about, named once because both forms
-#: ask about the same path.
-FIXTURE = val("examples/spaces/restricted_spaces.metta")
+from petta import S, SpaceCapabilityError, val
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 44917 to 46180, +1263 (+2.8%), by the P14 twin-style
-#: rewrite, and one cause carries it: the equation moved from an evaluated
-#: (add-atom &locked (= ...)) term to `@locked.define`, so the figure is the
-#: decorator door's price for the first decorated function in a process
-#: (~1,629) net of the term it replaces. The two creations are unchanged terms,
-#: and the file capability probes still dominate the figure on both sides.
-#: Prior: ADDED 2026-08-22 at 44917 by the wave-3 spaces baseline.
-BUDGET = 46180
+#: RE-PINNED 2026-08-22, 46180 to 43389, -2791 (-6.0%), by the twin contract
+#: change: three `(test ...)` terms became three Python `assert`s, so the
+#: `test` wrapper left the engine three times and the middle form dropped its
+#: `catch` and `if-error` with it, because a refused capability is an exception
+#: at this door. The two space creations, the definition and both file
+#: questions are unchanged. Against the example's 49813 the ratio is 0.8710.
+#: Prior: 46180, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 43389
+
+#: The file the example asks about: its own source, and ordinary path data.
+HERE = val("examples/spaces/restricted_spaces.metta")
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Lock a space, watch it refuse a file read, then grant the capability."""
+    locked = m.new_space(restricted=True)
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    new_space, if_error = S["new-space"], S["if-error"]
-
-    # A restricted space retains ordinary computation and its own equations.
-    # !(new-space &locked (restricted))
-    yield m.eval(new_space(S["&locked"], S.restricted()))
-    locked = m.space("&locked")
-
-    # !(add-atom &locked (= (double $x) (* $x 2)))
-    @locked.define(name="double")
+    @locked.define
     def double(x):
         return x * 2
 
-    yield WROTE
+    # A restricted space retains ordinary computation and its own equations.
+    assert locked.eval(S.double(21)) == [42]
 
-    # !(test (evalc (double 21) &locked) 42)
-    yield m.eval(S.test(S.evalc(S.double(21), S[locked.space_name]), 42))
-
-    # The file operation reaches a runtime refusal that catch can inspect.
-    # !(test (if-error (catch (evalc (exists_file "...") &locked)) refused answered)
-    #        refused)
-    yield m.eval(
-        S.test(
-            if_error(
-                S.catch(
-                    S.evalc(S.exists_file(FIXTURE), S[locked.space_name])
-                ),
-                S.refused,
-                S.answered,
-            ),
-            S.refused,
-        )
-    )
+    # The file operation reaches a refusal that names what is missing.
+    refusal = None
+    try:
+        locked.eval(S.exists_file(HERE))
+    except SpaceCapabilityError as error:
+        refusal = error
+    assert refusal is not None
 
     # A capability is granted explicitly when the space is created.
-    # !(new-space &reader (restricted (grants file)))
-    yield m.eval(
-        new_space(S["&reader"], S.restricted(S.grants(S.file)))
-    )
-    reader = m.space("&reader")
-
-    # !(test (evalc (exists_file "...") &reader) true)
-    yield m.eval(
-        S.test(
-            S.evalc(S.exists_file(FIXTURE), S[reader.space_name]),
-            val(value=True),
-        )
-    )
+    reader = m.new_space(restricted=True, grants=[S.file.name])
+    assert reader.eval(S.exists_file(HERE)) == [True]

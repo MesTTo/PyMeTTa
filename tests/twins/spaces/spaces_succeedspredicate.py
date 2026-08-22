@@ -1,56 +1,50 @@
-"""The Python twin of examples/spaces/spaces_succeedspredicate.metta: a Prolog goal as a test.
+"""examples/spaces/spaces_succeedspredicate.metta in Python: a predicate that binds.
 
-`succeedsPredicate` runs `(<space> <functor> <args>...)` as a goal and answers a
-boolean, so an absent fact is False and a present one binds the variables the
-goal carried.
+lib_spaces' `succeedsPredicate` takes a space, a relation and its arguments as
+one tuple, and answers whether the relation holds. Ground arguments make it a
+membership test, which is the first claim; variable arguments make it a
+generator, and the second claim USES what it bound.
 
-`import!` stays a term because it is a directive with no Python door yet
-(residue, P14.13); the fact between the two assertions is a plain tuple.
+Those two claims sit on different rungs, and the reason is one gap. The
+membership test is an ordinary Python call, because a boolean crosses whole.
+The generating form is a term the engine evaluates, because the bindings the
+predicate makes are not handed back at the call door, so the `if` that consumes
+them has to run where they exist (residue, P14.10). Python's own `if` is the
+door everywhere the bindings are already in hand, which is what makes this one
+line the exception rather than the rule.
+
+`import!` is a directive with no Python door yet, so the library arrives
+through `m.fn` (residue, P14.13).
 """
 
-from petta import S, V, val
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: HELD 2026-08-22 at 19938 across the P14 twin-style rewrite: the fact now
-#: enters as a tuple and both assertions are built from named symbols, storing
-#: and evaluating exactly what the expr() spellings did. Measured 19938 before
-#: and after, so this file's cost is the lib_spaces import rather than its own
-#: three forms. Prior: ADDED 2026-08-22 at 19938 by the wave-3 spaces baseline.
-BUDGET = 19938
+#: RE-PINNED 2026-08-22, 19938 to 19590, -348 (-1.7%), by the twin contract
+#: change: two `(test ...)` terms became two Python `assert`s, so the `test`
+#: wrapper left the engine twice while both predicate questions stayed in it,
+#: one as a call and one as the `if` term that consumes its bindings. The
+#: library import is the bulk of both sides. Against the example's 22365 the
+#: ratio is 0.8759.
+#: Prior: 19938, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 19590
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Ask a predicate a ground question, then a binding one."""
     here = S[m.space_name]
+    m.fn("import!")(here, S.library(S.lib_spaces))
+    succeeds = m.fn("succeedsPredicate")
 
-    # !(import! &self (library lib_spaces))
-    yield m.eval(S["import!"](here, S.library(S.lib_spaces)))
+    # Nothing matches, so the ground question is False.
+    assert succeeds((here, S.friend, S.tim, S.tom)) is False
 
-    # Nothing is stored yet, so the goal fails.
-    # !(test (succeedsPredicate (&self friend tim tom)) False)
-    yield m.eval(
-        S.test(
-            S.succeedsPredicate((here, S.friend, S.tim, S.tom)),
-            val(value=False),
-        )
-    )
-
-    # (friend a b)
     m += (S.friend, S.a, S.b)
 
-    # Now it succeeds, and the goal's variables come back bound.
-    # !(test (if (succeedsPredicate (&self friend $a $b)) ($a $b) NotFound) (a b))
-    yield m.eval(
-        S.test(
-            S["if"](
-                S.succeedsPredicate((here, S.friend, V.a, V.b)),
-                (V.a, V.b),
-                S.NotFound,
-            ),
-            (S.a, S.b),
-        )
-    )
+    # The binding question answers what it bound, in the engine, where the
+    # bindings are.
+    holds = S.succeedsPredicate((here, S.friend, V.a, V.b))
+    asked = S["if"](holds, (V.a, V.b), S.NotFound)  # rung: the call door drops the bindings, so the branch runs where they still exist
+    assert m.one(asked) == S.a(S.b)

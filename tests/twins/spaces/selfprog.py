@@ -1,58 +1,44 @@
-"""The Python twin of examples/spaces/selfprog.metta: a program editing itself.
+"""examples/spaces/selfprog.metta in Python: a program editing itself.
 
-An equation is an ordinary atom, so a program removes one and adds another while
-it runs, and `repr` shows the answer changing under it: first `(function1)`
-unreduced, then `(OK)`.
+An equation is an ordinary atom, so a running program removes one and adds
+another, and the same call answers differently either side of the edit: first
+`(function1)` itself, unreduced, then `(OK)`.
 
-Both edits go through the container protocol, which is what makes the point:
-`m -= equation(...).to(...)` is `(remove-atom &self (= ...))` and `m +=` is the
-add, the same operators that move any other knowledge. Each write form answers
-the unit, and the assertion after it is what proves the edit landed.
+Both edits go through the container protocol, which is the point made in
+Python: `m -= equation(...).to(...)` is the removal and `m +=` the add, the
+same two operators that move any other knowledge. The original reads its
+answers through `repr` because MeTTa's `test` would reduce them; here the
+answers are atoms and Python compares atoms, so no printing is involved.
 """
 
-from petta import S, equation, expr, val
-
-#: The answer group a write form contributes. `remove-atom` and `add-atom` both
-#: answer the unit, which is what Python's own None means here (§9d).
-WROTE = (expr(),)
+from petta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 3282 to 4332, +1050 (+32.0%), by the P14 twin-style
-#: rewrite, whose two causes pull opposite ways and were split by re-measuring
-#: this file with only the decorator change reverted: 2,669, twice.
-#: The two edit forms moved to the container door, `m -= equation(...)` and
-#: `m += equation(...)`, worth -613 against evaluating (remove-atom ...) and
-#: (add-atom ...) terms. The opening equation moved to @m.define, worth +1663,
-#: which is the DEFINITION-TIME price of the decorator door: measured in
-#: isolation it is ~1,436 of one-time machinery the first decorated function in
-#: a process reaches plus ~193 per equation, and none of it is paid per call.
-#: Prior: ADDED 2026-08-22 at 3282 by the wave-3 spaces baseline.
-BUDGET = 4332
+#: RE-PINNED 2026-08-22, 4332 to 3214, -1118 (-25.8%), by the twin contract
+#: change: two `(test (repr (function1)) "...")` terms became two `assert`s
+#: comparing ATOMS, so the `test` and `repr` wrappers both left the engine and
+#: what remains is one definition, two edits and two evaluations. Against the
+#: example's 5593 the ratio is 0.5746.
+#: Prior: 4332, pinned 2026-08-22 by the P14 twin-style rewrite and
+#: measured under the previous contract, where twin(m) was a generator the
+#: lane consumed form by form.
+BUDGET = 3214
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
+    """Define a function, delete its equation, then give it another one."""
 
     @m.define
     def function1():
-        # (= (function1) OK)
-        return OK  # noqa: F821  -- a capitalised free name in a compiled body is a data CONSTRUCTOR, and MeTTa data has no Python value to bind
+        # A capitalised free name in a compiled body is a data CONSTRUCTOR,
+        # and MeTTa data has no Python value to bind.
+        return OK  # noqa: F821
 
-    # !(remove-atom &self (= (function1) OK))
     m -= equation(S.function1()).to(S.OK)
-    yield WROTE
 
     # With no equation left, the call is its own answer.
-    # !(test (repr (function1)) "(function1)")
-    yield m.eval(S.test(S.repr(S.function1()), val("(function1)")))
+    assert m.one(S.function1()) == S.function1()
 
-    # !(add-atom &self (= (function1) (OK)))
     m += equation(S.function1()).to(S.OK())
-    yield WROTE
 
-    # !(test (repr (function1)) "(OK)")
-    yield m.eval(S.test(S.repr(S.function1()), val("(OK)")))
+    assert m.one(S.function1()) == S.OK()
