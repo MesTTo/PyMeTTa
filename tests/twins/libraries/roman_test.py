@@ -1,157 +1,137 @@
-"""The Python twin of examples/libraries/roman_test.metta.
+r"""The Python twin of examples/libraries/roman_test.metta.
 
-Every source form is rebuilt as atoms through ``S``, ``V``, ``expr``,
-and ``val``. Definitions enter through the container protocol and
-runnable forms enter through ``m.eval``; no source-reading door is used.
+lib_roman's whole surface: higher-order mapping and folding, the nine set
+operations, function composition, reverse function matching through `let`, and
+the two sequencing utilities.
+
+Most of the library's names are punctuation, `/=\`, `\==/`, `.`, `.:`, `&&&`,
+`&^&`, which Python cannot spell as attributes, so each is named at the
+`S["..."]` door and called. The data is Python tuples, which is what a MeTTa
+expression already is.
+
+Two term shapes here name an arithmetic head rather than using the operator.
+`(+ 1)` and `(* 2)` are PARTIAL applications, which a binary operator has no
+spelling for, and `(+ 1 1)` is over two ground numbers, where Python's `+` is
+arithmetic and answers 2 before any term exists.
+
+The twins lane reports a named operator head as a dropped rung, which is a
+false positive it cannot see past; the residue table records the refinement
+against P14.1.
 """
 
-from petta import S, V, expr
+from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-BUDGET = 212336
-
+#: RE-PINNED 2026-08-22, 212336 to 214065, +1729 (+0.81%), by the P14
+#: twin-style rewrite: mfail's equation is now compiled from Python syntax by
+#: @m.define instead of added as an already-built atom, and the compile costs
+#: 1,729 inferences once. Prior: ADDED 2026-08-22 at 212336 by the wave-3
+#: libraries baseline, which recorded no cause.
+BUDGET = 214065
 
 def twin(m):
-    """Yield one answer group per runnable form, in source order."""
+    """One answer group per runnable form of the original, in source order.
+
+    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
+    """
     # !(import! &self (library lib_roman))
-    yield m.eval(expr(S["import!"], S["&self"], expr(S["library"], S["lib_roman"])))
+    yield m.eval(S["import!"](S["&self"], S.library(S.lib_roman)))
 
+    # Test higher order functions
     # !(test (map-flat (+ 1) (1 2 3)) (2 3 4))
-    yield m.eval(
-        expr(S["test"], expr(S["map-flat"], expr(S["+"], 1), expr(1, 2, 3)), expr(2, 3, 4))
-    )
-
+    yield m.eval(S.test(S["map-flat"](S["+"](1), (1, 2, 3)), (2, 3, 4)))
     # !(test (map-nested (+ 1) (1 (2 3))) (2 (3 4)))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(S["map-nested"], expr(S["+"], 1), expr(1, expr(2, 3))),
-            expr(2, expr(3, 4)),
-        )
+        S.test(S["map-nested"](S["+"](1), (1, (2, 3))), (2, (3, 4)))
     )
 
     # !(test (fold-flat + 0 (1 2 3)) 6)
-    yield m.eval(expr(S["test"], expr(S["fold-flat"], S["+"], 0, expr(1, 2, 3)), 6))
-
+    yield m.eval(S.test(S["fold-flat"](S["+"], 0, (1, 2, 3)), 6))
     # !(test (foldr-flat cons () (1 (2 3) 4)) (1 (2 3) 4))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(S["foldr-flat"], S["cons"], expr(), expr(1, expr(2, 3), 4)),
-            expr(1, expr(2, 3), 4),
+        S.test(
+            S["foldr-flat"](S.cons, (), (1, (2, 3), 4)), (1, (2, 3), 4)
         )
     )
-
     # !(test (fold-nested + 0 (1 (2 3))) 6)
-    yield m.eval(expr(S["test"], expr(S["fold-nested"], S["+"], 0, expr(1, expr(2, 3))), 6))
+    yield m.eval(S.test(S["fold-nested"](S["+"], 0, (1, (2, 3))), 6))
 
+    # Test set operations
     # !(test (/=\ (1 2 $a) (2 3 4)) (2 2))
-    yield m.eval(expr(S["test"], expr(S["/=\\"], expr(1, 2, V["a"]), expr(2, 3, 4)), expr(2, 2)))
-
+    yield m.eval(S.test(S["/=\\"]((1, 2, V.a), (2, 3, 4)), (2, 2)))
     # !(test (/==\ (1 2 3) (2 3 4)) (2 3))
-    yield m.eval(expr(S["test"], expr(S["/==\\"], expr(1, 2, 3), expr(2, 3, 4)), expr(2, 3)))
-
+    yield m.eval(S.test(S["/==\\"]((1, 2, 3), (2, 3, 4)), (2, 3)))
     # !(test (/=a\ (1 2 $a) (2 $a 4)) (2 $a))
-    yield m.eval(
-        expr(S["test"], expr(S["/=a\\"], expr(1, 2, V["a"]), expr(2, V["a"], 4)), expr(2, V["a"]))
-    )
+    yield m.eval(S.test(S["/=a\\"]((1, 2, V.a), (2, V.a, 4)), (2, V.a)))
 
     # !(test (\= (1 2 3) ($a 3 4)) (2))
-    yield m.eval(expr(S["test"], expr(S["\\="], expr(1, 2, 3), expr(V["a"], 3, 4)), expr(2)))
-
+    yield m.eval(S.test(S["\\="]((1, 2, 3), (V.a, 3, 4)), (2,)))
     # !(test (\== (1 2 3) (2 3 4)) (1))
-    yield m.eval(expr(S["test"], expr(S["\\=="], expr(1, 2, 3), expr(2, 3, 4)), expr(1)))
-
+    yield m.eval(S.test(S["\\=="]((1, 2, 3), (2, 3, 4)), (1,)))
     # !(test (\=a (1 2 $a) (2 $a 4)) (1))
-    yield m.eval(expr(S["test"], expr(S["\\=a"], expr(1, 2, V["a"]), expr(2, V["a"], 4)), expr(1)))
+    yield m.eval(S.test(S["\\=a"]((1, 2, V.a), (2, V.a, 4)), (1,)))
 
     # !(test (\=/ (1 2 3) ($a 3 4)) (2 1 3 4))
-    yield m.eval(
-        expr(S["test"], expr(S["\\=/"], expr(1, 2, 3), expr(V["a"], 3, 4)), expr(2, 1, 3, 4))
-    )
-
+    yield m.eval(S.test(S["\\=/"]((1, 2, 3), (V.a, 3, 4)), (2, 1, 3, 4)))
     # !(test (\==/ (1 2 3) (2 3 4)) (1 2 3 4))
-    yield m.eval(expr(S["test"], expr(S["\\==/"], expr(1, 2, 3), expr(2, 3, 4)), expr(1, 2, 3, 4)))
-
+    yield m.eval(S.test(S["\\==/"]((1, 2, 3), (2, 3, 4)), (1, 2, 3, 4)))
     # !(test (\=a/ (1 2 $a) (2 $a 4)) (1 2 $a 4))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(S["\\=a/"], expr(1, 2, V["a"]), expr(2, V["a"], 4)),
-            expr(1, 2, V["a"], 4),
-        )
+        S.test(S["\\=a/"]((1, 2, V.a), (2, V.a, 4)), (1, 2, V.a, 4))
     )
 
+    # Test composition
     # !(test (. (+ 1) (* 2) 1) 3)
-    yield m.eval(expr(S["test"], expr(S["."], expr(S["+"], 1), expr(S["*"], 2), 1), 3))
-
+    yield m.eval(S.test(S["."](S["+"](1), S["*"](2), 1), 3))
     # !(test (.: (+ 1) + 2 3) 6)
-    yield m.eval(expr(S["test"], expr(S[".:"], expr(S["+"], 1), S["+"], 2, 3), 6))
-
+    yield m.eval(S.test(S[".:"](S["+"](1), S["+"], 2, 3), 6))
     # !(test (&&& (+ 2) (* 2) 1) (3 2))
-    yield m.eval(expr(S["test"], expr(S["&&&"], expr(S["+"], 2), expr(S["*"], 2), 1), expr(3, 2)))
+    yield m.eval(S.test(S["&&&"](S["+"](2), S["*"](2), 1), (3, 2)))
 
-    # (= (mfail $x) (empty))
-    m += expr(S["="], expr(S["mfail"], V["x"]), expr(S["empty"]))
+    empty = m.fn("empty")
+
+    @m.define
+    def mfail(_x):
+        # (= (mfail $x) (empty))
+        return empty()
 
     # !(test (collapse (&^& (+ 1) (mfail) 1)) (2))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(S["collapse"], expr(S["&^&"], expr(S["+"], 1), expr(S["mfail"]), 1)),
-            expr(2),
-        )
+        S.test(S.collapse(S["&^&"](S["+"](1), S.mfail(), 1)), (2,))
     )
 
+    # Test reverse function matching
     # !(test (let (@ $lst (cons $h $t)) (1 2 3) ($lst $h $t)) ((1 2 3) 1 (2 3)))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(
-                S["let"],
-                expr(S["@"], V["lst"], expr(S["cons"], V["h"], V["t"])),
-                expr(1, 2, 3),
-                expr(V["lst"], V["h"], V["t"]),
+        S.test(
+            S.let(
+                S["@"](V.lst, S.cons(V.h, V.t)),
+                (1, 2, 3),
+                (V.lst, V.h, V.t),
             ),
-            expr(expr(1, 2, 3), 1, expr(2, 3)),
+            ((1, 2, 3), 1, (2, 3)),
         )
     )
 
     # !(test (let (head $x) (1 2 3) $x) 1)
-    yield m.eval(expr(S["test"], expr(S["let"], expr(S["head"], V["x"]), expr(1, 2, 3), V["x"]), 1))
-
+    yield m.eval(S.test(S.let(S.head(V.x), (1, 2, 3), V.x), 1))
     # !(test (let (tail $xs) (1 2 3) $xs) (2 3))
-    yield m.eval(
-        expr(
-            S["test"], expr(S["let"], expr(S["tail"], V["xs"]), expr(1, 2, 3), V["xs"]), expr(2, 3)
-        )
-    )
+    yield m.eval(S.test(S.let(S.tail(V.xs), (1, 2, 3), V.xs), (2, 3)))
 
     # !(test (let (mylast $x) (1 2 3) $x) 3)
-    yield m.eval(
-        expr(S["test"], expr(S["let"], expr(S["mylast"], V["x"]), expr(1, 2, 3), V["x"]), 3)
-    )
-
+    yield m.eval(S.test(S.let(S.mylast(V.x), (1, 2, 3), V.x), 3))
     # !(test (let (init $xs) (1 2 3) $xs) (1 2))
-    yield m.eval(
-        expr(
-            S["test"], expr(S["let"], expr(S["init"], V["xs"]), expr(1, 2, 3), V["xs"]), expr(1, 2)
-        )
-    )
+    yield m.eval(S.test(S.let(S.init(V.xs), (1, 2, 3), V.xs), (1, 2)))
 
     # !(test (let (rcons $xs $x) (1 2 3) ($xs $x)) ((1 2) 3))
     yield m.eval(
-        expr(
-            S["test"],
-            expr(S["let"], expr(S["rcons"], V["xs"], V["x"]), expr(1, 2, 3), expr(V["xs"], V["x"])),
-            expr(expr(1, 2), 3),
+        S.test(
+            S.let(S.rcons(V.xs, V.x), (1, 2, 3), (V.xs, V.x)), ((1, 2), 3)
         )
     )
 
+    # Test utils
     # !(test (prog1 (+ 1 1) (+ 2 2)) 2)
-    yield m.eval(expr(S["test"], expr(S["prog1"], expr(S["+"], 1, 1), expr(S["+"], 2, 2)), 2))
-
+    yield m.eval(S.test(S.prog1(S["+"](1, 1), S["+"](2, 2)), 2))
     # !(test (progn (+ 1 1) (+ 2 2)) 4)
-    yield m.eval(expr(S["test"], expr(S["progn"], expr(S["+"], 1, 1), expr(S["+"], 2, 2)), 4))
-
-    yield from ()
+    yield m.eval(S.test(S.progn(S["+"](1, 1), S["+"](2, 2)), 4))
