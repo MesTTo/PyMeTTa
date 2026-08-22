@@ -8,7 +8,7 @@ ai-tabling-review.md section 3 pinned.
 Guarantees:
   - Undefined carries only the answer and its delay condition [tested:
     test_undefined_answers_cross_as_undefined;
-    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,20 +17,21 @@ Open Obligations:
 
 import pytest
 
-import petta as pkg
-from petta import EngineError, PettaError
+from petta import PettaError
+from petta._engine import bridge
 from petta.atoms import Undefined
+from petta.errors import EngineError
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
 @pytest.fixture(scope="module")
 def wfs_program(metta):  # noqa: ARG001, D103  -- the test reflects this callable signature, so every declared parameter must remain visible; pytest discovers or injects this callable; its descriptive name states the contract
-    pkg.janus.consult(
+    bridge().consult(
         "wfs_truth_test.pl",
         data=(
             ":- table wfs_loop/0.\n"
@@ -67,7 +68,7 @@ def test_mixed_answers_keep_definite_ones_plain(m, wfs_program):  # noqa: ARG001
 
 def test_value_refuses_undefined_truth(m, wfs_program):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="undefined truth"):
-        m.one("(translatePredicate (wfs_loop))")
+        m._one("(translatePredicate (wfs_loop))")
 
 
 def test_ordinary_evaluation_stays_plain(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

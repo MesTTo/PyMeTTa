@@ -14,7 +14,7 @@ Guarantees:
   - object_view reads live fields, joins with stored atoms through union, and
     turns an added py-field atom into setattr [tested:
     test_a_query_joins_stored_atoms_with_live_object_fields;
-    commit=a3f7e1600b1547617d8be1c365df9c00a74ee81e]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,17 +30,17 @@ from typing import Any
 from ._object_fields import field_names
 from .atoms import (
     Atom,
-    Expr,
-    Gnd,
-    Sym,
-    Var,
+    Expression,
+    Grounded,
+    Symbol,
+    Variable,
+    _decode,
+    _encode,
+    _is_ground,
     _to_atom,
-    decode,
-    encode,
-    is_ground,
+    ground,
     substitute,
     unify,
-    val,
 )
 from .errors import PettaError
 from .foreign import Matcher, SpaceProvider
@@ -66,19 +66,19 @@ class ObjectView(SpaceProvider):
     Adding the same atom shape writes the value with ``setattr``.
     """
 
-    def __init__(self, obj: Any, relation: str | Sym = "py-field") -> None:
+    def __init__(self, obj: Any, relation: str | Symbol = "py-field") -> None:
         """Wrap one live object, presenting its fields under *relation*."""
         if isinstance(relation, str):
             if not relation:
                 msg = "an object view relation name cannot be empty"
                 raise PettaError(msg)
-            relation = Sym(relation)
-        elif not isinstance(relation, Sym):
+            relation = Symbol(relation)
+        elif not isinstance(relation, Symbol):
             msg = "an object view relation is a symbol or its string name"
             raise TypeError(msg)
         self.object = obj
         self.relation = relation
-        self._root = val(obj)
+        self._root = ground(obj)
 
     def atoms(self) -> Iterator[Atom]:
         """Yield one field atom per readable public field of the object."""
@@ -93,13 +93,13 @@ class ObjectView(SpaceProvider):
         if parts is None:
             return
         root, name_atom, _value = parts
-        if not isinstance(root, Var) and root != self._root:
+        if not isinstance(root, Variable) and root != self._root:
             return
-        if isinstance(name_atom, Var):
+        if isinstance(name_atom, Variable):
             names = field_names(self.object)
-        elif isinstance(name_atom, Sym):
+        elif isinstance(name_atom, Symbol):
             names = [name_atom.name]
-        elif isinstance(name_atom, Gnd) and isinstance(name_atom.value, str):
+        elif isinstance(name_atom, Grounded) and isinstance(name_atom.value, str):
             names = [name_atom.value]
         else:
             return
@@ -121,37 +121,37 @@ class ObjectView(SpaceProvider):
         if root != self._root:
             msg = "an object view writes only the object it presents"
             raise PettaError(msg)
-        if isinstance(name_atom, Sym):
+        if isinstance(name_atom, Symbol):
             name = name_atom.name
-        elif isinstance(name_atom, Gnd) and isinstance(name_atom.value, str):
+        elif isinstance(name_atom, Grounded) and isinstance(name_atom.value, str):
             name = name_atom.value
         else:
             msg = "an object view write needs one ground field name"
             raise PettaError(msg)
-        setattr(self.object, name, decode(value_atom))
+        setattr(self.object, name, _decode(value_atom))
 
     def _parts(self, atom: Atom) -> tuple[Atom, Atom, Atom] | None:
         if (
-            not isinstance(atom, Expr)
+            not isinstance(atom, Expression)
             or len(atom.children) != 4
             or atom.children[0] != self.relation
         ):
             return None
         return atom.children[1], atom.children[2], atom.children[3]
 
-    def _field_atom(self, name: str) -> Expr | None:
+    def _field_atom(self, name: str) -> Expression | None:
         try:
             value = getattr(self.object, name)
         except AttributeError:
             return None
-        return Expr([self.relation, self._root, Sym(name), encode(value)])
+        return Expression([self.relation, self._root, Symbol(name), _encode(value)])
 
     def __repr__(self) -> str:
         """Return the debug label naming the viewed type and the relation."""
         return f"<object view of {type(self.object).__name__} as {self.relation}>"
 
 
-def object_view(obj: Any, *, relation: str | Sym = "py-field") -> ObjectView:
+def object_view(obj: Any, *, relation: str | Symbol = "py-field") -> ObjectView:
     """Present one object as a live, writable provider.
 
     Compose it with stored facts through ``spaces.union(stored, view)`` and
@@ -210,7 +210,7 @@ class _Member:
 
     def describe(self) -> str:
         if self._is_space:
-            return str(self.target.space_name)
+            return str(self.target.name)
         return type(self.target).__name__
 
 
@@ -242,7 +242,7 @@ class _Union(SpaceProvider):
 def union(*spaces: Any) -> _Union:
     """A set of spaces read as one, writes refused by capability.
 
-        m.register_space(petta.spaces.union(kb, rules), "&all")
+        m._register_space(petta.spaces.union(kb, rules), "&all")
         m.run("!(match &all (edge $a $b) $b)")
 
     Every member's candidates answer; duplicates across members are
@@ -288,7 +288,7 @@ class _Mapped(SpaceProvider):
     values both ways.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, member: _Member, outer: Expr, inner: Expr) -> None:
+    def __init__(self, member: _Member, outer: Expression, inner: Expression) -> None:
         self._member = member
         self._outer = outer
         self._inner = inner
@@ -320,7 +320,7 @@ class _Mapped(SpaceProvider):
             # one-way walk refuses, (edge $x $x) against a shape carrying
             # literals for instance, so the sound side is enumeration and
             # the engine's own re-unification keeps the answers right.
-            if not is_ground(pattern):
+            if not _is_ground(pattern):
                 yield from self.atoms()
             return
         for candidate in self._member.match(inner_pattern):
@@ -365,11 +365,11 @@ def mapped(inner: Any, declaration: Any) -> _Mapped:
     """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
     parsed = _to_atom(declaration)
     if (
-        not isinstance(parsed, Expr)
+        not isinstance(parsed, Expression)
         or len(parsed.children) != 3
         or str(parsed.children[0]) != "bridge"
-        or not isinstance(parsed.children[1], Expr)
-        or not isinstance(parsed.children[2], Expr)
+        or not isinstance(parsed.children[1], Expression)
+        or not isinstance(parsed.children[2], Expression)
     ):
         msg = (
             f"a mapped declaration is (bridge <outer-shape> <inner-shape>), "

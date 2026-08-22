@@ -1,4 +1,14 @@
-"""Purpose: exercise the compatibility PeTTa wrapper's basic run helpers."""
+"""Purpose: exercise the compatibility PeTTa wrapper's basic run helpers.
+
+Guarantees:
+  - the current runtime adapter and the retained upstream module globals bind
+    the same helper query [tested: test_run_helper_binds_verbose_atom and
+    test_upstream_source_wrapper_binds_verbose_atom; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
+"""
 
 import uuid
 from types import SimpleNamespace
@@ -15,6 +25,30 @@ def test_run_helper_binds_verbose_atom(monkeypatch, petta_module, verbose, expec
     query_once = Mock(return_value={"Results": []})
     fake_runtime = SimpleNamespace(_janus=Mock(query_once=query_once))
     monkeypatch.setattr(petta_module._engine, "runtime", Mock(return_value=fake_runtime))
+
+    petta_module.PeTTa(verbose=verbose).process_metta_string("!(+ 1 1)")
+
+    query_once.assert_called_once_with(
+        "run_metta_helper(Verbose, HelperName, Argument, Results)",
+        {
+            "Verbose": expected_binding,
+            "HelperName": "process_metta_string",
+            "Argument": "!(+ 1 1)",
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    ("verbose", "expected_binding"),
+    [(False, "false"), (True, "true")],
+)
+def test_upstream_source_wrapper_binds_verbose_atom(
+    monkeypatch, petta_module, verbose, expected_binding
+):
+    """The original module globals remain the upstream wrapper's seam."""
+    query_once = Mock(return_value={"Results": []})
+    monkeypatch.setattr(petta_module, "CONSULTED", True)
+    monkeypatch.setattr(petta_module, "janus", Mock(query_once=query_once))
 
     petta_module.PeTTa(verbose=verbose).process_metta_string("!(+ 1 1)")
 

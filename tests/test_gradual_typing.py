@@ -22,7 +22,7 @@ from petta import MeTTa
 @pytest.fixture()
 def typed():
     """One engine carrying a parameter of each shape the rule distinguishes."""
-    m = MeTTa()
+    m = MeTTa().self
     for form in (
         "(: concrete (-> Number Atom))",
         "(= (concrete $x) (got $x))",

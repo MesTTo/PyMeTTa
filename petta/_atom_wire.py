@@ -12,7 +12,7 @@ Guarantees:
   - undefined truth has one value-and-delay frame with no optional constraint
     payload [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+    commit=WORKTREE]
   - n decodes Python integers without a width conversion, so Number and
     BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
 Open Obligations:
@@ -25,17 +25,28 @@ from __future__ import annotations
 
 from typing import Any
 
-from ._atoms_core import Atom, Box, Expr, Gnd, Handle, _wire_sym, _wire_var
+from ._atoms_core import (
+    Atom,
+    Box,
+    Expression,
+    Grounded,
+    Handle,
+    _new_expression,
+    _set_children,
+    _set_hash,
+    _wire_sym,
+    _wire_var,
+)
 from .errors import PettaError
 
 
 class _PendingExpr:
-    """A wire expression mid-build; its items become an Expr once every
+    """A wire expression mid-build; its items become an Expression once every
     nested expression below it has become one.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("built", "items")
-    built: Expr
+    built: Expression
 
     def __init__(self) -> None:
         self.items: list[Atom | _PendingExpr] = []
@@ -82,21 +93,21 @@ def _string_from_wire(payload: Any) -> Atom:
     if not isinstance(payload, str):
         msg = f"wire string payload must be text, got {payload!r}"
         raise ValueError(msg)  # noqa: TRY004  -- malformed serialized or configured content is a ValueError even when its runtime type reveals it
-    return Gnd(payload)
+    return Grounded(payload)
 
 
 def _number_from_wire(payload: Any) -> Atom:
     if type(payload) not in (int, float):
         msg = f"wire number payload must be numeric, got {payload!r}"
         raise ValueError(msg)
-    return Gnd(payload)
+    return Grounded(payload)
 
 
 def _boolean_from_wire(payload: Any) -> Atom:
     if isinstance(payload, bool):
-        return Gnd(payload)
+        return Grounded(payload)
     if payload in ("true", "false"):
-        return Gnd(payload == "true")
+        return Grounded(payload == "true")
     msg = f"wire boolean payload must be true or false, got {payload!r}"
     raise ValueError(msg)
 
@@ -109,7 +120,7 @@ def _variable_from_wire(payload: Any) -> Atom:
 
 
 def _object_from_wire(payload: Any) -> Atom:
-    return Gnd(payload.value if isinstance(payload, Box) else payload)
+    return Grounded(payload.value if isinstance(payload, Box) else payload)
 
 
 class Undefined:
@@ -176,17 +187,25 @@ def _append_nontext_child(
     items.append(_leaf_from_wire(tag, payload))
 
 
-def _finish_expression(pendings: list[_PendingExpr], root: _PendingExpr) -> Expr:
+def _finish_expression(pendings: list[_PendingExpr], root: _PendingExpr) -> Expression:
     # Children are discovered after their parents, so reverse discovery
     # builds every nested expression before its holder.
     for pending in reversed(pendings):
-        pending.built = Expr(
-            [item.built if isinstance(item, _PendingExpr) else item for item in pending.items]
-        )
+        # This decoder already validated every child as an Atom. Keep the
+        # normalized construction inline because this loop creates one node
+        # per decoded expression and is the wire codec's measured hot path.
+        children = [
+            item.built if isinstance(item, _PendingExpr) else item
+            for item in pending.items
+        ]
+        expression = _new_expression(Expression)
+        _set_children(expression, tuple(children))
+        _set_hash(expression, None)
+        pending.built = expression
     return root.built
 
 
-def _expression_from_wire(payload: Any) -> Expr:  # noqa: C901  -- _expression_from_wire keeps the tagged wire decoder together so its branches share one state
+def _expression_from_wire(payload: Any) -> Expression:  # noqa: C901  -- _expression_from_wire keeps the tagged wire decoder together so its branches share one state
     root = _PendingExpr()
     pendings: list[_PendingExpr] = [root]
     stack: list[tuple[Any, _PendingExpr]] = [(payload, root)]
@@ -194,7 +213,7 @@ def _expression_from_wire(payload: Any) -> Expr:  # noqa: C901  -- _expression_f
     # is hundreds of thousands of cells, and a dispatch call per cell was
     # half the query path's whole cost, profiled. The less common tag paths
     # stay separate so their validation remains readable.
-    wire_sym, gnd, seq = _wire_sym, Gnd, (list, tuple)
+    wire_sym, gnd, seq = _wire_sym, Grounded, (list, tuple)
     string_from_wire, append_nontext = _string_from_wire, _append_nontext_child
     while stack:
         children, pending = stack.pop()
@@ -229,7 +248,7 @@ def _expression_from_wire(payload: Any) -> Expr:  # noqa: C901  -- _expression_f
     return _finish_expression(pendings, root)
 
 
-def from_wire(wire: Any) -> Atom | Undefined:
+def _from_wire(wire: Any) -> Atom | Undefined:
     """Rebuild an atom from the tagged wire form janus delivered.
 
     Iterative, because expression depth is data and must not meet Python's
@@ -243,7 +262,7 @@ def from_wire(wire: Any) -> Atom | Undefined:
     # nests inside expressions, so it is handled at the entry alone.
     match wire:
         case ["u", value, why]:
-            return Undefined(atom_from_wire(value), str(why))
+            return Undefined(_atom_from_wire(value), str(why))
         case ["e", payload]:
             return _expression_from_wire(payload)
         case ["h", ident, text]:
@@ -255,9 +274,9 @@ def from_wire(wire: Any) -> Atom | Undefined:
             raise ValueError(msg)
 
 
-def atom_from_wire(wire: Any) -> Atom:
+def _atom_from_wire(wire: Any) -> Atom:
     """Decode a wire value where the protocol requires a definite atom."""
-    value = from_wire(wire)
+    value = _from_wire(wire)
     if isinstance(value, Undefined):
         msg = (
             "undefined truth is valid only as a complete evaluation answer, "

@@ -1,8 +1,14 @@
-"""Purpose: prove reader token classes are declared and extensible from both APIs."""
+"""Purpose: prove reader token classes are declared and extensible from both APIs.
+
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
 
 import pytest
 
-from petta import Gnd, S
+from petta import Grounded, S
 from petta.errors import EngineError
 
 
@@ -22,8 +28,8 @@ def test_a_registered_token_class_parses_like_a_shipped_one(metta):
             metta.runtime.iter("metta_reader_token_class(Pattern, Constructor, shipped)")
         )
         assert {row["Constructor"] for row in shipped} == {"number", "string"}
-        assert metta.parse("12") == Gnd(12)
-        assert metta.parse('"12kg"') == Gnd("12kg")
+        assert metta.parse("12") == Grounded(12)
+        assert metta.parse('"12kg"') == Grounded("12kg")
 
         metta.register_token(
             python_pattern,
@@ -36,7 +42,7 @@ def test_a_registered_token_class_parses_like_a_shipped_one(metta):
         assert metta.parse("12kg") == S.mass("12kg")
 
         with pytest.raises(ValueError, match=r"12kg.*another literal"):
-            metta.register_op(lambda value: value, name="12kg")
+            metta.op(lambda value: value, name="12kg")
 
         metta.run(f'!(register-token! "{metta_pattern}" tagged)')
         assert metta.parse("A7") == S.tagged("A7")
@@ -57,8 +63,8 @@ def test_a_registered_token_class_parses_like_a_shipped_one(metta):
             metta.unregister_token(pattern)
 
     assert metta.parse("12kg") == S["12kg"]
-    assert metta.parse("12") == Gnd(12)
-    assert metta.parse('"literal"') == Gnd("literal")
+    assert metta.parse("12") == Grounded(12)
+    assert metta.parse('"literal"') == Grounded("literal")
 
 
 def test_token_registration_refuses_invalid_inputs_without_changing_the_reader(metta):

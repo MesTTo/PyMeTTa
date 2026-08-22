@@ -3,7 +3,11 @@ Guarantees:
   - the minimal library remains idempotent after signature-registration and
     cross-space specialization traffic
     [tested: test_minimal_lib_install_is_idempotent_after_cross_file_traffic;
-    commit=dcfc20be4933c19140ccb5759291401d13058301].
+    commit=WORKTREE].
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 import builtins
@@ -13,6 +17,8 @@ import uuid
 from pathlib import Path
 
 import pytest
+
+from petta._engine import bridge
 
 
 def write_increment_dependency(tmp_path):
@@ -48,7 +54,7 @@ def test_failed_import_can_be_retried(petta_instance, tmp_path):  # noqa: D103  
     assert "retry-ok" in results
 
 
-def test_failed_import_rolls_back_partial_definitions(petta_instance, petta_module, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_failed_import_rolls_back_partial_definitions(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     module_name = f"petta_partial_{uuid.uuid4().hex}"
     function_name = f"partial_definition_{uuid.uuid4().hex}"
     dependency_file = tmp_path / "dependency.metta"
@@ -66,14 +72,14 @@ def test_failed_import_rolls_back_partial_definitions(petta_instance, petta_modu
     # &self compiles into a module of its own, so the clause is not in `user`,
     # which is where janus resolves a goal by default. space_module/2 answers
     # which module it IS, so the test follows the engine instead of naming one.
-    result = petta_module.janus.query_once(
+    result = bridge().query_once(
         f"space_module('&self', M), aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
     )
 
     assert result["Count"] == 1
 
 
-def test_entry_file_breaks_direct_import_cycle(petta_instance, petta_module, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_entry_file_breaks_direct_import_cycle(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     function_name = f"entry_cycle_{uuid.uuid4().hex}"
     entry_file = tmp_path / "a.metta"
     sibling_file = tmp_path / "b.metta"
@@ -81,7 +87,7 @@ def test_entry_file_breaks_direct_import_cycle(petta_instance, petta_module, tmp
     sibling_file.write_text("!(import! &self a)\n")
 
     petta_instance.load_metta_file(str(entry_file))
-    result = petta_module.janus.query_once(
+    result = bridge().query_once(
         f"space_module('&self', M), aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
     )
 
@@ -315,7 +321,7 @@ def test_minimal_lib_install_is_idempotent_after_cross_file_traffic(metta):
     finally:
         sys.path.remove(str(lib))
 
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         first = minimal_metta_lib.install(space)
         second = minimal_metta_lib.install(space)
         assert first == second

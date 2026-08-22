@@ -5,11 +5,11 @@ Guarantees:
   - a cached definition answers from SWI's answer trie, so an exponential
     recursion becomes linear, and its counters and clear are reachable under
     functools.lru_cache's own names.
-  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=WORKTREE]
   - a table normalises duplicate answers away, which the arbiter SPECIFIES for
     an untabled function, so the decorator is where a program asks for that
     trade rather than something it discovers.
-  [tested: test_a_cached_definition_normalises_duplicate_answers_away; commit=be17bf27ac3fd74b5f5c00e430e924529a54f560]
+  [tested: test_a_cached_definition_normalises_duplicate_answers_away; commit=WORKTREE]
 Fails when: read as a fixed-size cache. A table holds the answers for the calls
   that were made and has no maxsize; `unchecked=True` is the staleness the
   engine's own `(cache <name> unchecked)` accepts, not a size.
@@ -29,7 +29,7 @@ _N = 25
 
 def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
     """The decorator is notation; the answers come from the engine's table."""
-    metta = MeTTa("&cachedecorator")
+    metta = MeTTa().space("&cachedecorator")
 
     @metta.cache
     def cachedec_fib(n):
@@ -48,7 +48,7 @@ def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
 
     # The same definition without the table is exponential, and on this input
     # it does not finish inside the default evaluation fuel at all.
-    plain = MeTTa("&cachedecorator-plain")
+    plain = MeTTa().space("&cachedecorator-plain")
 
     @plain.define
     def cachedec_plain(n):
@@ -84,11 +84,11 @@ def test_a_cached_definition_normalises_duplicate_answers_away() -> None:
     program asks for that. lib_memo's `(memoized ...)` is the door that keeps
     the bag.
     """
-    plain = MeTTa("&cachedup-plain")
+    plain = MeTTa().space("&cachedup-plain")
     plain.run("(= (cachedup) a)\n(= (cachedup) a)\n(= (cachedup) b)")
     assert sorted(str(atom) for atom in plain.run("!(cachedup)")[0]) == ["a", "a", "b"]
 
-    tabled = MeTTa("&cachedup-tabled")
+    tabled = MeTTa().space("&cachedup-tabled")
     tabled.run("!(import! &self (library lib_tabling))")
     tabled.run("(= (cachedup) a)\n(= (cachedup) a)\n(= (cachedup) b)")
     assert tabled.run("!(tabled (cachedup))") == [[True]]
@@ -96,7 +96,7 @@ def test_a_cached_definition_normalises_duplicate_answers_away() -> None:
 
     # lib_memo keeps the bag, which is why it is the other door rather than a
     # slower spelling of this one.
-    memoized = MeTTa("&cachedup-memo")
+    memoized = MeTTa().space("&cachedup-memo")
     memoized.run("!(import! &self (library lib_memo))")
     memoized.run("(= (cachedup) a)\n(= (cachedup) a)\n(= (cachedup) b)")
     memoized.run("!(memoized (cachedup))")

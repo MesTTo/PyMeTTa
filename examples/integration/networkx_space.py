@@ -28,7 +28,7 @@ from itertools import pairwise
 import networkx as nx
 from _common import check, done
 
-from petta import Expr, MeTTa, Var, parse, tables, val
+from petta import Expression, MeTTa, Variable, parse, tables, ground
 
 _PROJECTIONS = ("pairwise", "bipartite")
 
@@ -42,7 +42,7 @@ def to_graph(space, shape, *, projection: str | None = None) -> nx.DiGraph:
     n-ary link has no single graph reading.
     """
     pattern = parse(shape) if isinstance(shape, str) else shape
-    if not isinstance(pattern, Expr) or len(pattern.children) < 3:
+    if not isinstance(pattern, Expression) or len(pattern.children) < 3:
         raise ValueError(
             f"a graph shape is a link expression with at least two argument "
             f"slots, as in (edge $a $b); got {pattern}"
@@ -56,19 +56,19 @@ def to_graph(space, shape, *, projection: str | None = None) -> nx.DiGraph:
             f"projection= one of {_PROJECTIONS!r}"
         )
     graph = nx.DiGraph()
-    columns = [c.name for c in pattern.children[1:] if isinstance(c, Var)]
+    columns = [c.name for c in pattern.children[1:] if isinstance(c, Variable)]
     for row in space.query(pattern):
         arguments = [row[name] for name in columns]
         if projection == "pairwise":
             graph.add_edges_from(pairwise(arguments))
         else:
-            link = Expr(pattern.children[:1] + tuple(arguments))
+            link = Expression(pattern.children[:1] + tuple(arguments))
             graph.add_edges_from((link, argument) for argument in arguments)
     return graph
 
 
 def main() -> None:
-    m = MeTTa()
+    m = MeTTa().self
     m.run("(edge a b) (edge b c) (edge c d) (edge a d)")
 
     # The space as a graph: atoms are the nodes, matches are the edges.
@@ -81,7 +81,7 @@ def main() -> None:
 
     # And the answer goes back to being knowledge, through the bulk door.
     scores = nx.degree_centrality(graph)
-    m.add(*(Expr((parse("central"), node, val(round(score, 3))))
+    m.add(*(Expression((parse("central"), node, ground(round(score, 3))))
             for node, score in scores.items()))
     (group,) = m.run("!(collapse (match &self (central a $s) $s))")
     check("centrality written back is queryable", len(list(group[0])), 1)
@@ -93,8 +93,8 @@ def main() -> None:
         "INSERT INTO nxedges VALUES (?, ?)", [("p", "q"), ("q", "r")]
     )
     tables.declare(m, "&nxdb", "(bridge (edge $a $b) (row nxedges (a $a) (b $b)))")
-    m.register_space(tables.TableBridge.from_context(m, "&nxdb", connection), "&nxdb")
-    bridged = to_graph(m.space("&nxdb"), "(edge $x $y)")
+    m._register_space(tables.TableBridge.from_context(m, "&nxdb", connection), "&nxdb")
+    bridged = to_graph(m._at("&nxdb"), "(edge $x $y)")
     check("SQL rows graph identically", sorted(str(n) for n in bridged), ["p", "q", "r"])
 
     # A wider link refuses to guess its reading, then takes either one.
@@ -110,7 +110,7 @@ def main() -> None:
     check("bipartite keeps the link as a node", stars.number_of_edges(), 3)
     check(
         "the hypergraph reading survives: the link node IS the expression",
-        any(isinstance(node, Expr) for node in stars),
+        any(isinstance(node, Expression) for node in stars),
         True,
     )
     done("networkx_space")

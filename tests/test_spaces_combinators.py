@@ -7,7 +7,7 @@ Guarantees:
     test_mapped_passes_the_conformance_kit]
   - an object view joins stored atoms to live fields and writes with setattr
     [tested: test_a_query_joins_stored_atoms_with_live_object_fields;
-    commit=a3f7e1600b1547617d8be1c365df9c00a74ee81e]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,12 +18,12 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import PettaError, S, V, parse, spaces, testing, val
+from petta import PettaError, S, V, ground, parse, spaces, testing
 
 
 @pytest.fixture()
 def pair(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return metta.new_space(), metta.new_space()
+    return metta._new_space(), metta._new_space()
 
 
 def test_union_reads_every_member_and_engine_matches(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -31,30 +31,30 @@ def test_union_reads_every_member_and_engine_matches(metta, pair):  # noqa: D103
     kb.add(S.edge(S.a, S.b))
     rules.add(S.edge(S.b, S.c), S.node(S.z))
     name = "&cmb-union"
-    metta.register_space(spaces.union(kb, rules), name)
+    metta._register_space(spaces.union(kb, rules), name)
     try:
-        atoms = sorted(str(a) for a in metta.space(name).atoms())
+        atoms = sorted(str(a) for a in metta._at(name).atoms())
         assert atoms == ["(edge a b)", "(edge b c)", "(node z)"]
         got = metta.run(f"!(collapse (match {name} (edge $a $b) ($a $b)))")
         assert str(got[0][0]) == "((a b) (b c))"
         # Duplicates across members answer twice: a union of multisets.
         rules.add(S.edge(S.a, S.b))
-        assert [str(a) for a in metta.space(name).atoms()].count("(edge a b)") == 2
+        assert [str(a) for a in metta._at(name).atoms()].count("(edge a b)") == 2
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_union_refuses_writes_through_the_engine(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     kb, rules = pair
     name = "&cmb-union-ro"
-    metta.register_space(spaces.union(kb, rules), name)
+    metta._register_space(spaces.union(kb, rules), name)
     try:
         with pytest.raises(PettaError) as failure:
-            metta.space(name).add(S.nope(1))
+            metta._at(name).add(S.nope(1))
         assert failure.value.capability == "add"
-        assert kb.count() == 0 and rules.count() == 0
+        assert len(kb) == 0 and len(rules) == 0
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
     with pytest.raises(PettaError, match="at least one"):
         spaces.union()
     with pytest.raises(PettaError, match="carries no engine"):
@@ -65,15 +65,15 @@ def test_readonly_strips_every_write(metta, pair):  # noqa: D103  -- pytest disc
     kb, _ = pair
     kb.add(S.fact(1))
     name = "&cmb-ro"
-    metta.register_space(spaces.readonly(kb), name)
+    metta._register_space(spaces.readonly(kb), name)
     try:
-        assert [str(a) for a in metta.space(name).atoms()] == ["(fact 1)"]
+        assert [str(a) for a in metta._at(name).atoms()] == ["(fact 1)"]
         for source in (f"!(add-atom {name} (w 1))", f"!(remove-atom {name} (fact 1))"):
             with pytest.raises(PettaError):
                 metta.run(source)
-        assert kb.count() == 1  # nothing reached the inner space
+        assert len(kb) == 1  # nothing reached the inner space
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_mapped_presents_and_writes_through_the_declaration(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -81,9 +81,9 @@ def test_mapped_presents_and_writes_through_the_declaration(metta, pair):  # noq
     inner.add(parse("(triple a linked-to b)"), parse("(other junk here)"))
     view = spaces.mapped(inner, "(bridge (edge $a $b) (triple $a linked-to $b))")
     name = "&cmb-view"
-    metta.register_space(view, name)
+    metta._register_space(view, name)
     try:
-        vs = metta.space(name)
+        vs = metta._at(name)
         # Atoms the declaration does not map are invisible here.
         assert [str(a) for a in vs.atoms()] == ["(edge a b)"]
         assert str(metta.run(f"!(collapse (match {name} (edge a $x) $x))")[0][0]) == "(b)"
@@ -95,7 +95,7 @@ def test_mapped_presents_and_writes_through_the_declaration(metta, pair):  # noq
         with pytest.raises(PettaError, match="shape"):
             vs.add(S.wrong(1))
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_mapped_repeated_variable_pattern_stays_sound(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -106,12 +106,12 @@ def test_mapped_repeated_variable_pattern_stays_sound(metta, pair):  # noqa: D10
     inner.add(parse("(pairof a a)"), parse("(pairof a b)"))
     view = spaces.mapped(inner, "(bridge (loop $x $y) (pairof $x $y))")
     name = "&cmb-fold"
-    metta.register_space(view, name)
+    metta._register_space(view, name)
     try:
         got = metta.run(f"!(collapse (match {name} (loop $q $q) $q))")
         assert str(got[0][0]) == "(a)"
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_mapped_refuses_a_malformed_declaration(pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -124,9 +124,9 @@ def test_overlay_routes_writes_to_front(metta, pair):  # noqa: D103  -- pytest d
     front, back = pair
     back.add(S.base(1))
     name = "&cmb-overlay"
-    metta.register_space(spaces.overlay(front, back), name)
+    metta._register_space(spaces.overlay(front, back), name)
     try:
-        ov = metta.space(name)
+        ov = metta._at(name)
         ov.add(S.hot(2))
         assert sorted(str(a) for a in ov.atoms()) == ["(base 1)", "(hot 2)"]
         assert [str(a) for a in front.atoms()] == ["(hot 2)"]
@@ -135,9 +135,9 @@ def test_overlay_routes_writes_to_front(metta, pair):  # noqa: D103  -- pytest d
         assert ov.remove(S.base(1)) is False
         assert parse("(base 1)") in back
         ov.clear()
-        assert front.count() == 0 and back.count() == 1
+        assert len(front) == 0 and len(back) == 1
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_overlay_passes_the_conformance_kit(metta, pair):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
@@ -179,14 +179,14 @@ def test_combinators_compose(metta, pair):  # noqa: D103  -- pytest discovers or
     extra.add(S.edge(S.b, S.c))
     stack = spaces.readonly(spaces.union(kb, extra))
     name = "&cmb-stack"
-    metta.register_space(stack, name)
+    metta._register_space(stack, name)
     try:
         got = metta.run(f"!(collapse (match {name} (edge $x $y) ($x $y)))")
         assert str(got[0][0]) == "((a b) (b c))"
         with pytest.raises(PettaError):
-            metta.space(name).add(S.w(1))
+            metta._at(name).add(S.w(1))
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
 
 
 def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
@@ -197,15 +197,15 @@ def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
 
     manager = Manager(31)
     field = S["py-field"]
-    with metta.new_space() as stored:
-        stored.add(S.manager(S.ada, val(manager)), S.band(31, S.senior))
+    with metta._new_space() as stored:
+        stored.add(S.manager(S.ada, ground(manager)), S.band(31, S.senior))
         view = spaces.object_view(manager)
         view_name = "&cmb-object-view"
         join_name = "&cmb-object-join"
-        metta.register_space(view, view_name)
-        metta.register_space(spaces.union(stored, view), join_name)
+        metta._register_space(view, view_name)
+        metta._register_space(spaces.union(stored, view), join_name)
         try:
-            joined = metta.space(join_name)
+            joined = metta._at(join_name)
             rows = joined.query(
                 S.manager(V.who, V.manager),
                 field(V.manager, S.age, V.age),
@@ -223,19 +223,19 @@ def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
                 S.band(V.age, V.band),
             )["band"] == [S.current]
 
-            metta.space(view_name).add(field(val(manager), S.age, 33))
+            metta._at(view_name).add(field(ground(manager), S.age, 33))
             assert manager.age == 33
             assert joined.query(
                 S.manager(S.ada, V.manager),
                 field(V.manager, S.age, V.age),
             )["age"] == [33]
         finally:
-            metta.unregister_space(join_name)
-            metta.unregister_space(view_name)
+            metta._unregister_space(join_name)
+            metta._unregister_space(view_name)
 
 
 def test_diff_answers_the_multiset_difference(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as a, metta.new_space() as b:
+    with metta._new_space() as a, metta._new_space() as b:
         a.add(parse("(dfact one)"), parse("(dfact one)"), parse("(dfact two)"))
         a.run("(= (ddouble $x) (* $x 2))")
         b.add(parse("(dfact one)"), parse("(dfact three)"))
@@ -251,7 +251,7 @@ def test_diff_answers_the_multiset_difference(metta):  # noqa: D103  -- pytest d
 
 
 def test_diff_counts_alpha_equivalent_atoms_as_the_same(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as a, metta.new_space() as b:
+    with metta._new_space() as a, metta._new_space() as b:
         a.add(parse("(dg $x)"))
         b.add(parse("(dg $y)"))
         assert spaces.diff(a, b) == ([], [])
@@ -262,7 +262,7 @@ def test_diff_takes_a_provider_side(metta):  # noqa: D103  -- pytest discovers o
         def atoms(self):
             yield parse("(dprov here)")
 
-    with metta.new_space() as a:
+    with metta._new_space() as a:
         a.add(parse("(dprov here)"), parse("(dprov extra)"))
         only_a, only_b = spaces.diff(a, Bag())
         assert [str(x) for x in only_a] == ["(dprov extra)"]

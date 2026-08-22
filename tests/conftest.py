@@ -1,4 +1,10 @@
-"""Purpose: provide the shared repository, runtime, and engine pytest fixtures."""
+"""Purpose: provide the shared repository, runtime, and engine pytest fixtures.
+
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
+"""
 
 import importlib
 import os
@@ -86,4 +92,4 @@ def dummy_metta_path(repo_root):  # noqa: D103  -- pytest discovers or injects t
 def metta(petta_path):
     """The rich surface, on the same engine the legacy fixtures use."""
     os.environ.setdefault("PETTA_PATH", petta_path)
-    return MeTTa(petta_path=petta_path)
+    return MeTTa(petta_path=petta_path).self

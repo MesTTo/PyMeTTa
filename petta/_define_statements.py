@@ -9,7 +9,7 @@ Guarantees:
     colon patterns remain data [tested:
     test_an_annotated_binding_emits_its_claim,
     translator_typed_let:a_source_colon_pair_stays_a_pattern;
-    commit=c3c8ea60516dc1f45620bbe4dba3b78993ee22e3]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,7 +22,7 @@ import ast
 
 from ._define_context import CompilerContext, next_aux_serial
 from ._define_expression import _name_of
-from .atoms import Atom, Expr, Sym, Var
+from .atoms import Atom, Expression, Symbol, Variable
 from .errors import CompileError
 
 
@@ -107,9 +107,9 @@ class StatementCompilerMixin(CompilerContext):
         self,
         head: ast.Assign | ast.AnnAssign | ast.AugAssign,
         rest: list[ast.stmt],
-    ) -> Expr:
+    ) -> Expression:
         pattern, value = self._binding(head)
-        return Expr([Sym("let*"), Expr([Expr([pattern, value])]), self.block(rest)])
+        return Expression([Symbol("let*"), Expression([Expression([pattern, value])]), self.block(rest)])
 
     def _compound_statement(
         self,
@@ -167,10 +167,10 @@ class StatementCompilerMixin(CompilerContext):
         else:
             target = _single_target(head)
             value = self.expression(head.value)
-        variable: Atom = Var(self._bind(target))
+        variable: Atom = Variable(self._bind(target))
         if isinstance(head, ast.AnnAssign):
-            claim = Expr([Sym(":"), variable, self.annotation_atom(head.annotation)])
-            variable = Expr([Sym("__petta_typed_binding__"), claim])
+            claim = Expression([Symbol(":"), variable, self.annotation_atom(head.annotation)])
+            variable = Expression([Symbol("__petta_typed_binding__"), claim])
         return variable, value
 
     def if_statement(self, node: ast.If, rest: list[ast.stmt], continue_with) -> Atom:
@@ -204,7 +204,7 @@ class StatementCompilerMixin(CompilerContext):
                 construct="if",
                 line=node.lineno,
             )
-        return Expr([Sym("if"), test, then, otherwise])
+        return Expression([Symbol("if"), test, then, otherwise])
 
     def _lift_definition(self, node: ast.FunctionDef) -> None:
         """A nested def, lambda-lifted (Johnsson): its free outer names
@@ -223,8 +223,8 @@ class StatementCompilerMixin(CompilerContext):
         body: Atom = (
             _superpose(inner.yield_answers(node.body)) if generator else inner.block(node.body)
         )
-        head = Expr([Sym(mangled), *(Var(n) for n in lifted + params)])
-        self.aux.append(Expr([Sym("="), head, body]))
+        head = Expression([Symbol(mangled), *(Variable(n) for n in lifted + params)])
+        self.aux.append(Expression([Symbol("="), head, body]))
 
     def yield_answers(self, statements: list[ast.stmt]) -> list[Atom]:
         """A generator body as a list of answer terms.
@@ -299,16 +299,16 @@ class StatementCompilerMixin(CompilerContext):
     ) -> list[Atom]:
         pattern, value = self._binding(head)
         tail = _superpose(self.yield_answers(rest))
-        return [Expr([Sym("let*"), Expr([Expr([pattern, value])]), tail])]
+        return [Expression([Symbol("let*"), Expression([Expression([pattern, value])]), tail])]
 
     def _yield_if(self, head: ast.If, rest: list[ast.stmt]) -> list[Atom]:
         then = _superpose(self._fork().yield_answers(head.body))
         otherwise = (
             _superpose(self._fork().yield_answers(head.orelse))
             if head.orelse
-            else Expr([Sym("empty")])
+            else Expression([Symbol("empty")])
         )
-        chooser = Expr([Sym("if"), self._truthy(head.test), then, otherwise])
+        chooser = Expression([Symbol("if"), self._truthy(head.test), then, otherwise])
         return [chooser, *self._yield_tail(rest)]
 
     def _yield_for(self, head: ast.For, rest: list[ast.stmt]) -> list[Atom]:
@@ -335,7 +335,7 @@ class StatementCompilerMixin(CompilerContext):
         return self.yield_answers(rest) if rest else []
 
 
-def _superpose(answers: list[Atom]) -> Expr:
+def _superpose(answers: list[Atom]) -> Expression:
     """The answers as one superposition, flattened where a member already is
     one over literal alternatives; (superpose $x) over a bound value stays
     whole, since only an expression of alternatives can splice.
@@ -343,15 +343,15 @@ def _superpose(answers: list[Atom]) -> Expr:
     flat: list[Atom] = []
     for a in answers:
         if (
-            isinstance(a, Expr)
-            and a.head == Sym("superpose")
+            isinstance(a, Expression)
+            and a.head == Symbol("superpose")
             and len(a) == 2
-            and isinstance(a[1], Expr)
+            and isinstance(a[1], Expression)
         ):
             flat.extend(a[1])
         else:
             flat.append(a)
-    return Expr([Sym("superpose"), Expr(flat)])
+    return Expression([Symbol("superpose"), Expression(flat)])
 
 
 def _is_docstring(node: ast.stmt) -> bool:

@@ -17,7 +17,7 @@ import ast
 from collections.abc import Callable
 
 from ._define_context import CompilerContext
-from .atoms import Atom, Expr, Gnd, Sym, Var
+from .atoms import Atom, Expression, Grounded, Symbol, Variable
 from .errors import CompileError
 
 # Python operator to the MeTTa function the engine registers for it. Every
@@ -48,7 +48,7 @@ _INSTEAD = {
     ast.FloorDiv: "write floor_math(a / b): mapping // directly would return "
     "an integer where Python returns a float, and the Python twin has to "
     "agree on every input",
-    ast.MatMult: "register a matrix multiply with @m.register_op, or use pettorch's matmul",
+    ast.MatMult: "register a matrix multiply with @m.op, or use pettorch's matmul",
     ast.BitAnd: "use `and` on booleans; MeTTa has no bitwise operators",
     ast.BitOr: "use `or` on booleans; MeTTa has no bitwise operators",
     ast.BitXor: "MeTTa has no bitwise operators",
@@ -77,7 +77,7 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _x_Constant(self, node: ast.Constant) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if isinstance(node.value, (bool, int, float, str)):
-            return Gnd(node.value)
+            return Grounded(node.value)
         if node.value is None:
             msg = (
                 "None has no MeTTa value; answer nothing by yielding nothing, "
@@ -97,13 +97,13 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _x_Name(self, node: ast.Name) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if node.id in self.scope:
-            return Var(self.scope[node.id])
+            return Variable(self.scope[node.id])
         if node.id in (self.pyname, self.name):
             # Recursion, in either spelling; the equation carries the MeTTa
             # name.
-            return Sym(self.name)
+            return Symbol(self.name)
         if node.id in _MAGIC:
-            return Sym(node.id)
+            return Symbol(node.id)
         known = self._known_symbol(node.id)
         if known is not None:
             return known
@@ -125,7 +125,7 @@ class ExpressionCompilerMixin(CompilerContext):
             line=node.lineno,
         )
 
-    def _known_symbol(self, identifier: str) -> Sym | None:
+    def _known_symbol(self, identifier: str) -> Symbol | None:
         # The identifier as written and nothing else. A body used to fall
         # back to the hyphenated spelling, so sqrt_math reached sqrt-math;
         # a name the author did not write is a name they cannot see in the
@@ -135,9 +135,9 @@ class ExpressionCompilerMixin(CompilerContext):
             return None
         if not self._python_resolvable(identifier):
             self.hazards.add(f"the engine function {identifier}")
-        return Sym(identifier)
+        return Symbol(identifier)
 
-    def _constructor_symbol(self, node: ast.Name) -> Sym:
+    def _constructor_symbol(self, node: ast.Name) -> Symbol:
         if self.host(node.id):
             msg = (
                 f"{node.id!r} is a module binding, not a data "
@@ -154,36 +154,36 @@ class ExpressionCompilerMixin(CompilerContext):
         # (Parent $x $y) in a pattern or a tag in an answer. Data has
         # no Python value, so the twin cannot run a body that mints it.
         self.hazards.add(f"the constructor {node.id}")
-        return Sym(node.id)
+        return Symbol(node.id)
 
     def _x_BinOp(self, node: ast.BinOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if isinstance(node.op, ast.Div):
             # Coercing the left side keeps an exact integer quotient a float,
             # which is what Python's / answers: 6 / 2 is 3.0, never 3.
-            left = Expr([Sym("*"), Gnd(1.0), self.expression(node.left)])
-            return Expr([Sym("/"), left, self.expression(node.right)])
+            left = Expression([Symbol("*"), Grounded(1.0), self.expression(node.left)])
+            return Expression([Symbol("/"), left, self.expression(node.right)])
         op = _BINOPS.get(type(node.op))
         if op is None:
             msg = (
                 f"the operator {type(node.op).__name__} has no MeTTa function. "
-                f"{_INSTEAD.get(type(node.op), 'Register an operation with @m.register_op for it')}"
+                f"{_INSTEAD.get(type(node.op), 'Register an operation with @m.op for it')}"
             )
             raise CompileError(
                 msg,
                 construct=type(node.op).__name__,
                 line=node.lineno,
             )
-        return Expr([Sym(op), self.expression(node.left), self.expression(node.right)])
+        return Expression([Symbol(op), self.expression(node.left), self.expression(node.right)])
 
     def _x_UnaryOp(self, node: ast.UnaryOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if isinstance(node.op, ast.USub):
             operand = node.operand
             if isinstance(operand, ast.Constant) and isinstance(operand.value, (int, float)):
-                return Gnd(-operand.value)
-            return Expr([Sym("-"), Gnd(0), self.expression(operand)])
+                return Grounded(-operand.value)
+            return Expression([Symbol("-"), Grounded(0), self.expression(operand)])
         if isinstance(node.op, ast.Not):
             # Python's not is truthiness negated, over any value.
-            return Expr([Sym("not"), self._truthy(node.operand)])
+            return Expression([Symbol("not"), self._truthy(node.operand)])
         if isinstance(node.op, ast.UAdd):
             return self.expression(node.operand)
         msg = (
@@ -204,10 +204,10 @@ class ExpressionCompilerMixin(CompilerContext):
         # unreachable from Python identifiers.
         bindings: list[tuple[str, Atom]] = []
         for i in range(1, len(terms) - 1):
-            if not isinstance(terms[i], (Var, Sym, Gnd)):
+            if not isinstance(terms[i], (Variable, Symbol, Grounded)):
                 temp = self._temp("cmp")
                 bindings.append((temp, terms[i]))
-                terms[i] = Var(temp)
+                terms[i] = Variable(temp)
         links = [
             self._compare_link(op_node, terms[i], terms[i + 1], node.lineno)
             for i, op_node in enumerate(node.ops)
@@ -215,9 +215,9 @@ class ExpressionCompilerMixin(CompilerContext):
         folded = links[-1]
         for link in reversed(links[:-1]):
             # The chain short-circuits exactly as Python's does.
-            folded = Expr([Sym("if"), link, folded, Gnd(False)])  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+            folded = Expression([Symbol("if"), link, folded, Grounded(False)])  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         for temp, value in reversed(bindings):
-            folded = Expr([Sym("let*"), Expr([Expr([Var(temp), value])]), folded])
+            folded = Expression([Symbol("let*"), Expression([Expression([Variable(temp), value])]), folded])
         return folded
 
     def _truthy(self, node: ast.expr) -> Atom:
@@ -230,9 +230,9 @@ class ExpressionCompilerMixin(CompilerContext):
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
             return self.expression(node)
         if isinstance(node, ast.Constant) and isinstance(node.value, bool):
-            return Gnd(node.value)
+            return Grounded(node.value)
         self.runtime_ops.add("py-truthy")
-        return Expr([Sym("py-truthy"), self.expression(node)])
+        return Expression([Symbol("py-truthy"), self.expression(node)])
 
     def _compare_link(self, op_node: ast.cmpop, left: Atom, right: Atom, line) -> Atom:
         """One comparison: order through the engine's numeric functions,
@@ -241,16 +241,16 @@ class ExpressionCompilerMixin(CompilerContext):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(op_node, ast.Eq):
             self.runtime_ops.add("py-eq")
-            return Expr([Sym("py-eq"), left, right])
+            return Expression([Symbol("py-eq"), left, right])
         if isinstance(op_node, ast.NotEq):
             self.runtime_ops.add("py-eq")
-            return Expr([Sym("not"), Expr([Sym("py-eq"), left, right])])
+            return Expression([Symbol("not"), Expression([Symbol("py-eq"), left, right])])
         if isinstance(op_node, ast.In):
             self.runtime_ops.add("py-in")
-            return Expr([Sym("py-in"), left, right])
+            return Expression([Symbol("py-in"), left, right])
         if isinstance(op_node, ast.NotIn):
             self.runtime_ops.add("py-in")
-            return Expr([Sym("not"), Expr([Sym("py-in"), left, right])])
+            return Expression([Symbol("not"), Expression([Symbol("py-in"), left, right])])
         op = _COMPARE.get(type(op_node))
         if op is None:
             msg = f"the comparison {type(op_node).__name__} has no MeTTa function"
@@ -259,7 +259,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 construct=type(op_node).__name__,
                 line=line,
             )
-        return Expr([Sym(op), left, right])
+        return Expression([Symbol(op), left, right])
 
     def _x_BoolOp(self, node: ast.BoolOp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         # Python's and/or short-circuit AND answer the deciding operand
@@ -270,18 +270,18 @@ class ExpressionCompilerMixin(CompilerContext):
         for value in reversed(node.values[:-1]):
             term = self.expression(value)
             temp = self._temp("bool")
-            test = Expr([Sym("py-truthy"), Var(temp)])
+            test = Expression([Symbol("py-truthy"), Variable(temp)])
             if isinstance(node.op, ast.And):
-                chosen = Expr([Sym("if"), test, folded, Var(temp)])
+                chosen = Expression([Symbol("if"), test, folded, Variable(temp)])
             else:
-                chosen = Expr([Sym("if"), test, Var(temp), folded])
-            folded = Expr([Sym("let*"), Expr([Expr([Var(temp), term])]), chosen])
+                chosen = Expression([Symbol("if"), test, Variable(temp), folded])
+            folded = Expression([Symbol("let*"), Expression([Expression([Variable(temp), term])]), chosen])
         return folded
 
     def _x_IfExp(self, node: ast.IfExp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        return Expr(
+        return Expression(
             [
-                Sym("if"),
+                Symbol("if"),
                 self._truthy(node.test),
                 self.expression(node.body),
                 self.expression(node.orelse),
@@ -300,8 +300,8 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         params = [arg.arg for arg in a.args]
         inner = self._inner(params)
-        return Expr(
-            [Sym("|->"), Expr([Var(p) for p in params]), inner.expression(node.body)]
+        return Expression(
+            [Symbol("|->"), Expression([Variable(p) for p in params]), inner.expression(node.body)]
         )
 
     def _x_ListComp(self, node: ast.ListComp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
@@ -329,19 +329,19 @@ class ExpressionCompilerMixin(CompilerContext):
         source = self.expression(gen.iter)
         inner = self._inner([var])
         for condition in gen.ifs:
-            predicate = Expr([Sym("|->"), Expr([Var(var)]), inner._truthy(condition)])
-            source = Expr([Sym("filter-atom"), source, predicate])
+            predicate = Expression([Symbol("|->"), Expression([Variable(var)]), inner._truthy(condition)])
+            source = Expression([Symbol("filter-atom"), source, predicate])
         if len(generators) == 1:
-            mapper = Expr([Sym("|->"), Expr([Var(var)]), inner.expression(elt)])
-            return Expr([Sym("map-atom"), source, mapper])
+            mapper = Expression([Symbol("|->"), Expression([Variable(var)]), inner.expression(elt)])
+            return Expression([Symbol("map-atom"), source, mapper])
         nested = inner._comprehension(generators[1:], elt, line)
-        mapper = Expr([Sym("|->"), Expr([Var(var)]), nested])
-        return Expr(
+        mapper = Expression([Symbol("|->"), Expression([Variable(var)]), nested])
+        return Expression(
             [
-                Sym("foldl-atom"),
-                Expr([Sym("map-atom"), source, mapper]),
-                Expr([]),
-                Sym("union-atom"),
+                Symbol("foldl-atom"),
+                Expression([Symbol("map-atom"), source, mapper]),
+                Expression([]),
+                Symbol("union-atom"),
             ]
         )
 
@@ -363,7 +363,7 @@ class ExpressionCompilerMixin(CompilerContext):
             return self._match_call(node)
         if func.id == "superpose":
             # superpose(a, b, c): one expression holding the alternatives.
-            return Expr([Sym("superpose"), Expr([self.expression(a) for a in node.args])])
+            return Expression([Symbol("superpose"), Expression([self.expression(a) for a in node.args])])
         if func.id in self.lifted:
             return self._lifted_call(func.id, node)
         # Python's own builtins, where a name in scope has not shadowed them,
@@ -371,7 +371,7 @@ class ExpressionCompilerMixin(CompilerContext):
         if func.id in _PYBUILTIN_CALLS and func.id not in self.scope:
             return _PYBUILTIN_CALLS[func.id](self, node)
         callee = self._x_Name(func)
-        return Expr([callee, *(self.expression(a) for a in node.args)])
+        return Expression([callee, *(self.expression(a) for a in node.args)])
 
     @staticmethod
     def _plain_call_name(node: ast.Call) -> ast.Name:
@@ -398,7 +398,7 @@ class ExpressionCompilerMixin(CompilerContext):
             )
         return node.func
 
-    def _lifted_call(self, name: str, node: ast.Call) -> Expr:
+    def _lifted_call(self, name: str, node: ast.Call) -> Expression:
         # A lifted inner def's free names travel as leading arguments, read
         # from the scope at the call, which is Python's late-binding rule.
         mangled, lifted_names, _ = self.lifted[name]
@@ -410,10 +410,10 @@ class ExpressionCompilerMixin(CompilerContext):
                 construct="nested def",
                 line=node.lineno,
             )
-        return Expr(
+        return Expression(
             [
-                Sym(mangled),
-                *(Var(self.scope[identifier]) for identifier in lifted_names),
+                Symbol(mangled),
+                *(Variable(self.scope[identifier]) for identifier in lifted_names),
                 *(self.expression(argument) for argument in node.args),
             ]
         )
@@ -433,11 +433,11 @@ class ExpressionCompilerMixin(CompilerContext):
         # arrives is a runtime fact.
         (xs,) = self._args(node, 1, "len")
         self.runtime_ops.add("py-len")
-        return Expr([Sym("py-len"), xs])
+        return Expression([Symbol("py-len"), xs])
 
     def _py_abs(self, node: ast.Call) -> Atom:
         (x,) = self._args(node, 1, "abs")
-        return Expr([Sym("abs-math"), x])
+        return Expression([Symbol("abs-math"), x])
 
     def _py_min(self, node: ast.Call) -> Atom:
         return self._extremum(node, "min")
@@ -453,10 +453,10 @@ class ExpressionCompilerMixin(CompilerContext):
             msg = f"{which}() needs arguments"
             raise CompileError(msg, construct=which, line=node.lineno)
         if len(args) == 1:
-            return Expr([Sym(f"{which}-atom"), args[0]])
+            return Expression([Symbol(f"{which}-atom"), args[0]])
         folded = args[-1]
         for term in reversed(args[:-1]):
-            folded = Expr([Sym(which), term, folded])
+            folded = Expression([Symbol(which), term, folded])
         return folded
 
     def _py_sum(self, node: ast.Call) -> Atom:
@@ -468,26 +468,26 @@ class ExpressionCompilerMixin(CompilerContext):
                 construct="sum",
                 line=node.lineno,
             )
-        start: Atom = args[1] if len(args) == 2 else Gnd(0)
-        return Expr([Sym("foldl-atom"), args[0], start, Sym("+")])
+        start: Atom = args[1] if len(args) == 2 else Grounded(0)
+        return Expression([Symbol("foldl-atom"), args[0], start, Symbol("+")])
 
     def _py_sorted(self, node: ast.Call) -> Atom:
         (xs,) = self._args(node, 1, "sorted")
-        return Expr([Sym("sort-atom"), xs])
+        return Expression([Symbol("sort-atom"), xs])
 
     def _py_pow(self, node: ast.Call) -> Atom:
         base, exponent = self._args(node, 2, "pow")
-        return Expr([Sym("pow-math"), base, exponent])
+        return Expression([Symbol("pow-math"), base, exponent])
 
     def _py_str_builtin(self, node: ast.Call) -> Atom:
         (value,) = self._args(node, 1, "str")
         self.runtime_ops.add("py-str")
-        return Expr([Sym("py-str"), value])
+        return Expression([Symbol("py-str"), value])
 
     def _py_repr_builtin(self, node: ast.Call) -> Atom:
         (value,) = self._args(node, 1, "repr")
         self.runtime_ops.add("py-repr")
-        return Expr([Sym("py-repr"), value])
+        return Expression([Symbol("py-repr"), value])
 
     def _py_round(self, node: ast.Call) -> Atom:
         args = self._args(node, None, "round")
@@ -501,7 +501,7 @@ class ExpressionCompilerMixin(CompilerContext):
         # The prelude's py-round is Python's round, banker's rounding and
         # all; the engine's round-math rounds half away from zero.
         self.runtime_ops.add("py-round")
-        return Expr([Sym("py-round"), *args])
+        return Expression([Symbol("py-round"), *args])
 
     def _py_range(self, node: ast.Call) -> Atom:
         args = self._args(node, None, "range")
@@ -513,7 +513,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 line=node.lineno,
             )
         self.runtime_ops.add("py-range")
-        return Expr([Sym("py-range"), *args])
+        return Expression([Symbol("py-range"), *args])
 
     def _x_Subscript(self, node: ast.Subscript) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         source = self.expression(node.value)
@@ -529,16 +529,16 @@ class ExpressionCompilerMixin(CompilerContext):
                     line=node.lineno,
                 )
             self.runtime_ops.add("py-slice")
-            no_bound = Sym("py-no-bound")
+            no_bound = Symbol("py-no-bound")
             lower = self.expression(node.slice.lower) if node.slice.lower is not None else no_bound
             upper = self.expression(node.slice.upper) if node.slice.upper is not None else no_bound
-            return Expr([Sym("py-slice"), source, lower, upper])
+            return Expression([Symbol("py-slice"), source, lower, upper])
         # py-at is Python indexing itself: zero-based, negatives from the
         # end, strings included, an out-of-range index a loud error. No
         # engine fast path: index-atom cannot index a string, and whether a
         # value is one is a runtime fact.
         self.runtime_ops.add("py-at")
-        return Expr([Sym("py-at"), source, self.expression(node.slice)])
+        return Expression([Symbol("py-at"), source, self.expression(node.slice)])
 
     def _match_call(self, node: ast.Call) -> Atom:
         """match(Pattern(...), template) runs against the running space;
@@ -562,10 +562,10 @@ class ExpressionCompilerMixin(CompilerContext):
                     construct="match",
                     line=node.lineno,
                 )
-            space: Atom = Sym(space_node.value)
+            space: Atom = Symbol(space_node.value)
         elif len(args) == 2:
             pattern_node, template_node = args
-            space = Expr([Sym("context-space")])
+            space = Expression([Symbol("context-space")])
         else:
             msg = "match takes (pattern, template) or (space, pattern, template)"
             raise CompileError(
@@ -583,18 +583,18 @@ class ExpressionCompilerMixin(CompilerContext):
         template = self.expression(template_node)
         # A match reads the space; Python alone has nothing to run it on.
         self.hazards.add("a match against the space")
-        return Expr([Sym("match"), space, pattern, template])
+        return Expression([Symbol("match"), space, pattern, template])
 
     def _x_Tuple(self, node: ast.Tuple) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        return Expr([self.expression(e) for e in node.elts])
+        return Expression([self.expression(e) for e in node.elts])
 
     def _x_List(self, node: ast.List) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
-        return Expr([self.expression(e) for e in node.elts])
+        return Expression([self.expression(e) for e in node.elts])
 
     def _x_Dict(self, node: ast.Dict) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         msg = (
             "a dict literal has no MeTTa form; carry one whole with "
-            "petta.val(...) through an operation, or spell the pairs as an "
+            "petta.ground(...) through an operation, or spell the pairs as an "
             "expression of (key value) pairs"
         )
         raise CompileError(
@@ -611,11 +611,11 @@ class ExpressionCompilerMixin(CompilerContext):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.runtime_ops.add("py-str-join")
         parts = [self._fstring_piece(piece, node.lineno) for piece in node.values]
-        return Expr([Sym("py-str-join"), Expr(parts)])
+        return Expression([Symbol("py-str-join"), Expression(parts)])
 
     def _fstring_piece(self, piece: ast.expr, line: int) -> Atom:
         if isinstance(piece, ast.Constant) and isinstance(piece.value, str):
-            return Gnd(piece.value)
+            return Grounded(piece.value)
         if not isinstance(piece, ast.FormattedValue):
             msg = "this f-string part has no lowering"
             raise CompileError(
@@ -627,12 +627,12 @@ class ExpressionCompilerMixin(CompilerContext):
         if piece.format_spec is not None:
             literal = self._literal_format_spec(piece.format_spec, line)
             self.runtime_ops.add("py-format")
-            return Expr([Sym("py-format"), value, Gnd(literal)])
+            return Expression([Symbol("py-format"), value, Grounded(literal)])
         if piece.conversion == ord("r"):
             self.runtime_ops.add("py-repr")
-            return Expr([Sym("py-repr"), value])
+            return Expression([Symbol("py-repr"), value])
         self.runtime_ops.add("py-str")
-        return Expr([Sym("py-str"), value])
+        return Expression([Symbol("py-str"), value])
 
     @staticmethod
     def _literal_format_spec(spec: ast.expr, line: int) -> str:
@@ -664,7 +664,7 @@ class _PatternScope:
         if isinstance(node, ast.Call):
             return self._call(node)
         if isinstance(node, (ast.Tuple, ast.List)):
-            return Expr([self.expression(e) for e in node.elts])
+            return Expression([self.expression(e) for e in node.elts])
         if isinstance(node, ast.Constant):
             return self.outer._x_Constant(node)
         msg = (
@@ -679,14 +679,14 @@ class _PatternScope:
 
     def _name(self, node: ast.Name) -> Atom:
         if node.id in self.outer.scope:
-            return Var(self.outer.scope[node.id])
+            return Variable(self.outer.scope[node.id])
         if node.id[:1].islower() and not self.outer.known(node.id) and node.id != self.outer.name:
             if node.id not in self.bound:
                 self.bound.append(node.id)
-            return Var(node.id)
+            return Variable(node.id)
         return self.outer._x_Name(node)
 
-    def _call(self, node: ast.Call) -> Expr:
+    def _call(self, node: ast.Call) -> Expression:
         if not isinstance(node.func, ast.Name):
             msg = "a pattern applies a plain constructor name"
             raise CompileError(
@@ -699,8 +699,8 @@ class _PatternScope:
         # the relation symbol, not a fresh variable. A scoped head remains a
         # variable.
         head_id = node.func.id
-        head: Atom = Var(self.outer.scope[head_id]) if head_id in self.outer.scope else Sym(head_id)
-        return Expr([head, *(self.expression(argument) for argument in node.args)])
+        head: Atom = Variable(self.outer.scope[head_id]) if head_id in self.outer.scope else Symbol(head_id)
+        return Expression([head, *(self.expression(argument) for argument in node.args)])
 
 
 # Python builtin -> its lowering. Consulted for a call to one of these names

@@ -21,7 +21,7 @@ Open Obligations:
 import pytest
 
 from petta import S
-from petta.atoms import expr
+from petta.atoms import Expression
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given
@@ -40,14 +40,14 @@ SEPARATOR = st.sampled_from([",", ";", "|", " ", ":"])
 
 @pytest.fixture(scope="module")
 def text_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    space = metta.new_space()
+    space = metta._new_space()
     space.run("!(import! &self (library lib_string))")
     space.run("!(import! &self (library lib_json))")
     return space
 
 
 def call(space, name, *args):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return space.one(expr(S[name], *args))
+    return space._one(Expression(S[name], *args))
 
 
 # ------------------------------------------------------------------ strings
@@ -76,11 +76,11 @@ def test_split_and_join_invert_each_other(text_space, parts, separator):
     separator: that is the precondition, not a defect.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assume(all(separator not in part for part in parts))
-    joined = call(text_space, "string-join", separator, expr(*parts))
+    joined = call(text_space, "string-join", separator, Expression(*parts))
     back = call(text_space, "string-split", separator, joined)
     # Compare atoms rather than str(), which renders MeTTa syntax: an empty
     # string comes back as the two characters "" and would never match ''.
-    assert back == expr(*parts)
+    assert back == Expression(*parts)
 
 
 @settings(max_examples=40, deadline=None)
@@ -140,7 +140,7 @@ def test_json_round_trips_scalars(text_space, value):  # noqa: D103  -- pytest d
 @settings(max_examples=30, deadline=None)
 @given(st.lists(st.integers(min_value=-1000, max_value=1000), max_size=6))
 def test_json_round_trips_arrays(text_space, numbers):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    encoded = call(text_space, "json-encode", expr(*numbers))
+    encoded = call(text_space, "json-encode", Expression(*numbers))
     decoded = call(text_space, "json-decode", encoded)
     assert [int(item) for item in decoded] == numbers
 
@@ -150,7 +150,7 @@ def test_json_round_trips_arrays(text_space, numbers):  # noqa: D103  -- pytest 
                 min_size=1, max_size=5, unique_by=lambda pair: pair[0]))
 def test_json_round_trips_objects_through_a_space(text_space, pairs):
     """An object decodes into a space, so the round trip goes through one."""
-    entries = expr(*[expr(S[key], number) for key, number in pairs])
+    entries = Expression(*[Expression(S[key], number) for key, number in pairs])
     space_handle = call(text_space, "dict-space", entries)
     encoded = call(text_space, "json-encode", space_handle)
     decoded = call(text_space, "json-decode", encoded)

@@ -32,7 +32,7 @@ Guarantees:
   - an extension may add its own builtin type row without replacing the
     engine's table, and unload removes only that row [tested:
     test_a_library_types_its_own_blob_without_destroying_the_table;
-    commit=6f06e918c8f3382e8e1c8ccd8d120c6d809999a5]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -46,12 +46,13 @@ from pathlib import Path
 
 import pytest
 
-from petta import EngineError, PettaError, SourceNotFound
+from petta import PettaError
+from petta.errors import EngineError, SourceNotFound
 
 
 @pytest.fixture()
 def space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return metta.new_space()
+    return metta._new_space()
 
 
 def test_inline_source_becomes_a_metta_function(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -59,7 +60,7 @@ def test_inline_source_becomes_a_metta_function(space):  # noqa: D103  -- pytest
         "'rp-square'(X, Y) :- Y is X * X.", names=["rp-square"]
     )
     assert names == ("rp-square",)
-    assert space.one("(rp-square 7)") == 49
+    assert space._one("(rp-square 7)") == 49
 
 
 def test_a_file_of_prolog_becomes_metta_functions(space, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -67,8 +68,8 @@ def test_a_file_of_prolog_becomes_metta_functions(space, tmp_path):  # noqa: D10
     source.write_text("'rp-triple'(X, Y) :- Y is X * 3.\n'rp-negate'(X, Y) :- Y is -X.\n")
     names = space.register_prolog(path=source, names=["rp-triple", "rp-negate"])
     assert names == ("rp-triple", "rp-negate")
-    assert space.one("(rp-triple 14)") == 42
-    assert space.one("(rp-negate 5)") == -5
+    assert space._one("(rp-triple 14)") == 42
+    assert space._one("(rp-negate 5)") == -5
 
 
 # The failure this guards is the one engine/metta.pl documents: registering a name
@@ -123,10 +124,10 @@ def test_a_non_string_name_is_refused(space):  # noqa: D103  -- pytest discovers
 def test_a_builtin_name_is_refused_and_the_builtin_still_works(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="is a builtin"):
         space.register_prolog("'+'(_, _, R) :- R = shadowed.", names=["+"])
-    assert space.one("(+ 1 2)") == 3
+    assert space._one("(+ 1 2)") == 3
     with pytest.raises(EngineError, match="is a builtin"):
         space.register_prolog("'car-atom'(_, R) :- R = shadowed.", names=["car-atom"])
-    assert space.one("(car-atom (1 2))") == 1
+    assert space._one("(car-atom (1 2))") == 1
 
 
 # Special forms are compiled by the translator before function dispatch, so a
@@ -134,7 +135,7 @@ def test_a_builtin_name_is_refused_and_the_builtin_still_works(space):  # noqa: 
 def test_a_special_form_name_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(EngineError, match="is a special form"):
         space.register_prolog("'if'(_, _, _, R) :- R = shadowed.", names=["if"])
-    assert space.one("(if True 1 2)") == 1
+    assert space._one("(if True 1 2)") == 1
 
 
 # The source is identified by a hash of its own content. It used to be
@@ -146,7 +147,7 @@ def test_generated_sources_do_not_erase_each_other(space):  # noqa: D103  -- pyt
         generated = f"'rp-gen{i}'(X, Y) :- Y is X + {i}.\n"
         space.register_prolog(generated, names=[f"rp-gen{i}"])
         del generated
-    assert [space.one(f"(rp-gen{i} 10)") for i in range(4)] == [10, 11, 12, 13]
+    assert [space._one(f"(rp-gen{i} 10)") for i in range(4)] == [10, 11, 12, 13]
 
 
 def test_the_same_source_registered_twice_is_idempotent(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -173,14 +174,14 @@ def test_a_typo_in_the_list_registers_nothing(space):  # noqa: D103  -- pytest d
 # had replaced, so the operation could neither be unregistered (retractall on
 # what was now a static procedure raised) nor re-registered.
 def test_a_python_operation_is_not_silently_replaced(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @space.register_op(name="rp-owned")
+    @space.op(name="rp-owned")
     def rp_owned(x):
         return ["python", x]
 
     with pytest.raises(EngineError, match="another extension tier"):
         space.register_prolog("'rp-owned'(X, R) :- R = [prolog, X].",
                               names=["rp-owned"])
-    assert str(space.one("(rp-owned 1)")) == '("python" 1)'
+    assert str(space._one("(rp-owned 1)")) == '("python" 1)'
     # And the registry is still usable, which is the half that used to wedge.
     space.unregister_op("rp-owned")
     assert not space.is_function("rp-owned")
@@ -190,11 +191,11 @@ def test_a_prolog_registration_is_not_silently_replaced(space):  # noqa: D103  -
     space.register_prolog("'rp-mine'(X, R) :- R = [prolog, X].", names=["rp-mine"])
     with pytest.raises(EngineError, match="another extension tier"):
 
-        @space.register_op(name="rp-mine")
+        @space.op(name="rp-mine")
         def rp_mine(x):
             return ["python", x]
 
-    assert str(space.one("(rp-mine 1)")) == "(prolog 1)"
+    assert str(space._one("(rp-mine 1)")) == "(prolog 1)"
 
 
 # I29: the refusal was on the far side of the load, so it told the WRONG
@@ -215,13 +216,13 @@ def test_a_rival_source_is_refused_before_it_can_clobber(space, tmp_path):  # no
     second.write_text("'rp-rival-norm'(_, 30).\n")
 
     space.register_prolog(path=first, names=["rp-rival-norm"])
-    assert space.one("(rp-rival-norm 1)") == 20
+    assert space._one("(rp-rival-norm 1)") == 20
 
     with pytest.raises(EngineError, match="already registered from"):
         space.register_prolog(path=second, names=["rp-rival-norm"])
 
     # The incumbent is intact, which is the whole point: B never loaded.
-    assert space.one("(rp-rival-norm 1)") == 20
+    assert space._one("(rp-rival-norm 1)") == 20
 
 
 def test_a_rival_declaring_source_is_refused_before_it_can_clobber(space, tmp_path):
@@ -238,12 +239,12 @@ def test_a_rival_declaring_source_is_refused_before_it_can_clobber(space, tmp_pa
     second.write_text(declaration + "'rp-declared-norm'(_, 30).\n")
 
     assert space.register_prolog(path=first) == ("rp-declared-norm",)
-    assert space.one("(rp-declared-norm 1)") == 20
+    assert space._one("(rp-declared-norm 1)") == 20
 
     with pytest.raises(EngineError, match="already registered from"):
         space.register_prolog(path=second)
 
-    assert space.one("(rp-declared-norm 1)") == 20
+    assert space._one("(rp-declared-norm 1)") == 20
 
 
 # SWI prints a syntax error inside a consulted file and the load then succeeds
@@ -260,7 +261,7 @@ def test_a_syntax_error_names_the_line(space):  # noqa: D103  -- pytest discover
 def test_prolog_registration_is_cheaper_than_python_registration(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog("'rp-fast'(X, Y) :- Y is X + 1.", names=["rp-fast"])
 
-    @space.register_op(name="rp-slow")
+    @space.op(name="rp-slow")
     def rp_slow(x):
         return x + 1
 
@@ -274,12 +275,12 @@ def test_prolog_registration_is_cheaper_than_python_registration(space):  # noqa
     calls = 500
     costs = {}
     for which in ("fast", "slow"):
-        space.one(f"(rp-drive {which} 10)")
+        space._one(f"(rp-drive {which} 10)")
         with space.stats() as counted:
-            space.one(f"(rp-drive {which} {calls})")
+            space._one(f"(rp-drive {which} {calls})")
         costs[which] = counted.inferences / calls
 
-    assert space.one("(rp-fast 41)") == space.one("(rp-slow 41)") == 42
+    assert space._one("(rp-fast 41)") == space._one("(rp-slow 41)") == 42
     # Measured about 3.2x on 2026-08-15; assert the direction and a wide
     # margin rather than the exact ratio, which is engine-version specific.
     assert costs["slow"] > costs["fast"] * 1.5, costs
@@ -334,7 +335,7 @@ def test_inline_source_declares_its_own_exports_too(space):
 """
     try:
         assert space.register_prolog(inline) == ("rp-inline-scale",)
-        assert space.one("(rp-inline-scale 3)") == 21
+        assert space._one("(rp-inline-scale 3)") == 21
     finally:
         with contextlib.suppress(PettaError):
             space.unregister_prolog("rp_inline")
@@ -343,12 +344,12 @@ def test_inline_source_declares_its_own_exports_too(space):
 def test_a_file_declares_its_own_exports(space, declared):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     names = space.register_prolog(path=declared)
     assert set(names) == {"rp-demo-scale", "rp-demo-shape", "rp-demo-plain"}
-    assert space.one("(rp-demo-scale 3)") == 30
+    assert space._one("(rp-demo-scale 3)") == 30
 
     # The type travelled with the name, so there is no gap between registering
     # it and declaring it: the Atom parameter arrives as written from the
     # first call site ever compiled.
-    assert str(space.one("(rp-demo-shape (+ 1 2))")) == "(shape (+ 1 2))"
+    assert str(space._one("(rp-demo-shape (+ 1 2))")) == "(shape (+ 1 2))"
 
     # And the helper that happens to share the library's prefix is not
     # published, because it was not declared.
@@ -360,7 +361,7 @@ def test_an_extension_unloads_whole(space, declared):  # noqa: D103  -- pytest d
     released = space.unregister_prolog("rp_demo")
     assert set(released) == {"rp-demo-scale", "rp-demo-shape", "rp-demo-plain"}
     assert not space.is_function("rp-demo-scale")
-    assert str(space.one("(rp-demo-scale 3)")) == "(rp-demo-scale 3)"
+    assert str(space._one("(rp-demo-scale 3)")) == "(rp-demo-scale 3)"
     with pytest.raises(PettaError, match="does not exist"):
         space.unregister_prolog("rp_demo")
 
@@ -382,7 +383,7 @@ repo = Path(sys.argv[1])
 sys.path.insert(0, str(repo / "bindings" / "python"))
 from petta import MeTTa
 
-m = MeTTa(petta_path=str(repo))
+m = MeTTa(petta_path=str(repo)).self
 def types(form):
     return {str(atom) for row in m.run(form) for atom in row}
 
@@ -424,7 +425,7 @@ def test_a_declaration_without_an_extension_still_reports_its_names(space, tmp_p
     )
     assert space.register_prolog(path=source) == ("rp-bare-scale",)
     assert space.is_function("rp-bare-scale")
-    assert space.one("(rp-bare-scale 4)") == 40
+    assert space._one("(rp-bare-scale 4)") == 40
 
     # And registering the same file again reports the same names rather than
     # accumulating them.
@@ -442,7 +443,7 @@ def test_an_unloaded_extension_does_not_leave_its_names_behind(space, declared):
     space.unregister_prolog("rp_demo")
     names = space.register_prolog(path=declared)
     assert set(names) == {"rp-demo-scale", "rp-demo-shape", "rp-demo-plain"}
-    assert space.one("(rp-demo-scale 3)") == 30
+    assert space._one("(rp-demo-scale 3)") == 30
 
 
 def test_a_source_with_neither_names_nor_a_declaration_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -468,7 +469,7 @@ def test_a_provider_only_file_registers_no_functions_and_is_accepted(space, tmp_
     )
     try:
         assert space.register_prolog(path=source) == ()
-        assert str(space.one("(collapse (get-atoms &rp-provider-demo))")) == "((fact a))"
+        assert str(space._one("(collapse (get-atoms &rp-provider-demo))")) == "((fact a))"
     finally:
         with contextlib.suppress(PettaError):
             space.unregister_prolog("rp_provider_demo")
@@ -494,7 +495,7 @@ def test_a_file_that_declares_nothing_does_not_load_either(space, tmp_path):
     with pytest.raises(ValueError, match="metta_extension"):
         space.register_prolog(path=source)
     # Nothing of it loaded, so catching the error cannot make it work.
-    assert str(space.one("(collapse (get-atoms &rp-silent-demo))")) == "()"
+    assert str(space._one("(collapse (get-atoms &rp-silent-demo))")) == "()"
 
 
 # X3: the one collision a name refusal cannot fix is two libraries that both
@@ -526,8 +527,8 @@ def test_two_libraries_exporting_one_name_can_both_be_registered(space, rival_mo
     ) == ("rp-libb-norm",)
     # Neither is bound to the other's code, which is what SWI's own refusal
     # would have left: it declines the second import, prints, and continues.
-    assert space.one("(rp-liba-norm -5)") == 5
-    assert space.one("(rp-libb-norm -5)") == 25
+    assert space._one("(rp-liba-norm -5)") == 5
+    assert space._one("(rp-libb-norm -5)") == 25
 
 
 def test_a_rename_of_something_not_exported_is_refused(space, rival_modules):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -577,7 +578,7 @@ def det_library(tmp_path_factory):  # noqa: D103  -- pytest discovers or injects
 
 def test_a_declared_det_function_answers_normally(space, det_library):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog(path=det_library)
-    assert space.one("(rp-det-clean 1)") == 2
+    assert space._one("(rp-det-clean 1)") == 2
 
 
 def test_a_declared_det_function_that_leaks_a_choice_point_raises(space, det_library):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -627,7 +628,7 @@ def test_a_compiled_library_registers_from_python(space):  # noqa: D103  -- pyte
     assert space.register_foreign_library(
         _C_EXTENSION / "cbump.so", entry="install_cbump", names=["c-bump"]
     ) == ("c-bump",)
-    assert space.one("(c-bump 41)") == 42
+    assert space._one("(c-bump 41)") == 42
 
 
 @pytest.mark.skipif(
@@ -641,8 +642,8 @@ def test_an_opaque_handle_crosses_as_an_ordinary_value(space):  # noqa: D103  --
         names=["vector-new", "vector-length", "vector-nth"],
     )
     # The vector's contents never become text; only the handle crosses.
-    assert space.one("(vector-length (vector-new 1000))") == 1000
-    assert space.one("(vector-nth (vector-new 1000) 700)") == 700
+    assert space._one("(vector-length (vector-new 1000))") == 1000
+    assert space._one("(vector-nth (vector-new 1000) 700)") == 700
 
 
 def test_an_absent_compiled_library_is_refused_here(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

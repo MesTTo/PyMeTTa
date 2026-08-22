@@ -11,13 +11,13 @@ Open Obligations:
 
 import pytest
 
-import petta
-from petta import EngineError, InferenceLimitError, TimeLimitError
+from petta import errors
+from petta.errors import EngineError, InferenceLimitError, TimeLimitError
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
@@ -59,7 +59,7 @@ def test_control_signals_pass_through_recovery_catches(m):
     ],
 )
 def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    error_type = getattr(petta, error_name)
+    error_type = getattr(errors, error_name)
     with pytest.raises(error_type):
         m.runtime.must("petta_py_raise(Kind, detail)", Kind=kind)
 

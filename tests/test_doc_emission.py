@@ -5,7 +5,7 @@ Guarantees:
   - a docstring emits (@desc ...), one (@param ...) per SIGNATURE parameter in
     source order, and (@return ...), which is the shape engine/prelude.metta's
     own @doc atoms have; an unsectioned docstring stays one description.
-  [tested: test_a_docstring_emits_the_whole_doc_vocabulary; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+  [tested: test_a_docstring_emits_the_whole_doc_vocabulary; commit=WORKTREE]
 Fails when: read as a claim that every docstring style parses. Only the Google
   section headers are read; anything else is one description, which is what it
   was before.
@@ -28,7 +28,7 @@ def _documentation(metta: MeTTa, name: str) -> str:
 
 def test_a_docstring_emits_the_whole_doc_vocabulary() -> None:
     """Description, parameters and return, the way the prelude writes them."""
-    metta = MeTTa("&docemission")
+    metta = MeTTa().space("&docemission")
 
     @metta.define
     def docemit_cube(n):

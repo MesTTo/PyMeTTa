@@ -3,10 +3,10 @@ and version source that wheel builds publish.
 Guarantees:
   - release history and citation metadata exist and enter source archives
     [tested: test_release_and_citation_metadata_ship_in_source_archives;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
   - the Python gate uses the fixed load-tested worker protocol
     [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-import petta.atoms
+import petta.atoms as petta_atoms
 from petta import __version__
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -133,7 +133,7 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
         pytest.skip("no C compiler")
 
     # The default: nothing compiled, and the import answers Python source.
-    assert petta.atoms.__file__.endswith(".py")
+    assert petta_atoms.__file__.endswith(".py")
     plain = _build_ext(tmp_path / "plain", {"PETTA_USE_MYPYC": ""})
     assert plain.returncode == 0, plain.stderr
     assert not list((tmp_path / "plain").rglob("*.so"))

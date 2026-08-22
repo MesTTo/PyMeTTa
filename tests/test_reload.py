@@ -24,6 +24,7 @@ import pytest
 
 import petta
 from petta import S, V
+from petta.errors import InferenceLimitError, MettaSyntaxError
 from petta.structures import LiveView
 
 
@@ -38,7 +39,7 @@ def source(tmp_path):
 @pytest.fixture()
 def scratch(metta):
     """A fresh anonymous space per test, on the shared engine."""
-    return metta.new_space()
+    return metta._new_space()
 
 
 def fresh(name):
@@ -55,13 +56,13 @@ def test_a_reloaded_source_replaces_its_definitions_and_says_what_it_replaced(
     answer = fresh("answer")
     source.write_text(f"(= ({answer}) 1)\n")
     metta.load(source)
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([1])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([1])]]
 
     capfd.readouterr()
     source.write_text(f"(= ({answer}) 2)\n")
     metta.load(source)
 
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([2])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([2])]]
     said = capfd.readouterr().err
     assert str(source) in said, said
     assert "1 atom(s) withdrawn" in said, said
@@ -79,14 +80,14 @@ def test_both_doors_replace_a_files_definitions(metta, source):
             metta.load(source)
         else:
             metta.run(f'!(import! &self "{source}")')
-        assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([1])]]
+        assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([1])]]
 
         source.write_text(f"(= ({answer}) 2)\n")
         if door == "load":
             metta.load(source)
         else:
             metta.run(f'!(import! &self "{source}")')
-        assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([2])]], door
+        assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([2])]], door
 
 
 def test_loading_the_same_file_twice_leaves_one_copy(scratch, source):
@@ -98,7 +99,7 @@ def test_loading_the_same_file_twice_leaves_one_copy(scratch, source):
     scratch.load(source)
     scratch.load(source)
 
-    assert scratch.count() == 2
+    assert len(scratch) == 2
     assert len(scratch.query(S["loaded-copy"](V.value))) == 1
 
 
@@ -113,7 +114,7 @@ def test_a_stopped_load_leaves_the_space_as_it_found_it(scratch, source):
         "(= (spin $n) (spin (+ $n 1)))\n"
         "!(spin 0)\n"
     )
-    with pytest.raises(petta.InferenceLimitError):
+    with pytest.raises(InferenceLimitError):
         scratch.load(source, inferences=50_000)
 
     assert list(scratch.atoms()) == []
@@ -140,14 +141,14 @@ def test_loading_a_fast_cache_twice_leaves_one_copy(metta, scratch, tmp_path):
     text path asks of a source's text.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     cache = tmp_path / f"cache_{uuid.uuid4().hex}.fast"
-    donor = metta.new_space()
+    donor = metta._new_space()
     donor.add(S["cached-fact"](S.one))
     donor.save(cache, format="fast")
 
     scratch.load(cache)
     scratch.load(cache)
 
-    assert scratch.count() == 1
+    assert len(scratch) == 1
 
 
 def test_loading_one_file_into_many_spaces_replaces_none_of_them(metta, source):
@@ -157,11 +158,11 @@ def test_loading_one_file_into_many_spaces_replaces_none_of_them(metta, source):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     fact = fresh("many-spaces")
     source.write_text(f"({fact} value)\n")
-    spaces = [metta.new_space() for _ in range(4)]
+    spaces = [metta._new_space() for _ in range(4)]
     for space in spaces:
         space.load(source)
 
-    assert [space.count() for space in spaces] == [1, 1, 1, 1]
+    assert [len(space) for space in spaces] == [1, 1, 1, 1]
 
 
 def test_a_cleared_space_forgets_what_a_file_put_in_it(metta, source):
@@ -171,13 +172,13 @@ def test_a_cleared_space_forgets_what_a_file_put_in_it(metta, source):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     fact = fresh("cleared")
     source.write_text(f"({fact} value)\n")
-    scratch = metta.new_space()
+    scratch = metta._new_space()
     scratch.load(source)
     scratch.clear()
 
     scratch.load(source)
 
-    assert scratch.count() == 1
+    assert len(scratch) == 1
 
 
 def test_an_unchanged_repeat_import_does_not_run_the_source_again(metta, source):
@@ -206,7 +207,7 @@ def test_an_edited_import_is_not_skipped(metta, source):
     source.write_text(f"(= ({answer}) fresh)\n")
     metta.run(f'!(import! &self "{source}")')
 
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([S.fresh])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([S.fresh])]]
 
 
 def test_a_reload_drops_a_definition_the_new_source_no_longer_has(metta, source):
@@ -219,15 +220,15 @@ def test_a_reload_drops_a_definition_the_new_source_no_longer_has(metta, source)
     kept, dropped = fresh("kept"), fresh("dropped")
     source.write_text(f"(= ({kept}) yes)\n(= ({dropped}) yes)\n")
     metta.load(source)
-    assert metta.run(f"!(collapse ({dropped}))") == [[petta.Expr([S.yes])]]
+    assert metta.run(f"!(collapse ({dropped}))") == [[petta.Expression([S.yes])]]
 
     source.write_text(f"(= ({kept}) yes)\n")
     metta.load(source)
 
-    assert metta.run(f"!(collapse ({kept}))") == [[petta.Expr([S.yes])]]
+    assert metta.run(f"!(collapse ({kept}))") == [[petta.Expression([S.yes])]]
     assert metta.query(S["="](S[dropped](), V.v)) == []
     assert metta.run(f"!(collapse ({dropped}))") == [
-        [petta.Expr([petta.Expr([S[dropped]])])]
+        [petta.Expression([petta.Expression([S[dropped]])])]
     ]
 
 
@@ -265,13 +266,13 @@ def test_a_reload_that_fails_leaves_the_previous_definitions_standing(metta, sou
     metta.load(source)
 
     source.write_text(f"(= ({answer}) 2)\n(= (unbalanced\n")
-    with pytest.raises(petta.MettaSyntaxError):
+    with pytest.raises(MettaSyntaxError):
         metta.load(source)
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([1])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([1])]]
 
     source.write_text(f"(= ({answer}) 3)\n")
     metta.load(source)
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([3])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([3])]]
 
 
 def test_reloading_invalidates_a_memoized_answer(metta, source):
@@ -283,13 +284,13 @@ def test_reloading_invalidates_a_memoized_answer(metta, source):
     answer = fresh("memoed")
     source.write_text(f"(= ({answer}) 1)\n!(memoize {answer})\n")
     metta.load(source)
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([1])]]
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([1])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([1])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([1])]]
 
     source.write_text(f"(= ({answer}) 2)\n!(memoize {answer})\n")
     metta.load(source)
 
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([2])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([2])]]
 
 
 def test_reloading_invalidates_a_tabled_answer(metta, source):
@@ -297,12 +298,12 @@ def test_reloading_invalidates_a_tabled_answer(metta, source):
     answer = fresh("tabled")
     source.write_text(f"(= ({answer}) 1)\n!(table {answer})\n")
     metta.load(source)
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([1])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([1])]]
 
     source.write_text(f"(= ({answer}) 2)\n!(table {answer})\n")
     metta.load(source)
 
-    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expr([2])]]
+    assert metta.run(f"!(collapse ({answer}))") == [[petta.Expression([2])]]
 
 
 def test_reloading_invalidates_a_specialization(metta, source):
@@ -345,9 +346,9 @@ def test_a_reload_replaces_the_file_in_every_space_that_holds_it(metta, source):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     fact = fresh("shared")
     source.write_text(f"({fact} first)\n")
-    first, second = metta.new_space(), metta.new_space()
+    first, second = metta._new_space(), metta._new_space()
     first.load(source)
-    metta.run(f'!(import! {second.space_name} "{source}")')
+    metta.run(f'!(import! {second.name} "{source}")')
     assert len(second.query(S[fact](V.x))) == 1
 
     source.write_text(f"({fact} second)\n")

@@ -536,7 +536,7 @@ def test_subscription_dispatch_case_measures_writes_only():
         assert delivered[0] == 0, "construction delivered before the window"
         assert run() == 5
         assert delivered[0] == 5, "the measured writes dispatched nothing"
-        assert space.count() == 5
+        assert len(space) == 5
     finally:
         close_subscription_case(state)
     assert all(not subscription._active for subscription in standing)

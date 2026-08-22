@@ -4,16 +4,16 @@ Guarantees:
   - one ground expression identifies one isolated storage and execution
     context, and context-space exposes its parameters to local equations
     [tested: test_two_instances_of_a_parametric_space_answer_independently;
-    commit=3c7bcde6a0670ec5c563584b26977b41cc727580]
+    commit=WORKTREE]
   - malformed identifiers fail before any native or execution cache entry is
     published [tested: test_invalid_parametric_names_publish_no_cache_entry;
-    commit=3c7bcde6a0670ec5c563584b26977b41cc727580]
+    commit=WORKTREE]
   - derivation leaves recover the expression identity from its canonical
     storage module [tested: test_a_parametric_fact_leaf_names_its_space;
-    commit=3c7bcde6a0670ec5c563584b26977b41cc727580]
+    commit=WORKTREE]
   - a callable family head cannot evaluate a registered identity at a space
     door [tested: test_a_callable_family_head_does_not_replace_the_identity;
-    commit=3c7bcde6a0670ec5c563584b26977b41cc727580]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,7 +22,7 @@ Open Obligations:
 
 import pytest
 
-from petta import EngineError
+from petta.errors import EngineError
 
 
 def _answers(metta, source):

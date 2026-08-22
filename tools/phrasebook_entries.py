@@ -203,7 +203,7 @@ ENTRIES: list[Entry] = [
         "=alpha", ("(-> Atom Atom Bool)",), "Grounded", "compare", "method",
         "Equality modulo variable renaming is not a Python concept, so it keeps "
         "MeTTa's noun. `a.alpha_eq(b)` is the method form of the same act.",
-        metta="!(=alpha (f $x) (f $y))", python="petta.alpha_eq(S.f(V.x), S.f(V.y))",
+        metta="!(=alpha (f $x) (f $y))", python="S.f(V.x).alpha_eq(S.f(V.y))",
     ),
     Entry(
         "noreduce-eq", ("(-> Atom Atom Bool)",), "Symbol", "compare", "dissolves",
@@ -317,7 +317,7 @@ ENTRIES: list[Entry] = [
         "car-atom", ("(-> Expression %Undefined%)",), "Symbol", "atoms", "dissolves",
         "Indexing. An expression is a sequence in Python, so its head is `e[0]`.",
         metta="!(car-atom (a b c))",
-        python="e = petta.encode((S.a, S.b, S.c))\ne[0]",
+        python="e = petta.Expression(S.a, S.b, S.c)\ne[0]",
     ),
     Entry(
         "cdr-atom", ("(-> Expression Expression)",), "Symbol", "atoms", "dissolves",
@@ -325,7 +325,7 @@ ENTRIES: list[Entry] = [
         "which prints the same and is the T6 friction section 9e names as this "
         "bucket's one prerequisite.",
         metta="!(cdr-atom (a b c))",
-        python="e = petta.encode((S.a, S.b, S.c))\ne[1:]",
+        python="e = petta.Expression(S.a, S.b, S.c)\ne[1:]",
     ),
     Entry(
         "cons-atom", ("(-> Atom Expression Atom)",), "Symbol", "atoms", "dissolves",
@@ -337,19 +337,19 @@ ENTRIES: list[Entry] = [
         "decons-atom", ("(-> Expression Atom)",), "Symbol", "atoms", "dissolves",
         "Starred unpacking, which is the same act in one line: `head, *tail = e`.",
         metta="!(decons-atom (f a b))",
-        python="e = petta.encode((S.f, S.a, S.b))\nhead, *tail = e\n(head, tuple(tail))",
+        python="e = petta.Expression(S.f, S.a, S.b)\nhead, *tail = e\n(head, tuple(tail))",
     ),
     Entry(
         "size-atom", ("(-> Expression Number)",), "Grounded", "atoms", "dissolves",
         "`len`. Both count CHILDREN, so `(f a b)` is 3 either way.",
         metta="!(size-atom (a b c))",
-        python="e = petta.encode((S.a, S.b, S.c))\nlen(e)",
+        python="e = petta.Expression(S.a, S.b, S.c)\nlen(e)",
     ),
     Entry(
         "index-atom", ("(-> Expression Number Atom)",), "Grounded", "atoms", "dissolves",
         "Indexing again, with the index you want.",
         metta="!(index-atom (a b c) 1)",
-        python="e = petta.encode((S.a, S.b, S.c))\ne[1]",
+        python="e = petta.Expression(S.a, S.b, S.c)\ne[1]",
     ),
     Entry(
         "max-atom", ("(-> %Undefined% Number)",), "Grounded", "atoms", "dissolves",
@@ -401,21 +401,21 @@ ENTRIES: list[Entry] = [
         "for-each-in-atom", ("(-> Expression Atom (->))",), "Symbol", "atoms", "dissolves",
         "A `for` statement. It is called for its effect, so the row prints and "
         "answers the unit. Python's `for` has no value at all, and the concept map "
-        "says `None` IS the unit, but `petta.encode(None)` renders `<NoneType>` "
+        "says `None` IS the unit, but `petta.ground(None)` renders `<NoneType>` "
         "rather than `()` today, so a row that wants the unit writes it "
         "[measured 2026-08-22].",
         metta="!(for-each-in-atom (1 2) println!)",
-        python="for value in [1, 2]:\n    print(value)\npetta.encode(())",
+        python="for value in [1, 2]:\n    print(value)\npetta.Expression()",
         differs="PeTTa answers one unit per element where LeaTTa answers one",
     ),
     Entry(
         "atom-subst", ("(-> Atom Variable Atom Atom)",), "Symbol", "atoms", "method",
-        "Applying a substitution to a template, which `petta.map_atoms` does over "
+        "Applying a substitution to a template, which `Atom.map` does over "
         "the whole term. Section 9e wants the bindings object to carry it, "
         "`b.apply(template)`; `petta.Bindings` has no such method yet, so the "
         "walker is the spelling.",
         metta="!(atom-subst a $x (f $x))",
-        python="petta.map_atoms(S.f(V.x), lambda a: S.a if a == V.x else a)",
+        python="S.f(V.x).map(lambda a: S.a if a == V.x else a)",
         unrun="PeTTa leaves the MeTTa call unreduced",
     ),
     Entry(
@@ -425,7 +425,7 @@ ENTRIES: list[Entry] = [
         "Starred unpacking inside an `if`: the empty case is the `else` branch.",
         metta="!(if-decons-expr (a b) $h $t (yes $h $t) no)",
         python=(
-            "e = petta.encode((S.a, S.b))\n"
+            "e = petta.Expression(S.a, S.b)\n"
             "S.yes(e[0], e[1:]) if len(e) else S.no"
         ),
         unrun="PeTTa leaves the call unreduced",
@@ -580,7 +580,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "nop", ("(-> (%Rest% %Undefined%) (->))",), "Grounded", "control", "dissolves",
         "Python's `pass`, or simply not writing the call. It answers the unit.",
-        metta="!(nop 1 2)", python="petta.encode(())",
+        metta="!(nop 1 2)", python="petta.Expression()",
     ),
     Entry(
         "if-equal", ("(-> Atom Atom Atom Atom %Undefined%)",), "Grounded", "control",
@@ -687,13 +687,13 @@ ENTRIES: list[Entry] = [
     Entry(
         "add-reduct", ("(-> SpaceType %Undefined% (->))",), "Symbol", "spaces", "dissolves",
         "There is no second door: `+=` adds what you give it, so adding a REDUCT is "
-        "explicit composition, `space += m.one(term)`. The row wraps the sum "
+        "explicit composition, `space += m.eval(term)[0]`. The row wraps the sum "
         "because PeTTa's write door REFUSES a bare grounded atom that its own "
-        "MeTTa door accepts [measured 2026-08-22: `space += petta.encode(3)` "
+        "MeTTa door accepts [measured 2026-08-22: `space += petta.ground(3)` "
         "raises `a stored atom is a non-empty expression`, while "
         "`!(add-reduct &pb (+ 1 2))` stores `3`].",
         metta="!(bind! &pb (new-space))\n!(add-reduct &pb (total (+ 1 2)))\n!(get-atoms &pb)",
-        python="space += S.total(m.one(S['+'](1, 2)))\nspace.atoms()",
+        python="space += S.total(m.eval(S['+'](1, 2))[0])\nspace.atoms()",
         differs=(
             "PeTTa stores `(total (+ 1 2))` UNREDUCED where LeaTTa and the Python "
             "composition both store `(total 3)`: this engine's add-reduct does not "
@@ -707,7 +707,7 @@ ENTRIES: list[Entry] = [
               "!(add-reducts &pb ((total (+ 1 2)) (total (+ 2 2))))\n"
               "!(get-atoms &pb)",
         python="for term in [S['+'](1, 2), S['+'](2, 2)]:\n"
-               "    space += S.total(m.one(term))\n"
+               "    space += S.total(m.eval(term)[0])\n"
                "space.atoms()",
         differs=(
             "PeTTa stores both forms UNREDUCED where LeaTTa and the Python "
@@ -744,10 +744,10 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "new-space", ("(-> SpaceType)",), "Grounded", "spaces", "method",
-        "`m.new_space()`. A constructor call is Python's own spelling for `make me "
+        "`petta.space()`. A constructor call is Python's own spelling for `make me "
         "a fresh one`, and the row asks the fresh space for its atoms because the "
         "NAME a space gets differs per engine.",
-        metta="!(get-atoms (new-space))", python="list(m.new_space())",
+        metta="!(get-atoms (new-space))", python="list(petta.space())",
     ),
     Entry(
         "fork-space", ("(-> SpaceType SpaceType)",), "Grounded", "spaces", "method",
@@ -793,21 +793,21 @@ ENTRIES: list[Entry] = [
         "Section 9e's design is `space.type(atom)`, because declared types are "
         "space-relative; the shipped `m.type` is the class decorator, so today the "
         "type question goes through the term door.",
-        metta="!(get-type 1)", python="m.one(S['get-type'](1))",
+        metta="!(get-type 1)", python="m.eval(S['get-type'](1))[0]",
     ),
     Entry(
         "get-type-space", ("(-> SpaceType Atom Atom)",), "Grounded", "types", "instruction",
         "The same question asked of a named space, which is what makes "
         "`space.type(a)` the right eventual shape.",
         metta="!(get-type-space &self 1)",
-        python="m.one(S['get-type-space'](S['&self'], 1))",
+        python="m.eval(S['get-type-space'](S['&self'], 1))[0]",
     ),
     Entry(
         "get-metatype", ("(-> Atom Atom)",), "Grounded", "types", "dissolves",
         "Python's own builtin `type`: the four atom classes ARE the four metatypes, "
         "so `type(a).__name__` is the metatype by construction.",
         metta="!(get-metatype (a b))",
-        python="e = petta.encode((S.a, S.b))\nS[e.metatype]",
+        python="e = petta.Expression(S.a, S.b)\nS[e.metatype]",
     ),
     Entry(
         "is-function", ("(-> Type Bool)",), "Symbol", "types", "dissolves",
@@ -832,7 +832,7 @@ ENTRIES: list[Entry] = [
         metta="(= (pbf $x) (+ $x 1))\n!(pbf 1)",
         python=(
             "space += petta.equation(S.pbf(V.x)).to(V.x + 1)\n"
-            "space.one(S.pbf(1))"
+            "space.eval(S.pbf(1))[0]"
         ),
     ),
     Entry(
@@ -892,13 +892,13 @@ ENTRIES: list[Entry] = [
         "The row reads the cell back rather than showing it, because the CELL "
         "itself prints differently on each engine: `(State 1)` on LeaTTa and "
         "`&state-#0` here [measured 2026-08-22].",
-        metta="!(get-state (new-state 1))", python="m.one(S['get-state'](S['new-state'](1)))",
+        metta="!(get-state (new-state 1))", python="m.eval(S['get-state'](S['new-state'](1)))[0]",
     ),
     Entry(
         "get-state", ("(-> (StateMonad $tgso) $tgso)",), "Grounded", "state", "instruction",
         "Reading the cell, through the same door, after naming it.",
         metta="!(let $c (new-state 5) (get-state $c))",
-        python="m.one(S.let(V.c, S['new-state'](5), S['get-state'](V.c)))",
+        python="m.eval(S.let(V.c, S['new-state'](5), S['get-state'](V.c)))[0]",
     ),
     Entry(
         "change-state!", ("(-> (StateMonad $tcso) $tcso (StateMonad $tcso))",), "Grounded",
@@ -906,7 +906,7 @@ ENTRIES: list[Entry] = [
         "Writing the cell. A Python program usually reaches for a space instead, "
         "which is queryable where a cell is not.",
         metta="!(let $c (new-state 1) (get-state (change-state! $c 2)))",
-        python="m.one(S.let(V.c, S['new-state'](1), S['get-state'](S['change-state!'](V.c, 2))))",
+        python="m.eval(S.let(V.c, S['new-state'](1), S['get-state'](S['change-state!'](V.c, 2))))[0]",
     ),
     Entry(
         "_new-state", ("(-> $t Expression (StateMonad $t))",), "Grounded", "state", "internal",
@@ -916,7 +916,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "println!", ("(-> %Undefined% (->))",), "Grounded", "text", "dissolves",
         "Python's `print`.",
-        metta="!(println! hello)", python="print('hello')\npetta.encode(())",
+        metta="!(println! hello)", python="print('hello')\npetta.Expression()",
     ),
     Entry(
         "trace!", ("(-> %Undefined% Atom %Undefined%)",), "Grounded", "text", "dissolves",
@@ -936,7 +936,7 @@ ENTRIES: list[Entry] = [
         "Python's `print` over the answers, which is what LeaTTa's assert family "
         "uses it for: showing what a form actually answered.",
         metta="!(print-alternatives! subject (a b))",
-        python="print(S.subject, [S.a, S.b])\npetta.encode(())",
+        python="print(S.subject, [S.a, S.b])\npetta.Expression()",
         unrun="PeTTa leaves the MeTTa call unreduced",
     ),
     Entry(
@@ -954,28 +954,28 @@ ENTRIES: list[Entry] = [
     Entry(
         "assertEqual", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a == b`, and pytest's own assertion rewriting prints the halves.",
-        metta="!(assertEqual (+ 1 1) 2)", python="assert m.one(S['+'](1, 1)) == 2\nTrue",
+        metta="!(assertEqual (+ 1 1) 2)", python="assert m.eval(S['+'](1, 1))[0] == 2\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
         "assertEqualMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a == b, message`, which is Python's own second argument.",
         metta='!(assertEqualMsg (+ 1 1) 2 "sums")',
-        python="assert m.one(S['+'](1, 1)) == 2, 'sums'\nTrue",
+        python="assert m.eval(S['+'](1, 1))[0] == 2, 'sums'\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
         "assertAlphaEqual", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a.alpha_eq(b)`: the assertion is Python's, the relation is MeTTa's.",
         metta="!(assertAlphaEqual (f $x) (f $y))",
-        python="assert petta.alpha_eq(S.f(V.x), S.f(V.y))\nTrue",
+        python="assert S.f(V.x).alpha_eq(S.f(V.y))\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
         "assertAlphaEqualMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The same with Python's assertion message.",
         metta='!(assertAlphaEqualMsg (f $x) (f $y) "renaming")',
-        python="assert petta.alpha_eq(S.f(V.x), S.f(V.y)), 'renaming'\nTrue",
+        python="assert S.f(V.x).alpha_eq(S.f(V.y)), 'renaming'\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
@@ -983,35 +983,35 @@ ENTRIES: list[Entry] = [
         "The right-hand side is a LIST of expected answers rather than one, which "
         "is `assert list(answers) == [...]`.",
         metta="!(assertEqualToResult (superpose (1 2)) (1 2))",
-        python="assert m.eval(S.superpose(petta.encode((1, 2)))) == [1, 2]\nTrue",
+        python="assert m.eval(S.superpose(petta.Expression(1, 2))) == [1, 2]\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
         "assertEqualToResultMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The same with Python's assertion message.",
         metta='!(assertEqualToResultMsg (superpose (1 2)) (1 2) "both")',
-        python="assert m.eval(S.superpose(petta.encode((1, 2)))) == [1, 2], 'both'\nTrue",
+        python="assert m.eval(S.superpose(petta.Expression(1, 2))) == [1, 2], 'both'\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
         "assertAlphaEqualToResult", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The answer-list form compared modulo renaming.",
         metta="!(assertAlphaEqualToResult (f $x) ((f $y)))",
-        python="assert petta.alpha_eq(m.eval(S.f(V.x))[0], S.f(V.y))\nTrue",
+        python="assert m.eval(S.f(V.x))[0].alpha_eq(S.f(V.y))\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
         "assertAlphaEqualToResultMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert",
         "dissolves", "The same with Python's assertion message.",
         metta='!(assertAlphaEqualToResultMsg (f $x) ((f $y)) "renaming")',
-        python="assert petta.alpha_eq(m.eval(S.f(V.x))[0], S.f(V.y)), 'renaming'\nTrue",
+        python="assert m.eval(S.f(V.x))[0].alpha_eq(S.f(V.y)), 'renaming'\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
         "assertIncludes", ("(-> Atom Expression (->))",), "Symbol", "assert", "dissolves",
         "Python's own `in`.",
         metta="!(assertIncludes (superpose (a b)) (a))",
-        python="assert S.a in m.eval(S.superpose(petta.encode((S.a, S.b))))\nTrue",
+        python="assert S.a in m.eval(S.superpose(petta.Expression(S.a, S.b)))\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
@@ -1201,7 +1201,7 @@ ENTRIES: list[Entry] = [
             "path = pathlib.Path(tempfile.mkdtemp()) / 'inc.metta'\n"
             "path.write_text('(= (pbi) 7)\\n')\n"
             "space.load(str(path))\n"
-            "space.one(S.pbi())"
+            "space.eval(S.pbi())[0]"
         ),
         differs=(
             "no file path is portable between the two engines, so the MeTTa column "
@@ -1248,7 +1248,7 @@ ENTRIES: list[Entry] = [
         "`print(sorted(sys.modules))`. Under the ruling that the module catalog IS "
         "Python packaging, the loaded-module question is Python's own.",
         metta="!(print-mods!)",
-        python="import sys\nprint(len(sys.modules), 'modules')\npetta.encode(())",
+        python="import sys\nprint(len(sys.modules), 'modules')\npetta.Expression()",
         differs=(
             "MeTTa modules there, Python modules here, which is what the ruling "
             "makes them"
@@ -1329,7 +1329,7 @@ ENTRIES: list[Entry] = [
         metta="!(return-on-error a b)",
         python=(
             "value = S.a\n"
-            "value if isinstance(value, petta.Expr) and value[0] == S.Error else S.b"
+            "value if isinstance(value, petta.Expression) and value[0] == S.Error else S.b"
         ),
     ),
     Entry(
@@ -1340,7 +1340,7 @@ ENTRIES: list[Entry] = [
         metta="!(separate-errors ((Error a b) c) ())",
         python=(
             "answers = [S.Error(S.a, S.b), S.c]\n"
-            "[a for a in answers if isinstance(a, petta.Expr) and a[0] == S.Error]"
+            "[a for a in answers if isinstance(a, petta.Expression) and a[0] == S.Error]"
         ),
         unrun="PeTTa leaves the call unreduced",
     ),
@@ -1448,7 +1448,7 @@ ENTRIES: list[Entry] = [
         "construction, because a parameter-scoped rule is fresh per rule, so the "
         "row shows the law spelling.",
         metta="!(sealed ($x) ($x $y))",
-        python="m.one(S.sealed(petta.encode((V.x,)), petta.encode((V.x, V.y))))",
+        python="m.eval(S.sealed(petta.Expression(V.x), petta.Expression(V.x, V.y)))[0]",
         differs=(
             "both freshen the second variable and keep the first, but the names "
             "differ: a variable built in Python comes back from the engine as "
@@ -1485,8 +1485,8 @@ ENTRIES: list[Entry] = [
     Entry(
         "chain", ("(-> Atom Variable Atom %Undefined%)",), "Symbol", "instructions", "dissolves",
         "Python assignment. Chain executes one instruction, binds, substitutes and "
-        "continues, which is exactly `x = m.one(t)` followed by use of `x`.",
-        metta="!(chain (+ 1 2) $x (foo $x))", python="x = m.one(S['+'](1, 2))\nS.foo(x)",
+        "continues, which is exactly `x = m.eval(t)[0]` followed by use of `x`.",
+        metta="!(chain (+ 1 2) $x (foo $x))", python="x = m.eval(S['+'](1, 2))[0]\nS.foo(x)",
     ),
     Entry(
         "function", ("(-> Atom Atom)",), "Symbol", "instructions", "absent",

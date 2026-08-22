@@ -28,7 +28,7 @@ def declared():
     """One symbol of each kind a declaration can pin, so the rule can be
     exercised on symbols and not only on literals.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    m = MeTTa()
+    m = MeTTa().self
     for form in ("(: xnum Number)", "(: ystr String)", "(: zbool Bool)"):
         m.run(form)
     return m

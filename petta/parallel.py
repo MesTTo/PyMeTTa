@@ -4,12 +4,12 @@ lifetime, and runs ordinary Python callables on them. Because a worker's
 engine is private to its thread, the process lock that serialises the home
 engine does not apply to it, so the branches genuinely run at once.
 
-This is the Python-side fan-out. MeTTa.parallel() is the in-engine fan-out
+This is the Python-side fan-out. Space.parallel() is the in-engine fan-out
 through hyperpose, below a single janus call. They compose: a pool worker may
 itself evaluate a hyperpose.
 
     with petta.parallel.pool(workers=8) as p:
-        answers = p.map(lambda n: m.one(f"(solve {n})"), range(64))
+        answers = p.map(lambda n: m.eval(S.solve(n))[0], range(64))
 
 Assumes:
   - petta._engine.engine_thread attaches an engine to a bare foreign thread
@@ -294,7 +294,7 @@ def pool(workers: int | None = None) -> EnginePool:
     Use it as a context manager so the engines are released:
 
         with petta.parallel.pool(workers=4) as p:
-            answers = p.map(lambda n: m.one(f"(fib {n})"), range(20))
+            answers = p.map(lambda n: m.eval(S.fib(n))[0], range(20))
 
     workers defaults to os.cpu_count().
     """

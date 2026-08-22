@@ -15,12 +15,13 @@ Open Obligations:
 
 import pytest
 
-from petta import MettaResultError, S
+from petta import S
+from petta.errors import MettaResultError
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return metta.new_space()
+    return metta._new_space()
 
 
 def test_commit_answers_the_callables_return_value(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -59,7 +60,7 @@ def test_the_librarys_own_errors_pass_through_unchanged(m):  # noqa: D103  -- py
     m.run('(= (tx-err) (Error (tx-err) "boom"))')
 
     def body():
-        m.one("(tx-err)")
+        m._one("(tx-err)")
 
     with pytest.raises(MettaResultError):
         m.transaction(body)

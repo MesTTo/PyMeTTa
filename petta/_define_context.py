@@ -6,7 +6,7 @@ Guarantees:
     auxiliary-equation collection [tested test_nested_loops_carry_the_outer_state]
   - statement lowering can resolve a local annotation into an in-place MeTTa
     type claim [tested: test_an_annotated_binding_emits_its_claim;
-    commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
+    commit=WORKTREE]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -24,7 +24,7 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from .atoms import Atom, Expr
+from .atoms import Atom, Expression
 
 _AUX_NAMES = itertools.count(1)
 _AUX_LOCK = threading.Lock()
@@ -48,7 +48,7 @@ class CompilerContext:
     scope: dict[str, str]
     known: Callable[[str], bool]
     used: set[str]
-    aux: list[Expr]
+    aux: list[Expression]
     lifted: dict[str, tuple[str, list[str], bool]]
     closer: Callable[[Any], Atom] | None
     closer_names: list[str]
@@ -67,7 +67,7 @@ class CompilerContext:
     ) -> CompilerContext:
         raise NotImplementedError
 
-    def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expr:
+    def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expression:
         raise NotImplementedError
 
     def _yield_from(self, node: ast.YieldFrom) -> Atom:

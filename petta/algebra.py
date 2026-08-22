@@ -7,26 +7,30 @@ Guarantees:
   - only laws checked over a finite carrier, or trusted shipped preset laws,
     license answer fusion [tested:
     test_a_declared_algebra_without_laws_answers_in_order_and_unfused;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=WORKTREE]
   - declared nonnegative rates drive an isolated seeded sampler without
     changing ordinary queries [tested:
     test_declared_rates_make_seeded_selection_match_their_distribution;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=WORKTREE]
   - a linear algebra refuses overlapping premise-occurrence ledgers before it
     publishes a derived answer [tested:
     test_a_linear_algebra_refuses_the_second_spend_of_one_premise;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=WORKTREE]
   - the amplitude preset is usable only by a context declaring the finite,
     contractive, staged fragment [tested:
     test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=WORKTREE]
   - grounded tensor tags retain their live derivative graph through generic
     rule matching and declared operations [tested:
     test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=WORKTREE]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 from __future__ import annotations
@@ -38,25 +42,23 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from fractions import Fraction
 from numbers import Real
-from typing import TYPE_CHECKING, Any, Final
+from typing import Any, Final
 
+from ._space import Space
 from .atoms import (
     Atom,
-    Expr,
-    Gnd,
-    Sym,
+    Expression,
+    Grounded,
+    Symbol,
     Undefined,
-    Var,
-    decode,
-    encode,
+    Variable,
+    _decode,
+    _encode,
     parse,
     substitute,
     unify,
 )
 from .errors import PettaError
-
-if TYPE_CHECKING:
-    from .space import MeTTa
 
 __all__ = [
     "AlgebraDeclarationError",
@@ -150,9 +152,9 @@ class DeclaredAlgebra:
     carrier: tuple[Atom, ...]
     requires: frozenset[str]
 
-    def operation(self, metta: MeTTa, name: str, left: Atom, right: Atom) -> Atom:
+    def operation(self, metta: Space, name: str, left: Atom, right: Atom) -> Atom:
         """Apply a declared binary operation and require one answer."""
-        answers = metta.eval(Expr((Sym(name), left, right)))
+        answers = metta.eval(Expression((Symbol(name), left, right)))
         if len(answers) != 1:
             msg = (
                 f"algebra_operation_not_single({self.name}, {name}, "
@@ -168,11 +170,11 @@ class DeclaredAlgebra:
             raise AlgebraOperationError(msg)
         return result
 
-    def combine_values(self, metta: MeTTa, left: Atom, right: Atom) -> Atom:
+    def combine_values(self, metta: Space, left: Atom, right: Atom) -> Atom:
         """Combine alternative derivations."""
         return self.operation(metta, self.combine, left, right)
 
-    def extend_values(self, metta: MeTTa, left: Atom, right: Atom) -> Atom:
+    def extend_values(self, metta: Space, left: Atom, right: Atom) -> Atom:
         """Extend one derivation through a premise."""
         return self.operation(metta, self.extend, left, right)
 
@@ -263,8 +265,8 @@ def _preset(
         name,
         combine,
         extend,
-        encode(zero),
-        encode(one),
+        _encode(zero),
+        _encode(one),
         laws,
         (),
         frozenset(requires),
@@ -279,8 +281,8 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     ),
     "ranked": _preset("ranked", "max", "*", 0, 1),
     "prob": _preset("prob", "+", "*", 0, 1),
-    "prov": _preset("prov", "plus", "times", Sym("zero"), Sym("one")),
-    "budget": _preset("budget", "min", "+", Sym("infinity"), 0),
+    "prov": _preset("prov", "plus", "times", Symbol("zero"), Symbol("one")),
+    "budget": _preset("budget", "min", "+", Symbol("infinity"), 0),
     "amplitude": _preset(
         "amplitude",
         "amplitude-add",
@@ -294,7 +296,7 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
 _REGISTRY: dict[tuple[int, str], DeclaredAlgebra] = {}
 
 
-def _key(metta: MeTTa, name: str) -> tuple[int, str]:
+def _key(metta: Space, name: str) -> tuple[int, str]:
     return id(metta._rt), name
 
 
@@ -310,47 +312,47 @@ def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
     return frozenset(out)
 
 
-def _catalog_declaration(metta: MeTTa, name: str) -> DeclaredAlgebra | None:
+def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
     """Reify a direct ``&petta`` algebra row through the Python door."""
-    for atom in metta.space("&petta").atoms():
-        if not isinstance(atom, Expr) or len(atom.children) != 9:
+    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+        if not isinstance(atom, Expression) or len(atom.children) != 9:
             continue
         head, declared_name, combine, extend, zero, one, laws, carrier, requires = (
             atom.children
         )
-        if head != Sym("algebra") or declared_name != Sym(name):
+        if head != Symbol("algebra") or declared_name != Symbol(name):
             continue
-        if not isinstance(combine, Sym) or not isinstance(extend, Sym):
+        if not isinstance(combine, Symbol) or not isinstance(extend, Symbol):
             msg = f"algebra_catalog_operations_malformed({name})"
             raise AlgebraDeclarationError(msg)
         if (
-            not isinstance(laws, Expr)
+            not isinstance(laws, Expression)
             or not laws.children
-            or laws.children[0] != Sym("laws")
+            or laws.children[0] != Symbol("laws")
         ):
             msg = f"algebra_catalog_fields_malformed({name})"
             raise AlgebraDeclarationError(msg)
         if (
-            not isinstance(carrier, Expr)
+            not isinstance(carrier, Expression)
             or not carrier.children
-            or carrier.children[0] != Sym("carrier")
+            or carrier.children[0] != Symbol("carrier")
         ):
             msg = f"algebra_catalog_fields_malformed({name})"
             raise AlgebraDeclarationError(msg)
         if (
-            not isinstance(requires, Expr)
+            not isinstance(requires, Expression)
             or not requires.children
-            or requires.children[0] != Sym("requires")
+            or requires.children[0] != Symbol("requires")
         ):
             msg = f"algebra_catalog_fields_malformed({name})"
             raise AlgebraDeclarationError(msg)
         law_names = tuple(
-            law.name for law in laws.children[1:] if isinstance(law, Sym)
+            law.name for law in laws.children[1:] if isinstance(law, Symbol)
         )
         requirement_names = tuple(
             requirement.name
             for requirement in requires.children[1:]
-            if isinstance(requirement, Sym)
+            if isinstance(requirement, Symbol)
         )
         return DeclaredAlgebra(
             name=name,
@@ -365,7 +367,7 @@ def _catalog_declaration(metta: MeTTa, name: str) -> DeclaredAlgebra | None:
     return None
 
 
-def get(metta: MeTTa, name: str) -> DeclaredAlgebra | None:
+def get(metta: Space, name: str) -> DeclaredAlgebra | None:
     """Find a user declaration or one of the shipped data presets."""
     preset = _PRESETS.get(name)
     if preset is not None:
@@ -378,7 +380,7 @@ def get(metta: MeTTa, name: str) -> DeclaredAlgebra | None:
     return _REGISTRY.get(key, catalog)
 
 
-def require(metta: MeTTa, name: str) -> DeclaredAlgebra:
+def require(metta: Space, name: str) -> DeclaredAlgebra:
     declaration = get(metta, name)
     if declaration is None:
         presets = ", ".join(_PRESETS)
@@ -390,29 +392,29 @@ def require(metta: MeTTa, name: str) -> DeclaredAlgebra:
     return declaration
 
 
-def _context_capabilities(metta: MeTTa, algebra: str) -> frozenset[str]:
-    context = Sym(str(metta.space_name))
-    for atom in metta.space("&petta").atoms():
-        # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=bindings/python/petta/space.py:declare_annotations
-        if not isinstance(atom, Expr) or len(atom.children) not in {3, 4}:
+def _context_capabilities(metta: Space, algebra: str) -> frozenset[str]:
+    context = Symbol(str(metta.name))
+    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+        # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=bindings/python/petta/_space.py:declare_annotations
+        if not isinstance(atom, Expression) or len(atom.children) not in {3, 4}:
             continue
-        if atom.children[:3] != (Sym("annotations"), context, Sym(algebra)):
+        if atom.children[:3] != (Symbol("annotations"), context, Symbol(algebra)):
             continue
         if len(atom.children) == 3:
             return frozenset()
         field = atom.children[3]
-        if not isinstance(field, Expr) or not field.children:
+        if not isinstance(field, Expression) or not field.children:
             return frozenset()
         return frozenset(
             capability.name
             for capability in field.children[1:]
-            if isinstance(capability, Sym)
+            if isinstance(capability, Symbol)
         )
     return frozenset()
 
 
 def _require_context_capabilities(
-    metta: MeTTa, declaration: DeclaredAlgebra
+    metta: Space, declaration: DeclaredAlgebra
 ) -> None:
     missing = declaration.requires - _context_capabilities(metta, declaration.name)
     if not missing:
@@ -423,7 +425,7 @@ def _require_context_capabilities(
         else "algebra_requirements_missing"
     )
     msg = (
-        f"{refusal}({metta.space_name}, {declaration.name}, "
+        f"{refusal}({metta.name}, {declaration.name}, "
         f"missing={sorted(missing)!r})"
     )
     raise AlgebraRequirementError(msg)
@@ -454,7 +456,7 @@ def _counterexample(
     )
 
 
-def _check_binary_closure(metta: MeTTa, declaration: DeclaredAlgebra) -> None:
+def _check_binary_closure(metta: Space, declaration: DeclaredAlgebra) -> None:
     for operation in (declaration.combine, declaration.extend):
         for left, right in itertools.product(declaration.carrier, repeat=2):
             result = declaration.operation(metta, operation, left, right)
@@ -467,10 +469,10 @@ def _check_binary_closure(metta: MeTTa, declaration: DeclaredAlgebra) -> None:
 
 
 def _check_associative(
-    metta: MeTTa,
+    metta: Space,
     declaration: DeclaredAlgebra,
     law: str,
-    operation: Callable[[MeTTa, Atom, Atom], Atom],
+    operation: Callable[[Space, Atom, Atom], Atom],
 ) -> None:
     for a, b, c in itertools.product(declaration.carrier, repeat=3):
         left = operation(metta, operation(metta, a, b), c)
@@ -480,10 +482,10 @@ def _check_associative(
 
 
 def _check_commutative(
-    metta: MeTTa,
+    metta: Space,
     declaration: DeclaredAlgebra,
     law: str,
-    operation: Callable[[MeTTa, Atom, Atom], Atom],
+    operation: Callable[[Space, Atom, Atom], Atom],
 ) -> None:
     for a, b in itertools.product(declaration.carrier, repeat=2):
         left = operation(metta, a, b)
@@ -492,7 +494,7 @@ def _check_commutative(
             raise _counterexample(declaration, law, (a, b), left, right)
 
 
-def _check_idempotent(metta: MeTTa, declaration: DeclaredAlgebra, law: str) -> None:
+def _check_idempotent(metta: Space, declaration: DeclaredAlgebra, law: str) -> None:
     for value in declaration.carrier:
         result = declaration.combine_values(metta, value, value)
         if not _same(result, value):
@@ -500,7 +502,7 @@ def _check_idempotent(metta: MeTTa, declaration: DeclaredAlgebra, law: str) -> N
 
 
 def _check_distributive(
-    metta: MeTTa, declaration: DeclaredAlgebra, law: str
+    metta: Space, declaration: DeclaredAlgebra, law: str
 ) -> None:
     combine = declaration.combine_values
     extend = declaration.extend_values
@@ -516,10 +518,10 @@ def _check_distributive(
 
 
 def _check_identity(
-    metta: MeTTa,
+    metta: Space,
     declaration: DeclaredAlgebra,
     law: str,
-    operation: Callable[[MeTTa, Atom, Atom], Atom],
+    operation: Callable[[Space, Atom, Atom], Atom],
     identity: Atom,
 ) -> None:
     for value in declaration.carrier:
@@ -532,7 +534,7 @@ def _check_identity(
 
 
 def _check_zero_annihilates(
-    metta: MeTTa, declaration: DeclaredAlgebra, law: str
+    metta: Space, declaration: DeclaredAlgebra, law: str
 ) -> None:
     extend = declaration.extend_values
     for value in declaration.carrier:
@@ -544,7 +546,7 @@ def _check_zero_annihilates(
                 raise _counterexample(declaration, law, (value,), left, right)
 
 
-def _check_law(metta: MeTTa, declaration: DeclaredAlgebra, law: str) -> None:
+def _check_law(metta: Space, declaration: DeclaredAlgebra, law: str) -> None:
     combine = declaration.combine_values
     extend = declaration.extend_values
     operation = combine if law.startswith("combine-") else extend
@@ -565,7 +567,7 @@ def _check_law(metta: MeTTa, declaration: DeclaredAlgebra, law: str) -> None:
         _check_zero_annihilates(metta, declaration, law)
 
 
-def _validate_laws(metta: MeTTa, declaration: DeclaredAlgebra) -> None:
+def _validate_laws(metta: Space, declaration: DeclaredAlgebra) -> None:
     equational = declaration.laws & _EQUATIONAL_LAWS
     if equational and not declaration.carrier:
         msg = (
@@ -580,16 +582,16 @@ def _validate_laws(metta: MeTTa, declaration: DeclaredAlgebra) -> None:
         _check_law(metta, declaration, law)
 
 
-def _list(head: str, values: Iterable[Any]) -> Expr:
-    return Expr((Sym(head), *(encode(value) for value in values)))
+def _list(head: str, values: Iterable[Any]) -> Expression:
+    return Expression((Symbol(head), *(_encode(value) for value in values)))
 
 
-def _symbol_list(head: str, values: Iterable[str]) -> Expr:
-    return Expr((Sym(head), *(Sym(value) for value in values)))
+def _symbol_list(head: str, values: Iterable[str]) -> Expression:
+    return Expression((Symbol(head), *(Symbol(value) for value in values)))
 
 
 def declare(
-    metta: MeTTa,
+    metta: Space,
     name: str,
     *,
     combine: str,
@@ -617,19 +619,19 @@ def declare(
         name=name,
         combine=combine,
         extend=extend,
-        zero=encode(zero),
-        one=encode(one),
+        zero=_encode(zero),
+        one=_encode(one),
         laws=_canonical_laws(laws),
-        carrier=tuple(encode(value) for value in carrier),
+        carrier=tuple(_encode(value) for value in carrier),
         requires=frozenset(requires),
     )
     _validate_laws(metta, declaration)
-    atom = Expr(
+    atom = Expression(
         (
-            Sym("algebra"),
-            Sym(name),
-            Sym(combine),
-            Sym(extend),
+            Symbol("algebra"),
+            Symbol(name),
+            Symbol(combine),
+            Symbol(extend),
             declaration.zero,
             declaration.one,
             _symbol_list("laws", sorted(declaration.laws)),
@@ -637,38 +639,38 @@ def declare(
             _symbol_list("requires", sorted(declaration.requires)),
         )
     )
-    metta.space("&petta").add(atom)
+    Space("&petta", _runtime=metta.runtime).add(atom)
     _REGISTRY[_key(metta, name)] = declaration
     return atom
 
 
-def tagged_fact(tag: Any, proposition: Any) -> Expr:
+def tagged_fact(tag: Any, proposition: Any) -> Expression:
     """Build the normative stored form for one tagged fact."""
-    tag_atom = encode(tag)
+    tag_atom = _encode(tag)
     _validate_rate_tag(tag_atom)
-    return Expr((Sym("fact"), tag_atom, encode(proposition)))
+    return Expression((Symbol("fact"), tag_atom, _encode(proposition)))
 
 
-def tagged_rule(tag: Any, head: Any, *premises: Any) -> Expr:
+def tagged_rule(tag: Any, head: Any, *premises: Any) -> Expression:
     """Build the once-ever algebra-agnostic threading form for one rule."""
-    tag_atom = encode(tag)
+    tag_atom = _encode(tag)
     _validate_rate_tag(tag_atom)
-    return Expr(
+    return Expression(
         (
-            Sym("rule"),
+            Symbol("rule"),
             tag_atom,
-            encode(head),
+            _encode(head),
             _list("premises", premises),
         )
     )
 
 
 def _head(atom: Atom, name: str, arity: int | None = None) -> bool:
-    if not isinstance(atom, Expr) or not atom.children:
+    if not isinstance(atom, Expression) or not atom.children:
         return False
     first = atom.children[0]
     return (
-        isinstance(first, Sym)
+        isinstance(first, Symbol)
         and first.name == name
         and (arity is None or len(atom.children) == arity)
     )
@@ -678,7 +680,7 @@ def _program(atoms: Sequence[Atom]) -> tuple[list[TaggedAnswer], list[_Rule]]:
     facts: list[TaggedAnswer] = []
     rules: list[_Rule] = []
     for order, atom in enumerate(atoms):
-        if not isinstance(atom, Expr):
+        if not isinstance(atom, Expression):
             continue
         if _head(atom, "fact", 3):
             facts.append(
@@ -691,7 +693,7 @@ def _program(atoms: Sequence[Atom]) -> tuple[list[TaggedAnswer], list[_Rule]]:
             )
         elif _head(atom, "rule", 4):
             body = atom.children[3]
-            if not isinstance(body, Expr) or not _head(body, "premises"):
+            if not isinstance(body, Expression) or not _head(body, "premises"):
                 msg = f"tagged_rule_body_malformed({atom}, expected=(premises ...))"
                 raise AlgebraDeclarationError(msg)
             rules.append(
@@ -713,7 +715,7 @@ def _merge_bindings(
 
 
 def _derive_rule(
-    metta: MeTTa,
+    metta: Space,
     declaration: DeclaredAlgebra,
     rule: _Rule,
     available: Sequence[TaggedAnswer],
@@ -756,7 +758,7 @@ def _derive_rule(
     answers: list[TaggedAnswer] = []
     for bindings, tag, tokens, proof in states:
         value = substitute(rule.head, bindings)
-        if any(isinstance(node, Var) for node in _walk(value)):
+        if any(isinstance(node, Variable) for node in _walk(value)):
             continue
         answers.append(TaggedAnswer(value, tag, tokens, proof))
     return answers
@@ -767,7 +769,7 @@ def _walk(atom: Atom) -> Iterable[Atom]:
     while stack:
         current = stack.pop()
         yield current
-        if isinstance(current, Expr):
+        if isinstance(current, Expression):
             stack.extend(reversed(current.children))
 
 
@@ -776,7 +778,7 @@ def _signature(answer: TaggedAnswer) -> tuple[str, str, frozenset[int], tuple[in
 
 
 def _fuse(
-    metta: MeTTa,
+    metta: Space,
     declaration: DeclaredAlgebra,
     answers: Sequence[TaggedAnswer],
 ) -> list[TaggedAnswer]:
@@ -800,7 +802,7 @@ def _fuse(
 
 
 def evaluate(
-    metta: MeTTa,
+    metta: Space,
     query: str | Atom,
     *,
     algebra: str,
@@ -809,7 +811,7 @@ def evaluate(
     """Evaluate all finite tagged derivations in declaration order."""
     declaration = require(metta, algebra)
     _require_context_capabilities(metta, declaration)
-    goal = parse(query) if isinstance(query, str) else encode(query)
+    goal = parse(query) if isinstance(query, str) else _encode(query)
     available, rules = _program(metta.atoms())
     seen = {_signature(answer) for answer in available}
     for _ in range(max_rounds):
@@ -849,10 +851,10 @@ class AlgebraEvaluationError(PettaError):
 
 def _rate(tag: Atom) -> float:
     value: Any = tag
-    if isinstance(tag, Expr) and _head(tag, "rate", 2):
+    if isinstance(tag, Expression) and _head(tag, "rate", 2):
         value = tag.children[1]
-    if isinstance(value, Gnd):
-        value = decode(value)
+    if isinstance(value, Grounded):
+        value = _decode(value)
     if isinstance(value, bool) or not isinstance(value, Real):
         msg = f"rate_not_numeric({tag})"
         raise RateDeclarationError(msg)
@@ -869,7 +871,7 @@ def _validate_rate_tag(tag: Atom) -> None:
 
 
 def sample(
-    metta: MeTTa,
+    metta: Space,
     query: str | Atom,
     *,
     algebra: str,

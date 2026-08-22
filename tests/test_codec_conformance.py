@@ -13,11 +13,11 @@ implementations in two languages, which is what the corpus is for.
 Guarantees:
   - a renderer refusal is licensed only where the corpus marks the spelling
     as non-invertible [tested:
-    test_a_renderer_may_refuse_only_a_non_round_trip_text; commit=53686aed41e7ff02de69052198afdb537536cbdb]
+    test_a_renderer_may_refuse_only_a_non_round_trip_text; commit=WORKTREE]
   - undefined truth has one value-and-delay frame without a residual-program
     variant [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+    commit=WORKTREE]
 
 Open Obligations:
   To Do: None
@@ -32,8 +32,7 @@ import sys
 
 import pytest
 
-from petta import _json, testing
-from petta.atoms import atom_from_wire, parse
+from petta import _json, parse, testing, wire
 from petta.testing import check_codec, codec_corpus, codec_plan
 
 CORE = frozenset({"s", "v", "n", "g", "e"})
@@ -102,9 +101,9 @@ class JanusCodec:
         # A fresh space per program, so a transcript that defines an
         # equation does not leave it where the next run of the corpus, or
         # the other codec's run of the same program, would see it twice.
-        with self._metta.new_space() as scratch:
+        with self._metta._new_space() as scratch:
             return self._rt.must(
-                "petta_py_run(S, Sp, G)", S=program, Sp=scratch.space_name
+                "petta_py_run(S, Sp, G)", S=program, Sp=scratch.name
             )["G"]
 
 
@@ -134,20 +133,18 @@ class JsonWireCodec:
     def read(self, text):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return parse(text).to_wire()
 
-    def roundtrip(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return atom_from_wire(wire).to_wire()
+    def roundtrip(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        return wire.atom_from_wire(payload).to_wire()
 
-    def render(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return str(atom_from_wire(wire))
+    def render(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        return str(wire.atom_from_wire(payload))
 
-    def transport(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return _json.loads(_json.dumps(wire))
+    def transport(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        return _json.loads(_json.dumps(payload))
 
-    def frame(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+    def frame(self, payload):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         # The u frame is not an atom, so it is read below atom_from_wire.
-        from petta._atom_wire import from_wire
-
-        undefined = from_wire(wire)
+        undefined = wire.from_wire(payload)
         return {
             "value": undefined.value.to_wire(),
             "why": undefined.why,
@@ -158,7 +155,7 @@ class JsonWireCodec:
         raise AssertionError(msg)
 
     def transcript(self, program):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        with self._metta.new_space() as scratch:
+        with self._metta._new_space() as scratch:
             return [[atom.to_wire() for atom in group] for group in scratch.run(program)]
 
 

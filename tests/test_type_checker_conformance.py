@@ -9,7 +9,11 @@ Guarantees:
   - corpus output is captured without changing the evaluated group shape
     [tested:
     test_a_type_variable_bound_through_an_application_constrains_the_next_argument;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861].
+    commit=WORKTREE].
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
@@ -37,7 +41,7 @@ needs_arbiter = pytest.mark.skipif(
 
 def _run_file(metta, name: str) -> tuple[list[list[str]], str]:
     source = (_TYPES_META / name).read_text()
-    with metta.new_space() as isolated:
+    with metta._new_space() as isolated:
         with isolated.capture() as output:
             groups = isolated.run(source)
     return [[str(atom) for atom in group] for group in groups], output.text
@@ -45,7 +49,7 @@ def _run_file(metta, name: str) -> tuple[list[list[str]], str]:
 
 @needs_arbiter
 def test_a_type_variable_bound_through_an_application_constrains_the_next_argument():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     groups, _ = _run_file(metta, "11_atom_parameter_type_variable.metta")
     assert groups == [
         [],
@@ -65,7 +69,7 @@ def test_a_type_variable_bound_through_an_application_constrains_the_next_argume
 @needs_arbiter
 def test_quote_survives_as_a_value():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     groups, _ = _run_file(
-        MeTTa(verbose=False), "30_evaluation_control.metta"
+        MeTTa(verbose=False).self, "30_evaluation_control.metta"
     )
     assert groups == [
         ["(-> Atom Atom)"],

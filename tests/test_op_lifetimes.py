@@ -6,7 +6,7 @@ fails.
 Guarantees:
   - unannotated generator operations need no typed declaration switch
     [tested: test_a_nondeterministic_ops_generator_releases_what_it_holds;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,7 +18,7 @@ import uuid
 
 import pytest
 
-from petta import S, Sym
+from petta import S, Symbol
 from petta._ops import dispatch_many
 
 
@@ -49,12 +49,12 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
     released = []
     reading = unique("rows")
 
-    @metta.register_op(name=reading)
+    @metta.op(name=reading)
     def rows():
         handle = source.open(encoding="utf-8")
         try:
             for line in handle:
-                yield Sym(line.strip())
+                yield Symbol(line.strip())
         finally:
             handle.close()
             released.append(handle)
@@ -69,7 +69,7 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
 
     failing = unique("leaky")
 
-    @metta.register_op(name=failing)
+    @metta.op(name=failing)
     def leaky():
         try:
             yield from range(10**6)

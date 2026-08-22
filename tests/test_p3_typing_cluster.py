@@ -1,22 +1,22 @@
 """Purpose: exercise the public typing and policy contracts introduced by P3.
 Guarantees:
   - all six dispatch axes are catalog-readable and patchable per function.
-  [tested: test_every_dispatch_axis_is_readable_settable_and_defaulted; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+  [tested: test_every_dispatch_axis_is_readable_settable_and_defaulted; commit=WORKTREE]
   - type faults remain ordinary Error values that ``if-error`` can observe.
-  [tested: test_an_argument_type_fault_is_a_value_a_program_can_catch; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+  [tested: test_an_argument_type_fault_is_a_value_a_program_can_catch; commit=WORKTREE]
   - DontEvalType declarations mask evaluation without relying on a type name.
-  [tested: test_a_user_declared_lazy_type_receives_its_argument_unevaluated; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+  [tested: test_a_user_declared_lazy_type_receives_its_argument_unevaluated; commit=WORKTREE]
   - a source duplicate is idempotent, operation registration refuses to adopt
     its existing row, and a duplicate public batch is rejected atomically.
-  [tested: test_a_duplicate_declaration_names_the_first_one; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+  [tested: test_a_duplicate_declaration_names_the_first_one; commit=WORKTREE]
   - pragma! validates bound values before a working setting can change,
     keeps the arbiter's HE spellings accepted and unenforced, and refuses
     only keys outside the closed registry.
-  [tested: test_pragma_validates_values_and_refuses_only_unknown_keys; commit=e8270f8551083f236ce5134ca299adf5347d6898]
+  [tested: test_pragma_validates_values_and_refuses_only_unknown_keys; commit=WORKTREE]
   - under-applied arrow heads have no type instead of a tuple fallback.
-  [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+  [tested: test_an_underapplied_arrow_head_types_as_the_arbiter_does; commit=WORKTREE]
   - empty-expression type observers report unit without changing classifiers.
-  [tested: test_the_empty_expressions_type_follows_the_arbiters_ruling; commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+  [tested: test_the_empty_expressions_type_follows_the_arbiters_ruling; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -54,7 +54,7 @@ def _remove_dispatch_policy(
 
 
 def test_every_dispatch_axis_is_readable_settable_and_defaulted():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     expected = {
         "(MismatchEnum MismatchOriginal)",
         "(NoMatchEnum NoMatchOriginal)",
@@ -168,7 +168,7 @@ def test_every_dispatch_axis_is_readable_settable_and_defaulted():  # noqa: D103
 
 
 def test_an_argument_type_fault_is_a_value_a_program_can_catch():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     metta.run("(: p32-f (-> Number Number))")
     metta.run("(= (p32-f $x) $x)")
 
@@ -194,7 +194,7 @@ def test_an_argument_type_fault_is_a_value_a_program_can_catch():  # noqa: D103 
 
 
 def test_a_user_declared_lazy_type_receives_its_argument_unevaluated():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     metta.run("(: OpaquePayload DontEvalType)")
     metta.run("(: inspect-opaque (-> OpaquePayload Symbol))")
     metta.run("(= (inspect-opaque $written) (get-metatype $written))")
@@ -230,7 +230,7 @@ def test_a_user_declared_lazy_type_receives_its_argument_unevaluated():  # noqa:
 
 
 def test_a_duplicate_declaration_names_the_first_one():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     first = "(: duplicate-op (-> Number Number))"
     metta.run(first)
     metta.run(first)
@@ -242,7 +242,7 @@ def test_a_duplicate_declaration_names_the_first_one():  # noqa: D103  -- pytest
         return value
 
     with pytest.raises(Exception) as refused:
-        metta.register_op(duplicate_op, name="duplicate-op")
+        metta.op(duplicate_op, name="duplicate-op")
 
     message = str(refused.value)
     assert "duplicate" in message
@@ -272,7 +272,7 @@ def test_pragma_validates_values_and_refuses_only_unknown_keys():
     accepted and unenforced, max-stack-depth answers its error as an atom,
     and only a key outside the closed registry is a hard refusal.
     """
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
 
     assert _answers(metta, "!(pragma! max-time 0.25)") == ["()"]
     assert _answers(metta, "!(pragma! max-time none)") == ["()"]
@@ -314,7 +314,7 @@ def test_pragma_validates_values_and_refuses_only_unknown_keys():
 
 
 def test_an_underapplied_arrow_head_types_as_the_arbiter_does():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     metta.run("(: Nil (List $t))")
     metta.run("(: Cons (-> $t (List $t) (List $t)))")
 
@@ -323,7 +323,7 @@ def test_an_underapplied_arrow_head_types_as_the_arbiter_does():  # noqa: D103  
 
 
 def test_the_empty_expressions_type_follows_the_arbiters_ruling():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     metta.run("(: A Type)")
     metta.run("(: h (-> %Undefined% Atom))")
     metta.run("(: classifier-control (-> Number Atom))")

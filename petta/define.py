@@ -11,24 +11,24 @@ Guarantees:
   - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
     docstring after the twin dispatcher contains that clause [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
-    commit=6b1c4595fd5228557b563b56a22cdd8635052a00]
+    commit=WORKTREE]
   - local annotated assignments resolve through a syntax-limited namespace
     reader and compile to enforceable in-place type claims [tested:
-    test_an_annotated_binding_emits_its_claim; commit=def7a71556f810463a3c0930ed0c37a3f55c7c83]
+    test_an_annotated_binding_emits_its_claim; commit=WORKTREE]
   - source spans, source docstrings, lexical captures, and call purity are
     derived from the parsed function and exposed as immutable facts [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+    commit=WORKTREE]
   - ``yield from`` delegates only a statically known-nondeterministic call
     and refuses an ambiguous engine call instead of silently splicing it
     [tested:
     test_yield_from_a_call_delegates_only_when_nondeterminism_is_known;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d]
+    commit=WORKTREE]
   - calling a Defined object evaluates its application except in a rules
     builder's scope-local staging context [tested:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -51,10 +51,10 @@ from ._define_statements import StatementCompilerMixin, _is_generator, _superpos
 from ._define_twins import (
     _python_twin,
 )
+from ._rules import _defined_calls_are_staged
 from ._type_annotations import type_atoms_for
-from .atoms import Atom, Expr, Gnd, Sym, Undefined, Var, encode, map_atoms
+from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _encode, _map_atoms
 from .errors import CompileError
-from .rules import _defined_calls_are_staged
 
 __all__ = ["Defined", "DefinitionFacts", "PrologBacked", "SourceSpan", "compile_function"]
 
@@ -194,7 +194,7 @@ def _initial_scope(params: list[str] | dict[str, str]) -> dict[str, str]:
     return params.copy() if isinstance(params, dict) else {param: param for param in params}
 
 
-def canonical_aux_set(equations: tuple[Expr, ...], name: str) -> tuple[Expr, ...]:
+def canonical_aux_set(equations: tuple[Expression, ...], name: str) -> tuple[Expression, ...]:
     """Canonicalize a main equation and all its helper equations together.
 
     One shared name mapping preserves references between the main equation,
@@ -204,14 +204,14 @@ def canonical_aux_set(equations: tuple[Expr, ...], name: str) -> tuple[Expr, ...
     mapping: dict[str, str] = {}
 
     def rename(atom: Atom) -> Atom:
-        if isinstance(atom, Sym) and atom.name.startswith(f"{name}--"):
+        if isinstance(atom, Symbol) and atom.name.startswith(f"{name}--"):
             if atom.name not in mapping:
                 stem = atom.name.rsplit("-", 1)[0]
                 mapping[atom.name] = f"{stem}-{len(mapping) + 1}"
-            return Sym(mapping[atom.name])
+            return Symbol(mapping[atom.name])
         return atom
 
-    return tuple(cast(Expr, map_atoms(equation, rename)) for equation in equations)
+    return tuple(cast(Expression, _map_atoms(equation, rename)) for equation in equations)
 
 
 class Defined(Generic[_P, _R]):
@@ -268,13 +268,13 @@ class Defined(Generic[_P, _R]):
         self.__name__ = name
         self.__wrapped__ = py
 
-    def __call__(self, *args: Any) -> Expr | list[Atom | Undefined]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def __call__(self, *args: Any) -> Expression | list[Atom | Undefined]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if len(args) != len(self.params):
             msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
             raise TypeError(
                 msg
             )
-        term = Expr([Sym(self.name), *(encode(a) for a in args)])
+        term = Expression([Symbol(self.name), *(_encode(a) for a in args)])
         if _defined_calls_are_staged():
             return term
         return self.space.eval(term)
@@ -305,9 +305,9 @@ class Defined(Generic[_P, _R]):
         return self.facts.pure if self.facts is not None else None
 
     @property
-    def head(self) -> Expr:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        return Expr(
-            [Sym(self.name), *(self.patterns.get(p, Var(p)) for p in self.params)]
+    def head(self) -> Expression:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        return Expression(
+            [Symbol(self.name), *(self.patterns.get(p, Variable(p)) for p in self.params)]
         )
 
     def source(self) -> str:
@@ -321,7 +321,7 @@ class Defined(Generic[_P, _R]):
         nothing more; calling it on a definition that was never cached is the
         engine's answer to that, not an error invented here.
         """
-        self.space.eval(Expr([Sym("table-clear"), self.head]))
+        self.space.eval(Expression([Symbol("table-clear"), self.head]))
 
     def cache_info(self) -> dict[str, int]:
         """The table's counters, functools.lru_cache's own name.
@@ -332,13 +332,13 @@ class Defined(Generic[_P, _R]):
         misses for them would be a translation nobody asked for
         [source: lib/lib_tabling.pl, metta_table_statistics].
         """
-        answers = self.space.eval(Expr([Sym("table-stats"), self.head]))
+        answers = self.space.eval(Expression([Symbol("table-stats"), self.head]))
         if not answers:
             return {}
         return {
             str(row[0]): int(row[1])
             for row in answers[0]
-            if isinstance(row, Expr) and len(row) == 2
+            if isinstance(row, Expression) and len(row) == 2
         }
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
@@ -390,7 +390,7 @@ class Compiled(NamedTuple):
     body: Atom
     twin: Callable
     generator: bool
-    aux: list[Expr]
+    aux: list[Expression]
     runtime_ops: frozenset[str]
     hazards: frozenset[str]
     facts: DefinitionFacts
@@ -545,7 +545,7 @@ def _parameters(node: ast.FunctionDef) -> tuple[list[str], dict[str, Atom]]:
                 construct="defaults",
                 line=node.lineno,
             )
-        patterns[arg.arg] = Gnd(default.value)
+        patterns[arg.arg] = Grounded(default.value)
     return params, patterns
 
 
@@ -605,7 +605,7 @@ class _Compiler(
         self.used: set[str] = _provided(used, set(self.scope.values()))
         # Auxiliary equations this definition grows: loop helpers and lifted
         # inner definitions, shared by every compiler of the definition.
-        self.aux: list[Expr] = _provided(aux, [])
+        self.aux: list[Expression] = _provided(aux, [])
         # Python name -> (equation name, lifted outer names, is_generator)
         # for inner defs; a call site prepends the lifted names' CURRENT
         # variables, which is Python's own late binding, resolved per call.
@@ -687,7 +687,7 @@ class _Compiler(
             annotation_resolver=self._annotation_resolver,
         )
 
-    def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expr:
+    def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expression:
         """`for var in iter_node` around a compiled body.
 
         A call to a known-nondeterministic name IS the iteration: binding it
@@ -699,9 +699,9 @@ class _Compiler(
             and isinstance(iter_node.func, ast.Name)
             and self.nondet(iter_node.func.id)
         ):
-            return Expr([Sym("let"), Var(var), self.expression(iter_node), body])
+            return Expression([Symbol("let"), Variable(var), self.expression(iter_node), body])
         source = self.expression(iter_node)
-        return Expr([Sym("let"), Var(var), Expr([Sym("superpose"), source]), body])
+        return Expression([Symbol("let"), Variable(var), Expression([Symbol("superpose"), source]), body])
 
     def _yield_from(self, node: ast.YieldFrom) -> Atom:
         """Delegate known generators and refuse call-shaped ambiguity.
@@ -718,7 +718,7 @@ class _Compiler(
         if isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
             called = value.func.id
             if called in self._builtins and called not in self.scope:
-                return Expr([Sym("superpose"), self.expression(value)])
+                return Expression([Symbol("superpose"), self.expression(value)])
             if called in (self.pyname, self.name) or self.nondet(called):
                 return self.expression(value)
             if called in self.lifted or self.known(called):
@@ -734,7 +734,7 @@ class _Compiler(
                     construct="yield from call",
                     line=node.lineno,
                 )
-        return Expr([Sym("superpose"), self.expression(value)])
+        return Expression([Symbol("superpose"), self.expression(value)])
 
     def _bind(self, name: str) -> str:
         """The MeTTa variable a (re)binding of name writes to."""

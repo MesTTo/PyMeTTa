@@ -19,7 +19,7 @@ Open Obligations:
 
 import pytest
 
-from petta import EngineError
+from petta.errors import EngineError
 
 
 def _answers(space, query):
@@ -37,7 +37,7 @@ def three(metta):
     across tests and a three-answer body would quietly become a nine-answer
     one.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    space = metta.new_space()
+    space = metta._new_space()
     for answer in (1, 2, 3):
         space.run(f"(= (petta-three) {answer})")
     return space
@@ -100,7 +100,7 @@ def test_a_transaction_rolls_back_every_answers_writes_together(three):
         msg = "the host operation failed"
         raise RuntimeError(msg)
 
-    three.register_op(blow, name="petta-blow")
+    three.op(blow, name="petta-blow")
     three.run(
         "(= (petta-write-then-raise) (progn (superpose ("
         "(add-atom (context-space) (lost 1)) (add-atom (context-space) (lost 2)))) "
@@ -160,7 +160,7 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
         msg = "the host operation failed"
         raise RuntimeError(msg)
 
-    three.register_op(blow, name="petta-a-blow")
+    three.op(blow, name="petta-a-blow")
     three.run(
         "(= (petta-a-raise) (progn (superpose ("
         "(add-atom (context-space) (a-lost 1)) (add-atom (context-space) (a-lost 2)))) "

@@ -12,7 +12,7 @@ import re
 
 import pytest
 
-from petta import EngineError
+from petta.errors import EngineError
 
 
 @pytest.fixture(scope="module")

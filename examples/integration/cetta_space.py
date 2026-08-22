@@ -177,12 +177,12 @@ def demo() -> None:
     if cetta is None:
         skip("cetta is not on PATH and PETTA_CETTA does not name it")
     import petta
-    from petta import S, V, expr
-    from petta.atoms import Gnd
+    from petta import S, V, Expression
+    from petta.atoms import Grounded
 
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     space = CettaSpace(cetta=cetta)
-    m.register_space(space, "&cetta")
+    m._register_space(space, "&cetta")
     m.run("!(add-atom &cetta (edge a b))")
     m.run("!(add-atom &cetta (edge a c))")
     (group,) = m.run("!(collapse (match &cetta (edge a $x) $x))")
@@ -195,7 +195,7 @@ def demo() -> None:
         m.parse,
         cetta=cetta,
     )
-    rows = m.eval(expr(S.unify, Gnd(matcher), expr(S.sol, V.x), V.x, S.none))
+    rows = m.eval(Expression(S.unify, Grounded(matcher), Expression(S.sol, V.x), V.x, S.none))
     check("CeTTa answers bind inside unify", sorted(str(a) for a in rows),
           ["-2", "2"])
     done("cetta_space")

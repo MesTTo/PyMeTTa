@@ -12,36 +12,36 @@ import random
 
 from _common import check, done
 
-from petta import MeTTa, S, V, decode, expr
+from petta import MeTTa, S, V, Expression, wire
 
 random.seed(11)
 TARGET = [1, 0, 1, 1, 0, 1, 0, 1]
-m = MeTTa().new_space()
+m = MeTTa().space()
 
 for index in range(16):
     genome = [random.randint(0, 1) for _ in TARGET]
-    m.add(expr(S.member, index, expr(*genome)))
+    m.add(Expression(S.member, index, Expression(*genome)))
 
 
-@m.register_op
+@m.op
 def fitness(genome) -> int:
-    bits = [int(decode(b)) for b in genome]
+    bits = [int(wire.decode(b)) for b in genome]
     return sum(1 for got, want in zip(bits, TARGET) if got == want)
 
 
-@m.register_op
+@m.op
 def breed(a, b):
     cut = random.randrange(1, len(TARGET))
-    bits_a = [int(decode(x)) for x in a]
-    bits_b = [int(decode(x)) for x in b]
+    bits_a = [int(wire.decode(x)) for x in a]
+    bits_b = [int(wire.decode(x)) for x in b]
     child = bits_a[:cut] + bits_b[cut:]
     slot = random.randrange(len(child))
     if random.random() < 0.3:
         child[slot] = 1 - child[slot]
-    return expr(*child)
+    return Expression(*child)
 
 
-@m.register_op(name="next-generation")
+@m.op(name="next-generation")
 def next_generation() -> bool:
     rows = m.query(S.member(V.i, V.g))
     scored = sorted(rows, key=lambda r: -fitness(r.g))
@@ -49,7 +49,7 @@ def next_generation() -> bool:
     m.run("!(match (context-space) (member $i $g) (remove-atom (context-space) (member $i $g)))")
     for index in range(16):
         a, b = random.sample(parents, 2)
-        m.add(expr(S.member, index, breed(a, b)))
+        m.add(Expression(S.member, index, breed(a, b)))
     return True
 
 

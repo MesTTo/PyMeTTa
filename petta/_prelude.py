@@ -9,11 +9,11 @@ Guarantees:
     `(arguments name atoms)` policies instead of a boolean registration flag
     [tested: test_fstrings_str_round_range_slices,
     test_mixed_numeric_equality_and_membership;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
   - the internal prelude publishes those policies in &petta without leaking
     implementation annotations or helper documentation into &self [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=443d80f634f8074a24ecf28807beef9ecf1a9d0d]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,8 +26,8 @@ from collections.abc import Callable
 from typing import Any
 
 from . import ops as _ops_module
-from ._api_types import MettaName
-from .atoms import Expr, Gnd, S, Sym, expr
+from ._api_types import _OperationName
+from .atoms import Expression, Grounded, S, Symbol, _expr
 
 __all__ = ["NAMES", "install", "pythonic"]
 
@@ -47,7 +47,7 @@ NAMES = (
 )
 
 # The compiler's spelling for an absent slice bound; never user-visible.
-_NO_BOUND = Sym("py-no-bound")
+_NO_BOUND = Symbol("py-no-bound")
 
 
 def pythonic(value: Any) -> Any:
@@ -55,9 +55,9 @@ def pythonic(value: Any) -> Any:
     unwrap, expressions become tuples, a symbol stays itself (the twin
     cannot hold one, and hazard tracking keeps it out of twin paths).
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if isinstance(value, Gnd):
+    if isinstance(value, Grounded):
         return value.value
-    if isinstance(value, Expr):
+    if isinstance(value, Expression):
         return tuple(pythonic(c) for c in value)
     return value
 
@@ -94,18 +94,18 @@ def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude regist
 
     def py_str(value):
         v = pythonic(value)
-        return v.name if isinstance(v, Sym) else str(v)
+        return v.name if isinstance(v, Symbol) else str(v)
 
     def py_repr(value):
         v = pythonic(value)
-        return v.name if isinstance(v, Sym) else repr(v)
+        return v.name if isinstance(v, Symbol) else repr(v)
 
     def py_format(value, spec):
         return format(pythonic(value), pythonic(spec))
 
     def py_str_join(parts):
         return "".join(
-            p.name if isinstance(p, Sym) else str(p) for p in (pythonic(c) for c in parts)
+            p.name if isinstance(p, Symbol) else str(p) for p in (pythonic(c) for c in parts)
         )
 
     def py_in(item, container):
@@ -120,23 +120,23 @@ def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude regist
         return round(pythonic(value), pythonic(digits))
 
     def py_range(*bounds):
-        return Expr([Gnd(i) for i in range(*(pythonic(b) for b in bounds))])
+        return Expression([Grounded(i) for i in range(*(pythonic(b) for b in bounds))])
 
     # Index anything Python can index, plus a MeTTa expression. `py-call`
-    # hands back objects themselves, so Python owns every non-Expr subscript.
+    # hands back objects themselves, so Python owns every non-Expression subscript.
     # Keep this as a comment: internal helper prose is not a user declaration
     # and must not become an @doc atom in every program space.
     def py_at(sequence, index):
         i = pythonic(index)
-        if isinstance(sequence, Expr):
+        if isinstance(sequence, Expression):
             return sequence.children[i]
         return _subscript(pythonic(sequence), i, "index")
 
     def py_slice(sequence, start, stop):
         lower = None if start == _NO_BOUND else pythonic(start)
         upper = None if stop == _NO_BOUND else pythonic(stop)
-        if isinstance(sequence, Expr):
-            return Expr(list(sequence.children[lower:upper]))
+        if isinstance(sequence, Expression):
+            return Expression(list(sequence.children[lower:upper]))
         return _subscript(pythonic(sequence), slice(lower, upper), "slice")
 
     # register is typed as the identity it is, so the table has to say its
@@ -162,7 +162,7 @@ def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude regist
         _ops_module.register(
             runtime,
             fn,
-            name=MettaName(name),
-            declarations=[expr(S.arguments, S[name], S.atoms)],
+            name=_OperationName(name),
+            declarations=[_expr(S.arguments, S[name], S.atoms)],
             arities=arities,
         )

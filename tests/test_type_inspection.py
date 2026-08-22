@@ -21,14 +21,14 @@ from petta import MeTTa
 
 def _counting_engine():
     """An engine whose (petta-effectful) op records every call it gets."""
-    m = MeTTa()
+    m = MeTTa().self
     fired: list[int] = []
 
     def effectful():
         fired.append(1)
         return 1
 
-    m.register_op(effectful, name="petta-effectful")
+    m.op(effectful, name="petta-effectful")
     return m, fired
 
 
@@ -56,7 +56,7 @@ def test_get_type_of_an_application_answers_the_declared_return_type():
     the answer comes from the declaration, so it is the same whether or not
     the body would reduce.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    m = MeTTa()
+    m = MeTTa().self
     m.run("(: literal-return (-> Number Atom))")
     m.run("(= (literal-return $x) (+ $x 1))")
     assert [str(a) for g in m.run("!(get-type (literal-return 2))") for a in g] == ["Atom"]
@@ -78,7 +78,7 @@ def test_one_untyped_component_makes_the_whole_expressions_type_undefined():
     interpreter, byte-identical across both. Before this,
     `!(get-type (aa))` answered `(%Undefined%)`, a one-element tuple.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    m = MeTTa()
+    m = MeTTa().self
     m.run("(: typed-sym Number)")
 
     def answer(query):

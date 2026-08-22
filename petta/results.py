@@ -19,7 +19,7 @@ Guarantees:
   - a one-column Rows rebuilds constructor expressions through build(cls),
     and rows_into selects that path for query(into=cls) [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
-    commit=2bf66c123858feaeaf9909729db3e8700aaca546]
+    commit=WORKTREE]
   - Rows.to_dicts returns one Python-native mapping per row, including empty
     mappings for zero-column rows [tested test_rows_to_dicts_returns_plain_records]
   - eager query results explain empty pattern, join, and guard outcomes [tested
@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import dataclasses
 import html
+import importlib as _importlib
 import reprlib
 import typing
 from collections import UserList
@@ -45,15 +46,14 @@ from difflib import get_close_matches
 from functools import lru_cache
 from typing import Any, NamedTuple, Self, SupportsIndex, TypeVar, overload
 
-from . import convert
 from ._config import config
 from ._optional import require_module
-from .atoms import Atom, Expr, Gnd, Sym, decode
+from .atoms import Atom, Expression, Grounded, Symbol, _decode
 from .errors import EngineError, MettaResultError
 
 __all__ = ["Row", "Rows"]
 
-_ERROR_HEAD = Sym("Error")
+_ERROR_HEAD = Symbol("Error")
 
 
 def error_answer(answer: object, *, space: str | None = None) -> MettaResultError | None:
@@ -62,7 +62,7 @@ def error_answer(answer: object, *, space: str | None = None) -> MettaResultErro
     The head symbol alone decides, MeTTa's own shape `(Error culprit
     reason)`, so a quoted or nested error stays data.
     """
-    if not isinstance(answer, Expr):
+    if not isinstance(answer, Expression):
         return None
     parts = answer.children
     if not parts or parts[0] != _ERROR_HEAD:
@@ -110,8 +110,8 @@ class _QueryContext(NamedTuple):
 
 def _plain(value: Any) -> Any:
     """Decode a ground value and spell symbolic structure as source text."""
-    if isinstance(value, Gnd):
-        return decode(value)
+    if isinstance(value, Grounded):
+        return _decode(value)
     return str(value) if isinstance(value, Atom) else value
 
 
@@ -380,14 +380,13 @@ class Rows(UserList[Row]):
             raise TypeError(
                 msg
             )
-        # Import after package initialization to break results -> space ->
-        # results while keeping the retained context serializable.
-        from ._space_diagnostics import explain_empty_query  # noqa: PLC0415
-        from .space import MeTTa  # noqa: PLC0415
-
+        # Resolve after package initialization so eager query results stay in
+        # the core import layer without a static edge back to the facade.
+        diagnostics = _importlib.import_module(f"{__package__}._space_diagnostics")
+        space_api = _importlib.import_module(f"{__package__}._space")
         context = self._query
-        return explain_empty_query(
-            MeTTa(context.space),
+        return diagnostics.explain_empty_query(
+            space_api.Space(context.space),
             context.patterns,
             context.where,
         )
@@ -420,6 +419,7 @@ class Rows(UserList[Row]):
         if not isinstance(column, str):
             msg = "build(column, cls) needs a column name"
             raise TypeError(msg)
+        convert = _importlib.import_module(f"{__package__}.convert")
         return [convert.build(value, cls) for value in self._column(column)]
 
     def to_dicts(self) -> list[dict[str, Any]]:
@@ -615,7 +615,9 @@ def rows_into(rows: Rows, cls: type) -> list:  # noqa: C901  -- rows_into keeps 
             ):
                 kwargs[name] = atom
             else:
-                kwargs[name] = convert.build(atom, annotation)
+                kwargs[name] = _importlib.import_module(
+                    f"{__package__}.convert"
+                ).build(atom, annotation)
         built.append(cls(**kwargs))
     return built
 
@@ -625,13 +627,15 @@ def _constructor_rows(rows: Rows, cls: type[_BuildT]) -> list[_BuildT] | None:
     if len(rows.columns) != 1 or typing.is_typeddict(cls):
         return None
     try:
-        registration = convert.ensure_registered(cls)
+        registration = _importlib.import_module(
+            f"{__package__}.convert"
+        ).ensure_registered(cls)
     except TypeError:
         return None
     if registration.image != "expression":
         return None
     values = rows._column(rows.columns[0])
-    expected = Sym(registration.type_name)
-    if not all(isinstance(value, Expr) and value.head == expected for value in values):
+    expected = Symbol(registration.type_name)
+    if not all(isinstance(value, Expression) and value.head == expected for value in values):
         return None
     return rows.build(cls)

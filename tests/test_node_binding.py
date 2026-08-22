@@ -44,7 +44,7 @@ from typing import Any
 import pytest
 
 import petta
-from petta.atoms import atom_from_wire
+from petta import wire
 
 _BINDING = Path(__file__).resolve().parents[3] / "bindings" / "node"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
@@ -62,7 +62,7 @@ _EXPECTED_REFUSALS = [
 # Where the two hosts render the SAME atom differently. It is a pinned
 # inventory rather than a filter: a divergence that is not listed fails the
 # comparison, and one that is listed carries why. It is EMPTY because
-# Gnd.__str__ implements the same float layout law the engine's swrite/2
+# Grounded.__str__ implements the same float layout law the engine's swrite/2
 # does, so the one entry it held (repr's 1e+20 against the engine's
 # spelling) resolved when the Python surface stopped being a second number
 # writer; the mechanism stays for the next real divergence.
@@ -123,10 +123,10 @@ def _number_from_text(text: str) -> int | float:
 def _atom_from_transport(transport: list):
     tag = transport[0]
     if tag == "n":
-        return atom_from_wire(["n", _number_from_text(transport[1])])
+        return wire.atom_from_wire(["n", _number_from_text(transport[1])])
     if tag == "e":
-        return atom_from_wire(["e", [_wire_from_transport(item) for item in transport[1]]])
-    return atom_from_wire(transport)
+        return wire.atom_from_wire(["e", [_wire_from_transport(item) for item in transport[1]]])
+    return wire.atom_from_wire(transport)
 
 
 def _wire_from_transport(transport: Any) -> Any:
@@ -360,7 +360,7 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
     host against a written-down grammar. A codec can satisfy the grammar and
     still disagree with the engine that ships beside it.
     """
-    engine = petta.MeTTa()
+    engine = petta.MeTTa().self
 
     reported = [(entry["file"], entry["missing"]) for entry in node_report["refusals"]]
     assert reported == _EXPECTED_REFUSALS

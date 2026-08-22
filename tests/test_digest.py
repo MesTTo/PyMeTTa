@@ -15,11 +15,11 @@ import sys
 
 import pytest
 
-from petta import S, val
+from petta import S, ground
 
 
 def test_digest_ignores_order_and_variable_names(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as a, metta.new_space() as b:
+    with metta._new_space() as a, metta._new_space() as b:
         a.add(S.dg(1), S.dg(2))
         a.run("(= (dg-f $x) (+ $x 1))")
         b.run("(= (dg-f $renamed) (+ $renamed 1))")
@@ -31,7 +31,7 @@ def test_digest_ignores_order_and_variable_names(metta):  # noqa: D103  -- pytes
 
 
 def test_digest_counts_duplicates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as a, metta.new_space() as b:
+    with metta._new_space() as a, metta._new_space() as b:
         a.add(S.dup(S.x))
         b.add(S.dup(S.x))
         b.add(S.dup(S.x))
@@ -39,11 +39,11 @@ def test_digest_counts_duplicates(metta):  # noqa: D103  -- pytest discovers or 
 
 
 def test_digest_matches_across_processes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as here:
+    with metta._new_space() as here:
         here.run("(dgx alpha) (dgx beta) (= (dgx-f $v) (* $v 2))")
         program = (
             "from petta import MeTTa\n"
-            "m = MeTTa().new_space()\n"
+            "m = MeTTa().space()\n"
             'm.run("(= (dgx-f $other) (* $other 2)) (dgx beta) (dgx alpha)")\n'
             "print(m.digest())\n"
         )
@@ -61,8 +61,8 @@ def test_digest_matches_across_processes(metta):  # noqa: D103  -- pytest discov
 
 
 def test_digest_refuses_live_objects(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as m:
-        m.add(S.holds(val(object())))
+    with metta._new_space() as m:
+        m.add(S.holds(ground(object())))
         with pytest.raises(ValueError, match="cross-process identity"):
             m.digest()
 
@@ -83,7 +83,7 @@ def test_digest_refuses_live_objects(metta):  # noqa: D103  -- pytest discovers 
     ],
 )
 def test_digest_refuses_symbols_without_round_trip_text(metta, name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as m:
+    with metta._new_space() as m:
         m.add(S.container(S[name]))
         with pytest.raises(ValueError, match=r"cannot write symbol"):
             m.digest()
@@ -101,11 +101,11 @@ def test_refuses_a_number_with_no_round_trip_text(metta, tmp_path, number, opera
     and ``(py-atom "float('inf')")`` answers one as this constructor does,
     which is exactly why the seam must keep refusing to store them. Before
     it answered for numbers, a text save of this space wrote ``(holds
-    inf)`` and loading it back gave ``Sym('inf')``, with nothing reported
+    inf)`` and loading it back gave ``Symbol('inf')``, with nothing reported
     [measured 2026-08-19].
     """
-    with metta.new_space() as m:
-        m.add(S.holds(val(number)))
+    with metta._new_space() as m:
+        m.add(S.holds(ground(number)))
         with pytest.raises(ValueError, match=r"reads back as a symbol of that spelling"):
             if operation == "digest":
                 m.digest()
@@ -116,12 +116,12 @@ def test_refuses_a_number_with_no_round_trip_text(metta, tmp_path, number, opera
 @pytest.mark.parametrize("number", [0, -3, 2.5, -0.0, 1e10, 1.5e-10, 2**80])
 def test_save_keeps_every_number_it_accepts(metta, tmp_path, number):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "one.metta"
-    with metta.new_space() as writer:
-        writer.add(S.container(val(number)))
+    with metta._new_space() as writer:
+        writer.add(S.container(ground(number)))
         writer.save(path)
-    with metta.new_space() as reader:
+    with metta._new_space() as reader:
         reader.load(path)
-        assert reader.atoms() == [S.container(val(number))]
+        assert reader.atoms() == [S.container(ground(number))]
 
 
 @pytest.mark.parametrize("name", ["plain", "a-b", "<=", "#+", "0x1f", ".5", "3x", "-abc"])
@@ -130,9 +130,9 @@ def test_save_keeps_every_symbol_it_accepts(metta, tmp_path, name):  # noqa: D10
     # read back by the top-level form scanner, which tracks a string state
     # sread alone never sees.
     path = tmp_path / "one.metta"
-    with metta.new_space() as writer:
+    with metta._new_space() as writer:
         writer.add(S.container(S[name]))
         writer.save(path)
-    with metta.new_space() as reader:
+    with metta._new_space() as reader:
         reader.load(path)
         assert reader.atoms() == [S.container(S[name])]

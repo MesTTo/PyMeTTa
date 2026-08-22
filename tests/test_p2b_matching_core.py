@@ -10,18 +10,18 @@ Assumes:
 Guarantees:
   - `quote` scopes a pattern exactly as it scopes a body, so a head written to
     match what a body writes does match it.
-  [tested: test_quote_is_a_scope_in_head_position_too; commit=4465fc492071932eab0b2818a4ccd46f01f0d6aa]
+  [tested: test_quote_is_a_scope_in_head_position_too; commit=WORKTREE]
   - a translator rule's guard, written as a head shape or as a goal in the
     rule's body, cannot instantiate the call it is matched against, so the
     equation holding that call keeps its own head pattern.
   [tested: test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match;
-   commit=4465fc492071932eab0b2818a4ccd46f01f0d6aa]
+   commit=WORKTREE]
   - the compiler says which head pattern position it decided something about,
     which label, and why, for both decisions it can take there, and says
     nothing where the parameter's evaluation mask makes the decision the one
     the programmer asked for.
   [tested: test_the_compiler_names_a_pattern_position_it_turned_into_a_goal;
-   commit=4465fc492071932eab0b2818a4ccd46f01f0d6aa]
+   commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -69,7 +69,7 @@ def test_quote_is_a_scope_in_head_position_too(index, payload):
     and the head compiled the pattern ``[quote, [1|2]]``, so this call had no
     answer at all.
     """
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     body, head = f"qs-body-{index}", f"qs-head-{index}"
     metta.run(f"(= ({body}) (quote {payload}))")
     metta.run(f"(= ({head} (quote {payload})) matched)")
@@ -85,7 +85,7 @@ def test_a_quoted_annotation_pattern_matches_the_annotation_and_not_its_subject(
     ``(quote 5)``, which nobody wrote it for, and refused
     ``(quote (: foo Number))``, which is exactly what it says.
     """
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     metta.run("(= (h3 (quote (: $x Number))) matched)")
     assert _answers(metta, "!(h3 (quote (: foo Number)))") == ["matched"]
     assert _answers(metta, "!(h3 (quote (: 7 Number)))") == ["matched"]
@@ -105,7 +105,7 @@ def test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match():
     head the programmer wrote to match anything matched one symbol and one
     shape, and the other calls had no answer and no message.
     """
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
 
     # The body-guard rule, with the fall-through its decline reaches.
     metta.run("(: p216-bg (-> Atom %Undefined%))")
@@ -142,7 +142,7 @@ def test_the_compiler_names_a_pattern_position_it_turned_into_a_goal(capfd):
     through SWI's message machinery, so ``-q`` batch runs stay quiet while the
     library door, which is where somebody is reading, prints it.
     """
-    metta = MeTTa(verbose=False)
+    metta = MeTTa(verbose=False).self
     metta.run("(= (p22-g $x) (inner $x))")
     capfd.readouterr()
 

@@ -32,7 +32,7 @@ import tempfile
 from collections.abc import Callable
 from typing import Any, TypeAlias
 
-from petta import Expr, MeTTa, S, V, expr
+from petta import Expression, MeTTa, S, V
 
 ALPHA_TERMS = 50_000
 DIGEST_ATOMS = 20_000
@@ -56,13 +56,13 @@ SOURCE_FORMS = 1_000
 SPACE_NAME_CALLS = 30_000
 
 _BIGNUM = 10**40
-_LET_ROW = expr(*(_BIGNUM + index for index in range(LET_ROW_ELEMENTS)))
+_LET_ROW = Expression([_BIGNUM + index for index in range(LET_ROW_ELEMENTS)])
 
 EngineCase: TypeAlias = tuple[MeTTa, Callable[[], int]]
 
 
 def _space() -> MeTTa:
-    return MeTTa().new_space()
+    return MeTTa().space()
 
 
 def close_engine_case(state: EngineCase) -> None:
@@ -117,12 +117,14 @@ def let_heavy(space: MeTTa, iterations: int = LET_ITERATIONS) -> int:
 
 def alpha_unique_case(terms: int = ALPHA_TERMS) -> EngineCase:
     """Build an alpha-equivalence workload over repeated variable shapes."""
-    values = expr(*(S.node(V[f"x{index % 100}"], index % 10) for index in range(terms)))
+    values = Expression(
+        [S.node(V[f"x{index % 100}"], index % 10) for index in range(terms)]
+    )
     space = _space()
 
     def operation() -> int:
         result = space.eval(S["alpha-unique-atom"](values))
-        if len(result) != 1 or not isinstance(result[0], Expr) or len(result[0]) != min(terms, 10):
+        if len(result) != 1 or not isinstance(result[0], Expression) or len(result[0]) != min(terms, 10):
             raise AssertionError(f"alpha-unique returned an invalid result: {result!r}")
         return terms
 
@@ -154,7 +156,7 @@ def digest_case(atoms: int = DIGEST_ATOMS) -> EngineCase:
 
 def py_method_case(calls: int = METHOD_CALLS) -> EngineCase:
     """Call a converted Python string method through MeTTa's py-call."""
-    call = S["py-call"](expr(S[".upper"], "abc"))
+    call = S["py-call"](Expression(S[".upper"], "abc"))
     space = _space()
 
     def operation() -> int:
@@ -170,12 +172,14 @@ def py_method_case(calls: int = METHOD_CALLS) -> EngineCase:
 
 def sort_atom_case(terms: int = SORT_TERMS) -> EngineCase:
     """Sort a deterministic permutation of bignums through sort-atom."""
-    values = expr(*(_BIGNUM + (index * 7_919) % terms for index in range(terms)))
+    values = Expression(
+        [_BIGNUM + (index * 7_919) % terms for index in range(terms)]
+    )
     space = _space()
 
     def operation() -> int:
         result = space.eval(S["sort-atom"](values))
-        if len(result) != 1 or not isinstance(result[0], Expr) or len(result[0]) != terms:
+        if len(result) != 1 or not isinstance(result[0], Expression) or len(result[0]) != terms:
             raise AssertionError(f"sort-atom returned an invalid result: {result!r}")
         if terms and (result[0][0] != _BIGNUM or result[0][-1] != _BIGNUM + terms - 1):
             raise AssertionError("sort-atom did not order the bignum range")
@@ -344,7 +348,7 @@ def save_load_case(format: str, atoms: int = SAVE_LOAD_ATOMS) -> EngineCase:
     def operation() -> int:
         saved = source.save(path, format=format)
         groups = target.load(path)
-        if saved != expected or groups or target.count() != expected:
+        if saved != expected or groups or len(target) != expected:
             raise AssertionError(f"{format} did not round-trip {expected} atoms")
         if target.run("!(benchmark-save-next 41)") != [[42]]:
             raise AssertionError(f"{format} lost the stored equation")
@@ -352,7 +356,7 @@ def save_load_case(format: str, atoms: int = SAVE_LOAD_ATOMS) -> EngineCase:
         target.run("(= (benchmark-save-next $x) (+ $x 1))")
         return saved
 
-    _SAVE_LOAD_HELD[source.space_name] = (target, directory)
+    _SAVE_LOAD_HELD[source.name] = (target, directory)
     return (source, operation)
 
 
@@ -367,7 +371,7 @@ _SAVE_LOAD_HELD: dict[str, tuple[MeTTa, Any]] = {}
 def close_save_load_case(state: EngineCase) -> None:
     """Release a save-load workload: both spaces and the temporary directory."""
     source = state[0]
-    held = _SAVE_LOAD_HELD.pop(source.space_name, None)
+    held = _SAVE_LOAD_HELD.pop(source.name, None)
     close_engine_case(state)
     if held is not None:
         target, directory = held

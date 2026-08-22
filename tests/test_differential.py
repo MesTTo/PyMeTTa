@@ -71,7 +71,7 @@ sys.path.insert(0, {python_dir!r})
 os.environ["PETTA_PATH"] = {repo!r}
 from petta import MeTTa
 
-m = MeTTa()
+m = MeTTa().self
 groups = m.load(sys.argv[1])
 rt = m.runtime
 for group in groups:

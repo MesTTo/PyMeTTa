@@ -64,7 +64,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Final, Self
 
-from .atoms import Atom, _to_atom, atom_from_wire, is_ground, unify
+from .atoms import Atom, _atom_from_wire, _is_ground, _to_atom, unify
 from .errors import PettaError, SubscriberError
 from .structures import MatchIndex
 from .vocabularies import SUBSCRIPTION_EDGE
@@ -453,7 +453,7 @@ class _FoldRegistry:
         this is a shape the write path meets rather than one it can refuse.
         """
         with self._lock:
-            if not is_ground(atom):
+            if not _is_ground(atom):
                 return tuple(
                     fold
                     for fold in self._folds
@@ -514,7 +514,7 @@ class EventStream:
         events = m.events()
         seen = events.fold(
             lambda held, event: [*held, event.atom],
-            space=m.space_name, pattern=S.order(V.id), state=[],
+            space=m.name, pattern=S.order(V.id), state=[],
         )
         m.add(S.order(1))
         seen.take()            # [(order 1)], and the fold starts again
@@ -592,7 +592,7 @@ def publish(action: str, space: str, wire: list) -> bool:
     Public because the stream is: a host binding for another language taps in
     here exactly as the Python shim does.
     """
-    _deliver(action, space, atom_from_wire(wire))
+    _deliver(action, space, _atom_from_wire(wire))
     return True
 
 

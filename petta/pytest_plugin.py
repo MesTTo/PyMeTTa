@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from .space import MeTTa
+from ._space import Space as MeTTa
 
 
 @pytest.fixture(scope="session")
@@ -33,7 +33,7 @@ def metta() -> MeTTa:
 def scratch_space(metta: MeTTa):  # pylint: disable=redefined-outer-name
     """A fresh anonymous space per test, dropped afterwards: stored
     state is isolated; registrations stay process-wide, exactly as
-    new_space documents.
+    the anonymous space factory documents.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space

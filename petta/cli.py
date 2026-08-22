@@ -1,4 +1,9 @@
-"""Purpose: launch the bundled PeTTa runtime through SWI-Prolog.
+"""Purpose: launch either the upstream or current bundled PeTTa runtime through SWI-Prolog.
+Guarantees:
+  - an upstream ``src/main.pl`` tree retains its original command and optional
+    MORK preload, while the current ``engine/main.pl`` tree delegates backend
+    discovery to the engine [tested: test_main_retains_the_upstream_layout and
+    test_main_asks_for_native_backends_and_names_none; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -7,12 +12,13 @@ Open Obligations:
 
 # A launcher runs a program, which is the job rather than a risk; the call
 # below says why the specific one is safe.
+import os
 import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
+from . import _resolve_petta_path
 from ._config import config
-from ._engine import _resolve_petta_path
 
 
 def main(argv=None):
@@ -21,10 +27,14 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     runtime_root = Path(_resolve_petta_path())
-    main_file = runtime_root / "engine" / "main.pl"
+    upstream_mork = (
+        runtime_root / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
+    )
+    upstream = (runtime_root / "src" / "main.pl").is_file() or upstream_mork.is_file()
+    main_file = runtime_root / ("src/main.pl" if upstream else "engine/main.pl")
     command = [
         "swipl",
-        f"--stack_limit={config.stack_limit}",
+        "--stack_limit=8g" if upstream else f"--stack_limit={config.stack_limit}",
         "-q",
         "-s",
         str(main_file),
@@ -32,13 +42,15 @@ def main(argv=None):
         *argv,
     ]
 
-    # Every native backend that is built, and this launcher names none of them.
-    # It used to test for MORK's shared library and LD_PRELOAD it, so a second
-    # backend needed a second branch in a file that has nothing to do with
-    # backends; whether one is usable is now that backend's own business, in
-    # backends/*.pl. The preload was never load-bearing either: the backend
-    # opens its own library with global visibility.
-    command.append("backends")
+    environment = None
+    if upstream:
+        if upstream_mork.is_file():
+            environment = os.environ.copy()
+            environment["LD_PRELOAD"] = str(upstream_mork)
+            command.append("mork")
+    else:
+        # Current runtimes discover every built native backend themselves.
+        command.append("backends")
 
     try:
         # The list form and never shell=True, so nothing here is parsed by a
@@ -46,6 +58,8 @@ def main(argv=None):
         # is the caller's own argv forwarded to the program they invoked. The
         # only element this file chooses is "swipl", resolved on PATH the way
         # every launcher resolves the interpreter it wraps.
+        if upstream:
+            return subprocess.call(command, env=environment)  # noqa: S603  # nosec B603
         return subprocess.call(command)  # noqa: S603  # nosec B603
     except FileNotFoundError as exc:
         msg = "PeTTa's command-line launcher needs the SWI-Prolog 'swipl' binary on PATH"

@@ -6,12 +6,12 @@ differential fuzz.
 Guarantees:
   - subscription hook clauses track whether the active space set is empty
     [tested: test_subscription_hooks_follow_the_active_space_set;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
   - capture, atomic, and speculative execution compose as scopes without
     per-call shape or mode flags [tested: test_run_capture_collects_printed_output,
     test_atomic_run_commits_or_rolls_back_whole,
     test_speculative_run_answers_and_discards;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,26 +34,29 @@ from pathlib import Path
 
 import pytest
 
-import petta
 from petta import (
     Bindings,
-    EngineError,
-    InferenceLimitError,
+    Expression,
     PettaError,
-    ResourceLimitError,
     S,
-    TimeLimitError,
     V,
-    bridge,
     convert,
-    expr,
+    ground,
     remote,
-    val,
+    tables,
 )
 from petta.arrays import EmbeddingStore
-from petta.atoms import Expr, Gnd, Sym, Var
+from petta.atoms import Grounded, Symbol, Variable
+from petta.errors import (
+    EngineError,
+    InferenceLimitError,
+    MettaOperationError,
+    ResourceLimitError,
+    TimeLimitError,
+)
 from petta.events import Event, atom_added
 from petta.integrate import install_reflection_ops
+from petta.subscribe import bridge
 
 hypothesis = pytest.importorskip("hypothesis")
 subscribe_module = importlib.import_module("petta.subscribe")
@@ -62,7 +65,7 @@ events_module = importlib.import_module("petta.events")
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
@@ -201,10 +204,10 @@ def test_subscription_cancel_waits_for_inflight_delivery(monkeypatch):  # noqa: 
 
 
 def test_identical_subscriptions_share_one_reflection_fact(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    reflection = m.space("&petta")
+    reflection = m._at("&petta")
     first = m.subscribe(S.identical(V.value))
     second = m.subscribe(S.identical(V.value))
-    descriptor = S.subscription(S[m.space_name], V.pattern, V.on)
+    descriptor = S.subscription(S[m.name], V.pattern, V.on)
     try:
         assert len(reflection.query(descriptor)) == 1
         second.cancel()
@@ -222,7 +225,7 @@ def test_subscription_callback_fires_inside_the_write(m):  # noqa: D103  -- pyte
     try:
         m.add(S.order(1), S.other(9), S.order(2))
         assert [e.bindings["id"] for e in seen] == [1, 2]
-        assert seen[0].action == "add" and seen[0].space == m.space_name
+        assert seen[0].action == "add" and seen[0].space == m.name
     finally:
         sub.cancel()
     m.add(S.order(3))
@@ -288,7 +291,7 @@ def test_subscription_queue_is_thread_safe(m):  # noqa: D103  -- pytest discover
 
     def produce(offset):
         for value in range(offset, offset + 100):
-            atom_added(m.space_name, S.concurrent(value).to_wire())
+            atom_added(m.name, S.concurrent(value).to_wire())
 
     def drain():
         while not complete.is_set():
@@ -359,18 +362,18 @@ def test_a_grounded_matchable_composes_with_structural_match(m):  # noqa: D103  
 
     m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
     rows = m.eval(
-        expr(
+        Expression(
             S.collapse,
-            expr(
+            Expression(
                 S.match,
-                expr(S["context-space"]),
+                Expression(S["context-space"]),
                 S.person(V.p),
-                expr(
+                Expression(
                     S.unify,
-                    Gnd(Initial("a")),
+                    Grounded(Initial("a")),
                     V.p,
                     V.p,
-                    expr(S.superpose, expr()),
+                    Expression(S.superpose, Expression()),
                 ),
             ),
         )
@@ -393,7 +396,7 @@ def test_embedding_store_is_a_semantic_matcher(m):  # noqa: D103  -- pytest disc
             assert 0.0 <= score <= 1.0
             yield Bindings({out: key})
 
-    rows = m.eval(expr(S.unify, Gnd(Nearest()), expr(S.dog, V.k), V.k, S.none))
+    rows = m.eval(Expression(S.unify, Grounded(Nearest()), Expression(S.dog, V.k), V.k, S.none))
     assert rows == [S.dog]
 
 
@@ -406,8 +409,8 @@ def test_faiss_and_argsort_rank_identically(m):  # noqa: D103  -- pytest discove
     rng = numpy.random.default_rng(7)
     for i in range(50):
         vector = rng.normal(size=8).astype(numpy.float32)
-        plain.add(Sym(f"k{i}"), vector)
-        accel.add(Sym(f"k{i}"), vector)
+        plain.add(Symbol(f"k{i}"), vector)
+        accel.add(Symbol(f"k{i}"), vector)
     query = rng.normal(size=8).astype(numpy.float32)
     slow = [(str(k), s) for k, s in plain.ranked(query, 10)]
     fast = [(str(k), s) for k, s in accel.ranked(query, 10)]
@@ -441,7 +444,7 @@ def test_type_declares_enum_members(m):  # noqa: D103  -- pytest discovers or in
         Calm = 1
         Storm = 2
 
-    assert expr(S[":"], S.Calm, S.DeclaredMood) in m
+    assert Expression(S[":"], S.Calm, S.DeclaredMood) in m
 
 
 # ----------------------------------------------------- host values in source
@@ -454,13 +457,15 @@ def test_run_using_names_host_values(m):  # noqa: D103  -- pytest discovers or i
         nodes = 3
 
     graph = Graph()
-    (answer,) = m.run("!(py-attr graph nodes)", using={"graph": graph})[0]
+    with m.bind(graph=graph):
+        (answer,) = m.run("!(py-attr graph nodes)")[0]
     assert answer == 3
 
 
 def test_run_using_carries_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     thing = object()
-    m.run("!(add-atom (context-space) (held it))", using={"it": thing})
+    with m.bind(it=thing):
+        m.run("!(add-atom (context-space) (held it))")
     rows = m.query(S.held(V.x))
     assert rows[0].x.value is thing
 
@@ -469,19 +474,19 @@ def test_run_using_carries_identity(m):  # noqa: D103  -- pytest discovers or in
 
 
 def test_save_and_load_round_trip(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run("(= (greet $x) (hello $x)) (fact one) (fact two)")
         path = tmp_path / "kb.metta"
         count = space.save(str(path))
         assert count == 3
-    with metta.new_space() as reborn:
+    with metta._new_space() as reborn:
         reborn.load(str(path))
         assert len(reborn.query(S.fact(V.x))) == 2
-        assert reborn.run("!(greet world)") == [[expr(S.hello, S.world)]]
+        assert reborn.run("!(greet world)") == [[Expression(S.hello, S.world)]]
 
 
 def test_save_refuses_live_objects(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add(S.holds(val(object())))
+    m.add(S.holds(ground(object())))
     with pytest.raises(ValueError):
         m.save("/dev/null")
 
@@ -503,34 +508,34 @@ def test_rows_table_is_the_dataframe_shape(m):  # noqa: D103  -- pytest discover
 
 
 def test_add_table_reads_any_tabular_source(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    added = m.add_table("edge", {"src": [S.a, S.b], "dst": [S.b, S.c]})
+    added = tables.add(m, "edge", {"src": [S.a, S.b], "dst": [S.b, S.c]})
     assert added == 2
     assert len(m.query(S.edge(V.x, V.y))) == 2
 
     polars = pytest.importorskip("polars")
     frame = polars.DataFrame({"name": ["ada", "bob"], "age": [36, 41]})
-    assert m.add_table("person", frame) == 2
+    assert tables.add(m, "person", frame) == 2
     rows = m.query(S.person(V.name, V.age))
     assert {(r["name"], r.age) for r in rows} == {("ada", 36), ("bob", 41)}
     with pytest.raises(TypeError):
-        m.add_table("bad", 7)
+        tables.add(m, "bad", 7)
 
 
 def test_add_table_refuses_ragged_columns(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError):
-        m.add_table("edge", {"src": [S.a, S.b, S.c], "dst": [S.b]})
+        tables.add(m, "edge", {"src": [S.a, S.b, S.c], "dst": [S.b]})
     assert m.query(S.edge(V.x, V.y)) == []
 
 
 def test_value_answers_the_one_answer(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert m.one("(+ 1 2)") == 3 and isinstance(m.one("(+ 1 2)"), int)
+    assert m._one("(+ 1 2)") == 3 and isinstance(m._one("(+ 1 2)"), int)
     m.run("(= (fact $n) (if (> $n 0) (* $n (fact (- $n 1))) 1))")
-    assert m.one(S.fact(5)) == 120
+    assert m._one(S.fact(5)) == 120
     with pytest.raises(EngineError):
-        m.one("(superpose (1 2))")  # two answers is not a value
+        m._one("(superpose (1 2))")  # two answers is not a value
     with pytest.raises(EngineError):
         m.run("(= (nothing) (empty))")
-        m.one(S.nothing())  # no answer is not a value either
+        m._one(S.nothing())  # no answer is not a value either
 
 
 def test_rows_first_and_one(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -554,18 +559,18 @@ def test_atoms_destructure_with_match_statements(m):  # noqa: D103  -- pytest di
     m.add(S.likes(S.cat, 9))
     (atom,) = m.query(V.a)["a"]
     match atom:
-        case Expr([Sym("likes"), Sym(who), Gnd(count)]):
+        case Expression([Symbol("likes"), Symbol(who), Grounded(count)]):
             assert who == "cat" and count == 9
         case _:
             pytest.fail("the class pattern did not destructure")
     # An expression is a Sequence, so the bare sequence pattern works too.
     match S.likes(S.dog):
-        case [Sym("likes"), pet]:
+        case [Symbol("likes"), pet]:
             assert pet == S.dog
         case _:
             pytest.fail("the sequence pattern did not destructure")
-    match Var("x"):
-        case Var(name):
+    match Variable("x"):
+        case Variable(name):
             assert name == "x"
 
 
@@ -573,8 +578,8 @@ def test_atoms_destructure_with_match_statements(m):  # noqa: D103  -- pytest di
 
 
 def test_bridge_rules_connect_spaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    src = metta.new_space()
-    dst = metta.new_space()
+    src = metta._new_space()
+    dst = metta._new_space()
     rule = bridge(src, S.alarm(V.zone), dst, S.notify(V.zone), on="both")
     try:
         src.add(S.alarm(S.kitchen))
@@ -600,7 +605,7 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
         text=True,
         env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
     )
-    local = metta.new_space()
+    local = metta._new_space()
     try:
         line = child.stdout.readline()
         assert line, child.stderr.read()
@@ -613,17 +618,17 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
         (group,) = local.run(
             "!(collapse (match (context-space) (vip $id) (match &hq (users $id $n) $n)))"
         )
-        assert group == [expr("Ada")]
+        assert group == [Expression("Ada")]
         # Writes cross too, and the remote engine answers them back.
         local.run('!(add-atom &hq (users 3 "Cy"))')
         assert local.run("!(match &hq (users 3 $n) $n)") == [["Cy"]]
         local.run('!(remove-atom &hq (users 3 "Cy"))')
-        assert local.run("!(collapse (match &hq (users 3 $n) $n))") == [[expr()]]
+        assert local.run("!(collapse (match &hq (users 3 $n) $n))") == [[Expression()]]
         # A space outside the allowlist is refused with the remote's words.
         stray = remote.RemoteSpace(remote.connect(info["url"]), "&self")
         with pytest.raises(PettaError):
             list(stray.match(S.anything(V.x)))
-        local.unregister_space("&hq")
+        local._unregister_space("&hq")
     finally:
         child.terminate()
         child.wait(timeout=10)
@@ -650,7 +655,7 @@ def test_type_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest disc
     # A method answering the class answers a constructor TERM: MeTTa keeps
     # matching it, and Python builds it back as the object it is.
     (scaled,) = m.run("!(MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0)")[0]
-    assert scaled == expr(S.MethodPoint, 6.0, 8.0)
+    assert scaled == Expression(S.MethodPoint, 6.0, 8.0)
     assert convert.build(scaled, MethodPoint) == MethodPoint(6.0, 8.0)
     # An equation over the constructor is a method written in MeTTa, on
     # equal footing: MeTTa "modifies the object" and Python receives it.
@@ -658,7 +663,7 @@ def test_type_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest disc
     (flipped,) = m.run("!(MethodPoint-flip (MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0))")[0]
     assert convert.build(flipped, MethodPoint) == MethodPoint(8.0, 6.0)
     # A live handle works through the same methods.
-    assert m.eval(expr(S["MethodPoint-norm"], val(MethodPoint(3.0, 4.0)))) == [5.0]
+    assert m.eval(Expression(S["MethodPoint-norm"], ground(MethodPoint(3.0, 4.0)))) == [5.0]
 
 
 def test_enum_members_match_in_metta(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -675,11 +680,11 @@ def test_enum_members_match_in_metta(m):  # noqa: D103  -- pytest discovers or i
 
 
 def test_remote_auth_token_and_hook_requires_tls(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    served = metta.new_space()
+    served = metta._new_space()
     served.add(S.fact(1))
     server = remote.serve(
         metta,
-        spaces=[served.space_name],
+        spaces=[served.name],
         token="s3cret",
         authorize=lambda request: request.headers.get("x-tenant") == "acme",
     )
@@ -720,11 +725,11 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
     client_context = ssl.create_default_context(cafile=str(cert))
     client_context.check_hostname = False  # self-signed CN, loopback address
 
-    served = metta.new_space()
+    served = metta._new_space()
     served.add(S.tls(S.ok))
     server = remote.serve(
         metta,
-        spaces=[served.space_name],
+        spaces=[served.name],
         token="s3cret",
         authorize=lambda request: request.headers.get("x-tenant") == "acme",
         ssl_context=server_context,
@@ -737,8 +742,8 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
             headers={"x-tenant": "acme"},
             ssl_context=client_context,
         )
-        atoms = list(remote.RemoteSpace(transport, served.space_name).atoms())
-        assert atoms == [expr(S.tls, S.ok)]
+        atoms = list(remote.RemoteSpace(transport, served.name).atoms())
+        assert atoms == [Expression(S.tls, S.ok)]
         with pytest.raises(PettaError, match="not authorized"):
             bad_token = remote.connect(
                 server.url,
@@ -746,10 +751,10 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
                 headers={"x-tenant": "acme"},
                 ssl_context=client_context,
             )
-            list(remote.RemoteSpace(bad_token, served.space_name).atoms())
+            list(remote.RemoteSpace(bad_token, served.name).atoms())
         with pytest.raises(PettaError, match="not authorized"):
             no_tenant = remote.connect(server.url, token="s3cret", ssl_context=client_context)
-            list(remote.RemoteSpace(no_tenant, served.space_name).atoms())
+            list(remote.RemoteSpace(no_tenant, served.name).atoms())
     finally:
         server.close()
         served.drop()
@@ -785,11 +790,11 @@ def test_limits_leave_finished_work_standing(m):  # noqa: D103  -- pytest discov
             "!(with-pragma! ((max-stack-depth 300000000)) (spin-c 100000000))",
             timeout=0.05,
         )
-    assert expr(S.landed, S.first) in m  # the fact before the stop stands
+    assert Expression(S.landed, S.first) in m  # the fact before the stop stands
 
 
 def test_limits_on_query_eval_value_and_prepared(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add_table("edge", [(i, i + 1) for i in range(200)])
+    tables.add(m, "edge", [(i, i + 1) for i in range(200)])
     rows = m.query(S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0, inferences=50_000_000)
     assert len(rows) == 199  # a generous bound changes nothing
     with pytest.raises(InferenceLimitError):
@@ -798,7 +803,7 @@ def test_limits_on_query_eval_value_and_prepared(m):  # noqa: D103  -- pytest di
     with pytest.raises(InferenceLimitError):
         m.eval("(spin-d 100000000)", inferences=5_000)
     with pytest.raises(InferenceLimitError):
-        m.one("(spin-d 100000000)", inferences=5_000)
+        m._one("(spin-d 100000000)", inferences=5_000)
     prepared = m.prepare(S.edge(V.a, V.b), S.edge(V.b, V.c), S.edge(V.c, V.d))
     with pytest.raises(InferenceLimitError):
         prepared.solve(inferences=100)
@@ -839,11 +844,11 @@ def test_eval_capture(m):  # noqa: D103  -- pytest discovers or injects this cal
     assert "from-eval" in output.text
     # println! answers the UNIT value, `()`, which is what the specification
     # types it with: "(-> %Undefined% (->))". It used to answer True.
-    assert answers == [expr()]
+    assert answers == [Expression()]
 
 
 def test_stats_block_counts_the_work(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add_table("edge", [(i, i + 1) for i in range(50)])
+    tables.add(m, "edge", [(i, i + 1) for i in range(50)])
     with m.stats() as s:
         m.query(S.edge(V.a, V.b), S.edge(V.b, V.c))
     assert s.inferences > 100
@@ -874,13 +879,13 @@ def test_a_stats_counter_is_unreadable_until_its_block_closes(m):
 
 
 def test_stream_pulls_rows_lazily_and_interleaves(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add_table("edge", [(i, i + 1) for i in range(500)])
-    with m.stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
+    tables.add(m, "edge", [(i, i + 1) for i in range(500)])
+    with m._stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
         first = next(rows)
         assert (first.a, first.b, first.c) == (0, 1, 2)
         # Unrelated engine work interleaves while the cursor stays open,
         # which a raw janus cursor forbids.
-        assert m.one("(+ 1 2)") == 3
+        assert m._one("(+ 1 2)") == 3
         second = next(rows)
         assert (second.a, second.b, second.c) == (1, 2, 3)
     with pytest.raises(PettaError):
@@ -888,8 +893,8 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):  # noqa: D103  -- pytest d
 
 
 def test_stream_agrees_with_query_and_closes_on_exhaustion(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add_table("edge", [(i, i + 1) for i in range(50)])
-    cursor = m.stream(S.edge(V.a, V.b))
+    tables.add(m, "edge", [(i, i + 1) for i in range(50)])
+    cursor = m._stream(S.edge(V.a, V.b))
     assert [tuple(r) for r in cursor] == [tuple(r) for r in m.query(S.edge(V.a, V.b))]
     with pytest.raises(StopIteration):
         next(cursor)
@@ -905,9 +910,9 @@ def test_stream_agrees_with_query_and_closes_on_exhaustion(m):  # noqa: D103  --
 # three from a cursor costs 20. Convenience is free when it changes the
 # spelling and not the plan.
 def test_a_cursor_slice_pulls_only_what_it_takes(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    space = m.new_space()
+    space = m._new_space()
     space.add(*[S.fact(i, i) for i in range(2000)])
-    with space.stats() as lazy, space.stream(S.fact(V.k, V.n)) as cursor:
+    with space.stats() as lazy, space._stream(S.fact(V.k, V.n)) as cursor:
         first_three = cursor[:3]
     with space.stats() as eager:
         trimmed = space.query(S.fact(V.k, V.n))[:3]
@@ -916,9 +921,9 @@ def test_a_cursor_slice_pulls_only_what_it_takes(m):  # noqa: D103  -- pytest di
     # the space because one stops early and the other trims afterwards.
     assert lazy.inferences * 100 < eager.inferences
 
-    with space.stream(S.fact(V.k, V.n)) as cursor:
+    with space._stream(S.fact(V.k, V.n)) as cursor:
         assert cursor[0].k == first_three[0].k
-    with space.stream(S.fact(V.k, V.n)) as cursor:
+    with space._stream(S.fact(V.k, V.n)) as cursor:
         assert [row.k for row in cursor[1:4]] == [row.k for row in first_three[1:]] + [
             trimmed[3].k if len(trimmed) > 3 else space.query(S.fact(V.k, V.n))[3].k
         ]
@@ -928,55 +933,55 @@ def test_a_cursor_refuses_what_would_need_the_whole_stream(m):
     """Each refusal is the design, not a gap: every one of these needs every
     row, which is exactly what a cursor exists to avoid.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    space = m.new_space()
+    space = m._new_space()
     space.add(*[S.fact(i, i) for i in range(10)])
-    with space.stream(S.fact(V.k, V.n)) as cursor, pytest.raises(TypeError, match="no len"):
+    with space._stream(S.fact(V.k, V.n)) as cursor, pytest.raises(TypeError, match="no len"):
         len(cursor)
     with (
-        space.stream(S.fact(V.k, V.n)) as cursor,
+        space._stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(IndexError, match="indexed from the end"),
     ):
         cursor[-1]
     with (
-        space.stream(S.fact(V.k, V.n)) as cursor,
+        space._stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(ValueError, match="takes no step"),
     ):
         cursor[::2]
     with (
-        space.stream(S.fact(V.k, V.n)) as cursor,
+        space._stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(ValueError, match="counts from the start"),
     ):
         cursor[-3:]
     with (
-        space.stream(S.fact(V.k, V.n)) as cursor,
+        space._stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(TypeError, match="int or a slice"),
     ):
         cursor["a"]
     # Running off the end is an IndexError naming how many it answered, and an
     # empty window is an empty list rather than an error.
     with (
-        space.stream(S.fact(V.k, V.n)) as cursor,
+        space._stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(IndexError, match="fewer than 100"),
     ):
         cursor[99]
-    with space.stream(S.fact(V.k, V.n)) as cursor:
+    with space._stream(S.fact(V.k, V.n)) as cursor:
         assert cursor[3:1] == []
 
 
 def test_abandoned_stream_warns_before_reaping(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.edge(1, 2))
-    cursor = m.stream(S.edge(V.a, V.b))
+    cursor = m._stream(S.edge(V.a, V.b))
     with pytest.warns(ResourceWarning, match="open petta Cursor"):
         del cursor
         gc.collect()
 
 
 def test_stream_guard_and_per_pull_bounds(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add_table("edge", [(i, i + 1) for i in range(100)])
-    with m.stream(S.edge(V.a, V.b), where=V.a >= 90) as rows:
+    tables.add(m, "edge", [(i, i + 1) for i in range(100)])
+    with m._stream(S.edge(V.a, V.b), where=V.a >= 90) as rows:
         assert [r.a for r in rows] == list(range(90, 100))
     m.run("(= (stream-spin $n) (if (== $n 0) done (stream-spin (- $n 1))))")
-    cursor = m.stream(
+    cursor = m._stream(
         S.edge(V.a, V.b),
         where="(== (stream-spin 100000000) done)",
         inferences=1_000,
@@ -990,21 +995,21 @@ def test_atomic_run_commits_or_rolls_back_whole(m):  # noqa: D103  -- pytest dis
     with pytest.raises(EngineError):
         with m.atomic():
             m.run("(kept fact) !(+ $left $right)")
-    assert expr(S.kept, S.fact) not in m  # the fact rolled back with the throw
+    assert Expression(S.kept, S.fact) not in m  # the fact rolled back with the throw
     with m.atomic():
         m.run("(kept fact) !(+ 1 1)")
-    assert expr(S.kept, S.fact) in m  # and commits whole on success
+    assert Expression(S.kept, S.fact) in m  # and commits whole on success
 
 
 def test_speculative_run_answers_and_discards(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with m.speculative():
         groups = m.run("(ghost fact) !(+ 2 2)")
     assert groups[-1] == [4]
-    assert expr(S.ghost, S.fact) not in m
+    assert Expression(S.ghost, S.fact) not in m
     with m.speculative(), m.capture() as output:
         groups = m.run("(ghost2 x) !(println! spec-out)")
     assert "spec-out" in output.text
-    assert expr(S.ghost2, S.x) not in m
+    assert Expression(S.ghost2, S.x) not in m
     with pytest.raises(ValueError):
         with m.atomic(), m.speculative():
             pass
@@ -1082,7 +1087,7 @@ def test_profile_extension_separates_an_indexed_table_from_a_single_clause(profi
 
 def test_profile_extension_shows_a_left_behind_choice_point(profiled):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     groups, costs = profiled.profile_extension("!(collapse (pd-many 1))", extension="profile_demo")
-    assert groups == [[expr(1, 2, 3)]]
+    assert groups == [[Expression(1, 2, 3)]]
     by_name = {cost.name: cost for cost in costs}
     # Three answers from one call, so the engine re-enters twice for the
     # second and third. That is what a leftover choice point looks like from
@@ -1154,7 +1159,7 @@ def test_bare_threads_share_the_home_engine_serialized(m):  # noqa: D103  -- pyt
     answers = {}
 
     def ask(n):
-        answers[n] = m.one(f"(tsafe-double {n})")
+        answers[n] = m._one(f"(tsafe-double {n})")
 
     workers = [threading.Thread(target=ask, args=(n,)) for n in range(6)]
     for worker in workers:
@@ -1168,9 +1173,9 @@ def test_relational_arithmetic_runs_backwards(m):  # noqa: D103  -- pytest disco
     assert m.run("!(let 4 (- $x 1) $x)") == [[5]]
     assert m.run("!(let 6 (* $x 2) $x)") == [[3]]
     # no integer doubles to 7, so that branch answers nothing
-    assert m.run("!(collapse (let 7 (* $x 2) $x))") == [[expr()]]
+    assert m.run("!(collapse (let 7 (* $x 2) $x))") == [[Expression()]]
     assert m.run("!(let 2 (/ 6 $b) $b)") == [[3]]
-    with pytest.raises(petta.MettaOperationError):
+    with pytest.raises(MettaOperationError):
         m.run("!(+ $x $y)")
 
 
@@ -1214,7 +1219,7 @@ def test_wrapper_forms_reach_a_named_spaces_own_functions(metta):  # noqa: D103 
     # timeout, take, top, elapsed, transaction and the bound forms hand
     # their goal to helper predicates; without meta_predicate the goal
     # loses its module and a named space's functions are unreachable.
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run("(= (wrap-f $n) (+ $n 1))")
         space.run("(= (wrap-many) (superpose (3 1 2)))")
         assert space.run("!(timeout 30 (wrap-f 1))") == [[2]]

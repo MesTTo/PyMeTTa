@@ -3,7 +3,7 @@ text seam. Engine arithmetic saturates to the IEEE value the way the
 reader's literals already do, a printed answer spells a non-finite float
 the arbiter's way (inf, -inf, NaN), and a finite float prints the
 arbiter's LAYOUT over the shortest-round-trip digits: 1e16, 0.00001 and
-1.5e300 rather than SWI's 1.0e+16, 1.0e-05 and 1.5e+300. Gnd's own
+1.5e300 rather than SWI's 1.0e+16, 1.0e-05 and 1.5e+300. Grounded's own
 renderer implements the same law, so one atom has one text in both hosts.
 Computed string operands are refused at every numeric math position before the
 host can reinterpret one character as its code [tested:
@@ -11,7 +11,7 @@ test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code].
 Guarantees:
   - numeric print probes collect text through a shape-preserving capture scope
     [tested: test_finite_floats_print_the_arbiters_layout,
-    test_gnd_str_spells_numbers_the_engines_way; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    test_gnd_str_spells_numbers_the_engines_way; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,7 +23,7 @@ import subprocess
 
 import pytest
 
-from petta import val
+from petta import ground
 
 
 def test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code(metta):
@@ -183,7 +183,7 @@ def test_the_seam_still_refuses_what_arithmetic_can_now_make(metta):
     as a symbol of that name, upstream's included, so the round-trip law
     still rules it out.
     """
-    with metta.new_space() as m:
+    with metta._new_space() as m:
         m.run("!(let $x (+ 1e400 1) (add-atom &self (nf $x)))")
         with pytest.raises(ValueError, match=r"reads back as a symbol"):
             m.digest()
@@ -263,9 +263,9 @@ def test_finite_floats_print_the_arbiters_layout(metta):
 
 
 def test_gnd_str_spells_numbers_the_engines_way(metta):
-    """One atom, one text: str(Gnd(x)) equals the engine's printed answer.
+    """One atom, one text: str(Grounded(x)) equals the engine's printed answer.
 
-    Gnd rendered numbers with Python's repr, a second number writer that
+    Grounded rendered numbers with Python's repr, a second number writer that
     split from swrite/2 on the plus sign (1e+16), the exponent padding
     (1e-05), the positional threshold (1e-05 where the law says 0.00001)
     and nan against NaN. Both writers implement the arbiter's layout law
@@ -285,9 +285,9 @@ def test_gnd_str_spells_numbers_the_engines_way(metta):
     engine_lines = output.text.splitlines()
     assert len(engine_lines) == len(values)
     for value, engine_text in zip(values, engine_lines, strict=True):
-        assert str(val(value)) == engine_text, (
-            f"{value!r}: python {str(val(value))!r} engine {engine_text!r}"
+        assert str(ground(value)) == engine_text, (
+            f"{value!r}: python {str(ground(value))!r} engine {engine_text!r}"
         )
-    assert str(val(math.inf)) == "inf"
-    assert str(val(-math.inf)) == "-inf"
-    assert str(val(math.nan)) == "NaN"
+    assert str(ground(math.inf)) == "inf"
+    assert str(ground(-math.inf)) == "-inf"
+    assert str(ground(math.nan)) == "NaN"

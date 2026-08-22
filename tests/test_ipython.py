@@ -30,11 +30,11 @@ def test_cell_magic_runs_and_returns_groups(shell, capsys):  # noqa: D103  -- py
 
 def test_cell_magic_targets_a_named_space(shell):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     shell.run_cell_magic("metta", "&nbspace", "(nb-fact here)")
-    assert MeTTa("&nbspace").query(S["nb-fact"](V.x))[0].x == S.here
+    assert MeTTa().space("&nbspace").query(S["nb-fact"](V.x))[0].x == S.here
 
 
 def test_ipython_magic_uses_selected_space(shell, metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as selected:
+    with metta._new_space() as selected:
         use(selected)
         try:
             shell.run_cell_magic("metta", "", "(selected-fact here)")

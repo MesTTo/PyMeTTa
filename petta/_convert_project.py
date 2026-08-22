@@ -8,23 +8,23 @@ Guarantees:
   - the four builtin containers share MeTTa's bare-expression image and keep
     reconstruction detail in the full-annotation hook
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+     commit=WORKTREE]
   - scalar Enum subclasses and composite Flags retain the member and type
     declarations that distinguish them from their scalar payloads
     [tested: test_int_str_and_flag_enums_each_project_with_their_declarations;
-     commit=49d2fc7b551ad057dfa018c350874bdee0e07cba]
+     commit=WORKTREE]
   - a TypedDict's full annotation selects the same named constructor image
     and field declaration as its value
     [tested: test_a_typed_dict_annotation_agrees_with_its_value;
-     commit=1b1aa89517584ce3b4abe1024b7a9f85e2c1263d]
+     commit=WORKTREE]
   - explicit projection discovers __metta__ on the class and never asks an
     instance proxy whether an arbitrary attribute exists
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
-     commit=b50e0538e7e63fe159d8574ae3551f6a4e7fe4f5]
+     commit=WORKTREE]
   - an otherwise opaque buffer carries its identity together with shape,
     format, item size, dimensionality, strides, and access metadata
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -53,7 +53,7 @@ from ._convert_registry import (
 from ._parameterized import hook_for as _parameterized_hook
 from ._parameterized import runtime_annotation
 from ._type_annotations import type_atoms_for
-from .atoms import Atom, Expr, Gnd, S, Sym, encode, val
+from .atoms import Atom, Expression, Grounded, S, Symbol, _encode, ground
 
 
 class Projected(NamedTuple):
@@ -64,7 +64,7 @@ class Projected(NamedTuple):
     """
 
     atom: Atom
-    declarations: tuple[Expr, ...]
+    declarations: tuple[Expression, ...]
 
 
 def project(value: Any, annotation: Any = None) -> Projected:
@@ -101,7 +101,7 @@ def _project_direct(value: Any) -> Projected | None:
     if isinstance(value, Enum):
         return None
     if isinstance(value, (bool, int, float, str)):
-        return Projected(encode(value), ())
+        return Projected(_encode(value), ())
     return None
 
 
@@ -130,7 +130,7 @@ def _project_unregistered(value: Any) -> Projected:
     if atom is not None:
         return Projected(atom, ())
     buffer = _project_buffer(value)
-    return buffer if buffer is not None else Projected(val(value), ())
+    return buffer if buffer is not None else Projected(ground(value), ())
 
 
 def _project_buffer(value: Any) -> Projected | None:
@@ -142,19 +142,19 @@ def _project_buffer(value: Any) -> Projected | None:
     shape = () if view.shape is None else view.shape
     strides = () if view.strides is None else view.strides
     metadata = (
-        Expr([S.shape, *(encode(size) for size in shape)]),
-        Expr([S.format, encode(view.format)]),
-        Expr([S.itemsize, encode(view.itemsize)]),
-        Expr([S.ndim, encode(view.ndim)]),
-        Expr([S.strides, *(encode(step) for step in strides)]),
-        Expr([S.readonly, encode(view.readonly)]),
-        Expr([S["c-contiguous"], encode(view.c_contiguous)]),
+        Expression([S.shape, *(_encode(size) for size in shape)]),
+        Expression([S.format, _encode(view.format)]),
+        Expression([S.itemsize, _encode(view.itemsize)]),
+        Expression([S.ndim, _encode(view.ndim)]),
+        Expression([S.strides, *(_encode(step) for step in strides)]),
+        Expression([S.readonly, _encode(view.readonly)]),
+        Expression([S["c-contiguous"], _encode(view.c_contiguous)]),
     )
-    declaration = Expr(
+    declaration = Expression(
         [
             S[":"],
             S.Buffer,
-            Expr(
+            Expression(
                 [
                     S["->"],
                     S.Grounded,
@@ -164,7 +164,7 @@ def _project_buffer(value: Any) -> Projected | None:
             ),
         ]
     )
-    return Projected(Expr([S.Buffer, val(value), *metadata]), (declaration,))
+    return Projected(Expression([S.Buffer, ground(value), *metadata]), (declaration,))
 
 
 #Sixteen top-level elements: about 55 inferences of conversion at the
@@ -231,13 +231,13 @@ def _project_registered(value: Any, cls: type, registration: _Registration) -> P
     if registration.image == "symbol":
         return _project_registered_symbol(value, cls, registration)
     if registration.image == "handle":
-        return Projected(val(value), ())
+        return Projected(ground(value), ())
     if registration.image == "operations":
         msg = (
             f"{cls.__name__} is registered with the operations image: its "
             f"behaviour crosses as registered operations, not as data. Use "
             f"petta.integrate.wrap_object to register its methods, and carry "
-            f"the instance with petta.val."
+            f"the instance with petta.ground."
         )
         raise TypeError(
             msg
@@ -250,29 +250,29 @@ def _project_registered_symbol(value: Any, cls: type, registration: _Registratio
         return _project_symbol(value, cls, registration)
     text = str(registration.to_atom(value))
     return Projected(
-        Sym(text),
-        (Expr([S[":"], Sym(text), Sym(registration.type_name)]),),
+        Symbol(text),
+        (Expression([S[":"], Symbol(text), Symbol(registration.type_name)]),),
     )
 
 
 def _project_symbol(value: Any, cls: type, registration: _Registration) -> Projected:
     if isinstance(value, Enum):
-        member = Sym(value.name)
+        member = Symbol(value.name)
         type_name = registration.type_name
-        decls = [Expr([S[":"], Sym(type_name), S.Type])]
+        decls = [Expression([S[":"], Symbol(type_name), S.Type])]
         enum_cls = cast(EnumType, cls)
         decls.extend(
-            Expr([S[":"], Sym(member.name), Sym(type_name)])
+            Expression([S[":"], Symbol(member.name), Symbol(type_name)])
             for member in cast(Iterable[Enum], enum_cls)
         )
-        current = Expr([S[":"], Sym(member.name), Sym(type_name)])
+        current = Expression([S[":"], Symbol(member.name), Symbol(type_name)])
         if current not in decls:
             decls.append(current)
         return Projected(member, tuple(decls))
     text = str(value)
     return Projected(
-        Sym(text),
-        (Expr([S[":"], Sym(text), Sym(registration.type_name)]),),
+        Symbol(text),
+        (Expression([S[":"], Symbol(text), Symbol(registration.type_name)]),),
     )
 
 
@@ -290,25 +290,25 @@ def _project_expression(value: Any, cls: type, registration: _Registration) -> P
     if not isinstance(children, (list, tuple)):
         children = (children,)
     projected = [project(c) for c in children]
-    decls: list[Expr] = []
+    decls: list[Expression] = []
     for p in projected:
         decls.extend(p.declarations)
     if registration.field_types:
         decls.extend(declarations(cls))
     else:
         decls.append(_constructor_declaration(registration, projected))
-    atom = Expr([Sym(registration.type_name), *(p.atom for p in projected)])
+    atom = Expression([Symbol(registration.type_name), *(p.atom for p in projected)])
     return Projected(atom, _dedup(decls))
 
 
-def _constructor_declaration(registration: _Registration, projected: list[Projected]) -> Expr:
+def _constructor_declaration(registration: _Registration, projected: list[Projected]) -> Expression:
     """(: Person (-> String Number Person)), argument types read off the parts."""
     arg_types = [_projected_type_atom(part) for part in projected]
-    return Expr(
+    return Expression(
         [
             S[":"],
-            Sym(registration.type_name),
-            Expr([S["->"], *arg_types, Sym(registration.type_name)]),
+            Symbol(registration.type_name),
+            Expression([S["->"], *arg_types, Symbol(registration.type_name)]),
         ]
     )
 
@@ -320,14 +320,14 @@ def _projected_type_atom(projected: Projected) -> Atom:
             len(declaration.children) == 3
             and declaration.head == S[":"]
             and declaration.children[1] == projected.atom
-            and isinstance(declaration.children[2], Sym)
+            and isinstance(declaration.children[2], Symbol)
         ):
             return declaration.children[2]
     return S[_type_name_of(projected.atom)]
 
 
 def _type_name_of(atom: Atom) -> str:
-    if isinstance(atom, Gnd):
+    if isinstance(atom, Grounded):
         v = atom.value
         if isinstance(v, bool):
             return "Bool"
@@ -336,7 +336,7 @@ def _type_name_of(atom: Atom) -> str:
         if isinstance(v, str):
             return "String"
         return "%Undefined%"
-    if isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym):
+    if isinstance(atom, Expression) and atom.children and isinstance(atom.head, Symbol):
         name = atom.head.name
         constructor = constructor_for(name)
         if constructor is not None:
@@ -344,7 +344,7 @@ def _type_name_of(atom: Atom) -> str:
     return "%Undefined%"
 
 
-def declarations(cls: type) -> tuple[Expr, ...]:
+def declarations(cls: type) -> tuple[Expression, ...]:
     """The (: ...) atoms a type contributes, without projecting an instance.
     Constructor arrows carry the field annotations' own types, mapped the
     way registration maps signatures, so a dataclass field typed float
@@ -362,14 +362,14 @@ def declarations(cls: type) -> tuple[Expr, ...]:
     return _expression_declarations(cls, found)
 
 
-def _enum_declarations(cls: type[Enum]) -> tuple[Expr, ...]:
+def _enum_declarations(cls: type[Enum]) -> tuple[Expression, ...]:
     type_name = ensure_registered(cls).type_name
-    declared = [Expr([S[":"], Sym(type_name), S.Type])]
-    declared.extend(Expr([S[":"], Sym(member.name), Sym(type_name)]) for member in cls)
+    declared = [Expression([S[":"], Symbol(type_name), S.Type])]
+    declared.extend(Expression([S[":"], Symbol(member.name), Symbol(type_name)]) for member in cls)
     return tuple(declared)
 
 
-def _expression_declarations(cls: type, registration: _Registration) -> tuple[Expr, ...]:
+def _expression_declarations(cls: type, registration: _Registration) -> tuple[Expression, ...]:
     fields = registration.fields or ()
     hints = resolved_hints(cls)
     alternative_lists = [
@@ -380,13 +380,13 @@ def _expression_declarations(cls: type, registration: _Registration) -> tuple[Ex
 
 def _declarations_for_alternatives(
     type_name: str, alternatives: list[list[Atom]]
-) -> tuple[Expr, ...]:
+) -> tuple[Expression, ...]:
     declared = (
-        Expr([S[":"], Sym(type_name), Expr([S["->"], *combo, Sym(type_name)])])
+        Expression([S[":"], Symbol(type_name), Expression([S["->"], *combo, Symbol(type_name)])])
         for combo in itertools.product(*alternatives)
     )
     return tuple(dict.fromkeys(declared))
 
 
-def _dedup(decls: list[Expr]) -> tuple[Expr, ...]:
+def _dedup(decls: list[Expression]) -> tuple[Expression, ...]:
     return tuple(dict.fromkeys(decls))

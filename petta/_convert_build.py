@@ -11,11 +11,11 @@ Guarantees:
   - each supported container reconstructs through the same specialised hook
     that projected its full annotation
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=4b340e87ea282045d5bfa7c00a722353dd69a968]
+     commit=WORKTREE]
   - buffer projections rebuild the exact carried exporter rather than copying
     or discarding its layout
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+     commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,7 +41,7 @@ from ._convert_registry import (
     explicitly_registered,
 )
 from ._parameterized import hook_for as _parameterized_hook
-from .atoms import Atom, Expr, Gnd, Sym, decode
+from .atoms import Atom, Expression, Grounded, Symbol, _decode
 
 _UNHANDLED = object()
 _BuildT = TypeVar("_BuildT")
@@ -77,11 +77,11 @@ def build(atom: Atom, cls: Any = None) -> Any:
 
 
 def _build_plain(atom: Atom, cls: type | None) -> Any:
-    if isinstance(atom, Gnd):
-        return decode(atom)
-    if isinstance(atom, Sym):
+    if isinstance(atom, Grounded):
+        return _decode(atom)
+    if isinstance(atom, Symbol):
         return _build_symbol(atom, cls) if cls is not None else atom
-    if isinstance(atom, Expr):
+    if isinstance(atom, Expression):
         rebuilt = _build_expression(atom, cls)
         if rebuilt is not _UNHANDLED:
             return rebuilt
@@ -89,7 +89,7 @@ def _build_plain(atom: Atom, cls: type | None) -> Any:
     return atom
 
 
-def _build_symbol(atom: Sym, cls: type) -> Any:
+def _build_symbol(atom: Symbol, cls: type) -> Any:
     if issubclass(cls, Enum):
         return cls[atom.name]
     registration = _lookup(cls)
@@ -102,10 +102,10 @@ def _build_symbol(atom: Sym, cls: type) -> Any:
     return _UNHANDLED
 
 
-def _build_expression(atom: Expr, cls: type | None) -> Any:
-    if not atom.children or not isinstance(atom.head, Sym):
+def _build_expression(atom: Expression, cls: type | None) -> Any:
+    if not atom.children or not isinstance(atom.head, Symbol):
         return _UNHANDLED
-    if atom.head == Sym("Buffer"):
+    if atom.head == Symbol("Buffer"):
         return _build_buffer(atom, cls)
     resolved = _resolve_constructor(atom, cls)
     if resolved is None:
@@ -114,18 +114,18 @@ def _build_expression(atom: Expr, cls: type | None) -> Any:
     return _rebuild_registered(atom, target_cls, registration)
 
 
-def _build_buffer(atom: Expr, cls: type | None) -> Any:
-    if len(atom.args) != 8 or not isinstance(atom.args[0], Gnd):
+def _build_buffer(atom: Expression, cls: type | None) -> Any:
+    if len(atom.args) != 8 or not isinstance(atom.args[0], Grounded):
         msg = f"{atom} is not a complete Buffer image"
         raise TypeError(msg)
-    value = decode(atom.args[0])
+    value = _decode(atom.args[0])
     if cls is not None and not isinstance(value, cls):
         msg = f"the Buffer image carries {type(value).__name__}, not {cls.__name__}"
         raise TypeError(msg)
     return value
 
 
-def _build_hook(atom: Expr, cls: type | None) -> Any:
+def _build_hook(atom: Expression, cls: type | None) -> Any:
     if cls is None:
         return atom
     hook = getattr(cls, "__from_metta__", None)
@@ -134,9 +134,9 @@ def _build_hook(atom: Expr, cls: type | None) -> Any:
     return hook(*(build(child) for child in atom.args))
 
 
-def _resolve_constructor(atom: Expr, cls: type | None) -> tuple[type, _Registration] | None:
+def _resolve_constructor(atom: Expression, cls: type | None) -> tuple[type, _Registration] | None:
     head = atom.head
-    if not isinstance(head, Sym):
+    if not isinstance(head, Symbol):
         return None
     resolved = constructor_for(head.name)
     if resolved is not None:
@@ -145,7 +145,7 @@ def _resolve_constructor(atom: Expr, cls: type | None) -> tuple[type, _Registrat
     return _resolve_default_constructor(head, cls)
 
 
-def _resolve_default_constructor(head: Sym, cls: type | None) -> tuple[type, _Registration] | None:
+def _resolve_default_constructor(head: Symbol, cls: type | None) -> tuple[type, _Registration] | None:
     if cls is None:
         return None
     registration = _lookup(cls) or _default_registration(cls)
@@ -156,7 +156,7 @@ def _resolve_default_constructor(head: Sym, cls: type | None) -> tuple[type, _Re
     return cls, registration
 
 
-def _require_requested_owner(head: Sym, requested: type | None, owner: type) -> None:
+def _require_requested_owner(head: Symbol, requested: type | None, owner: type) -> None:
     if requested is None or owner is requested:
         return
     msg = (
@@ -169,14 +169,14 @@ def _require_requested_owner(head: Sym, requested: type | None, owner: type) -> 
     )
 
 
-def _rebuild_registered(atom: Expr, target_cls: type, registration: _Registration) -> Any:
+def _rebuild_registered(atom: Expression, target_cls: type, registration: _Registration) -> Any:
     _require_complete_parts(atom, target_cls, registration)
     kinds = registration.field_types or tuple(None for _ in atom.args)
     parts = [build(child, kind) for child, kind in zip(atom.args, kinds, strict=True)]
     return _call_reverse(target_cls, registration, parts)
 
 
-def _require_complete_parts(atom: Expr, target_cls: type, registration: _Registration) -> None:
+def _require_complete_parts(atom: Expression, target_cls: type, registration: _Registration) -> None:
     if registration.fields and len(atom.args) != len(registration.fields):
         msg = (
             f"({registration.type_name} ...) carries {len(atom.args)} part(s); "
@@ -210,7 +210,7 @@ def _build_annotated(atom: Atom, annotation: Any) -> Any:
     if origin in (typing.Union, types.UnionType):
         return _build_union(atom, typing.get_args(annotation))
     hook = _parameterized_hook(annotation)
-    if isinstance(atom, Expr) and hook is not None:
+    if isinstance(atom, Expression) and hook is not None:
         return hook.build(atom, annotation, build)
     if isinstance(annotation, type):
         return build(atom, annotation)
@@ -238,7 +238,7 @@ def _annotation_matches(atom: Atom, annotation: Any) -> bool:
 
 
 def _parameterized_matches(atom: Atom, origin: Any) -> bool:
-    if not isinstance(atom, Expr) or not isinstance(origin, type):
+    if not isinstance(atom, Expression) or not isinstance(origin, type):
         return False
     return origin in (tuple, list) or issubclass(origin, abc.Sequence)
 
@@ -246,21 +246,21 @@ def _parameterized_matches(atom: Atom, origin: Any) -> bool:
 def _class_matches(atom: Atom, annotation: Any) -> bool:
     if not isinstance(annotation, type):
         return False
-    if isinstance(atom, Gnd):
-        return isinstance(decode(atom), annotation)
-    if isinstance(atom, Sym):
+    if isinstance(atom, Grounded):
+        return isinstance(_decode(atom), annotation)
+    if isinstance(atom, Symbol):
         return _symbol_annotation_matches(atom, annotation)
-    if isinstance(atom, Expr):
+    if isinstance(atom, Expression):
         return _expression_annotation_matches(atom, annotation)
     return False
 
 
-def _symbol_annotation_matches(atom: Sym, annotation: type) -> bool:
+def _symbol_annotation_matches(atom: Symbol, annotation: type) -> bool:
     return issubclass(annotation, Enum) and atom.name in annotation.__members__
 
 
-def _expression_annotation_matches(atom: Expr, annotation: type) -> bool:
-    if not atom.children or not isinstance(atom.head, Sym):
+def _expression_annotation_matches(atom: Expression, annotation: type) -> bool:
+    if not atom.children or not isinstance(atom.head, Symbol):
         return False
     registration = _lookup(annotation) or _default_registration(annotation)
     return registration is not None and registration.type_name == atom.head.name

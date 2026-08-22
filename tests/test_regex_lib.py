@@ -41,7 +41,7 @@ def test_regex_captures_are_typed(rx):  # noqa: D103  -- pytest discovers or inj
 
 
 def test_regex_guards_queries(rx, metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as m:
+    with metta._new_space() as m:
         m.add(S.person(S.Ada), S.person(S.alan), S.person(S.Alice))
         rows = m.query(S.person(V.name), where='(re-match "^A" $name)')
         assert [row.name for row in rows] == [S.Ada, S.Alice]

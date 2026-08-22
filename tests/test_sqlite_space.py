@@ -7,12 +7,12 @@ Guarantees:
   - the opaque BLOB image keeps the binary object as a handle, a lazy path
     reaches one field [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=24532816d8f3987cc56059fadf3666a387ae1156]
+    commit=WORKTREE]
   - the transparent image costs more engine inferences than the opaque image
     for the same 4,096-byte value [measured: minimum of three counter samples;
     command=python -m pytest bindings/python/tests/test_sqlite_space.py -q;
     fixture=SQLite documents.payload containing bytes(range(256)) repeated 16;
-    commit=24532816d8f3987cc56059fadf3666a387ae1156]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,6 +29,7 @@ from hypothesis import strategies as st
 
 import petta
 from petta import S, testing
+from petta.errors import EngineError
 from petta.tables import TableBridge
 
 _MODULE_PATH = (
@@ -68,15 +69,15 @@ class _OneRow:
 )
 def test_a_row_value_becomes_an_atom_without_being_reparsed(value):
     """Map a database row value directly into one atom without parsing text."""
-    m = petta.MeTTa()
+    m = petta.MeTTa().self
     provider = TableBridge(
         m.parse,
         _OneRow(value),
         "(bridge (value $x) (row generated (cell $x)))",
     )
     (atom,) = tuple(provider.atoms())
-    expected = petta.Sym(value) if isinstance(value, str) else petta.encode(value)
-    assert atom == petta.Expr([S.value, expected])
+    expected = petta.Symbol(value) if isinstance(value, str) else petta.ground(value)
+    assert atom == petta.Expression([S.value, expected])
 
 
 def _module():
@@ -96,14 +97,14 @@ def _module():
 @pytest.fixture
 def attached(request):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = f"&sqlite-{request.node.name[-16:].replace('_', '')}"
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     provider = _module().attach_sqlite(m, name)
     try:
         yield m, name, provider
     finally:
         m.run(f"!(remove-atom &petta (bridge {name} $shape $row))")
         m.run(f"!(remove-atom &petta (image {name} $type $setting))")
-        m.unregister_space(name)
+        m._unregister_space(name)
         m.drop()
 
 
@@ -133,12 +134,13 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
     """Keep the opaque BLOB behind a handle and reach one field by a lazy path."""
     import sqlite3
 
-    from petta import S, V, path
+    from petta import S, V
+    from petta.paths import path
 
     m, name, opaque_provider = attached
     image = m.parse(f"(image {name} Blob opaque)")
-    assert image in m.space("&petta")
-    assert m.space("&petta").run(f"!(get-type {image})") == [
+    assert image in m._at("&petta")
+    assert m._at("&petta").run(f"!(get-type {image})") == [
         [m.parse("ImageDecl")]
     ]
     payload = bytes(range(256)) * 16
@@ -146,7 +148,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
         "INSERT INTO documents VALUES (?, ?)",
         ("manual", sqlite3.Binary(payload)),
     )
-    opaque_space = m.space(name)
+    opaque_space = m._at(name)
 
     def measured_crossing(space):
         samples = []
@@ -176,15 +178,15 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
         )
     assert rows.to_dicts() == [{"byte": 17}]
 
-    m.unregister_space(name)
+    m._unregister_space(name)
     transparent_image = m.declare_image(name, "Blob", "transparent")
-    assert image not in m.space("&petta")
-    assert transparent_image in m.space("&petta")
+    assert image not in m._at("&petta")
+    assert transparent_image in m._at("&petta")
     transparent_provider = petta.tables.TableBridge.from_context(
         m, name, opaque_provider.connection
     )
-    m.register_space(transparent_provider, name)
-    transparent_inferences, transparent_rows = measured_crossing(m.space(name))
+    m._register_space(transparent_provider, name)
+    transparent_inferences, transparent_rows = measured_crossing(m._at(name))
     assert str(transparent_rows[0].blob).startswith("(Blob 0 1 2 3 ")
     assert transparent_inferences > opaque_inferences
 
@@ -192,7 +194,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
 def test_writes_ride_the_engine_transaction(attached):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m, name, provider = attached
     m.run(f"!(add-atom {name} (edge keep me))")
-    with pytest.raises(petta.EngineError):
+    with pytest.raises(EngineError):
         m.run(
             f"!(transaction (chain (add-atom {name} (edge lost one)) $_"
             " (error boom)))"

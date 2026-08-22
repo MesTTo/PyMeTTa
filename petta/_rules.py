@@ -1,12 +1,16 @@
-"""Purpose: build typed equation atoms from parameter-scoped rule generators.
+"""Purpose: implement the root equation and rules factories without a colliding submodule.
 
 Guarantees:
   - each decorated generator parameter becomes a rule-local MeTTa variable,
     and every yielded value is an ordinary binary equation [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d].
+    commit=WORKTREE].
   - equation halves share one static type parameter [tested:
-    sh check.sh mypy ty; commit=c4c2088210e4b6685c8dd2d185a1f546fa90a88d].
+    sh check.sh mypy ty; commit=WORKTREE].
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ import types
 from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from .atoms import Expr, Sym, Var, encode
+from .atoms import Expression, Symbol, Variable, _encode
 
 __all__ = ["equation", "rules"]
 
@@ -35,11 +39,11 @@ class _Equation(Generic[_T]):
     __slots__ = ("_lhs",)
 
     def __init__(self, lhs: _T):
-        self._lhs = encode(lhs)
+        self._lhs = _encode(lhs)
 
-    def to(self, rhs: _T) -> Expr:
+    def to(self, rhs: _T) -> Expression:
         """Complete ``(= lhs rhs)`` as an ordinary matchable atom."""
-        return Expr([Sym("="), self._lhs, encode(rhs)])
+        return Expression([Symbol("="), self._lhs, _encode(rhs)])
 
 
 def equation(lhs: _T) -> _Equation[_T]:
@@ -62,7 +66,7 @@ def _stage_defined_calls() -> Iterator[None]:
         _STAGING_DEFINED_CALLS.reset(token)
 
 
-def rules(fn: Callable[..., Iterator[Expr]]) -> list[Expr]:
+def rules(fn: Callable[..., Iterator[Expression]]) -> list[Expression]:
     """Collect equations; derives from ``V`` parameters plus ``list`` and ``m.add``.
 
     The decorated generator becomes a list of ordinary equation atoms. Add
@@ -72,10 +76,10 @@ def rules(fn: Callable[..., Iterator[Expr]]) -> list[Expr]:
     if not isinstance(fn, types.FunctionType) or not inspect.isgeneratorfunction(fn):
         msg = f"rules expects a generator function, got {type(fn).__name__}"
         raise TypeError(msg)
-    positional: list[Var] = []
-    keywords: dict[str, Var] = {}
+    positional: list[Variable] = []
+    keywords: dict[str, Variable] = {}
     for parameter in inspect.signature(fn).parameters.values():
-        variable = Var(parameter.name)
+        variable = Variable(parameter.name)
         if parameter.kind in (
             inspect.Parameter.POSITIONAL_ONLY,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
@@ -90,9 +94,9 @@ def rules(fn: Callable[..., Iterator[Expr]]) -> list[Expr]:
         yielded: list[Any] = list(fn(*positional, **keywords))
     for index, atom in enumerate(yielded, start=1):
         if not (
-            isinstance(atom, Expr)
+            isinstance(atom, Expression)
             and len(atom.children) == 3
-            and atom.children[0] == Sym("=")
+            and atom.children[0] == Symbol("=")
         ):
             msg = f"rules yield {index} is not equation(lhs).to(rhs): {atom!r}"
             raise TypeError(msg)

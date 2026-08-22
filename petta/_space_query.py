@@ -20,7 +20,7 @@ from typing import Any
 
 from ._engine import Runtime
 from ._space_objects import _column_names, _limits, guard_atom
-from .atoms import Atom, _to_atom, atom_from_wire
+from .atoms import Atom, _atom_from_wire, _to_atom
 from .results import Rows, _QueryContext
 
 
@@ -100,4 +100,4 @@ def _execute_query(
 
 
 def _decode_rows(answered: Any) -> list[tuple[Atom, ...]]:
-    return [tuple(atom_from_wire(value) for value in row) for row in answered]
+    return [tuple(_atom_from_wire(value) for value in row) for row in answered]

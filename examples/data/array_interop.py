@@ -15,14 +15,14 @@ try:
 except ImportError:
     skip("numpy and array-api-compat are needed")
 
-from petta import MeTTa, S, V, arrays, decode, expr, val
+from petta import MeTTa, S, V, arrays, Expression, ground, wire
 
-m = MeTTa().new_space()
+m = MeTTa().space()
 arrays.install(m, default=numpy)
 
 check("matmul over numpy",
       m.run("!(t-tolist (matmul (tensor ((1.0 2.0))) (tensor ((3.0) (4.0)))))"),
-      [[expr(expr(11.0))]])
+      [[Expression(Expression(11.0))]])
 # The tensor is built first and the type read off the VALUE. get-type does
 # not evaluate its argument, so asking about the unreduced call `(tensor
 # (1.0))` reports what the expression is declared to be, not what building it
@@ -31,13 +31,13 @@ check("matmul over numpy",
 check("protocol typing", S.DLTensor in list(types[0]))
 
 array = numpy.arange(4.0)
-m.add(S.holds(val(array)))
-check("identity through the space", decode(m.query(S.holds(V.a))[0].a) is array)
+m.add(S.holds(ground(array)))
+check("identity through the space", wire.decode(m.query(S.holds(V.a))[0].a) is array)
 
 try:
     import torch
     left, right = numpy.ones((2, 2), dtype=numpy.float32), torch.ones(2, 2)
-    m.add(S.pair(val(left), val(right)))
+    m.add(S.pair(ground(left), ground(right)))
     (out,) = m.run("!(t-item (t-sum (match (context-space) (pair $a $b) (matmul $a $b))))")
     check("mixed numpy@torch via DLPack", float(out[0]), 8.0)
 except ImportError:

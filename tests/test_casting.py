@@ -13,12 +13,13 @@ Open Obligations:
 
 import pytest
 
-from petta import CastError, Gnd, S, V, cast, integrate
+from petta import Grounded, S, V, integrate
+from petta.casting import CastError, cast
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
@@ -60,7 +61,7 @@ def test_arrow_typed_expressions_cast_structurally(m):  # noqa: D103  -- pytest 
 
 def test_unchecked_targets_pass_unchecked(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert m.cast(S.anything, "Atom") is S.anything
-    assert m.cast(Gnd(3), "%Undefined%") == 3
+    assert m.cast(Grounded(3), "%Undefined%") == 3
 
 
 def test_protocol_types_duck_through_the_type_system(m, metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
@@ -80,7 +81,7 @@ def test_protocol_types_duck_through_the_type_system(m, metta):  # noqa: ARG001,
 
 
 def test_declarations_are_space_relative(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as a, metta.new_space() as b:
+    with metta._new_space() as a, metta._new_space() as b:
         a.run("(: Bob Person)")
         assert a.cast(S.Bob, "Person") is S.Bob
         with pytest.raises(CastError):
@@ -98,8 +99,8 @@ def test_parameterized_generic_is_not_accepted_as_a_cast_class(m):  # noqa: D103
 
 
 def test_ground_atoms_narrow_to_their_python_values(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert m.cast(Gnd(3), "Number") == 3
-    assert isinstance(m.cast(Gnd(3), int), int)
+    assert m.cast(Grounded(3), "Number") == 3
+    assert isinstance(m.cast(Grounded(3), int), int)
 
 
 try:
@@ -119,7 +120,7 @@ else:
         """Atom admits everything unchecked; a type name nothing
         declares refuses everything, loudly and precisely.
         """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-        with metta.new_space() as space:
+        with metta._new_space() as space:
             assert space.cast(atom, "Atom") is not None
             with pytest.raises(CastError) as caught:
                 space.cast(atom, "Absurd987")

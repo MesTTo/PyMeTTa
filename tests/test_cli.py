@@ -1,4 +1,8 @@
 """Purpose: command-line launcher arguments, environment, and error paths.
+Guarantees:
+  - both retained upstream and current runtime layouts keep their own command
+    contracts [tested: test_main_retains_the_upstream_layout and
+    test_main_forwards_arguments_and_exit_status; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -63,6 +67,51 @@ def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):  # noqa
             "backends",
         ]
     )
+
+
+def test_main_retains_the_upstream_layout(monkeypatch, tmp_path):
+    """A ``src/main.pl`` runtime receives the upstream command unchanged."""
+    runtime = tmp_path / "upstream runtime with spaces"
+    main_file = runtime / "src" / "main.pl"
+    main_file.parent.mkdir(parents=True)
+    main_file.touch()
+    call = Mock(return_value=23)
+    monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
+    monkeypatch.setattr(cli.subprocess, "call", call)
+
+    assert cli.main(["program with spaces.metta", "--example"]) == 23
+    call.assert_called_once_with(
+        [
+            "swipl",
+            "--stack_limit=8g",
+            "-q",
+            "-s",
+            str(main_file),
+            "--",
+            "program with spaces.metta",
+            "--example",
+        ],
+        env=None,
+    )
+
+
+def test_main_retains_the_upstream_optional_mork_preload(monkeypatch, tmp_path):
+    """The original runtime still opts into its own MORK shared library."""
+    runtime = tmp_path / "upstream runtime"
+    mork_library = runtime / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
+    mork_library.parent.mkdir(parents=True)
+    mork_library.touch()
+    call = Mock(return_value=0)
+    monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
+    monkeypatch.setattr(cli.subprocess, "call", call)
+    monkeypatch.setenv("PETTA_CLI_TEST", "inherited")
+
+    assert cli.main(["program.metta"]) == 0
+    assert call.call_args.args[0][-2:] == ["program.metta", "mork"]
+    child_env = call.call_args.kwargs["env"]
+    assert child_env["LD_PRELOAD"] == str(mork_library)
+    assert child_env["PETTA_CLI_TEST"] == "inherited"
+    assert child_env is not os.environ
 
 
 def test_main_asks_for_native_backends_and_names_none(monkeypatch, tmp_path):

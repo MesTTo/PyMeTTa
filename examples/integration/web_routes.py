@@ -14,7 +14,7 @@ number of routes.
 Guarantees:
   - handler registration derives declarations from the callable rather than
     selecting an untyped boolean mode [tested:
-    test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    test_example_runs_and_verifies_itself; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,8 +27,9 @@ from typing import Any
 
 from _common import check, done
 
-from petta import MeTTa, S, V, expr
-from petta.atoms import Expr, Gnd, Sym, Var, decode, encode, unify, variables
+from petta import MeTTa, S, V, Expression
+from petta import wire
+from petta.atoms import Expression, Grounded, Symbol, Variable, unify
 
 #: FastAPI's path converters: the caster runs after the structural match,
 #: the pydantic-after-match order, so /users/abc against /users/{id:int}
@@ -63,7 +64,7 @@ class Router:
             # never heard of.
             segments, casters = self.compile(path)
             handler = fn.__name__.replace("_", "-")
-            self._m.register_op(fn, name=handler)
+            self._m.op(fn, name=handler)
             self.add_route("GET", segments, casters, handler)
             return fn
 
@@ -73,7 +74,7 @@ class Router:
         segments, casters, named = [], [], set()
         for segment in path.strip("/").split("/"):
             if not (segment.startswith("{") and segment.endswith("}")):
-                segments.append(Sym(segment))
+                segments.append(Symbol(segment))
                 continue
             name, _, converter = segment[1:-1].partition(":")
             if name in named:
@@ -83,7 +84,7 @@ class Router:
                 # the next parameter.
                 raise ValueError(f"{path!r} names {name!r} twice")
             named.add(name)
-            segments.append(Var(name))
+            segments.append(Variable(name))
             if converter and converter not in CASTERS:
                 raise ValueError(
                     f"{path!r} asks for the converter {converter!r}; "
@@ -96,29 +97,29 @@ class Router:
                   handler: str) -> None:
         self._casters[self._count] = casters
         self._m.add(
-            expr(S.route, S[self.name], S[method], Expr(segments),
+            Expression(S.route, S[self.name], S[method], Expression(segments),
                  S[handler], self._count)
         )
         self._count += 1
 
     def dispatch(self, method: str, path: str) -> Response:
-        request = Expr([Sym(s) for s in path.strip("/").split("/") if s])
+        request = Expression([Symbol(s) for s in path.strip("/").split("/") if s])
         table = self._m.query(
-            expr(S.route, S[self.name], S[method.upper()],
+            Expression(S.route, S[self.name], S[method.upper()],
                  V.pattern, V.handler, V.k)
         )
         matched = False
-        for row in sorted(table, key=lambda r: int(decode(r.k))):
+        for row in sorted(table, key=lambda r: int(wire.decode(r.k))):
             pattern = row.pattern
-            if not isinstance(pattern, Expr) or len(pattern) != len(request):
+            if not isinstance(pattern, Expression) or len(pattern) != len(request):
                 continue
             bindings = unify(pattern, request)
             if bindings is None:
                 continue
             matched = True
             casters = self._casters.get(
-                int(decode(row.k)),
-                tuple(str for c in pattern.children if isinstance(c, Var)),
+                int(wire.decode(row.k)),
+                tuple(str for c in pattern.children if isinstance(c, Variable)),
             )
             try:
                 # strict, because the two lists agreeing is the whole reason
@@ -127,12 +128,12 @@ class Router:
                 # float on as the next parameter.
                 values = [
                     caster(str(bindings[name]))
-                    for name, caster in zip(variables(pattern), casters, strict=True)
+                    for name, caster in zip(pattern.vars, casters, strict=True)
                 ]
             except (ValueError, TypeError):
                 continue  # the parameter refused; a later route may accept
-            answers = self._m.eval(expr(Sym(str(row.handler)),
-                                        *[encode(v) for v in values]))
+            answers = self._m.eval(Expression(Symbol(str(row.handler)),
+                                        *[wire.encode(v) for v in values]))
             # Exactly one. A handler that answers nothing is not a 404, and a
             # handler that answers twice is not its first answer; both used to
             # be rewritten into a response the caller could not tell from a
@@ -143,12 +144,12 @@ class Router:
                     f"{method} {path}; a route handler answers exactly once"
                 )
             body = answers[0]
-            return Response(200, decode(body) if isinstance(body, Gnd) else body)
+            return Response(200, wire.decode(body) if isinstance(body, Grounded) else body)
         return Response(422 if matched else 404,
                         "unprocessable" if matched else "not found")
 
 
-m = MeTTa().new_space()
+m = MeTTa().space()
 app = Router(m, "app")
 
 

@@ -7,7 +7,7 @@ Guarantees:
   - an unannotated operation makes no type claim while its encoded opaque
     value still carries the host type [tested:
     test_get_type_over_an_encoded_heterogeneous_list_is_total;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,7 +36,7 @@ def test_get_type_over_an_encoded_heterogeneous_list_is_total(metta):
     idiom [source: LeaTTa tests/semantics/types-meta/30_evaluation_control.metta,
     "`let` evaluates the sum first, then substitutes"].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    metta.register_op(lambda: [1, _Payload(), 2], name="seam-hetero")
+    metta.op(lambda: [1, _Payload(), 2], name="seam-hetero")
     [[types]] = metta.run("!(let $crossed (seam-hetero) (get-type $crossed))")
     rendered = [str(t) for t in types]
     assert rendered == ["Number", "_Payload", "Number"], rendered

@@ -4,10 +4,10 @@ Assumes: the engine answers through the ordinary MeTTa surface; no probe needs
 Guarantees:
   - every member of the vocabulary answers the exact atom the arbiter answers,
     and an operand whose evaluation produced one finishes the enclosing call.
-  [tested: test_the_error_vocabulary_answers_what_the_arbiter_answers; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+  [tested: test_the_error_vocabulary_answers_what_the_arbiter_answers; commit=WORKTREE]
   - an under-applied operation answers a partial application and never takes
     the host process down.
-  [tested: test_an_underapplied_operation_answers_instead_of_aborting; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+  [tested: test_an_underapplied_operation_answers_instead_of_aborting; commit=WORKTREE]
 Fails when: a probe is read as a claim about Hyperon rather than about LeaTTa;
   the arbiter is LeaTTa and every pin below cites the LeaTTa file it came from.
 Open Obligations:
@@ -48,7 +48,7 @@ def _answers(metta: MeTTa, source: str) -> list[str]:
 
 def test_the_error_vocabulary_answers_what_the_arbiter_answers() -> None:
     """Every member answers the atom the arbiter answers, in its exact shape."""
-    metta = MeTTa()
+    metta = MeTTa().self
 
     # BadArgType carries the position, the expected type and the actual one.
     assert _answers(metta, '!(+ 1 "s")') == [
@@ -102,7 +102,7 @@ def test_the_error_vocabulary_answers_what_the_arbiter_answers() -> None:
     # MettaHyperonFull/Minimal/Interpreter.lean:891-894, which keys
     # interpreterModes by run context and deliberately does not key
     # maxStackDepth], and this engine holds one runner per process.
-    overflow = MeTTa("&errorvocab-overflow")
+    overflow = MeTTa().space("&errorvocab-overflow")
     overflow.run("(= (vocab-spin $n) (vocab-spin (- $n 1)))")
     answers = _answers(
         overflow, "!(with-pragma! ((max-stack-depth 20)) (vocab-spin 5))"
@@ -113,7 +113,7 @@ def test_the_error_vocabulary_answers_what_the_arbiter_answers() -> None:
 
     # NotReducible is the third outcome, and this engine reports it as a status
     # beside the unreduced term rather than as an atom inside the answer.
-    statuses = MeTTa("&errorvocab-status")
+    statuses = MeTTa().space("&errorvocab-status")
     statuses.run("(= (vocab-double $x) (* $x 2))")
     assert [kind for kind, _ in statuses.eval_status("(vocab-double 4)")] == [
         "value"
@@ -203,7 +203,7 @@ _UNDER_APPLIED = (
 @pytest.mark.parametrize("source", _UNDER_APPLIED)
 def test_an_underapplied_operation_answers_instead_of_aborting(source: str) -> None:
     """Too few arguments is an ordinary answer, never a host abort."""
-    metta = MeTTa(f"&errorvocab-arity-{source.strip('!()').replace('-', '_')}")
+    metta = MeTTa().space(f"&errorvocab-arity-{source.strip('!()').replace('-', '_')}")
     answers = _answers(metta, source)
     assert len(answers) == 1
     assert answers[0].startswith("(partial ")

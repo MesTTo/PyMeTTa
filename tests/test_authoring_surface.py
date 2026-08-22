@@ -4,29 +4,41 @@ Guarantees:
   - ``yield from`` delegates only when nondeterminism is known and refuses
     ambiguous engine calls before they can splice application children [tested:
     test_yield_from_a_call_delegates_only_when_nondeterminism_is_known;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d].
+    commit=WORKTREE].
   - a decorator-derived output declaration is stored before the equation it
     governs [tested:
     test_a_declared_output_type_takes_effect_through_the_decorator_door;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d].
+    commit=WORKTREE].
   - Defined calls evaluate by default, stage inside rules, and resolve the
     same exact name through text and data [tested:
     test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself,
     test_one_name_resolution_rule_across_every_door,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d].
+    commit=WORKTREE].
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 import pytest
 
-from petta import Atom, CompileError, EngineError, Expr, S, V, equation, expr, rules
+from petta import (
+    Atom,
+    Expression,
+    S,
+    V,
+    equation,
+    rules,
+)
+from petta.errors import CompileError, EngineError
 
 
 def test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself(
     metta,
 ):
     """A Defined call uses the answer protocol, including not-reducible."""
-    space = metta.new_space()
+    space = metta._new_space()
 
     @space.define(name="p14-surface-call")
     def call(value):
@@ -35,12 +47,12 @@ def test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself
     assert call(1) == [2]
     space.clear()
     assert call(2) == [S["p14-surface-call"](2)]
-    assert isinstance(S["p14-surface-call"](1), Expr)
+    assert isinstance(S["p14-surface-call"](1), Expression)
 
 
 def test_one_name_resolution_rule_across_every_door(metta):
     """Text and atom calls select the same exact name in a named space."""
-    space = metta.new_space()
+    space = metta._new_space()
 
     @space.define(name="p14-surface-exact")
     def python_spelling(value):
@@ -56,7 +68,7 @@ def test_one_name_resolution_rule_across_every_door(metta):
 
 def test_a_rules_generator_scopes_its_variables_to_its_parameters(metta):
     """Rule parameters stage Defined calls and emit the container-door atom."""
-    space = metta.new_space()
+    space = metta._new_space()
 
     @space.define(name="p14-surface-double")
     def double(value):
@@ -78,7 +90,7 @@ def test_a_rules_generator_scopes_its_variables_to_its_parameters(metta):
 
 def test_yield_from_a_call_delegates_only_when_nondeterminism_is_known(metta):
     """Known generators delegate; ambiguous calls name both safe spellings."""
-    local = metta.new_space()
+    local = metta._new_space()
 
     @local.define(name="p14-surface-stream")
     def local_stream(start, stop):
@@ -87,7 +99,7 @@ def test_yield_from_a_call_delegates_only_when_nondeterminism_is_known(metta):
             yield from local_stream(start + 1, stop)
 
     assert local.eval(S.collapse(S["p14-surface-stream"](1, 5))) == [
-        expr(1, 2, 3, 4)
+        Expression(1, 2, 3, 4)
     ]
 
     @metta.define
@@ -95,7 +107,7 @@ def test_yield_from_a_call_delegates_only_when_nondeterminism_is_known(metta):
         yield value
         yield value + 1
 
-    inherited = metta.new_space()
+    inherited = metta._new_space()
 
     with pytest.raises(CompileError, match="yield p14_surface_inherited_stream"):
 
@@ -117,7 +129,7 @@ def test_yield_from_a_call_delegates_only_when_nondeterminism_is_known(metta):
 
 def test_a_declared_output_type_takes_effect_through_the_decorator_door(metta):
     """An Atom result declaration keeps the equation body's result unevaluated."""
-    space = metta.new_space()
+    space = metta._new_space()
 
     @space.define(name="p14_surface_output_typed")
     def output_typed(value: int) -> Atom:
@@ -131,7 +143,7 @@ def test_failed_equation_publication_rolls_back_its_early_declaration(
     metta, monkeypatch
 ):
     """An early declaration cannot outlive the equation it was meant to type."""
-    space = metta.new_space()
+    space = metta._new_space()
     runtime_type = type(metta.runtime)
     real_do_must = runtime_type.do_must
     target_adds = 0
@@ -140,7 +152,7 @@ def test_failed_equation_publication_rolls_back_its_early_declaration(
         nonlocal target_adds
         if (
             goal == "petta_py_add"
-            and inputs[0] == space.space_name
+            and inputs[0] == space.name
         ):
             target_adds += 1
             if target_adds == 2:

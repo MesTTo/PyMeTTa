@@ -19,8 +19,15 @@ import textwrap
 
 import pytest
 
-from petta import EngineError, PettaError, S, V, expr, val
-from petta.persistent import PersistentFactSpace
+from petta import (
+    Expression,
+    PettaError,
+    S,
+    V,
+    ground,
+)
+from petta._persistent import PersistentFactSpace
+from petta.errors import EngineError
 
 
 def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -28,7 +35,7 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  
     schema = {"edge": 2, "other": 1}
     provider = PersistentFactSpace(journal, schema)
     name = f"&persistent{id(provider)}"
-    metta.register_space(provider, name)
+    metta._register_space(provider, name)
     try:
         provider.add(S.edge(S.a, S.b))
         provider.add(S.edge(S.b, S.c))
@@ -45,12 +52,12 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  
         # removal that happened answers the unit value. Absence answers an
         # error instead, and this atom is there, so unit is the answer here
         # [tested test_removing_an_absent_atom_is_an_error_not_a_silent_unit].
-        assert metta.run(f"!(remove-atom {name} (edge a b))") == [[expr()]]
+        assert metta.run(f"!(remove-atom {name} (edge a b))") == [[Expression()]]
         # The provider's own bool is the other half of the same fact: the
         # removal above took the edge, so the second one finds nothing.
         assert not provider.remove(S.edge(S.a, S.b))
     finally:
-        metta.unregister_space(name)
+        metta._unregister_space(name)
         provider.close()
 
     reopened = PersistentFactSpace(journal, schema)
@@ -78,7 +85,7 @@ def test_journal_replays_every_supported_native(tmp_path):  # noqa: D103  -- pyt
     ]
     # On this engine the symbol true IS the boolean atom; every crossing
     # canonicalizes, and the journal follows the engine, so a stored
-    # Sym('true') replays as the boolean, exactly like parse("true").
+    # Symbol('true') replays as the boolean, exactly like parse("true").
     expected = [*facts[:6], S.fact(True), S.fact(False)]  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     first = PersistentFactSpace(journal, {"fact": 1})
     try:
@@ -102,7 +109,7 @@ def test_schema_and_native_refusals_name_the_offender(tmp_path):  # noqa: D103  
         with pytest.raises(PettaError, match="'edge' has arity 2, got 1"):
             space.add(S.edge(S.a))
         with pytest.raises(PettaError, match="live Python object of type object"):
-            space.add(S.edge(val(object()), S.b))
+            space.add(S.edge(ground(object()), S.b))
         with pytest.raises(PettaError, match=r"argument 1 \(\$x\) is not ground"):
             space.add(S.edge(V.x, S.b))
         with pytest.raises(PettaError, match=r"argument 1 .* is not a number"):
@@ -188,7 +195,7 @@ def _crash_writer(journal, sync_mode, checkpoint):
         f"""
         import os, signal
         from petta import S
-        from petta.persistent import PersistentFactSpace
+        from petta._persistent import PersistentFactSpace
 
         space = PersistentFactSpace({str(journal)!r}, {{"survivor": 1}}, sync={sync_mode!r})
         space.add(S.survivor(1))
@@ -354,7 +361,7 @@ def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog): 
     with journal.open("ab") as stream:
         stream.write(incomplete_tail)
 
-    with caplog.at_level(logging.WARNING, logger="petta.persistent"):
+    with caplog.at_level(logging.WARNING, logger="petta._persistent"):
         recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     try:
         assert list(recovered.atoms()) == prefix_facts
@@ -382,7 +389,7 @@ def test_tail_backup_is_durable_before_truncation(tmp_path, monkeypatch):  # noq
         synced.append("directory" if stat.S_ISDIR(mode) else "file")
         real_fsync(descriptor)
 
-    monkeypatch.setattr("petta.persistent.os.fsync", record_fsync)
+    monkeypatch.setattr("petta._persistent.os.fsync", record_fsync)
     recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     recovered.close()
 

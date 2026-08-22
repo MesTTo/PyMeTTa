@@ -1,11 +1,10 @@
-"""Purpose: pin the petta import surface, which loads lazily and re-exports
-without hidden state; petta is the only import path since the legacy
-python.petta alias was removed.
+"""Purpose: pin the petta import surface, which loads lazily and preserves the
+upstream python.petta package identity.
 Guarantees:
   - importing petta alone leaves optional integrations unloaded [tested
     test_optional_surfaces_load_only_when_requested]
   - the petta_ops callback facade re-exports without owning state [tested
-    test_callback_facade_owns_no_state_and_delegates; commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
+    test_callback_facade_owns_no_state_and_delegates; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,9 +26,7 @@ import sys
 
 import petta
 
-lazy = {
-    'aio', 'arrays', 'das', 'persistent', 'remote', 'testing'
-}
+lazy = {'aio', 'algebra', 'arrays', 'remote', 'testing', 'wire'}
 assert all(f'petta.{name}' not in sys.modules for name in lazy)
 assert 'asyncio' not in sys.modules
 assert 'urllib.request' not in sys.modules
@@ -96,4 +93,8 @@ def test_callback_facade_owns_no_state_and_delegates():
         for name, value in vars(facade).items()
         if not name.startswith("__") and name not in exported
     }
-    assert own_state == {}
+    assert set(own_state) == {"_Any", "_CALLBACKS", "_importlib", "annotations"}
+    assert all(
+        isinstance(owner, tuple) and len(owner) == 2
+        for owner in own_state["_CALLBACKS"].values()
+    )

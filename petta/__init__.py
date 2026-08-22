@@ -1,92 +1,220 @@
-"""Purpose: the petta package: PeTTa's Python surface. The legacy PeTTa class
-keeps its exact contract (swrite strings through helper.pl), and the rich
-surface lives beside it: atoms as Python values, the MeTTa runtime class,
-Python-backed MeTTa functions, structured queries and proof trees.
+"""Purpose: expose PeTTa's narrow Python core and lazily load satellites.
+
+Assumes:
+  - ``petta._space.MeTTa`` owns runtime context and ``petta._space.Space``
+    owns storage and query verbs [source:
+    bindings/python/petta/_space.py:306 and :3090; commit=WORKTREE]
 Guarantees:
-  - importing petta and petta.cli does not require janus_swi until an
-    engine-backed API is used [tested test_package_import_does_not_require_janus]
-  - optional integration modules load only when requested [tested
-    test_optional_surfaces_load_only_when_requested]
-  - contextual name and save-format types are available at package level
-    [tested test_public_context_types_are_distinct]
-  - atom formatter registrations have public removal counterparts [tested
-    test_object_repr_registrations_can_be_removed_exactly]
-  - SpaceCapabilityError is available at package level [tested:
-    test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=6a08901f4125c2536f5b4032daac9937f793870f]
-  - compiled definition facts and source spans are public immutable values
-    [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
-  - the immutable operator lowering table is public data [tested:
-    test_the_operator_table_is_generated_from_one_source_with_no_holes;
-    commit=613f35974fa98746552dba584ad66082fdd1f3c7]
-  - lazy query paths are public immutable values and keep their root opaque
-    [tested: test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=a1b10566194f10c174101fdc05f956b33171613b]
-  - equation and rules are public package-level authoring helpers [tested:
-    test_a_rules_generator_scopes_its_variables_to_its_parameters;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d]
+  - ``dir(petta)`` is exactly the curated public surface and loads no
+    satellites [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+  - satellite modules are imported only by attribute access, following PEP
+    562 with their real module identity intact [tested:
+    test_m7_satellites_are_lazy_and_identity_stable; commit=WORKTREE]
+  - ``space()`` is the only space-creation door and cannot be overwritten by
+    an implementation submodule [tested: test_m7_space_factory_keeps_identity;
+    commit=WORKTREE]
+  - ``PeTTa`` retains the upstream source-string wrapper for a legacy
+    ``src/main.pl`` tree without widening the curated root [tested:
+    test_upstream_python_package_path_is_canonical and
+    test_upstream_source_wrapper_binds_verbose_atom; commit=WORKTREE]
+Decides:
+  - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
+    stack policy [source: PeTTa-base/python/petta/__init__.py:8;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None.
+  Future Enhancements: None
+"""
 
-    from petta import MeTTa, S, V
+from __future__ import annotations
 
-    m = MeTTa()
-    m.run("(= (foo) boo) !(foo)")        # [[Sym('boo')]]
-    m.add(S.Parent(S.Tom, S.Bob))
-    m.query(S.Parent(V.x, S.Bob))        # Rows[x](Row(x=Sym('Tom')))
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+import _thread
+import functools as _functools
+import importlib as _importlib
+import os as _os
+from typing import Any as _Any
 
-import functools
-import importlib
-import logging
-import sys
-
-from . import _engine
-from ._api_types import MettaName, SaveFormat, SpaceName
 from ._config import Config, config
 from ._version import __version__
+from .atoms import (
+    Atom,
+    Expression,
+    G,
+    Grounded,
+    Handle,
+    S,
+    Symbol,
+    Undefined,
+    V,
+    Variable,
+    ground,
+    parse,
+    unify,
+)
+from .errors import NotReducible, PettaError
 
-# A library stays silent until its host configures the petta logger.
-logging.getLogger(__name__).addHandler(logging.NullHandler())
-
-_LAZY_MODULES = frozenset(
+_SATELLITES = frozenset(
     {
-        "algebra",
         "aio",
+        "algebra",
         "arrays",
-        "das",
+        "casting",
+        "convert",
+        "derivation",
+        "events",
+        "foreign",
+        "integrate",
+        "lint",
         "manifest",
         "parallel",
-        "persistent",
+        "paths",
         "remote",
         "spaces",
         "structures",
+        "subscribe",
         "tables",
         "testing",
+        "trace",
+        "vocabularies",
+        "wire",
     }
 )
 
-# Manifest names resolved lazily so importing petta never imports the
-# HTTP and table machinery boot composes over.
-_LAZY_ATTRIBUTES = {"Boot": "manifest", "boot": "manifest"}
+_LAZY_ATTRIBUTES = {
+    "Answer": ("answer", "Answer"),
+    "Bindings": ("answer", "Bindings"),
+    "Defined": ("define", "Defined"),
+    "MeTTa": ("_space", "MeTTa"),
+    "Space": ("_space", "Space"),
+    "SpaceProvider": ("foreign", "SpaceProvider"),
+    "boot": ("manifest", "boot"),
+    "equation": ("_rules", "equation"),
+    "record": ("ops", "record"),
+    "rules": ("_rules", "rules"),
+}
+
+_HIDDEN_IMPLEMENTATION_MODULES = {
+    "answer",
+    "atoms",
+    "define",
+    "errors",
+    "ops",
+    "results",
+}
+
+# These four names are the retained upstream package state. Exact ``__dir__``
+# keeps them out of the designed PeTTa-library surface, but the original
+# ``python.petta`` wrapper and its tests access them directly.
+CONSULTED = False
+CONSULT_LOCK = _thread.allocate_lock()
+janus: _Any = None
+DEFAULT_STACK_LIMIT = 8_000_000_000
+
+
+def _path_exists(path: str) -> bool:
+    """Check a runtime path without importing pathlib into the narrow root."""
+    return _os.path.exists(path)  # noqa: FURB141 -- pathlib adds eager imports to plain ``import petta``
+
+
+def _resolve_petta_path() -> str:
+    """Locate either the upstream or current bundled/source runtime tree."""
+    env_path = _os.environ.get("PETTA_PATH")
+    if env_path:
+        return _os.path.abspath(env_path)
+
+    here = _os.path.dirname(_os.path.abspath(__file__))
+    bundled = _os.path.join(here, "_runtime")
+    if _path_exists(_os.path.join(bundled, "src", "main.pl")) or _path_exists(
+        _os.path.join(bundled, "engine", "main.pl")
+    ):
+        return bundled
+
+    return _os.path.abspath(_os.path.join(here, _os.pardir, _os.pardir, _os.pardir))
+
+
+def _is_upstream_runtime(petta_path: str | None) -> bool:
+    """Recognize the retained upstream layout without consulting either engine."""
+    if petta_path is None:
+        if CONSULTED:
+            return True
+        petta_path = _resolve_petta_path()
+    return _os.path.isfile(_os.path.join(petta_path, "src", "main.pl"))
+
+
+def _consult_upstream(petta_path: str | None) -> None:
+    """Consult the original ``src/main.pl`` and ``python/helper.pl`` pair once."""
+    global CONSULTED, janus  # pylint: disable=global-statement
+
+    if CONSULTED:
+        return
+    with CONSULT_LOCK:
+        if CONSULTED:
+            return
+        if petta_path is None:
+            petta_path = _resolve_petta_path()
+        mork_library = _os.path.join(
+            petta_path,
+            "mork_ffi",
+            "target",
+            "release",
+            "libmork_ffi.so",
+        )
+        if _path_exists(mork_library):
+            original_dir = _os.getcwd()  # noqa: FURB104 -- pathlib stays outside the narrow import graph
+            try:
+                _os.chdir(petta_path)
+                janus = _importlib.import_module("janus_swi")
+                janus.query_once(
+                    f"set_prolog_flag(stack_limit, {DEFAULT_STACK_LIMIT})"
+                )
+            finally:
+                _os.chdir(original_dir)
+            janus.query_once("set_prolog_flag(argv, ['mork'])")
+        else:
+            janus = _importlib.import_module("janus_swi")
+            janus.query_once(f"set_prolog_flag(stack_limit, {DEFAULT_STACK_LIMIT})")
+        main_file = _os.path.join(petta_path, "src", "main.pl")
+        helper_file = _os.path.join(petta_path, "python", "helper.pl")
+        if not _path_exists(main_file):
+            msg = (
+                f"PeTTa runtime not found under {petta_path!r} "
+                f"(expected {main_file!r}). Set the PETTA_PATH environment "
+                "variable or pass petta_path to point at a PeTTa checkout."
+            )
+            raise FileNotFoundError(msg)
+        janus.consult(main_file)
+        janus.consult(helper_file)
+        CONSULTED = True
 
 
 class PeTTa:
-    """The original thin wrapper: swrite strings in, swrite strings out.
+    """The upstream-compatible thin wrapper: source strings in and out."""
 
-    Kept exactly as it was for existing callers; the rich surface is the
-    MeTTa class beside it. Both share one consulted engine.
-    """
-
-    def __init__(self, verbose=False, petta_path=None):  # noqa: D107, FBT002  -- the enclosing class documents construction and the object invariants; the boolean is established API data and positional compatibility is part of the call shape
+    def __init__(self, verbose=False, petta_path=None):  # noqa: FBT002 -- upstream constructor signature is the retained compatibility boundary
+        """Open the upstream-compatible source-string runner."""
         self.verbose = bool(verbose)
-        self._runtime = _engine.runtime(petta_path=petta_path, verbose=self.verbose)
+        self._upstream = _is_upstream_runtime(petta_path)
+        if self._upstream:
+            _consult_upstream(petta_path)
+            self._runtime = None
+        else:
+            _engine = _importlib.import_module(f"{__name__}._engine")
+            self._runtime = _engine.runtime(
+                petta_path=petta_path,
+                verbose=self.verbose,
+            )
 
     def _run_helper(self, helper_name, argument):
-        result = self._runtime._janus.query_once(
+        if self._upstream:
+            bridge = janus
+        else:
+            runtime = self._runtime
+            if runtime is None:
+                msg = "current runtime was not initialized"
+                raise RuntimeError(msg)
+            bridge = runtime._janus
+        result = bridge.query_once(
             "run_metta_helper(Verbose, HelperName, Argument, Results)",
             {
                 "Verbose": "true" if self.verbose else "false",
@@ -99,351 +227,168 @@ class PeTTa:
         return result.get("Results", [])
 
     def load_metta_file(self, file_path) -> str:
-        """Compile a MeTTa file to Prolog and return the results of the run."""
+        """Compile a MeTTa file to Prolog and return the run results."""
         return self._run_helper("load_metta_file", file_path)
 
     def process_metta_string(self, metta_code) -> str:
-        """Compile a string of MeTTa code to Prolog and return the results of the run."""
+        """Compile MeTTa source and return the run results."""
         return self._run_helper("process_metta_string", metta_code)
 
 
-def __getattr__(name: str):
-    """Resolve optional modules and the Janus bridge only when requested."""
-    if name == "janus":
-        return _engine.bridge()
-    if name in _LAZY_MODULES:
-        module = importlib.import_module(f".{name}", __name__)
-        globals()[name] = module
-        return module
-    if name in _LAZY_ATTRIBUTES:
-        module = importlib.import_module(f".{_LAZY_ATTRIBUTES[name]}", __name__)
-        value = getattr(module, name)
-        globals()[name] = value
-        return value
-    msg = f"module {__name__!r} has no attribute {name!r}"
-    raise AttributeError(msg)
+def __getattr__(name: str) -> _Any:
+    """Load one advertised satellite or lazy core object on first access."""
+    if name in _SATELLITES:
+        value = _importlib.import_module(f".{name}", __name__)
+    elif name in _LAZY_ATTRIBUTES:
+        module_name, attribute = _LAZY_ATTRIBUTES[name]
+        module = _importlib.import_module(f".{module_name}", __name__)
+        value = getattr(module, attribute)
+    elif name == "reflection":
+        value = engine().space("&petta")
+    else:
+        msg = f"module {__name__!r} has no attribute {name!r}"
+        raise AttributeError(msg)
+    for implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
+        globals().pop(implementation_name, None)
+    globals()[name] = value
+    return value
 
 
 def __dir__() -> list[str]:
-    """Include lazy public modules and attributes in package discovery."""
-    return sorted(
-        globals().keys() | _LAZY_MODULES | _LAZY_ATTRIBUTES.keys() | {"janus"}
-    )
+    """Return only the designed public surface without resolving it."""
+    return sorted(__all__)
 
 
-from . import algebra as _algebra_api  # noqa: E402
-from . import (  # noqa: E402
-    convert,
-    foreign,
-    integrate,
-    lint,
-    trace,
-)
-from ._engine import engine_thread  # noqa: E402
-from .answer import Answer, Bindings  # noqa: E402
-from .atoms import (  # noqa: E402
-    OPERATOR_LOWERINGS,
-    Atom,
-    Expr,
-    Gnd,
-    Handle,
-    OperatorLowering,
-    S,
-    Sym,
-    Undefined,
-    V,
-    Var,
-    alpha_eq,
-    atom_from_wire,
-    decode,
-    encode,
-    expr,
-    is_ground,
-    map_atoms,
-    order_key,
-    parse,
-    pretty,
-    register_object_repr,
-    register_object_repr_protocol,
-    sym,
-    unify,
-    unregister_object_repr,
-    unregister_object_repr_protocol,
-    val,
-    var,
-    variables,
-)
-from .casting import CastError, cast  # noqa: E402
-from .define import Defined, DefinitionFacts, SourceSpan  # noqa: E402
-from .derivation import Builtin, Derivation, Fact, Step, Truncated  # noqa: E402
-from .errors import (  # noqa: E402
-    DECLINE,
-    AssertionFailure,
-    CompileError,
-    Decline,
-    EngineError,
-    InferenceLimitError,
-    Interrupted,
-    MettaOperationError,
-    MettaResultError,
-    MettaSyntaxError,
-    PettaError,
-    ResourceLimitError,
-    SourceNotFound,
-    SpaceCapabilityError,
-    StrictError,
-    SubscriberError,
-    TimeLimitError,
-)
-from .events import Event, EventStream, Fold  # noqa: E402
-from .foreign import (  # noqa: E402
-    Adder,
-    Clearer,
-    CustomMatch,
-    Enumerable,
-    Matcher,
-    Remover,
-    SpaceProvider,
-)
-from .ops import REFLECTION_SPACE, record  # noqa: E402
-from .paths import Attr, Key, Path, path  # noqa: E402
-from .results import Row, Rows  # noqa: E402
-from .rules import equation, rules  # noqa: E402
-from .space import Cursor, EngineProfile, MeTTa, Prepared, current_space  # noqa: E402
-from .subscribe import Subscription, bridge  # noqa: E402
-
-AlgebraDeclarationError = _algebra_api.AlgebraDeclarationError
-AlgebraEvaluation = _algebra_api.AlgebraEvaluation
-AlgebraEvaluationError = _algebra_api.AlgebraEvaluationError
-AlgebraLawError = _algebra_api.AlgebraLawError
-AlgebraOperationError = _algebra_api.AlgebraOperationError
-AlgebraRequirementError = _algebra_api.AlgebraRequirementError
-Amplitude = _algebra_api.Amplitude
-DeclaredAlgebra = _algebra_api.DeclaredAlgebra
-LinearEvidenceError = _algebra_api.LinearEvidenceError
-PlanDecision = _algebra_api.PlanDecision
-RateDeclarationError = _algebra_api.RateDeclarationError
-TaggedAnswer = _algebra_api.TaggedAnswer
-tagged_fact = _algebra_api.tagged_fact
-tagged_rule = _algebra_api.tagged_rule
-
-# ------------------------------------------------------ the module-level tier
-# Tier 1 of the ladder: one lazily created default engine behind module
-# functions, random's and logging's own shape. The hidden instance is fine
-# because the sugar is thin, named, and escapable: every function below is
-# one line over MeTTa(), and default_engine() hands the instance over the
-# moment control is wanted. There is deliberately no module-level space():
-# petta.space is the space MODULE, a public import target, and a function
-# would clobber it; spell it default_engine().space(name).
-
-@functools.cache
-def default_engine() -> MeTTa:
-    """The engine behind the module-level functions, created on first
-    use: escape hatch and inspection point in one. Construct MeTTa()
-    yourself for isolation; there is one engine per process either way,
-    so this is about who holds the handle, not about capacity.
-    functools.cache carries the once-and-locked semantics.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return MeTTa()
+@_functools.cache
+def engine():
+    """Return the process-default runtime context, creating it on first use."""
+    return __getattr__("MeTTa")()
 
 
-def run(source: str, **kwargs):
-    """Run MeTTa source. Sugar for MeTTa().run(...); construct your own
-    engine for isolation.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return default_engine().run(source, **kwargs)
+def space(
+    name: str | None = None,
+    backing: _Any = None,
+    *,
+    journal: str | None = None,
+    **options: _Any,
+):
+    """Create or open a space; the backing value selects its implementation."""
+    return engine().space(name, backing, journal=journal, **options)
 
 
-def query(*patterns, **kwargs):
-    """Query patterns as one conjunction. Sugar for MeTTa().query(...);
-    construct your own engine for isolation.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return default_engine().query(*patterns, **kwargs)
+def attach(name: str, backing: _Any, **options: _Any):
+    """Attach a provider or remote URL through the unified creation door."""
+    return space(name, backing=backing, **options)
 
 
-def add(*atoms):
-    """Add atoms. Sugar for MeTTa().add(...); construct your own engine
-    for isolation.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return default_engine().add(*atoms)
+def current_space():
+    """Return the ambient space selected by an enclosing space context."""
+    space_api = _importlib.import_module(f"{__name__}._space")
+    value = space_api.current_space()
+    for implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
+        globals().pop(implementation_name, None)
+    return value
 
 
-def remove(atom):
-    """Remove one copy of an atom. Sugar for MeTTa().remove(...);
-    construct your own engine for isolation.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return default_engine().remove(atom)
+def forms(source: str) -> list[Atom]:
+    """Parse every top-level form without evaluating any of them."""
+    source_forms = _importlib.import_module(f"{__name__}._source_forms")
+    return [parse(form.text) for form in source_forms.positioned_forms(source)]
 
 
-def eval(target, **kwargs):  # noqa: A001  -- eval is the public compatibility spelling, so renaming it would break callers
-    """Evaluate a term, every answer. Sugar for MeTTa().eval(...);
-    construct your own engine for isolation.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return default_engine().eval(target, **kwargs)
+def run(source: str, **kwargs: _Any):
+    """Run source in the default context's self space."""
+    return engine().self.run(source, **kwargs)
 
 
-def fn(name: str):
-    """An engine function as a Python callable. Sugar for
-    MeTTa().fn(...); construct your own engine for isolation.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return default_engine().fn(name)
+def query(*patterns: _Any, **kwargs: _Any):
+    """Query the default context's self space."""
+    return engine().self.query(*patterns, **kwargs)
 
 
-def backend_info() -> dict[str, str | None]:
-    """Return backend versions and the PeTTa runtime tree in use.
+def add(*atoms: _Any):
+    """Add atoms to the default context's self space."""
+    return engine().self.add(*atoms)
 
-    This function does not start the PeTTa runtime. The petta_path value is
-    None until a MeTTa runtime exists.
-    """
-    janus_bridge = _engine.bridge()
-    version_row = janus_bridge.query_once("current_prolog_flag(version, SwiVersion)")
-    if version_row is None or not isinstance(version_row.get("SwiVersion"), int):
-        msg = "janus did not report the running SWI-Prolog version"
-        raise EngineError(msg)
-    swi_version_num = version_row["SwiVersion"]
-    active = _engine.active_runtime()
-    return {
-        "petta": __version__,
-        "janus": janus_bridge.version_str(),
-        "swi_prolog": janus_bridge.version_str(swi_version_num),
-        "python": (
-            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        ),
-        "petta_path": (None if active is None else active.petta_path),
-    }
+
+def remove(atom: _Any):
+    """Remove one exact atom from the default context's self space."""
+    return engine().self.remove(atom)
+
+
+def eval(target: _Any, **kwargs: _Any):  # noqa: A001 -- eval is the ruled public verb and its atom type stays behind the lazy handle seam
+    """Evaluate one term in the default context's self space."""
+    return engine().self.eval(target, **kwargs)
 
 
 __all__ = [
-    "DECLINE",
-    "OPERATOR_LOWERINGS",
-    "REFLECTION_SPACE",
-    "Adder",
-    "AlgebraDeclarationError",
-    "AlgebraEvaluation",
-    "AlgebraEvaluationError",
-    "AlgebraLawError",
-    "AlgebraOperationError",
-    "AlgebraRequirementError",
-    "Amplitude",
     "Answer",
-    "AssertionFailure",
     "Atom",
-    "Attr",
     "Bindings",
-    "Boot",
-    "Builtin",
-    "CastError",
-    "Clearer",
-    "CompileError",
     "Config",
-    "Cursor",
-    "CustomMatch",
-    "DeclaredAlgebra",
-    "Decline",
     "Defined",
-    "DefinitionFacts",
-    "Derivation",
-    "EngineError",
-    "EngineProfile",
-    "Enumerable",
-    "Event",
-    "EventStream",
-    "Expr",
-    "Fact",
-    "Fold",
-    "Gnd",
+    "Expression",
+    "G",
+    "Grounded",
     "Handle",
-    "InferenceLimitError",
-    "Interrupted",
-    "Key",
-    "LinearEvidenceError",
-    "Matcher",
     "MeTTa",
-    "MettaName",
-    "MettaOperationError",
-    "MettaResultError",
-    "MettaSyntaxError",
-    "OperatorLowering",
-    "Path",
+    "NotReducible",
     "PeTTa",
     "PettaError",
-    "PlanDecision",
-    "Prepared",
-    "RateDeclarationError",
-    "Remover",
-    "ResourceLimitError",
-    "Row",
-    "Rows",
     "S",
-    "SaveFormat",
-    "SourceNotFound",
-    "SourceSpan",
-    "SpaceCapabilityError",
-    "SpaceName",
+    "Space",
     "SpaceProvider",
-    "Step",
-    "StrictError",
-    "SubscriberError",
-    "Subscription",
-    "Sym",
-    "TaggedAnswer",
-    "TimeLimitError",
-    "Truncated",
+    "Symbol",
     "Undefined",
     "V",
-    "Var",
+    "Variable",
     "__version__",
     "add",
     "aio",
-    "alpha_eq",
+    "algebra",
     "arrays",
-    "atom_from_wire",
-    "backend_info",
+    "attach",
     "boot",
-    "bridge",
-    "cast",
+    "casting",
     "config",
     "convert",
     "current_space",
-    "das",
-    "decode",
-    "default_engine",
-    "encode",
-    "engine_thread",
+    "derivation",
+    "engine",
     "equation",
     "eval",
-    "expr",
-    "fn",
+    "events",
     "foreign",
+    "forms",
+    "ground",
     "integrate",
-    "is_ground",
     "lint",
     "manifest",
-    "map_atoms",
-    "order_key",
     "parallel",
     "parse",
-    "path",
-    "persistent",
-    "pretty",
+    "paths",
     "query",
     "record",
-    "register_object_repr",
-    "register_object_repr_protocol",
+    "reflection",
     "remote",
     "remove",
     "rules",
     "run",
-    "sym",
+    "space",
+    "spaces",
+    "structures",
+    "subscribe",
     "tables",
-    "tagged_fact",
-    "tagged_rule",
     "testing",
     "trace",
     "unify",
-    "unregister_object_repr",
-    "unregister_object_repr_protocol",
-    "val",
-    "var",
-    "variables",
+    "vocabularies",
+    "wire",
 ]
+
+# Importing a submodule writes it onto its parent package. These concrete
+# modules remain explicitly importable, but they are implementation modules,
+# not root attributes.
+for _implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
+    globals().pop(_implementation_name, None)
+del _implementation_name

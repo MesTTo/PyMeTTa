@@ -4,47 +4,48 @@ signature for arities (defaults yield several), auto-detects nondeterminism
 annotations, and registers the whole thing with the engine through shim.pl.
 Guarantees:
   - registration distinguishes a MeTTa function name from its declaration
-    space [tested test_public_context_types_are_distinct]
+    space [tested: test_canonical_context_types_replace_public_newtypes;
+    commit=WORKTREE]
   - registration asks the engine grammar whether the requested name reads as
     one symbol and refuses before reflecting or registering anything [tested:
     test_register_op_refuses_a_name_metta_cannot_read;
-    commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
+    commit=WORKTREE]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
-     commit=4224c26819d90b9e03efdaef78cb573b91729295]
+     commit=WORKTREE]
   - overload stubs each contribute their declared arrow and annotation claims
     [tested: test_every_advanced_annotation_reaches_metta_as_a_target_symbol;
-     commit=4224c26819d90b9e03efdaef78cb573b91729295]
+     commit=WORKTREE]
   - unreachable **kwargs refuses and a typed zero-parameter operation still
     emits its return arrow
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
-     commit=ff4ac16f07a6e373e79ed0eae0a4c2d64cb92550]
+     commit=WORKTREE]
   - callable code flags, through partials, wrappers, bound methods, and
     callable objects, classify generators and refuse coroutine functions
     before registration changes any engine or registry state [tested:
     test_register_op_reads_co_flags_and_refuses_or_awaits;
-    commit=214a34885feb4fd1caf26c67143d6a3b0506e824]
+    commit=WORKTREE]
   - every documented operation owns its portable @doc atom in the
     declaration space, independent of type annotations, under the same transactional
     lifecycle and reference count as type declarations [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
+    commit=WORKTREE]
   - each registered arity owns the arrow for exactly the arguments that call
     form accepts, including repeated variadic annotations [tested:
     test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-    commit=e5246578ba61fb5efc9d2282bade50479946e34a]
+    commit=WORKTREE]
   - Annotated MeTTa parameters retain metadata without losing engine
     injection [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
-    commit=f97e7f465274d378d2222f5b30b1b737c96f35f5]
+    commit=WORKTREE]
   - transport, evaluation order, typing, and purity are expressed by op,
     type, and effect atoms rather than boolean decorator flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
   - the first Python owner refuses to adopt a source-owned declaration, while
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;
-    commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -55,14 +56,15 @@ Open Obligations:
 from __future__ import annotations
 
 import functools
+import importlib as _importlib
 import inspect
 import threading
 import typing
 from collections.abc import Callable, Iterable
 from typing import Any, Literal, ParamSpec, TypeVar
 
-from . import _engine, convert
-from ._api_types import _DEFAULT_SPACE, MettaName, SpaceName
+from . import _engine
+from ._api_types import _DEFAULT_SPACE, _OperationName, _SpaceId
 from ._documentation import documentation_atom
 from ._ops import REGISTRY, Operation
 from ._type_annotations import (
@@ -78,7 +80,7 @@ from ._type_annotations import (
 from ._type_annotations import (
     callable_name as _callable_name,
 )
-from .atoms import Atom, Expr, S, Sym, _to_atom, expr
+from .atoms import Atom, Expression, S, Symbol, _expr, _to_atom
 
 _CO_GENERATOR = getattr(inspect, "CO_GENERATOR", 0x0020)
 _CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
@@ -86,7 +88,6 @@ _CO_ITERABLE_COROUTINE = getattr(inspect, "CO_ITERABLE_COROUTINE", 0x0100)
 _CO_ASYNC_GENERATOR = getattr(inspect, "CO_ASYNC_GENERATOR", 0x0200)
 
 __all__ = [
-    "REFLECTION_SPACE",
     "annotation_atom_for",
     "annotation_exprs",
     "class_declarations",
@@ -111,28 +112,28 @@ _R = TypeVar("_R")
 #: subscriptions: a Python subscription on &petta reacts to control atoms
 #: a MeTTa program adds, which is steering the library from inside MeTTa
 #: without forking it.
-REFLECTION_SPACE = "&petta"
+_REFLECTION_SPACE = "&petta"
 
 
-def _op_facts(op: Operation) -> list[Expr]:
+def _op_facts(op: Operation) -> list[Expression]:
     """The operation's reflected surface: one (op name arity kind) per arity,
     and (effect name immutable) when it declared itself pure. One list, so
     the transaction, rollback, re-registration diff and unregister all treat
     the effect atom exactly as they treat the op atoms.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    facts = [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
+    facts = [_expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
     facts.extend(fact for fact in op.catalog if fact not in facts)
     if op.inverse is not None:
-        facts.append(expr(S.inverse, S[op.name]))
+        facts.append(_expr(S.inverse, S[op.name]))
     return facts
 
 
-def _reflect_add(runtime, atom: Expr) -> None:
-    runtime.must("petta_py_add(Space, W)", Space=REFLECTION_SPACE, W=atom.to_wire())
+def _reflect_add(runtime, atom: Expression) -> None:
+    runtime.must("petta_py_add(Space, W)", Space=_REFLECTION_SPACE, W=atom.to_wire())
 
 
-def _reflect_remove(runtime, atom: Expr) -> None:
-    runtime.once("petta_py_remove(Space, W, _)", Space=REFLECTION_SPACE, W=atom.to_wire())
+def _reflect_remove(runtime, atom: Expression) -> None:
+    runtime.once("petta_py_remove(Space, W, _)", Space=_REFLECTION_SPACE, W=atom.to_wire())
 
 
 # Declarations are shared: two signatures naming Point both need
@@ -143,7 +144,7 @@ def _reflect_remove(runtime, atom: Expr) -> None:
 _DECLARATION_REFS: dict[tuple[str, str], int] = {}
 
 
-def _retain_declaration(runtime, space: str, declaration: Expr) -> None:
+def _retain_declaration(runtime, space: str, declaration: Expression) -> None:
     key = (space, str(declaration))
     count = _DECLARATION_REFS.get(key, 0)
     if count == 0:
@@ -155,7 +156,7 @@ def _retain_declaration(runtime, space: str, declaration: Expr) -> None:
     _DECLARATION_REFS[key] = count + 1
 
 
-def _release_declaration(runtime, space: str, declaration: Expr) -> None:
+def _release_declaration(runtime, space: str, declaration: Expression) -> None:
     key = (space, str(declaration))
     count = _DECLARATION_REFS.get(key, 0)
     if count <= 1:
@@ -189,7 +190,7 @@ def record(cls: type) -> type:
     anything. Every underlying registration call stays public for the
     classes that need custom shapes.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    convert.ensure_registered(cls)
+    _importlib.import_module(f"{__package__}.convert").ensure_registered(cls)
     with _RECORDED_LOCK:
         _RECORDED.append(cls)
     if _engine.booted():
@@ -218,7 +219,7 @@ def declare_recorded() -> None:
     )
 
 
-def class_declarations(cls: type) -> list[Expr]:
+def class_declarations(cls: type) -> list[Expression]:
     """The (: ...) atoms that make a class a MeTTa type: the translator's
     own declarations for an Enum, dataclass or NamedTuple, constructor
     arrows and member typings, derived from the class itself. A plain
@@ -226,17 +227,17 @@ def class_declarations(cls: type) -> list[Expr]:
     name to get-type through the engine's MRO typing bridge, so emitting
     one would only restate what the engine figures out on its own.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return list(convert.declarations(cls))
+    return list(_importlib.import_module(f"{__package__}.convert").declarations(cls))
 
 
-def _metta_name(fn: Callable, name: str | None) -> MettaName:
+def _metta_name(fn: Callable, name: str | None) -> _OperationName:
     """The MeTTa spelling: the Python name verbatim unless overridden.
 
     Nothing is rewritten. A hyphenated MeTTa name is one Python cannot
     spell, so it is asked for with name=, where it is visible at the
     registration rather than inferred from the identifier.
     """
-    return MettaName(name if name is not None else _callable_name(fn))
+    return _OperationName(name if name is not None else _callable_name(fn))
 
 
 def _arities(
@@ -291,7 +292,7 @@ def _type_declarations(
     variadic: inspect.Parameter | None,
     arities: list[int],
     fn: Callable,
-) -> list[Expr]:
+) -> list[Expression]:
     """Everything a signature declares: the (-> ...) arrows over the full
     arity, one per Union combination, plus the declarations of every class
     the annotations reference, so a signature naming Point makes Point a
@@ -300,7 +301,7 @@ def _type_declarations(
     rather than %Undefined%, and TypeVars declare type variables, the
     parametric reading.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    declared: list[Expr] = []
+    declared: list[Expression] = []
     overloads = typing.get_overloads(fn)
     signatures = overloads or (fn,)
     all_annotations: list[Any] = []
@@ -382,19 +383,19 @@ def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
     if flags & _CO_ASYNC_GENERATOR:
         msg = (
             f"cannot register {name}: an async-generator function cannot run "
-            "through synchronous register_op"
+            "through synchronous op"
         )
         raise TypeError(msg)
     if flags & _CO_COROUTINE:
         msg = (
             f"cannot register {name}: a coroutine function cannot run through "
-            "synchronous register_op"
+            "synchronous op"
         )
         raise TypeError(msg)
     if flags & _CO_ITERABLE_COROUTINE:
         msg = (
             f"cannot register {name}: a generator-based coroutine cannot run "
-            "through synchronous register_op"
+            "through synchronous op"
         )
         raise TypeError(msg)
     many = bool(flags & _CO_GENERATOR)
@@ -408,7 +409,7 @@ def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
 
 def _partition_declarations(  # noqa: C901  -- _partition_declarations keeps the local/catalog declaration routing together so its branches share one state
     name: str, declarations: Iterable[Atom]
-) -> tuple[list[Expr], tuple[Expr, ...]]:
+) -> tuple[list[Expression], tuple[Expression, ...]]:
     """Split operation-local declarations from &petta policy facts.
 
     Type and documentation atoms govern compilation in the operation's own
@@ -417,25 +418,25 @@ def _partition_declarations(  # noqa: C901  -- _partition_declarations keeps the
     unregistration. `(op ...)` is reserved because arity and transport derive
     that fact from the callable and cannot safely disagree with it.
     """
-    local: list[Expr] = []
-    catalog: list[Expr] = []
+    local: list[Expression] = []
+    catalog: list[Expression] = []
     for declaration in declarations:
         atom = _to_atom(declaration)
-        if not isinstance(atom, Expr) or not atom.children:
+        if not isinstance(atom, Expression) or not atom.children:
             msg = (
                 "operation declarations must be expression atoms, "
                 f"got {atom!s}"
             )
             raise TypeError(msg)
         head = atom.children[0]
-        if head == Sym("op"):
+        if head == Symbol("op"):
             msg = (
                 "(op ...) is derived from transport=, arities=, and the "
                 "callable's generator shape; do not supply it twice"
             )
             raise ValueError(msg)
-        if head == Sym("effect"):
-            if len(atom.children) != 3 or atom.children[1] != Sym(name):
+        if head == Symbol("effect"):
+            if len(atom.children) != 3 or atom.children[1] != Symbol(name):
                 msg = (
                     f"an effect declaration for {name!r} must be "
                     f"(effect {name} immutable|stable|volatile)"
@@ -457,10 +458,10 @@ def _partition_declarations(  # noqa: C901  -- _partition_declarations keeps the
             if atom not in catalog:
                 catalog.append(atom)
             continue
-        if head == Sym("arguments"):
+        if head == Symbol("arguments"):
             if (
                 len(atom.children) != 3
-                or atom.children[1] != Sym(name)
+                or atom.children[1] != Symbol(name)
                 or atom.children[2] not in (S.atoms, S.values)
             ):
                 msg = (
@@ -478,18 +479,18 @@ def _partition_declarations(  # noqa: C901  -- _partition_declarations keeps the
             if atom not in catalog:
                 catalog.append(atom)
             continue
-        target = local if head in (Sym(":"), Sym("@doc")) else catalog
+        target = local if head in (Symbol(":"), Symbol("@doc")) else catalog
         if atom not in target:
             target.append(atom)
     return local, tuple(catalog)
 
 
-def _is_immutable(name: str, catalog: tuple[Expr, ...]) -> bool:
-    return expr(S.effect, S[name], S.immutable) in catalog
+def _is_immutable(name: str, catalog: tuple[Expression, ...]) -> bool:
+    return _expr(S.effect, S[name], S.immutable) in catalog
 
 
-def _passes_atoms(name: str, catalog: tuple[Expr, ...]) -> bool:
-    return expr(S.arguments, S[name], S.atoms) in catalog
+def _passes_atoms(name: str, catalog: tuple[Expression, ...]) -> bool:
+    return _expr(S.arguments, S[name], S.atoms) in catalog
 
 
 def _operation_declarations(
@@ -499,8 +500,8 @@ def _operation_declarations(
     variadic: inspect.Parameter | None,
     arities: list[int],
     fn: Callable,
-    supplied: list[Expr],
-) -> tuple[Expr, ...]:
+    supplied: list[Expression],
+) -> tuple[Expression, ...]:
     has_annotations = bool(resolved_annotations(fn) or typing.get_overloads(fn))
     declarations = (
         _type_declarations(name, params, variadic, arities, fn)
@@ -516,7 +517,7 @@ def _operation_declarations(
     return tuple(declarations)
 
 
-def _require_readable_name(runtime: Any, name: MettaName) -> None:
+def _require_readable_name(runtime: Any, name: _OperationName) -> None:
     """Refuse a name the engine reader would turn into anything but itself."""
     refusal = runtime.apply("petta_py_symbol_refusal", name)
     if refusal is None:
@@ -536,8 +537,8 @@ def _rollback_registration(
     runtime: Any,
     operation: Operation,
     previous: Operation | None,
-    retained: list[Expr],
-    added_facts: list[Expr],
+    retained: list[Expression],
+    added_facts: list[Expression],
 ) -> None:
     for fact in added_facts:
         _reflect_remove(runtime, fact)
@@ -566,7 +567,7 @@ def _register_transaction(
     runtime: Any,
     operation: Operation,
     previous: Operation | None,
-) -> tuple[list[Expr], list[Expr]]:
+) -> tuple[list[Expression], list[Expression]]:
     """Publish one complete operation surface or restore its previous life.
 
     Declarations go in BEFORE the registration, which is the order that
@@ -581,8 +582,8 @@ def _register_transaction(
     """
     new_facts = _op_facts(operation)
     old_facts = _op_facts(previous) if previous is not None else []
-    retained: list[Expr] = []
-    added_facts: list[Expr] = []
+    retained: list[Expression] = []
+    added_facts: list[Expression] = []
     try:
         for declaration in operation.declarations:
             _retain_declaration(runtime, operation.space or "&self", declaration)
@@ -607,8 +608,8 @@ def _register_transaction(
 def _retire_previous(
     runtime: Any,
     previous: Operation | None,
-    new_facts: list[Expr],
-    old_facts: list[Expr],
+    new_facts: list[Expression],
+    old_facts: list[Expression],
     fallback_space: str,
 ) -> None:
     if previous is None:
@@ -629,8 +630,7 @@ def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int
     injects nothing here and keeps failing exactly where it fails today,
     in the typed declaration pass.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    from .space import MeTTa  # noqa: PLC0415  space imports ops at top; the cycle breaks here
-
+    metta_type = _importlib.import_module(f"{__package__}._space").MeTTa
     try:
         hints = resolved_annotations(fn)
     except TypeError:
@@ -640,7 +640,7 @@ def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int
         annotation = hints.get(param.name)
         while typing.get_origin(annotation) is typing.Annotated:
             annotation = typing.get_args(annotation)[0]
-        if annotation is MeTTa:
+        if annotation is metta_type:
             positions.append(index)
     return positions
 
@@ -656,9 +656,8 @@ def _with_engine(fn: Callable, positions: list[int]) -> Callable:
 
     @functools.wraps(fn)
     def woven(*args):
-        from .space import MeTTa, current_space  # noqa: PLC0415  the same deliberate cycle break
-
-        engine = MeTTa(current_space())
+        space_api = _importlib.import_module(f"{__package__}._space")
+        engine = space_api.MeTTa(_self_name=space_api.current_space())
         threaded = list(args)
         for position in positions:
             threaded.insert(position, engine)
@@ -683,14 +682,14 @@ def register(
 
     A generator function registers as nondeterministic: each yield is one
     answer, and MeTTa's collapse, superpose and let compose over them. A
-    plain function is deterministic; returning None or raising Decline
+    plain function is deterministic; returning None or raising NotReducible
     answers nothing. Defaults yield one registration per reachable arity;
     a variadic callable names its call forms with arities=[...].
 
     inverse supplies the BACKWARDS direction, so the operation can stand in a
     pattern position the way a MeTTa equation does. It takes the result and
     returns the arguments, as a tuple, or the bare value at arity one; a
-    generator enumerates every preimage, and None or Decline means there is
+    generator enumerates every preimage, and None or NotReducible means there is
     none. It only ever runs when the arguments are not ground and the result
     is, so a forward call never reaches it and an operation without one
     compiles exactly what it compiled before.
@@ -765,7 +764,7 @@ def register(
         kind=kind,
         arity=max(arities),
         pass_atoms=pass_atoms,
-        space=SpaceName(space),
+        space=_SpaceId(space),
         declarations=declarations,
         catalog=catalog,
         arities=tuple(arities),

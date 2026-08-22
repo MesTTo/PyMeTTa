@@ -2,7 +2,11 @@
 
 Guarantees:
   - the required P4.20 names exercise only public PeTTa surfaces
-    [tested: this module; commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    [tested: this module; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 from __future__ import annotations
@@ -14,20 +18,20 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from petta import (
-    AlgebraLawError,
     Answer,
-    Expr,
+    Expression,
     S,
     V,
     parse,
 )
+from petta.algebra import AlgebraLawError
 from petta.foreign import SpaceProvider
 
 
 class _WeightedFacts(SpaceProvider):
     """Two one-row relations whose answer annotations are 2 and 3."""
 
-    def atoms(self) -> Iterator[Expr]:
+    def atoms(self) -> Iterator[Expression]:
         yield parse("(left a)")
         yield parse("(right b)")
 
@@ -41,7 +45,7 @@ class _WeightedFacts(SpaceProvider):
 
 
 def _join_annotation(metta, name: str, algebra: str) -> str:
-    metta.register_space(_WeightedFacts(), name)
+    metta._register_space(_WeightedFacts(), name)
     metta.declare_annotations(name, algebra)
     result = metta.run(
         f"!(match {name} (, (left a) (right b)) (annotation))"
@@ -64,7 +68,7 @@ def test_a_declared_semiring_quadruple_serves_annotations_like_a_builtin_one(
     shipped = _join_annotation(metta, "&p4-shipped-product", "prob")
     assert custom == shipped == "6"
 
-    metta.space("&petta").add(
+    metta._at("&petta").add(
         parse("(algebra p4-direct-product + * 0 1 (laws) (carrier) (requires))")
     )
     direct = _join_annotation(metta, "&p4-direct-product", "p4-direct-product")
@@ -80,7 +84,7 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
         zero=S.none,
         one=S.unit,
     )
-    with metta.new_space() as lawless:
+    with metta._new_space() as lawless:
         lawless.add(parse("(fact first (choice same))"))
         lawless.add(parse("(fact second (choice same))"))
         evaluation = lawless.evaluate_algebra(
@@ -100,7 +104,7 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
         zero=0,
         one=1,
     )
-    with metta.new_space() as handwritten, metta.new_space() as generated:
+    with metta._new_space() as handwritten, metta._new_space() as generated:
         handwritten.add(parse("(fact 2 (parent tom bob))"))
         handwritten.add(parse("(fact 3 (parent bob ann))"))
         handwritten.add(
@@ -130,7 +134,7 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
 
 def test_a_false_declared_law_is_refused_by_name(metta):
     """Finite carrier checking publishes the first concrete counterexample."""
-    metta.register_op(
+    metta.op(
         lambda left, right: (left - right) % 3,
         name="p4-subtract-mod3",
     )

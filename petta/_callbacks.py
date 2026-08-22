@@ -1,45 +1,78 @@
-"""Purpose: expose Python engine callbacks under the petta_ops import name.
+"""Purpose: expose engine callbacks lazily under the ``petta_ops`` alias.
+
 Guarantees:
-  - the callback facade owns no registry state and delegates to its owning
-    modules, including reader-token construction [tested:
-    test_callback_facade_owns_no_state_and_delegates; commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
-  - lazy path callbacks retain an opaque root and project one segment per
-    crossing [tested: test_a_path_reaches_into_a_handle_without_converting_it;
-    commit=a1b10566194f10c174101fdc05f956b33171613b]
+  - the facade owns no registry state and each callback is the exact object
+    from its owning module [tested: test_callback_facade_owns_no_state_and_delegates;
+    commit=WORKTREE]
+  - importing the callback facade does not import event, provider, or path
+    satellites [tested: test_m7_satellites_are_lazy_and_identity_stable;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None.
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+  Future Enhancements: None
+"""
 
-from ._ops import (
-    dispatch,
-    dispatch_inverse,
-    dispatch_inverse_raw,
-    dispatch_many,
-    dispatch_raw,
-    dispatch_raw_many,
-    type_names,
-)
-from ._tokens import construct_token
-from .events import atom_added, atom_removed
-from .foreign import (
-    foreign_add,
-    foreign_add_many,
-    foreign_atoms,
-    foreign_clear,
-    foreign_match,
-    foreign_plan,
-    foreign_pushdown,
-    foreign_refuse,
-    foreign_remove,
-    foreign_transaction,
-    is_matchable,
-    match_object,
-)
-from .paths import _path_begin as path_begin
-from .paths import _path_step as path_step
-from .paths import _path_value as path_value
+from __future__ import annotations
+
+import importlib as _importlib
+from typing import Any as _Any
+
+_CALLBACKS = {
+    "atom_added": ("events", "atom_added"),
+    "atom_removed": ("events", "atom_removed"),
+    "construct_token": ("_tokens", "construct_token"),
+    "dispatch": ("_ops", "dispatch"),
+    "dispatch_inverse": ("_ops", "dispatch_inverse"),
+    "dispatch_inverse_raw": ("_ops", "dispatch_inverse_raw"),
+    "dispatch_many": ("_ops", "dispatch_many"),
+    "dispatch_raw": ("_ops", "dispatch_raw"),
+    "dispatch_raw_many": ("_ops", "dispatch_raw_many"),
+    "foreign_add": ("foreign", "foreign_add"),
+    "foreign_add_many": ("foreign", "foreign_add_many"),
+    "foreign_atoms": ("foreign", "foreign_atoms"),
+    "foreign_clear": ("foreign", "foreign_clear"),
+    "foreign_match": ("foreign", "foreign_match"),
+    "foreign_plan": ("foreign", "foreign_plan"),
+    "foreign_pushdown": ("foreign", "foreign_pushdown"),
+    "foreign_refuse": ("foreign", "foreign_refuse"),
+    "foreign_remove": ("foreign", "foreign_remove"),
+    "foreign_transaction": ("foreign", "foreign_transaction"),
+    "is_matchable": ("foreign", "is_matchable"),
+    "match_object": ("foreign", "match_object"),
+    "path_begin": ("paths", "_path_begin"),
+    "path_step": ("paths", "_path_step"),
+    "path_value": ("paths", "_path_value"),
+    "type_names": ("_ops", "type_names"),
+}
+
+# Names are declared for static tooling but acquire values only through the
+# module's PEP 562 resolver.
+atom_added: _Any
+atom_removed: _Any
+construct_token: _Any
+dispatch: _Any
+dispatch_inverse: _Any
+dispatch_inverse_raw: _Any
+dispatch_many: _Any
+dispatch_raw: _Any
+dispatch_raw_many: _Any
+foreign_add: _Any
+foreign_add_many: _Any
+foreign_atoms: _Any
+foreign_clear: _Any
+foreign_match: _Any
+foreign_plan: _Any
+foreign_pushdown: _Any
+foreign_refuse: _Any
+foreign_remove: _Any
+foreign_transaction: _Any
+is_matchable: _Any
+match_object: _Any
+path_begin: _Any
+path_step: _Any
+path_value: _Any
+type_names: _Any
 
 __all__ = [
     "atom_added",
@@ -68,3 +101,21 @@ __all__ = [
     "path_value",
     "type_names",
 ]
+
+
+def __getattr__(name: str) -> _Any:
+    """Resolve a callback only when Janus first requests it."""
+    try:
+        module_name, attribute = _CALLBACKS[name]
+    except KeyError:
+        msg = f"module {__name__!r} has no attribute {name!r}"
+        raise AttributeError(msg) from None
+    module = _importlib.import_module(f"{__package__}.{module_name}")
+    value = getattr(module, attribute)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    """Return the exact callback protocol without resolving callbacks."""
+    return list(__all__)

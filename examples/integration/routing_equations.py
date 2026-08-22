@@ -10,9 +10,9 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, expr
+from petta import MeTTa, S, Expression
 
-app = MeTTa().new_space()
+app = MeTTa().space()
 app.run(
     '(= (route home) (Page 200 "Welcome"))\n'
     '(= (route about) (Page 200 "About us"))\n'
@@ -20,8 +20,8 @@ app.run(
     "(= (handle $req) (once (route $req)))\n"
     "(= (logged $req) (let $res (handle $req) (Logged $req $res)))"
 )
-check("a route", app.run("!(handle home)"), [[expr(S.Page, 200, "Welcome")]])
-check("the 404", app.run("!(handle nowhere)"), [[expr(S.NotFound, 404, S.nowhere)]])
+check("a route", app.run("!(handle home)"), [[Expression(S.Page, 200, "Welcome")]])
+check("the 404", app.run("!(handle nowhere)"), [[Expression(S.NotFound, 404, S.nowhere)]])
 check("middleware is composition", app.run("!(logged about)"),
-      [[expr(S.Logged, S.about, expr(S.Page, 200, "About us"))]])
+      [[Expression(S.Logged, S.about, Expression(S.Page, 200, "About us"))]])
 done("routing_equations")

@@ -1,125 +1,49 @@
-"""Purpose: the MeTTa runtime surface. One class binds a space name to the
-process's engine and offers running source, loading files, structured space
-edits, conjunctive queries with guards, bounds, scoped assumptions and
-preparation, evaluation, Python-backed operations, proof-tree derivations
-and a why-not diagnostic, all in PeTTa's own semantics.
+"""Purpose: provide the narrow MeTTa context and context-relative Space handles.
+
+Assumes:
+  - the six extracted ``_space_*`` modules own query, definition, execution,
+    persistence, eager decoding, and diagnostic implementation [source:
+    bindings/python/petta/_space_query.py, _space_definitions.py,
+    _space_execution.py, _space_persistence.py, _space_objects.py, and
+    _space_diagnostics.py; commit=WORKTREE]
 Guarantees:
-  - MeTTa.save preserves an existing target when validation, writing, or
-    replacement fails [tested test_save_validation_preserves_existing_file,
-    test_text_save_write_failure_preserves_existing_file,
-    test_save_failure_preserves_existing_file]
-  - MeTTa.save fsyncs a completed sibling file before replacing the target
-    [tested test_save_syncs_before_replacing]
-  - MeTTa.derivation distinguishes a finite-depth cutoff from no proof and
-    accepts time and inference guards [tested
-    test_depth_exhaustion_returns_a_partial_proof,
-    test_unbounded_derivation_obeys_resource_guards]
-  - an exhausted Cursor keeps raising StopIteration, while an explicitly
-    closed Cursor refuses use [tested
-    test_stream_agrees_with_query_and_closes_on_exhaustion,
-    test_stream_pulls_rows_lazily_and_interleaves]
-  - register_op and unregister_op are the paired operation lifecycle names
-    [tested test_operation_registration_names_are_symmetric]
-  - an Atom parameter changes call-site evaluation so the callable receives
-    the written term while an unconstrained parameter receives its value
-    [tested: test_an_atom_annotation_changes_evaluation_order_as_documented;
-     commit=a6a2287b5bfe03ec1b5dea9f7a8c55f715304d6b]
-  - define accepts source-bearing Python functions and refuses callable
-    objects before reading compiler metadata [tested
-    test_define_refuses_callable_objects]
-  - define returns a Defined whose call evaluates in its owning space while
-    its Python reference stays available as .py [tested:
-    test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself;
-    commit=88d2e764c999d89e8919172e5c1455be804b293d]
-  - query, prepare, and stream preserve distinct variable columns in first
-    appearance order [tested test_query_surfaces_share_column_order]
-  - public name and save-format annotations distinguish their string
-    contexts [tested test_public_context_types_are_distinct]
-  - cast preserves a concrete target class as its static return type and keeps
-    the target positional-only [tested
-    test_target_type_overloads_preserve_the_requested_class,
-    test_cast_target_is_positional_only]
-  - dropping a space releases its integration installation records [tested
-    test_dropped_space_name_reinstalls_integrations]
-  - new_space(inherits=parent) creates a child-first read view whose writes and
-    lifecycle stay local [tested:
-    test_a_child_space_reads_through_its_parent_and_writes_locally;
-    commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
-  - new_space(restricted=True, grants=...) fixes a capability profile at
-    creation [tested:
-    test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=6a08901f4125c2536f5b4032daac9937f793870f]
-  - eval_status and run_status separate a pruned branch from an unevaluated
-    term, and a strict scope refuses only the latter [tested
-    test_eval_status_reports_the_four_outcomes,
-    test_strict_accepts_a_pruned_branch_and_every_reduction]
-  - eval has one answer shape: a non-reducible result is its unreduced term,
-    and no residuals flag changes it [tested:
-    test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
-  - query(into=cls) rebuilds a complete constructor expression captured in
-    one variable, while cast remains type admission [tested:
-    test_a_constructor_expression_rebuilds_through_the_query_door;
-    commit=2bf66c123858feaeaf9909729db3e8700aaca546]
-  - execution policies live in with-blocks and capture never changes run or
-    eval return shapes [tested:
-    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
-  - declare_image records one validated per-type-per-context image choice and
-    replaces the previous choice [tested:
-    test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=24532816d8f3987cc56059fadf3666a387ae1156]
-  - profile_extension reports every declared member of an extension, including
-    one the workload never reached, with the tier that installed it and its
-    clause index [tested 2026-08-16:
-    test_profile_extension_reports_every_declared_member,
-    test_profile_extension_separates_an_indexed_table_from_a_single_clause]
-  - register_prolog reads a metta_export declaration from inline source as it
-    does from a file [tested 2026-08-16:
-    test_inline_source_declares_its_own_exports_too]
-  - remove() is multiset subtraction, one unifying occurrence per call,
-    the same law remove-atom obeys [tested
-    test_the_python_remove_door_subtracts_one_copy]
-  - del m[pattern] drains every unifying occurrence and raises KeyError
-    when none unified, remove() reporting the same absence as False
-    [tested test_delitem_drains_every_unifying_occurrence]
-  - |= merges a space, a registered space name, or an iterable, and refuses
-    an operand add() would lift into one atom [tested
-    test_ior_merges_a_space_equations_included,
-    test_ior_refuses_the_operands_add_would_lift]
-  - builtins() returns every registered function and every translator special
-    form, sorted without duplicates [tested:
-    test_builtins_equals_the_union_of_functions_and_special_forms;
-    commit=bcf80e727923cce0e034f716d7eef01f9395c490]
-  - register_op refuses a name the engine reader cannot recover as one symbol,
-    before changing either the engine or Python registries [tested:
-    test_register_op_refuses_a_name_metta_cannot_read;
-    commit=235b35cc6a3e7b61325c7c2648e4a33f43edd93a]
-  - register_token installs a full-lexeme reader class and unregister_token
-    removes it; replacement affects future parses without changing atoms
-    already returned [tested:
-    test_a_registered_token_class_parses_like_a_shipped_one;
-    commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
-Owns:
-  - MeTTa.save owns its sibling temporary file and removes it after every
-    failed operation [tested test_save_failure_preserves_existing_file]
+  - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
+    query, declaration, and lifecycle verbs [tested:
+    test_m7_narrow_core_surface; commit=WORKTREE]
+  - ``MeTTa.space()`` creates named or anonymous handles through one door
+    [tested: test_module_tier_is_sugar_over_one_default_engine;
+    commit=WORKTREE]
+  - ``Space.query``, every ``declare_*`` verb, and the write door retain their
+    established semantics after moving off ``MeTTa`` [tested:
+    test_query_surfaces_share_column_order,
+    test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
+    test_the_python_remove_door_subtracts_one_copy; commit=WORKTREE]
+  - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
+    lifecycle pair [tested: test_operation_registration_names_are_symmetric;
+    commit=WORKTREE]
+Owns resources:
+  - ``Space.save`` owns its sibling temporary file and removes it after every
+    failed operation [tested: test_save_failure_preserves_existing_file;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
 import builtins as _builtins
 import functools
 import hashlib
+import importlib as _importlib
 import os
+import sys
 from collections import abc as _abc
 from collections.abc import Callable, Iterable
+from contextvars import ContextVar
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Literal,
     ParamSpec,
@@ -129,15 +53,8 @@ from typing import (
     overload,
 )
 
-if TYPE_CHECKING:
-    # Bound to a private name: MeTTa.parallel is a method, so a bare
-    # `parallel` in an annotation inside the class body resolves to it.
-    from .parallel import EnginePool as _EnginePool
-
-from . import algebra as _algebra
-from . import integrate as _integrate
 from . import ops as _ops_module
-from ._api_types import _DEFAULT_SPACE, SaveFormat, SpaceName
+from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime, started
 from ._space_definitions import (
     clear_definitions,
@@ -145,7 +62,6 @@ from ._space_definitions import (
     install_prolog_define,
     install_type,
 )
-from ._space_diagnostics import derivations, explain_no_match
 from ._space_execution import (
     CapturedOutput,
     ScopedExecution,
@@ -180,65 +96,47 @@ from ._space_persistence import (
     save_space,
 )
 from ._space_query import query_rows
+from ._version import __version__
 from .atoms import (
     Atom,
-    Expr,
-    Gnd,
-    Sym,
+    Expression,
+    Grounded,
+    Symbol,
     Undefined,
-    Var,
+    Variable,
+    _atom_from_wire,
     _to_atom,
-    atom_from_wire,
-    encode,
     parse,
 )
-from .casting import cast as _cast
 from .define import Defined, PrologBacked
-from .derivation import Derivation
 from .errors import EngineError, PettaError, SourceNotFound, StrictError
-from .events import EventStream
-from .events import stream as _stream
-from .foreign import (
-    has_provider,
-    register_provider,
-    require_capability,
-    unregister_provider,
-)
-from .lint import lint as _lint
 from .results import Rows, raise_error_answers, rows_into
-from .subscribe import SUBSCRIPTION_QUEUE_MAX, _subscriptions_for
-from .subscribe import subscribe as _subscribe
-from .trace import trace as _trace
-from .vocabularies import (
-    AGENDA_POLICY,
-    ANSWER_POLICY,
-    ATOMICITY,
-    DELIVERY,
-    DETERMINISM,
-    EVENT_ORDER,
-    FIDELITY,
-    ON_ERROR_MODE,
-    SOURCE_KIND,
-    WORLD,
-    AgendaPolicy,
-    AnswerPolicy,
-    Atomicity,
-    Delivery,
-    EventOrder,
-    Fidelity,
-    OnErrorMode,
-    SourceKind,
-    World,
-)
 
-__all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "current_space"]
+__all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_space"]
 
 _CastT = TypeVar("_CastT")
 _R = TypeVar("_R")
 _P = ParamSpec("_P")
 
+_ACTIVE_SPACE: ContextVar[_SpaceId | None] = ContextVar(
+    "petta_active_space", default=None
+)
+_RUN_BINDINGS: ContextVar[dict[str, Any] | None] = ContextVar(
+    "petta_run_bindings", default=None
+)
 
-def current_space(default: str = _DEFAULT_SPACE) -> SpaceName:
+
+def _satellite(name: str) -> Any:
+    """Import one optional surface only when its handle verb is called."""
+    return _importlib.import_module(f"{__package__}.{name}")
+
+
+def _policy(name: str) -> tuple[str, ...]:
+    """Read one generated vocabulary without loading the catalog eagerly."""
+    return cast(tuple[str, ...], getattr(_satellite("vocabularies"), name))
+
+
+def current_space(default: str = _DEFAULT_SPACE) -> _SpaceId:
     """The space whose module the ENGINE is evaluating in right now.
 
     Callable from inside a registered operation, where it answers the space
@@ -246,35 +144,29 @@ def current_space(default: str = _DEFAULT_SPACE) -> SpaceName:
     an operation can behave per-space without the space being an argument.
     Outside any evaluation it answers the default.
     """
+    selected = _ACTIVE_SPACE.get()
+    if selected is not None:
+        return selected
     if not started():
-        return SpaceName(default)
+        return _SpaceId(default)
     row = bridge().query_once("current_metta_space(S)")
-    return SpaceName(str(row["S"])) if row else SpaceName(default)
+    return _SpaceId(str(row["S"])) if row else _SpaceId(default)
 
 
-def _row_values(row: Any, keys: list[Any]) -> Any:
-    """One table row's values, left to right.
+class _BoundValues:
+    """Named host values visible to source execution inside one block."""
 
-    Iterating a mapping yields its keys, so a list of records would store
-    the column names as data, once per row, with no error and the right
-    row count. Records are read by their values instead, and the first
-    record fixes the key order every later one must repeat, since that
-    order is what decides which fact position a value lands in.
-    """
-    if not isinstance(row, _abc.Mapping):
-        return row
-    if not keys:
-        keys.extend(row.keys())
-    elif list(row.keys()) != keys:
-        msg = (
-            f"every record must carry the same keys in the same order, "
-            f"because their order fixes the fact positions; expected "
-            f"{keys}, got {list(row.keys())}"
-        )
-        raise ValueError(
-            msg
-        )
-    return row.values()
+    def __init__(self, values: dict[str, Any]) -> None:
+        self._values = values
+        self._token: Any = None
+
+    def __enter__(self) -> Self:
+        inherited = _RUN_BINDINGS.get() or {}
+        self._token = _RUN_BINDINGS.set({**inherited, **self._values})
+        return self
+
+    def __exit__(self, *_exception: object) -> None:
+        _RUN_BINDINGS.reset(self._token)
 
 
 def _require_source(source: Any, called: str) -> None:
@@ -296,43 +188,43 @@ def _require_name(name: Any, called: str) -> None:
 
 
 def _checked_new_space_request(
-    inherits: MeTTa | None,
+    inherits: Space | None,
     *,
     restricted: bool,
     grants: _abc.Iterable[str],
 ) -> tuple[str, ...]:
-    """Refuse a malformed new_space request here, naming each refusal.
+    """Refuse a malformed anonymous ``space()`` request at one boundary.
 
     Validation lives at this public boundary so the engine-side declaration
     transaction only ever sees a live parent, a boolean restriction, and
     known string capability grants.
     """
-    if inherits is not None and not isinstance(inherits, MeTTa):
-        msg = f"new_space(inherits=...) takes a live MeTTa space, got {inherits!r}"
+    if inherits is not None and not isinstance(inherits, Space):
+        msg = f"space(inherits=...) takes a live Space handle, got {inherits!r}"
         raise TypeError(msg)
     if inherits is not None and inherits._dropped:
-        msg = "new_space(inherits=...) takes a live MeTTa space"
+        msg = "space(inherits=...) takes a live Space handle"
         raise PettaError(msg)
     if not isinstance(restricted, bool):
-        msg = "new_space(restricted=...) takes a bool"
+        msg = "space(restricted=...) takes a bool"
         raise TypeError(msg)
     if isinstance(grants, str):
-        msg = "new_space(grants=...) takes an iterable of capability names"
+        msg = "space(grants=...) takes an iterable of capability names"
         raise TypeError(msg)
     try:
         requested_grants = tuple(grants)
     except TypeError as exc:
-        msg = "new_space(grants=...) takes an iterable of capability names"
+        msg = "space(grants=...) takes an iterable of capability names"
         raise TypeError(msg) from exc
     if any(not isinstance(capability, str) for capability in requested_grants):
-        msg = "every new_space grant must be a string"
+        msg = "every space grant must be a string"
         raise TypeError(msg)
     unknown = set(requested_grants) - {"file", "process", "network"}
     if unknown:
         msg = f"unknown space capabilities: {sorted(unknown)!r}"
         raise ValueError(msg)
     if requested_grants and not restricted:
-        msg = "new_space grants require restricted=True"
+        msg = "space grants require restricted=True"
         raise ValueError(msg)
     if inherits is not None and restricted:
         msg = "a space cannot be both inherited and restricted"
@@ -388,19 +280,19 @@ def _copies_after_its_base(atom: Any) -> bool:
     atom.
     """
     try:
-        if not isinstance(atom, Expr) or str(atom.head) != "=":
+        if not isinstance(atom, Expression) or str(atom.head) != "=":
             return False
         lhs = atom.args[0]
-        return isinstance(lhs, Expr) and "_Spec_" in str(lhs.head)
+        return isinstance(lhs, Expression) and "_Spec_" in str(lhs.head)
     except (AttributeError, IndexError):
         return False
 
 
-def _to_stored_atom(value: Any) -> Expr:
+def _to_stored_atom(value: Any) -> Expression:
     """Accept exactly the non-empty expression shape spaces can store."""
     atom = _to_atom(value)
-    if not isinstance(atom, Expr) or not atom.children:
-        detail = "the empty expression" if isinstance(atom, Expr) else atom.metatype
+    if not isinstance(atom, Expression) or not atom.children:
+        detail = "the empty expression" if isinstance(atom, Expression) else atom.metatype
         msg = (
             f"a stored atom is a non-empty expression; {atom!r} is {detail}. "
             f"Wrap a bare value in structure, as in (value {atom})."
@@ -411,14 +303,14 @@ def _to_stored_atom(value: Any) -> Expr:
     return atom
 
 
-class MeTTa:
+class Space:
     """A space bound to the engine: the way in from Python.
 
-    PeTTa keeps one engine per process; every MeTTa instance shares it. The
+    PeTTa keeps one engine per process; every context shares it. The
     default space is &self, the space the CLI itself uses, so source pasted
-    from a .metta file behaves identically here. Two MeTTa() calls therefore
-    see the same &self state. Use new_space() when independent stored state
-    is required.
+    from a .metta file behaves identically here. Two ``MeTTa().self`` handles
+    therefore see the same &self state. Use ``MeTTa().space()`` when
+    independent stored state is required.
 
     A named space isolates both its atoms and its EQUATIONS, and the rule for
     equations has a third part this docstring used to get wrong by calling
@@ -434,56 +326,60 @@ class MeTTa:
     So a helper put in &self is reachable from every space, one put in a named
     space is private to it, and a name defined in both resolves to the local
     one where it exists. Registrations are the thing that really is
-    process-wide, which new_space() says.
+    process-wide, which the anonymous ``space()`` factory says.
 
         from petta import MeTTa, S, V
 
-        m = MeTTa()
-        m.run("(= (foo) boo) !(foo)")     # [[Sym('boo')]]
+        m = MeTTa().self
+        m.run("(= (foo) boo) !(foo)")     # [[Symbol('boo')]]
         m.add(S.Parent(S.Tom, S.Bob))
-        m.query(S.Parent(V.x, S.Bob))     # Rows[x](Row(x=Sym('Tom')))
+        m.query(S.Parent(V.x, S.Bob))
     """
 
-    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
+    def __init__(
         self,
-        space: str = _DEFAULT_SPACE,
+        name: str = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
         petta_path: str | None = None,
+        _runtime: Runtime | None = None,
     ) -> None:
-        if not isinstance(space, str):
+        if not isinstance(name, str):
             msg = (
                 f"a space name is a string starting with &, as in &self or "
-                f"&kb; got {space!r}"
+                f"&kb; got {name!r}"
             )
             raise TypeError(
                 msg
             )
-        if not space.startswith("&"):
+        if not name.startswith("&"):
             msg = (
-                f"a space name starts with &, as in &self or &kb; got {space!r}. "
+                f"a space name starts with &, as in &self or &kb; got {name!r}. "
                 f"The prefix is load-bearing: is-space recognises it, and a $ "
                 f"name would read back as a variable."
             )
             raise ValueError(
                 msg
             )
-        self._rt: Runtime = runtime(petta_path=petta_path, verbose=verbose)
+        self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
         # Recorded classes declared before any engine existed land now.
         _ops_module.declare_recorded()
         # The public parameter takes a plain str so a literal is writable;
         # the NewType is constructed once here and threads through inside.
-        self._name = SpaceName(space)
+        self._name = _SpaceId(name)
         self._dropped = False
         self._ephemeral = False
+        self._backing: Any = None
+        self._owns_backing = False
+        self._context_tokens: list[Any] = []
 
     @property
-    def _space(self) -> SpaceName:
+    def _space(self) -> _SpaceId:
         """The space name, refused once this handle has been dropped.
 
         Every engine call reads the name through here, so a dropped handle
         cannot reach the engine at all. That matters because drop() returns
-        an anonymous name to the pool: without this, a later new_space()
+        an anonymous name to the pool: without this, a later ``space()``
         hands the same name to a new handle and writes through the dead one
         land in the new space, silently.
         """
@@ -491,7 +387,7 @@ class MeTTa:
             msg = (
                 f"{self._name} was dropped; this handle is dead. Its name may "
                 f"already belong to another space, so writes through it would "
-                f"land there. Take a new handle from new_space() or space()."
+                f"land there. Take a new handle from space()."
             )
             raise PettaError(
                 msg
@@ -501,12 +397,13 @@ class MeTTa:
     # ------------------------------------------------------------------ naming
 
     @property
-    def space_name(self) -> SpaceName:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def name(self) -> _SpaceId:
+        """The live engine name represented by this handle."""
         return self._space
 
-    def space(self, name: str) -> MeTTa:
-        """Another space on the same engine."""
-        return MeTTa(name)
+    def _at(self, name: str) -> Space:
+        """Return another handle in this runtime for internal composition."""
+        return Space(name, _runtime=self._rt)
 
     def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and
@@ -518,25 +415,25 @@ class MeTTa:
         row = self._rt.once("petta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
 
-    def new_space(
+    def _new_space(
         self,
         *,
-        inherits: MeTTa | None = None,
+        inherits: Space | None = None,
         restricted: bool = False,
         grants: _abc.Iterable[str] = (),
-    ) -> MeTTa:
+    ) -> Space:
         """An anonymous space with a name nothing else is using.
 
         Works as a context manager: leaving the block drops the space, so a
         churn of short-lived spaces reuses names instead of growing the
         engine's module table.
 
-            with m.new_space() as scratch:
+            with m._new_space() as scratch:
                 scratch.add(...)
 
         What it isolates is STORED STATE: atoms and equations. Registrations
-        are process-wide, so a register_prolog, a register_op or a define made
-        on a new space is visible from every other one. Reach for this to
+        are process-wide, so a register_prolog, an op, or a define made on an
+        anonymous space is visible from every other one. Reach for this to
         isolate the data a test writes, not the names it registers; to isolate
         a name, unregister it.
         """
@@ -555,7 +452,7 @@ class MeTTa:
             row = self._rt.must(
                 "petta_py_new_space(Parent, Name)", Parent=inherits._space
             )
-        fresh = MeTTa(str(row["Name"]))
+        fresh = Space(str(row["Name"]))
         fresh._ephemeral = True
         return fresh
 
@@ -575,41 +472,59 @@ class MeTTa:
             self._rt.must(
                 "petta_py_space_releasable(Space)", Space=self._space
             )
-        for subscription in _subscriptions_for(self._space):
+        subscriptions = _satellite("subscribe")
+        foreign = _satellite("foreign")
+        integrate = _satellite("integrate")
+        for subscription in subscriptions._subscriptions_for(self._space):
             subscription.cancel()
-        if has_provider(self._space):
-            unregister_provider(self._rt, self._space)
+        if foreign.has_provider(self._space):
+            foreign.unregister_provider(self._rt, self._space)
+            if self._owns_backing:
+                close = getattr(self._backing, "close", None)
+                if callable(close):
+                    close()
         self.clear()
         if self._space != "&self":
             self._rt.must("petta_py_release_space(Space)", Space=self._space)
-        _integrate._forget_space(self._space)
+        integrate._forget_space(self._space)
         self._dropped = True
 
-    def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        if not self._ephemeral:
-            msg = (
-                f"{self._space} was not created by new_space(); only an "
-                f"anonymous space scopes to a with-block, since leaving the "
-                f"block drops it. Call drop() deliberately for a named one."
-            )
-            raise TypeError(
-                msg
-            )
+    def __enter__(self) -> Self:
+        self._context_tokens.append(_ACTIVE_SPACE.set(self._space))
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        self.drop()
+    def __exit__(self, exc_type, exc, tb) -> None:
+        _ACTIVE_SPACE.reset(self._context_tokens.pop())
+        if self._ephemeral and not self._context_tokens:
+            self.drop()
 
-    def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __repr__(self) -> str:
         state = ", dropped" if self._dropped else ""
-        return f"MeTTa({self._name!r}{state})"
+        return f"Space({self._name!r}{state})"
+
+    def bind(
+        self,
+        values: _abc.Mapping[str, Any] | None = None,
+        /,
+        **named: Any,
+    ) -> _BoundValues:
+        """Scope named host values for :meth:`run` without a call flag."""
+        bindings = {} if values is None else dict(values)
+        if any(not isinstance(name, str) for name in bindings):
+            msg = "every bound host-value name must be a string"
+            raise TypeError(msg)
+        overlap = bindings.keys() & named.keys()
+        if overlap:
+            msg = f"host values were bound twice: {sorted(overlap)!r}"
+            raise TypeError(msg)
+        bindings.update(named)
+        return _BoundValues(bindings)
 
     # ----------------------------------------------------------------- running
 
     def run(
         self,
         source: str,
-        using: dict[str, Any] | None = None,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
@@ -659,7 +574,7 @@ class MeTTa:
             self._rt,
             self._space,
             source,
-            using,
+            _RUN_BINDINGS.get(),
             timeout=timeout,
             inferences=inferences,
         )
@@ -783,7 +698,7 @@ class MeTTa:
     def save(
         self,
         path: str | os.PathLike[str],
-        format: SaveFormat = "metta",  # noqa: A002  -- format is the documented public save keyword and must remain compatible
+        format: str = "metta",  # noqa: A002  -- format is the documented public save keyword
     ) -> int:
         """Write every stored atom of this space, equations included, as
         MeTTa source by default, or as a version-pinned trusted cache with
@@ -843,7 +758,7 @@ class MeTTa:
         """Register a full-token regex and its Atom constructor.
 
         The constructor receives the complete matched lexeme. It may return an
-        Atom or any value accepted by :func:`petta.encode`. A later registration
+        Atom or any value accepted by :func:`petta.ground`. A later registration
         of the same pattern replaces the constructor. Only future parses read
         the new mapping; atoms already returned are immutable values.
         """
@@ -891,55 +806,6 @@ class MeTTa:
         else:
             self._rt.do_must("petta_py_add_many", self._space, wires)
 
-    def add_table(self, head: Any, data: Any) -> int:
-        """Any tabular source as facts (head v1 .. vn); answers how many.
-
-            m.add_table("edge", polars_frame)         # or a pandas frame
-            m.add_table("edge", {"src": [...], "dst": [...]})
-            m.add_table("edge", [("a", "b"), ("b", "c")])
-
-        The source is read by the interface it offers, never by library:
-        iter_rows() (polars), itertuples() (pandas), a mapping of columns,
-        or any iterable of rows. A row may be a sequence or a mapping, so
-        a list of records from rows.to_dicts() reads correctly; every
-        record must carry the same keys in the same order, because their
-        order is what fixes the fact positions. A mapping of columns takes
-        its own key order, and columns of unequal length are a hard error
-        rather than a silent truncation.
-
-        rows.table() is the reverse in shape, the dict every DataFrame
-        constructor takes, but not in identity: it decodes atoms to Python
-        values, so a symbol comes back as a str and re-enters as a MeTTa
-        String. For a lossless round trip keep the atoms:
-
-            m.add_table(head, {c: rows[c] for c in rows.columns})
-        """
-        head_atom = _to_atom(head)
-        keys: list[Any] = []
-        if hasattr(data, "iter_rows"):
-            rows = data.iter_rows()
-        elif hasattr(data, "itertuples"):
-            rows = data.itertuples(index=False)
-        elif isinstance(data, _abc.Mapping):
-            rows = zip(*data.values(), strict=True)
-        elif isinstance(data, _abc.Iterable):
-            rows = iter(data)
-        else:
-            msg = (
-                f"add_table reads iter_rows(), itertuples(), a mapping of "
-                f"columns, or an iterable of rows; "
-                f"{type(data).__name__} offers none of those"
-            )
-            raise TypeError(
-                msg
-            )
-        facts = [
-            Expr([head_atom, *(encode(value) for value in _row_values(row, keys))])
-            for row in rows
-        ]
-        self.add(*facts)
-        return len(facts)
-
     def remove(self, atom: Any) -> bool:
         """Remove an atom, engine semantics: multiset subtraction, so ONE
         unifying occurrence leaves and the answer says whether one did.
@@ -952,23 +818,18 @@ class MeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _refuse_in_batch(self._space, "remove")
         pattern = _to_atom(atom)
-        if not isinstance(pattern, Var):
+        if not isinstance(pattern, Variable):
             pattern = _to_stored_atom(pattern)
         removed = self._rt.apply_must(
             "petta_py_remove", self._space, pattern.to_wire()
         )
-        result = atom_from_wire(removed)
+        result = _atom_from_wire(removed)
         return bool(getattr(result, "value", True))
 
     def atoms(self) -> list[Atom]:
         """Every stored atom in this space."""
         wires = self._rt.apply_must("petta_py_atoms", self._space)
-        return [atom_from_wire(w) for w in wires]
-
-    def count(self) -> int:
-        """Return the number of atoms stored in this space."""
-        row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
-        return int(row["N"])
+        return [_atom_from_wire(w) for w in wires]
 
     @overload
     def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
@@ -984,7 +845,7 @@ class MeTTa:
         petta.CastError naming the value's actual types, the loud
         spelling of what a typed call does silently.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _cast(self, value, type_)
+        return _satellite("casting").cast(self, value, type_)
 
     def trace(self, source: str, max_events: int = 1_000_000):
         """Run source under the engine's reduction trace and answer
@@ -995,7 +856,7 @@ class MeTTa:
         max_events bounds the recording, raising past it rather than
         accumulating a long run's trace without limit.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _trace(self, source, max_events=max_events)
+        return _satellite("trace").trace(self, source, max_events=max_events)
 
     def lint(self):
         """Diagnose this space for the silently-wrong class: declared
@@ -1004,21 +865,21 @@ class MeTTa:
         Answers petta.lint.Finding records, empty when nothing looks
         wrong.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _lint(self)
+        return _satellite("lint").lint(self)
 
-    def copy(self) -> MeTTa:
+    def copy(self) -> Space:
         """This space's contents in a new anonymous space, cloned through
         the bulk door, so equations copy as equations and keep running:
         "a scratch space set up like production" is one line. The handle
-        is new_space()'s kind, so drop it, or use it as a context
+        is ``space()``'s kind, so drop it, or use it as a context
         manager, to return the name. copy.copy(m) answers the same
         through the copy protocol. There is deliberately no __deepcopy__:
         stored Python objects keep their identity across the clone, the
         shallow reading, and a deep clone of a live engine handle has no
         meaning to promise.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        require_capability(self._space, "enumerate", "copy")
-        clone = self.new_space()
+        _satellite("foreign").require_capability(self._space, "enumerate", "copy")
+        clone = self._new_space()
         atoms = list(self.atoms())
         # Specializer-generated equations add LAST, stably. Re-adding a base
         # equation invalidates the clone's specializations of that name, so
@@ -1040,14 +901,14 @@ class MeTTa:
         when save() would write the same content. Live host objects have
         no cross-process identity and are refused, like save().
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        require_capability(self._space, "enumerate", "digest")
+        _satellite("foreign").require_capability(self._space, "enumerate", "digest")
         result = self._rt.apply_must("petta_py_digest", self._space)
         if not isinstance(result, list) or len(result) != 2:
             msg = f"petta_py_digest returned an invalid result: {result!r}"
             raise EngineError(msg)
         kind, value = result
         if kind == "object":
-            atom = atom_from_wire(value)
+            atom = _atom_from_wire(value)
             msg = (
                 f"{atom} carries a live Python object; it has no "
                 f"cross-process identity to digest. Remove it, or digest "
@@ -1057,14 +918,15 @@ class MeTTa:
                 msg
             )
         if kind == "symbol":
-            raise_unsafe_text_atom(atom_from_wire(value), "digest")
+            raise_unsafe_text_atom(_atom_from_wire(value), "digest")
         if kind != "digest":
             msg = f"petta_py_digest returned an unknown result: {result!r}"
             raise EngineError(msg)
         return str(value)
 
-    def __len__(self) -> int:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        return self.count()
+    def __len__(self) -> int:
+        row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
+        return int(row["N"])
 
     def __bool__(self) -> bool:
         """Always true: a space is a handle to a store, not a value that
@@ -1075,7 +937,7 @@ class MeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return True
 
-    def __contains__(self, atom: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __contains__(self, atom: Any) -> bool:
         return self._rt.do("petta_py_contains", self._space, _to_atom(atom).to_wire())
 
     def clear(self) -> None:
@@ -1092,7 +954,7 @@ class MeTTa:
         self.add(atom)
         return self
 
-    def __isub__(self, atom: Any) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __isub__(self, atom: Any) -> Self:
         self.remove(atom)
         return self
 
@@ -1111,7 +973,7 @@ class MeTTa:
         vanish here; spell the reading you mean. Strings name spaces, so
         an unregistered name is a KeyError rather than a parse.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if isinstance(other, MeTTa):
+        if isinstance(other, Space):
             merged: list[Any] = other.atoms()
         elif isinstance(other, str):
             if other not in self.space_names():
@@ -1123,7 +985,7 @@ class MeTTa:
                 raise KeyError(
                     msg
                 )
-            merged = self.space(other).atoms()
+            merged = Space(other, _runtime=self._rt).atoms()
         elif isinstance(other, (bytes, bytearray, _abc.Mapping)):
             msg = (
                 f"|= does not read a {type(other).__name__}: add() would "
@@ -1247,7 +1109,7 @@ class MeTTa:
             return rows
         return rows_into(rows, into)
 
-    def stream(
+    def _stream(
         self,
         *patterns: Any,
         where: Any | None = None,
@@ -1521,11 +1383,11 @@ class MeTTa:
         """
         if not targets:
             return []
-        branches = Expr([_to_atom(target) for target in targets])
+        branches = Expression([_to_atom(target) for target in targets])
         return evaluate(
             self._rt,
             self._space,
-            Expr([Sym("hyperpose"), branches]),
+            Expression([Symbol("hyperpose"), branches]),
             timeout,
             None,
         )
@@ -1543,7 +1405,7 @@ class MeTTa:
         """
         return self.parallel(*targets, timeout=timeout)
 
-    def pool(self, workers: int | None = None) -> _EnginePool:
+    def pool(self, workers: int | None = None) -> Any:
         """A pool of worker threads that each hold their own Prolog engine.
 
         The Python-side twin of `parallel()`. Each worker attaches its own
@@ -1553,7 +1415,7 @@ class MeTTa:
 
             m.run("(= (sq $x) (* $x $x))")
             with m.pool(workers=4) as p:
-                p.map(lambda n: m.one(f"(sq {n})"), range(64))
+                p.map(lambda n: m.eval(S.sq(n))[0], range(64))
 
         Use it as a context manager so every engine is released. `workers`
         defaults to os.cpu_count(). This handle stays usable from the workers:
@@ -1562,9 +1424,7 @@ class MeTTa:
         Reach for `parallel()` instead when the fan-out is a MeTTa expression
         rather than a Python loop; the two compose.
         """
-        from . import parallel  # noqa: PLC0415  a declared lazy module
-
-        return parallel.EnginePool(workers)
+        return _satellite("parallel").EnginePool(workers)
 
     def eval_status(
         self,
@@ -1575,8 +1435,8 @@ class MeTTa:
     ) -> list[tuple[str, Atom | Undefined | None]]:
         """Evaluate a term, pairing each answer with how it was produced.
 
-            m.eval_status(S.double(4))       # [("value", Gnd(8))]
-            m.eval_status(S.Point(1, 2))     # [("not-reducible", Expr(...))]
+            m.eval_status(S.double(4))       # [("value", Grounded(8))]
+            m.eval_status(S.Point(1, 2))     # [("not-reducible", Expression(...))]
             m.eval_status(S.empty())         # [("empty", None)]
 
         `value` means an equation, builtin or special form applied.
@@ -1605,7 +1465,7 @@ class MeTTa:
         _require_source(source, "run_status")
         return run_status(self._rt, self._space, source, timeout, inferences)
 
-    def one(
+    def _one(
         self,
         target: Any,
         *,
@@ -1613,10 +1473,9 @@ class MeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
-        """THE answer of evaluating target, as a plain Python value.
+        """Return the sole answer as a plain Python value for internal callers.
 
-            m.one("(+ 1 2)")            # 3
-            m.one(S.fact(5))            # 120
+            m.eval(S.fact(5))[0]         # Grounded(120)
 
         Exactly one answer is the contract: none or several raise naming
         the count, because a caller asking for the value has asserted
@@ -1625,9 +1484,8 @@ class MeTTa:
 
         This is one point on the answer-cardinality axis, spelled the
         same everywhere it appears: eval() takes every answer (MeTTa's
-        collapse), first() takes the first and tolerates absence, one()
-        demands exactly one. fn() and Rows carry the same triple, and
-        the same timeout/inferences bounds apply throughout.
+        collapse), while this private helper demands exactly one. The same
+        timeout/inferences bounds apply throughout.
 
         An `(Error ...)` answer raises MettaResultError carrying the
         atom: an error among the answers is the evaluation reporting
@@ -1640,7 +1498,7 @@ class MeTTa:
         raise_error_answers(answers, space=self._space, target=target)
         return value_one(target, answers)
 
-    def first(
+    def _first(
         self,
         target: Any,
         *,
@@ -1695,7 +1553,7 @@ class MeTTa:
     # "breed(a, b) takes one argument" in evolutionary_search.py
     # [measured 2026-08-17].
     @overload
-    def register_op(
+    def op(
         self,
         fn: Callable[_P, _R],
         /,
@@ -1709,7 +1567,7 @@ class MeTTa:
     ) -> Callable[_P, _R]: ...
 
     @overload
-    def register_op(
+    def op(
         self,
         *,
         name: str | None = ...,
@@ -1720,7 +1578,7 @@ class MeTTa:
         inverse: Callable | None = ...,
     ) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]: ...
 
-    def register_op(
+    def op(
         self,
         fn: Callable | None = None,
         *,
@@ -1733,11 +1591,11 @@ class MeTTa:
     ) -> Any:
         """Register a Python callable as a MeTTa function, decorator-style.
 
-            @m.register_op
+            @m.op
             def double(x: int) -> int:
                 return 2 * x                    # !(double 21) -> 42
 
-            @m.register_op
+            @m.op
             def neighbours(n: int):
                 yield n - 1                     # a generator is nondeterministic
                 yield n + 1
@@ -1757,7 +1615,7 @@ class MeTTa:
         An `Atom` parameter changes evaluation order. The declaration tells
         the compiler to pass the argument as written, before it reduces:
 
-            @m.register_op
+            @m.op
             def anyatom(term: Atom) -> Atom:
                 return term
 
@@ -1771,7 +1629,7 @@ class MeTTa:
         When evaluation order stays ordinary but the callable needs the
         resulting Atom wrappers, declare that policy as data:
 
-            m.register_op(
+            m.op(
                 inspect_atom,
                 name="inspect-atom",
                 declarations=[parse("(arguments inspect-atom atoms)")],
@@ -1799,12 +1657,12 @@ class MeTTa:
         inverse gives the operation a BACKWARDS direction, so it can stand in
         a pattern position the way a MeTTa equation does:
 
-            m.register_op(cons, name="cons", inverse=uncons)
+            m.op(cons, name="cons", inverse=uncons)
             # !(let (cons $h $t) (1 2 3) ($h $t))  ->  (1 (2 3))
 
         It takes the result and returns the arguments, as a tuple, or the
         bare value at arity one; a generator enumerates every preimage, and
-        None or Decline means there is none. It runs only when the arguments
+        None or NotReducible means there is none. It runs only when the arguments
         are not ground and the result is, so a forward call never reaches it,
         and an operation without one compiles exactly what it did before.
 
@@ -1816,16 +1674,16 @@ class MeTTa:
         arities or the declared arrow, and only operations that ask pay
         the weaving:
 
-            @m.register_op
+            @m.op
             def related(term, engine: petta.MeTTa):
-                for row in engine.query(expr(S.link, term, V.x)):
+                for row in engine.query(Expression(S.link, term, V.x)):
                     yield row[0]
 
         Purity is a seam declaration rather than a Python boolean. Supply the
         ordinary effect atom to let the operation appear in a `(tabled ...)`
         or memoized body:
 
-            m.register_op(
+            m.op(
                 len,
                 name="size",
                 declarations=[parse("(effect size immutable)")],
@@ -1860,11 +1718,6 @@ class MeTTa:
         """
         _ops_module.unregister(self._rt, name)
 
-    # The paired names are canonical. These spellings keep existing
-    # decorators and notebooks executable while callers migrate together.
-    op = register_op
-    unregister = unregister_op
-
     # -------------------------------------------------------------- inspection
 
     def builtins(self) -> list[str]:
@@ -1893,7 +1746,7 @@ class MeTTa:
         row = self._rt.once("petta_py_arities(Name, As)", Name=name)
         return list(row.get("As", []))
 
-    def disassemble(self, name: str) -> str:
+    def _disassemble(self, name: str) -> str:
         """The Prolog clauses a function name compiled to, dis for the
         translator: one listing per registered arity, resolved in this
         space's module. What the engine RUNS for a call, which is the
@@ -1925,7 +1778,7 @@ class MeTTa:
         """Register Prolog predicates as MeTTa functions, at native speed.
 
         This is the extension point for a library that wants to run fast.
-        register_op() is the one most people find first, and every call it
+        op() is the one most people find first, and every call it
         serves crosses the janus boundary: 25.16 inferences and 2.34us per
         call, against 7.16 inferences and 0.13us for the same operation
         written in Prolog [measured 2026-08-15, 3000 calls in one harness].
@@ -1945,7 +1798,7 @@ class MeTTa:
                 "'vec-dot'(A, B, Out) :- ... .",
                 names=["vec-dot"],
             )
-            m.one("(vec-dot (1 2) (3 4))")
+            m.eval("(vec-dot (1 2) (3 4))")[0]
 
         or, for a library shipping a file beside its Python:
 
@@ -1971,8 +1824,8 @@ class MeTTa:
         of its own content.
 
         **This is a method on a space and it registers PROCESS-WIDE.** So do
-        register_op and define. Only equations are space-scoped, so a
-        new_space() isolates one of the three things you can register and
+        op and define. Only equations are space-scoped, so an anonymous
+        space() isolates one of the three things you can register and
         shares the other two. That is deliberate rather than overlooked: a
         Prolog predicate lives in `user`, every space has to be able to call
         it, and a library loaded inside a named space would define itself
@@ -1990,7 +1843,7 @@ class MeTTa:
             m.register_prolog("'shape-of'(A, Out) :- Out = [shape, A].",
                               names=["shape-of"])
             m.run("(: shape-of (-> Atom Atom))")
-            m.one("(shape-of (+ 1 2))")     # (shape (+ 1 2)), not (shape 3)
+            m.eval("(shape-of (+ 1 2))")[0] # (shape (+ 1 2)), not (shape 3)
 
         Declare it BEFORE anything calls the function. A call site compiled
         while the declaration is absent keeps evaluating the argument even
@@ -2266,7 +2119,7 @@ class MeTTa:
         callback: Callable | None = None,
         *,
         on: str = "add",
-        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+        queue_max: int | None = None,
     ):
         """A standing query on this space: every added (or removed, or
         both) atom unifying with the pattern becomes an Event.
@@ -2292,21 +2145,26 @@ class MeTTa:
         cannot say which. Re-read the space when you need to know;
         `petta.structures.LiveView` is the worked instance.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _subscribe(
+        subscriptions = _satellite("subscribe")
+        return subscriptions.subscribe(
             self._rt,
             self._space,
             _to_atom(pattern),
             callback,
             on,
-            queue_max=queue_max,
+            queue_max=(
+                subscriptions.SUBSCRIPTION_QUEUE_MAX
+                if queue_max is None
+                else queue_max
+            ),
         )
 
-    def events(self) -> EventStream:
+    def events(self) -> Any:
         """This engine's stream of `(action, space, atom)` changes.
 
             seen = m.events().fold(
                 lambda held, event: [*held, event.atom],
-                space=m.space_name, pattern=S.order(V.id), state=[],
+                space=m.name, pattern=S.order(V.id), state=[],
             )
             m.add(S.order(1))
             seen.take()          # [(order 1)], and the fold starts again
@@ -2318,7 +2176,7 @@ class MeTTa:
         reaction the fold whose step evaluates, so a consumer you write and
         one this library ships are the same kind of thing.
         """
-        return _stream(self._rt)
+        return _satellite("events").stream(self._rt)
 
     def prolog(self) -> None:
         """Drop into the engine's own interactive Prolog toplevel, the
@@ -2345,7 +2203,7 @@ class MeTTa:
         *,
         timeout: float | None = None,
         inferences: int | None = None,
-    ) -> list[Derivation]:
+    ) -> list[Any]:
         """Every proof of an answer, as trees in MeTTa terms.
 
         Each tree names the equations that fired and the stored atoms at the
@@ -2357,7 +2215,8 @@ class MeTTa:
         `timeout` and `inferences` guard the whole search. An evaluation error
         inside a proof surfaces as itself rather than as an empty proof list.
         """
-        return derivations(
+        diagnostics = _importlib.import_module(f"{__package__}._space_diagnostics")
+        return diagnostics.derivations(
             self._rt,
             self._space,
             target,
@@ -2372,7 +2231,8 @@ class MeTTa:
         Checks the cheap explanations in order: unknown function, wrong
         arity, no stored atoms with that head. Honest when it cannot tell.
         """
-        return explain_no_match(self, pattern)
+        diagnostics = _importlib.import_module(f"{__package__}._space_diagnostics")
+        return diagnostics.explain_no_match(self, pattern)
 
     # ------------------------------------------------------------ definitions
 
@@ -2406,7 +2266,7 @@ class MeTTa:
             def vec_dot(a, b):
                 return sum(x * y for x, y in zip(a, b))
 
-            m.one("(vec-dot (1 2) (3 4))")    # the Prolog answers
+            m.eval("(vec-dot (1 2) (3 4))")[0] # the Prolog answer
             vec_dot.py((1, 2), (3, 4))          # the reference answers
 
         Rewriting a defined function in Prolog for speed used to mean
@@ -2538,11 +2398,11 @@ class MeTTa:
         # The declaration lives in lib_tabling, which is an ordinary library
         # import rather than a load: import! skips a file already in the space,
         # so a second @m.cache in the same space costs one lookup.
-        self.eval(Expr([Sym("import!"), Sym("&self"),
-                        Expr([Sym("library"), Sym("lib_tabling")])]))
+        self.eval(Expression([Symbol("import!"), Symbol("&self"),
+                        Expression([Symbol("library"), Symbol("lib_tabling")])]))
         if unchecked:
-            self.add(Expr([Sym("cache"), Sym(defined.name), Sym("unchecked")]))
-        declared = self.eval(Expr([Sym("tabled"), defined.head]))
+            self.add(Expression([Symbol("cache"), Symbol(defined.name), Symbol("unchecked")]))
+        declared = self.eval(Expression([Symbol("tabled"), defined.head]))
         if declared != [True]:
             msg = (
                 f"{defined.name}: the engine refused the tabling declaration, "
@@ -2593,7 +2453,7 @@ class MeTTa:
 
             car = m.fn("car-atom")
             car(m.parse("(1 2 3)"))     # 1
-            m.fn("superpose").all(expr(1, 2, 3))   # [1, 2, 3]
+            m.fn("superpose").all(Expression(1, 2, 3))   # [1, 2, 3]
 
         Calling expects exactly one answer and raises otherwise, the loud
         reading; .all returns every answer, nondeterminism included.
@@ -2604,9 +2464,9 @@ class MeTTa:
 
     def integrate(self, target: Any) -> str:
         """Install a library integration; see petta.integrate."""
-        return _integrate.integrate(self, target)
+        return _satellite("integrate").integrate(self, target)
 
-    def register_space(self, provider: Any, name: str) -> Any:
+    def _register_space(self, provider: Any, name: str) -> Any:
         """A space answered by Python: matches, adds and removals route to
         the provider, so a table, a dataframe or a service is matchable the
         way stored atoms are. See petta.foreign.SpaceProvider.
@@ -2614,20 +2474,20 @@ class MeTTa:
         Subject first, as every register_* call: the thing being
         registered, then where it lives. The two calls that named the
         name first were the surface's own inconsistency, and learning
-        the order from register_op raised TypeError here.
+        the order from op raised TypeError here.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        register_provider(self._rt, name, provider)
+        _satellite("foreign").register_provider(self._rt, name, provider)
         return provider
 
-    def unregister_space(self, name: str) -> None:
+    def _unregister_space(self, name: str) -> None:
         """Remove a registered Python-backed space."""
-        unregister_provider(self._rt, name)
+        _satellite("foreign").unregister_provider(self._rt, name)
 
     def declare_handles(
         self,
         name: str,
         pattern: str | Atom,
-        fidelity: Fidelity,
+        fidelity: str,
         *,
         det: str | None = None,
     ) -> Atom:
@@ -2649,9 +2509,10 @@ class MeTTa:
         that falls into their overlap. The atom is returned; removing it
         from &petta withdraws the declaration.
         """
-        if fidelity not in FIDELITY:
+        fidelity_values = _policy("FIDELITY")
+        if fidelity not in fidelity_values:
             msg = (
-                f"fidelity is one of {', '.join(FIDELITY)}, "
+                f"fidelity is one of {', '.join(fidelity_values)}, "
                 f"not {fidelity!r}: it is the declared claim the router "
                 f"acts on, so an unknown word would silently declare "
                 f"nothing"
@@ -2659,9 +2520,10 @@ class MeTTa:
             raise ValueError(
                 msg
             )
-        if det is not None and det not in DETERMINISM:
+        determinism_values = _policy("DETERMINISM")
+        if det is not None and det not in determinism_values:
             msg = (
-                f"det is one of {', '.join(DETERMINISM)}, not {det!r}: the "
+                f"det is one of {', '.join(determinism_values)}, not {det!r}: the "
                 f"same vocabulary declare_function_determinism uses "
                 f"everywhere else"
             )
@@ -2669,10 +2531,10 @@ class MeTTa:
                 msg
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
-        children = [Sym("handles"), Sym(str(name)), shape, Sym(fidelity)]
+        children = [Symbol("handles"), Symbol(str(name)), shape, Symbol(fidelity)]
         if det is not None:
-            children.append(Sym(det))
-        atom = Expr(children)
+            children.append(Symbol(det))
+        atom = Expression(children)
         self._rt.must(
             "petta_py_declare_handles(Space, W, Ctx)",
             Space="&petta",
@@ -2698,10 +2560,11 @@ class MeTTa:
         amplitude programs, for example, must explicitly declare ``finite``,
         ``contractive`` and ``staged`` [tested:
         test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-        commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]. Declaring replaces any earlier row for the
+        commit=WORKTREE]. Declaring replaces any earlier row for the
         context, so the reader never meets two disagreeing atoms.
         """
-        declaration = _algebra.require(self, algebra)
+        algebra_api = _satellite("algebra")
+        declaration = algebra_api.require(self, algebra)
         declared_capabilities = frozenset(capabilities)
         missing = declaration.requires - declared_capabilities
         if missing:
@@ -2711,31 +2574,31 @@ class MeTTa:
                 else "algebra_requirements_missing"
             )
             msg = f"{refusal}({name}, {algebra}, missing={sorted(missing)!r})"
-            raise _algebra.AlgebraRequirementError(msg)
-        catalog = self.space("&petta")
+            raise algebra_api.AlgebraRequirementError(msg)
+        catalog = Space("&petta", _runtime=self._rt)
         for previous in catalog.atoms():
             if (
-                isinstance(previous, Expr)
+                isinstance(previous, Expression)
                 and len(previous.children) >= 3
-                and previous.children[0] == Sym("annotations")
-                and previous.children[1] == Sym(str(name))
+                and previous.children[0] == Symbol("annotations")
+                and previous.children[1] == Symbol(str(name))
             ):
                 catalog.remove(previous)
         children: list[Atom] = [
-            Sym("annotations"),
-            Sym(str(name)),
-            Sym(algebra),
+            Symbol("annotations"),
+            Symbol(str(name)),
+            Symbol(algebra),
         ]
         if declared_capabilities:
             children.append(
-                Expr(
+                Expression(
                     [
-                        Sym("capabilities"),
-                        *(Sym(capability) for capability in sorted(declared_capabilities)),
+                        Symbol("capabilities"),
+                        *(Symbol(capability) for capability in sorted(declared_capabilities)),
                     ]
                 )
             )
-        atom = Expr(children)
+        atom = Expression(children)
         catalog.add(atom)
         return atom
 
@@ -2758,7 +2621,7 @@ class MeTTa:
         exhaustively before the catalog atom lands. ``contraction`` is the
         explicit resource-reuse capability and has no equation to sample.
         """
-        return _algebra.declare(
+        return _satellite("algebra").declare(
             self,
             name,
             combine=combine,
@@ -2772,13 +2635,13 @@ class MeTTa:
 
     def add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
         """Store ``(fact tag proposition)``, the normative annotation form."""
-        atom = _algebra.tagged_fact(tag, proposition)
+        atom = _satellite("algebra").tagged_fact(tag, proposition)
         self.add(atom)
         return atom
 
     def add_tagged_rule(self, tag: Any, head: Any, *premises: Any) -> Atom:
         """Store one rule generated by the algebra-agnostic tag threader."""
-        atom = _algebra.tagged_rule(tag, head, *premises)
+        atom = _satellite("algebra").tagged_rule(tag, head, *premises)
         self.add(atom)
         return atom
 
@@ -2786,7 +2649,7 @@ class MeTTa:
         self,
         name: str,
         type_name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=opaque transparent and auto are the three ways this door can carry one Python type across one context boundary, checked again in its body; evidence=bindings/python/petta/space.py:declare_image
+        # policy-inventory-exempt: mechanism-internal; reason=opaque transparent and auto are the three ways this door can carry one Python type across one context boundary, checked again in its body; evidence=bindings/python/petta/_space.py:declare_image
         setting: Literal["opaque", "transparent", "auto"],
     ) -> Atom:
         """Choose how one Python type crosses one context boundary.
@@ -2803,16 +2666,16 @@ class MeTTa:
                 f"not {setting!r}"
             )
             raise ValueError(msg)
-        previous = Expr(
-            [Sym("image"), Sym(str(name)), Sym(type_name), Var("old")]
+        previous = Expression(
+            [Symbol("image"), Symbol(str(name)), Symbol(type_name), Variable("old")]
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expr(
-            [Sym("image"), Sym(str(name)), Sym(type_name), Sym(setting)]
+        atom = Expression(
+            [Symbol("image"), Symbol(str(name)), Symbol(type_name), Symbol(setting)]
         )
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
@@ -2825,9 +2688,9 @@ class MeTTa:
         *,
         algebra: str,
         max_rounds: int = 64,
-    ) -> _algebra.AlgebraEvaluation:
+    ) -> Any:
         """Evaluate stored tagged facts and rules through one declared algebra."""
-        return _algebra.evaluate(
+        return _satellite("algebra").evaluate(
             self, query, algebra=algebra, max_rounds=max_rounds
         )
 
@@ -2840,14 +2703,14 @@ class MeTTa:
         seed: int,
     ) -> tuple[Atom, ...]:
         """Select tagged alternatives by their nonnegative ``(rate n)`` tags."""
-        return _algebra.sample(
+        return _satellite("algebra").sample(
             self, query, algebra=algebra, draws=draws, seed=seed
         )
 
     def declare_source(
         self,
         name: str,
-        kind: SourceKind,
+        kind: str,
     ) -> Atom:
         """Declare a space's consumption discipline.
 
@@ -2859,18 +2722,19 @@ class MeTTa:
         source. peek promises reads do not consume, which the conformance
         kit checks by enumerating twice.
         """
-        if kind not in SOURCE_KIND:
-            msg = f"kind is one of {', '.join(SOURCE_KIND)}, not {kind!r}"
+        source_kinds = _policy("SOURCE_KIND")
+        if kind not in source_kinds:
+            msg = f"kind is one of {', '.join(source_kinds)}, not {kind!r}"
             raise ValueError(
                 msg
             )
-        previous = Expr([Sym("source"), Sym(str(name)), Var("old")])
+        previous = Expression([Symbol("source"), Symbol(str(name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expr([Sym("source"), Sym(str(name)), Sym(kind)])
+        atom = Expression([Symbol("source"), Symbol(str(name)), Symbol(kind)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -2880,7 +2744,7 @@ class MeTTa:
         self,
         name: str,
         pattern: str | Atom,
-        mode: OnErrorMode,
+        mode: str,
     ) -> Atom:
         """Declare what a context's failure becomes, per query shape.
 
@@ -2894,13 +2758,14 @@ class MeTTa:
         emptied: an interrupt is the caller's, and an absent backend has
         said nothing about the data.
         """
-        if mode not in ON_ERROR_MODE:
-            msg = f"mode is one of {', '.join(ON_ERROR_MODE)}, not {mode!r}"
+        modes = _policy("ON_ERROR_MODE")
+        if mode not in modes:
+            msg = f"mode is one of {', '.join(modes)}, not {mode!r}"
             raise ValueError(
                 msg
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
-        atom = Expr([Sym("on-error"), Sym(str(name)), shape, Sym(mode)])
+        atom = Expression([Symbol("on-error"), Symbol(str(name)), shape, Symbol(mode)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -2909,7 +2774,7 @@ class MeTTa:
     def declare_merge(
         self,
         pattern: str | Atom,
-        policy: AnswerPolicy,
+        policy: str,
     ) -> Atom:
         """Declare how the engine merges one query shape's answers
         ACROSS contexts, for the multi-context idiom
@@ -2921,13 +2786,14 @@ class MeTTa:
         context declares (emits <ctx> best-first), and loudly refused
         without. Shapes route most-specific-first as everywhere.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if policy not in ANSWER_POLICY:
-            msg = f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
+        policies = _policy("ANSWER_POLICY")
+        if policy not in policies:
+            msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
             raise ValueError(
                 msg
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
-        atom = Expr([Sym("merge"), shape, Sym(policy)])
+        atom = Expression([Symbol("merge"), shape, Symbol(policy)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -2936,7 +2802,7 @@ class MeTTa:
     def declare_context(
         self,
         name: str,
-        world: World,
+        world: str,
     ) -> Atom:
         """Record what a space's absence means.
 
@@ -2946,18 +2812,19 @@ class MeTTa:
         an undeclared one refuses under negation loudly. Native spaces
         are the engine's own database and closed by construction.
         """
-        if world not in WORLD:
-            msg = f"world is one of {', '.join(WORLD)}, not {world!r}"
+        worlds = _policy("WORLD")
+        if world not in worlds:
+            msg = f"world is one of {', '.join(worlds)}, not {world!r}"
             raise ValueError(
                 msg
             )
-        previous = Expr([Sym("context"), Sym(str(name)), Var("old")])
+        previous = Expression([Symbol("context"), Symbol(str(name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expr([Sym("context"), Sym(str(name)), Sym(world)])
+        atom = Expression([Symbol("context"), Symbol(str(name)), Symbol(world)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -2966,7 +2833,7 @@ class MeTTa:
     def declare_agenda(
         self,
         name: str,
-        policy: AgendaPolicy,
+        policy: str,
         function: str | None = None,
     ) -> Atom:
         """Declare which reaction fires first when several match one write.
@@ -2984,8 +2851,9 @@ class MeTTa:
                                priority=9)
             m.declare_agenda("&alarms", "priority")
         """
-        if policy not in AGENDA_POLICY:
-            msg = f"policy is one of {', '.join(AGENDA_POLICY)}, not {policy!r}"
+        policies = _policy("AGENDA_POLICY")
+        if policy not in policies:
+            msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
             raise ValueError(msg)
         if (policy == "user") != (function is not None):
             msg = (
@@ -2993,22 +2861,22 @@ class MeTTa:
                 "reaction, and no other policy takes one"
             )
             raise ValueError(msg)
-        previous = Expr([Sym("agenda"), Sym(str(name)), Var("old")])
+        previous = Expression([Symbol("agenda"), Symbol(str(name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)", Space="&petta", W=previous.to_wire()
         )
-        previous_named = Expr(
-            [Sym("agenda"), Sym(str(name)), Var("old"), Var("fn")]
+        previous_named = Expression(
+            [Symbol("agenda"), Symbol(str(name)), Variable("old"), Variable("fn")]
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous_named.to_wire(),
         )
-        parts = [Sym("agenda"), Sym(str(name)), Sym(policy)]
+        parts = [Symbol("agenda"), Symbol(str(name)), Symbol(policy)]
         if function is not None:
-            parts.append(Sym(str(function)))
-        atom = Expr(parts)
+            parts.append(Symbol(str(function)))
+        atom = Expression(parts)
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -3032,21 +2900,21 @@ class MeTTa:
         through here or petta_install_bridges rather than a bare
         add-atom.
 
-        petta.bridge() is the NEIGHBOUR, not a special case of this: a
-        reaction's operation runs engine-side, so it reaches registered
-        spaces, while a bridge rule delivers Python-side to anything
+        A subscription bridge is the NEIGHBOUR, not a special case of this:
+        a reaction's operation runs engine-side, so it reaches registered
+        spaces, while the bridge rule delivers Python-side to anything
         with add and remove, an unregistered or remote target included.
         Same multi-context-systems idea, two delivery tiers.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         op = parse(operation) if isinstance(operation, str) else _to_atom(operation)
-        parts = [Sym("on"), Sym(str(name)), shape, op]
+        parts = [Symbol("on"), Symbol(str(name)), shape, op]
         if priority is not None:
             if not isinstance(priority, int) or isinstance(priority, bool):
                 msg = f"priority is an integer, not {priority!r}"
                 raise TypeError(msg)
-            parts.append(Gnd(priority))
-        atom = Expr(parts)
+            parts.append(Grounded(priority))
+        atom = Expression(parts)
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -3061,13 +2929,13 @@ class MeTTa:
         declarations make membership a type judgement the ontology
         already knows how to make.
         """
-        previous = Expr([Sym("admits"), Sym(str(name)), Var("old")])
+        previous = Expression([Symbol("admits"), Symbol(str(name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expr([Sym("admits"), Sym(str(name)), Sym(type_name)])
+        atom = Expression([Symbol("admits"), Symbol(str(name)), Symbol(type_name)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -3083,13 +2951,13 @@ class MeTTa:
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
             msg = f"capacity is a positive integer, not {limit!r}"
             raise ValueError(msg)
-        previous = Expr([Sym("capacity"), Sym(str(name)), Var("old")])
+        previous = Expression([Symbol("capacity"), Symbol(str(name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expr([Sym("capacity"), Sym(str(name)), Gnd(limit)])
+        atom = Expression([Symbol("capacity"), Symbol(str(name)), Grounded(limit)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -3103,7 +2971,7 @@ class MeTTa:
     def declare_writes(
         self,
         name: str,
-        atomicity: Atomicity,
+        atomicity: str,
     ) -> Atom:
         """Declare what a space's writes promise inside a transaction.
 
@@ -3115,21 +2983,22 @@ class MeTTa:
         silently surviving a rolled-back transaction is the wrong answer
         the declaration exists to replace.
         """
-        if atomicity not in ATOMICITY:
+        atomicities = _policy("ATOMICITY")
+        if atomicity not in atomicities:
             msg = (
-                f"atomicity is one of {', '.join(ATOMICITY)}, "
+                f"atomicity is one of {', '.join(atomicities)}, "
                 f"not {atomicity!r}"
             )
             raise ValueError(
                 msg
             )
-        previous = Expr([Sym("writes"), Sym(str(name)), Var("old")])
+        previous = Expression([Symbol("writes"), Symbol(str(name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expr([Sym("writes"), Sym(str(name)), Sym(atomicity)])
+        atom = Expression([Symbol("writes"), Symbol(str(name)), Symbol(atomicity)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -3138,7 +3007,7 @@ class MeTTa:
     def declare_emits(
         self,
         name: str,
-        policy: AnswerPolicy,
+        policy: str,
     ) -> Atom:
         """Declare the order a context emits its own answers in.
 
@@ -3147,18 +3016,19 @@ class MeTTa:
         k best. Distinct from the (merge <pattern> <policy>) strategy,
         which is how the ENGINE merges answers across several contexts.
         """
-        if policy not in ANSWER_POLICY:
-            msg = f"policy is one of {', '.join(ANSWER_POLICY)}, not {policy!r}"
+        policies = _policy("ANSWER_POLICY")
+        if policy not in policies:
+            msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
             raise ValueError(
                 msg
             )
-        previous = Expr([Sym("emits"), Sym(str(name)), Var("old")])
+        previous = Expression([Symbol("emits"), Symbol(str(name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expr([Sym("emits"), Sym(str(name)), Sym(policy)])
+        atom = Expression([Symbol("emits"), Symbol(str(name)), Symbol(policy)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -3167,8 +3037,8 @@ class MeTTa:
     def declare_events(
         self,
         name: str,
-        delivery: Delivery,
-        order: EventOrder = "unordered",
+        delivery: str,
+        order: str = "unordered",
     ) -> Atom:
         """Declare what a context's change events promise.
 
@@ -3187,21 +3057,23 @@ class MeTTa:
         omitted promise is the weaker one. A Python provider says the same
         thing by overriding delivers(), which registration writes here.
         """
-        if delivery not in DELIVERY:
-            msg = f"delivery is one of {', '.join(DELIVERY)}, not {delivery!r}"
+        deliveries = _policy("DELIVERY")
+        event_orders = _policy("EVENT_ORDER")
+        if delivery not in deliveries:
+            msg = f"delivery is one of {', '.join(deliveries)}, not {delivery!r}"
             raise ValueError(msg)
-        if order not in EVENT_ORDER:
-            msg = f"order is one of {', '.join(EVENT_ORDER)}, not {order!r}"
+        if order not in event_orders:
+            msg = f"order is one of {', '.join(event_orders)}, not {order!r}"
             raise ValueError(msg)
-        previous = Expr(
-            [Sym("events"), Sym(str(name)), Var("delivery"), Var("order")]
+        previous = Expression(
+            [Symbol("events"), Symbol(str(name)), Variable("delivery"), Variable("order")]
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expr([Sym("events"), Sym(str(name)), Sym(delivery), Sym(order)])
+        atom = Expression([Symbol("events"), Symbol(str(name)), Symbol(delivery), Symbol(order)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -3213,3 +3085,190 @@ class MeTTa:
     def runtime(self) -> Runtime:
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
+
+
+class MeTTa:
+    """One PeTTa evaluation context; context-relative operations use Space."""
+
+    __slots__ = ("_rt", "_self")
+
+    def __init__(
+        self,
+        *,
+        verbose: bool = False,
+        petta_path: str | None = None,
+        _self_name: str = _DEFAULT_SPACE,
+        _runtime: Runtime | None = None,
+    ) -> None:
+        self._rt = (
+            runtime(petta_path=petta_path, verbose=verbose)
+            if _runtime is None
+            else _runtime
+        )
+        _ops_module.declare_recorded()
+        self._self = Space(_self_name, _runtime=self._rt)
+
+    @property
+    def self(self) -> Space:
+        """The context's ``&self`` space handle."""
+        return self._self
+
+    @property
+    def runtime(self) -> Runtime:
+        """The engine bridge itself, for callers going under the surface."""
+        return self._rt
+
+    def info(self) -> dict[str, str | None]:
+        """Return backend versions and the consulted PeTTa runtime tree."""
+        janus_bridge = bridge()
+        version_row = janus_bridge.query_once(
+            "current_prolog_flag(version, SwiVersion)"
+        )
+        if version_row is None or not isinstance(version_row.get("SwiVersion"), int):
+            msg = "janus did not report the running SWI-Prolog version"
+            raise EngineError(msg)
+        swi_version_num = version_row["SwiVersion"]
+        return {
+            "petta": __version__,
+            "janus": janus_bridge.version_str(),
+            "swi_prolog": janus_bridge.version_str(swi_version_num),
+            "python": (
+                f"{sys.version_info.major}.{sys.version_info.minor}."
+                f"{sys.version_info.micro}"
+            ),
+            "petta_path": self._rt.petta_path,
+        }
+
+    def space(
+        self,
+        name: str | None = None,
+        backing: Any = None,
+        *,
+        journal: str | os.PathLike[str] | None = None,
+        **options: Any,
+    ) -> Space:
+        """Create one native, provider-backed, remote, or journaled space.
+
+        With no name, the engine mints an anonymous handle. A ``SpaceProvider``
+        backing is attached directly, an HTTP(S) URL becomes a remote provider,
+        and ``journal=`` constructs ``PersistentFactSpace`` from ``schema=`` or
+        a schema mapping supplied as ``backing``.
+        """
+        inherits = options.pop("inherits", None)
+        restricted = options.pop("restricted", False)
+        grants = options.pop("grants", ())
+        if name is None:
+            handle = self._self._new_space(
+                inherits=inherits,
+                restricted=restricted,
+                grants=grants,
+            )
+        else:
+            if inherits is not None or restricted or grants:
+                msg = "inherits, restricted, and grants apply only to anonymous space()"
+                raise TypeError(msg)
+            handle = Space(name, _runtime=self._rt)
+
+        owns_backing = False
+        provider = backing
+        if journal is not None:
+            schema = options.pop("schema", backing if isinstance(backing, _abc.Mapping) else None)
+            if schema is None:
+                msg = "space(journal=...) needs schema= or a schema mapping as backing"
+                raise TypeError(msg)
+            if backing is not None and not isinstance(backing, _abc.Mapping):
+                msg = "journaled space backing is its schema mapping"
+                raise TypeError(msg)
+            provider = _satellite("_persistent").PersistentFactSpace(
+                journal,
+                schema,
+                sync=options.pop("sync", "none"),
+            )
+            owns_backing = True
+        elif isinstance(backing, str):
+            remote = _satellite("remote")
+            transport = remote.connect(
+                backing,
+                timeout=options.pop("timeout", 30.0),
+                token=options.pop("token", None),
+                headers=options.pop("headers", None),
+                ssl_context=options.pop("ssl_context", None),
+            )
+            provider = remote.RemoteSpace(
+                transport,
+                options.pop("remote_space", "&self"),
+                batch=options.pop("batch", None),
+            )
+            owns_backing = True
+        if options:
+            msg = f"unknown space options: {sorted(options)!r}"
+            raise TypeError(msg)
+        if provider is not None:
+            _satellite("foreign").register_provider(self._rt, handle._space, provider)
+            handle._backing = provider
+            handle._owns_backing = owns_backing
+        return handle
+
+    def define(self, *args: Any, **kwargs: Any) -> Any:
+        """Define in ``&self``; derived as ``self.define(...)``."""
+        return self._self.define(*args, **kwargs)
+
+    def op(self, *args: Any, **kwargs: Any) -> Any:
+        """Ground a callable in ``&self``; derived as ``self.op(...)``."""
+        return self._self.op(*args, **kwargs)
+
+    def unregister_op(self, name: str) -> None:
+        """Release an operation installed through :meth:`op`."""
+        self._self.unregister_op(name)
+
+    def limits(self, **kwargs: Any) -> ScopedLimits:
+        """Scope resource bounds across this context."""
+        return self._self.limits(**kwargs)
+
+    def capture(self) -> CapturedOutput:
+        """Capture printed engine text across this context."""
+        return self._self.capture()
+
+    def atomic(self) -> ScopedExecution:
+        """Scope source execution to committing transactions."""
+        return self._self.atomic()
+
+    def speculative(self) -> ScopedExecution:
+        """Scope source execution to discarded snapshots."""
+        return self._self.speculative()
+
+    def strict(self) -> ScopedExecution:
+        """Scope source execution to reject unreduced directives."""
+        return self._self.strict()
+
+    def transaction(self, callable_: Callable[[], _R], /) -> _R:
+        """Run one callable in an engine transaction."""
+        return self._self.transaction(callable_)
+
+    def stats(self) -> _StatsBlock:
+        """Measure engine counters across a block."""
+        return self._self.stats()
+
+    def trace(self, source: str, *, max_events: int = 10_000):
+        """Trace source in ``&self``."""
+        return self._self.trace(source, max_events=max_events)
+
+    def register_prolog(self, *args: Any, **kwargs: Any) -> tuple[str, ...]:
+        """Install a declared Prolog extension."""
+        return self._self.register_prolog(*args, **kwargs)
+
+    def register_foreign_library(self, *args: Any, **kwargs: Any) -> tuple[str, ...]:
+        """Install a compiled SWI foreign library."""
+        return self._self.register_foreign_library(*args, **kwargs)
+
+    def register_library_path(self, directory: Any, name: str) -> None:
+        """Register one named Prolog library directory."""
+        self._self.register_library_path(directory, name)
+
+    def unregister_prolog(self, extension: str) -> tuple[str, ...]:
+        """Release one declared Prolog extension."""
+        return self._self.unregister_prolog(extension)
+
+    def prolog(self) -> None:
+        """Enter SWI-Prolog's interactive toplevel."""
+        self._self.prolog()

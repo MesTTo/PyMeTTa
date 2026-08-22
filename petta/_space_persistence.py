@@ -1,25 +1,25 @@
 """Purpose: validate, write, replace, and load named-space snapshots.
 Guarantees:
   - a completed sibling is synced before it replaces the destination
-    [tested: test_save_syncs_before_replacing; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: test_save_syncs_before_replacing; commit=WORKTREE]
   - validation and write failures preserve the old destination [tested
     test_save_validation_preserves_existing_file,
-    test_text_save_write_failure_preserves_existing_file; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    test_text_save_write_failure_preserves_existing_file; commit=WORKTREE]
   - fast cache headers are validated before payload loading [tested
     test_fast_load_refuses_a_different_swi_version_before_payload;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
   - text snapshots use UTF-8 regardless of the process locale [tested
-    test_text_save_uses_utf8_for_plain_and_gzip_files; commit=dcfc20be4933c19140ccb5759291401d13058301]
-  - the save format type admits exactly metta and fast [tested
-    test_public_context_types_are_distinct; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    test_text_save_uses_utf8_for_plain_and_gzip_files; commit=WORKTREE]
+  - the save format type admits exactly metta and fast [tested:
+    test_canonical_context_types_replace_public_newtypes; commit=WORKTREE]
   - save validation consumes the generated save-format catalog tuple rather
     than owning a second closed list [tested:
     test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
-    commit=42b5d28232e75c32b20a1d5bf1f740fec134938d]
+    commit=WORKTREE]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save
-    [tested: test_save_failure_preserves_existing_file; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: test_save_failure_preserves_existing_file; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,6 +29,7 @@ Open Obligations:
 from __future__ import annotations
 
 import gzip
+import importlib as _importlib
 import os
 import re
 import stat
@@ -36,12 +37,10 @@ import tempfile
 from pathlib import Path
 from typing import Literal
 
-from ._api_types import SaveFormat
 from ._engine import Runtime
 from ._space_objects import _limits
-from .atoms import Atom, Expr, Gnd, Sym, atom_from_wire
+from .atoms import Atom, Expression, Grounded, Symbol, _atom_from_wire
 from .errors import EngineError, ResourceLimitError
-from .vocabularies import SAVE_FORMAT
 
 _FAST_PREFIX = b"PETTA-CACHE\t"
 _FAST_ERRORS = (
@@ -96,9 +95,9 @@ def serializable(atom: Atom) -> bool:
     stack = [atom]
     while stack:
         current = stack.pop()
-        if isinstance(current, Gnd) and not isinstance(current.value, (bool, int, float, str)):
+        if isinstance(current, Grounded) and not isinstance(current.value, (bool, int, float, str)):
             return False
-        if isinstance(current, Expr):
+        if isinstance(current, Expression):
             stack.extend(current.children)
     return True
 
@@ -114,7 +113,7 @@ def raise_unsafe_text_atom(value: Atom, operation: str) -> None:
     float as ``1.0Inf``, ``-1.0Inf`` or ``1.5NaN`` and a rational as ``1r3``,
     and each of the four comes back a symbol of that spelling.
     """
-    if not isinstance(value, Sym):
+    if not isinstance(value, Symbol):
         msg = (
             f"{operation} cannot write {value} as MeTTa text: its printed "
             f"form reads back as a symbol of that spelling rather than as "
@@ -150,7 +149,7 @@ def _validate_atoms(rt: Runtime, space: str, atoms: list[Atom]) -> None:
     # wire for the question.
     row = rt.once("petta_py_unwritable_atom(Space, Bad)", Space=space)
     if row:
-        raise_unsafe_text_atom(atom_from_wire(row["Bad"]), "save")
+        raise_unsafe_text_atom(_atom_from_wire(row["Bad"]), "save")
 
 
 def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
@@ -160,14 +159,14 @@ def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
         raise EngineError(msg)
     kind, value = result
     if kind == "object":
-        atom = atom_from_wire(value)
+        atom = _atom_from_wire(value)
         msg = (
             f"{atom} carries a live Python object; a file cannot hold it. "
             f"Remove it, or persist its data explicitly."
         )
         raise ValueError(msg)
     if kind == "symbol":
-        raise_unsafe_text_atom(atom_from_wire(value), "save")
+        raise_unsafe_text_atom(_atom_from_wire(value), "save")
     if kind != "saved":
         msg = f"petta_py_fast_save returned an unknown result: {result!r}"
         raise EngineError(msg)
@@ -186,10 +185,13 @@ def save_space(
     space: str,
     atoms: list[Atom],
     path: str | os.PathLike[str],
-    save_format: SaveFormat,
+    save_format: str,
 ) -> int:
     """Validate and atomically persist one enumerated space."""
-    if save_format not in SAVE_FORMAT:
+    save_formats = _importlib.import_module(
+        f"{__package__}.vocabularies"
+    ).SAVE_FORMAT
+    if save_format not in save_formats:
         msg = f"save format must be 'metta' or 'fast', got {save_format!r}"
         raise ValueError(msg)
     _validate_atoms(rt, space, atoms)
@@ -310,4 +312,4 @@ def load_space(
         File=file,
         Space=space,
     )
-    return [[atom_from_wire(wire) for wire in group] for group in row.get("Groups", [])]
+    return [[_atom_from_wire(wire) for wire in group] for group in row.get("Groups", [])]

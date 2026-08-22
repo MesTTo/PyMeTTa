@@ -15,18 +15,18 @@ Guarantees:
   - registered operation kinds inhabit OpKind and `(op ...)` terms inhabit
     OpDecl [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=eda90565cfb66417c62e654b0f3e7b55351366c5]
+    commit=WORKTREE]
   - compiled-definition source, capture, and effect facts are typed ordinary
     declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=6ecc0149edbfcadf73c0b6a3761f84708d4316ed]
+    commit=WORKTREE]
   - callable argument delivery is a typed `(arguments name atoms|values)`
     policy in &petta [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
   - context image declarations state whether one Python type crosses as a
     handle or a structural expression [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=24532816d8f3987cc56059fadf3666a387ae1156]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,7 +36,7 @@ Open Obligations:
 from __future__ import annotations
 
 from ._convert_registry import subscribe_registrations
-from .atoms import Expr, Sym
+from .atoms import Expression, Symbol
 
 __all__ = ["ONTOLOGY", "install"]
 
@@ -45,42 +45,42 @@ _SUB = ":<"
 
 # (head, subject, object) triples; the whole ontology is (: X Y) and
 # (:< X Y) forms, so triples are the entire grammar it needs.
-_OP_DECL_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Number"), Sym("OpKind"), Sym("OpDecl")])
-_DEFINED_TYPE = Expr([Sym("->"), Sym("SpaceType"), Sym("Symbol"), Sym("DefinitionFact")])
-_SOURCE_SPAN_TYPE = Expr(
+_OP_DECL_TYPE = Expression([Symbol("->"), Symbol("Symbol"), Symbol("Number"), Symbol("OpKind"), Symbol("OpDecl")])
+_DEFINED_TYPE = Expression([Symbol("->"), Symbol("SpaceType"), Symbol("Symbol"), Symbol("DefinitionFact")])
+_SOURCE_SPAN_TYPE = Expression(
     [
-        Sym("->"),
-        Sym("SpaceType"),
-        Sym("Symbol"),
-        Sym("String"),
-        Sym("Number"),
-        Sym("Number"),
-        Sym("Number"),
-        Sym("Number"),
-        Sym("DefinitionFact"),
+        Symbol("->"),
+        Symbol("SpaceType"),
+        Symbol("Symbol"),
+        Symbol("String"),
+        Symbol("Number"),
+        Symbol("Number"),
+        Symbol("Number"),
+        Symbol("Number"),
+        Symbol("DefinitionFact"),
     ]
 )
-_FREE_VARIABLE_TYPE = Expr(
+_FREE_VARIABLE_TYPE = Expression(
     [
-        Sym("->"),
-        Sym("SpaceType"),
-        Sym("Symbol"),
-        Sym("Symbol"),
-        Sym("DefinitionFact"),
+        Symbol("->"),
+        Symbol("SpaceType"),
+        Symbol("Symbol"),
+        Symbol("Symbol"),
+        Symbol("DefinitionFact"),
     ]
 )
-_EFFECT_TYPE = Expr([Sym("->"), Sym("Symbol"), Sym("Effect"), Sym("EffectDecl")])
-_ARGUMENTS_TYPE = Expr(
-    [Sym("->"), Sym("Symbol"), Sym("ArgumentDelivery"), Sym("ArgumentsDecl")]
+_EFFECT_TYPE = Expression([Symbol("->"), Symbol("Symbol"), Symbol("Effect"), Symbol("EffectDecl")])
+_ARGUMENTS_TYPE = Expression(
+    [Symbol("->"), Symbol("Symbol"), Symbol("ArgumentDelivery"), Symbol("ArgumentsDecl")]
 )
-_CONTEXT_IMAGE_TYPE = Expr(
-    [Sym("->"), Sym("SpaceType"), Sym("Symbol"), Sym("ImageSetting"), Sym("ImageDecl")]
+_CONTEXT_IMAGE_TYPE = Expression(
+    [Symbol("->"), Symbol("SpaceType"), Symbol("Symbol"), Symbol("ImageSetting"), Symbol("ImageDecl")]
 )
-_REGISTRY_IMAGE_TYPE = Expr(
-    [Sym("->"), Sym("Symbol"), Sym("TypeImage"), Sym("ImageDecl")]
+_REGISTRY_IMAGE_TYPE = Expression(
+    [Symbol("->"), Symbol("Symbol"), Symbol("TypeImage"), Symbol("ImageDecl")]
 )
 
-ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
+ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_COLON, "Declaration", "Type"),
     (_COLON, "OpDecl", "Type"),
     (_SUB, "OpDecl", "Declaration"),
@@ -177,11 +177,11 @@ ONTOLOGY: tuple[tuple[str, str, str | Expr], ...] = (
 
 _SPACE = "&petta"
 # The atom whose presence says the ontology is in; its own first triple.
-_SENTINEL = Expr([Sym(_COLON), Sym("Declaration"), Sym("Type")])
+_SENTINEL = Expression([Symbol(_COLON), Symbol("Declaration"), Symbol("Type")])
 
 
-def _image_atom(registration) -> Expr:
-    return Expr([Sym("image"), Sym(registration.type_name), Sym(registration.image)])
+def _image_atom(registration) -> Expression:
+    return Expression([Symbol("image"), Symbol(registration.type_name), Symbol(registration.image)])
 
 
 def _reflect_image(runtime, old, new) -> None:
@@ -201,7 +201,7 @@ def install(runtime) -> None:
     if runtime.do("petta_py_contains", _SPACE, _SENTINEL.to_wire()):
         return
     for head, subject, obj in ONTOLOGY:
-        atom = Expr([Sym(head), Sym(subject), obj if isinstance(obj, Expr) else Sym(obj)])
+        atom = Expression([Symbol(head), Symbol(subject), obj if isinstance(obj, Expression) else Symbol(obj)])
         runtime.must("petta_py_add(Space, W)", Space=_SPACE, W=atom.to_wire())
 
     def listener(_cls, old, new, _runtime=runtime):

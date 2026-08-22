@@ -22,14 +22,14 @@ from hypothesis import settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 from hypothesis.stateful import RuleBasedStateMachine, invariant, rule  # noqa: E402
 
-from petta import Expr, MeTTa, Var, testing, unify  # noqa: E402
+from petta import Expression, MeTTa, Variable, testing, unify  # noqa: E402
 
 
 def _substitute(atom, bindings):
-    if isinstance(atom, Var):
+    if isinstance(atom, Variable):
         return bindings.get(atom.name, atom)
-    if isinstance(atom, Expr):
-        return Expr([_substitute(child, bindings) for child in atom])
+    if isinstance(atom, Expression):
+        return Expression([_substitute(child, bindings) for child in atom])
     return atom
 
 
@@ -38,8 +38,8 @@ class SpaceStateMachine(RuleBasedStateMachine):
 
     def __init__(self):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         super().__init__()
-        self._owner = MeTTa()
-        self.space = self._owner.new_space()
+        self._owner = MeTTa().self
+        self.space = self._owner._new_space()
         self.model = Counter()
         self._temporary = TemporaryDirectory(prefix="petta-stateful-")
 
@@ -86,7 +86,7 @@ class SpaceStateMachine(RuleBasedStateMachine):
     def save_load_round_trip(self, format):  # noqa: A002, D102  -- pytest parameterization names the public save-format argument exercised here; the test double method is documented by its containing scenario and protocol
         path = f"{self._temporary.name}/space.{format}"
         assert self.space.save(path, format=format) == sum(self.model.values())
-        with self._owner.new_space() as loaded:
+        with self._owner._new_space() as loaded:
             loaded.load(path)
             assert Counter(loaded.atoms()) == self.model
 

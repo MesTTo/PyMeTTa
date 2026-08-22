@@ -30,7 +30,7 @@ Guarantees:
   - a Blob column follows its per-context image declaration, so opaque keeps
     the row object whole and transparent projects its bytes [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
-    commit=24532816d8f3987cc56059fadf3666a387ae1156]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -45,6 +45,7 @@ from typing import Literal
 from _common import check, done
 
 import petta
+from petta.paths import path
 from petta import tables
 from petta.tables import TableBridge
 
@@ -59,8 +60,8 @@ class Blob:
 
     def __metta__(self):
         """The transparent image; opaque contexts never call this method."""
-        return petta.Expr(
-            [petta.S.Blob, *(petta.encode(byte) for byte in self.data)]
+        return petta.Expression(
+            [petta.S.Blob, *(petta.ground(byte) for byte in self.data)]
         )
 
 
@@ -95,7 +96,7 @@ def attach_sqlite(
     )
     m.declare_image(name, "Blob", blob_image)
     provider = TableBridge.from_context(m, name, connection)
-    m.register_space(provider, name)
+    m._register_space(provider, name)
     m.declare_context(name, "closed-world")
     m.declare_annotations(name, "bag")
     m.declare_handles(name, "(edge $x $y)", "Exact")
@@ -108,7 +109,7 @@ def attach_sqlite(
 def demo() -> None:
     """Rows answer MeTTa, SQL receives the bound, and one field is reached
     inside an opaque BLOB without projecting its complete byte sequence."""
-    m = petta.MeTTa().new_space()
+    m = petta.MeTTa().space()
     provider = attach_sqlite(m, "&crm")
     m.run("!(add-atom &crm (edge a b))")
     m.run("!(add-atom &crm (edge b b))")
@@ -126,10 +127,10 @@ def demo() -> None:
         "INSERT INTO documents VALUES (?, ?)",
         ("manual", sqlite3.Binary(payload)),
     )
-    rows = m.space("&crm").query(
+    rows = m._at("&crm").query(
         petta.S.document(
             petta.S.manual,
-            petta.path("data", 0, to=petta.V.first_byte),
+            path("data", 0, to=petta.V.first_byte),
         )
     )
     check("a lazy path reads one byte from the opaque BLOB",

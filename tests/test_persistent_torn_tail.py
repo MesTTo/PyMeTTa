@@ -13,8 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from petta import EngineError, PettaError, S, val
-from petta.persistent import PersistentFactSpace
+from petta import PettaError, S, ground
+from petta._persistent import PersistentFactSpace
+from petta.errors import EngineError
 
 SCHEMA = {"edge": 2}
 
@@ -66,8 +67,8 @@ def test_every_truncation_point_of_the_torn_tail_classifies(tmp_path):
     shapes = {
         "plain": S.edge(S.a, S.b),
         "dotted-symbol": S.edge(S["a.b"], S.b),
-        "float": S.edge(S.a, val(1.5)),
-        "string": S.edge(S.a, val("a.b")),
+        "float": S.edge(S.a, ground(1.5)),
+        "string": S.edge(S.a, ground("a.b")),
     }
     refused = []
     for label, torn in shapes.items():

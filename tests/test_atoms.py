@@ -21,21 +21,18 @@ from fractions import Fraction
 import pytest
 
 from petta import (
-    Expr,
-    Gnd,
+    Expression,
+    Grounded,
     S,
-    Sym,
+    Symbol,
     V,
-    Var,
+    Variable,
     _engine,
-    alpha_eq,
-    encode,
-    expr,
-    map_atoms,
+    ground,
+    integrate,
     parse,
     unify,
-    val,
-    variables,
+    wire,
 )
 from petta import _atoms_core as _core
 from petta.atoms import (
@@ -44,24 +41,18 @@ from petta.atoms import (
     _WIRE_SYMS,
     _WIRE_VARS,
     Box,
-    atom_from_wire,
     boxed,
-    from_wire,
-    is_ground,
     order_key,
-    pretty,
     register_object_repr,
-    register_object_repr_protocol,
     unregister_object_repr,
-    unregister_object_repr_protocol,
 )
 
 
 def test_symbols_are_not_strings():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert S.foo == Sym("foo")
+    assert S.foo == Symbol("foo")
     assert S.foo != "foo"
-    assert Gnd("foo") == "foo"
-    assert S.foo != Gnd("foo")
+    assert Grounded("foo") == "foo"
+    assert S.foo != Grounded("foo")
 
 
 def test_object_repr_registrations_can_be_removed_exactly():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -81,28 +72,27 @@ def test_object_repr_registrations_can_be_removed_exactly():  # noqa: D103  -- p
         return "<protocol formatter>"
 
     register_object_repr(RenderedByClass, class_formatter)
-    register_object_repr_protocol(predicate, protocol_formatter)
+    integrate.register_repr(predicate, protocol_formatter)
     try:
-        assert str(val(RenderedByClass())) == "<class formatter>"
-        assert str(val(RenderedByProtocol())) == "<protocol formatter>"
+        assert str(ground(RenderedByClass())) == "<class formatter>"
+        assert str(ground(RenderedByProtocol())) == "<protocol formatter>"
     finally:
         unregister_object_repr(RenderedByClass)
-        unregister_object_repr_protocol(predicate, protocol_formatter)
+        integrate.unregister_repr(predicate, protocol_formatter)
 
-    assert str(val(RenderedByClass())) == "<RenderedByClass>"
-    assert str(val(RenderedByProtocol())) == "<RenderedByProtocol>"
+    assert str(ground(RenderedByClass())) == "<RenderedByClass>"
+    assert str(ground(RenderedByProtocol())) == "<RenderedByProtocol>"
     with pytest.raises(KeyError, match="RenderedByClass"):
         unregister_object_repr(RenderedByClass)
     with pytest.raises(KeyError, match="protocol repr"):
-        unregister_object_repr_protocol(predicate, protocol_formatter)
+        integrate.unregister_repr(predicate, protocol_formatter)
 
 
 def test_map_atoms_transforms_bottom_up_and_preserves_unchanged_nodes():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = S.outer(S.inner(S.before), S.keep)
-    assert map_atoms(atom, lambda node: node) is atom
+    assert atom.map(lambda node: node) is atom
 
-    mapped = map_atoms(
-        atom,
+    mapped = atom.map(
         lambda node: S.after if node is S.before else node,
     )
     assert mapped == S.outer(S.inner(S.after), S.keep)
@@ -111,72 +101,72 @@ def test_map_atoms_transforms_bottom_up_and_preserves_unchanged_nodes():  # noqa
 def test_map_atoms_handles_depth_as_data_and_validates_transform_results():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = S.leaf
     for _ in range(2_000):
-        atom = Expr([atom])
+        atom = Expression([atom])
 
-    mapped = map_atoms(atom, lambda node: S.tip if node is S.leaf else node)
+    mapped = atom.map(lambda node: S.tip if node is S.leaf else node)
     for _ in range(2_000):
-        assert isinstance(mapped, Expr)
+        assert isinstance(mapped, Expression)
         mapped = mapped[0]
     assert mapped is S.tip
 
     with pytest.raises(TypeError, match="transform must return an Atom"):
-        map_atoms(S.leaf, lambda _node: None)
+        S.leaf.map(lambda _node: None)
 
 
 def test_grounded_primitives_compare_as_their_value():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert Gnd(3) == 3
-    assert Gnd(3.5) == 3.5
-    assert Gnd(True) == True  # noqa: E712, FBT003  -- the assertion probes bool equality without coercion; the boolean literal is atom or wire data at this site, not a behavior switch
-    assert Gnd(True) != 1  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert Gnd(1) != True  # noqa: E712
-    assert Gnd("s") == "s"
+    assert Grounded(3) == 3
+    assert Grounded(3.5) == 3.5
+    assert Grounded(True) == True  # noqa: E712, FBT003  -- the assertion probes bool equality without coercion; the boolean literal is atom or wire data at this site, not a behavior switch
+    assert Grounded(True) != 1  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert Grounded(1) != True  # noqa: E712
+    assert Grounded("s") == "s"
 
 
 def test_grounded_hash_agrees_with_equality():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert hash(Gnd(3)) == hash(3)
-    assert {Gnd(3), 3} == {3}
+    assert hash(Grounded(3)) == hash(3)
+    assert {Grounded(3), 3} == {3}
     strings = {"a"}
-    assert Gnd("a") in strings
+    assert Grounded("a") in strings
 
 
 def test_numpy_scalars_are_engine_numbers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     np = pytest.importorskip("numpy")
     cases = [np.int32(7), np.int64(2), np.float32(1.5), np.float64(3.5)]
     for scalar in cases:
-        atom = Gnd(scalar)
+        atom = Grounded(scalar)
         expected = int(scalar) if isinstance(scalar, np.integer) else float(scalar)
         assert type(atom.value) is type(expected)
         assert atom == scalar
         assert atom.to_wire() == ["n", expected]
         assert str(atom) == repr(expected)
-        assert metta.eval(expr(S["+"], atom, 1)) == [Gnd(expected + 1)]
+        assert metta.eval(Expression(S["+"], atom, 1)) == [Grounded(expected + 1)]
 
 
 def test_non_real_numpy_values_stay_opaque():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     np = pytest.importorskip("numpy")
     for value in (np.bool_(True), np.array([1.0])):  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-        atom = Gnd(value)
+        atom = Grounded(value)
         assert atom.value is value
         assert atom.to_wire()[0] == "o"
 
 
 def test_numbers_tower_reals_normalize_and_non_reals_stay_opaque():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    real = Gnd(Fraction(3, 2))
+    real = Grounded(Fraction(3, 2))
     assert type(real.value) is float
     assert real.to_wire() == ["n", 1.5]
 
     decimal = Decimal("1.5")
-    opaque = Gnd(decimal)
+    opaque = Grounded(decimal)
     assert opaque.value is decimal
     assert opaque.to_wire()[0] == "o"
 
 
 def test_expr_is_a_sequence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    e = expr(S.a, 1, "s")
+    e = Expression(S.a, 1, "s")
     assert len(e) == 3
     assert e[0] == S.a
     head, *args = e
-    assert head == S.a and args == [Gnd(1), Gnd("s")]
+    assert head == S.a and args == [Grounded(1), Grounded("s")]
     match e:
         case [h, *rest]:
             assert h == S.a and len(rest) == 2
@@ -186,7 +176,7 @@ def test_expr_is_a_sequence():  # noqa: D103  -- pytest discovers or injects thi
 
 
 def test_expr_sequence_index_and_count():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    atom = expr(S.f, S.a, S.b, S.a)
+    atom = Expression(S.f, S.a, S.b, S.a)
     assert atom.index(S.a) == 1
     assert atom.index(S.a, 2) == 3
     assert atom.count(S.a) == 2
@@ -195,28 +185,28 @@ def test_expr_sequence_index_and_count():  # noqa: D103  -- pytest discovers or 
 
 
 def test_expr_identity_equality():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    shared = expr(S.node, S.leaf)
-    atom = expr(S.root, shared, shared)
+    shared = Expression(S.node, S.leaf)
+    atom = Expression(S.root, shared, shared)
     same = atom
     assert atom == same
-    assert atom == expr(S.root, shared, shared)
+    assert atom == Expression(S.root, shared, shared)
 
 
 def test_symbol_application_builds_expressions():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert S.Parent(S.Tom, S.Bob) == expr(S.Parent, S.Tom, S.Bob)
-    assert S.f(1, "x") == expr(S.f, 1, "x")
+    assert S.Parent(S.Tom, S.Bob) == Expression(S.Parent, S.Tom, S.Bob)
+    assert S.f(1, "x") == Expression(S.f, 1, "x")
 
 
 def test_atoms_are_immutable():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(AttributeError):
         S.foo.name = "bar"
     with pytest.raises(AttributeError):
-        expr(S.a).children = ()
+        Expression(S.a).children = ()
 
 
 @pytest.mark.parametrize(
     "atom",
-    [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
+    [S.foo, V.x, Grounded(3), Grounded("text"), Expression(S.f, S.a, Grounded(2))],
 )
 def test_atoms_copy_by_identity(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert copy.copy(atom) is atom
@@ -225,7 +215,7 @@ def test_atoms_copy_by_identity(atom):  # noqa: D103  -- pytest discovers or inj
 
 @pytest.mark.parametrize(
     "atom",
-    [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
+    [S.foo, V.x, Grounded(3), Grounded("text"), Expression(S.f, S.a, Grounded(2))],
 )
 def test_atoms_pickle_by_value(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     restored = pickle.loads(pickle.dumps(atom))
@@ -235,13 +225,13 @@ def test_atoms_pickle_by_value(atom):  # noqa: D103  -- pytest discovers or inje
 
 def test_process_local_grounded_values_refuse_pickle():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     value = object()
-    for identity_value in (Gnd(value), Box(value)):
+    for identity_value in (Grounded(value), Box(value)):
         with pytest.raises(TypeError, match=r"process-local.*identity"):
             pickle.dumps(identity_value)
 
 
 def test_atoms_cross_a_spawned_process_boundary():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    atom = expr(S.edge, S.Ada, Gnd(3))
+    atom = Expression(S.edge, S.Ada, Grounded(3))
     context = multiprocessing.get_context("spawn")
     with ProcessPoolExecutor(max_workers=1, mp_context=context) as pool:
         restored = pool.submit(pickle.loads, pickle.dumps(atom)).result(timeout=15)
@@ -251,17 +241,17 @@ def test_atoms_cross_a_spawned_process_boundary():  # noqa: D103  -- pytest disc
 def test_printing_is_source_spelling():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert str(S.foo) == "foo"
     assert str(V.x) == "$x"
-    assert str(Gnd(True)) == "True"  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert str(Gnd('say "hi"')) == '"say \\"hi\\""'
-    assert str(expr(S.a, 1, expr())) == "(a 1 ())"
+    assert str(Grounded(True)) == "True"  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert str(Grounded('say "hi"')) == '"say \\"hi\\""'
+    assert str(Expression(S.a, 1, Expression())) == "(a 1 ())"
 
 
 def test_encode_python_values():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert encode(3) == Gnd(3)
-    assert encode("s") == Gnd("s")
-    assert encode([1, 2]) == expr(1, 2)
-    assert encode((S.a, S.b)) == expr(S.a, S.b)
-    assert encode(S.a) is S.a
+    assert wire.encode(3) == Grounded(3)
+    assert wire.encode("s") == Grounded("s")
+    assert wire.encode([1, 2]) == Expression(1, 2)
+    assert wire.encode((S.a, S.b)) == Expression(S.a, S.b)
+    assert wire.encode(S.a) is S.a
 
 
 def test_the_type_fast_path_precedes_encode_and_survives_a_register():
@@ -287,47 +277,47 @@ def test_the_type_fast_path_precedes_encode_and_survives_a_register():
 
     # Unregistered: carried whole, the generic rule.
     reading = Celsius(20)
-    assert encode(reading) == Gnd(reading)
+    assert wire.encode(reading) == Grounded(reading)
 
     # A type ALREADY in the fast table. Re-registering it must take effect,
     # which is the half a stale table gets wrong.
     # Each replacement answers a bare symbol, so nothing here re-enters
     # encode while its own type is registered differently.
-    original_int = encode.registry[int]
-    original_str = encode.registry[str]
+    original_int = wire.encode.registry[int]
+    original_str = wire.encode.registry[str]
     try:
-        encode.register(int, lambda value: Sym(f"counted-{value}"))
-        assert encode(7) == Sym("counted-7")
+        wire.encode.register(int, lambda value: Symbol(f"counted-{value}"))
+        assert wire.encode(7) == Symbol("counted-7")
 
-        @encode.register(Celsius)
+        @wire.encode.register(Celsius)
         def _(value):
-            return Sym(f"celsius-{value.degrees}")
+            return Symbol(f"celsius-{value.degrees}")
 
-        assert encode(Celsius(20)) == Sym("celsius-20")
+        assert wire.encode(Celsius(20)) == Symbol("celsius-20")
 
-        @encode.register
-        def _(value: str) -> Sym:
-            return Sym(f"text-{len(value)}")
+        @wire.encode.register
+        def _(value: str) -> Symbol:
+            return Symbol(f"text-{len(value)}")
 
-        assert encode("abcd") == Sym("text-4")
+        assert wire.encode("abcd") == Symbol("text-4")
 
-        assert _core._ENCODE_FAST[int] is encode.dispatch(int)
-        assert _core._ENCODE_FAST[Celsius] is encode.dispatch(Celsius)
-        assert _core._ENCODE_FAST[str] is encode.dispatch(str)
+        assert _core._ENCODE_FAST[int] is wire.encode.dispatch(int)
+        assert _core._ENCODE_FAST[Celsius] is wire.encode.dispatch(Celsius)
+        assert _core._ENCODE_FAST[str] is wire.encode.dispatch(str)
     finally:
-        encode.register(int, original_int)
-        encode.register(str, original_str)
+        wire.encode.register(int, original_int)
+        wire.encode.register(str, original_str)
 
-    assert encode(7) == Gnd(7)
-    assert encode("abcd") == Gnd("abcd")
-    assert encode(2.5) == Gnd(2.5)
-    assert encode(True) == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert encode([1, 2]) == expr(1, 2)
-    assert encode((S.a,)) == expr(S.a)
-    assert encode(S.a) is S.a
-    assert encode(V.x) is V.x
-    shared = expr(S.f, 1)
-    assert encode(shared) is shared
+    assert wire.encode(7) == Grounded(7)
+    assert wire.encode("abcd") == Grounded("abcd")
+    assert wire.encode(2.5) == Grounded(2.5)
+    assert wire.encode(True) == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert wire.encode([1, 2]) == Expression(1, 2)
+    assert wire.encode((S.a,)) == Expression(S.a)
+    assert wire.encode(S.a) is S.a
+    assert wire.encode(V.x) is V.x
+    shared = Expression(S.f, 1)
+    assert wire.encode(shared) is shared
 
 
 def test_encode_metta_hook():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -338,14 +328,14 @@ def test_encode_metta_hook():  # noqa: D103  -- pytest discovers or injects this
         def __metta__(self):
             return S.Point(self.x, self.y)
 
-    assert encode(Point(1, 2)) == S.Point(1, 2)
+    assert wire.encode(Point(1, 2)) == S.Point(1, 2)
 
 
 def test_val_keeps_containers_whole_via_boxing():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     data = [1, 2, 3]
-    wire = val(data).to_wire()
-    assert wire[0] == "o" and isinstance(wire[1], Box) and wire[1].value is data
-    assert from_wire(wire).value is data
+    encoded = ground(data).to_wire()
+    assert encoded[0] == "o" and isinstance(encoded[1], Box) and encoded[1].value is data
+    assert wire.from_wire(encoded).value is data
 
 
 def test_every_object_crosses_boxed():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -355,33 +345,33 @@ def test_every_object_crosses_boxed():  # noqa: D103  -- pytest discovers or inj
         pass
 
     thing = Thing()
-    wire = val(thing).to_wire()
-    assert wire[0] == "o" and isinstance(wire[1], Box) and wire[1].value is thing
-    assert from_wire(wire).value is thing
-    already = val(thing)
-    assert val(already.value).to_wire()[1].value is thing
+    encoded = ground(thing).to_wire()
+    assert encoded[0] == "o" and isinstance(encoded[1], Box) and encoded[1].value is thing
+    assert wire.from_wire(encoded).value is thing
+    already = ground(thing)
+    assert ground(already.value).to_wire()[1].value is thing
 
 
 def test_object_equality_is_identity():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     a, b = object(), object()
-    assert val(a) == val(a)
-    assert val(a) != val(b)
-    assert val(a) == a
+    assert ground(a) == ground(a)
+    assert ground(a) != ground(b)
+    assert ground(a) == a
 
 
 def test_wire_round_trip():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atoms = [
         S.foo,
         V.x,
-        Gnd(1),
-        Gnd(2.5),
-        Gnd(True),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-        Gnd("text"),
-        expr(S.a, expr(S.b, V.y), 3, "s", False),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-        expr(),
+        Grounded(1),
+        Grounded(2.5),
+        Grounded(True),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+        Grounded("text"),
+        Expression(S.a, Expression(S.b, V.y), 3, "s", False),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+        Expression(),
     ]
     for a in atoms:
-        assert from_wire(a.to_wire()) == a
+        assert wire.from_wire(a.to_wire()) == a
 
 
 def test_expr_defers_its_wire_form_until_asked():
@@ -393,23 +383,23 @@ def test_expr_defers_its_wire_form_until_asked():
     here goes through to_wire().
     """
     unset = object()
-    atom = expr(S.node, 1, expr(S.inner, V.x), "text")
+    atom = Expression(S.node, 1, Expression(S.inner, V.x), "text")
 
     # Construction writes nothing: the slot is absent, not None.
     assert getattr(atom, "_wire", unset) is unset
     assert getattr(atom.children[2], "_wire", unset) is unset
 
-    wire = atom.to_wire()
-    assert wire == [
+    encoded = atom.to_wire()
+    assert encoded == [
         "e",
         [["s", "node"], ["n", 1], ["e", [["s", "inner"], ["v", "x"]]], ["g", "text"]],
     ]
 
     # Asking populated it, and asking again answers the very same list
     # rather than rebuilding one that compares equal.
-    assert getattr(atom, "_wire", unset) is wire
-    assert atom.to_wire() is wire
-    assert from_wire(wire) == atom
+    assert getattr(atom, "_wire", unset) is encoded
+    assert atom.to_wire() is encoded
+    assert wire.from_wire(encoded) == atom
 
     # A child expression stays deferred until it is crossed on its own.
     inner = atom.children[2]
@@ -417,7 +407,7 @@ def test_expr_defers_its_wire_form_until_asked():
     assert inner.to_wire() is inner.to_wire()
 
     # The empty expression is not a special case.
-    empty = expr()
+    empty = Expression()
     assert getattr(empty, "_wire", unset) is unset
     assert empty.to_wire() == ["e", []]
     assert empty.to_wire() is empty.to_wire()
@@ -450,10 +440,10 @@ def test_the_intern_cache_evicts_in_constant_time(monkeypatch):
             _core._wire_intern_clear()
             prefix = f"{tag}-{round_index}"
             for index in range(bound):
-                from_wire(["s", f"{prefix}-fill-{index}"])
+                wire.from_wire(["s", f"{prefix}-fill-{index}"])
             start = time.perf_counter()
             for index in range(churn):
-                from_wire(["s", f"{prefix}-churn-{index}"])
+                wire.from_wire(["s", f"{prefix}-churn-{index}"])
             elapsed = time.perf_counter() - start
             if best is None or elapsed < best:
                 best = elapsed
@@ -483,57 +473,57 @@ def test_wire_intern_tables_are_bounded(monkeypatch):  # noqa: D103  -- pytest d
     monkeypatch.setattr(_core, "_WIRE_CACHE_MAX", 64)
     _core._wire_intern_clear()
 
-    first_sym = from_wire(["s", "evicted"])
-    first_var = from_wire(["v", "evicted"])
+    first_sym = wire.from_wire(["s", "evicted"])
+    first_var = wire.from_wire(["v", "evicted"])
     for index in range(64 + 10):
-        from_wire(["s", f"symbol-{index}"])
-        from_wire(["v", f"variable-{index}"])
+        wire.from_wire(["s", f"symbol-{index}"])
+        wire.from_wire(["v", f"variable-{index}"])
 
     assert len(_WIRE_SYMS) <= 64
     assert len(_WIRE_VARS) <= 64
-    assert from_wire(["s", "symbol-73"]) is from_wire(["s", "symbol-73"])
-    assert from_wire(["v", "variable-73"]) is from_wire(["v", "variable-73"])
-    assert from_wire(["s", "evicted"]) == first_sym
-    assert from_wire(["s", "evicted"]) is not first_sym
-    assert from_wire(["v", "evicted"]) == first_var
-    assert from_wire(["v", "evicted"]) is not first_var
+    assert wire.from_wire(["s", "symbol-73"]) is wire.from_wire(["s", "symbol-73"])
+    assert wire.from_wire(["v", "variable-73"]) is wire.from_wire(["v", "variable-73"])
+    assert wire.from_wire(["s", "evicted"]) == first_sym
+    assert wire.from_wire(["s", "evicted"]) is not first_sym
+    assert wire.from_wire(["v", "evicted"]) == first_var
+    assert wire.from_wire(["v", "evicted"]) is not first_var
     _core._wire_intern_clear()
 
 
 def test_casting_protocol():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert int(Gnd(3)) == 3
-    assert float(Gnd(3)) == 3.0
-    assert int(Gnd(3.9)) == 3
-    assert list(range(Gnd(3))) == [0, 1, 2]
+    assert int(Grounded(3)) == 3
+    assert float(Grounded(3)) == 3.0
+    assert int(Grounded(3.9)) == 3
+    assert list(range(Grounded(3))) == [0, 1, 2]
     with pytest.raises(TypeError):
-        int(Gnd("3"))
+        int(Grounded("3"))
     with pytest.raises(TypeError):
-        int(Gnd(True))  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+        int(Grounded(True))  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     with pytest.raises(TypeError):
         int(S.three)
 
 
 def test_variables_and_groundness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert variables(expr(S.f, V.x, expr(V.y, V.x))) == ["x", "y"]
-    assert is_ground(expr(S.a, 1))
-    assert not is_ground(V.x)
+    assert Expression(S.f, V.x, Expression(V.y, V.x)).vars == ("x", "y")
+    assert not Expression(S.a, 1).vars
+    assert V.x.vars
 
 
 def test_alpha_eq():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    a = expr(S.f, V.x, V.y, V.x)
-    b = expr(S.f, V.p, V.q, V.p)
-    c = expr(S.f, V.p, V.q, V.q)
-    assert alpha_eq(a, b)
-    assert not alpha_eq(a, c)
-    assert alpha_eq(S.a, S.a)
-    assert not alpha_eq(S.a, S.b)
+    a = Expression(S.f, V.x, V.y, V.x)
+    b = Expression(S.f, V.p, V.q, V.p)
+    c = Expression(S.f, V.p, V.q, V.q)
+    assert a.alpha_eq(b)
+    assert not a.alpha_eq(c)
+    assert S.a.alpha_eq(S.a)
+    assert not S.a.alpha_eq(S.b)
 
 
 def test_unify():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     got = unify(S.Parent(V.x, S.Bob), S.Parent(S.Tom, S.Bob))
     assert got == {"x": S.Tom}
     assert unify(S.Parent(V.x, V.x), S.Parent(S.a, S.b)) is None
-    assert unify(V.x, expr(S.a)) == {"x": expr(S.a)}
+    assert unify(V.x, Expression(S.a)) == {"x": Expression(S.a)}
 
 
 def test_ground_equality_is_the_engines():
@@ -546,18 +536,18 @@ def test_ground_equality_is_the_engines():
     matcher does, so a dict of atoms counts exactly what a space stores.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     nan = float("nan")
-    assert Gnd(1) == 1 and Gnd(1) == 1.0
-    assert Gnd(0.0) == -0.0
-    assert Gnd(nan) != nan
-    assert Gnd(1) != Gnd(1.0)
-    assert Gnd(1.0) == Gnd(1.0)
-    assert Gnd(0.0) != Gnd(-0.0)
-    assert Gnd(nan) == Gnd(nan)
-    assert Gnd(True) != Gnd(1)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert hash(Gnd(1)) == hash(1)
-    assert hash(Gnd(nan)) == hash(Gnd(nan))
-    assert unify(Gnd(1), Gnd(1.0)) is None
-    assert unify(Gnd(nan), Gnd(nan)) == {}
+    assert Grounded(1) == 1 and Grounded(1) == 1.0
+    assert Grounded(0.0) == -0.0
+    assert Grounded(nan) != nan
+    assert Grounded(1) != Grounded(1.0)
+    assert Grounded(1.0) == Grounded(1.0)
+    assert Grounded(0.0) != Grounded(-0.0)
+    assert Grounded(nan) == Grounded(nan)
+    assert Grounded(True) != Grounded(1)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert hash(Grounded(1)) == hash(1)
+    assert hash(Grounded(nan)) == hash(Grounded(nan))
+    assert unify(Grounded(1), Grounded(1.0)) is None
+    assert unify(Grounded(nan), Grounded(nan)) == {}
 
 
 def test_boxes_intern_per_object_identity():
@@ -573,7 +563,7 @@ def test_atom_identity_caches_are_thread_safe():  # noqa: D103  -- pytest discov
     thing = object()
     with ThreadPoolExecutor(max_workers=8) as workers:
         boxes = list(workers.map(boxed, [thing] * 64))
-        symbols = list(workers.map(from_wire, [["s", "threaded"]] * 64))
+        symbols = list(workers.map(wire.from_wire, [["s", "threaded"]] * 64))
 
     assert all(box is boxes[0] for box in boxes)
     assert all(symbol is symbols[0] for symbol in symbols)
@@ -603,12 +593,12 @@ def test_deep_terms_cross_and_print():
     """Depth is data: the codec and the printer take 5000 levels without
     meeting Python's recursion ceiling.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    atom = Gnd(1)
+    atom = Grounded(1)
     for _ in range(5000):
-        atom = expr(S.wrap, atom)
-    assert from_wire(atom.to_wire()) == atom
+        atom = Expression(S.wrap, atom)
+    assert wire.from_wire(atom.to_wire()) == atom
     assert str(atom).startswith("(wrap (wrap")
-    assert variables(atom) == []
+    assert atom.vars == ()
 
 
 def test_malformed_wire_is_refused():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -625,12 +615,12 @@ def test_malformed_wire_is_refused():  # noqa: D103  -- pytest discovers or inje
         ["zz", 1],
     ):
         with pytest.raises(ValueError):
-            from_wire(bad)
+            wire.from_wire(bad)
 
 
 def test_atom_from_wire_rejects_undefined_truth():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="valid only as a complete evaluation answer"):
-        atom_from_wire(["u", ["s", "answer"], "delayed_goal"])
+        wire.atom_from_wire(["u", ["s", "answer"], "delayed_goal"])
 
 
 def test_anonymous_variable_is_fresh_per_occurrence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -668,7 +658,7 @@ def test_the_sort_key_is_total_over_mixed_atoms():
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     atoms = [
         S.a, parse("1"), parse("2.5"), parse('"s"'), V.x, S.f(S.a),
-        S.f(S.a, S.b), parse("()"), parse("True"), Gnd(object()),
+        S.f(S.a, S.b), parse("()"), parse("True"), Grounded(object()),
     ]
     for left in atoms:
         for right in atoms:
@@ -681,8 +671,8 @@ def test_an_atom_round_trips_through_json():  # noqa: D103  -- pytest discovers 
     atom = S.edge(S.a, 1, V.x)
     text = json.dumps(atom.to_wire())
     assert text == '["e", [["s", "edge"], ["s", "a"], ["n", 1], ["v", "x"]]]'
-    back = atom_from_wire(json.loads(text))
-    assert alpha_eq(atom, back)
+    back = wire.atom_from_wire(json.loads(text))
+    assert atom.alpha_eq(back)
     assert str(back) == "(edge a 1 $x)"
 
 
@@ -690,12 +680,12 @@ def test_slot_docstrings_reach_help():  # noqa: D103  -- pytest discovers or inj
     # dict-form __slots__, data model 3.3.2.4: help() and inspect.getdoc
     # document the attribute in place (the descriptor's own __doc__ stays
     # None by CPython design).
-    assert inspect.getdoc(Expr.children) == "the ordered child atoms, as a tuple"
-    assert inspect.getdoc(Gnd.value) == "the ground Python value this atom carries"
+    assert inspect.getdoc(Expression.children) == "the ordered child atoms, as a tuple"
+    assert inspect.getdoc(Grounded.value) == "the ground Python value this atom carries"
     assert (
-        inspect.getdoc(Sym.name) == "the symbol's name, exactly as written in source"
+        inspect.getdoc(Symbol.name) == "the symbol's name, exactly as written in source"
     )
-    assert inspect.getdoc(Var.name) == "the variable's name without the $ sigil"
+    assert inspect.getdoc(Variable.name) == "the variable's name without the $ sigil"
 
 
 def test_pretty_lays_out_deep_terms_and_agrees_with_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -705,10 +695,10 @@ def test_pretty_lays_out_deep_terms_and_agrees_with_the_engine(metta):  # noqa: 
         "(pi (rho sigma tau) (upsilon phi chi)))"
     )
     term = parse(source)
-    laid_out = pretty(term)
+    laid_out = repr(term)
     assert laid_out.startswith("(alpha\n  (beta")
     assert laid_out.count("\n") == 3
     # the engine's (pretty-atom ...) is the SAME layout, differentially
-    assert metta.one(f"(pretty-atom {source})") == laid_out
+    assert metta._one(f"(pretty-atom {source})") == laid_out
     # a fitting term stays inline
-    assert pretty(parse("(f 1 2)")) == "(f 1 2)"
+    assert repr(parse("(f 1 2)")) == "(f 1 2)"

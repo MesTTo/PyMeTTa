@@ -28,21 +28,21 @@ from typing import TYPE_CHECKING, Any, Self, cast
 from ._engine import Runtime
 from .atoms import (
     Atom,
-    Expr,
-    Gnd,
-    Sym,
-    Var,
+    Expression,
+    Grounded,
+    Symbol,
+    Variable,
+    _atom_from_wire,
+    _decode,
+    _encode,
     _to_atom,
-    atom_from_wire,
-    decode,
-    encode,
-    variables,
+    _variables,
 )
 from .errors import EngineError, PettaError
 from .results import Rows, _row_class, raise_error_answers
 
 if TYPE_CHECKING:
-    from .space import MeTTa
+    from ._space import Space as MeTTa
 
 logger = logging.getLogger(__name__)
 
@@ -129,9 +129,9 @@ def guard_atom(where: Any | None) -> Atom | None:
     # An expression is the guard proper; a variable is one a pattern bound to
     # a truth; a grounded bool is trivially one. A grounded value or a bare
     # symbol is neither a call nor a truth, so it can never be true.
-    if isinstance(guard, (Expr, Var)):
+    if isinstance(guard, (Expression, Variable)):
         return guard
-    if isinstance(guard, Gnd) and isinstance(guard.value, bool):
+    if isinstance(guard, Grounded) and isinstance(guard.value, bool):
         return guard
     msg = (
         f"a where= guard is a term the engine evaluates per row, as in "
@@ -168,7 +168,7 @@ def _stats_snapshot(
 
 def _column_names(atoms: Iterable[Atom]) -> list[str]:
     """Distinct non-anonymous variables in first-appearance order."""
-    return list(dict.fromkeys(name for atom in atoms for name in variables(atom) if name != "_"))
+    return list(dict.fromkeys(name for atom in atoms for name in _variables(atom) if name != "_"))
 
 
 class _Assuming:
@@ -369,13 +369,13 @@ def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
 
 _CURSOR_LENGTH_REFUSAL = (
     "a cursor has no len(): counting its rows means pulling all of them, "
-    "which is what it exists to avoid. Use space.count(pattern) for the "
+    "which is what it exists to avoid. Use len(space.query(pattern)) for the "
     "count, or query() if you want the rows"
 )
 
 
 class Cursor:
-    """MeTTa.stream(): answers pulled one at a time from an engine-held
+    """Private streaming answers pulled one at a time from an engine-held
     query. Iterate it, close() it, or leave its with-block. Exhaustion reaps
     the engine and remains ordinary iterator exhaustion; explicit close is a
     separate state that refuses further pulls. A cursor dropped unclosed is
@@ -418,13 +418,13 @@ class Cursor:
         steps = -1 if limits is None else limits[1]
         self._rt = space.runtime
         self._atoms = atoms
-        self._space_name = space.space_name
+        self._space_name = space.name
         wires = [a.to_wire() for a in atoms]
         checked = guard_atom(where)
         self._where_atom = checked
         guard = [] if checked is None else checked.to_wire()
         self._handle = self._rt.apply_must(
-            "petta_py_cursor_open", space.space_name, wires, guard, columns.copy(), steps
+            "petta_py_cursor_open", space.name, wires, guard, columns.copy(), steps
         )
         self._closed = False
         self._exhausted = False
@@ -463,7 +463,7 @@ class Cursor:
             self._exhausted = True
             self._finalizer()
             raise StopIteration
-        return self._row_cls(atom_from_wire(v) for v in answer[0])
+        return self._row_cls(_atom_from_wire(v) for v in answer[0])
 
     def explain(self) -> str:
         """The query's plan, reflected rather than run: which provider
@@ -692,7 +692,7 @@ class Prepared:
 
     def _run(self, limit: int | None, timeout: float | None, inferences: int | None) -> Rows:
         rt = self._space.runtime
-        space = self._space.space_name
+        space = self._space.name
         names = list(self.columns)
         if self._guard is not None:
             pred = "petta_py_query_guarded_all"
@@ -706,7 +706,7 @@ class Prepared:
             answered = rt.apply_must(pred, *ins)
         else:
             answered = rt.apply_must("petta_py_limited", *limits, pred, ins)
-        decoded = [tuple(atom_from_wire(v) for v in r) for r in answered]
+        decoded = [tuple(_atom_from_wire(v) for v in r) for r in answered]
         return Rows(self.columns, decoded)
 
     def explain(self) -> str:
@@ -724,28 +724,28 @@ class Prepared:
         consulted exactly as a real query would consult it, since the
         claim is the provider's to make.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _explain_text(self._space.runtime, self._space.space_name, self._patterns, self._where)
+        return _explain_text(self._space.runtime, self._space.name, self._patterns, self._where)
 
     def __repr__(self) -> str:
         shown = ", ".join(str(p) for p in self._patterns)
         return f"<prepared {shown} -> {', '.join(self.columns)}>"
 
 
-_UNDEFINED_TYPE = Sym("%Undefined%")
+_UNDEFINED_TYPE = Symbol("%Undefined%")
 
 
 def _doc_text(atom: object) -> str:
     """The prose inside a doc part: a string value decodes, anything
     else renders as written.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if isinstance(atom, Gnd):
-        value = decode(atom)
+    if isinstance(atom, Grounded):
+        value = _decode(atom)
         if isinstance(value, str):
             return value
     return str(atom)
 
 
-def _format_doc_atom(doc: Expr) -> str:
+def _format_doc_atom(doc: Expression) -> str:
     """`(@doc name (@desc ...) (@params (...)) (@return ...))` as help()
     text: one summary line, then the parameters, then the return.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -754,18 +754,18 @@ def _format_doc_atom(doc: Expr) -> str:
     parameters: list[str] = []
     returns: str | None = None
     for part in doc.children[2:]:
-        if not (isinstance(part, Expr) and part.children):
+        if not (isinstance(part, Expression) and part.children):
             continue
         head, *rest = part.children
-        if head == Sym("@desc") and rest:
+        if head == Symbol("@desc") and rest:
             lines.append(f"{name}: {_doc_text(rest[0])}")
-        elif head == Sym("@params") and rest and isinstance(rest[0], Expr):
+        elif head == Symbol("@params") and rest and isinstance(rest[0], Expression):
             parameters = [
                 _doc_text(param.children[1])
                 for param in rest[0].children
-                if isinstance(param, Expr) and len(param.children) > 1
+                if isinstance(param, Expression) and len(param.children) > 1
             ]
-        elif head == Sym("@return") and rest:
+        elif head == Symbol("@return") and rest:
             returns = _doc_text(rest[0])
     if not lines:
         lines.append(str(name))
@@ -809,10 +809,10 @@ class _EngineFunction:
         self._space = space
         self._name = name
         self.__name__ = name
-        self.__qualname__ = f"{space.space_name}.{name}"
+        self.__qualname__ = f"{space.name}.{name}"
 
-    def _term(self, args: tuple) -> Expr:
-        return Expr([Sym(self._name), *(encode(a) for a in args)])
+    def _term(self, args: tuple) -> Expression:
+        return Expression([Symbol(self._name), *(_encode(a) for a in args)])
 
     def __call__(self, *args: Any) -> Any:
         """Sugar for one(): a Python call means exactly one answer."""
@@ -820,16 +820,16 @@ class _EngineFunction:
 
     def one(self, *args: Any) -> Any:
         # one()'s own contract, through one()'s own decoder: exactly
-        # one answer, no Undefined, a Gnd decoded to its Python value.
+        # one answer, no Undefined, a Grounded decoded to its Python value.
         # The two surfaces answered differently on the same call (one
-        # gave True where fn gave Gnd(True)) because this re-implemented
+        # gave True where fn gave Grounded(True)) because this re-implemented
         # only the first of value_one's three checks. Imported here
         # because _space_execution imports this module at load.
         from ._space_execution import value_one  # noqa: PLC0415
 
         term = self._term(args)
         answers = self._space.eval(term)
-        raise_error_answers(answers, space=self._space.space_name, target=term)
+        raise_error_answers(answers, space=self._space.name, target=term)
         return value_one(term, answers)
 
     def all(self, *args: Any) -> list:
@@ -850,7 +850,7 @@ class _EngineFunction:
         answers = self._space.eval(term)
         if not answers:
             return None
-        raise_error_answers(answers[:1], space=self._space.space_name, target=term)
+        raise_error_answers(answers[:1], space=self._space.name, target=term)
         return value_one(term, answers[:1])
 
     # ------------------------------------------------------- introspection
@@ -864,26 +864,26 @@ class _EngineFunction:
         the function protocol spells absence that way. MeTTa allows
         several declarations for one name; this answers the first.
         """
-        answers = self._space.eval(Expr([Sym("get-type"), Sym(self._name)]))
+        answers = self._space.eval(Expression([Symbol("get-type"), Symbol(self._name)]))
         for answer in answers:
             if isinstance(answer, Atom) and answer != _UNDEFINED_TYPE:
                 return answer
         return None
 
     @property
-    def equations(self) -> list[Expr]:
+    def equations(self) -> list[Expression]:
         """The stored `(= (f ...) body)` atoms, live from the space."""
         wires = self._space._rt.apply_must(
-            "petta_py_equations", self._space.space_name, self._name
+            "petta_py_equations", self._space.name, self._name
         )
-        return [cast(Expr, atom_from_wire(w)) for w in wires]
+        return [cast(Expression, _atom_from_wire(w)) for w in wires]
 
     @property
     def compiled(self) -> str:
         """The Prolog clauses this name compiled to: dis for the
-        translator, m.disassemble(name) as a property.
+        translator, exposed from the function handle as a property.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self._space.disassemble(self._name)
+        return self._space._disassemble(self._name)
 
     @property
     def __signature__(self) -> inspect.Signature:
@@ -893,9 +893,9 @@ class _EngineFunction:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         arrow = self.type
         if (
-            not isinstance(arrow, Expr)
+            not isinstance(arrow, Expression)
             or not arrow.children
-            or arrow.children[0] != Sym("->")
+            or arrow.children[0] != Symbol("->")
         ):
             return inspect.Signature(
                 [inspect.Parameter("args", inspect.Parameter.VAR_POSITIONAL)]
@@ -920,8 +920,8 @@ class _EngineFunction:
         documents every prelude form, so builtins answer too), else the
         declaration and equations, else None as Python spells absence.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        answers = self._space.eval(Expr([Sym("get-doc"), Sym(self._name)]))
-        if answers and isinstance(answers[0], Expr):
+        answers = self._space.eval(Expression([Symbol("get-doc"), Symbol(self._name)]))
+        if answers and isinstance(answers[0], Expression):
             return _format_doc_atom(answers[0])
         lines = []
         declared = self.type
@@ -936,7 +936,7 @@ class _EngineFunction:
         return "\n".join(lines) if lines else None
 
     def __repr__(self) -> str:
-        return f"<engine function {self._name} on {self._space.space_name}>"
+        return f"<engine function {self._name} on {self._space.name}>"
 
 
 #: Active batch collectors by space name; a contextvar mapping, so a
@@ -976,7 +976,7 @@ class _Batch:
 
     def __enter__(self) -> Self:
         current = _ACTIVE_BATCHES.get()
-        name = self._space.space_name
+        name = self._space.name
         if name in current:
             msg = (
                 f"a batch is already collecting for {name} in this "

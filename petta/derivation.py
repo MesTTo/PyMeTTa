@@ -19,7 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TypeGuard
 
-from .atoms import Atom, Expr, Gnd, Sym, Var, map_atoms
+from .atoms import Atom, Expression, Grounded, Symbol, Variable, _map_atoms
 
 __all__ = ["Builtin", "Derivation", "Fact", "Step", "Truncated"]
 
@@ -94,7 +94,7 @@ class Derivation:
     def from_atom(tree: Atom) -> Derivation:
         """Parse the (derivation (answer Call Out) Steps...) atom."""
         if not (
-            isinstance(tree, Expr)
+            isinstance(tree, Expression)
             and _headed(tree, "derivation")
             and len(tree) >= 2
         ):
@@ -161,7 +161,7 @@ def _pretty(atom: Atom) -> Atom:
     mapping: dict[str, str] = {}
 
     def rename(a: Atom) -> Atom:
-        if isinstance(a, Var):
+        if isinstance(a, Variable):
             # Only machine names are renamed; a name the author wrote stays.
             if not a.name.startswith("_"):
                 return a
@@ -169,22 +169,22 @@ def _pretty(atom: Atom) -> Atom:
                 index = len(mapping)
                 fresh = names[index] if index < len(names) else f"v{index}"
                 mapping[a.name] = fresh
-            return Var(mapping[a.name])
+            return Variable(mapping[a.name])
         return a
 
-    return map_atoms(atom, rename)
+    return _map_atoms(atom, rename)
 
 
-def _headed(e: Atom, name: str) -> TypeGuard[Expr]:
+def _headed(e: Atom, name: str) -> TypeGuard[Expression]:
     return (
-        isinstance(e, Expr)
+        isinstance(e, Expression)
         and len(e) > 0
-        and isinstance(e.head, Sym)
+        and isinstance(e.head, Symbol)
         and e.head.name == name
     )
 
 
-def _step_node(node: Expr) -> Step:
+def _step_node(node: Expression) -> Step:
     if len(node) < 3:
         msg = (
             f"malformed step node {node}: expected "
@@ -202,17 +202,17 @@ def _step_node(node: Expr) -> Step:
     return Step(call=call, answer=out, equation=node[2], children=children)
 
 
-def _fact_node(node: Expr) -> Fact:
+def _fact_node(node: Expression) -> Fact:
     if len(node) != 3:
         msg = f"malformed fact node {node}: expected (fact Space Atom)"
         raise ValueError(msg)
     space = node[1]
-    name = space.name if isinstance(space, Sym) else str(space)
+    name = space.name if isinstance(space, Symbol) else str(space)
     return Fact(space=name, atom=node[2])
 
 
 def _text_node(
-    node: Expr,
+    node: Expression,
     name: str,
     constructor: Callable[[str], Node],
 ) -> Node:
@@ -220,7 +220,7 @@ def _text_node(
         msg = f"malformed {name} node {node}: expected ({name} Text)"
         raise ValueError(msg)
     payload = node[1]
-    text = payload.value if isinstance(payload, Gnd) else str(payload)
+    text = payload.value if isinstance(payload, Grounded) else str(payload)
     return constructor(str(text))
 
 

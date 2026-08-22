@@ -9,31 +9,31 @@ Guarantees:
     it, the same multiset law a native space obeys, so a provider swap does
     not change what `remove-atom` means
     [tested: test_a_persistent_space_subtracts_one_fact_like_a_native_one;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
   - constructor failure releases its path claim and any unattached reusable
     module [tested: test_constructor_failure_releases_path_and_unattached_module;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
   - terminal-tail recovery syncs the backup file and its directory before
     truncating the journal
-    [tested: test_tail_backup_is_durable_before_truncation; commit=dcfc20be4933c19140ccb5759291401d13058301]
+    [tested: test_tail_backup_is_durable_before_truncation; commit=WORKTREE]
   - EVERY proper prefix of a record classifies as an incomplete tail and is
     recovered, and a tail carrying its terminating full stop is refused
     instead of truncated [measured 2026-08-19: 7 of 18 truncation points were refused;
     command=pytest tests/test_persistent.py -q -p no:benchmark;
-    fixture=all prefixes of assert(edge(a,b)).; commit=dcfc20be4933c19140ccb5759291401d13058301] [tested:
+    fixture=all prefixes of assert(edge(a,b)).; commit=WORKTREE] [tested:
     test_every_truncation_point_of_the_torn_tail_classifies,
     test_a_terminated_record_is_refused_rather_than_truncated;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
 Owns resources:
   - PersistentFactSpace owns one process path claim, one generated module,
     and one journal attachment until close or constructor rollback
     [tested: test_detached_modules_are_reused_without_weakening_path_claims;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
 Guarded by:
   - _STATE_LOCK protects active paths and the module pool; each provider's
     _call_lock serializes journal operations
     [tested: test_detached_modules_are_reused_without_weakening_path_claims;
-    commit=dcfc20be4933c19140ccb5759291401d13058301]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -53,7 +53,7 @@ from pathlib import Path
 from typing import Any
 
 from ._engine import Runtime, runtime
-from .atoms import Atom, Expr, Gnd, Sym, atom_from_wire, is_ground
+from .atoms import Atom, Expression, Grounded, Symbol, _atom_from_wire, _is_ground
 from .errors import EngineError, PettaError
 from .foreign import SpaceProvider
 
@@ -454,7 +454,7 @@ def _validated_fact_head(
     verb: str,
     schema: Mapping[str, int],
 ) -> tuple[str, tuple[Atom, ...]]:
-    if not (isinstance(atom, Expr) and atom.children and isinstance(atom.head, Sym)):
+    if not (isinstance(atom, Expression) and atom.children and isinstance(atom.head, Symbol)):
         msg = f"cannot {verb} {atom}: a persistent fact is a ground (head arguments...) expression"
         raise PettaError(msg)
     head = atom.head.name
@@ -477,12 +477,12 @@ def _persistent_argument_wire(
     index: int,
     verb: str,
 ) -> list[Any]:
-    if not is_ground(argument):
+    if not _is_ground(argument):
         msg = f"cannot {verb} {atom}: argument {index} ({argument}) is not ground"
         raise PettaError(msg)
-    if isinstance(argument, Sym):
+    if isinstance(argument, Symbol):
         return argument.to_wire()
-    if isinstance(argument, Gnd):
+    if isinstance(argument, Grounded):
         value = argument.value
         if type(value) in (bool, int, float, str):
             return argument.to_wire()
@@ -531,7 +531,7 @@ class PersistentFactSpace(SpaceProvider):
 
     _SYNC_MODES = ("none", "flush", "close")
 
-    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
+    def __init__(
         self,
         path: str | os.PathLike[str],
         schema: Mapping[str, int],
@@ -591,23 +591,23 @@ class PersistentFactSpace(SpaceProvider):
             self._closed = False
             rollback.pop_all()
 
-    def match(self, pattern: Atom) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def match(self, pattern: Atom) -> Iterator[Atom]:
         if (
-            isinstance(pattern, Expr)
-            and isinstance(pattern.head, Sym)
+            isinstance(pattern, Expression)
+            and isinstance(pattern.head, Symbol)
             and pattern.head.name in self._schema
         ):
             return iter(self._facts(pattern.head.name))
         return self.atoms()
 
-    def atoms(self) -> Iterator[Atom]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def atoms(self) -> Iterator[Atom]:
         return iter(self._facts())
 
-    def add(self, atom: Atom) -> None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def add(self, atom: Atom) -> None:
         head, wires = self._fact_parts(atom, "add")
         self._write_call("add", "Head, Wires", {"Head": head, "Wires": wires})
 
-    def remove(self, atom: Atom) -> bool:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def remove(self, atom: Atom) -> bool:
         head, wires = self._fact_parts(atom, "remove")
         row = self._write_call(
             "remove",
@@ -865,11 +865,11 @@ class PersistentFactSpace(SpaceProvider):
         facts: list[Atom] = []
         for wire in wires:
             try:
-                fact = atom_from_wire(wire)
+                fact = _atom_from_wire(wire)
             except (TypeError, ValueError) as exc:
                 msg = f"persistent journal {self._path} returned malformed fact wire {wire!r}"
                 raise PettaError(msg) from exc
-            if not isinstance(fact, Expr):
+            if not isinstance(fact, Expression):
                 msg = f"persistent journal {self._path} returned non-fact {fact!r}"
                 raise PettaError(msg)
             facts.append(fact)

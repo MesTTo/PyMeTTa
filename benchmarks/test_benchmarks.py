@@ -5,7 +5,7 @@ Guarantees:
   - every mutable engine case receives a fresh space outside its measured
     window [tested benchmark_case]
   - raw and encoded operation cases select one named transport mode [tested:
-    test_raw_operation, test_encoded_operation; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    test_raw_operation, test_encoded_operation; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -47,14 +47,14 @@ from benchmarks.workloads import (
     wire_atom,
     wire_codec,
 )
-from petta import Answer, MeTTa, S, V, expr
+from petta import Answer, MeTTa, S, V, Expression, tables
 from petta.testing import benchmark_case, benchmark_counter_slope, count_atoms
 
 _ROWS = 2_000
 
 
 def _empty_space():
-    return MeTTa().new_space()
+    return MeTTa().space()
 
 
 def _drop(space):
@@ -150,7 +150,7 @@ def test_query_rows(benchmark, inference_baseline):
 def test_eval_arithmetic(benchmark, inference_baseline):
     def operation(space):
         for index in range(_ROWS):
-            space.eval(expr(S["+"], index, 1))
+            space.eval(Expression(S["+"], index, 1))
         return _ROWS
 
     benchmark_case(
@@ -169,7 +169,7 @@ def test_eval_arithmetic(benchmark, inference_baseline):
 def _operation_space(name, *, transport):
     space = _empty_space()
 
-    @space.register_op(name=name, transport=transport)
+    @space.op(name=name, transport=transport)
     def addition(left, right):
         return left + right
 
@@ -186,7 +186,7 @@ def _drop_operation_space(name):
 
 def _eval_registered(space, name):
     for index in range(_ROWS):
-        space.eval(expr(S[name], index, 1))
+        space.eval(Expression(S[name], index, 1))
     return _ROWS
 
 
@@ -527,7 +527,7 @@ def test_add_table_rows(benchmark, inference_baseline):
     rows = [(index, index + 1) for index in range(_ROWS)]
 
     def operation(space):
-        return space.add_table("edge", rows)
+        return tables.add(space, "edge", rows)
 
     benchmark_case(
         benchmark,
@@ -549,7 +549,7 @@ def _weighted_space():
         yield Answer(value=S.calm, k=0.25)
         yield Answer(value=S.tense, k=0.75)
 
-    space.register_op(mood, name="benchmark-mood")
+    space.op(mood, name="benchmark-mood")
     space.declare_annotations("benchmark-mood", "prob")
     return space
 
@@ -590,7 +590,7 @@ def test_register_operation(benchmark, inference_baseline):
             def identity(value: int) -> int:
                 return value
 
-            space.register_op(identity, name=name)
+            space.op(identity, name=name)
             space.unregister_op(name)
         return registrations
 
@@ -726,7 +726,7 @@ def _save_load(state):
     _directory, source, target, path, format = state
     saved = source.save(path, format=format)
     groups = target.load(path)
-    if saved != 20_001 or groups or target.count() != 20_001:
+    if saved != 20_001 or groups or len(target) != 20_001:
         raise AssertionError(f"{format} did not round-trip 20,001 atoms")
     if target.run("!(benchmark-save-next 41)") != [[42]]:
         raise AssertionError(f"{format} lost the stored equation")
@@ -778,7 +778,7 @@ def _file_load(state):
     """
     _directory, _source, target, path = state
     groups = target.load(path)
-    if groups or target.count() != 20_001:
+    if groups or len(target) != 20_001:
         raise AssertionError("load did not carry 20,001 atoms")
     target.run(f'!(import! &self "{path}")')
     return 20_001
@@ -826,12 +826,12 @@ def _provider_space():
             return iter(self.stored)
 
     provider = Rows()
-    provider.space.register_space(provider, "&bench-provider")
+    provider.space._register_space(provider, "&bench-provider")
     return provider.space
 
 
 def _drop_provider(space):
-    space.unregister_space("&bench-provider")
+    space._unregister_space("&bench-provider")
     space.drop()
 
 
@@ -878,12 +878,12 @@ def _bridge_space():
     )
     provider.add(space.parse("(edge a b)"))
     provider.add(space.parse("(edge a c)"))
-    space.register_space(provider, "&bench-bridge")
+    space._register_space(provider, "&bench-bridge")
     return space
 
 
 def _drop_bridge(space):
-    space.unregister_space("&bench-bridge")
+    space._unregister_space("&bench-bridge")
     space.drop()
 
 
@@ -944,7 +944,8 @@ def test_handle_round_trip(benchmark, inference_baseline):
         for _ in range(repeats):
             (row,) = space.run("!(vector-new 4)")
             with row[0] as handle:
-                value = space.run("!(vector-nth h 3)", using={"h": handle})[0][0]
+                with space.bind(h=handle):
+                    value = space.run("!(vector-nth h 3)")[0][0]
         assert str(value) == "3"
         return repeats
 

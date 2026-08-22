@@ -16,12 +16,13 @@ Open Obligations:
 
 import pytest
 
-from petta import REFLECTION_SPACE, EngineError, MeTTa, S, V
+from petta import S, V, reflection
+from petta.errors import EngineError
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         space.run("!(import! (context-space) (library lib_tabling))")
         yield space
 
@@ -30,7 +31,7 @@ def _tabled_property(m, name, compiled_arity):
     row = m.runtime.once(
         "space_module(Space, _M), functor(_H, F, A), "
         "( predicate_property(_M:_H, tabled) -> T = true ; T = false )",
-        Space=m.space_name, F=name, A=compiled_arity,
+        Space=m.name, F=name, A=compiled_arity,
     )
     return row.get("T") == "true" or row.get("T") is True
 
@@ -93,13 +94,13 @@ def test_clear_preserves_unrelated_tables_and_untable_removes(m):
     )
     count = m.runtime.once(
         "space_module(Space, _M), aggregate_all(count, current_table(_M:_G, _), N)",
-        Space=m.space_name,
+        Space=m.name,
     )["N"]
     assert count == 2
     assert m.run("!(table-clear (cleared-fn $n))") == [[True]]
     remaining = m.runtime.once(
         "space_module(Space, _M), aggregate_all(count, current_table(_M:_G, _), N)",
-        Space=m.space_name,
+        Space=m.name,
     )["N"]
     assert remaining == 1
     assert m.run("!(untabled (cleared-fn $n))") == [[True]]
@@ -121,10 +122,9 @@ def test_declarations_reflect_into_petta(m):
     input arity; repetition never duplicates it, and undeclaring removes
     it.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    reflection = MeTTa(REFLECTION_SPACE)
     m.run("(= (reflected-fn $n) (+ $n 1))")
     assert m.run("!(tabled (reflected-fn $n))") == [[True]]
-    pattern = S.tabled(S[m.space_name], S["reflected-fn"], V.a)
+    pattern = S.tabled(S[m.name], S["reflected-fn"], V.a)
     assert [row.a for row in reflection.query(pattern)] == [1]
     assert m.run("!(tabled (reflected-fn $n))") == [[True]]
     assert len(reflection.query(pattern)) == 1
@@ -150,18 +150,17 @@ def test_pool_reuse_starts_tabling_clean(metta):
     free = metta.runtime.once(
         "aggregate_all(count, petta_py_free_space(_), N)"
     )["N"]
-    held = [metta.new_space() for _ in range(free)]
+    held = [metta._new_space() for _ in range(free)]
     try:
-        with metta.new_space() as first_life:
-            name = first_life.space_name
+        with metta._new_space() as first_life:
+            name = first_life.name
             first_life.run("!(import! (context-space) (library lib_tabling))")
             first_life.run("(= (leak-fn $n) (+ $n 1))")
             assert first_life.run("!(tabled (leak-fn $n))") == [[True]]
             assert first_life.run("!(leak-fn 5)") == [[6]]
-        with metta.new_space() as second_life:
-            assert second_life.space_name == name
+        with metta._new_space() as second_life:
+            assert second_life.name == name
             assert _module_table_count(metta.runtime, name) == 0
-            reflection = MeTTa(REFLECTION_SPACE)
             assert not reflection.query(
                 S.tabled(S[name], S["leak-fn"], V.a)
             )
@@ -180,12 +179,11 @@ def test_dropped_space_leaves_shared_tabling_alone(metta):
     metta.run("(= (shared-keeper $n) (+ $n 3))")
     assert metta.run("!(tabled (shared-keeper $n))") == [[True]]
     try:
-        with metta.new_space() as scratch:
+        with metta._new_space() as scratch:
             scratch.run("!(import! (context-space) (library lib_tabling))")
             scratch.run("(= (scratch-fn $n) (+ $n 1))")
             assert scratch.run("!(tabled (scratch-fn $n))") == [[True]]
         assert _tabled_property(metta, "shared-keeper", 2)
-        reflection = MeTTa(REFLECTION_SPACE)
         assert len(
             reflection.query(S.tabled(S["&self"], S["shared-keeper"], V.a))
         ) == 1
@@ -207,13 +205,13 @@ def test_a_drop_untables_before_it_removes_any_clause(metta):
     metta.run("!(tabled (cycle-warm $n))")
     metta.run("!(cycle-warm 1)")
     for _ in range(60):
-        with metta.new_space() as first_life:
+        with metta._new_space() as first_life:
             first_life.run("!(import! (context-space) (library lib_tabling))")
             first_life.run("(= (cycle-fn $n) (+ $n 1))")
             first_life.run("!(tabled (cycle-fn $n))")
             assert first_life.run("!(cycle-fn 5)") == [[6]]
             first_life.run("(cycle-edge a b)")
             first_life.run("!(match (context-space) (cycle-edge $x $y) $x)")
-        with metta.new_space() as second_life:
+        with metta._new_space() as second_life:
             second_life.run("(= (cycle-fn $n) (* $n 10))")
             assert second_life.run("!(cycle-fn 5)") == [[50]]

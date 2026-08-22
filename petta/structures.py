@@ -42,13 +42,21 @@ import threading
 from collections import Counter
 from collections.abc import Iterator, MutableMapping, MutableSet
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 
-from .atoms import Atom, Expr, Gnd, Sym, Var, encode, is_ground, substitute, unify, variables
+from .atoms import (
+    Atom,
+    Expression,
+    Grounded,
+    Symbol,
+    Variable,
+    _encode,
+    _is_ground,
+    _variables,
+    substitute,
+    unify,
+)
 from .errors import PettaError
-
-if TYPE_CHECKING:
-    from .space import MeTTa
 
 __all__ = [
     "AlphaSet",
@@ -75,7 +83,7 @@ def _as_atom(value: Any) -> Atom:
         raise TypeError(
             msg
         )
-    return encode(value)
+    return _encode(value)
 
 
 def _canonical(atom: Atom) -> Atom:
@@ -83,11 +91,11 @@ def _canonical(atom: Atom) -> Atom:
     so two alpha-equivalent atoms canonicalize identically and ordinary
     hashing becomes alpha-invariant hashing.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    names = variables(atom)
+    names = _variables(atom)
     if not names:
         return atom
     return substitute(
-        atom, {name: Var(f"_alpha{index}") for index, name in enumerate(names)}
+        atom, {name: Variable(f"_alpha{index}") for index, name in enumerate(names)}
     )
 
 
@@ -124,15 +132,15 @@ class PatternMap(MutableMapping):
 
     @staticmethod
     def _bucket_of(key: Atom) -> tuple[str | None, int] | None:
-        if isinstance(key, Expr) and key.children:
+        if isinstance(key, Expression) and key.children:
             head = key.children[0]
-            name = head.name if isinstance(head, Sym) else None
+            name = head.name if isinstance(head, Symbol) else None
             return (name, len(key.children))
         return None  # a bare variable key matches anything
 
     def __setitem__(self, key: Any, value: Any) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         atom = _as_atom(key)
-        if is_ground(atom):
+        if _is_ground(atom):
             self._ground[atom] = value
             return
         canonical = _canonical(atom)
@@ -141,7 +149,7 @@ class PatternMap(MutableMapping):
 
     def __getitem__(self, key: Any) -> Any:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         atom = _as_atom(key)
-        if is_ground(atom):
+        if _is_ground(atom):
             return self._ground[atom]
         entry = self._patterns.get(_canonical(atom))
         if entry is None:
@@ -150,7 +158,7 @@ class PatternMap(MutableMapping):
 
     def __delitem__(self, key: Any) -> None:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         atom = _as_atom(key)
-        if is_ground(atom):
+        if _is_ground(atom):
             del self._ground[atom]
             return
         canonical = _canonical(atom)
@@ -177,7 +185,7 @@ class PatternMap(MutableMapping):
         can reach any bucket, and ground entries it unifies with.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         probe = _as_atom(atom)
-        if is_ground(probe):
+        if _is_ground(probe):
             value = self._ground.get(probe, _MISSING)
             if value is not _MISSING:
                 yield (probe, value)
@@ -198,9 +206,9 @@ class PatternMap(MutableMapping):
 
     @staticmethod
     def _probe_buckets(probe: Atom) -> Iterator[tuple[str | None, int] | None]:
-        if isinstance(probe, Expr) and probe.children:
+        if isinstance(probe, Expression) and probe.children:
             head = probe.children[0]
-            if isinstance(head, Sym):
+            if isinstance(head, Symbol):
                 yield (head.name, len(probe.children))
             yield (None, len(probe.children))
         yield None
@@ -238,7 +246,7 @@ class MatchIndex:
 
         inbox = MatchIndex()
         inbox.add(S.order(V.id, S.express), rush_handler)
-        [value for _, value in inbox.matches(S.order(val(7), S.express))]
+        [value for _, value in inbox.matches(S.order(ground(7), S.express))]
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ("_entries", "_next", "_root", "_size")
@@ -266,15 +274,15 @@ class MatchIndex:
         stack = [atom]
         while stack:
             node = stack.pop()
-            if isinstance(node, Var):
+            if isinstance(node, Variable):
                 out.append("*")
-            elif isinstance(node, Expr):
+            elif isinstance(node, Expression):
                 out.append(("open", len(node.children)))
                 stack.extend(reversed(node.children))
-            elif isinstance(node, Sym):
+            elif isinstance(node, Symbol):
                 out.append(("sym", node.name))
             else:
-                value = node.value if isinstance(node, Gnd) else node
+                value = node.value if isinstance(node, Grounded) else node
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     # Numeric atoms share one token kind because the kernel's
                     # equality is by numeric value: 0 and 0.0 must reach the
@@ -330,7 +338,7 @@ class MatchIndex:
         nonlinearity is exact.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         probe = _as_atom(atom)
-        if not is_ground(probe):
+        if not _is_ground(probe):
             # The tree's walk reads probe tokens literally, so a probe
             # variable would need every edge followed; brute force is the
             # honest spelling of that, and stays exact through unify.
@@ -430,15 +438,15 @@ class AlphaSet(MutableSet):
 # local. The module itself still imports without an engine.
 
 
-def _tabling_ready(space: MeTTa) -> None:
+def _tabling_ready(space: Any) -> None:
     """lib_tabling, imported idempotently: the structure's dependency is
     the structure's setup.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     space.run("!(import! &self (library lib_tabling))")
 
 
-def _call_expr(name: str, args: tuple) -> Expr:
-    return Expr([Sym(name), *(encode(argument) for argument in args)])
+def _call_expr(name: str, args: tuple) -> Expression:
+    return Expression([Symbol(name), *(_encode(argument) for argument in args)])
 
 
 class TabledMap:
@@ -464,7 +472,7 @@ class TabledMap:
     KeyError.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, space: MeTTa, name: str, *, arity: int | None = None) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+    def __init__(self, space: Any, name: str, *, arity: int | None = None) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._space = space
         self._name = name
         _tabling_ready(space)
@@ -503,7 +511,7 @@ class TabledMap:
         if not self._space.eval(call):
             raise KeyError(key)
         # The second crossing answers from the table the first one built.
-        return self._space.one(call)
+        return self._space._one(call)
 
     def __contains__(self, key: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         try:
@@ -519,12 +527,12 @@ class TabledMap:
         rebuilding yet; both moving is the freshness machinery working.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         (answer,) = self._space.eval(f"(table-stats {self._call_pattern})")
-        if not isinstance(answer, Expr):
+        if not isinstance(answer, Expression):
             msg = f"table-stats answered {answer!r}, not an expression"
             raise PettaError(msg)
         report: dict[str, int] = {}
         for pair in answer.children:
-            if isinstance(pair, Expr) and len(pair.children) == 2:
+            if isinstance(pair, Expression) and len(pair.children) == 2:
                 count = pair.children[1]
                 report[str(pair.children[0])] = int(getattr(count, "value", count))
         return report
@@ -534,7 +542,7 @@ class TabledMap:
         self._space.run(f"!(table-clear {self._call_pattern})")
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        return f"TabledMap({self._name}/{self._arity} on {self._space.space_name})"
+        return f"TabledMap({self._name}/{self._arity} on {self._space.name})"
 
 
 class LiveView:
@@ -545,7 +553,7 @@ class LiveView:
 
         alerts = LiveView(m, S.alert(V.level))
         S.alert(S.red) in alerts       # no engine call
-        len(alerts)                    # multiset size, like space.count()
+        len(alerts)                    # multiset size, like len(space)
 
     The seed query and the subscription install run inside ONE engine
     transaction, so no write can fall between them: the view starts
@@ -555,7 +563,7 @@ class LiveView:
     cancels the subscription; a closed view keeps its last state.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, space: MeTTa, pattern: Any) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+    def __init__(self, space: Any, pattern: Any) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._space = space
         self._pattern = pattern
         self._lock = threading.Lock()
@@ -603,7 +611,7 @@ class LiveView:
             # that needs more than the event carries.
             pattern = event.atom
             stale = [held for held in self._held if unify(pattern, held) is not None]
-            if stale == [pattern] and is_ground(pattern):
+            if stale == [pattern] and _is_ground(pattern):
                 self._held[pattern] -= 1
                 if self._held[pattern] <= 0:
                     del self._held[pattern]
@@ -641,7 +649,7 @@ class LiveView:
         self.close()
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        return f"LiveView({self._pattern} on {self._space.space_name}, {len(self)} atoms)"
+        return f"LiveView({self._pattern} on {self._space.name}, {len(self)} atoms)"
 
 
 class ClosureView:
@@ -669,13 +677,13 @@ class ClosureView:
     in the space, named so a MeTTa program can call the same closure.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, space: MeTTa, relation: str, *, symmetric: bool = False) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
+    def __init__(self, space: Any, relation: str, *, symmetric: bool = False) -> None:  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self._space = space
         self._relation = relation
         self._fn = f"{relation}-closure"
         step = f"{relation}-step"
         _tabling_ready(space)
-        name = space.space_name
+        name = space.name
         space.run(f"(= ({step} $x $y) (match {name} ({relation} $x $y) $y))")
         if symmetric:
             space.run(f"(= ({step} $x $y) (match {name} ({relation} $y $x) $y))")
@@ -697,8 +705,8 @@ class ClosureView:
         """Every node reachable from start, as a set: the closure is a
         relation, so duplicates are answer multiplicity, not data.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        answers = self._space.eval(_call_expr(self._fn, (start, Var("_reach"))))
+        answers = self._space.eval(_call_expr(self._fn, (start, Variable("_reach"))))
         return {answer for answer in answers if isinstance(answer, Atom)}
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        return f"ClosureView({self._relation} on {self._space.space_name})"
+        return f"ClosureView({self._relation} on {self._space.name})"

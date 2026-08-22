@@ -39,9 +39,9 @@ from typing import Any, Self, cast
 from . import remote as _remote
 from . import tables as _tables
 from ._engine import runtime
-from .atoms import Atom, Expr, Gnd, Sym, expr, parse
+from ._space import Space as MeTTa
+from .atoms import Atom, Expression, Grounded, Symbol, _expr, parse
 from .errors import PettaError
-from .space import MeTTa
 
 _VOCABULARY = ("load", "attach", "bridge", "serve")
 
@@ -70,12 +70,12 @@ def _read_forms(source: str) -> list[Atom]:
 
 
 def _is_text(atom: Any) -> bool:
-    return isinstance(atom, Gnd) and isinstance(atom.value, str)
+    return isinstance(atom, Grounded) and isinstance(atom.value, str)
 
 
 def _space_name(atom: Any) -> str | None:
     """The space a manifest names: a symbol, &-prefixed by convention."""
-    if isinstance(atom, Sym) and atom.name.startswith("&"):
+    if isinstance(atom, Symbol) and atom.name.startswith("&"):
         return atom.name
     return None
 
@@ -104,8 +104,8 @@ def _bridge_complaints(arguments: list) -> list[str]:
     if (
         len(arguments) != 3
         or _space_name(arguments[0]) is None
-        or not isinstance(arguments[1], Expr)
-        or not isinstance(arguments[2], Expr)
+        or not isinstance(arguments[1], Expression)
+        or not isinstance(arguments[2], Expression)
     ):
         return [
             "bridge takes a space symbol, an atom shape, and a row shape: "
@@ -120,13 +120,13 @@ def _serve_complaints(arguments: list) -> list[str]:
     found = []
     spaces, port = arguments
     if (
-        not isinstance(spaces, Expr)
+        not isinstance(spaces, Expression)
         or not spaces.children
         or any(_space_name(s) is None for s in spaces.children)
     ):
         found.append("serve's first argument is a nonempty list of space symbols")
     if (
-        not isinstance(port, Gnd)
+        not isinstance(port, Grounded)
         or isinstance(port.value, bool)
         or not isinstance(port.value, int)
         or not 0 <= port.value <= 65535
@@ -143,17 +143,17 @@ _VALIDATORS = {
 }
 
 
-def _complaints(directive: Expr) -> list[str]:
+def _complaints(directive: Expression) -> list[str]:
     """Everything wrong with one directive's shape, empty when sound."""
     head, *arguments = directive.children
-    validator = _VALIDATORS.get(str(head)) if isinstance(head, Sym) else None
+    validator = _VALIDATORS.get(str(head)) if isinstance(head, Symbol) else None
     if validator is None:
         return [f"unknown boot form {head}; the vocabulary is {', '.join(_VOCABULARY)}"]
     return validator(arguments)
 
 
-def _is_bridge(directive: Expr) -> bool:
-    return directive.children[0] == Sym("bridge")
+def _is_bridge(directive: Expression) -> bool:
+    return directive.children[0] == Symbol("bridge")
 
 
 class Boot:
@@ -247,19 +247,19 @@ def boot(
     return Boot(assembler.m, tuple(assembler.servers), tuple(assembler.performed))
 
 
-def _declarations(directives: list[tuple[Expr, Expr]]) -> dict[str, list[Expr]]:
+def _declarations(directives: list[tuple[Expression, Expression]]) -> dict[str, list[Expression]]:
     """Every bridged name's (bridge <shape> <row>) declarations, gathered
     across the whole manifest in source order.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    gathered: dict[str, list[Expr]] = {}
+    gathered: dict[str, list[Expression]] = {}
     for _form, directive in directives:
         if _is_bridge(directive):
             _bridge_head, name, shape, row = directive.children
-            gathered.setdefault(str(name), []).append(expr(Sym("bridge"), shape, row))
+            gathered.setdefault(str(name), []).append(_expr(Symbol("bridge"), shape, row))
     return gathered
 
 
-def _validated(path: Path, connections: dict) -> list[tuple[Expr, Expr]]:
+def _validated(path: Path, connections: dict) -> list[tuple[Expression, Expression]]:
     """Every (form, directive) pair, or one refusal listing every problem."""
     forms = _read_forms(path.read_text(encoding="utf-8"))
     if not forms:
@@ -269,10 +269,10 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expr, Expr]]:
     problems = []
     for position, form in enumerate(forms, start=1):
         if (
-            not isinstance(form, Expr)
+            not isinstance(form, Expression)
             or len(form.children) != 2
-            or form.children[0] != Sym("boot")
-            or not isinstance(form.children[1], Expr)
+            or form.children[0] != Symbol("boot")
+            or not isinstance(form.children[1], Expression)
             or not form.children[1].children
         ):
             problems.append(f"form {position}: {form} is not a (boot (...)) form")
@@ -307,7 +307,7 @@ class _Assembler:
         path: Path,
         connections: dict,
         serve_policy: dict,
-        declarations: dict[str, list[Expr]],
+        declarations: dict[str, list[Expression]],
     ) -> None:
         self.m = m
         self.path = path
@@ -315,25 +315,25 @@ class _Assembler:
         self.serve_policy = serve_policy
         self.declarations = declarations
         self.servers: list[Any] = []
-        self.performed: list[Expr] = []
+        self.performed: list[Expression] = []
         self._materialized: set[str] = set()
 
-    def perform(self, form: Expr, directive: Expr) -> None:
+    def perform(self, form: Expression, directive: Expression) -> None:
         """Perform one validated directive, then record its form."""
         head, *arguments = directive.children
-        if head == Sym("load"):
-            self.m.load(self.path.parent / cast(Gnd, arguments[0]).value)
-        elif head == Sym("attach"):
+        if head == Symbol("load"):
+            self.m.load(self.path.parent / cast(Grounded, arguments[0]).value)
+        elif head == Symbol("attach"):
             remote_space = str(arguments[2]) if len(arguments) == 3 else "&self"
-            _remote.attach(self.m, str(arguments[0]), cast(Gnd, arguments[1]).value, remote_space)
-        elif head == Sym("bridge"):
+            _remote.attach(self.m, str(arguments[0]), cast(Grounded, arguments[1]).value, remote_space)
+        elif head == Symbol("bridge"):
             self._bridge(str(arguments[0]))
         else:  # serve, the only remaining vocabulary entry
             spaces, port = arguments
             self.servers.append(
                 _remote.serve(
                     self.m,
-                    port=cast(Gnd, port).value,
+                    port=cast(Grounded, port).value,
                     spaces=[str(s) for s in spaces.children],
                     **self.serve_policy,
                 )
@@ -351,7 +351,7 @@ class _Assembler:
         for declaration in self.declarations[name]:
             _tables.declare(self.m, name, declaration)
         provider = _tables.TableBridge.from_context(self.m, name, self.connections[name])
-        self.m.register_space(provider, name)
+        self.m._register_space(provider, name)
 
     def abandon(self) -> None:
         """The failure path: stop every server this run started."""

@@ -5,7 +5,7 @@ Guarantees:
   - a dict is a SPACE of (key value) atoms, a key holds one value, and the
     operations a comprehension needs are there: build from pairs, put,
     remove, size, membership, and the pair list back.
-  [tested: test_a_dict_is_a_space_a_comprehension_can_build; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+  [tested: test_a_dict_is_a_space_a_comprehension_can_build; commit=WORKTREE]
 Fails when: read as a claim about key ORDER. get-keys answers in the space's
   own order, which is insertion order here, and lib_dict.metta says so rather
   than promising it; the arbiter carries no dict ruling to check it against.
@@ -27,7 +27,7 @@ def _answers(metta: MeTTa, source: str) -> list[str]:
 
 def test_a_dict_is_a_space_a_comprehension_can_build() -> None:
     """The space IS the dict, and every operation is a space operation."""
-    metta = MeTTa("&dictstory")
+    metta = MeTTa().space("&dictstory")
     metta.run("!(import! &self (library lib_dict))")
     metta.run("!(bind! dictstory-d (dict-space ((a 1) (b 2))))")
 
@@ -86,12 +86,12 @@ def test_two_dicts_built_in_one_process_are_distinct() -> None:
     a two-entry dict answered a size of four. The counter is a flag now, which
     lives outside the source.
     """
-    first = MeTTa("&dictdistinct-a")
+    first = MeTTa().space("&dictdistinct-a")
     first.run("!(import! &self (library lib_dict))")
     first.run("!(bind! dictdistinct-1 (dict-space ((a 1) (b 2))))")
     assert _answers(first, "!(dict-size dictdistinct-1)") == ["2"]
 
-    second = MeTTa("&dictdistinct-b")
+    second = MeTTa().space("&dictdistinct-b")
     second.run("!(import! &self (library lib_dict))")
     second.run("!(bind! dictdistinct-2 (dict-space ((c 3) (d 4))))")
     assert _answers(second, "!(dict-size dictdistinct-2)") == ["2"]

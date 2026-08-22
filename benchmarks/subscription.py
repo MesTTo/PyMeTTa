@@ -16,7 +16,7 @@ Open Obligations:
   Future Enhancements: None
 """
 
-from petta import MeTTa, S, V, val
+from petta import MeTTa, S, V, ground
 
 SUBSCRIPTIONS = 1_000
 WRITES = 200
@@ -29,7 +29,7 @@ def subscription_dispatch_case(subscriptions: int = SUBSCRIPTIONS, writes: int =
     is the shape a dispatch strategy is judged on: the scan pays for every
     non-match, the tree does not.
     """
-    space = MeTTa().new_space()
+    space = MeTTa().space()
     delivered = [0]
 
     def count(_event) -> None:
@@ -40,7 +40,7 @@ def subscription_dispatch_case(subscriptions: int = SUBSCRIPTIONS, writes: int =
         for index in range(subscriptions)
     ]
     atoms = [
-        S.topic(S[f"k{index % subscriptions}"], val(index)) for index in range(writes)
+        S.topic(S[f"k{index % subscriptions}"], ground(index)) for index in range(writes)
     ]
 
     def run() -> int:

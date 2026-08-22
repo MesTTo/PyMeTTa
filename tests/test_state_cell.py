@@ -4,10 +4,10 @@ Assumes: nothing beyond the ordinary MeTTa surface; a cell is engine
 Guarantees:
   - (new-state V) answers a first-class cell, change-state! answers the cell it
     wrote so writes compose, and a cell's type is (StateMonad <type of V>).
-  [tested: test_a_state_cell_is_a_value_typed_by_what_it_holds; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+  [tested: test_a_state_cell_is_a_value_typed_by_what_it_holds; commit=WORKTREE]
   - the older named spelling still works, because a cell is a handle atom and a
     plain symbol names one too.
-  [tested: test_a_state_cell_is_a_value_typed_by_what_it_holds; commit=657ae9672c07b628f8a20c7fe39aa43e58b0014f]
+  [tested: test_a_state_cell_is_a_value_typed_by_what_it_holds; commit=WORKTREE]
 Fails when: read as a claim about the PRINTED form. The arbiter renders a cell
   as (State <value>) and this engine renders it as its handle, the way it
   already renders a space handle; that divergence is recorded beside
@@ -43,7 +43,7 @@ def _normalised(metta: MeTTa, source: str) -> list[str]:
 
 def test_a_state_cell_is_a_value_typed_by_what_it_holds() -> None:
     """The cell is the value, and (StateMonad $t) is what it holds."""
-    metta = MeTTa("&statecell")
+    metta = MeTTa().space("&statecell")
 
     # A cell is a value: it can be built, passed and written through without
     # ever being given a name. This is the arbiter's own composability probe,

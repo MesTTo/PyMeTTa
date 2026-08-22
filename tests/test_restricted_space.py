@@ -4,7 +4,7 @@ Guarantees:
   - file, process, and network operations name their missing capability before
     they run [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
-    commit=6a08901f4125c2536f5b4032daac9937f793870f]
+    commit=WORKTREE]
   - dropping an anonymous restricted space removes its policy before the name
     is reused [tested test_a_recycled_name_retains_no_restriction]
 Open Obligations:
@@ -17,7 +17,8 @@ import asyncio
 
 import pytest
 
-from petta import S, SpaceCapabilityError, aio
+from petta import S, aio
+from petta.errors import SpaceCapabilityError
 
 
 def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
@@ -27,7 +28,7 @@ def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
     path = tmp_path / "visible.txt"
     path.write_text("visible")
 
-    with metta.new_space(restricted=True) as locked:
+    with metta._new_space(restricted=True) as locked:
         assert locked.run("!(+ 20 22)") == [[42]]
 
         for source, operation, capability in [
@@ -45,7 +46,7 @@ def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
                 caught.value.space,
                 caught.value.operation,
                 caught.value.capability,
-            ) == (locked.space_name, operation, capability)
+            ) == (locked.name, operation, capability)
 
         with pytest.raises(SpaceCapabilityError) as computed:
             locked.run(f'!(let $operation exists_file ($operation "{path}"))')
@@ -62,7 +63,7 @@ def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
             [S["unknown-restricted-data"](1)]
         ]
 
-    with metta.new_space(restricted=True, grants=("file",)) as reader:
+    with metta._new_space(restricted=True, grants=("file",)) as reader:
         assert reader.run(f'!(exists_file "{path}")') == [[True]]
         with pytest.raises(SpaceCapabilityError) as caught:
             reader.run("!(argv 0)")
@@ -71,28 +72,28 @@ def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
 
 def test_a_restricted_space_cannot_evalc_or_write_into_self(metta):
     """A restricted space cannot reach an unrestricted space through evalc or writes."""
-    with metta.new_space() as victim:
-        with metta.new_space(restricted=True) as locked:
+    with metta._new_space() as victim:
+        with metta._new_space(restricted=True) as locked:
             with pytest.raises(SpaceCapabilityError) as evalc_error:
-                locked.run(f"!(evalc (+ 1 2) {victim.space_name})")
+                locked.run(f"!(evalc (+ 1 2) {victim.name})")
             assert evalc_error.value.operation == "evalc"
 
             with pytest.raises(SpaceCapabilityError) as write_error:
-                locked.run(f"!(add-atom {victim.space_name} (escaped write))")
+                locked.run(f"!(add-atom {victim.name} (escaped write))")
             assert write_error.value.operation == "add-atom"
             assert not victim.query(S.escaped(S.write))
 
 
 def test_a_recycled_name_retains_no_restriction(metta):
     """Dropping a restricted space removes its policy before the name is reused."""
-    restricted = metta.new_space(restricted=True)
-    name = restricted.space_name
+    restricted = metta._new_space(restricted=True)
+    name = restricted.name
     restricted.drop()
 
     metta.runtime.must("retract(petta_py_free_space(Name))", Name=name)
-    recycled = metta.space(name)
+    recycled = metta._at(name)
     try:
-        assert recycled.space_name == name
+        assert recycled.name == name
         assert recycled.run("!(argv 0)")
     finally:
         recycled.drop()
@@ -101,29 +102,29 @@ def test_a_recycled_name_retains_no_restriction(metta):
 def test_restricted_constructor_validation_is_eager(metta):
     """Malformed restriction and grant arguments refuse before any space exists."""
     with pytest.raises(ValueError, match="grants require"):
-        metta.new_space(grants=("file",))
+        metta._new_space(grants=("file",))
     with pytest.raises(ValueError, match="unknown space capabilities"):
-        metta.new_space(restricted=True, grants=("gpu",))
-    with metta.new_space() as parent:
+        metta._new_space(restricted=True, grants=("gpu",))
+    with metta._new_space() as parent:
         with pytest.raises(ValueError, match="both inherited and restricted"):
-            metta.new_space(inherits=parent, restricted=True)
+            metta._new_space(inherits=parent, restricted=True)
 
 
-def test_async_new_space_forwards_restriction_and_grants(metta, tmp_path):
-    """AsyncMeTTa.new_space forwards restricted= and grants= to the same policy."""
+def test_async_space_forwards_restriction_and_grants(metta, tmp_path):
+    """AsyncMeTTa.space forwards restricted= and grants= to the same policy."""
     path = tmp_path / "async-visible.txt"
     path.write_text("visible")
 
     async def exercise():
         async with aio.AsyncMeTTa(metta=metta) as runtime:
-            locked = await runtime.new_space(restricted=True)
+            locked = await runtime.space(restricted=True)
             try:
                 with pytest.raises(SpaceCapabilityError):
                     await locked.run(f'!(exists_file "{path}")')
             finally:
                 await locked.drop()
 
-            reader = await runtime.new_space(restricted=True, grants=("file",))
+            reader = await runtime.space(restricted=True, grants=("file",))
             try:
                 assert await reader.run(f'!(exists_file "{path}")') == [[True]]
             finally:

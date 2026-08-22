@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import pytest
 
-import petta
 from petta import S, V
 from petta.errors import PettaError
 from petta.foreign import SpaceProvider, delivery_promise
+from petta.subscribe import bridge
 
 
 class Dictionary(SpaceProvider):
@@ -82,13 +82,13 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
     than reporting a missing method it demonstrably has.
     """
     loud, quiet = Announcing(), Dictionary()
-    metta.register_space(loud, "&ev-declared")
-    metta.register_space(quiet, "&ev-silent")
-    target = metta.new_space()
+    metta._register_space(loud, "&ev-declared")
+    metta._register_space(quiet, "&ev-silent")
+    target = metta._new_space()
     try:
         # The promise is an ordinary declaration atom, so a MeTTa program
         # reads what the engine acts on.
-        rows = metta.space("&petta").query(S.events(V.ctx, V.delivery, V.order))
+        rows = metta._at("&petta").query(S.events(V.ctx, V.delivery, V.order))
         promises = {str(row.ctx): (str(row.delivery), str(row.order)) for row in rows}
         assert promises["&ev-declared"] == ("per-write-exactly", "ordered")
         assert "&ev-silent" not in promises
@@ -96,18 +96,18 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
 
         # Served: the three models, on the declared foreign space.
         seen: list = []
-        subscription = metta.space("&ev-declared").subscribe(
+        subscription = metta._at("&ev-declared").subscribe(
             S.tick(V.n), seen.append
         )
-        rule = petta.bridge(
-            metta.space("&ev-declared"), S.tick(V.n), target, S.heard(V.n)
+        rule = bridge(
+            metta._at("&ev-declared"), S.tick(V.n), target, S.heard(V.n)
         )
         metta.declare_reaction(
             "&ev-declared", "(tick $n)", "(insert &ev-mirror (reacted $n))"
         )
-        mirror = metta.space("&ev-mirror")
+        mirror = metta._at("&ev-mirror")
         try:
-            metta.space("&ev-declared").add(S.tick(1))
+            metta._at("&ev-declared").add(S.tick(1))
             assert [event.bindings["n"] for event in seen] == [1]
             assert target.query(S.heard(V.n))
             assert mirror.query(S.reacted(V.n))
@@ -117,9 +117,9 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
 
         # Refused: each of the three, naming what is missing.
         with pytest.raises(PettaError, match="declares no event capability"):
-            metta.space("&ev-silent").subscribe(S.tick(V.n), seen.append)
+            metta._at("&ev-silent").subscribe(S.tick(V.n), seen.append)
         with pytest.raises(PettaError, match="declares no event capability"):
-            petta.bridge(metta.space("&ev-silent"), S.tick(V.n), target)
+            bridge(metta._at("&ev-silent"), S.tick(V.n), target)
         with pytest.raises(PettaError, match="events &ev-silent"):
             metta.declare_reaction(
                 "&ev-silent", "(tick $n)", "(insert &ev-mirror (reacted $n))"
@@ -127,12 +127,12 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
 
         # The refusal is surgical: what the provider does implement still
         # works, so this is a withdrawn promise rather than a broken space.
-        metta.space("&ev-silent").add(S.tick(2))
+        metta._at("&ev-silent").add(S.tick(2))
         assert S.tick(2) in quiet.stored
-        assert metta.space("&ev-silent").query(S.tick(V.n))
+        assert metta._at("&ev-silent").query(S.tick(V.n))
     finally:
-        metta.unregister_space("&ev-silent")
-        metta.unregister_space("&ev-declared")
+        metta._unregister_space("&ev-silent")
+        metta._unregister_space("&ev-declared")
 
 
 def test_a_native_space_needs_no_declaration_to_be_watched(metta):
@@ -143,7 +143,7 @@ def test_a_native_space_needs_no_declaration_to_be_watched(metta):
     assumptions about a provider, and explain says so without anything
     having been declared.
     """
-    space = metta.new_space()
+    space = metta._new_space()
     seen: list = []
     subscription = space.subscribe(S.native(V.x), seen.append)
     try:
@@ -152,7 +152,7 @@ def test_a_native_space_needs_no_declaration_to_be_watched(metta):
         explained = {
             str(item.head): item
             for item in metta.run(
-                f"!(explain (match {space.space_name} (native $x) $x))"
+                f"!(explain (match {space.name} (native $x) $x))"
             )[0][0].children
         }
         assert str(explained["events"].children[1]) == "per-write-exactly"
@@ -173,44 +173,44 @@ def test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_str
     reachable from outside the library.
     """
     stream = metta.events()
-    source = metta.new_space()
-    shipped_target, folded_target = metta.new_space(), metta.new_space()
+    source = metta._new_space()
+    shipped_target, folded_target = metta._new_space(), metta._new_space()
     shipped_seen: list = []
 
     # DELIVER, subscribe's step: hand the event to a callback.
     shipped_subscription = source.subscribe(S.job(V.n), shipped_seen.append)
     folded_deliver = stream.fold(
         lambda held, event: [*held, event],
-        space=source.space_name,
+        space=source.name,
         pattern=S.job(V.n),
         state=[],
     )
 
     # WRITE, bridge's step: land the template's instantiation elsewhere.
-    shipped_bridge = petta.bridge(source, S.job(V.n), shipped_target, S.done(V.n))
+    shipped_bridge = bridge(source, S.job(V.n), shipped_target, S.done(V.n))
 
     def write(state, event):
         folded_target.add(S.done(event.bindings["n"]))
         return state
 
     folded_bridge = stream.fold(
-        write, space=source.space_name, pattern=S.job(V.n)
+        write, space=source.name, pattern=S.job(V.n)
     )
 
     # EVALUATE, a reaction's step: run an operation under the bindings. The
     # shipped form declares (on ...) and the engine folds it; this one folds
     # the same evaluation from outside.
     metta.declare_reaction(
-        source.space_name, "(job $n)", "(insert &ev-reacted (shipped $n))"
+        source.name, "(job $n)", "(insert &ev-reacted (shipped $n))"
     )
-    reacted = metta.space("&ev-reacted")
+    reacted = metta._at("&ev-reacted")
 
     def evaluate(state, event):
         reacted.add(S.folded(metta.run(f"!(+ {event.bindings['n']} 0)")[0][0]))
         return state
 
     folded_reaction = stream.fold(
-        evaluate, space=source.space_name, pattern=S.job(V.n)
+        evaluate, space=source.name, pattern=S.job(V.n)
     )
 
     try:
@@ -251,10 +251,10 @@ def test_a_fold_waits_for_an_arrival_without_polling(metta):
     for, and a deadline with nothing arriving answers the initial state
     instead of hanging.
     """
-    space = metta.new_space()
+    space = metta._new_space()
     counted = metta.events().fold(
         lambda total, _event: total + 1,
-        space=space.space_name,
+        space=space.name,
         pattern=S.tick(V.n),
         state=0,
     )
@@ -272,7 +272,7 @@ def test_a_fold_that_writes_into_its_own_pattern_says_so(metta):
     The nested step finishes first and its state would be erased by the
     outer one. Silently losing an event is what the error replaces.
     """
-    space = metta.new_space()
+    space = metta._new_space()
 
     def feed(held, event):
         if event.atom == S.loop(1):
@@ -280,7 +280,7 @@ def test_a_fold_that_writes_into_its_own_pattern_says_so(metta):
         return [*held, event.atom]
 
     fold = metta.events().fold(
-        feed, space=space.space_name, pattern=S.loop(V.n), state=[]
+        feed, space=space.name, pattern=S.loop(V.n), state=[]
     )
     try:
         with pytest.raises(PettaError, match="wrote an atom its own pattern"):

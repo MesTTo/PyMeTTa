@@ -4,12 +4,17 @@ Guarantees:
   - a seeded two-branch histogram matches its declared ratio while ordinary
     queries stay unchanged [tested:
     test_declared_rates_make_seeded_selection_match_their_distribution;
-    commit=7ae3103aee78e947d23c5872e3db23c28ad7fe1c]
+    commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None
 """
 
 import pytest
 
-from petta import RateDeclarationError, S, V, parse
+from petta import S, V, parse
+from petta.algebra import RateDeclarationError
 
 
 def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
@@ -21,7 +26,7 @@ def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
         zero=0,
         one=1,
     )
-    with metta.new_space() as program:
+    with metta._new_space() as program:
         program.add(S.ordinary(S.stays))
         unchanged = program.query(S.ordinary(V.value))
         program.add_tagged_fact(parse("(rate 1)"), S.branch(S.slow))
@@ -43,9 +48,9 @@ def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
 
 def test_invalid_rates_are_refused_before_the_tagged_fact_lands(metta):
     """Reject negative and nonnumeric rate tags at the public storage door."""
-    with metta.new_space() as program:
+    with metta._new_space() as program:
         with pytest.raises(RateDeclarationError, match="negative_or_nonfinite_rate"):
             program.add_tagged_fact(parse("(rate -1)"), S.branch(S.invalid))
         with pytest.raises(RateDeclarationError, match="rate_not_numeric"):
             program.add_tagged_fact(parse("(rate nope)"), S.branch(S.invalid))
-        assert program.count() == 0
+        assert len(program) == 0

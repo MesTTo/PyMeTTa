@@ -32,7 +32,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import Sym, parse
+from petta import Symbol, parse
 from petta import testing as pt
 
 hypothesis = pytest.importorskip("hypothesis")
@@ -69,7 +69,7 @@ def test_every_unicode_whitespace_separates_atoms(left, right, run):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for code in sorted(WHITE_SPACE):
         source = f"({left}{chr(code)}{run}{right})"
-        assert list(parse(source)) == [Sym(left), Sym(right)], f"U+{code:04X}"
+        assert list(parse(source)) == [Symbol(left), Symbol(right)], f"U+{code:04X}"
 
 
 def test_the_reader_separates_on_the_property_and_nothing_else():
@@ -78,7 +78,7 @@ def test_the_reader_separates_on_the_property_and_nothing_else():
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert len(WHITE_SPACE) == 25
     for code in sorted(NOT_WHITE_SPACE):
-        assert list(parse(f"(a{chr(code)}b)")) == [Sym(f"a{chr(code)}b")], f"U+{code:04X}"
+        assert list(parse(f"(a{chr(code)}b)")) == [Symbol(f"a{chr(code)}b")], f"U+{code:04X}"
 
 
 @pytest.mark.parametrize(
@@ -102,7 +102,7 @@ def test_every_unicode_whitespace_separates_top_level_forms(metta, tmp_path):
     global, so every later test file the same xdist worker runs would
     otherwise see them.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with metta.new_space() as scratch:
+    with metta._new_space() as scratch:
         for code in sorted(WHITE_SPACE):
             # Each file defines its own pair of names, so one space can hold
             # them all without a query answering 25 times over.
@@ -142,4 +142,4 @@ def test_whitespace_inside_a_string_literal_stays_data():
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for code in sorted(WHITE_SPACE):
         text = f"a{chr(code)}b"
-        assert list(parse(f'(s "{text}")')) == [Sym("s"), text], f"U+{code:04X}"
+        assert list(parse(f'(s "{text}")')) == [Symbol("s"), text], f"U+{code:04X}"

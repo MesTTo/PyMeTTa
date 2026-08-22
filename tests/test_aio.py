@@ -5,11 +5,14 @@ Guarantees:
   - AsyncMeTTa.eval mirrors the synchronous single answer shape and exposes
     no residuals parameter [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
-    commit=affc981bd744563f65f595259b8a3564b9d84ba9]
+    commit=WORKTREE]
   - capture and execution-policy scopes cross the worker hop without changing
     awaited return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
-    commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+    commit=WORKTREE]
+  - async space is the single named, anonymous, and provider-backed creation
+    door [tested: test_aio_space_attaches_a_provider_without_a_register_alias;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,23 +29,28 @@ from collections import Counter
 
 import pytest
 
-import petta
 from petta import (
-    Interrupted,
     MeTTa,
-    MettaSyntaxError,
     PettaError,
     S,
-    TimeLimitError,
     V,
     aio,
 )
-from petta.atoms import Var, map_atoms
+from petta._engine import bridge as engine_bridge
+from petta.atoms import Expression, Variable
+from petta.errors import (
+    EngineError,
+    InferenceLimitError,
+    Interrupted,
+    MettaSyntaxError,
+    TimeLimitError,
+)
+from petta.foreign import SpaceProvider
 
 
 @pytest.fixture()
 def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with metta.new_space() as space:
+    with metta._new_space() as space:
         yield space
 
 
@@ -105,7 +113,7 @@ def test_aio_carries_bounds_and_errors_across_threads(m):  # noqa: D103  -- pyte
                 await am.run("!(unclosed")
             with am.capture() as output:
                 groups = await am.run("!(println! crossed)")
-            assert groups == [[petta.expr()]]
+            assert groups == [[Expression()]]
             return output.text
 
     assert "crossed" in asyncio.run(go())
@@ -130,7 +138,7 @@ def test_aio_spaces_borrow_the_owners_thread(m):  # noqa: D103  -- pytest discov
 
     got, still = asyncio.run(go())
     assert (got, still) == (1, 0)
-    MeTTa("&aio-borrowed").drop()
+    MeTTa().space("&aio-borrowed").drop()
 
 
 def test_aio_interrupt_stops_the_running_evaluation(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -156,7 +164,8 @@ def test_aio_interrupt_stops_the_running_evaluation(m):  # noqa: D103  -- pytest
 
 
 def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    original = petta.janus.query_once
+    janus = engine_bridge()
+    original = janus.query_once
     unexpected_waiting = threading.Event()
     release_unexpected = threading.Event()
     injected = iter(
@@ -176,7 +185,7 @@ def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):  # noqa: 
             return original(f"throw({error})")
         return original(goal, inputs)
 
-    monkeypatch.setattr(petta.janus, "query_once", inject)
+    monkeypatch.setattr(janus, "query_once", inject)
 
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
@@ -186,7 +195,7 @@ def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):  # noqa: 
             queued = asyncio.create_task(am.count())
             await asyncio.sleep(0)
             release_unexpected.set()
-            with pytest.raises(petta.EngineError, match="unexpected_drain"):
+            with pytest.raises(EngineError, match="unexpected_drain"):
                 await asyncio.wait_for(running, timeout=2.0)
             with pytest.raises(PettaError, match="failed before this request ran"):
                 await asyncio.wait_for(queued, timeout=2.0)
@@ -256,7 +265,7 @@ def test_aio_covers_the_whole_synchronous_surface():
     reason, so a new synchronous method fails here until it gains its
     async twin or a stated reason not to.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from petta.space import MeTTa
+    from petta._space import Space
 
     excluded = {
         # asyncio's fan-out is N workers and asyncio.gather; a pool of
@@ -269,10 +278,10 @@ def test_aio_covers_the_whole_synchronous_surface():
         # and there is no decorator because decoration cannot await.
         "transactional",
     }
-    sync = {name for name in dir(MeTTa) if not name.startswith("_")}
+    sync = {name for name in dir(Space) if not name.startswith("_")}
     missing = sync - set(dir(aio.AsyncMeTTa)) - excluded
     assert not missing, f"AsyncMeTTa lacks {sorted(missing)}"
-    assert not excluded - sync, "the exclusion ledger names a method MeTTa lost"
+    assert not excluded - sync, "the exclusion ledger names a method Space lost"
     signature = inspect.signature(aio.AsyncMeTTa.save)
     assert list(signature.parameters) == ["self", "path", "format"]
     assert signature.parameters["format"].default == "metta"
@@ -288,7 +297,6 @@ def test_aio_covers_the_whole_synchronous_surface():
     assert list(inspect.signature(aio.AsyncMeTTa.run).parameters) == [
         "self",
         "source",
-        "using",
         "timeout",
         "inferences",
     ]
@@ -319,7 +327,7 @@ def test_aio_covers_the_whole_synchronous_surface():
 
 def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     async def go():
-        async with aio.AsyncMeTTa(metta=metta.new_space()) as am:
+        async with aio.AsyncMeTTa(metta=metta._new_space()) as am:
             parsed = await am.parse("(aio-forward value)")
             assert parsed == S["aio-forward"](S.value)
             assert await am.cast(3, int) == 3
@@ -354,7 +362,7 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103
             assert partial and not partial[0].complete
 
             await am.call(
-                lambda sync: sync.register_op(
+                lambda sync: sync.op(
                     lambda value: value,
                     name="aio-unregister-target",
                 )
@@ -366,7 +374,7 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103
             path = tmp_path / "aio.fast"
             assert await am.save(path, format="fast") == 2
 
-            fresh = await am.new_space()
+            fresh = await am.space()
             assert fresh._worker is am._worker
             await fresh.add(S.temporary(1))
             assert await fresh.count() == 1
@@ -377,12 +385,50 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103
     asyncio.run(go())
 
 
+def test_aio_space_attaches_a_provider_without_a_register_alias():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    class Provider(SpaceProvider):
+        def __init__(self):
+            self.stored = [S.edge(S.a, S.b)]
+
+        def match(self, _pattern):
+            return iter(self.stored)
+
+        def atoms(self):
+            return iter(self.stored)
+
+        def add(self, atom):
+            self.stored.append(atom)
+
+        def remove(self, atom):
+            try:
+                self.stored.remove(atom)
+            except ValueError:
+                return False
+            return True
+
+    async def go():
+        async with aio.AsyncMeTTa() as am:
+            provider = Provider()
+            attached = await am.space("&aio-provider", backing=provider)
+            try:
+                await attached.add(S.edge(S.b, S.c))
+                rows = await attached.query(S.edge(V.left, V.right))
+                assert [(row.left, row.right) for row in rows] == [
+                    (S.a, S.b),
+                    (S.b, S.c),
+                ]
+            finally:
+                await attached.drop()
+
+    asyncio.run(go())
+
+
 def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def fail_attach():
         msg = "round2 attach failed"
         raise RuntimeError(msg)
 
-    monkeypatch.setattr(petta.janus, "attach_engine", fail_attach)
+    monkeypatch.setattr(engine_bridge(), "attach_engine", fail_attach)
 
     async def go():
         broken = aio.AsyncMeTTa()
@@ -409,7 +455,7 @@ def test_aio_borrowed_space_refuses_after_owner_closes(metta):  # noqa: D103  --
             await borrowed.count()
 
     asyncio.run(go())
-    metta.space("&aio-closed-borrower").drop()
+    metta._at("&aio-closed-borrower").drop()
 
 
 def test_aio_close_interrupts_work(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -524,7 +570,7 @@ def test_aio_structural_surface_behaves():
 
     async def go():
         async with aio.AsyncMeTTa() as am:
-            m = await am.new_space()
+            m = await am.space()
             await m.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
 
             def failing(sync_m):
@@ -536,7 +582,7 @@ def test_aio_structural_surface_behaves():
                 await m.transaction(failing)
             assert await m.count() == 2  # the write rolled back
 
-            returned = await m.transaction(lambda sync_m: sync_m.count())
+            returned = await m.transaction(len)
             assert returned == 2
 
             async with m.stats() as s:
@@ -572,13 +618,13 @@ def test_aio_structural_surface_behaves():
                 names: dict[str, str] = {}
 
                 def rename(node):
-                    if isinstance(node, Var):
+                    if isinstance(node, Variable):
                         label = names.setdefault(node.name,
                                                  f"$c{len(names)}")
-                        return Var(label)
+                        return Variable(label)
                     return node
 
-                return str(map_atoms(atom, rename))
+                return str(atom.map(rename))
 
             clone_atoms = Counter(_canonical(a) for a in await cloned.atoms())
             self_atoms = Counter(_canonical(a) for a in await am.atoms())
@@ -629,18 +675,18 @@ def test_aio_structural_surface_behaves():
 def test_aio_declare_and_register_delegations_land():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     async def go():
         async with aio.AsyncMeTTa() as am:
-            m = await am.new_space()
+            m = await am.space()
             declared = await m.declare_source("aio-src", "linear")
             assert "aio-src" in str(declared)
 
             def double(x: int) -> int:
                 return 2 * x
 
-            await m.register_op(double, name="aio-double")
+            await m.op(double, name="aio-double")
             assert await m.one("(aio-double 21)") == 42
             await m.unregister_op("aio-double")
             await m.run("(= (aio-dis $x) $x)")
-            assert "aio-dis" in await m.disassemble("aio-dis")
+            assert "aio-dis" in await m.call(lambda space: space._disassemble("aio-dis"))
             names = await m.space_names()
             assert "&self" in names
             return True
@@ -658,7 +704,7 @@ def test_aio_scoped_limits_cross_to_the_worker(m):  # noqa: D103  -- pytest disc
                 "(= (aio-ctx-spin $n) (if (== $n 0) done (aio-ctx-spin (- $n 1))))"
             )
             with am.limits(inferences=2000):
-                with pytest.raises(petta.InferenceLimitError):
+                with pytest.raises(InferenceLimitError):
                     await am.eval("(aio-ctx-spin 100000000)")
             # outside the block the same engine call runs unbounded
             assert await am.eval("(aio-ctx-spin 3)") == [S.done]

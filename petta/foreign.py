@@ -56,7 +56,7 @@ from types import MappingProxyType
 from typing import Any, ClassVar, Protocol, cast, runtime_checkable
 
 from .answer import Answer
-from .atoms import Atom, Box, Expr, Gnd, Sym, atom_from_wire, encode
+from .atoms import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _encode
 from .errors import PettaError, TransportFailure, is_transport_failure
 from .vocabularies import DELIVERY, EVENT_ORDER
 
@@ -259,7 +259,7 @@ class SpaceProvider:
     """One space backed by Python. Implement only what the backend has.
 
     match(pattern) yields candidate atoms; the pattern's variables arrive as
-    Var atoms, and bound positions as ground atoms, which is what a backend
+    Variable atoms, and bound positions as ground atoms, which is what a backend
     turns into its own filter (a WHERE clause, a mask). Yielding every atom
     is always correct; yielding fewer than match is never allowed to be.
     An Enumerable provider need not implement Matcher: enumeration is the
@@ -575,7 +575,7 @@ def _wire_stream(candidates: Iterable[Any], *, answers: bool = True):
                 )
             yield candidate.to_wire()
         else:
-            yield encode(candidate).to_wire()
+            yield _encode(candidate).to_wire()
 
 
 @cache
@@ -702,7 +702,7 @@ def foreign_refuse(space: str, capability: str) -> None:
 def foreign_pushdown(space: str, pattern_wire: list) -> str:
     """The shim asks this before pulling a bounded match's candidates."""
     provider = _provider(space)
-    return pushdown_class(provider, atom_from_wire(pattern_wire))
+    return pushdown_class(provider, _atom_from_wire(pattern_wire))
 
 
 def _erring_stream(stream, mode: str, pattern):
@@ -726,7 +726,7 @@ def _erring_stream(stream, mode: str, pattern):
             raise TransportFailure(str(error)) from error
         if mode == "keep":
             reason = f"{type(error).__name__}: {error}"
-            kept = Expr([Sym("Error"), pattern, Gnd(reason)])
+            kept = Expression([Symbol("Error"), pattern, Grounded(reason)])
             yield ["x", "error", kept.to_wire()]
     yield ["x", "end"]
 
@@ -744,7 +744,7 @@ def foreign_match(
     instead lets janus carry it as the error it is.
     """
     provider = _provider(space)
-    pattern = atom_from_wire(pattern_wire)
+    pattern = _atom_from_wire(pattern_wire)
     _require_provider(provider, space, "match", "match", pattern=pattern)
     if isinstance(provider, Matcher):
         candidates = _candidates_from_matcher(provider, pattern, limit)
@@ -784,7 +784,7 @@ def match_object(obj: Any, other_wire: list):
     here and only the answers are encoded. Errors abort by design; see
     CustomMatch.
     """
-    other = atom_from_wire(other_wire)
+    other = _atom_from_wire(other_wire)
     return _wire_stream(iter(_unwrap_box(obj).match_(other)))
 
 
@@ -811,7 +811,7 @@ def foreign_transaction(space: str, step: str) -> bool:
 
 def foreign_add(space: str, atom_wire: list) -> bool:
     provider = _provider(space)
-    atom = atom_from_wire(atom_wire)
+    atom = _atom_from_wire(atom_wire)
     _require_provider(provider, space, "add", "add-atom", atom=atom)
     cast(Adder, provider).add(atom)
     return True
@@ -824,7 +824,7 @@ def foreign_plan(space: str, pattern_wires: list):
     use for a half-planned join.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     provider = _provider(space)
-    patterns = [atom_from_wire(wire) for wire in pattern_wires]
+    patterns = [_atom_from_wire(wire) for wire in pattern_wires]
     if not isinstance(provider, Planner) or not provider.should_run(
         "plan", patterns=patterns
     ):
@@ -847,7 +847,7 @@ def foreign_plan(space: str, pattern_wires: list):
 
 def foreign_add_many(space: str, atom_wires: list) -> bool:
     provider = _provider(space)
-    atoms = [atom_from_wire(wire) for wire in atom_wires]
+    atoms = [_atom_from_wire(wire) for wire in atom_wires]
     _require_provider(provider, space, "add", "add-atom", atom=atoms[0])
     cast(BulkAdder, provider).add_many(atoms)
     return True
@@ -855,7 +855,7 @@ def foreign_add_many(space: str, atom_wires: list) -> bool:
 
 def foreign_remove(space: str, atom_wire: list) -> bool:
     provider = _provider(space)
-    atom = atom_from_wire(atom_wire)
+    atom = _atom_from_wire(atom_wire)
     _require_provider(provider, space, "remove", "remove-atom", atom=atom)
     return bool(cast(Remover, provider).remove(atom))
 

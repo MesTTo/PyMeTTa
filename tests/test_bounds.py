@@ -12,14 +12,9 @@ from __future__ import annotations
 
 import pytest
 
-from petta import (
-    InferenceLimitError,
-    S,
-    SubscriberError,
-    TimeLimitError,
-    V,
-)
+from petta import S, V
 from petta._atom_namespace import NAMESPACE_CACHE_MAX
+from petta.errors import InferenceLimitError, SubscriberError, TimeLimitError
 from petta.subscribe import SUBSCRIPTION_QUEUE_MAX
 
 
@@ -52,7 +47,7 @@ def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_pa
     # ---------------------------------------------------------------- queue
     assert isinstance(SUBSCRIPTION_QUEUE_MAX, int) and SUBSCRIPTION_QUEUE_MAX > 0
 
-    space = metta.new_space()
+    space = metta._new_space()
     try:
         queued = space.subscribe(S.ev(V.n), queue_max=3)
         try:
