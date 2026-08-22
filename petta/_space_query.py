@@ -1,5 +1,8 @@
 """Purpose: plan and decode eager conjunctive queries for one named space.
 Guarantees:
+  - relational solve answers retain variable columns and expose one-answer
+    attribute projection [tested:
+    test_solve_retires_the_five_relational_let_workarounds; commit=WORKTREE]
   - conjunctive patterns preserve first-appearance column order [tested
     test_query_surfaces_share_column_order]
   - guards and limits are sent to the engine rather than applied after
@@ -20,8 +23,35 @@ from typing import Any
 
 from ._engine import Runtime
 from ._space_objects import _column_names, _limits, guard_atom
-from .atoms import Atom, _atom_from_wire, _to_atom
+from .atoms import Atom, Expression, _atom_from_wire, _to_atom
 from .results import Rows, _QueryContext
+
+
+class SolveRows(Rows):
+    """Bindings produced by relational solve, with one-answer projection."""
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            values = self[name]
+        except KeyError:
+            msg = f"no solution variable {name!r}; variables are {list(self.columns)}"
+            raise AttributeError(msg) from None
+        return values[0] if len(values) == 1 else values
+
+
+def solve_rows(columns: tuple[str, ...], answers: list[Atom]) -> SolveRows:
+    """Shape evaluated answer templates back into caller-named bindings."""
+    rows: list[tuple[Atom, ...]]
+    if len(columns) == 1:
+        rows = [(answer,) for answer in answers]
+    else:
+        rows = []
+        for answer in answers:
+            if not isinstance(answer, Expression) or len(answer) != len(columns):
+                msg = f"solve answer {answer!r} does not carry {len(columns)} bindings"
+                raise TypeError(msg)
+            rows.append(tuple(answer))
+    return SolveRows(columns, rows)
 
 
 def _query_target(

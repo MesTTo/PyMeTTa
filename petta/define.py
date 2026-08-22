@@ -8,6 +8,10 @@ spelling; and a free identifier must be a
 parameter, a known function, or read as a data constructor, so a compiled
 body is pure atoms that any evaluator can take whole.
 Guarantees:
+  - the compiler resolves exact standard-module attribute callables from a
+    function's globals and populated closure cells [tested:
+    test_callable_mentions_share_operator_and_fourteen_math_names;
+    commit=WORKTREE]
   - Defined.doc and Defined.__doc__ expose the first compiled clause's cleaned
     docstring after the twin dispatcher contains that clause [tested:
     test_one_docstring_reaches_help_dot_doc_and_get_doc;
@@ -72,22 +76,23 @@ def _builtins_namespace() -> dict[str, Any]:
     return __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
 
 
-def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:  # noqa: C901  -- _annotation_resolver keeps the annotation namespace and its resolvers together so its branches share one state
-    """Resolve local annotation syntax without executing arbitrary source."""
+_MISSING_HOST = object()
+
+
+def _function_namespace(fn: types.FunctionType) -> dict[str, Any]:
+    """Globals, builtins, and populated closure cells visible to ``fn``."""
     nonlocals: dict[str, Any] = {}
     for name, cell in zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True):
         try:
             nonlocals[name] = cell.cell_contents
         except ValueError:
-            # A decorator is compiling the recursive function before Python
-            # assigns its name into the closure cell. It cannot resolve an
-            # annotation from that empty cell and does not need to.
             continue
-    namespace = {
-        **_builtins_namespace(),
-        **fn.__globals__,
-        **nonlocals,
-    }
+    return {**_builtins_namespace(), **fn.__globals__, **nonlocals}
+
+
+def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:  # noqa: C901  -- _annotation_resolver keeps the annotation namespace and its resolvers together so its branches share one state
+    """Resolve local annotation syntax without executing arbitrary source."""
+    namespace = _function_namespace(fn)
 
     def resolve(node: ast.expr) -> Any:  # noqa: C901  -- resolve keeps the annotation syntax forms together so its branches share one state
         if isinstance(node, ast.Name):
@@ -453,10 +458,14 @@ def compile_function(
     # A literal-patterned position is fixed by the head, so it is not a
     # variable in the body's scope; naming it there would shadow the match.
     scope = [p for p in params if p not in patterns]
+    namespace = _function_namespace(fn)
     closure_names = set(fn.__code__.co_freevars)
 
     def host(identifier: str) -> bool:
         return identifier in fn.__globals__ or identifier in closure_names
+
+    def host_value(identifier: str) -> Any:
+        return namespace.get(identifier, _MISSING_HOST)
 
     compiler = _Compiler(
         metta_name or fn.__name__,
@@ -465,6 +474,7 @@ def compile_function(
         nondet=nondet,
         pyname=fn.__name__,
         host=host,
+        host_value=host_value,
         annotation_resolver=_annotation_resolver(fn),
     )
     generator = _is_generator(definition)
@@ -573,6 +583,7 @@ class _Compiler(
         closer: Callable[[_Compiler], Atom] | None = None,
         pyname: str | None = None,
         host: Callable[[str], bool] | None = None,
+        host_value: Callable[[str], Any] | None = None,
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
@@ -586,6 +597,7 @@ class _Compiler(
         # closure cell): a capitalized name that does is a module constant,
         # not a data constructor, and compiles to a refusal.
         self.host = _provided(host, _never)
+        self.host_value = _provided(host_value, lambda _name: _MISSING_HOST)
         # The prelude operations this definition leans on, and the reasons
         # its Python twin cannot run (a match, a constructor); both shared
         # across every compiler of the definition, like aux.
@@ -649,6 +661,7 @@ class _Compiler(
             closer=self.closer,
             pyname=self.pyname,
             host=self.host,
+            host_value=self.host_value,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
@@ -679,6 +692,7 @@ class _Compiler(
             closer=closer,
             pyname=self.pyname,
             host=self.host,
+            host_value=self.host_value,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,

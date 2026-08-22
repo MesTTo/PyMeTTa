@@ -2,6 +2,9 @@
 works, results and errors cross threads intact, bounds fire on the worker
 thread, and spaces borrow the owner's engine thread.
 Guarantees:
+  - async solve, Linda verbs, watch, class/type dispatch, and both transaction
+    laws execute on the owning worker [tested:
+    test_aio_structural_surface_behaves; commit=WORKTREE]
   - AsyncMeTTa.eval mirrors the synchronous single answer shape and exposes
     no residuals parameter [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -20,6 +23,7 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import asyncio
+import dataclasses
 import gc
 import inspect
 import logging
@@ -585,6 +589,28 @@ def test_aio_structural_surface_behaves():
             returned = await m.transaction(len)
             assert returned == 2
 
+            solved = await m.solve(4, V.async_x - 1)
+            assert solved.async_x == 5
+
+            @dataclasses.dataclass
+            class AsyncPoint:
+                x: int
+
+            await m.define(AsyncPoint)
+            assert await m.type(AsyncPoint(3)) == S.AsyncPoint
+
+            await m.add(S.async_message(7))
+            assert await m.peek(S.async_message(V.n), deadline=0.1) == S.async_message(7)
+            assert await m.take(S.async_message(V.n), deadline=0.1) == S.async_message(7)
+
+            term = S.progn(
+                S["add-atom"](S[m.name], S.async_tx(1)),
+                S.empty(),
+            )
+            before_transaction = await m.count()
+            assert await m.transaction(term) == []
+            assert await m.count() == before_transaction
+
             async with m.stats() as s:
                 await m.query(S.edge(V.x, V.y))
             assert s.inferences > 0
@@ -664,6 +690,11 @@ def test_aio_structural_surface_behaves():
                 await m.remove(S.order(1))
                 events.append(await asyncio.wait_for(sub.__anext__(), 5))
             assert [event.action for event in events] == ["add", "remove"]
+
+            async with m.watch(S.watched(V.n)) as watched:
+                await m.add(S.watched(9))
+                event = await asyncio.wait_for(watched.__anext__(), 5)
+                assert event.n == 9
             # After aclose the stream ends rather than hanging.
             with pytest.raises(StopAsyncIteration):
                 await sub.__anext__()

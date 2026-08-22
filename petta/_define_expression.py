@@ -1,5 +1,9 @@
 """Purpose: lower Python expressions into equivalent MeTTa atom trees.
 Guarantees:
+  - calls through standard ``math`` and ``operator`` module attributes lower
+    to the shared callable-mention head [tested:
+    test_callable_mentions_share_operator_and_fourteen_math_names;
+    commit=WORKTREE]
   - supported expression lowerings preserve Python value and short-circuit
     semantics [tested test_boolean_operators_answer_the_operand,
     test_fstrings_str_round_range_slices]
@@ -14,8 +18,10 @@ Open Obligations:
 from __future__ import annotations
 
 import ast
+import types
 from collections.abc import Callable
 
+from ._callable_mentions import callable_mention
 from ._define_context import CompilerContext
 from .atoms import Atom, Expression, Grounded, Symbol, Variable
 from .errors import CompileError
@@ -358,6 +364,8 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Call(self, node: ast.Call) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        if isinstance(node.func, ast.Attribute):
+            return self._mentioned_attribute_call(node)
         func = self._plain_call_name(node)
         if func.id == "match":
             return self._match_call(node)
@@ -372,6 +380,37 @@ class ExpressionCompilerMixin(CompilerContext):
             return _PYBUILTIN_CALLS[func.id](self, node)
         callee = self._x_Name(func)
         return Expression([callee, *(self.expression(a) for a in node.args)])
+
+    def _mentioned_attribute_call(self, node: ast.Call) -> Atom:
+        """Lower a standard callable reached through its actual host module."""
+        if node.keywords:
+            msg = "a standard callable in a compiled body takes positional arguments"
+            raise CompileError(msg, construct="keyword argument", line=node.lineno)
+        if not isinstance(node.func, ast.Attribute):
+            raise self._attribute_call_error(node)
+        owner_node = node.func.value
+        if not isinstance(owner_node, ast.Name):
+            raise self._attribute_call_error(node)
+        owner = self.host_value(owner_node.id)
+        if not isinstance(owner, types.ModuleType):
+            raise self._attribute_call_error(node)
+        value = vars(owner).get(node.func.attr)
+        mention = callable_mention(value)
+        if mention is None:
+            raise self._attribute_call_error(node)
+        return Expression(
+            [Symbol(mention), *(self.expression(argument) for argument in node.args)]
+        )
+
+    @staticmethod
+    def _attribute_call_error(node: ast.Call) -> CompileError:
+        return CompileError(
+            "an attribute call compiles only when it resolves to a standard "
+            "operator or math function with a MeTTa mention; register other "
+            "methods as operations and call them by name",
+            construct="call",
+            line=node.lineno,
+        )
 
     @staticmethod
     def _plain_call_name(node: ast.Call) -> ast.Name:

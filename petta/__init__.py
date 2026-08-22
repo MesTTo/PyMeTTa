@@ -5,6 +5,12 @@ Assumes:
     owns storage and query verbs [source:
     bindings/python/petta/_space.py:306 and :3090; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - the R5 root exports the term builders, relational solve, and lazy State
+    handle while ``record`` and atom-specialist ``order_key`` stay absent
+    [tested: test_m7_narrow_core_surface,
+    test_solve_retires_the_five_relational_let_workarounds,
+    test_keyword_builders_retire_53_raw_if_mentions, and
+    test_state_retires_three_state_function_strings; commit=WORKTREE]
   - ``dir(petta)`` is exactly the curated public surface and loads no
     satellites [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - satellite modules are imported only by attribute access, following PEP
@@ -48,8 +54,15 @@ from .atoms import (
     Undefined,
     V,
     Variable,
+    and_,
+    arrow,
     ground,
+    if_,
+    in_,
+    not_,
+    or_,
     parse,
+    typed,
     unify,
 )
 from .errors import NotReducible, PettaError
@@ -88,9 +101,9 @@ _LAZY_ATTRIBUTES = {
     "MeTTa": ("_space", "MeTTa"),
     "Space": ("_space", "Space"),
     "SpaceProvider": ("foreign", "SpaceProvider"),
+    "State": ("_state", "State"),
     "boot": ("manifest", "boot"),
     "equation": ("_rules", "equation"),
-    "record": ("ops", "record"),
     "rules": ("_rules", "rules"),
 }
 
@@ -321,6 +334,11 @@ def eval(target: _Any, **kwargs: _Any):  # noqa: A001 -- eval is the ruled publi
     return engine().self.eval(target, **kwargs)
 
 
+def solve(pattern: _Any, subject: _Any):
+    """Solve a relation backwards in the default context."""
+    return engine().self.solve(pattern, subject)
+
+
 __all__ = [
     "Answer",
     "Atom",
@@ -338,6 +356,7 @@ __all__ = [
     "S",
     "Space",
     "SpaceProvider",
+    "State",
     "Symbol",
     "Undefined",
     "V",
@@ -346,7 +365,9 @@ __all__ = [
     "add",
     "aio",
     "algebra",
+    "and_",
     "arrays",
+    "arrow",
     "attach",
     "boot",
     "casting",
@@ -361,19 +382,23 @@ __all__ = [
     "foreign",
     "forms",
     "ground",
+    "if_",
+    "in_",
     "integrate",
     "lint",
     "manifest",
+    "not_",
+    "or_",
     "parallel",
     "parse",
     "paths",
     "query",
-    "record",
     "reflection",
     "remote",
     "remove",
     "rules",
     "run",
+    "solve",
     "space",
     "spaces",
     "structures",
@@ -381,6 +406,7 @@ __all__ = [
     "tables",
     "testing",
     "trace",
+    "typed",
     "unify",
     "vocabularies",
     "wire",

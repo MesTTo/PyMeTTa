@@ -4,6 +4,10 @@ spaces with field accessors, host values named in source, persistence,
 typed rows, and the fast Python soft-scorer held equal to the MeTTa one by
 differential fuzz.
 Guarantees:
+  - class and enum declarations use the consolidated ``Space.define`` door
+    [tested: test_define_declares_class_with_accessors,
+    test_define_declares_enum_members, test_define_methods_run_on_terms_and_handles,
+    and test_enum_members_match_in_metta; commit=WORKTREE]
   - subscription hook clauses track whether the active space set is empty
     [tested: test_subscription_hooks_follow_the_active_space_set;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -422,8 +426,8 @@ def test_faiss_and_argsort_rank_identically(m):  # noqa: D103  -- pytest discove
 # ------------------------------------------------------------ typed Python
 
 
-def test_type_declares_class_with_accessors(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @m.type
+def test_define_declares_class_with_accessors(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    @m.define
     @dataclasses.dataclass
     class Song:
         title: str
@@ -438,8 +442,8 @@ def test_type_declares_class_with_accessors(m):  # noqa: D103  -- pytest discove
     assert songs == [Song("Hallelujah", 1984)]
 
 
-def test_type_declares_enum_members(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @m.type
+def test_define_declares_enum_members(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    @m.define
     class DeclaredMood(enum.Enum):
         Calm = 1
         Storm = 2
@@ -638,8 +642,8 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
 # ------------------------------------------------- classes cross with behavior
 
 
-def test_type_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @m.type
+def test_define_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    @m.define
     @dataclasses.dataclass
     class MethodPoint:
         x: float
@@ -667,7 +671,7 @@ def test_type_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest disc
 
 
 def test_enum_members_match_in_metta(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @m.type
+    @m.define
     class MatchingMood(enum.Enum):
         Calm = 1
         Storm = 2

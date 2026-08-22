@@ -1,5 +1,9 @@
 """Purpose: describe the state shared by compiler lowering bands.
 Guarantees:
+  - expression lowering can inspect an exact host binding without executing
+    an attribute lookup [tested:
+    test_callable_mentions_share_operator_and_fourteen_math_names;
+    commit=WORKTREE]
   - next_aux_serial is unique across concurrent compiler calls [tested
     test_define_from_two_threads_is_serialized]
   - compiler mixins operate on one explicit SSA scope and one shared
@@ -43,6 +47,7 @@ class CompilerContext:
     pyname: str
     _builtins: dict[str, Any]
     host: Callable[[str], bool]
+    host_value: Callable[[str], Any]
     runtime_ops: set[str]
     hazards: set[str]
     scope: dict[str, str]

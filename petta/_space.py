@@ -7,6 +7,13 @@ Assumes:
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
+  - solve, Linda verbs, class define, get-type, bang resolution, and both
+    transaction laws are observable through one Space handle [tested:
+    test_solve_retires_the_five_relational_let_workarounds,
+    test_take_peek_and_watch_retire_the_thread_linda_fn_strings,
+    test_define_absorbs_class_declaration_and_frees_space_type,
+    test_fn_strips_one_bang_only_when_the_exact_name_is_absent, and
+    test_transaction_term_uses_empty_answer_rollback_law; commit=WORKTREE]
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
     test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -95,7 +102,7 @@ from ._space_persistence import (
     raise_unsafe_text_atom,
     save_space,
 )
-from ._space_query import query_rows
+from ._space_query import query_rows, solve_rows
 from ._version import __version__
 from .atoms import (
     Atom,
@@ -106,6 +113,7 @@ from .atoms import (
     Variable,
     _atom_from_wire,
     _to_atom,
+    _variables,
     parse,
 )
 from .define import Defined, PrologBacked
@@ -362,8 +370,6 @@ class Space:
                 msg
             )
         self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
-        # Recorded classes declared before any engine existed land now.
-        _ops_module.declare_recorded()
         # The public parameter takes a plain str so a literal is writable;
         # the NewType is constructed once here and threads through inside.
         self._name = _SpaceId(name)
@@ -1146,18 +1152,26 @@ class Space:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _Assuming(self, [_to_atom(f) for f in facts])
 
-    def transaction(self, callable_: Callable[[], _R], /) -> _R:
-        """Run a zero-argument callable inside one engine transaction,
-        now, answering its return value: the Python door of the MeTTa
-        (transaction ...) form, riding the same petta_transaction/1, so
-        foreign-space enlistment and nesting behave identically in both
-        languages.
+    @overload
+    def transaction(self, target: Callable[[], _R], /) -> _R: ...
+
+    @overload
+    def transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
+
+    def transaction(self, target: Callable[[], _R] | Any, /) -> Any:
+        """Run one callable or term inside a closed engine transaction.
+
+        The two inputs preserve their native failure laws. A zero-argument
+        Python callable commits its return value and rolls back on a Python
+        exception. A term returns its engine answers and rolls back when that
+        answer set is empty, exactly like ``(transaction ...)``.
 
             m.transaction(lambda: migrate(m))
+            m.transaction(S.progn(write, verify))
 
         Every engine write the callable makes, stored atoms, equations
         and their compiled clauses included, commits or rolls back
-        together. An exception is the one rollback trigger, because a
+        together. An exception is the callable's rollback trigger, because a
         Python callable cannot fail the Prolog way, and it re-raises AS
         ITSELF: your ValueError arrives as ValueError with the engine
         boundary in its chain. Only the engine's dynamic state rolls
@@ -1174,9 +1188,11 @@ class Space:
         to hold across a block, and pretending otherwise would lie about
         the isolation actually provided. transactional() is the
         decorator twin.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """
+        if not callable(target):
+            return self.eval(Expression([Symbol("transaction"), _to_atom(target)]))
         try:
-            row = self._rt.once("petta_py_transaction(F, R)", F=callable_)
+            row = self._rt.once("petta_py_transaction(F, R)", F=target)
         except PettaError as error:
             term = getattr(error.__cause__, "term", None)
             original = (
@@ -1196,6 +1212,86 @@ class Space:
                 msg
             )
         return cast("_R", row["R"])
+
+    def solve(self, pattern: Any, subject: Any) -> Any:
+        """Run relational ``let`` and return bindings keyed by its variables.
+
+        ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
+        lets the arithmetic relation solve backwards, and projects ``x``.
+        The answer template is derived from the subject's variables, so the
+        third hand-written ``let`` argument disappears.
+        """
+        subject_atom = _to_atom(subject)
+        columns = tuple(_variables(subject_atom))
+        if not columns:
+            msg = "solve needs at least one variable in its subject"
+            raise ValueError(msg)
+        template: Atom = (
+            Variable(columns[0])
+            if len(columns) == 1
+            else Expression([Variable(name) for name in columns])
+        )
+        answers = self.eval(
+            Expression([Symbol("let"), _to_atom(pattern), subject_atom, template])
+        )
+        return solve_rows(columns, cast(list[Atom], answers))
+
+    def _linda(self, verb: str, pattern: Any, deadline: float | None) -> Atom:
+        """Run one thread_linda operation, raising on deadline absence."""
+        if deadline is not None and (
+            isinstance(deadline, bool)
+            or not isinstance(deadline, (int, float))
+            or deadline <= 0
+        ):
+            msg = f"deadline must be positive seconds or None, got {deadline!r}"
+            raise ValueError(msg)
+        self.eval(
+            Expression(
+                [
+                    Symbol("import!"),
+                    Symbol(self._space),
+                    Expression([Symbol("library"), Symbol("lib_thread")]),
+                ]
+            )
+        )
+        parts: list[Atom] = [
+            Symbol(verb),
+            Symbol(self._space),
+            _to_atom(pattern),
+        ]
+        if deadline is not None:
+            parts.append(Grounded(float(deadline)))
+        answers = self.eval(Expression(parts))
+        if not answers:
+            if deadline is None:
+                msg = f"{verb} returned no answer without a deadline"
+                raise EngineError(msg)
+            msg = f"{verb} found no match within {deadline} seconds"
+            raise TimeoutError(msg)
+        if len(answers) != 1 or not isinstance(answers[0], Atom):
+            msg = f"{verb} returned {answers!r}, not one matched atom"
+            raise EngineError(msg)
+        return answers[0]
+
+    def take(self, pattern: Any, *, deadline: float | None = None) -> Atom:
+        """Remove and return one matching atom, blocking until its deadline."""
+        return self._linda("take-atom", pattern, deadline)
+
+    def peek(self, pattern: Any, *, deadline: float | None = None) -> Atom:
+        """Return one matching atom without removing it."""
+        return self._linda("peek-atom", pattern, deadline)
+
+    def watch(self, pattern: Any, *, on: str = "add"):
+        """Yield matching change events until the iterator closes."""
+        subscription = self.subscribe(pattern, on=on)
+
+        def changes():
+            try:
+                yield from subscription.events()
+            finally:
+                subscription.cancel()
+
+        return changes()
 
     def limits(
         self,
@@ -2237,6 +2333,16 @@ class Space:
     # ------------------------------------------------------------ definitions
 
     @overload
+    def define(  # type: ignore[overload-overlap]
+        self,
+        fn: _builtins.type,
+        /,
+        *,
+        accessors: bool = ...,
+        methods: bool = ...,
+    ) -> _builtins.type: ...
+
+    @overload
     def define(self, fn: Callable[_P, _R], /) -> Defined[_P, _R]: ...
 
     @overload
@@ -2255,6 +2361,8 @@ class Space:
         *,
         prolog: str | os.PathLike[str] | None = None,
         name: str | None = None,
+        accessors: bool = True,
+        methods: bool = True,
     ) -> Any:
         """Compile a Python function into MeTTa equations, decorator-style.
 
@@ -2308,6 +2416,11 @@ class Space:
         the running space, lowercase free names in the pattern binding as
         variables.
         """
+        if isinstance(fn, type):
+            if prolog is not None or name is not None:
+                msg = "define on a class does not take name= or prolog="
+                raise TypeError(msg)
+            return install_type(self, fn, accessors=accessors, methods=methods)
         if prolog is not None:
             if fn is not None:
                 msg = (
@@ -2320,10 +2433,8 @@ class Space:
             return lambda function: install_prolog_define(self, function, prolog, name)
         if fn is None:
             if name is None:
-                msg = "define takes a function, or name= or prolog= and then one"
-                raise TypeError(
-                    msg
-                )
+                msg = "define takes a function or class, or name= or prolog= and then one"
+                raise TypeError(msg)
             return lambda function: install_define(self, function, name)
         # The annotation widened to Callable so the overloads can carry the
         # decorated signature through. install_definition still refuses
@@ -2413,40 +2524,13 @@ class Space:
             raise EngineError(msg)
         return defined
 
-    def type(
-        self,
-        cls: _builtins.type | None = None,
-        *,
-        accessors: bool = True,
-        methods: bool = True,
-    ):
-        """Declare a Python class INTO this space, decorator-style: the
-        (: ...) declarations land as atoms, an expression-image class
-        (a dataclass, a NamedTuple) gains one accessor equation per
-        field, and its own METHODS register as MeTTa functions, so the
-        class crosses with its behavior, not only its structure.
-
-            @m.type
-            @dataclass
-            class Point:
-                x: float
-                y: float
-                def norm(self) -> float:
-                    return (self.x ** 2 + self.y ** 2) ** 0.5
-
-            m.run("!(Point-x (Point 3.0 4.0))")        # [[3.0]]
-            m.run("!(Point-norm (Point 3.0 4.0))")     # [[5.0]]
-
-        A method receives the instance whether it arrives as a
-        constructor TERM (rebuilt through the translator) or as a live
-        handle, and a result the translator knows projects back as a
-        term, so a method answering the class answers something MeTTa
-        keeps matching and Python builds back. An equation over the
-        constructor is then a method written in MeTTa itself, on equal
-        footing. An Enum declares its members; get-type sees them all.
-        Returns the class, so it stacks under @dataclass.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return install_type(self, cls, accessors=accessors, methods=methods)
+    def type(self, atom: Any) -> Atom:
+        """Return this space's first ``get-type`` answer, including undefined."""
+        answers = self.eval(Expression([Symbol("get-type"), _to_atom(atom)]))
+        if not answers or not isinstance(answers[0], Atom):
+            msg = f"get-type returned no type for {atom!r}"
+            raise EngineError(msg)
+        return answers[0]
 
     def fn(self, name: str) -> _EngineFunction:
         """Any engine function as an ordinary Python callable.
@@ -2458,7 +2542,11 @@ class Space:
         Calling expects exactly one answer and raises otherwise, the loud
         reading; .all returns every answer, nondeterminism included.
         """
-        return _EngineFunction(self, name)
+        _require_name(name, "fn")
+        resolved = name
+        if not self.is_function(resolved) and self.is_function(f"{resolved}!"):
+            resolved = f"{resolved}!"
+        return _EngineFunction(self, resolved)
 
     # ---------------------------------------------------------- integrations
 
@@ -3105,7 +3193,6 @@ class MeTTa:
             if _runtime is None
             else _runtime
         )
-        _ops_module.declare_recorded()
         self._self = Space(_self_name, _runtime=self._rt)
 
     @property
@@ -3241,9 +3328,15 @@ class MeTTa:
         """Scope source execution to reject unreduced directives."""
         return self._self.strict()
 
-    def transaction(self, callable_: Callable[[], _R], /) -> _R:
-        """Run one callable in an engine transaction."""
-        return self._self.transaction(callable_)
+    @overload
+    def transaction(self, target: Callable[[], _R], /) -> _R: ...
+
+    @overload
+    def transaction(self, target: Atom | str, /) -> list[Atom | Undefined]: ...
+
+    def transaction(self, target: Any, /) -> Any:
+        """Run one callable or term in an engine transaction."""
+        return self._self.transaction(target)
 
     def stats(self) -> _StatsBlock:
         """Measure engine counters across a block."""

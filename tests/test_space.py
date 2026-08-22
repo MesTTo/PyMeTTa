@@ -1,6 +1,10 @@
 """Purpose: engine-backed tests for the MeTTa runtime surface: run, load,
 space edits, queries, eval, parse, and the semantics matching the CLI's own.
 Guarantees:
+  - a guarded defined head with no matching clause is an unreduced value, not
+    an empty answer [tested:
+    test_eval_status_reports_the_four_outcomes;
+    commit=WORKTREE]
   - run(), run_status() and load() register a source's whole signature set
     before processing any of its forms, as the engine's file reader does, so a
     metadata operation may name a function the same source defines lower down
@@ -185,7 +189,7 @@ def test_reserved_kinds_win_over_operation_classification(metta):  # noqa: D103 
         ("", "(Point 1 2)", "not-reducible"),
         ("", "(fct 5)", "not-reducible"),
         ("", "(empty)", "empty"),
-        ("(= (only-zero 0) yes)", "(only-zero 7)", "empty"),
+        ("(= (only-zero 0) yes)", "(only-zero 7)", "not-reducible"),
     ],
 )
 def test_eval_status_reports_the_four_outcomes(m, setup, source, status):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
