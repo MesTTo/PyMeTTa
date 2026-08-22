@@ -20,11 +20,11 @@ Guarantees:
   - query-answer curves use numeric payloads, leaving unique wire-name retention
     to its own capped-cache curves so streaming peak memory measures the cursor
     rather than the intern table [tested: test_stream_curve_excludes_wire_cache_growth;
-    commit=WORKTREE]
+    commit=2b2eb4641adf9f3c58147fd72c83165e8dbbce51]
   - a selected curve run compares only the selected committed pins while a
     complete run still detects any missing pinned case [tested:
     test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
-    commit=WORKTREE]
+    commit=2b2eb4641adf9f3c58147fd72c83165e8dbbce51]
 Owns resources:
   - every workload drops or empties the spaces and temporary files it creates;
     the parent process joins, terminates, or kills every worker through the
