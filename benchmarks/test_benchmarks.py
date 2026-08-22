@@ -8,7 +8,7 @@ Guarantees:
     test_raw_operation, test_encoded_operation; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
   - automatic bag-preserving memoization changes a doubly recursive family's
     inference growth from exponential to linear [tested:
-    test_automatic_tabling_growth; commit=WORKTREE]
+    test_automatic_tabling_growth; commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
 Open Obligations:
   To Do: None
   Hacks: None

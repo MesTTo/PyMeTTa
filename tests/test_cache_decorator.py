@@ -6,7 +6,7 @@ Guarantees:
     recursion becomes linear, and its counters and clear are reachable under
     functools.lru_cache's own names; the uncached control declares the
     automatic memo policy's explicit refusal.
-  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=WORKTREE]
+  [tested: test_a_cached_definition_tables_and_answers_from_its_trie; commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
   - a table normalises duplicate answers away, which the arbiter SPECIFIES for
     an untabled function, so the decorator is where a program asks for that
     trade rather than something it discovers.

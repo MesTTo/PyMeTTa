@@ -6,15 +6,15 @@ Guarantees:
   - a pure doubly branching recursive SCC is selected while tail recursion is
     declined [tested:
     test_a_doubly_branching_recursion_is_tabled_automatically_and_a_tail_recursion_is_not;
-    commit=WORKTREE]
+    commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
   - impurity remains a hard refusal and catalog force/refuse declarations move
     only the profitability decision [tested:
     test_an_impure_function_is_never_cached_automatically,
-    test_automatic_cache_force_and_refuse_overrides; commit=WORKTREE]
+    test_automatic_cache_force_and_refuse_overrides; commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
   - automatic caching preserves duplicate answer bags even above the manual
     answer limit and under a manual aggregate setting [tested:
     test_automatic_caching_preserves_multiplicity_and_answer_limit;
-    commit=WORKTREE]
+    commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
 Fails when: read as coverage of explicit SWI tabling, whose set semantics are
   separately pinned by test_a_cached_definition_normalises_duplicate_answers_away.
 """
