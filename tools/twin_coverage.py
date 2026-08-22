@@ -513,8 +513,8 @@ LOWERING_DECORATORS = frozenset({"define", "cache"})
 #: is a string-slugging function. Without this the lane sent an author through
 #: `space.op(...)`, which is what it tells a twin that wrote `register_op`, and
 #: then refused the ordinary Python inside it [source: ai-python-conventions.md
-#: section 3.11, the grounded boundary; commit=WORKTREE]
-#: [tested: test_a_host_operation_body_holds_python_text; commit=WORKTREE].
+#: section 3.11, the grounded boundary; commit=6b87bbfcd4666764cafe29d0f57ddf7082c33225]
+#: [tested: test_a_host_operation_body_holds_python_text; commit=6b87bbfcd4666764cafe29d0f57ddf7082c33225].
 HOST_BODY_DECORATORS = frozenset({"op"})
 
 #: What the string rule reads: a compiled body's constants are MeTTa string
@@ -627,7 +627,7 @@ def _declared_strings(node: ast.Module | ast.FunctionDef | ast.ClassDef) -> set[
     declaring a rung turns the lane red, which makes the ladder's own escape
     unusable, found 2026-08-22 by two twin agents at once [tested:
     test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
-    commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+    commit=6b87bbfcd4666764cafe29d0f57ddf7082c33225].
     """
     permitted: set[int] = set()
     head = node.body[0] if node.body else None
