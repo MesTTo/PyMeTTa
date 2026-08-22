@@ -1,118 +1,87 @@
-"""The Python twin of examples/libraries/foreign_rules.metta.
+"""examples/libraries/foreign_rules.metta in Python: a foreign space holding RULES.
 
-A foreign space that holds RULES, not only facts: an equation added to a
-provider-backed space compiles the way a native one does, so the call reduces
-instead of answering itself.
+In MeTTa a space is BOTH a data source and where the program lives, so an
+equation added to a foreign space has to evaluate rather than sit there inert.
+A provider says it holds equations by declaring the `rules` capability, and
+nothing else about it changes: the engine compiles the equation, so a rule in a
+foreign space is the same compiled clause a native one is.
 
-Every equation here is DATA the source hands to `add-atom`, so each is built
-with `equation(...).to(...)` and passed to the form: that is the same builder in
-the datum position it takes in the pattern position, which is what makes an
-equation ordinary knowledge rather than a special form. `(metta $atom $type
-$space)` is how you evaluate IN a space, so every assertion names `&rule_demo`.
+That is why this twin writes those rules the way it would write any others.
+`@demo.define` compiles into the provider's space and the recursion and the
+nested body come out of Python's own syntax; only `fplain`, whose body is a
+bare lowercase symbol, goes to the container door, because a compiled body
+resolves a lowercase free name as a function.
 
-`(* 2 $x)` and `(> $x 0)` are built by Python's own operators, because an
-operand that is a variable makes the operator a builder. The `(* 2 3)` inside
-`(+ 1 (* 2 3))` is over two ground numbers, where the same operator is
-arithmetic and answers 6 before any term exists, so it names its head instead.
-
-The twins lane reports a named operator head as a dropped rung, which is a
-false positive it cannot see past; the residue table records the refinement
-against P14.1.
+Evaluating IN a space is the space handle's own `eval`, which is what
+`(metta $atom %Undefined% &space)` says: a rule belongs to the space that holds
+it, so calling `(fdouble 21)` from `&self` would find nothing.
 """
 
-from petta import S, V, equation, val
+from petta import S, V, equation, rules, val
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 48124 to 48124, +0 (+0.00%), by the P14 twin-style
-#: rewrite: the twin's atoms are unchanged: every equation here is DATA the
-#: source hands to add-atom, and equation(...).to(...) builds what
-#: S["="](...) built. Prior: ADDED 2026-08-22 at 48124 by the wave-3
-#: libraries baseline, which recorded no cause.
-BUDGET = 48124
+#: RE-PINNED 2026-08-22, 48124 to 42388, -5736 (-11.92%), by the idiomatic
+#: rewrite: six `test` wrappers, a `collapse` and a `sort-atom` left the
+#: engine for `assert` and `sorted`, and three of the five rules are now
+#: compiled by `@demo.define` where the source built them as atoms, which is
+#: the same equation through a different door. Measured min-of-three with the
+#: MORK backend linked into this worktree, which the earlier figure may not
+#: have been. Prior: 48124 was the last figure for the generator twin that
+#: yielded `m.eval(S.test(...))` once per runnable form.
+BUDGET = 42388
 
-#: The space under test, named once because every form below evaluates in it.
-DEMO = S["&rule_demo"]
-UNDEFINED = S["%Undefined%"]
+#: The provider under test, thirteen lines. Its whole contribution is declaring
+#: the `rules` capability beside match, enumerate, add and remove.
+PROVIDER = val("./examples/libraries/_fixtures/rule_provider.pl")
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Put five rules and one fact in a foreign space, then evaluate them there."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_import)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S.import_prolog_functions_from_file(PROVIDER, ()))
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`;
-    every other form says its own answer in the comment above it.
-    """
-    # !(import! &self (library lib_import))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_import)))
-    # !(import_prolog_functions_from_file "./examples/libraries/_fixtures/rule_provider.pl" ())
-    yield m.eval(
-        S.import_prolog_functions_from_file(
-            val("./examples/libraries/_fixtures/rule_provider.pl"), ()
-        )
-    )
+    demo = m.space("&rule_demo")
 
-    # A rule, added to the foreign space, evaluating. A rule belongs to the
-    # space that holds it, exactly as a native named space's equations belong
-    # to it.
-    # !(add-atom &rule_demo (= (fdouble $x) (* 2 $x)))
-    yield m.eval(S["add-atom"](DEMO, equation(S.fdouble(V.x)).to(2 * V.x)))
-    # !(test (metta (fdouble 21) %Undefined% &rule_demo) 42)
-    yield m.eval(S.test(S.metta(S.fdouble(21), UNDEFINED, DEMO), 42))
+    # A rule, added to the foreign space, evaluating.
+    @demo.define
+    def fdouble(x):
+        return 2 * x
+
+    assert demo.eval(S.fdouble(21)) == [42]
 
     # Several equations for one name are an answer SET, which is what MeTTa
-    # promises. sort-atom because a set has no order.
-    # !(add-atom &rule_demo (= (fpick) one))
-    yield m.eval(S["add-atom"](DEMO, equation(S.fpick()).to(S.one)))
-    # !(add-atom &rule_demo (= (fpick) two))
-    yield m.eval(S["add-atom"](DEMO, equation(S.fpick()).to(S.two)))
-    # !(test (sort-atom (collapse (metta (fpick) %Undefined% &rule_demo))) (one two))
-    yield m.eval(
-        S.test(
-            S["sort-atom"](S.collapse(S.metta(S.fpick(), UNDEFINED, DEMO))),
-            (S.one, S.two),
-        )
-    )
+    # promises. Sorted, because a set has no order.
+    @rules
+    def picks():
+        yield equation(S.fpick()).to(S.one)
+        yield equation(S.fpick()).to(S.two)
+
+    demo.add(*picks)
+    assert sorted(demo.eval(S.fpick()), key=str) == [S.one, S.two]
 
     # A body that is not a call IS the answer, the way a native equation with a
     # bare atom body behaves.
-    # !(add-atom &rule_demo (= (fplain) settled))
-    yield m.eval(S["add-atom"](DEMO, equation(S.fplain()).to(S.settled)))
-    # !(test (metta (fplain) %Undefined% &rule_demo) settled)
-    yield m.eval(S.test(S.metta(S.fplain(), UNDEFINED, DEMO), S.settled))
+    demo += equation(S.fplain()).to(S.settled)
+    assert demo.eval(S.fplain()) == [S.settled]
 
     # A body is evaluated FURTHER, so a nested call is evaluated inside out.
-    # This is the case that decided the design: reading evaluation as "match the
-    # space for (= (f Args) $body) and reduce $body" is the naive reading, and
-    # here that shows up as (* 2 3) reaching + as a list instead of as 6.
-    # !(add-atom &rule_demo (= (fnest) (+ 1 (* 2 3))))
-    yield m.eval(
-        S["add-atom"](DEMO, equation(S.fnest()).to(1 + S["*"](2, 3)))
-    )
-    # !(test (metta (fnest) %Undefined% &rule_demo) 7)
-    yield m.eval(S.test(S.metta(S.fnest(), UNDEFINED, DEMO), 7))
+    # Reading evaluation as "match for (= (f Args) $body) and reduce $body" is
+    # the naive reading, and here that shows up as (* 2 3) reaching + as a list
+    # instead of as 6.
+    @demo.define
+    def fnest():
+        return 1 + 2 * 3
 
-    # Recursion, and if evaluating only the branch it takes. Neither is special
-    # here: the equation compiles, so it recurses the way any compiled equation
-    # does.
-    # !(add-atom &rule_demo (= (ffact $x) (if (> $x 0) (* $x (ffact (- $x 1))) 1)))
-    yield m.eval(
-        S["add-atom"](
-            DEMO,
-            equation(S.ffact(V.x)).to(
-                S["if"](V.x > 0, V.x * S.ffact(V.x - 1), 1)
-            ),
-        )
-    )
-    # !(test (metta (ffact 5) %Undefined% &rule_demo) 120)
-    yield m.eval(S.test(S.metta(S.ffact(5), UNDEFINED, DEMO), 120))
+    assert demo.eval(S.fnest()) == [7]
+
+    # Recursion, and `if` evaluating only the branch it takes.
+    @demo.define
+    def ffact(x):
+        return x * ffact(x - 1) if x > 0 else 1
+
+    assert demo.eval(S.ffact(5)) == [120]
 
     # And the space is still a data source. Holding rules is an addition, not a
     # replacement, which is the whole of what "both" means.
-    # !(add-atom &rule_demo (edge a b))
-    yield m.eval(S["add-atom"](DEMO, S.edge(S.a, S.b)))
-    # !(test (collapse (match &rule_demo (edge $x $y) ($x $y))) ((a b)))
-    yield m.eval(
-        S.test(
-            S.collapse(S.match(DEMO, S.edge(V.x, V.y), (V.x, V.y))),
-            ((S.a, S.b),),
-        )
-    )
+    demo += S.edge(S.a, S.b)
+    assert [(row.x, row.y) for row in demo.query(S.edge(V.x, V.y))] == [(S.a, S.b)]

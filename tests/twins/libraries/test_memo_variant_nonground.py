@@ -1,43 +1,35 @@
-"""The Python twin of examples/libraries/test_memo_variant_nonground.metta.
+"""examples/libraries/test_memo_variant_nonground.metta in Python: keying on structure.
 
-Two non-ground calls that differ only in variable name hit the same cache entry.
+`shape-kind` answers `pair` for anything shaped like a Pair, whatever the
+variable inside is called, so two non-ground calls that differ only in variable
+name are one cache key.
 
-Written at the container door on two counts, both recorded against P14.4:
-`@m.define` takes a head pattern only as a LITERAL parameter default, so
-`(shape-kind (Pair $x $y))` has no decorator spelling; and a compiled body reads
-a bare lowercase name as neither a parameter nor a constructor nor a known
-function, so the answer `pair` has no spelling in one either.
+The equation goes to the container door for two reasons already in the residue
+table: its head carries a PATTERN, `(shape-kind (Pair $x $y))`, where a
+decorated function's parameters are always plain variables; and its body is the
+bare lowercase symbol `pair`, which a compiled body resolves as a function.
 """
 
 from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 126917 to 126917, +0 (+0.00%), by the P14 twin-style
-#: rewrite: no cost moved: the head pattern and the lowercase answer keep
-#: this twin at the container door, and equation(...).to(...) builds the same
-#: atom S["="](...) built. Prior: ADDED 2026-08-22 at 126917 by the wave-3
-#: libraries baseline, which recorded no cause.
-BUDGET = 126917
+#: RE-PINNED 2026-08-22, 126917 to 126700, -217 (-0.17%), by the idiomatic
+#: rewrite: two `test` wrappers left the engine for `assert`; the equation
+#: keeps its pattern head at the container door, so nothing else moved.
+#: Measured min-of-three with the MORK backend linked into this worktree,
+#: which the earlier figure may not have been. Prior: 126917 was the last
+#: figure for the generator twin that yielded `m.eval(S.test(...))` once per
+#: runnable form.
+BUDGET = 126700
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Ask the same shape twice, under two different variable names."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # The output depends only on structure, not concrete variable identity.
-    # (= (shape-kind (Pair $x $y)) pair)
     m += equation(S["shape-kind"](S.Pair(V.x, V.y))).to(S.pair)
+    m.eval(S.memoize(S["shape-kind"]))
 
-    # !(import! &self (library lib_memo))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))
-
-    # Enable memoization for a function called with non-ground inputs.
-    # !(memoize shape-kind)
-    yield m.eval(S.memoize(S["shape-kind"]))
-
-    # Both non-ground calls with different variable names should return pair.
-    # !(test (shape-kind (Pair $a 2)) pair)
-    yield m.eval(S.test(S["shape-kind"](S.Pair(V.a, 2)), S.pair))
-    # !(test (shape-kind (Pair $b 2)) pair)
-    yield m.eval(S.test(S["shape-kind"](S.Pair(V.b, 2)), S.pair))
+    kind = m.fn("shape-kind")
+    assert kind(S.Pair(V.a, 2)) == S.pair
+    assert kind(S.Pair(V.b, 2)) == S.pair

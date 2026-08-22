@@ -1,57 +1,47 @@
-"""The Python twin of examples/libraries/he_evaluation.metta.
+"""examples/libraries/he_evaluation.metta in Python: what evaluation looks like from here.
 
-One evaluation step, an evaluation in a named space, an explicit chain, and
-mapping a unit-answering operation over an expression.
+Four claims, and three of them dissolve into ordinary Python. Calling a defined
+function IS `(eval (double 5))`; `kb.eval(term)` is `evalc`'s image to the
+letter, since evalc's signature is exactly term plus space; and `chain`, which
+executes one instruction, binds its result and runs the continuation, is
+assignment followed by use of the name.
 
-`double` is authored as the Python function it is. `(* $x 2)` inside the chain
-takes a VARIABLE, so Python's own `*` builds that term; `(+ 5 5)` and `(+ 2 3)`
-take two ground numbers, where Python's `+` is arithmetic and answers the value
-before any term exists, so their heads are named instead.
-
-The twins lane reports a named operator head as a dropped rung, which is a
-false positive it cannot see past; the residue table records the refinement
-against P14.1.
+The fourth is `println!` mapped over six items. `println!` answers the UNIT
+value, which is what the specification types it with, so the answer is six
+units rather than six trues, and Python says the same thing with `print`, whose
+return is None, the unit's Python spelling.
 """
 
-from petta import S, V
+from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 11926 to 13555, +1629 (+13.66%), by the P14
-#: twin-style rewrite: the equation is now compiled from Python syntax by
-#: @m.define instead of added as an already-built atom, and the compile costs
-#: 1,629 inferences once. Prior: ADDED 2026-08-22 at 11926 by the wave-3
-#: libraries baseline, which recorded no cause.
-BUDGET = 13555
+#: RE-PINNED 2026-08-22, 13555 to 9487, -4068 (-30.01%), by the idiomatic
+#: rewrite: the `chain` claim became an assignment and the `for-each-in-atom`
+#: of `println!` became a comprehension over `print`, so two of the four
+#: claims no longer reach the engine at all, and four `test` wrappers went
+#: with them. Measured min-of-three with the MORK backend linked into this
+#: worktree, which the earlier figure may not have been. Prior: 13555 was the
+#: last figure for the generator twin that yielded `m.eval(S.test(...))` once
+#: per runnable form.
+BUDGET = 9487
+
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(import! &self (library lib_he))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_he)))
+    """Evaluate a call, a term, a chain, and a print over six items."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
     @m.define
     def double(x):
-        # (= (double $x) (+ $x $x))
         return x + x
 
-    # !(test (eval (double 5)) 10)
-    yield m.eval(S.test(S.eval(S.double(5)), 10))
+    assert double(5) == [10]
+    assert m.eval(S["+"](5, 5)) == [10]
 
-    # !(test (evalc (+ 5 5) &self) 10)
-    yield m.eval(S.test(S.evalc(S["+"](5, 5), S["&self"]), 10))
+    # chain binds one instruction's result and runs the continuation, which is
+    # what an assignment and the next statement already are.
+    doubled = m.one(S["+"](2, 3))
+    assert m.one(S["*"](doubled, 2)) == 10
 
-    # !(test (chain (+ 2 3) $x (* $x 2)) 10)
-    yield m.eval(S.test(S.chain(S["+"](2, 3), V.x, V.x * 2), 10))
-
-    # println! answers the UNIT value, which is what the specification types it
-    # with, so mapping it over six items answers six units rather than six trues.
-    # !(test (for-each-in-atom (1 3 5 62 2 5) println!)
-    #        (() () () () () ()))
-    yield m.eval(
-        S.test(
-            S["for-each-in-atom"]((1, 3, 5, 62, 2, 5), S["println!"]),
-            ((), (), (), (), (), ()),
-        )
-    )
+    # Printing answers the unit value, once per item.
+    printed = [print(item) for item in (1, 3, 5, 62, 2, 5)]
+    assert printed == [None] * 6

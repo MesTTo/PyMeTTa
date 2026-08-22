@@ -1,55 +1,42 @@
-"""The Python twin of examples/libraries/he_quoting.metta.
+"""examples/libraries/he_quoting.metta in Python: what stays unevaluated.
 
-quote holds a term unevaluated, unquote runs it, and noreduce-eq compares two
-terms without reducing either.
+`quote` is an ordinary constructor and `unquote` undoes it, so both stay named:
+they are the file's subject. Everything around them is Python's own.
 
-`quote` is an ordinary symbol typed `(-> Atom Atom)`, so calling it builds the
-term the same way calling any other head does. The arithmetic inside it is over
-two ground numbers, where Python's own `+` is arithmetic and answers 3 before
-any term exists, so `(+ 1 2)` names its head instead.
-
-The twins lane reports a named operator head as a dropped rung, which is a
-false positive it cannot see past; the residue table records the refinement
-against P14.1.
+Evaluating a term is `m.one`. Printing one is `str`, because a built atom
+already prints as engine-exact swrite text, which is what MeTTa's `repr`
+answers. And `noreduce-eq`, which compares two terms WITHOUT reducing them, is
+Python's `==` on atoms: outside a compiled body `S["+"](1, 2) == 3` is
+structural equality between an expression and a number, and it is False for
+exactly the reason the example gives.
 """
 
 from petta import S, val
 
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
-
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 12127 to 12127, +0 (+0.00%), by the P14 twin-style
-#: rewrite: no cost moved: this file states no equations of its own, so the
-#: rewrite only changed how its terms are SPELLED and the atoms handed to the
-#: engine are identical. Prior: ADDED 2026-08-22 at 12127 by the wave-3
-#: libraries baseline, which recorded no cause.
-BUDGET = 12127
+#: RE-PINNED 2026-08-22, 12127 to 8295, -3832 (-31.60%), by the idiomatic
+#: rewrite: `repr` and `noreduce-eq` left the engine for `str()` and Python's
+#: own structural `==` on atoms, and six `test` wrappers went with them.
+#: Measured min-of-three with the MORK backend linked into this worktree,
+#: which the earlier figure may not have been. Prior: 12127 was the last
+#: figure for the generator twin that yielded `m.eval(S.test(...))` once per
+#: runnable form.
+BUDGET = 8295
+
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
+    """Quote a sum, unquote it, print it, and compare it unreduced."""
+    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
 
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(import! &self (library lib_he))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_he)))
+    quoted = S.quote(S["+"](1, 2))
+    assert m.eval(quoted) == [quoted]
 
-    # !(test (quote (+ 1 2)) (quote (+ 1 2)))
-    yield m.eval(S.test(S.quote(S["+"](1, 2)), S.quote(S["+"](1, 2))))
+    assert m.one(S["+"](1, 2)) == 3
+    assert m.fn("unquote")(quoted) == 3
 
-    # !(test (eval (+ 1 2)) 3)
-    yield m.eval(S.test(S.eval(S["+"](1, 2)), 3))
+    # Printing an atom is what MeTTa's repr answers, character for character.
+    assert str(S.unquote(42)) == val("(unquote 42)")
 
-    # !(test (unquote (quote (+ 1 2))) 3)
-    yield m.eval(S.test(S.unquote(S.quote(S["+"](1, 2))), 3))
-
-    # !(test (repr (unquote 42)) "(unquote 42)")
-    yield m.eval(S.test(S.repr(S.unquote(42)), val("(unquote 42)")))
-
-    # !(test (noreduce-eq (+ 1 2) (+ 1 2)) True)
-    yield m.eval(S.test(S["noreduce-eq"](S["+"](1, 2), S["+"](1, 2)), TRUE))
-
-    # !(test (noreduce-eq (+ 1 2) 3) False)
-    yield m.eval(S.test(S["noreduce-eq"](S["+"](1, 2), 3), FALSE))
+    # Comparing without reducing is Python's own structural equality.
+    assert S["+"](1, 2) == S["+"](1, 2)
+    assert S["+"](1, 2) != 3

@@ -1,43 +1,30 @@
-"""The Python twin of examples/libraries/tabling_fib.metta.
+"""examples/libraries/tabling_fib.metta in Python: memoised recursion, declared once.
 
-Naive exponential fib, declared tabled, so it answers in linear time.
+`@m.cache` is the whole file. It is the `functools.lru_cache` shape lowered onto
+the engine's tabling declaration, so it compiles the equations and declares the
+table in one act, in the order tabling requires: the function must exist before
+the name can be instrumented, which is why the example declares AFTER defining
+and why a decorator cannot get that wrong.
 
-`@m.define` writes the equation and the declaration stays the separate runnable
-form the original makes it: `@m.cache` is the shipped one-decorator spelling for
-"define and table", but it imports lib_tabling and evaluates `(tabled ...)`
-inside itself, and both are forms of this example whose answers the lane
-compares. The point the file makes is the ORDER, that a name must exist before
-it can be instrumented, and a decorator that does both at once cannot show it.
+Nothing here imports lib_tabling by hand. The declaration needs it and the
+decorator asks for it, which is what a declaration over a call means.
 """
 
-from petta import S, V
-
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 81531 to 83268, +1737 (+2.13%), by the P14
-#: twin-style rewrite: the equation is now compiled from Python syntax by
-#: @m.define instead of added as an already-built atom. Prior: ADDED
-#: 2026-08-22 at 81531 by the wave-3 libraries baseline, which recorded no
-#: cause.
-BUDGET = 83268
+#: RE-PINNED 2026-08-22, 83268 to 82247, -1021 (-1.23%), by the idiomatic
+#: rewrite: the `test` wrapper and the separate `tabled` declaration left the
+#: engine: `@m.cache` says the definition and the declaration in one act, and
+#: the memoised recursion is everything else. Measured min-of-three with the
+#: MORK backend linked into this worktree, which the earlier figure may not
+#: have been. Prior: 83268 was the last figure for the generator twin that
+#: yielded `m.eval(S.test(...))` once per runnable form.
+BUDGET = 82247
 
 
 def twin(m):
-    """One answer group per runnable form of the original, in source order.
-
-    A `test` form answers `(True)` and prints `is X, should Y. ✅`.
-    """
-    # !(import! &self (library lib_tabling))
-    yield m.eval(S["import!"](S["&self"], S.library(S.lib_tabling)))
-
-    @m.define
+    """Define fib, table it, and take the thirtieth in linear time."""
+    @m.cache
     def fib(n):
-        # (= (fib $N) (if (< $N 2) $N (+ (fib (- $N 1)) (fib (- $N 2)))))
         return n if n < 2 else fib(n - 1) + fib(n - 2)
 
-    # Declare AFTER defining: tabling instruments the compiled function, so
-    # the name is refused loudly while it does not exist yet.
-    # !(tabled (fib $N))
-    yield m.eval(S.tabled(S.fib(V.N)))
-
-    # !(test (fib 30) 832040)
-    yield m.eval(S.test(S.fib(30), 832040))
+    assert fib(30) == [832040]
