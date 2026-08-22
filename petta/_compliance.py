@@ -62,6 +62,8 @@ Owns: one registered space name per test, unregistered in the fixture's
 Decides: which of the engine's expectations are general enough to hold of ANY
   provider's data; the rest skip rather than inventing atoms a backend may not
   be able to store
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -75,7 +77,7 @@ from typing import Any
 
 from ._api_types import SpaceName
 from ._optional import require_module
-from .atoms import Expr, Sym, Var, expr
+from .atoms import Expr, Expression, Sym, Var
 from .errors import PettaError
 from .foreign import Enumerable
 from .space import MeTTa
@@ -502,8 +504,8 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "rules")
         if not provider.can_run("add"):
             pytest.skip("a space that cannot be added to cannot be given a rule")
-        doubled = expr(Sym("*"), 2, Var("x"))
-        rule = expr(Sym("="), expr(MARKER, Var("x")), doubled)
+        doubled = Expression((Sym("*"), 2, Var("x")))
+        rule = Expression((Sym("="), Expression((MARKER, Var("x"))), doubled))
         space.add(rule)
         try:
             if provider.can_run("match"):

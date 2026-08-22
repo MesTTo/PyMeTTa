@@ -10,6 +10,8 @@ Guarantees:
     policy is reflected by atoms rather than boolean flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=443d80f634f8074a24ecf28807beef9ecf1a9d0d]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,13 +31,13 @@ from petta import (
     Decline,
     EngineError,
     Expr,
+    Expression,
     MeTTa,
     S,
     StrictError,
     Sym,
     V,
     aio,
-    expr,
     val,
 )
 
@@ -95,7 +97,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     with metta.capture() as output:
         groups = metta.run("!(println! p5-captured) !(+ 1 2)")
         answers = metta.eval("(+ 2 3)")
-    assert groups == [[expr()], [3]]
+    assert groups == [[Expression(())], [3]]
     assert answers == [5]
     assert output.text == "p5-captured\n"
 
@@ -105,18 +107,18 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
                 async_groups = await asynchronous.run("!(println! p5-async)")
             return async_groups, async_output.text
 
-    assert asyncio.run(async_capture()) == ([[expr()]], "p5-async\n")
+    assert asyncio.run(async_capture()) == ([[Expression(())]], "p5-async\n")
 
     with metta.speculative():
         assert metta.run("(p5-speculative fact) !(+ 2 2)") == [[4]]
-    assert len(metta.query(expr(S["p5-speculative"], V.x))) == 0
+    assert len(metta.query(Expression((S["p5-speculative"], V.x)))) == 0
 
     with pytest.raises(EngineError):
         with metta.atomic():
             # Integer division by zero answers an Error atom under the P1.34
             # doctrine, so the rollback trigger is a host instantiation fault.
             metta.run("(p5-atomic fact) !(+ $left $right)")
-    assert len(metta.query(expr(S["p5-atomic"], V.x))) == 0
+    assert len(metta.query(Expression((S["p5-atomic"], V.x)))) == 0
 
     with pytest.raises(StrictError):
         with metta.strict():
@@ -132,11 +134,11 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     reflection = metta.space("&petta")
     assert {
         row.name
-        for row in reflection.query(expr(S.arguments, V.name, S.atoms))
+        for row in reflection.query(Expression((S.arguments, V.name, S.atoms)))
     } >= prelude_names
 
     name = unique("p5-policy")
-    effect = expr(S.effect, S[name], S.immutable)
+    effect = Expression((S.effect, S[name], S.immutable))
 
     @metta.register_op(
         name=name,
@@ -146,17 +148,17 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     def policy_operation(value):
         return value
 
-    assert [row.kind for row in reflection.query(expr(S.op, S[name], 1, V.kind))] == [
+    assert [row.kind for row in reflection.query(Expression((S.op, S[name], 1, V.kind)))] == [
         S.raw_det
     ]
     assert [
-        row.effect for row in reflection.query(expr(S.effect, S[name], V.effect))
+        row.effect for row in reflection.query(Expression((S.effect, S[name], V.effect)))
     ] == [S.immutable]
     assert effect in reflection
     assert metta.run(f"!({name} 7)") == [[7]]
 
     atoms_name = unique("p5-atoms")
-    arguments = expr(S.arguments, S[atoms_name], S.atoms)
+    arguments = Expression((S.arguments, S[atoms_name], S.atoms))
     seen = []
 
     @metta.register_op(name=atoms_name, declarations=[arguments])
@@ -168,7 +170,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     assert isinstance(seen[0], Atom)
     assert [
         row.delivery
-        for row in reflection.query(expr(S.arguments, S[atoms_name], V.delivery))
+        for row in reflection.query(Expression((S.arguments, S[atoms_name], V.delivery)))
     ] == [S.atoms]
 
     refused_name = unique("p5-raw-atoms")
@@ -177,12 +179,12 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
             lambda value: value,
             name=refused_name,
             transport="raw",
-            declarations=[expr(S.arguments, S[refused_name], S.atoms)],
+            declarations=[Expression((S.arguments, S[refused_name], S.atoms))],
         )
 
     metta.unregister_op(atoms_name)
     metta.unregister_op(name)
-    assert not reflection.query(expr(S.arguments, S[atoms_name], V.delivery))
+    assert not reflection.query(Expression((S.arguments, S[atoms_name], V.delivery)))
     assert effect not in reflection
 
 
@@ -210,7 +212,7 @@ def test_a_python_op_is_a_higher_order_argument(metta):
         f"(= ({hof} $f (cons $x $xs)) (cons ($f $x) ({hof} $f $xs)))"
     )
     native = metta.run(f"!({hof} (+ 1) (1 2 3))")[-1]
-    assert native == [expr(2, 3, 4)]
+    assert native == [Expression((2, 3, 4))]
     assert metta.run(f"!({hof} {inc} (1 2 3))")[-1] == native
     assert metta.run(f"!(map-atom (1 2 3) {inc})")[-1] == native
 
@@ -222,9 +224,9 @@ def test_generator_is_nondeterministic(metta):  # noqa: D103  -- pytest discover
     def upto(n: int):
         yield from range(1, n + 1)
 
-    assert metta.run(f"!(collapse ({name} 3))") == [[expr(1, 2, 3)]]
+    assert metta.run(f"!(collapse ({name} 3))") == [[Expression((1, 2, 3))]]
     # Composes with let and arithmetic like any nondeterministic function.
-    assert metta.run(f"!(collapse (let $x ({name} 3) (* $x 10)))") == [[expr(10, 20, 30)]]
+    assert metta.run(f"!(collapse (let $x ({name} 3) (* $x 10)))") == [[Expression((10, 20, 30))]]
 
 
 def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
@@ -301,9 +303,9 @@ def test_none_and_decline_answer_nothing(metta):  # noqa: D103  -- pytest discov
         return x
 
     r = metta.run(f"!(collapse (superpose (({evens} 1) ({evens} 2) ({evens} 3))))")
-    assert r == [[expr(2)]]
+    assert r == [[Expression((2,))]]
     r = metta.run(f"!(collapse (superpose (({picky} -1) ({picky} 7))))")
-    assert r == [[expr(7)]]
+    assert r == [[Expression((7,))]]
 
 
 def test_python_exception_is_a_hard_error(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -356,7 +358,7 @@ def test_a_variable_crossing_python_comes_back_the_same_variable(metta):
     assert metta.run(f"!{bind_the_answer.format(native)}") == [[9]]
     assert metta.run(f"!{bind_the_answer.format(op)}") == [[9]]
     # And a ground call is untouched by any of it.
-    assert metta.run(f"!({op} 1 (2 3))") == [[expr(1, 2, 3)]]
+    assert metta.run(f"!({op} 1 (2 3))") == [[Expression((1, 2, 3))]]
 
 
 def test_a_registered_operation_runs_backwards(metta):
@@ -373,9 +375,9 @@ def test_a_registered_operation_runs_backwards(metta):
         name=cons,
         inverse=lambda whole: (whole[0], tuple(whole[1:])),
     )
-    assert metta.run(f"!({cons} 1 (2 3))") == [[expr(1, 2, 3)]]
+    assert metta.run(f"!({cons} 1 (2 3))") == [[Expression((1, 2, 3))]]
     assert metta.run(f"!(let ({cons} $h $t) (1 2 3) ($h $t))") == [
-        [expr(1, expr(2, 3))]
+        [Expression((1, Expression((2, 3))))]
     ]
 
     # An inverse is a RELATION, so it enumerates, and a result with no
@@ -387,7 +389,7 @@ def test_a_registered_operation_runs_backwards(metta):
         yield (-int(value**0.5),)
 
     metta.register_op(lambda x: x * x, name=square, inverse=roots)
-    assert metta.run(f"!(collapse (let ({square} $r) 9 $r))") == [[expr(3, -3)]]
+    assert metta.run(f"!(collapse (let ({square} $r) 9 $r))") == [[Expression((3, -3))]]
     assert metta.run(f"!({square} 4)") == [[16]]
 
     double = unique("double")
@@ -398,7 +400,7 @@ def test_a_registered_operation_runs_backwards(metta):
         inverse=lambda y: None if y % 2 else y // 2,
     )
     assert metta.run(f"!(let ({double} $n) 8 $n)") == [[4]]
-    assert metta.run(f"!(collapse (let ({double} $n) 7 $n))") == [[expr()]]
+    assert metta.run(f"!(collapse (let ({double} $n) 7 $n))") == [[Expression(())]]
 
 
 def test_a_pure_python_operation_can_be_declared_and_cached(metta):
@@ -416,7 +418,7 @@ def test_a_pure_python_operation_can_be_declared_and_cached(metta):
     metta.register_op(
         len,
         name=declared,
-        declarations=[expr(S.effect, S[declared], S.immutable)],
+        declarations=[Expression((S.effect, S[declared], S.immutable))],
     )
     metta.register_op(len, name=silent)
     metta.run(f"(= (uses-{declared} $k) ({declared} $k))")
@@ -449,7 +451,7 @@ def test_registering_an_operation_leaves_the_engines_pure_list_alone(metta):
         metta.register_op(
             len,
             name=name,
-            declarations=[expr(S.effect, S[name], S.immutable)],
+            declarations=[Expression((S.effect, S[name], S.immutable))],
         )
 
     metta.run("(= (arith-after $k) (+ $k 1))")
@@ -643,14 +645,14 @@ def test_annotations_and_explicit_atoms_are_the_two_typing_routes(metta):
     def without_annotations(x):
         return x
 
-    arrow = expr(S["->"], S.Number, S.Number)
+    arrow = Expression((S["->"], S.Number, S.Number))
     metta.register_op(
         lambda x: x,
         name=declared,
-        declarations=[expr(S[":"], S[declared], arrow)],
+        declarations=[Expression((S[":"], S[declared], arrow))],
     )
 
-    assert metta.run(f"!(get-type {annotated})") == [[expr(S["->"], S.Number, S.Number)]]
+    assert metta.run(f"!(get-type {annotated})") == [[Expression((S["->"], S.Number, S.Number))]]
     assert metta.run(f"!(get-type {bare})") == [[S["%Undefined%"]]]
     assert metta.run(f"!(get-type {declared})") == [[arrow]]
 
@@ -746,7 +748,7 @@ def test_operation_registration_names_are_symmetric(metta):  # noqa: D103  -- py
     metta.unregister_op("very-unique-op-name-xyz")
     # Unregistered: the call no longer reduces, the engine leaves it inert.
     r = metta.run("!(very-unique-op-name-xyz 9)")
-    assert r == [[expr(S["very-unique-op-name-xyz"], 9)]]
+    assert r == [[Expression((S["very-unique-op-name-xyz"], 9))]]
 
 
 def test_var_kw_params_are_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -771,11 +773,11 @@ def test_engine_injection_by_annotation(metta):  # noqa: D103  -- pytest discove
 
     @metta.register_op(name="inj-related")
     def inj_related(term, engine: MeTTa):
-        for row in engine.query(expr(S["inj-link"], term, V.x)):
+        for row in engine.query(Expression((S["inj-link"], term, V.x))):
             yield row[0]
 
     try:
-        assert metta.run("!(collapse (inj-related a))") == [[expr(S.b)]]
+        assert metta.run("!(collapse (inj-related a))") == [[Expression((S.b,))]]
         # the declared arrow has ONE argument slot: the engine is not a type
         (group,) = metta.run("!(get-type inj-related)")
         assert str(group[0]) == "(-> %Undefined% %Undefined%)"
@@ -850,7 +852,7 @@ def test_a_name_prolog_owns_registers_and_leaves_prolog_alone(metta):
     # compiled-goal dump on.
     with metta.capture() as output:
         groups = metta.run("!(println! (still here))")
-    assert groups == [[expr()]]
+    assert groups == [[Expression(())]]
     assert "(still here)\n" in output.text
 
 
@@ -918,7 +920,7 @@ def test_a_tuple_defaults_to_data_and_grounded_retains_a_handle(metta):
     assert metta.run("!(car-atom held)", using={"held": grounded}) == [[1]]
     assert metta.run(
         '!((py-atom "lambda xs: type(xs[0]) is tuple") items)',
-        using={"items": expr(grounded)},
+        using={"items": Expression((grounded,))},
     ) == [[True]]
     assert metta.run(
         '!((py-atom "lambda x: x is x[0]") '

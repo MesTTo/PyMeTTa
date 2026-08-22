@@ -1,4 +1,4 @@
-"""examples/control/test_unify_eval_branches.metta in Python: branches evaluate.
+"""Purpose: examples/control/test_unify_eval_branches.metta in Python: branches evaluate.
 
 Space-based `unify` evaluates the branch it selects, both of them. Without
 that, the then branch of a matched case would answer `(+ 1 2)` instead of 3,
@@ -10,9 +10,16 @@ check in the else branch when it does not.
 expression that matches two terms and chooses a branch. What is ordinary
 Python here is the knowledge: two facts go in through the write door, and the
 strings the errors carry are named once and carried whole.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, expr, val
+from petta import Expression, S, val
 
 #: The strings the knowledge and the errors carry, carried whole rather than
 #: parsed: `$c` and `$v` are metamath's constant and variable markers, and the
@@ -44,7 +51,7 @@ def twin(m):
     m += S.Var(S.x, 0, S.Type(VARIABLE))
 
     here = S[m.space_name]
-    nothing = expr()
+    nothing = Expression(())
 
     # Test 1: then-branch needs eval (expression in matched case)
     # !(test (unify &self (Constant wff (Type "$c"))

@@ -12,6 +12,8 @@ Guarantees:
     test_completed_query_closes_its_event_stream]
   - a symbol cannot be emitted with the router's variable sigil [tested:
     test_a_symbol_never_renders_as_a_variable_to_the_router; commit=d3b584fad0c081cca59287b70a4bda3c4f5a985b]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,7 +26,7 @@ import os
 
 import pytest
 
-from petta import PettaError, S, V, expr
+from petta import Expression, PettaError, S, V
 from petta.atoms import Gnd, Sym, parse
 from petta.das import (
     DAS,
@@ -220,7 +222,7 @@ def test_das_space_joins_with_native_facts(metta):  # noqa: D103  -- pytest disc
             "!(match &das-scripted (Similarity human $who)"
             " (match &self (habitat $who $where) ($who $where)))"
         )
-        assert groups == [[expr(S.monkey, S.jungle)]]
+        assert groups == [[Expression((S.monkey, S.jungle))]]
         # Direct provider calls raise DASError; through the engine the
         # refusal crosses janus and surfaces as EngineError, the provider
         # convention. Both say the same sentence, because there is one: the

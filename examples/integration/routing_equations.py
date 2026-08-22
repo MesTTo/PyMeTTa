@@ -2,6 +2,9 @@
 space, every route is an equation, a request reduces through whichever route
 matches, the catch-all equation is the 404, and middleware is composition.
 Nothing was built to make this work.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -10,7 +13,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, expr
+from petta import Expression, MeTTa, S
 
 app = MeTTa().new_space()
 app.run(
@@ -20,8 +23,8 @@ app.run(
     "(= (handle $req) (once (route $req)))\n"
     "(= (logged $req) (let $res (handle $req) (Logged $req $res)))"
 )
-check("a route", app.run("!(handle home)"), [[expr(S.Page, 200, "Welcome")]])
-check("the 404", app.run("!(handle nowhere)"), [[expr(S.NotFound, 404, S.nowhere)]])
+check("a route", app.run("!(handle home)"), [[Expression((S.Page, 200, "Welcome"))]])
+check("the 404", app.run("!(handle nowhere)"), [[Expression((S.NotFound, 404, S.nowhere))]])
 check("middleware is composition", app.run("!(logged about)"),
-      [[expr(S.Logged, S.about, expr(S.Page, 200, "About us"))]])
+      [[Expression((S.Logged, S.about, Expression((S.Page, 200, "About us"))))]])
 done("routing_equations")

@@ -23,6 +23,8 @@ Owns: the servers its serve forms started. Boot.close() stops them, on
 Decides: a manifest that fails mid-way keeps the writes its performed
   prefix made, the same law the engine's own guards follow; the error
   names the failing form and how many stood.
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,7 +41,7 @@ from typing import Any, Self, cast
 from . import remote as _remote
 from . import tables as _tables
 from ._engine import runtime
-from .atoms import Atom, Expr, Gnd, Sym, expr, parse
+from .atoms import Atom, Expr, Expression, Gnd, Sym, parse
 from .errors import PettaError
 from .space import MeTTa
 
@@ -255,7 +257,7 @@ def _declarations(directives: list[tuple[Expr, Expr]]) -> dict[str, list[Expr]]:
     for _form, directive in directives:
         if _is_bridge(directive):
             _bridge_head, name, shape, row = directive.children
-            gathered.setdefault(str(name), []).append(expr(Sym("bridge"), shape, row))
+            gathered.setdefault(str(name), []).append(Expression((Sym("bridge"), shape, row)))
     return gathered
 
 

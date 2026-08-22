@@ -1,4 +1,4 @@
-"""examples/reasoning/peano.metta in Python: growing a space 300 times.
+"""Purpose: examples/reasoning/peano.metta in Python: growing a space 300 times.
 
 Each round reads every `(num $t)` in the space and writes `(num (S $t))` back,
 refusing a duplicate, so 300 rounds leave 301 atoms. The claim is that count.
@@ -21,9 +21,16 @@ all in Python and costs 2,549,185 inferences against the engine's 2,186,259,
 depth, is measured in twins/performance/peanofast.py
 [ai-tmp/probe/f_peano_reasoning_routes.py]. The missing door, a query that
 projects or aggregates before it crosses, is filed as friction.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Why this file sits below the top rung: all four definitions are at the
 #: container door, and the count cannot cross into Python within the band.
@@ -48,7 +55,7 @@ def twin(m):
     """Expand the space 300 times, then count what is in it."""
     # Nothing is written twice: an atom that already matches is skipped.
     m += equation(S["add-atom-no-duplicate"](V.Space, V.Atom)).to(
-        S["if"](expr().eq(S.collapse(S.once(S.match(V.Space, V.Atom, V.Atom)))),
+        S["if"](Expression(()).eq(S.collapse(S.once(S.match(V.Space, V.Atom, V.Atom)))),
                 S["add-atom"](V.Space, V.Atom),
                 S.empty())
     )

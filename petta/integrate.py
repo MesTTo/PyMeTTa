@@ -35,6 +35,8 @@ Guarded by:
     [tested test_dropped_space_name_reinstalls_integrations]
   - _REFLECTOR_LOCK protects reflector registrations [tested
     test_protocol_and_reflector_registrations_can_be_removed]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -58,13 +60,13 @@ from ._ops import register_protocol_type, unregister_protocol_type
 from .atoms import (
     Atom,
     Expr,
+    Expression,
     Gnd,
     S,
     Sym,
     Var,
     decode,
     encode,
-    expr,
     register_object_repr_protocol,
     unregister_object_repr_protocol,
     val,
@@ -600,19 +602,19 @@ def install_reflection_ops(m) -> list[str]:
                 value = getattr(target, attr)
             except AttributeError:
                 return
-            yield expr(Sym(attr), val(value))
+            yield Expression((Sym(attr), val(value)))
             return
         for attr in _field_names(target):
-            yield expr(Sym(attr), val(getattr(target, attr)))
+            yield Expression((Sym(attr), val(getattr(target, attr))))
 
     m.register_op(
         py_attr,
         name="py-attr",
-        declarations=[expr(S.arguments, S["py-attr"], S.atoms)],
+        declarations=[Expression((S.arguments, S["py-attr"], S.atoms))],
     )
     m.register_op(
         py_field,
         name="py-field",
-        declarations=[expr(S.arguments, S["py-field"], S.atoms)],
+        declarations=[Expression((S.arguments, S["py-field"], S.atoms))],
     )
     return ["py-attr", "py-field"]

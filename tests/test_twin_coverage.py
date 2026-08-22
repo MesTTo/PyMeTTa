@@ -4,6 +4,25 @@ A lane that cannot be shown failing is evidence of nothing, so these plant a
 source-text cheat, a renamed variable, a wrong answer, a hidden definition
 and an undeclared skip, and require the lane to answer correctly about each.
 
+Guarantees:
+  - point budgets remain two-sided with the deterministic tolerance stated
+    separately [tested: test_a_budget_is_two_sided; commit=WORKTREE]
+  - empirical envelopes are asymmetric, protocol-scoped, and falsified by
+    the first observation outside their measured bounds [tested:
+    test_an_empirical_envelope_passes_its_observations_and_fails_new_spread,
+    test_an_empirical_envelope_cannot_license_another_protocol;
+    commit=WORKTREE]
+  - malformed or legacy spread declarations cannot silently widen a budget
+    [tested: test_an_empirical_envelope_requires_complete_measurement_metadata,
+    test_spread_is_not_a_budget_door; commit=WORKTREE]
+  - expected printing text is written as Python text while strings carried as
+    MeTTa data still require val() [tested:
+    test_printing_text_is_not_forced_through_the_value_carrier;
+    commit=WORKTREE]
+  - the 159 entries superseded by empirical budgets are retired exactly once
+    [tested: test_the_distribution_budget_retirement_is_exact;
+    commit=WORKTREE]
+
 Open Obligations:
   To Do: None
   Hacks: None
@@ -137,6 +156,37 @@ def test_a_name_and_marked_data_are_not_programs(tmp_path):
     assert coverage.scan(allowed) == []
 
 
+def test_printing_text_is_not_forced_through_the_value_carrier(tmp_path):
+    """A print claim compares text; an unrelated MeTTa string remains data."""
+    printing = tmp_path / "printing.py"
+    printing.write_text(
+        '"""Printing."""\n'
+        "from petta import S, val\n"
+        "BUDGET = 1\n"
+        'PRINTED = ((S.a, "a"), (S.b, "b"))\n'
+        "def twin(m):\n"
+        "    assert str(S.a) == 'a'\n"
+        "    assert m.one(S.repr(S.b)) == 'b'\n"
+        "    assert [m.fn('repr')(atom) for atom, _ in PRINTED] == "
+        "[text for _, text in PRINTED]\n"
+        "    assert val('data') == val('data')\n",
+        encoding="utf-8",
+    )
+    assert coverage.scan(printing) == []
+
+    data = tmp_path / "data.py"
+    data.write_text(
+        '"""Data."""\n'
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert m.one(S.identity('data')) == 'data'\n",
+        encoding="utf-8",
+    )
+    findings = coverage.scan(data)
+    assert len(findings) == 2
+    assert all("neither a name nor val() data" in finding for finding in findings)
+
+
 def test_a_twin_that_does_not_parse_is_a_finding_and_not_a_traceback(tmp_path):
     """A REPORT lane says what is wrong with a twin.
 
@@ -262,11 +312,20 @@ def test_a_hidden_definition_is_a_finding():
 # ---------------------------------------------------------------- the budgets
 
 
+def test_the_full_lane_protocol_names_every_scheduling_input():
+    """A corpus-width or executor-width change is a different population."""
+    assert coverage.full_lane_protocol(204) == "full-lane/204/workers=32"
+    with pytest.raises(ValueError, match="positive example count"):
+        coverage.full_lane_protocol(0)
+
+
 def test_every_shipped_twin_states_a_budget():
     """P14.14's start: the parity claim is frozen the moment a twin ships."""
     for example in coverage.written():
         budget = coverage.budget_of(coverage.twin_for(example))
-        assert isinstance(budget, int) and budget > 0, example
+        assert isinstance(budget, (int, coverage.EmpiricalBudget)), example
+        if isinstance(budget, int):
+            assert budget > 0, example
 
 
 def test_a_budget_is_two_sided():
@@ -286,6 +345,135 @@ def test_a_budget_is_two_sided():
         "x.metta", twin, left, _run([], cost=budget + coverage.TOLERANCE)
     )
     assert within == []
+
+
+def _empirical_twin(tmp_path, budget):
+    twin = tmp_path / "nondeterministic.py"
+    twin.write_text(
+        '"""Purpose: a planted nondeterministic twin budget."""\n'
+        f"BUDGET = {budget!r}\n"
+        "def twin(m):\n"
+        "    assert m\n",
+        encoding="utf-8",
+    )
+    return twin
+
+
+def test_an_empirical_envelope_passes_its_observations_and_fails_new_spread(tmp_path):
+    """Observed extrema pass; the first wider observation is a finding.
+
+    The lower bound matters independently of the upper one: making a twin
+    cheaper can mean it stopped doing the work, so an asymmetric declaration
+    must never be widened into ``centre +/- spread``.
+    """
+    declared = {
+        "minimum": 1_000,
+        "maximum": 1_014,
+        "observations": 10,
+        "protocol": "full-lane/204/workers=32",
+    }
+    twin = _empirical_twin(tmp_path, declared)
+    budget = coverage.budget_of(twin)
+    assert isinstance(budget, coverage.EmpiricalBudget)
+    assert budget.spread == 14
+
+    example = _run([], cost=2_000)
+    for observed in (1_000, 1_007, 1_014):
+        assert coverage._price(
+            "x.metta",
+            twin,
+            example,
+            _run([], cost=observed),
+            protocol="full-lane/204/workers=32",
+        ) == []
+
+    for observed, direction in ((999, "BELOW"), (1_015, "above")):
+        findings = coverage._price(
+            "x.metta",
+            twin,
+            example,
+            _run([], cost=observed),
+            protocol="full-lane/204/workers=32",
+        )
+        assert len(findings) == 1, findings
+        assert direction in findings[0]
+        assert "10 observations" in findings[0]
+        assert "spread 14" in findings[0]
+        assert "deterministic tolerance is not added" in findings[0]
+
+
+def test_an_empirical_envelope_cannot_license_another_protocol(tmp_path):
+    """Serial evidence says nothing about the scheduler the full lane adds."""
+    twin = _empirical_twin(
+        tmp_path,
+        {
+            "minimum": 1_000,
+            "maximum": 1_014,
+            "observations": 10,
+            "protocol": "serial",
+        },
+    )
+    findings = coverage._price(
+        "x.metta",
+        twin,
+        _run([], cost=2_000),
+        _run([], cost=1_007),
+        protocol="full-lane/204/workers=32",
+    )
+    assert len(findings) == 1, findings
+    assert "measured under 'serial'" in findings[0]
+    assert "current protocol is 'full-lane/204/workers=32'" in findings[0]
+
+
+@pytest.mark.parametrize(
+    "budget",
+    [
+        {"minimum": 1_000, "maximum": 1_014, "observations": 10},
+        {
+            "minimum": 1_014,
+            "maximum": 1_000,
+            "observations": 10,
+            "protocol": "full-lane/204/workers=32",
+        },
+        {
+            "minimum": 1_000,
+            "maximum": 1_014,
+            "observations": 1,
+            "protocol": "full-lane/204/workers=32",
+        },
+        {
+            "minimum": 1_000,
+            "maximum": 1_014,
+            "observations": 10,
+            "protocol": "",
+        },
+    ],
+)
+def test_an_empirical_envelope_requires_complete_measurement_metadata(
+    tmp_path, budget
+):
+    """A band without bounds, repeated observations, and protocol is no claim."""
+    twin = _empirical_twin(tmp_path, budget)
+    with pytest.raises(ValueError, match="BUDGET empirical envelope"):
+        coverage.budget_of(twin)
+
+
+def test_spread_is_not_a_budget_door(tmp_path):
+    """The guessed symmetric allowance was deleted, not retained as a shim."""
+    twin = tmp_path / "legacy.py"
+    twin.write_text(
+        '"""Purpose: plant the deleted spread declaration."""\n'
+        "BUDGET = 1_000\n"
+        "SPREAD = 20\n"
+        "def twin(m):\n"
+        "    assert m\n",
+        encoding="utf-8",
+    )
+    assert not hasattr(coverage, "spread_of")
+    findings = coverage._price(
+        "x.metta", twin, _run([], cost=2_000), _run([], cost=1_005)
+    )
+    assert any("pinned budget" in finding for finding in findings)
 
 
 def test_the_band_refuses_a_twin_that_costs_more_than_it_was_pinned_to_allow():
@@ -371,6 +559,21 @@ def test_the_residue_json_is_the_one_definition_of_what_is_missing():
     assert document["entries"] == coverage.residue()
 
 
+def test_the_distribution_budget_retirement_is_exact():
+    """Only the determinism-assumption population moved, all 159 entries."""
+    document = json.loads(coverage.RESIDUE.read_text(encoding="utf-8"))
+    section = "correction to the lane's determinism assumption"
+    active = [entry for entry in document["entries"] if entry["section"] == section]
+    retired = [
+        entry
+        for entry in document["retired"]
+        if entry.get("section") == section
+        and "empirical two-sided envelope" in entry["retired"]
+    ]
+    assert active == []
+    assert len(retired) == 159
+
+
 def test_the_idiom_check_catches_a_planted_transliteration(tmp_path):
     """A twin can avoid MeTTa source TEXT and still be MeTTa source with
     Python punctuation, which is what this check exists for: the string scan
@@ -380,16 +583,16 @@ def test_the_idiom_check_catches_a_planted_transliteration(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, V, expr\n"
+        "from petta import Expression, S, V\n"
         "def twin(m):\n"
-        '    m += expr(S["="], expr(S["f"], V["x"]), 1)\n',
+        '    m += Expression((S["="], Expression((S["f"], V["x"])), 1))\n',
         encoding="utf-8",
     )
     assert coverage.scan(planted) == []
     joined = " ".join(coverage.idiom(planted))
     assert 'S["f"] is S.f' in joined
     assert 'V["x"] is V.x' in joined
-    assert "expr(...) builds what calling the head builds" in joined
+    assert "Expression(...) builds what calling the head builds" in joined
 
 
 def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_path):
@@ -460,10 +663,10 @@ def test_a_declared_rung_is_a_documented_drop_rather_than_a_finding(tmp_path):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     body = (
         '"""Doc."""\n'
-        "from petta import S, V, expr\n"
+        "from petta import Expression, S, V\n"
         "%s"
         "def twin(m):\n"
-        '    m += expr(S["="], expr(S["f"], V["x"]), 1)\n'
+        '    m += Expression((S["="], Expression((S["f"], V["x"])), 1))\n'
     )
     silent = tmp_path / "silent.py"
     silent.write_text(body % "", encoding="utf-8")
@@ -552,17 +755,17 @@ def test_a_yielding_twin_is_a_finding(tmp_path):
 
 
 def test_a_variable_headed_expression_keeps_its_only_spelling(tmp_path):
-    """`expr(V.x)` builds ($x) and nothing shorter reaches it.
+    """`Expression((V.x,))` builds ($x) and nothing shorter reaches it.
 
-    `Var` is not callable, so the expr() rule must fire on a SYMBOL head
+    `Var` is not callable, so the Expression() rule must fire on a SYMBOL head
     only; firing on a variable would demand a spelling that does not exist.
     """
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, V, expr\n"
+        "from petta import Expression, S, V\n"
         "def twin(m):\n"
-        "    assert list(m.query(expr(V.x))) == []\n"
+        "    assert list(m.query(Expression((V.x,)))) == []\n"
         "    assert list(m.query(V.x)['x']) == []\n",
         encoding="utf-8",
     )

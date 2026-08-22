@@ -1,6 +1,9 @@
 """Purpose: prove the CeTTa bridge: PeTTa queries answered over atoms
 whose matching runs in the sibling C MeTTa runtime, certified by the
 conformance kit and driven from MeTTa source.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -105,7 +108,7 @@ def test_cetta_answers_bind_inside_petta_unification():  # noqa: D103  -- pytest
     binary = _cetta_binary()
     if binary is None:
         pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")
-    from petta import expr
+    from petta import Expression
     from petta.atoms import Gnd
 
     m = petta.MeTTa().new_space()
@@ -117,7 +120,7 @@ def test_cetta_answers_bind_inside_petta_unification():  # noqa: D103  -- pytest
             m.parse,
             cetta=binary,
         )
-        rows = m.eval(expr(S.unify, Gnd(matcher), expr(S.sol, V.x), V.x, S.none))
+        rows = m.eval(Expression((S.unify, Gnd(matcher), Expression((S.sol, V.x)), V.x, S.none)))
         assert sorted(str(atom) for atom in rows) == ["-2", "2"]
     finally:
         m.drop()

@@ -1,4 +1,4 @@
-"""examples/control/and_then_or_else.metta in Python: short-circuiting.
+"""Purpose: examples/control/and_then_or_else.metta in Python: short-circuiting.
 
 `and-then` and `or-else` are the short-circuiting boolean connectives. They
 are special forms rather than functions, which is the whole point: a
@@ -21,14 +21,17 @@ The original opens a second space to keep its two experiments apart. Python
 keeps them apart with a slice of the first, so `note2` records into the same
 space `note` does and the two equations really are the same equation twice,
 which is what the original's two are once the space is factored out.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import Atom, S, V, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import FALSE, TRUE, Atom, S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 11903 to 16522, +4619 (+38.8%), by the twin contract

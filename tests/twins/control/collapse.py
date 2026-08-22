@@ -1,13 +1,20 @@
-"""examples/control/collapse.metta in Python: collapsing one answer.
+"""Purpose: examples/control/collapse.metta in Python: collapsing one answer.
 
 `(1 2 3)` has no head to call, so it answers itself, and `collapse` gathers
 that one answer into a one-element expression. The doubled parentheses of
 `((1 2 3))` are the whole point of the file, and in Python they are a list
 holding one atom: evaluating a term already answers the multiset, so
 `collapse` needs no spelling of its own.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import expr
+from petta import Expression
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 617 to 226, -391 (-63.4%), by the twin contract
@@ -24,4 +31,4 @@ BUDGET = 226
 def twin(m):
     """Evaluate a term nothing reduces, and count the answers it gives."""
     # !(test (collapse (1 2 3)) ((1 2 3)))
-    assert m.eval(expr(1, 2, 3)) == [expr(1, 2, 3)]
+    assert m.eval(Expression((1, 2, 3))) == [Expression((1, 2, 3))]

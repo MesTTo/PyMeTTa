@@ -103,6 +103,8 @@ Guarantees:
 Owns:
   - MeTTa.save owns its sibling temporary file and removes it after every
     failed operation [tested test_save_failure_preserves_existing_file]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -1818,7 +1820,7 @@ class MeTTa:
 
             @m.register_op
             def related(term, engine: petta.MeTTa):
-                for row in engine.query(expr(S.link, term, V.x)):
+                for row in engine.query(Expression((S.link, term, V.x))):
                     yield row[0]
 
         Purity is a seam declaration rather than a Python boolean. Supply the
@@ -2593,7 +2595,7 @@ class MeTTa:
 
             car = m.fn("car-atom")
             car(m.parse("(1 2 3)"))     # 1
-            m.fn("superpose").all(expr(1, 2, 3))   # [1, 2, 3]
+            m.fn("superpose").all(Expression((1, 2, 3)))   # [1, 2, 3]
 
         Calling expects exactly one answer and raises otherwise, the loud
         reading; .all returns every answer, nondeterminism included.

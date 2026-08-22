@@ -1,4 +1,7 @@
 """Purpose: engine-backed tests for proof trees, validation, and rendering.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -10,12 +13,12 @@ import pytest
 from petta import (
     Builtin,
     Derivation,
+    Expression,
     Fact,
     InferenceLimitError,
     S,
     Truncated,
     V,
-    expr,
 )
 
 
@@ -168,39 +171,39 @@ def test_html_rendering(metta):  # noqa: D103  -- pytest discovers or injects th
 @pytest.mark.parametrize(
     ("tree", "message"),
     [
-        (expr(S.derivation), "malformed derivation"),
-        (expr(S.derivation, expr(S.wrong, S.call, S.out)), "answer node"),
-        (expr(S.derivation, expr(S.answer, S.call)), "answer node"),
+        (Expression((S.derivation,)), "malformed derivation"),
+        (Expression((S.derivation, Expression((S.wrong, S.call, S.out)))), "answer node"),
+        (Expression((S.derivation, Expression((S.answer, S.call)))), "answer node"),
         (
-            expr(
-                S.derivation,
-                expr(S.answer, S.call, S.out),
-                expr(S.step, expr(S.wrong, S.call, S.out), S.equation),
-            ),
+            Expression(
+                (S.derivation,
+                Expression((S.answer, S.call, S.out)),
+                Expression((S.step, Expression((S.wrong, S.call, S.out)), S.equation)),
+            )),
             "call node",
         ),
         (
-            expr(
-                S.derivation,
-                expr(S.answer, S.call, S.out),
-                expr(S.fact, S.space),
-            ),
+            Expression(
+                (S.derivation,
+                Expression((S.answer, S.call, S.out)),
+                Expression((S.fact, S.space)),
+            )),
             "fact node",
         ),
         (
-            expr(
-                S.derivation,
-                expr(S.answer, S.call, S.out),
-                expr(S.builtin, S.one, S.two),
-            ),
+            Expression(
+                (S.derivation,
+                Expression((S.answer, S.call, S.out)),
+                Expression((S.builtin, S.one, S.two)),
+            )),
             "builtin node",
         ),
         (
-            expr(
-                S.derivation,
-                expr(S.answer, S.call, S.out),
-                expr(S.truncated),
-            ),
+            Expression(
+                (S.derivation,
+                Expression((S.answer, S.call, S.out)),
+                Expression((S.truncated,)),
+            )),
             "truncated node",
         ),
     ],
@@ -211,15 +214,15 @@ def test_malformed_derivation_nodes_are_named(tree, message):  # noqa: D103  -- 
 
 
 def test_derivation_facts_deduplicate_in_first_seen_order():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    fact_a = expr(S.fact, S["&self"], S.a(1))
-    fact_b = expr(S.fact, S["&self"], S.b(2))
-    tree = expr(
-        S.derivation,
-        expr(S.answer, S.call, S.out),
+    fact_a = Expression((S.fact, S["&self"], S.a(1)))
+    fact_b = Expression((S.fact, S["&self"], S.b(2)))
+    tree = Expression(
+        (S.derivation,
+        Expression((S.answer, S.call, S.out)),
         fact_a,
         fact_b,
         fact_a,
-    )
+    ))
     proof = Derivation.from_atom(tree)
     assert [fact.atom for fact in proof.facts] == [S.a(1), S.b(2)]
 

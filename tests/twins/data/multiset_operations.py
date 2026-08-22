@@ -1,4 +1,4 @@
-"""examples/data/multiset_operations.metta in Python: Counter is the algebra.
+"""Purpose: examples/data/multiset_operations.metta in Python: Counter is the algebra.
 
 Every one of these operations is MULTISET, not set: `(a a a)` minus `(a)` is
 `(a a)`, and an intersection keeps as many copies as both sides can afford.
@@ -10,11 +10,18 @@ back in.
 Each claim says two things at once: what the operation answers, and that the
 Python spelling and the engine's own `-atom` operation agree on it. The second
 half is why the dissolution is safe to teach.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
 from collections import Counter
 
-from petta import S, expr
+from petta import Expression, S
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 6152 to 4320, -1832 (-29.78%), by the twin-shape
@@ -38,7 +45,7 @@ def twin(m):
             if budget[atom]:
                 budget[atom] -= 1
                 out.append(atom)
-        return expr(*out)
+        return Expression(out)
 
     def common(left, right):
         """Multiset intersection: Counter's `&`, in the left side's order."""
@@ -50,11 +57,11 @@ def twin(m):
 
     def joined(left, right):
         """Multiset union: every copy from both sides, which is concatenation."""
-        return expr(*left, *right)
+        return Expression((*left, *right))
 
     def once_each(items):
         """Duplicates dropped, first occurrence kept: dict.fromkeys is that."""
-        return expr(*dict.fromkeys(items))
+        return Expression(dict.fromkeys(items))
 
     assert once_each(S.a(S.b, S.c, S.d, S.d)) == S.a(S.b, S.c, S.d) == m.fn(
         "unique-atom")(S.a(S.b, S.c, S.d, S.d))
@@ -72,5 +79,5 @@ def twin(m):
         "intersection-atom")(S.a(S.a, S.a), S.a())
     assert without(S.a(S.a, S.a), S.a()) == S.a(S.a) == m.fn(
         "subtraction-atom")(S.a(S.a, S.a), S.a())
-    assert common(S.a(S.b), expr()) == expr() == m.fn(
-        "intersection-atom")(S.a(S.b), expr())
+    assert common(S.a(S.b), Expression(())) == Expression(()) == m.fn(
+        "intersection-atom")(S.a(S.b), Expression(()))

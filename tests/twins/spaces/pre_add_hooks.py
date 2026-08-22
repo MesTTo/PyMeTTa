@@ -1,4 +1,4 @@
-"""examples/spaces/pre_add_hooks.metta in Python: arbitrary MeTTa at the write door.
+"""Purpose: examples/spaces/pre_add_hooks.metta in Python: arbitrary MeTTa at the write door.
 
 A pre-add hook claims the write door of one space for one function of one
 argument, the incoming atom. Every write consults it first, and the handler
@@ -18,6 +18,13 @@ literal default and reaches neither a structure nor a symbol, and each body
 answers a lowercase verdict as data (residue, P14.4). Claiming and releasing
 the hook go through `m.fn`, because the claim has no Python door yet (residue,
 P14.10).
+Guarantees:
+  - expected printed output in this twin remains Python str text
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
 from petta import EngineError, S, V, equation, val
@@ -34,18 +41,18 @@ from petta import EngineError, S, V, equation, val
 #: lane consumed form by form.
 BUDGET = 7270
 
-#: The three sentences this file's refusals carry. Each is the Python door's
+#: The three sentences this file's refusals print. Each is the Python door's
 #: own wording rather than the Error atom the original reads with `repr`, and
 #: each prints the offered atom in the wire's list form, `[secret,1]` where
 #: engine-exact text would say `(secret 1)` [measured 2026-08-22; reported to
 #: the integrator].
-NO_SECRETS = val("&pool refused [secret,1]: no secrets in this pool")
-UNCOVERED = val(
+NO_SECRETS = "&pool refused [secret,1]: no secrets in this pool"
+UNCOVERED = (
     "the pre-add hook on &pool is claimed by guard, whose equations do not "
     "cover [uncovered,9]; a request no rule covers is a stuck state that says "
     "so, so cover the shape or give the handler its own catch-all"
 )
-CLAIMED = val(
+CLAIMED = (
     "guard already claims the pre-add hook on &pool and other-guard tried to "
     "claim it too; one claimant per name, checked when the claim is made, so "
     "undeclare the standing one first"
@@ -84,8 +91,8 @@ def twin(m):
     try:
         pool += (S.secret, 1)
     except EngineError as error:
-        refusal = str(error)
-    assert refusal == NO_SECRETS
+        refusal = error
+    assert str(refusal) == NO_SECRETS
 
     # A claimed handler whose equations do not cover the atom is a stuck state
     # that says so, naming the space, the slot, the handler and the atom.
@@ -93,8 +100,8 @@ def twin(m):
     try:
         pool += (S.uncovered, 9)
     except EngineError as error:
-        stuck = str(error)
-    assert stuck == UNCOVERED
+        stuck = error
+    assert str(stuck) == UNCOVERED
 
     # One claimant per name, checked when the claim is made: a second claimant
     # is refused with both named, never raced at call time.
@@ -103,8 +110,8 @@ def twin(m):
     try:
         m.fn("declare-pre-add!")(at_pool, S["other-guard"])
     except EngineError as error:
-        conflict = str(error)
-    assert conflict == CLAIMED
+        conflict = error
+    assert str(conflict) == CLAIMED
 
     # Undeclaring is explicit and frees the claim; the space is direct again.
     m.fn("undeclare-pre-add!")(at_pool)

@@ -14,6 +14,8 @@ Guarantees:
     later suites do not inherit array callables [tested: python -m pytest
     bindings/python/tests/test_arrays.py bindings/python/tests/test_operator_documentation.py;
     commit=f6b5a40f74e386e7cd779c3925da7e4c02000fdb]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,11 +28,11 @@ import threading
 import pytest
 
 from petta import (
+    Expression,
     S,
     V,
     arrays,
     decode,
-    expr,
     val,
 )
 from petta.ops import registered
@@ -57,8 +59,8 @@ def test_numpy_flows_through_the_same_ops(am):  # noqa: D103  -- pytest discover
         "!(t-tolist (matmul (tensor ((1.0 2.0 3.0) (4.0 5.0 6.0))) "
         "(tensor ((7.0 8.0) (9.0 10.0) (11.0 12.0)))))"
     )
-    assert r == [[expr(expr(58.0, 64.0), expr(139.0, 154.0))]]
-    assert am.run("!(t-shape (zeros 2 3))") == [[expr(2, 3)]]
+    assert r == [[Expression((Expression((58.0, 64.0)), Expression((139.0, 154.0))))]]
+    assert am.run("!(t-shape (zeros 2 3))") == [[Expression((2, 3))]]
     assert am.run("!(t-item (t-sum (tensor (1.0 2.0 3.0))))") == [[6.0]]
 
 
@@ -72,19 +74,19 @@ def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
 
     assert am.run(
         "!(let True (broadcast-shape (4 1) (3) $shape) $shape)"
-    ) == [[expr(4, 3)]]
+    ) == [[Expression((4, 3))]]
     assert am.run(
         "!(let True (broadcast-shape ($d 1) (1 3) (4 3)) $d)"
     ) == [[4]]
     assert am.run("!(broadcast-shape (2 3) (4 3) (4 3))") == [[]]
 
-    assert am.run("!(t-shape (reshape (arange-t 4) 2 2))") == [[expr(2, 2)]]
+    assert am.run("!(t-shape (reshape (arange-t 4) 2 2))") == [[Expression((2, 2))]]
     tensors = "((tensor ((1 2))) (tensor ((3 4))))"
     assert am.run(f"!(t-tolist (cat {tensors} 0))") == [
-        [expr(expr(1.0, 2.0), expr(3.0, 4.0))]
+        [Expression((Expression((1.0, 2.0)), Expression((3.0, 4.0))))]
     ]
     assert am.run(f"!(t-tolist (stack {tensors} 0))") == [
-        [expr(expr(expr(1.0, 2.0)), expr(expr(3.0, 4.0)))]
+        [Expression((Expression((Expression((1.0, 2.0)),)), Expression((Expression((3.0, 4.0)),))))]
     ]
 
 
@@ -94,7 +96,7 @@ def test_the_constructor_builds_numpy_here(am):  # noqa: D103  -- pytest discove
 
 
 def test_activations_are_standard_not_torch(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert am.run("!(t-tolist (relu (tensor (-1.0 2.0))))") == [[expr(0.0, 2.0)]]
+    assert am.run("!(t-tolist (relu (tensor (-1.0 2.0))))") == [[Expression((0.0, 2.0))]]
     (group,) = am.run("!(t-tolist (softmax (tensor (0.0 0.0))))")
     assert [round(float(x), 3) for x in group[0]] == [0.5, 0.5]
 

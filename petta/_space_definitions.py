@@ -24,6 +24,8 @@ Guarantees:
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -51,7 +53,7 @@ from ._define_twins import (
 )
 from ._documentation import documentation_atom
 from ._ops import REGISTRY
-from .atoms import Atom, Expr, Gnd, S, Sym, Var, alpha_eq, encode, expr
+from .atoms import Atom, Expr, Expression, Gnd, S, Sym, Var, alpha_eq, encode
 from .define import (
     Compiled,
     Defined,
@@ -650,7 +652,7 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
             wrapper_for(fn),
             name=operation_name,
             declarations=[
-                expr(S.arguments, S[operation_name], S.atoms)
+                Expression((S.arguments, S[operation_name], S.atoms))
             ],
             arities=arities,
         )

@@ -1,4 +1,4 @@
-"""examples/functions/specialize.metta in Python: a call carrying a function specializes on it.
+"""Purpose: examples/functions/specialize.metta in Python: a call carrying a function specializes on it.
 
 Every shape is here: the function argument first, last, nested one level and
 nested two, reached through a wrapper, answered instead of applied, called
@@ -29,9 +29,16 @@ with `=`, MeTTa's unification rather than Python's `==`, and
 
 The residue table records the head-pattern and hyphenated-name gaps against
 P14.4.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, equation, expr, rules
+from petta import Expression, S, equation, rules
 
 #: The four `map-flat` variants, which are one algorithm at four argument
 #: shapes: the file's own lesson is the variation, so they read together.
@@ -107,10 +114,10 @@ ADD_ONE = S["+"](1)
 def twin(m):
     """Specialize eight functions on the function they carry."""
     m.add(*flat)
-    assert m.eval(S["map-flat"](ADD_ONE, (1, 2, 3))) == [expr(2, 3, 4)]
+    assert m.eval(S["map-flat"](ADD_ONE, (1, 2, 3))) == [Expression((2, 3, 4))]
 
     m.add(*flat2)
-    assert m.eval(S["map-flat2"](((1, 2, 3), ADD_ONE))) == [expr(2, 3, 4)]
+    assert m.eval(S["map-flat2"](((1, 2, 3), ADD_ONE))) == [Expression((2, 3, 4))]
 
     # (: map-flat3 (-> Atom %Undefined%))
     m += S[":"](S["map-flat3"], S["->"](S.Atom, S["%Undefined%"]))
@@ -121,12 +128,12 @@ def twin(m):
         # (= (p1 $x) (+ 1 $x))
         return 1 + x
 
-    assert m.eval(S["map-flat3"](S.p1((1, 2)))) == [expr(2, 3)]
+    assert m.eval(S["map-flat3"](S.p1((1, 2)))) == [Expression((2, 3))]
 
     # (: map-flat4 (-> Atom %Undefined%))
     m += S[":"](S["map-flat4"], S["->"](S.Atom, S["%Undefined%"]))
     m.add(*flat4)
-    assert m.eval(S["map-flat4"]((S.x, S.p1((1, 2))))) == [expr(2, 3)]
+    assert m.eval(S["map-flat4"]((S.x, S.p1((1, 2))))) == [Expression((2, 3))]
 
     # rung: the body names `map-flat`, and a compiled body resolves a free name
     #   EXACTLY (residue, P14.4)
@@ -136,7 +143,7 @@ def twin(m):
         yield equation(S.wrapper(f, items)).to(S["map-flat"](f, items))
 
     m.add(*wrapper)
-    assert m.eval(S.wrapper(ADD_ONE, (1, 2, 3))) == [expr(2, 3, 4)]
+    assert m.eval(S.wrapper(ADD_ONE, (1, 2, 3))) == [Expression((2, 3, 4))]
 
     @m.define
     def wrapper2(f):
@@ -198,5 +205,5 @@ def twin(m):
     m += equation(S.fun2()).to(S["higher-order-fun"](ADD_ONE, S["*"](1)))
     m += equation(S.fun3()).to(S["higher-order-fun"](S["*"](1), ADD_ONE))
 
-    assert m.eval(S.fun2()) == [expr(2, 1)]
-    assert m.eval(S.fun3()) == [expr(1, 2)]
+    assert m.eval(S.fun2()) == [Expression((2, 1))]
+    assert m.eval(S.fun3()) == [Expression((1, 2))]

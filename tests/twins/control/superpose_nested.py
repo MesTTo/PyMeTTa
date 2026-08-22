@@ -1,4 +1,4 @@
-"""examples/control/superpose_nested.metta in Python: a superposition flattens.
+"""Purpose: examples/control/superpose_nested.metta in Python: a superposition flattens.
 
 Four collapses of the same three answers, differing only in how deeply the
 superposition is nested, and all four give the answers back flat: nesting a
@@ -13,9 +13,16 @@ original. `collapse` is bound from `m.fn` because the dissolution table's
 The six tags are capitalised. A compiled body reads a lowercase free name as a
 function and a capitalised one as data, so `a` raises where `A` is data; the
 spelling gap case2 records against P14.4.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, expr
+from petta import Expression, S
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4872 to 5431, +559 (+11.5%), by the twin contract
@@ -53,4 +60,4 @@ def twin(m):
     both = S.A(S.B, S.C, S.X, S.Y, S.Z)
 
     # !(test (progme) ((a b c x y z) (a b c) (a b c) (a b c x y z)))
-    assert progme() == [expr(both, letters, letters, both)]
+    assert progme() == [Expression((both, letters, letters, both))]

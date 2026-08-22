@@ -4,13 +4,15 @@ Guarantees:
     [tested test_pure_workload_counts_are_derived]
   - json_wire round-trips the same 200-answer DAS-shaped payload through
     every measured iteration [tested test_pure_workload_counts_are_derived]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
-from petta import S, V, expr
+from petta import Expression, S, V
 from petta.atoms import from_wire
 from petta.testing import count_atoms
 
@@ -21,10 +23,10 @@ JSON_TRIPS = 2_000
 
 def wire_atom():
     """Build the fixed tree used by the wire codec workload."""
-    return expr(
-        S.deep,
-        *(expr(S.node, index, float(index), S.leaf) for index in range(50)),
-    )
+    return Expression(
+        (S.deep,
+        *(Expression((S.node, index, float(index), S.leaf)) for index in range(50)),
+    ))
 
 
 def wire_codec(atom, trips: int = WIRE_TRIPS) -> int:

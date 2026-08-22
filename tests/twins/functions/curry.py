@@ -1,4 +1,4 @@
-"""examples/functions/curry.metta in Python: too few arguments, and too many.
+"""Purpose: examples/functions/curry.metta in Python: too few arguments, and too many.
 
 Calling a function with FEWER arguments than it takes answers a partial
 application, which prints as `(partial f (1))` and can be called again later.
@@ -34,9 +34,16 @@ each other and the replacement index is then used against a twin dispatcher
 keyed by the PYTHON name, which is a fresh empty one. `@rules` writes both
 equations with parameter-scoped variables and no such path. The residue table
 records both against P14.4.
+Guarantees:
+  - expected printed output in this twin remains Python str text
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, equation, rules, val
+from petta import S, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 14982 to 12965, -2017 (-13.5%), by the twin
@@ -68,9 +75,9 @@ def twin(m):
     #   py-repr, not the engine's own (residue, P14.4)
     m += equation(S.show()).to(S.repr(S.f(1)))
 
-    assert m.one(S.repr(S.f(1))) == val("(partial f (1))")
+    assert m.one(S.repr(S.f(1))) == "(partial f (1))"
     assert m.eval((S.f(1), 2)) == [3]
-    assert m.one(S.repr(S.g(1, 2))) == val("(partial g (1 2))")
+    assert m.one(S.repr(S.g(1, 2))) == "(partial g (1 2))"
 
     @m.define
     def h(a, b):
@@ -78,7 +85,7 @@ def twin(m):
         return append((a,), b)
 
     assert tuple(m.one((S.h(42), (1, 2, 3)))) == (42, 1, 2, 3)
-    assert m.one(S.repr(S.h(42))) == val("(partial h (42))")
+    assert m.one(S.repr(S.h(42))) == "(partial h (42))"
 
     # (map-atom (1 2 3) (+ 1)): a comprehension builds the applications and
     # one evaluation runs them.
@@ -108,6 +115,6 @@ def twin(m):
 
     m.add(*overloaded)
 
-    assert m.one(S.repr(S["overloaded-curry"](1, 2))) == val(
+    assert m.one(S.repr(S["overloaded-curry"](1, 2))) == (
         "(partial overloaded-curry (1 2))"
     )

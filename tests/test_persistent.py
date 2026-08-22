@@ -1,6 +1,9 @@
 """Purpose: journal-backed fact spaces, including registered matching,
 validation, replay, terminal-tail repair, failed-write containment,
 compaction, and isolation between independent journals.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,7 +22,7 @@ import textwrap
 
 import pytest
 
-from petta import EngineError, PettaError, S, V, expr, val
+from petta import EngineError, Expression, PettaError, S, V, val
 from petta.persistent import PersistentFactSpace
 
 
@@ -45,7 +48,7 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  
         # removal that happened answers the unit value. Absence answers an
         # error instead, and this atom is there, so unit is the answer here
         # [tested test_removing_an_absent_atom_is_an_error_not_a_silent_unit].
-        assert metta.run(f"!(remove-atom {name} (edge a b))") == [[expr()]]
+        assert metta.run(f"!(remove-atom {name} (edge a b))") == [[Expression(())]]
         # The provider's own bool is the other half of the same fact: the
         # removal above took the edge, so the second one finds nothing.
         assert not provider.remove(S.edge(S.a, S.b))

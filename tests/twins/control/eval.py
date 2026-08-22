@@ -1,4 +1,4 @@
-"""examples/control/eval.metta in Python: reading a body, then running it.
+"""Purpose: examples/control/eval.metta in Python: reading a body, then running it.
 
 A `match` over the space answers a definition's BODY as data; it does not
 interpret what it answers. Running the body is a second and separate act, and
@@ -8,25 +8,29 @@ evaluation door takes the atom out of one and reduces it.
 `f` is a computation and is written as one. `evalCustom` is not: its body adds
 an equation to a space, reduces through it and takes it out again, and a
 compiled body has no spelling for a space write at all, so it stays a term.
-Its own form is declined for a different reason the residue table records
-against P14.14: it stores an equation whose body carries a variable the
-enclosing match minted, and compiling that equation costs a number that moves
-with the variable's identity, so the form answers correctly and cannot be
-priced. It is defined here and not run.
+Its counter varies because the stored equation carries a variable the
+enclosing match minted, so its BUDGET is an empirical envelope rather than a
+point. The form still runs and proves its answer.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5975 to 5577, -398 (-6.7%), by the twin contract
-#: change: the `let` and the `match` around the specialised body LEFT the
-#: engine for an assignment and the query door; the evaluation of the body
-#: and both definitions stay, and the declined second form is defined and not
-#: run. Measured min-of-3 over fresh processes with the MORK backend linked
-#: in, which the artefact-free worktree omits and which moves a compiled twin
-#: by about 10 inferences per definition; against the example's 15439 the
-#: ratio is 0.3612. Prior: 5975, the transliterated twin this replaces.
-BUDGET = 5577
+#: Successful costs from two complete concurrent ten-round observations plus
+#: eight subsequent complete gate-protocol observations
+#: [measured: 12114..12162 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=WORKTREE].
+BUDGET = {
+    "minimum": 12114,
+    "maximum": 12162,
+    "observations": 28,
+    "protocol": "full-lane/218/workers=32",
+}
 
 
 def twin(m):
@@ -43,7 +47,7 @@ def twin(m):
     #          (eval $fbody_specialized))
     #        (42.7 42))
     bodies = m.query(equation(S.f((42,), 40.7, 2)).to(V.x))
-    assert m.eval(bodies["x"][0]) == [expr(42.7, 42)]
+    assert m.eval(bodies["x"][0]) == [Expression((42.7, 42))]
 
     # (= (evalCustom $body)
     #    (let* (($a   (add-atom &self (= (myfunc) $body)))
@@ -55,3 +59,7 @@ def twin(m):
     read = (V.res, S.reduce(S.myfunc()))
     erase = (V.r, S["remove-atom"](S[m.space_name], stored))  # rung: the removal, the same way
     m += equation(S.evalCustom(V.body)).to(S["let*"]((write, read, erase), V.res))  # rung: `let*` sequencing is a statement list, which a definition that cannot be compiled cannot have
+
+    # !(test (evalCustom (match &self (= (f (42) 40.7 2) $x) $x))
+    #        (42.7 42))
+    assert m.eval(S.evalCustom(bodies["x"][0])) == [Expression((42.7, 42))]

@@ -10,6 +10,8 @@ Guarantees:
     awaited return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -105,7 +107,7 @@ def test_aio_carries_bounds_and_errors_across_threads(m):  # noqa: D103  -- pyte
                 await am.run("!(unclosed")
             with am.capture() as output:
                 groups = await am.run("!(println! crossed)")
-            assert groups == [[petta.expr()]]
+            assert groups == [[petta.Expression(())]]
             return output.text
 
     assert "crossed" in asyncio.run(go())

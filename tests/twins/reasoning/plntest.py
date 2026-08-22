@@ -1,4 +1,4 @@
-"""examples/reasoning/plntest.metta in Python: one PLN deduction, checked.
+"""Purpose: examples/reasoning/plntest.metta in Python: one PLN deduction, checked.
 
 Two syllogistic premises go in, one conclusion comes out, and the truth value
 on it is computed by the PLN deduction formula with its consistency
@@ -26,9 +26,16 @@ Each is a residue entry against P14.4. Where an operator does build the term it
 is used; where it cannot, the tuple is. `0 < V.As` would answer `(> $As 0)`
 because Python reflects `<` into `>`, so `(< 0 $As)` is written the way MeTTa
 writes it, as `(LT, 0, V.As)`.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, val
+from petta import TRUE, Expression, S, V, equation
 
 #: Why this file sits below the top rung: every definition but `clamp` is at
 #: the container door, for the four reasons the docstring lists, so the MeTTa
@@ -38,10 +45,6 @@ RUNG = "every definition but clamp divides, uses MeTTa's and, destructures in th
 #: The comparison head this file needs with a GROUND left operand, which is the
 #: one shape Python's own operators cannot build: `<` reflects into `>`.
 LT = S["<"]
-
-#: MeTTa's true. Named rather than written inline because a bare boolean in an
-#: argument list reads as a Python flag, and this one is an answer.
-TRUE = val(value=True)
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 33388 to 32531, -857 (-2.57%), by the twin contract
@@ -116,5 +119,5 @@ def twin(m):
 
     assert m.eval(S["|-"]((S.Inheritance(S.a, S.b), S.stv(0.9, 0.9)),
                           (S.Inheritance(S.b, S.c), S.stv(0.8, 0.9)))) == [
-        expr(S.Inheritance(S.a, S.c), S.stv(0.7333333333333334, 0.9))
+        Expression((S.Inheritance(S.a, S.c), S.stv(0.7333333333333334, 0.9)))
     ]

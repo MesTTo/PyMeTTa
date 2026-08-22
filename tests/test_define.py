@@ -18,6 +18,8 @@ Guarantees:
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,7 +37,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import CompileError, EngineError, S, expr, parse
+from petta import CompileError, EngineError, Expression, S, parse
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given
@@ -115,7 +117,7 @@ def test_recursion_compiles_and_runs(m):  # noqa: D103  -- pytest discovers or i
     assert m.run("!(dfact 5)") == [[120]]
     assert dfact.py(5) == 120
     assert dfact(5) == [120]
-    assert S.dfact(5) == expr(S.dfact, 5)  # the S door stages explicitly
+    assert S.dfact(5) == Expression((S.dfact, 5))  # the S door stages explicitly
     assert "(= (dfact $n)" in dfact.source()
 
 
@@ -199,8 +201,8 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     source_row = source_rows[0]
     assert source_row.space == S[m.space_name]
     assert source_row.path.value == str(Path(__file__).resolve())
-    source_fact = expr(
-        S["source-span"],
+    source_fact = Expression(
+        (S["source-span"],
         source_row.space,
         S.ast_observed,
         source_row.path,
@@ -208,7 +210,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
         source_row.sc,
         source_row.el,
         source_row.ec,
-    )
+    ))
     free_fact = parse(
         "(free-variable " + m.space_name + " ast_observed ast_helper)"
     )
@@ -305,7 +307,7 @@ def test_generator_is_superposition(m):  # noqa: D103  -- pytest discovers or in
         yield n + 1
         yield n * 10
 
-    assert m.run("!(collapse (dchoices 5))") == [[expr(5, 6, 50)]]
+    assert m.run("!(collapse (dchoices 5))") == [[Expression((5, 6, 50))]]
 
 
 def test_generator_with_branches(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -317,8 +319,8 @@ def test_generator_with_branches(m):  # noqa: D103  -- pytest discovers or injec
             yield Neg  # noqa: F821
         yield Always  # noqa: F821
 
-    assert m.run("!(collapse (dbranch 3))") == [[expr(S.Pos, S.Always)]]
-    assert m.run("!(collapse (dbranch -3))") == [[expr(S.Neg, S.Always)]]
+    assert m.run("!(collapse (dbranch 3))") == [[Expression((S.Pos, S.Always))]]
+    assert m.run("!(collapse (dbranch -3))") == [[Expression((S.Neg, S.Always))]]
 
 
 def test_lambda_is_first_class(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -357,7 +359,7 @@ def test_comprehension_is_map_atom(m):  # noqa: D103  -- pytest discovers or inj
     def dtens(xs):
         return [x * 10 for x in xs]
 
-    assert m.run("!(dtens (1 2 3))") == [[expr(10, 20, 30)]]
+    assert m.run("!(dtens (1 2 3))") == [[Expression((10, 20, 30))]]
 
 
 def test_filtered_comprehension_composes_filter_atom(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -365,7 +367,7 @@ def test_filtered_comprehension_composes_filter_atom(m):  # noqa: D103  -- pytes
     def dbig(xs):
         return [x for x in xs if x > 2]
 
-    assert m.run("!(dbig (1 2 3 4))") == [[expr(3, 4)]]
+    assert m.run("!(dbig (1 2 3 4))") == [[Expression((3, 4))]]
 
 
 def test_match_in_body_binds_pattern_variables(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -393,7 +395,7 @@ def test_constructor_convention_capitalized_names(m):  # noqa: D103  -- pytest d
     def dtag(x):
         return Result(x, Done)  # noqa: F821
 
-    assert m.run("!(dtag 7)") == [[expr(S.Result, 7, S.Done)]]
+    assert m.run("!(dtag 7)") == [[Expression((S.Result, 7, S.Done))]]
 
 
 @pytest.mark.parametrize(
@@ -636,9 +638,9 @@ def test_engine_functions_feel_like_python(m):  # noqa: D103  -- pytest discover
     m.run("(= (dtriple $x) (* $x 3))")
     triple = m.fn("dtriple")
     assert triple(14) == 42
-    assert m.fn("superpose").all(expr(1, 2)) == [1, 2]
+    assert m.fn("superpose").all(Expression((1, 2))) == [1, 2]
     with pytest.raises(EngineError):
-        m.fn("superpose")(expr(1, 2))  # two answers is not one
+        m.fn("superpose")(Expression((1, 2)))  # two answers is not one
 
 
 def test_boolean_operators_answer_the_operand(m):
@@ -721,7 +723,7 @@ def test_fstrings_str_round_range_slices(m):  # noqa: D103  -- pytest discovers 
     assert m.run("!(dbank 2.5)") == [[2]]
     assert m.run("!(dbank 3.5)") == [[4]]
     assert m.run("!(dspan 5)") == [[10]]
-    assert m.run("!(dcut (a b c d))") == [[expr(S.b, S.c)]]
+    assert m.run("!(dcut (a b c d))") == [[Expression((S.b, S.c))]]
     assert dlabel.py(7) == "v=007!" and dcut.py(("a", "b", "c", "d")) == ("b", "c")
     assert "py-str-join" in dlabel.runtime_ops
 
@@ -740,7 +742,7 @@ Threshold = 5
 
 
 def test_twin_refuses_engine_only_bodies(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.add(expr(S.fact9, 9))
+    m.add(Expression((S.fact9, 9)))
 
     @m.define
     def dseek():
@@ -773,7 +775,7 @@ def test_same_head_redefinition_replaces(m):  # noqa: D103  -- pytest discovers 
 
     dvalue = install_replacement_definition()
     # The notebook reading: one head, the newest body, exactly one answer.
-    assert m.run("!(collapse (dvalue))") == [[expr(2)]]
+    assert m.run("!(collapse (dvalue))") == [[Expression((2,))]]
     assert dvalue.py() == 2
 
 
@@ -826,7 +828,7 @@ def test_later_literal_head_subsumed_by_earlier_head_is_refused(m):  # noqa: D10
         def dsubsumed(x=1, y=0):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
             return 20
 
-    assert m.run("!(collapse (dsubsumed 1 0))") == [[expr(10)]]
+    assert m.run("!(collapse (dsubsumed 1 0))") == [[Expression((10,))]]
     assert dsubsumed.py(1, 0) == 10
 
 
@@ -980,7 +982,7 @@ def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D
         assert m.run("!(match &p12-witness-pool (Stamped $x) $x)") == [[7]]
         assert (
             m.run("!(collapse (match &p12-witness-pool (raw $x) $x))")
-            == [[expr()]]
+            == [[Expression(())]]
         )
 
         # The Python comparison decides admission in both directions.
@@ -995,7 +997,7 @@ def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D
             m.run("!(add-atom &p12-witness-pool (secret 1))")
         assert (
             m.run("!(collapse (match &p12-witness-pool (secret $x) $x))")
-            == [[expr()]]
+            == [[Expression(())]]
         )
     finally:
         m.run("!(undeclare-pre-add! &p12-witness-pool)")

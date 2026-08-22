@@ -1,4 +1,4 @@
-"""examples/control/letstarcomputed.metta in Python: bindings as a value.
+"""Purpose: examples/control/letstarcomputed.metta in Python: bindings as a value.
 
 The bindings of a `let*` are usually written out, and then they are syntax:
 the form rewrites them into nested `let`s once. They do not have to be written
@@ -16,13 +16,20 @@ against P14.4.
 Three things do move into Python: an answer set that is empty is an empty
 list, a refusal crosses the seam as a Python exception so `catch` is `except`,
 and `repr` of an atom is Python's own `str`.
+Guarantees:
+  - expected printed output in this twin remains Python str text
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, val
+from petta import S, V, equation
 from petta.errors import MettaOperationError
 
-#: What the unapplied form prints as, carried whole rather than parsed.
-UNAPPLIED = val("(partial let* (foo ok))")
+#: What the unapplied form prints as: expected printing is Python text.
+UNAPPLIED = "(partial let* (foo ok))"
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"

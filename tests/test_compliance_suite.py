@@ -19,6 +19,8 @@ Guarantees:
   - the engine-native inherited space passes the same compliance suite as an
     external provider [tested: TestNativeInheritedSpaceComplies;
     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -28,7 +30,7 @@ Open Obligations:
 import pytest
 
 from petta import MeTTa, SpaceName
-from petta.atoms import S, Sym, Var, expr
+from petta.atoms import Expression, S, Sym, Var
 from petta.errors import PettaError
 from petta.foreign import SpaceProvider
 from petta.testing import SpaceComplianceSuite
@@ -197,7 +199,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
     engine.register_space(ListSpace([]), name)
     try:
         space = engine.space(name)
-        rule = expr(Sym("="), expr(Sym("rl-double"), Var("x")), expr(Sym("*"), 2, Var("x")))
+        rule = Expression((Sym("="), Expression((Sym("rl-double"), Var("x"))), Expression((Sym("*"), 2, Var("x")))))
         with pytest.raises(PettaError) as refused:
             space.add(rule)
         message = str(refused.value)

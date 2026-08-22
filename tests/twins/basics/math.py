@@ -1,4 +1,4 @@
-"""examples/basics/math.metta in Python: the numeric surface.
+"""Purpose: examples/basics/math.metta in Python: the numeric surface.
 
 Every `-math` operation is an engine function, so `m.fn` names it once and it
 is then an ordinary Python callable: `sqrt(9)` is `(sqrt-math 9)` evaluated,
@@ -15,9 +15,16 @@ VALUES across int and float, are named too.
 
 `min-atom` and `max-atom` dissolve: an expression is a sequence, so Python's
 own `min` and `max` read it with no engine crossing at all.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, expr, val
+from petta import Expression, S, val
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 21852 to 6383, -15469 (-70.8%), by the twin
@@ -31,7 +38,7 @@ from petta import S, expr, val
 BUDGET = 6383
 
 #: The six numbers `min-atom` and `max-atom` are asked about.
-NUMBERS = expr(2, 6, 7, 4, 9, 3)
+NUMBERS = Expression((2, 6, 7, 4, 9, 3))
 
 
 def twin(m):

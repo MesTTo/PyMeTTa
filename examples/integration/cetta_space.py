@@ -16,6 +16,8 @@ Guarantees:
     test_cetta_space.py::test_removal_is_by_unification]
   - an atom whose text spans lines is refused at add, because the
     subprocess crossing is line-shaped
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -177,7 +179,7 @@ def demo() -> None:
     if cetta is None:
         skip("cetta is not on PATH and PETTA_CETTA does not name it")
     import petta
-    from petta import S, V, expr
+    from petta import Expression, S, V
     from petta.atoms import Gnd
 
     m = petta.MeTTa().new_space()
@@ -195,7 +197,7 @@ def demo() -> None:
         m.parse,
         cetta=cetta,
     )
-    rows = m.eval(expr(S.unify, Gnd(matcher), expr(S.sol, V.x), V.x, S.none))
+    rows = m.eval(Expression((S.unify, Gnd(matcher), Expression((S.sol, V.x)), V.x, S.none)))
     check("CeTTa answers bind inside unify", sorted(str(a) for a in rows),
           ["-2", "2"])
     done("cetta_space")

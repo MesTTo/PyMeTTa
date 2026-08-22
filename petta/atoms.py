@@ -12,6 +12,11 @@ Guarantees:
   - the immutable operator lowering table is public data [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
     commit=613f35974fa98746552dba584ad66082fdd1f3c7]
+  - the canonical truth, unit, and context atoms are public values [tested:
+    test_the_canonical_atoms_are_public_values; commit=WORKTREE]
+  - Expression preserves one iterable's order while assembling it into one
+    atom [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,7 +26,7 @@ Open Obligations:
 from __future__ import annotations
 
 import importlib
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from . import _atom_namespace as _namespace
@@ -52,9 +57,14 @@ _WIRE_VARS = _core._WIRE_VARS
 boxed = _core.boxed
 
 __all__ = [
+    "FALSE",
+    "HERE",
     "OPERATOR_LOWERINGS",
+    "TRUE",
+    "UNIT",
     "Atom",
     "Expr",
+    "Expression",
     "Gnd",
     "Handle",
     "OperatorLowering",
@@ -67,7 +77,6 @@ __all__ = [
     "atom_from_wire",
     "decode",
     "encode",
-    "expr",
     "from_wire",
     "is_ground",
     "map_atoms",
@@ -114,13 +123,28 @@ def val(value: Any) -> Gnd:
     return Gnd(value)
 
 
-def expr(*children: Any) -> Expr:
-    """An expression from parts, each encoded."""
-    return Expr([encode(c) for c in children])
+def Expression(children: Iterable[Any]) -> Expr:  # noqa: N802  -- the settled public constructor name denotes the constructed atom kind
+    """Assemble one ordered expression from an iterable of atoms or values.
+
+    Answers are a multiset whose execution order carries no meaning. This
+    constructor crosses into an object-level expression, where position and
+    multiplicity are data and therefore preserved exactly. It consumes the
+    iterable once [source: ai-python-conventions.md section 3.15;
+    commit=WORKTREE].
+    """
+    return Expr([encode(child) for child in children])
 
 
 S = _Namespace(Sym)
 V = _Namespace(Var)
+
+#: Canonical atoms shared by authored terms and expected answers. They are
+#: values, not factories, so a twin never reconstructs their spelling
+#: [tested: test_the_canonical_atoms_are_public_values; commit=WORKTREE].
+TRUE = Gnd(value=True)
+FALSE = Gnd(value=False)
+UNIT = Expr(())
+HERE = Expr((Sym("context-space"),))
 
 
 # -------------------------------------------------------------------- reading

@@ -1,4 +1,4 @@
-"""examples/functions/functionhead.metta in Python: an argument constrained to be a call's OUTPUT.
+"""Purpose: examples/functions/functionhead.metta in Python: an argument constrained to be a call's OUTPUT.
 
 An equation HEAD cannot carry the constraint, because a head is a pattern and
 a pattern is matched structurally at every depth: `(= (h (myfunc (10) $B) $C)
@@ -19,9 +19,16 @@ calls it too. The residue table records the gap against P14.4.
 `h_old` tests with `=`, MeTTa's unification, and `equation(a).to(b)` is the
 builder for exactly that atom; the newer `h` says the same thing with the
 inversion door.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, equation, expr, rules
+from petta import Expression, S, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 8240 to 7701, -539 (-6.5%), by the twin contract
@@ -69,5 +76,5 @@ def twin(m):
 
     m.add(*constrained)
 
-    assert m.eval(S.h((42, 10, 40), 42000)) == [expr((40,), 42000)]
-    assert m.eval(S.h_old((42, 10, 40), 42000)) == [expr((40,), 42000)]
+    assert m.eval(S.h((42, 10, 40), 42000)) == [Expression(((40,), 42000))]
+    assert m.eval(S.h_old((42, 10, 40), 42000)) == [Expression(((40,), 42000))]

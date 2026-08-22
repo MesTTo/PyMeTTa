@@ -1,4 +1,4 @@
-"""examples/data/holfunctions_intrinsicop.metta in Python: a builtin, partially applied.
+"""Purpose: examples/data/holfunctions_intrinsicop.metta in Python: a builtin, partially applied.
 
 `mymap` is written out rather than borrowed: two clauses, one for the empty
 expression and one for a cons cell, walking the structure and rebuilding it.
@@ -17,9 +17,16 @@ and the reason is the claim itself: Python's `==` in a compiled body lowers to
 `==` (measured; filed as P14.24). Comparing a builtin against a host crossing
 would be a different claim from the one the example makes. `a > b` in the same
 position DOES lower to MeTTa's `>`, so this is one operator, not the family.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10337 to 10353, +16 (+0.15%), by the twin-shape
@@ -38,12 +45,12 @@ BUDGET = 10353
 
 def twin(m):
     """Map a partially applied builtin and its defined twin over one list."""
-    m += equation(S.mymap(V.f, expr())).to(expr())
+    m += equation(S.mymap(V.f, Expression(()))).to(Expression(()))
     m += equation(S.mymap(V.f, S.cons(V.x, V.xs))).to(
-        S.cons(expr(V.f, V.x), S.mymap(V.f, V.xs))
+        S.cons(Expression((V.f, V.x)), S.mymap(V.f, V.xs))
     )
 
     m += equation(S.eq(V.a, V.b)).to(V.a.eq(V.b))
 
-    numbers = expr(1, 2, 3)
+    numbers = Expression((1, 2, 3))
     assert m.fn("mymap").all(S["=="](1), numbers) == m.fn("mymap").all(S.eq(1), numbers)

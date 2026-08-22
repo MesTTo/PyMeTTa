@@ -4,6 +4,8 @@ as alpha_eq membership, and the module's engine-freedom.
 Guarantees:
   - petta.structures imports and works in a process that never loads janus
     [tested test_structures_are_engine_free, subprocess-proven]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,7 +20,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from petta import S, V, expr, val
+from petta import Expression, S, V, val
 from petta.atoms import unify
 from petta.structures import AlphaSet, MatchIndex, PatternMap
 from petta.testing import atoms as atom_strategy
@@ -122,9 +124,9 @@ def test_matchindex_agrees_with_brute_force(patterns, probe):  # noqa: D103  -- 
 
 def test_alphaset_is_alpha_membership():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     rules = AlphaSet()
-    rules.add(expr(S["="], S.inc(V.x), expr(S["+"], V.x, 1)))
-    assert expr(S["="], S.inc(V.n), expr(S["+"], V.n, 1)) in rules
-    rules.add(expr(S["="], S.inc(V.q), expr(S["+"], V.q, 1)))
+    rules.add(Expression((S["="], S.inc(V.x), Expression((S["+"], V.x, 1)))))
+    assert Expression((S["="], S.inc(V.n), Expression((S["+"], V.n, 1)))) in rules
+    rules.add(Expression((S["="], S.inc(V.q), Expression((S["+"], V.q, 1)))))
     assert len(rules) == 1  # the renamed twin is the same element
     rules.add(S.pair(V.x, V.y))
     rules.add(S.pair(V.x, V.x))

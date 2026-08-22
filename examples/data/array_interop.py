@@ -1,6 +1,9 @@
 """Purpose: one operation set for every DLPack library: NumPy flows through
 the same MeTTa functions torch does, a mixed call converts through DLPack,
 and DLTensor is a protocol type the engine really checks.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,14 +18,14 @@ try:
 except ImportError:
     skip("numpy and array-api-compat are needed")
 
-from petta import MeTTa, S, V, arrays, decode, expr, val
+from petta import Expression, MeTTa, S, V, arrays, decode, val
 
 m = MeTTa().new_space()
 arrays.install(m, default=numpy)
 
 check("matmul over numpy",
       m.run("!(t-tolist (matmul (tensor ((1.0 2.0))) (tensor ((3.0) (4.0)))))"),
-      [[expr(expr(11.0))]])
+      [[Expression((Expression((11.0,)),))]])
 # The tensor is built first and the type read off the VALUE. get-type does
 # not evaluate its argument, so asking about the unreduced call `(tensor
 # (1.0))` reports what the expression is declared to be, not what building it

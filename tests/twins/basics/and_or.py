@@ -1,4 +1,4 @@
-"""examples/basics/and_or.metta in Python: the boolean connectives.
+"""Purpose: examples/basics/and_or.metta in Python: the boolean connectives.
 
 `(and true false)` is False, so `(or ... true)` is True and the original's
 `if` takes its first branch. The connectives are the engine's here and Python
@@ -14,14 +14,17 @@ One operator does reach here. `|` builds `(or ... True)` because its left
 operand is a built term; `TRUE & FALSE` would not, because two GROUND
 operands make a Python operator that value's own arithmetic, and it answers
 Python's `False` before the engine sees anything.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import FALSE, TRUE, S
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 989 to 738, -251 (-25.4%), by the twin contract

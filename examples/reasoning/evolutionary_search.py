@@ -2,6 +2,9 @@
 generation is space rewriting: variation is Python operations, fitness is an
 operation, and the generational loop with its stopping rule is MeTTa source.
 The shape MOSES-style program evolution takes on this substrate.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -12,7 +15,7 @@ import random
 
 from _common import check, done
 
-from petta import MeTTa, S, V, decode, expr
+from petta import Expression, MeTTa, S, V, decode
 
 random.seed(11)
 TARGET = [1, 0, 1, 1, 0, 1, 0, 1]
@@ -20,7 +23,7 @@ m = MeTTa().new_space()
 
 for index in range(16):
     genome = [random.randint(0, 1) for _ in TARGET]
-    m.add(expr(S.member, index, expr(*genome)))
+    m.add(Expression((S.member, index, Expression(genome))))
 
 
 @m.register_op
@@ -38,7 +41,7 @@ def breed(a, b):
     slot = random.randrange(len(child))
     if random.random() < 0.3:
         child[slot] = 1 - child[slot]
-    return expr(*child)
+    return Expression(child)
 
 
 @m.register_op(name="next-generation")
@@ -49,7 +52,7 @@ def next_generation() -> bool:
     m.run("!(match (context-space) (member $i $g) (remove-atom (context-space) (member $i $g)))")
     for index in range(16):
         a, b = random.sample(parents, 2)
-        m.add(expr(S.member, index, breed(a, b)))
+        m.add(Expression((S.member, index, breed(a, b))))
     return True
 
 

@@ -1,4 +1,4 @@
-"""examples/types/types_dependent.metta in Python: a type computed by a program.
+"""Purpose: examples/types/types_dependent.metta in Python: a type computed by a program.
 
 `get-type` is an ordinary function, so a program may add equations to it, and
 these two compute a type from the VALUE: an even number is an `EvenNumber`, and
@@ -14,9 +14,16 @@ classes so that `f` and `g` say their signatures as annotations.
 The comparison is `=alpha` and not `==` throughout, for the example's own
 reason: each comparison crosses KNOWN and different types, which `==` refuses
 by name, and `=alpha` is the comparison that takes anything.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 20711 to 19483, -1228 (-5.93%), by the twin-shape
@@ -50,7 +57,7 @@ def twin(m):
 
     assert f(2, 4) == [6]
 
-    ends = S["if"](alpha(V.tail, expr()), S.EvenNumberList, S["get-type"](V.tail))  # rung: same clause, same reason
+    ends = S["if"](alpha(V.tail, Expression(())), S.EvenNumberList, S["get-type"](V.tail))  # rung: same clause, same reason
     walk = S["if"](alpha(S["get-type"](V.head), S.EvenNumber), ends)  # rung: same clause, same reason
     m += equation(S["get-type"](S.cons(V.head, V.tail))).to(walk)  # rung: the head is get-type again, over a cons cell
 
@@ -58,4 +65,4 @@ def twin(m):
     def g(items: EvenNumberList) -> bool:  # noqa: ARG001  -- the parameter is what the signature declares; the body answers a constant
         return True
 
-    assert g(expr(2, 4, 6)) == [True]
+    assert g(Expression((2, 4, 6))) == [True]

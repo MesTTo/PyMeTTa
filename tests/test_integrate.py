@@ -8,6 +8,8 @@ Guarantees:
   - module operations use one transport selector and infer declarations from
     annotations [tested: test_module_ops_bulk_registers_a_stdlib_module;
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,7 +22,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import CastError, PettaError, S, Sym, V, expr, val
+from petta import CastError, Expression, PettaError, S, Sym, V, val
 from petta import integrate as pi
 
 
@@ -272,15 +274,15 @@ def test_networkx_integrates_in_a_page(metta):
 
     space = metta.new_space()
     # Structure as facts:
-    pi.facts(space, (expr(S.nx_edge, S[u], S[v], d["weight"]) for u, v, d in graph.edges(data=True)))
+    pi.facts(space, (Expression((S.nx_edge, S[u], S[v], d["weight"])) for u, v, d in graph.edges(data=True)))
     # Behaviour as an operation:
     def shortest_path(a, b):
         names = nx.shortest_path(graph, str(a), str(b), weight="weight")
-        return expr(*(S[n] for n in names))
+        return Expression(S[n] for n in names)
 
     space.register_op(shortest_path, name="nx-path")
     # And both compose with reasoning:
-    assert space.run("!(nx-path a c)") == [[expr(S.a, S.b, S.c)]]
+    assert space.run("!(nx-path a c)") == [[Expression((S.a, S.b, S.c))]]
     rows = space.query(S.nx_edge(S.a, V.to, V.w))
     assert {(str(r.to), float(r.w)) for r in rows} == {("b", 1.0), ("c", 9.0)}
 
@@ -298,12 +300,12 @@ def test_the_routing_frame_metta_subsumes_dispatch(metta):
         "(= (route $other) (NotFound 404 $other))\n"
         "(= (handle $request) (once (route $request)))"
     )
-    assert app.run("!(handle home)") == [[expr(S.Page, 200, "Welcome")]]
-    assert app.run("!(handle nowhere)") == [[expr(S.NotFound, 404, S.nowhere)]]
+    assert app.run("!(handle home)") == [[Expression((S.Page, 200, "Welcome"))]]
+    assert app.run("!(handle nowhere)") == [[Expression((S.NotFound, 404, S.nowhere))]]
     # And a middleware chain is function composition, for free:
     app.run('(= (logged $req) (let $res (handle $req) (Logged $req $res)))')
     (group,) = app.run("!(logged about)")
-    assert group == [expr(S.Logged, S.about, expr(S.Page, 200, "About us"))]
+    assert group == [Expression((S.Logged, S.about, Expression((S.Page, 200, "About us"))))]
 
 
 def test_entry_point_discovery_is_unloaded_and_loading_is_by_name(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

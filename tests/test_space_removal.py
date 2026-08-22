@@ -10,6 +10,8 @@ Guarantees:
     test_remove_atom_removes_one_occurrence_not_all,
     test_a_native_space_subtracts_one, test_a_python_provider_subtracts_one,
     test_a_persistent_space_subtracts_one_fact_like_a_native_one]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,7 +20,7 @@ Open Obligations:
 
 import pytest
 
-from petta import S, V, expr
+from petta import Expression, S, V
 from petta.foreign import SpaceProvider
 
 
@@ -45,7 +47,7 @@ def test_removing_an_absent_atom_is_an_error_not_a_silent_unit(m):  # noqa: D103
     present, absent = m.run(
         "!(remove-atom &self (present 1))\n!(remove-atom &self (never there))"
     )
-    assert present == [expr()]
+    assert present == [Expression(())]
     assert "remove-atom: atom is not in the space" in error_text(absent[0])
     assert error_text(absent[0]).startswith("(Error (remove-atom ")
     assert "(never there)" in error_text(absent[0])
@@ -58,7 +60,7 @@ def test_removing_the_same_atom_twice_errors_on_the_second(m):  # noqa: D103  --
     first, second = m.run(
         "!(remove-atom &self (once only))\n!(remove-atom &self (once only))"
     )
-    assert first == [expr()]
+    assert first == [Expression(())]
     assert "remove-atom: atom is not in the space" in error_text(second[0])
 
 
@@ -75,7 +77,7 @@ def test_the_absence_error_is_data_a_collapse_can_hold(m):  # noqa: D103  -- pyt
 def test_a_scalar_removal_reports_absence_too(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self lonely)")
     present, absent = m.run("!(remove-atom &self lonely)\n!(remove-atom &self nobody)")
-    assert present == [expr()]
+    assert present == [Expression(())]
     assert "remove-atom: atom is not in the space" in error_text(absent[0])
 
 
@@ -87,7 +89,7 @@ def test_an_absent_equation_removal_reports_absence(m):  # noqa: D103  -- pytest
         "!(remove-atom &self (= (kept-here $x) $x))\n"
         "!(remove-atom &self (= (never-defined $x) $x))"
     )
-    assert present == [expr()]
+    assert present == [Expression(())]
     assert "remove-atom: atom is not in the space" in error_text(absent[0])
 
 
@@ -128,8 +130,8 @@ def test_repeated_subtraction_walks_the_count_down_to_absence(m):  # noqa: D103 
         "!(remove-atom &self (dup 2))\n"
         "!(remove-atom &self (dup 2))"
     )
-    assert first == [expr()]
-    assert second == [expr()]
+    assert first == [Expression(())]
+    assert second == [Expression(())]
     assert "remove-atom: atom is not in the space" in error_text(third[0])
 
 
@@ -147,13 +149,13 @@ def test_a_scalar_removal_takes_one_copy(m):  # noqa: D103  -- pytest discovers 
 def test_removing_one_of_two_identical_equations_leaves_the_function_defined(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (twice-defined) 1)\n(= (twice-defined) 1)")
     (both,) = m.run("!(collapse (twice-defined))")
-    assert both == [expr(1, 1)]
+    assert both == [Expression((1, 1))]
     m.run("!(remove-atom &self (= (twice-defined) 1))")
     # The value, not the unreduced call: taking one equation away used to take
     # both, after which the collapse held `((twice-defined))`, which is also
     # one element and would pass a length check for the wrong reason.
     (one,) = m.run("!(collapse (twice-defined))")
-    assert one == [expr(1)]
+    assert one == [Expression((1,))]
 
 
 # A pattern with a variable removes ONE unifying occurrence, not every one.

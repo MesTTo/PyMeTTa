@@ -1,4 +1,4 @@
-"""examples/reasoning/scallop_readme.metta in Python: the five Scallop README programs.
+"""Purpose: examples/reasoning/scallop_readme.metta in Python: the five Scallop README programs.
 
 Transitive paths over edges, stratified even-or-odd through negation, a count
 per colour, an argmax per class, and a set-valued animal count. Each is a
@@ -19,20 +19,20 @@ tuples, `(> $a $b)` is `V.a > V.b`, `(- $n 2)` is `V.n - 2`, and
 is Python's own structural equality and the equality TERM is `.eq`. The five
 `collapse` calls stay where they are: each is inside a DEFINITION, so it is the
 example's own body rather than a claim the twin could make in Python.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, val
+from petta import HERE, TRUE, Expression, S, V, equation, val
 
 #: Why this file sits below the top rung: every definition but `sc-pick-max`
 #: calls a hyphenated sibling, which a compiled body cannot name.
 RUNG = "every definition but sc-pick-max calls a hyphenated sibling, and a compiled body names a callee by exactly its MeTTa spelling"
-
-#: MeTTa's true. Named rather than written inline because a bare boolean in an
-#: argument list reads as a Python flag, and this one is an answer.
-TRUE = val(value=True)
-
-#: `(context-space)`, the space a definition reads when it names none.
-HERE = S["context-space"]()
 
 #: The colours, the grades and the taxonomy the last three programs work over.
 COLOURS = ((0, val("blue")), (1, val("green")), (2, val("blue")))
@@ -70,7 +70,7 @@ def twin(m):
                          S.let(V.b, S["sc-path-to"](V.a), (V.a, V.b))))
     )
 
-    assert m.eval(S["sc-paths"]()) == [expr(expr(0, 1), expr(0, 2), expr(1, 2))]
+    assert m.eval(S["sc-paths"]()) == [Expression((Expression((0, 1)), Expression((0, 2)), Expression((1, 2))))]
 
     # 2. Stratified even-or-odd: negation sees the finite number relation whole.
     for number in range(11):
@@ -84,7 +84,7 @@ def twin(m):
                          S.let(TRUE, S["not-provable"](S["sc-odd?"](V.y)), V.y)))
     )
 
-    assert m.eval(S["sc-evens"]()) == [expr(0, 2, 4, 6, 8, 10)]
+    assert m.eval(S["sc-evens"]()) == [Expression((0, 2, 4, 6, 8, 10))]
 
     # 3. A count per colour, through the general fold rather than a counter.
     for obj, colour in COLOURS:
@@ -99,7 +99,7 @@ def twin(m):
     )
 
     assert m.eval(S["sc-color-counts"]()) == [
-        expr(expr(val("blue"), 2), expr(val("green"), 1))
+        Expression((Expression((val("blue"), 2)), Expression((val("green"), 1))))
     ]
 
     # 4. An argmax per class, through an open reducer rather than a closed list.
@@ -127,7 +127,7 @@ def twin(m):
     )
 
     assert m.eval(S["sc-class-top"]()) == [
-        expr(expr(0, val("jerry")), expr(1, val("sherry")))
+        Expression((Expression((0, val("jerry"))), Expression((1, val("sherry")))))
     ]
 
     # 5. The animal count as a SET: the raw proof multiset has four

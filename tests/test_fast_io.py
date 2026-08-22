@@ -1,5 +1,8 @@
 """Purpose: verify version-pinned fast cache save and load, text auto-detection,
 equation recompilation, live-object refusal, and corrupt-cache failures.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -13,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import EngineError, S, V, backend_info, expr, val
+from petta import EngineError, Expression, S, V, backend_info, val
 from petta import _space_persistence as persistence_module
 
 
@@ -274,7 +277,7 @@ def test_gz_round_trips_both_formats_and_import(metta, tmp_path):  # noqa: D103 
             ]
             assert target.run("!(gz-next 41)") == [[42]]
         # import! answers the unit value, the way add-atom and pragma! do.
-        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [[expr()]]
+        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [[Expression(())]]
         assert [row.x for row in imported.query(S["gz-fact"](V.x))] == [
             S.one,
             S.two,

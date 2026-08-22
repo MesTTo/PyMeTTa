@@ -20,6 +20,8 @@ Owns:
   - each factory returns a fresh space that close_engine_case or the caller
     releases after the operation [tested
     test_primitive_workloads_check_public_results]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -32,7 +34,7 @@ import tempfile
 from collections.abc import Callable
 from typing import Any, TypeAlias
 
-from petta import Expr, MeTTa, S, V, expr
+from petta import Expr, Expression, MeTTa, S, V
 
 ALPHA_TERMS = 50_000
 DIGEST_ATOMS = 20_000
@@ -56,7 +58,7 @@ SOURCE_FORMS = 1_000
 SPACE_NAME_CALLS = 30_000
 
 _BIGNUM = 10**40
-_LET_ROW = expr(*(_BIGNUM + index for index in range(LET_ROW_ELEMENTS)))
+_LET_ROW = Expression(_BIGNUM + index for index in range(LET_ROW_ELEMENTS))
 
 EngineCase: TypeAlias = tuple[MeTTa, Callable[[], int]]
 
@@ -117,7 +119,7 @@ def let_heavy(space: MeTTa, iterations: int = LET_ITERATIONS) -> int:
 
 def alpha_unique_case(terms: int = ALPHA_TERMS) -> EngineCase:
     """Build an alpha-equivalence workload over repeated variable shapes."""
-    values = expr(*(S.node(V[f"x{index % 100}"], index % 10) for index in range(terms)))
+    values = Expression(S.node(V[f"x{index % 100}"], index % 10) for index in range(terms))
     space = _space()
 
     def operation() -> int:
@@ -154,7 +156,7 @@ def digest_case(atoms: int = DIGEST_ATOMS) -> EngineCase:
 
 def py_method_case(calls: int = METHOD_CALLS) -> EngineCase:
     """Call a converted Python string method through MeTTa's py-call."""
-    call = S["py-call"](expr(S[".upper"], "abc"))
+    call = S["py-call"](Expression((S[".upper"], "abc")))
     space = _space()
 
     def operation() -> int:
@@ -170,7 +172,7 @@ def py_method_case(calls: int = METHOD_CALLS) -> EngineCase:
 
 def sort_atom_case(terms: int = SORT_TERMS) -> EngineCase:
     """Sort a deterministic permutation of bignums through sort-atom."""
-    values = expr(*(_BIGNUM + (index * 7_919) % terms for index in range(terms)))
+    values = Expression(_BIGNUM + (index * 7_919) % terms for index in range(terms))
     space = _space()
 
     def operation() -> int:

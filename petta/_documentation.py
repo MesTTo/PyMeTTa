@@ -18,6 +18,8 @@ Guarantees:
 Fails when: a docstring documents a parameter the signature does not have. The
   signature decides the list and its order, so the stray entry is dropped
   rather than shifting every later parameter's description onto the wrong one.
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,7 +32,7 @@ import inspect
 import re
 from typing import Any
 
-from .atoms import Expr, S, expr
+from .atoms import Expr, Expression, S
 
 __all__ = ["documentation_atom"]
 
@@ -108,7 +110,7 @@ def documentation_atom(name: str, source: object) -> Expr | None:
     if not documentation:
         return None
     summary, sections = _sections(documentation)
-    fields: list[Any] = [expr(S["@desc"], summary or documentation)]
+    fields: list[Any] = [Expression((S["@desc"], summary or documentation))]
 
     described = {}
     for heading in _ARGUMENT_SECTIONS:
@@ -121,15 +123,15 @@ def documentation_atom(name: str, source: object) -> Expr | None:
         # nth argument, so a docstring that names a parameter the function does
         # not take must not shift the rest.
         ordered = [
-            expr(S["@param"], described.get(parameter, ""))
+            Expression((S["@param"], described.get(parameter, "")))
             for parameter in _parameter_names(source)
         ]
         if ordered:
-            fields.append(expr(S["@params"], expr(*ordered)))
+            fields.append(Expression((S["@params"], Expression(ordered))))
 
     for heading in _RETURN_SECTIONS:
         if heading in sections:
-            fields.append(expr(S["@return"], _paragraph(sections[heading])))
+            fields.append(Expression((S["@return"], _paragraph(sections[heading]))))
             break
 
-    return expr(S["@doc"], S[name], *fields)
+    return Expression((S["@doc"], S[name], *fields))

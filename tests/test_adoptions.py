@@ -7,6 +7,8 @@ the &petta reflection space the library describes itself into.
 Guarantees:
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,7 +21,7 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from petta import REFLECTION_SPACE, Answer, MeTTa, S, V, alpha_eq, expr, val
+from petta import REFLECTION_SPACE, Answer, Expression, MeTTa, S, V, alpha_eq, val
 from petta.atoms import Expr, Gnd, Var
 from petta.ops import referenced_classes, type_atoms_for
 
@@ -48,22 +50,22 @@ def _arrows_of(space, name):
 
 
 def test_operators_build_terms_on_variables_and_symbols():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert (V.age >= 18) == expr(S[">="], V.age, 18)
-    assert (V.x + 1) == expr(S["+"], V.x, 1)
-    assert (2 * V.x) == expr(S["*"], 2, V.x)
-    assert (V.x + 1 <= V.y) == expr(S["<="], expr(S["+"], V.x, 1), V.y)
-    assert V.x.eq(3) == expr(S["=="], V.x, 3)
-    assert (V.a % 2) == expr(S["%"], V.a, 2)
-    assert (V.x**2) == expr(S["pow-math"], V.x, 2)
-    assert (V.a @ V.b) == expr(S["matmul"], V.a, V.b)
+    assert (V.age >= 18) == Expression((S[">="], V.age, 18))
+    assert (V.x + 1) == Expression((S["+"], V.x, 1))
+    assert (2 * V.x) == Expression((S["*"], 2, V.x))
+    assert (V.x + 1 <= V.y) == Expression((S["<="], Expression((S["+"], V.x, 1)), V.y))
+    assert V.x.eq(3) == Expression((S["=="], V.x, 3))
+    assert (V.a % 2) == Expression((S["%"], V.a, 2))
+    assert (V.x**2) == Expression((S["pow-math"], V.x, 2))
+    assert (V.a @ V.b) == Expression((S["matmul"], V.a, V.b))
 
 
 def test_boolean_operators_compose_guards():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     guard = (V.age >= 18) & (V.age <= 40)
-    assert guard == expr(S["and"], expr(S[">="], V.age, 18), expr(S["<="], V.age, 40))
-    assert (V.a | V.b) == expr(S["or"], V.a, V.b)
-    assert (V.a ^ V.b) == expr(S["xor"], V.a, V.b)
-    assert ~V.ok == expr(S["not"], V.ok)
+    assert guard == Expression((S["and"], Expression((S[">="], V.age, 18)), Expression((S["<="], V.age, 40))))
+    assert (V.a | V.b) == Expression((S["or"], V.a, V.b))
+    assert (V.a ^ V.b) == Expression((S["xor"], V.a, V.b))
+    assert ~V.ok == Expression((S["not"], V.ok))
 
 
 def test_grounded_values_keep_value_semantics():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -114,7 +116,7 @@ def test_typevar_annotations_declare_parametrically(m):  # noqa: D103  -- pytest
     def first_of(items: Sequence[A]) -> A:
         return items[0]
 
-    declaration = expr(S[":"], S["first-of"], expr(S["->"], S.Expression, Var("a")))
+    declaration = Expression((S[":"], S["first-of"], Expression((S["->"], S.Expression, Var("a")))))
     assert any(alpha_eq(a, declaration) for a in m.atoms())
     assert m.run("!(first-of (7 8 9))") == [[7]]
 
@@ -165,7 +167,7 @@ def test_callable_and_tuple_annotations_declare_structurally(m):  # noqa: D103  
         return (b, a)
 
     assert _arrows_of(m, "swap") == {"(-> (Number String) (String Number))"}
-    assert m.run('!(swap (7 "x"))') == [[expr("x", 7)]]
+    assert m.run('!(swap (7 "x"))') == [[Expression(("x", 7))]]
 
 
 def test_class_annotations_declare_the_class(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

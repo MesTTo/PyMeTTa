@@ -7,6 +7,8 @@ Guarantees:
     through `(arguments name atoms)` declarations [tested:
     test_a_generator_op_answers_bindings,
     test_a_det_op_answers_bindings_with_a_value; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,7 +17,7 @@ Open Obligations:
 
 import pytest
 
-from petta import Answer, Bindings, S, expr, parse
+from petta import Answer, Bindings, Expression, S, parse
 from petta.atoms import Expr, Gnd, Sym, Var
 from petta.errors import EngineError, PettaError, TransportFailure
 from petta.foreign import SpaceProvider
@@ -154,7 +156,7 @@ def test_a_generator_op_answers_bindings(metta):  # noqa: D103  -- pytest discov
     metta.register_op(
         relate,
         name="ap-rel",
-        declarations=[expr(S.arguments, S["ap-rel"], S.atoms)],
+        declarations=[Expression((S.arguments, S["ap-rel"], S.atoms))],
     )
     metta.run("(= (ap-probe $x) (let $r (ap-rel $x) (pair $x $r)))")
     out = metta.run("!(collapse (ap-probe $q))")
@@ -168,7 +170,7 @@ def test_a_det_op_answers_bindings_with_a_value(metta):  # noqa: D103  -- pytest
     metta.register_op(
         solve,
         name="ap-solve",
-        declarations=[expr(S.arguments, S["ap-solve"], S.atoms)],
+        declarations=[Expression((S.arguments, S["ap-solve"], S.atoms))],
     )
     metta.run("(= (ap-sprobe $x) (let $r (ap-solve $x) (pair $x $r)))")
     out = metta.run("!(collapse (ap-sprobe $q))")
@@ -261,12 +263,12 @@ def test_an_op_residue_closes_through_the_engine(metta):  # noqa: D103  -- pytes
     metta.register_op(
         pick,
         name="ap-pick",
-        declarations=[expr(S.arguments, S["ap-pick"], S.atoms)],
+        declarations=[Expression((S.arguments, S["ap-pick"], S.atoms))],
     )
     metta.register_op(
         pickbig,
         name="ap-pickbig",
-        declarations=[expr(S.arguments, S["ap-pickbig"], S.atoms)],
+        declarations=[Expression((S.arguments, S["ap-pickbig"], S.atoms))],
     )
     out = metta.run("!(collapse (ap-pick $x))")
     assert str(out[0][0]) == "(small)"
@@ -414,7 +416,7 @@ def test_an_undeclared_annotation_names_the_declaration(metta):  # noqa: D103  -
     metta.register_op(
         scorer,
         name="ap-undeclared",
-        declarations=[expr(S.arguments, S["ap-undeclared"], S.atoms)],
+        declarations=[Expression((S.arguments, S["ap-undeclared"], S.atoms))],
     )
     with pytest.raises(EngineError, match="annotations ap-undeclared ranked"):
         metta.run("!(collapse (ap-undeclared 1))")

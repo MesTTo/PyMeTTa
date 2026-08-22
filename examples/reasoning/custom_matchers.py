@@ -7,6 +7,8 @@ a few lines each, composing with structural match through evaluation.
 Guarantees:
   - the unannotated ranked operation makes no synthetic type claim [tested:
     test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,7 +25,7 @@ try:
 except ImportError:
     skip("numpy is not installed")
 
-from petta import Answer, Bindings, MeTTa, S, V, expr
+from petta import Answer, Bindings, Expression, MeTTa, S, V
 from petta.arrays import EmbeddingStore
 from petta.atoms import Gnd
 
@@ -42,24 +44,24 @@ class Regex:
             yield other
 
 starts_with_a = Gnd(Regex("^a"))
-(hit,) = m.eval(expr(S.unify, starts_with_a, S.abbey, S.hit, S.miss))
+(hit,) = m.eval(Expression((S.unify, starts_with_a, S.abbey, S.hit, S.miss)))
 check("regex value matches", hit, S.hit)
-(miss,) = m.eval(expr(S.unify, starts_with_a, S.zebra, S.hit, S.miss))
+(miss,) = m.eval(Expression((S.unify, starts_with_a, S.zebra, S.hit, S.miss)))
 check("regex value refuses", miss, S.miss)
 
 # Composition with structural match, no new syntax: the matchable gates
 # candidates the pattern produced.
 m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
 (gated,) = m.eval(
-    expr(
-        S.collapse,
-        expr(
-            S.match,
-            expr(S["context-space"]),
+    Expression(
+        (S.collapse,
+        Expression(
+            (S.match,
+            Expression((S["context-space"],)),
             S.person(V.p),
-            expr(S.unify, starts_with_a, V.p, V.p, expr(S.superpose, expr())),
-        ),
-    )
+            Expression((S.unify, starts_with_a, V.p, V.p, Expression((S.superpose, Expression(()))))),
+        )),
+    ))
 )
 check("composes with structural match", sorted(str(x) for x in gated), ["ada", "alan"])
 
@@ -95,7 +97,7 @@ class Nearest:
         yield Bindings({out: key})
 
 (nearest,) = m.eval(
-    expr(S.unify, Gnd(Nearest()), expr(S.espresso, V.k), V.k, S.none)
+    Expression((S.unify, Gnd(Nearest()), Expression((S.espresso, V.k)), V.k, S.none))
 )
 check("nearest neighbour", nearest, S.espresso)
 done("custom_matchers")

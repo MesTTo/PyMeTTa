@@ -1,4 +1,4 @@
-"""examples/reasoning/nars_tuffy.metta in Python: the Tuffy smokers knowledge base.
+"""Purpose: examples/reasoning/nars_tuffy.metta in Python: the Tuffy smokers knowledge base.
 
 Ten NARS sentences say who smokes, who is friends with whom, that friends of
 smokers smoke, and that smokers get cancer. The claim asks NARS what it makes
@@ -17,9 +17,16 @@ in prose, because a bare one is a confusable ruff refuses.
 computation: a compiled body's free names must be parameters, functions the
 engine knows by exactly that name, or capitalised constructors, and `-->`,
 `==>` and the product head are none of the three (residue, P14.4).
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: The space the import writes.
 SELF = S["&self"]  # rung: no import door hangs off the space handle
@@ -127,4 +134,4 @@ def twin(m):
     # sentences the derivation used.
     assert m.eval(
         S["NARS.Query"](S.kb(), inheritance(S.Edward, prop(S.cancerous)))
-    ) == [expr(S.stv(0.6, 0.48941156079382964), expr(2, 5, 6, 9, 10))]
+    ) == [Expression((S.stv(0.6, 0.48941156079382964), Expression((2, 5, 6, 9, 10))))]

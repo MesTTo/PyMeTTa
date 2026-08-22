@@ -39,6 +39,8 @@ Decides:
   - closing that stream is this module's job rather than the consumer's,
     because a Prolog cut, a resource guard and an exception all abandon it
     from outside Python and only the code holding it can say when it is done
+  - operation documentation names UNIT as the empty-expression value
+    [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -130,7 +132,7 @@ def _encode_result(value: Any, annotation: Any = Any) -> list:
         return value.to_wire()
     if value is None:
         # None is not a MeTTa value. A deterministic operation returning it
-        # answers nothing, the semidet reading; return petta.expr() for unit.
+        # answers nothing, the semidet reading; return petta.UNIT for unit.
         return _DECLINED
     if isinstance(value, Atom):
         return value.to_wire()

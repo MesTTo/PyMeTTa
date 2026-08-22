@@ -1,4 +1,4 @@
-"""examples/reasoning/logicprogset.metta in Python: a set built by checking it.
+"""Purpose: examples/reasoning/logicprogset.metta in Python: a set built by checking it.
 
 `myf` says what a two-element set containing `a` and `b` is, and the example
 then asks for one. Nothing constructs it: the first two conjuncts BIND `$M` by
@@ -16,9 +16,16 @@ answers VALUES, and `$M` is a BINDING. There is no Python door that hands back
 an evaluation's bindings, so the variable has to be carried out of the term by
 the term itself; `space[pattern]` binds only over stored atoms, and nothing
 here is stored.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 2948 to 2719, -229 (-7.77%), by the twin contract
@@ -38,5 +45,5 @@ def twin(m):
     )
 
     # `(a b)` is the two-member SET the search found, not a call, so it is built
-    # with expr rather than as `S.a(S.b)`, which would read as one.
-    assert m.eval(S["if"](S.once(S.myf(V.M)), V.M)) == [expr(S.a, S.b)]  # rung: $M is a binding no Python door hands back, and (a b) is a set rather than a call
+    # with Expression rather than as `S.a(S.b)`, which would read as one.
+    assert m.eval(S["if"](S.once(S.myf(V.M)), V.M)) == [Expression((S.a, S.b))]  # rung: $M is a binding no Python door hands back, and (a b) is a set rather than a call

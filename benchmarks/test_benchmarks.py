@@ -6,6 +6,8 @@ Guarantees:
     window [tested benchmark_case]
   - raw and encoded operation cases select one named transport mode [tested:
     test_raw_operation, test_encoded_operation; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -47,7 +49,7 @@ from benchmarks.workloads import (
     wire_atom,
     wire_codec,
 )
-from petta import Answer, MeTTa, S, V, expr
+from petta import Answer, Expression, MeTTa, S, V
 from petta.testing import benchmark_case, benchmark_counter_slope, count_atoms
 
 _ROWS = 2_000
@@ -150,7 +152,7 @@ def test_query_rows(benchmark, inference_baseline):
 def test_eval_arithmetic(benchmark, inference_baseline):
     def operation(space):
         for index in range(_ROWS):
-            space.eval(expr(S["+"], index, 1))
+            space.eval(Expression((S["+"], index, 1)))
         return _ROWS
 
     benchmark_case(
@@ -186,7 +188,7 @@ def _drop_operation_space(name):
 
 def _eval_registered(space, name):
     for index in range(_ROWS):
-        space.eval(expr(S[name], index, 1))
+        space.eval(Expression((S[name], index, 1)))
     return _ROWS
 
 

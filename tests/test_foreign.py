@@ -18,6 +18,8 @@ Guarantees:
     change [tested test_provider_registration_is_transactional]
   - the caller's bound reaches a provider that claimed exact and no other
     [tested test_a_bound_is_withheld_from_a_provider_that_claimed_nothing]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,6 +38,7 @@ from petta import (
     Clearer,
     Enumerable,
     Expr,
+    Expression,
     Matcher,
     MeTTa,
     PettaError,
@@ -43,7 +46,6 @@ from petta import (
     S,
     V,
     Var,
-    expr,
     parse,
     unify,
 )
@@ -101,7 +103,7 @@ def listspace(metta):  # noqa: D103  -- pytest discovers or injects this callabl
 def test_match_answers_exactly_what_the_pattern_names(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, _provider, m = listspace
     r = m.run(f"!(collapse (match {name} (edge $x $y) ($x $y)))")
-    assert r == [[expr(expr(S.a, S.b), expr(S.b, S.c))]]
+    assert r == [[Expression((Expression((S.a, S.b)), Expression((S.b, S.c))))]]
     # The provider yields (other 1) too, and unification is the engine's.
     assert m.run(f"!(match {name} (edge a $y) $y)") == [[S.b]]
 
@@ -109,7 +111,7 @@ def test_match_answers_exactly_what_the_pattern_names(listspace):  # noqa: D103 
 def test_conjunction_routes_through_the_provider(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name, provider, m = listspace
     r = m.run(f"!(collapse (match {name} (, (edge $x $y) (edge $y $z)) ($x $z)))")
-    assert r == [[expr(expr(S.a, S.c))]]
+    assert r == [[Expression((Expression((S.a, S.c)),))]]
 
 
 def test_python_query_api_over_foreign_space(listspace):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -134,7 +136,7 @@ def test_mixed_native_and_foreign_join(listspace):  # noqa: D103  -- pytest disc
         f"!(collapse (match {name} (edge $x $y) "
         f"(match (context-space) (blessed $x) ($x reaches $y))))"
     )
-    assert r == [[expr(expr(S.a, S.reaches, S.b))]]
+    assert r == [[Expression((Expression((S.a, S.reaches, S.b)),))]]
 
 
 def test_read_only_provider_errors_loudly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -883,13 +885,13 @@ def test_an_eager_foreign_match_pulls_each_candidate_once(metta):
         def atoms(self):
             for i in range(2000):
                 self.yields += 1
-                yield expr(S.p, i)
+                yield Expression((S.p, i))
 
     class CountingMatch(CountingEnumerate):
         def match(self, pattern):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
             for i in range(2000):
                 self.yields += 1
-                yield expr(S.p, i)
+                yield Expression((S.p, i))
 
     for name, provider in (("&pull-enumerate", CountingEnumerate()),
                            ("&pull-match", CountingMatch())):

@@ -10,6 +10,8 @@ Guarantees:
     commit=53686aed41e7ff02de69052198afdb537536cbdb]
   - booleans use MeTTa's canonical True and False text [tested:
     test_swrite_writes_mettas_own_boolean_literal; commit=53686aed41e7ff02de69052198afdb537536cbdb]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,12 +25,12 @@ import pytest
 from petta import (
     EngineError,
     Expr,
+    Expression,
     Gnd,
     S,
     Sym,
     Var,
     alpha_eq,
-    expr,
     parse,
     unify,
 )
@@ -107,7 +109,7 @@ def test_engine_wire_round_trip(metta_session, atom):
 @example(atom=Gnd('say "hi"'))
 @example(atom=Gnd("back\\slash"))
 @example(atom=Gnd("carriage\rreturn"))
-@example(atom=expr(S.s, Gnd("nested\nnewline")))
+@example(atom=Expression((S.s, Gnd("nested\nnewline"))))
 @given(_writer_atoms)
 @settings(max_examples=100, deadline=None)
 def test_every_generated_atom_survives_the_write_parse_round_trip(
@@ -229,13 +231,13 @@ def test_python_equality_is_engine_equality(metta, a, b):
     relation; two ATOMS carry unification instead, the next law down.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     if _kind(a) != _kind(b):
-        refused = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
+        refused = metta.eval(Expression((S["=="], Gnd(a), Gnd(b))))
         assert len(refused) == 1
         assert str(refused[0]).startswith("(Error (==")
         assert "BadArgType" in str(refused[0])
         assert (Gnd(a) == b) is False
         return
-    engine = metta.eval(expr(S["=="], Gnd(a), Gnd(b)))
+    engine = metta.eval(Expression((S["=="], Gnd(a), Gnd(b))))
     assert len(engine) == 1
     assert engine[0].value is (Gnd(a) == b)
 

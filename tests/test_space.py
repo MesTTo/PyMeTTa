@@ -29,6 +29,8 @@ Guarantees:
   - strict and raw execution choices use scopes and named transport rather
     than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
     test_eval_using_carries_identity; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,6 +46,7 @@ import pytest
 import petta
 from petta import (
     EngineError,
+    Expression,
     MeTTa,
     MettaOperationError,
     MettaSyntaxError,
@@ -55,7 +58,6 @@ from petta import (
     _engine,
     alpha_eq,
     decode,
-    expr,
     parse,
     val,
 )
@@ -286,7 +288,7 @@ def test_clear_removes_equations_too(m):  # noqa: D103  -- pytest discovers or i
     assert m.run("!(clr-f)") == [[77]]
     m.clear()
     # The equation is gone: the call no longer reduces, it stays inert.
-    assert m.run("!(clr-f)") == [[expr(S["clr-f"])]]
+    assert m.run("!(clr-f)") == [[Expression((S["clr-f"],))]]
 
 
 def test_empty_space_is_still_true(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -345,7 +347,7 @@ def test_removing_an_equation_from_a_named_space_stops_its_answers(metta):
         assert named.remove(equation) is True
         assert equation not in named
         assert named.run("!(p1-named-gone 41)") == [
-            [expr(S["p1-named-gone"], 41)]
+            [Expression((S["p1-named-gone"], 41))]
         ]
 
 
@@ -369,7 +371,7 @@ def test_ior_refuses_the_operands_add_would_lift(m):  # noqa: D103  -- pytest di
         m |= 3.5
     # += keeps add()'s lifted reading: one expression atom, not two.
     m += [1, 2]
-    assert m.atoms() == [expr(1, 2)]
+    assert m.atoms() == [Expression((1, 2))]
 
 
 def test_space_names_lists_the_registered_spaces(metta, m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -385,9 +387,9 @@ def test_space_names_lists_the_registered_spaces(metta, m):  # noqa: D103  -- py
 
 
 def test_eval(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert metta.eval(S["car-atom"](expr(1, 2, 3))) == [1]
-    assert metta.eval(S.superpose(expr(S.x, S.y))) == [S.x, S.y]
-    assert metta.eval(expr(S["+"], 20, 22)) == [42]
+    assert metta.eval(S["car-atom"](Expression((1, 2, 3)))) == [1]
+    assert metta.eval(S.superpose(Expression((S.x, S.y)))) == [S.x, S.y]
+    assert metta.eval(Expression((S["+"], 20, 22))) == [42]
 
 
 def test_source_strings_are_parsed_where_atoms_are_expected(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -451,7 +453,7 @@ def test_parse_keeps_variable_names():  # noqa: D103  -- pytest discovers or inj
 
 def test_parse_reads_booleans_the_way_the_engine_does():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert parse("True") == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert parse("(a False)") == expr(S.a, False)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
+    assert parse("(a False)") == Expression((S.a, False))
 
 
 def test_live_object_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -539,7 +541,7 @@ def test_match_patterns_are_structural(m):
     assert m.run("!(let $s (sz-here) (match (context-space) (pair $s $v) $v))") == [[S.yes]]
     # The literal idiom: the pattern (pair (sz-here) $v) matches nothing,
     # because no stored atom is literally shaped that way.
-    assert m.run("!(collapse (match (context-space) (pair (sz-here) $v) $v))") == [[expr()]]
+    assert m.run("!(collapse (match (context-space) (pair (sz-here) $v) $v))") == [[Expression(())]]
 
 
 def test_bare_atoms_are_refused_loudly(m):
@@ -551,9 +553,9 @@ def test_bare_atoms_are_refused_loudly(m):
     with pytest.raises(TypeError):
         m.add(7)
     with pytest.raises(TypeError, match="non-empty expression"):
-        m.add(expr())
+        m.add(Expression(()))
     with pytest.raises(TypeError, match="non-empty expression"):
-        m.remove(expr())
+        m.remove(Expression(()))
 
 
 def test_a_bare_runnable_atom_answers_a_group(m):
@@ -584,10 +586,10 @@ def test_variable_names_survive_to_the_printer(m):  # noqa: D103  -- pytest disc
     )
 
     assert free == [Var("free")]
-    assert repeated == [expr(S.pair, Var("left"), Var("left"))]
-    assert first_epoch == [expr(S.pair, Var("x#0"), Var("x#0"))]
+    assert repeated == [Expression((S.pair, Var("left"), Var("left")))]
+    assert first_epoch == [Expression((S.pair, Var("x#0"), Var("x#0")))]
     assert second_epoch == [
-        expr(S.triple, Var("x"), Var("y#1"), Var("y#1"))
+        Expression((S.triple, Var("x"), Var("y#1"), Var("y#1")))
     ]
     assert str(free[0]) == "$free"
     assert str(repeated[0]) == "(pair $left $left)"
@@ -803,7 +805,7 @@ def test_a_rational_tree_join_fails_the_row_instead_of_the_process(m):  # noqa: 
     m.add(parse("(rt-fact (f $x) $x)"))
     assert len(m.query(parse("(rt-fact $y $y)"))) == 0
     assert m.run("!(collapse (match (context-space) (rt-fact $y $y) hit))") == [
-        [expr()]
+        [Expression(())]
     ]
     # The acyclic twin still answers through both doors.
     m.add(parse("(rt-fact ok ok)"))

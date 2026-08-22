@@ -1,4 +1,4 @@
-"""examples/control/if_branch_binding.metta in Python: arms bind alone.
+"""Purpose: examples/control/if_branch_binding.metta in Python: arms bind alone.
 
 A conditional arm whose value collapses to a clause parameter must not capture
 the clause's output at translate time; the other arm still runs its own
@@ -18,14 +18,17 @@ defect lives in. `case-else` is the same shape through `case`, which Python's
 `match` statement would spell and the compiled subset has no lowering for yet
 (P14.4); writing it as an `if` would only repeat the equation above it, so it
 stays a term.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, val
-
-#: MeTTa's boolean ATOMS, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and these are answers.
-TRUE, FALSE = val(value=True), val(value=False)
+from petta import FALSE, TRUE, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 10686 to 7517, -3169 (-29.7%), by the twin contract

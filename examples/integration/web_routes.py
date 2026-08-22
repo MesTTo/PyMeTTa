@@ -15,6 +15,8 @@ Guarantees:
   - handler registration derives declarations from the callable rather than
     selecting an untyped boolean mode [tested:
     test_example_runs_and_verifies_itself; commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,7 +29,7 @@ from typing import Any
 
 from _common import check, done
 
-from petta import MeTTa, S, V, expr
+from petta import Expression, MeTTa, S, V
 from petta.atoms import Expr, Gnd, Sym, Var, decode, encode, unify, variables
 
 #: FastAPI's path converters: the caster runs after the structural match,
@@ -96,16 +98,16 @@ class Router:
                   handler: str) -> None:
         self._casters[self._count] = casters
         self._m.add(
-            expr(S.route, S[self.name], S[method], Expr(segments),
-                 S[handler], self._count)
+            Expression((S.route, S[self.name], S[method], Expr(segments),
+                 S[handler], self._count))
         )
         self._count += 1
 
     def dispatch(self, method: str, path: str) -> Response:
         request = Expr([Sym(s) for s in path.strip("/").split("/") if s])
         table = self._m.query(
-            expr(S.route, S[self.name], S[method.upper()],
-                 V.pattern, V.handler, V.k)
+            Expression((S.route, S[self.name], S[method.upper()],
+                 V.pattern, V.handler, V.k))
         )
         matched = False
         for row in sorted(table, key=lambda r: int(decode(r.k))):
@@ -131,8 +133,8 @@ class Router:
                 ]
             except (ValueError, TypeError):
                 continue  # the parameter refused; a later route may accept
-            answers = self._m.eval(expr(Sym(str(row.handler)),
-                                        *[encode(v) for v in values]))
+            answers = self._m.eval(Expression((Sym(str(row.handler)),
+                                        *[encode(v) for v in values])))
             # Exactly one. A handler that answers nothing is not a 404, and a
             # handler that answers twice is not its first answer; both used to
             # be rewritten into a response the caller could not tell from a

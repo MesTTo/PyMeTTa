@@ -5,6 +5,9 @@ foreign-clear hook, and subscriptions fire across processes: a write in
 one process lands in another's Python callback through the per-space
 channel, remote events asynchronous, each write heard once per process.
 Skips whole when docker cannot serve an ephemeral Redis.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,7 +22,7 @@ import uuid
 
 import pytest
 
-from petta import S, V, expr
+from petta import Expression, S, V
 
 _CONTAINER = f"petta-redis-test-{uuid.uuid4().hex[:12]}"
 
@@ -132,7 +135,7 @@ def test_shared_facts_join_native_facts(shared, metta):  # noqa: D103  -- pytest
             "!(match &shared-test (lives $who $city)"
             " (match &self (capital $city $land) ($who $land)))"
         )
-        assert groups == [[expr(S.ann, S.france)]]
+        assert groups == [[Expression((S.ann, S.france))]]
     finally:
         metta.remove(S.capital(S.paris, S.france))
 

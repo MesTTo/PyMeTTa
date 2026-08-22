@@ -26,6 +26,11 @@ Guarantees:
   - equation and rules are public package-level authoring helpers [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=88d2e764c999d89e8919172e5c1455be804b293d]
+  - the canonical truth, unit, and context atoms plus the ordered Expression
+    constructor are available at package level [tested:
+    test_the_canonical_atoms_are_public_values,
+    test_expression_assembles_one_ordered_atom_from_an_iterable;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -142,9 +147,14 @@ from . import (  # noqa: E402
 from ._engine import engine_thread  # noqa: E402
 from .answer import Answer, Bindings  # noqa: E402
 from .atoms import (  # noqa: E402
+    FALSE,
+    HERE,
     OPERATOR_LOWERINGS,
+    TRUE,
+    UNIT,
     Atom,
     Expr,
+    Expression,
     Gnd,
     Handle,
     OperatorLowering,
@@ -157,7 +167,6 @@ from .atoms import (  # noqa: E402
     atom_from_wire,
     decode,
     encode,
-    expr,
     is_ground,
     map_atoms,
     order_key,
@@ -315,8 +324,12 @@ def backend_info() -> dict[str, str | None]:
 
 __all__ = [
     "DECLINE",
+    "FALSE",
+    "HERE",
     "OPERATOR_LOWERINGS",
     "REFLECTION_SPACE",
+    "TRUE",
+    "UNIT",
     "Adder",
     "AlgebraDeclarationError",
     "AlgebraEvaluation",
@@ -349,6 +362,7 @@ __all__ = [
     "Event",
     "EventStream",
     "Expr",
+    "Expression",
     "Fact",
     "Fold",
     "Gnd",
@@ -412,7 +426,6 @@ __all__ = [
     "engine_thread",
     "equation",
     "eval",
-    "expr",
     "fn",
     "foreign",
     "integrate",

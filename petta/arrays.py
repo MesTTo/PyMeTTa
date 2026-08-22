@@ -27,6 +27,8 @@ Guarantees:
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +46,7 @@ from typing import Any, Final, Literal, NewType, cast
 from . import integrate as _integrate
 from ._ops import REGISTRY
 from ._optional import optional_module, require_module
-from .atoms import Atom, Expr, Gnd, S, Var, decode, expr, val
+from .atoms import Atom, Expr, Expression, Gnd, S, Var, decode, val
 from .errors import PettaError
 
 __all__ = [
@@ -291,7 +293,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         namespaced = f"{name}--{library}"
         declarations = [
-            expr(declaration.head, S[namespaced], *declaration.args[1:])
+            Expression((declaration.head, S[namespaced], *declaration.args[1:]))
             if (
                 isinstance(declaration, Expr)
                 and declaration.args
@@ -325,7 +327,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
                 and isinstance(declaration.args[1], Expr)
                 and declaration.args[1].head == S["->"]
             ):
-                alias_type = expr(S[":"], S[name], declaration.args[1])
+                alias_type = Expression((S[":"], S[name], declaration.args[1]))
                 if alias_type not in m:
                     m.add(alias_type)
         registered.append(name)
@@ -356,7 +358,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         make_tensor,
         name="tensor",
         transport="encoded",
-        declarations=[expr(S.arguments, S.tensor, S.atoms)],
+        declarations=[Expression((S.arguments, S.tensor, S.atoms))],
     )
 
     dims = [1, 2, 3, 4]
@@ -525,13 +527,13 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def tolist(a: DLTensor) -> Any:
         data: Any = decode(a) if isinstance(a, Atom) else a
         listed = data.tolist() if hasattr(data, "tolist") else list(data)
-        return expr(*listed) if isinstance(listed, list) else listed
+        return Expression(listed) if isinstance(listed, list) else listed
 
     op(tolist, name="t-tolist", transport="encoded")
 
     def shape(a: DLTensor) -> Expr:
         data: Any = decode(a) if isinstance(a, Atom) else a
-        return expr(*[int(dimension) for dimension in data.shape])
+        return Expression([int(dimension) for dimension in data.shape])
 
     op(shape, name="t-shape", transport="encoded")
 
@@ -635,12 +637,12 @@ class EmbeddingStore:
         m.register_op(
             knn,
             name=internal_knn,
-            declarations=[expr(S.arguments, S[internal_knn], S.atoms)],
+            declarations=[Expression((S.arguments, S[internal_knn], S.atoms))],
         )
         m.register_op(
             embed,
             name=internal_embed,
-            declarations=[expr(S.arguments, S[internal_embed], S.atoms)],
+            declarations=[Expression((S.arguments, S[internal_embed], S.atoms))],
         )
 
         key = (m.space_name, name)
@@ -787,7 +789,7 @@ class EmbeddingStore:
 
     def _search(self, query: Any, k: int):
         for key, score in self.ranked(query, k):
-            yield expr(key, score)
+            yield Expression((key, score))
 
     def _resolve(self, query: Any) -> Any:
         """A query as a vector: an array or sequence stands as itself, a

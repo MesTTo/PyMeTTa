@@ -1,4 +1,4 @@
-"""examples/spaces/evalc.metta in Python: naming the space you evaluate in.
+"""Purpose: examples/spaces/evalc.metta in Python: naming the space you evaluate in.
 
 Each space compiles its own equations into its own module, so `distance` means
 feet in `&self` and metres in `&metric`, and `evalc` is how you reach the other
@@ -18,9 +18,16 @@ Three terms here are arithmetic over two GROUND operands, `(+ 5 5)` twice and
 Python's `+`. That is deliberate: on a grounded number Python's operators are
 that number's own arithmetic, so `val(5) + 5` is 10 rather than the term
 `(+ 5 5)`, and only inside a compiled body does `+` BUILD one (residue, P14.4).
+Guarantees:
+  - expected printed output in this twin remains Python str text
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import MettaOperationError, S, V, equation, val
+from petta import MettaOperationError, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 11798 to 7462, -4336 (-36.8%), by the twin contract
@@ -78,7 +85,7 @@ def twin(m):
         m.fn("evalc")(S.distance(2), 7)
     except MettaOperationError as error:
         refusal = error
-    assert str(refusal) == val("evalc: SpaceType expected, found 7")
+    assert str(refusal) == "evalc: SpaceType expected, found 7"
 
     # The removal funnel owns the stored equation and its compiled clause, so
     # the metric answer leaves and the inherited &self one becomes visible.

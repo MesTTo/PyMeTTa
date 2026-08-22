@@ -1,4 +1,4 @@
-"""examples/basics/time_and_pragmas.metta in Python: bounds, time and pragmas.
+"""Purpose: examples/basics/time_and_pragmas.metta in Python: bounds, time and pragmas.
 
 Three of the four bounding forms have a Python door and take it. `timeout` and
 `inferences` are per-call keywords, so `(timeout 30 (spin 100))` is
@@ -20,17 +20,17 @@ which a compiled body cannot name, so it is written at the container door.
 guard: its two clauses are non-exclusive and both apply at 0, which is what
 makes the runaway branch reachable at all. `@m.define` would emit
 `(if (== $n 0) (empty) ...)` and prune it, so `@rules` is the door.
+Guarantees:
+  - TRUE, FALSE, UNIT, and HERE used here are package values rather
+    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr, rules, val
-
-#: MeTTa's boolean ATOM, which is what `True` means inside a term. Named
-#: rather than written inline because a bare boolean in an argument list
-#: reads as a Python flag, and this is an answer.
-TRUE = val(value=True)
-
-#: The unit value, which is what a pragma answers, the way add-atom does.
-UNIT = expr()
+from petta import UNIT, S, V, equation, rules
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 43549 to 33675, -9874 (-22.7%), by the twin

@@ -17,6 +17,8 @@ Guarantees:
   - the bounded forms keep match/4's answer-shaped refusal, which the fused
     template-and-result spelling had lost
     [tested: test_a_bounded_match_on_an_unbound_space_answers_the_error; commit=54dec4e6de76f3adfd3c6cb941a8f6b04e594fa2]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,7 +27,7 @@ Open Obligations:
 
 import pytest
 
-from petta import S, V, expr
+from petta import Expression, S, V
 
 
 @pytest.fixture()
@@ -49,7 +51,7 @@ def test_match_snapshots_rows_before_template_effects(m):  # noqa: D103  -- pyte
         "                                (add-atom &self (link $y $x)))))"
     )
     # Three loop rotations, one unit each. One unit is what a lazy match gives.
-    assert rewrites[0] == expr(expr(), expr(), expr())
+    assert rewrites[0] == Expression((Expression(()), Expression(()), Expression(())))
     assert sorted(str(atom) for atom in m.atoms()) == [
         "(link A C)",
         "(link B A)",
@@ -67,12 +69,12 @@ def test_a_single_pattern_keeps_the_row_its_sibling_removed(m):  # noqa: D103  -
         "(= (visit beta) (let () (remove-atom &self (item alpha)) beta))"
     )
     (answers,) = m.run("!(collapse (match &self (item $x) (visit $x)))")
-    assert answers[0] == expr(S.alpha, S.beta)
+    assert answers[0] == Expression((S.alpha, S.beta))
     # Both templates ran, so both items are gone: each removed the other.
     # The two equations are atoms of this space too, so the items are counted
     # rather than the whole space.
     (left,) = m.run("!(collapse (match &self (item $x) $x))")
-    assert left[0] == expr()
+    assert left[0] == Expression(())
 
 
 def test_a_single_pattern_snapshot_costs_nothing_extra(metta):
@@ -160,11 +162,11 @@ def test_a_bounded_conjunctive_match_stops_at_the_bound(metta):
         (answers,) = space.run(
             "!(once (match &self (, (edge $x $y) (edge $y $z)) (only-late $x)))"
         )
-        assert answers == [expr(S.late, 3)]
+        assert answers == [Expression((S.late, 3))]
         (bounded,) = space.run(
             "!(take 2 (match &self (, (edge $x $y) (edge $y $z)) (only-late $x)))"
         )
-        assert bounded == [expr(S.late, 3), expr(S.late, 4)]
+        assert bounded == [Expression((S.late, 3)), Expression((S.late, 4))]
     finally:
         space.drop()
 
@@ -209,7 +211,7 @@ def test_a_conjunction_carries_each_rows_annotation(metta):
             "            (pair $p (annotation))))"
         )
         # Unannotated atoms read the semiring's 1, once per row.
-        assert paired[0] == expr(expr(S.pair, expr(S.path, S.a, S.c), 1))
+        assert paired[0] == Expression((Expression((S.pair, Expression((S.path, S.a, S.c)), 1)),))
     finally:
         space.drop()
 

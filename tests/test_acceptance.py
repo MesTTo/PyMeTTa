@@ -6,6 +6,9 @@ sqlite3 under closed-world bag semantics with transactional writes;
 best-first emission promise. Every assertion here is one of the spec's
 own expected bullets, so this file failing means the acceptance claim
 is false, not that a test is stale.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,7 +19,7 @@ import sqlite3
 
 import pytest
 
-from petta import Answer, EngineError, S, expr
+from petta import Answer, EngineError, Expression, S
 from petta.atoms import Expr, Var, parse
 from petta.foreign import SpaceProvider
 from petta.testing import check_space_provider
@@ -169,7 +172,7 @@ class CosineIndex(SpaceProvider):
             scored = scored[:limit]
         for key, cosine in scored:
             yield Answer(
-                value=expr(S.near, S[query], S[key]), k=cosine
+                value=Expression((S.near, S[query], S[key])), k=cosine
             )
 
 

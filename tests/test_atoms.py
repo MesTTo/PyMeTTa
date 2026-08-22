@@ -2,6 +2,9 @@
 Owns:
   - test_atom_identity_caches_are_thread_safe joins every cache worker
     before checking identity [tested test_atom_identity_caches_are_thread_safe]
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,6 +25,7 @@ import pytest
 
 from petta import (
     Expr,
+    Expression,
     Gnd,
     S,
     Sym,
@@ -30,7 +34,6 @@ from petta import (
     _engine,
     alpha_eq,
     encode,
-    expr,
     map_atoms,
     parse,
     unify,
@@ -149,7 +152,7 @@ def test_numpy_scalars_are_engine_numbers(metta):  # noqa: D103  -- pytest disco
         assert atom == scalar
         assert atom.to_wire() == ["n", expected]
         assert str(atom) == repr(expected)
-        assert metta.eval(expr(S["+"], atom, 1)) == [Gnd(expected + 1)]
+        assert metta.eval(Expression((S["+"], atom, 1))) == [Gnd(expected + 1)]
 
 
 def test_non_real_numpy_values_stay_opaque():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -172,7 +175,7 @@ def test_numbers_tower_reals_normalize_and_non_reals_stay_opaque():  # noqa: D10
 
 
 def test_expr_is_a_sequence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    e = expr(S.a, 1, "s")
+    e = Expression((S.a, 1, "s"))
     assert len(e) == 3
     assert e[0] == S.a
     head, *args = e
@@ -186,7 +189,7 @@ def test_expr_is_a_sequence():  # noqa: D103  -- pytest discovers or injects thi
 
 
 def test_expr_sequence_index_and_count():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    atom = expr(S.f, S.a, S.b, S.a)
+    atom = Expression((S.f, S.a, S.b, S.a))
     assert atom.index(S.a) == 1
     assert atom.index(S.a, 2) == 3
     assert atom.count(S.a) == 2
@@ -195,28 +198,28 @@ def test_expr_sequence_index_and_count():  # noqa: D103  -- pytest discovers or 
 
 
 def test_expr_identity_equality():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    shared = expr(S.node, S.leaf)
-    atom = expr(S.root, shared, shared)
+    shared = Expression((S.node, S.leaf))
+    atom = Expression((S.root, shared, shared))
     same = atom
     assert atom == same
-    assert atom == expr(S.root, shared, shared)
+    assert atom == Expression((S.root, shared, shared))
 
 
 def test_symbol_application_builds_expressions():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert S.Parent(S.Tom, S.Bob) == expr(S.Parent, S.Tom, S.Bob)
-    assert S.f(1, "x") == expr(S.f, 1, "x")
+    assert S.Parent(S.Tom, S.Bob) == Expression((S.Parent, S.Tom, S.Bob))
+    assert S.f(1, "x") == Expression((S.f, 1, "x"))
 
 
 def test_atoms_are_immutable():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(AttributeError):
         S.foo.name = "bar"
     with pytest.raises(AttributeError):
-        expr(S.a).children = ()
+        Expression((S.a,)).children = ()
 
 
 @pytest.mark.parametrize(
     "atom",
-    [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
+    [S.foo, V.x, Gnd(3), Gnd("text"), Expression((S.f, S.a, Gnd(2)))],
 )
 def test_atoms_copy_by_identity(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert copy.copy(atom) is atom
@@ -225,7 +228,7 @@ def test_atoms_copy_by_identity(atom):  # noqa: D103  -- pytest discovers or inj
 
 @pytest.mark.parametrize(
     "atom",
-    [S.foo, V.x, Gnd(3), Gnd("text"), expr(S.f, S.a, Gnd(2))],
+    [S.foo, V.x, Gnd(3), Gnd("text"), Expression((S.f, S.a, Gnd(2)))],
 )
 def test_atoms_pickle_by_value(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     restored = pickle.loads(pickle.dumps(atom))
@@ -241,7 +244,7 @@ def test_process_local_grounded_values_refuse_pickle():  # noqa: D103  -- pytest
 
 
 def test_atoms_cross_a_spawned_process_boundary():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    atom = expr(S.edge, S.Ada, Gnd(3))
+    atom = Expression((S.edge, S.Ada, Gnd(3)))
     context = multiprocessing.get_context("spawn")
     with ProcessPoolExecutor(max_workers=1, mp_context=context) as pool:
         restored = pool.submit(pickle.loads, pickle.dumps(atom)).result(timeout=15)
@@ -253,14 +256,14 @@ def test_printing_is_source_spelling():  # noqa: D103  -- pytest discovers or in
     assert str(V.x) == "$x"
     assert str(Gnd(True)) == "True"  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
     assert str(Gnd('say "hi"')) == '"say \\"hi\\""'
-    assert str(expr(S.a, 1, expr())) == "(a 1 ())"
+    assert str(Expression((S.a, 1, Expression(())))) == "(a 1 ())"
 
 
 def test_encode_python_values():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert encode(3) == Gnd(3)
     assert encode("s") == Gnd("s")
-    assert encode([1, 2]) == expr(1, 2)
-    assert encode((S.a, S.b)) == expr(S.a, S.b)
+    assert encode([1, 2]) == Expression((1, 2))
+    assert encode((S.a, S.b)) == Expression((S.a, S.b))
     assert encode(S.a) is S.a
 
 
@@ -322,11 +325,11 @@ def test_the_type_fast_path_precedes_encode_and_survives_a_register():
     assert encode("abcd") == Gnd("abcd")
     assert encode(2.5) == Gnd(2.5)
     assert encode(True) == Gnd(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-    assert encode([1, 2]) == expr(1, 2)
-    assert encode((S.a,)) == expr(S.a)
+    assert encode([1, 2]) == Expression((1, 2))
+    assert encode((S.a,)) == Expression((S.a,))
     assert encode(S.a) is S.a
     assert encode(V.x) is V.x
-    shared = expr(S.f, 1)
+    shared = Expression((S.f, 1))
     assert encode(shared) is shared
 
 
@@ -377,8 +380,8 @@ def test_wire_round_trip():  # noqa: D103  -- pytest discovers or injects this c
         Gnd(2.5),
         Gnd(True),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
         Gnd("text"),
-        expr(S.a, expr(S.b, V.y), 3, "s", False),  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
-        expr(),
+        Expression((S.a, Expression((S.b, V.y)), 3, "s", False)),
+        Expression(()),
     ]
     for a in atoms:
         assert from_wire(a.to_wire()) == a
@@ -393,7 +396,7 @@ def test_expr_defers_its_wire_form_until_asked():
     here goes through to_wire().
     """
     unset = object()
-    atom = expr(S.node, 1, expr(S.inner, V.x), "text")
+    atom = Expression((S.node, 1, Expression((S.inner, V.x)), "text"))
 
     # Construction writes nothing: the slot is absent, not None.
     assert getattr(atom, "_wire", unset) is unset
@@ -417,7 +420,7 @@ def test_expr_defers_its_wire_form_until_asked():
     assert inner.to_wire() is inner.to_wire()
 
     # The empty expression is not a special case.
-    empty = expr()
+    empty = Expression(())
     assert getattr(empty, "_wire", unset) is unset
     assert empty.to_wire() == ["e", []]
     assert empty.to_wire() is empty.to_wire()
@@ -514,15 +517,15 @@ def test_casting_protocol():  # noqa: D103  -- pytest discovers or injects this 
 
 
 def test_variables_and_groundness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert variables(expr(S.f, V.x, expr(V.y, V.x))) == ["x", "y"]
-    assert is_ground(expr(S.a, 1))
+    assert variables(Expression((S.f, V.x, Expression((V.y, V.x))))) == ["x", "y"]
+    assert is_ground(Expression((S.a, 1)))
     assert not is_ground(V.x)
 
 
 def test_alpha_eq():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    a = expr(S.f, V.x, V.y, V.x)
-    b = expr(S.f, V.p, V.q, V.p)
-    c = expr(S.f, V.p, V.q, V.q)
+    a = Expression((S.f, V.x, V.y, V.x))
+    b = Expression((S.f, V.p, V.q, V.p))
+    c = Expression((S.f, V.p, V.q, V.q))
     assert alpha_eq(a, b)
     assert not alpha_eq(a, c)
     assert alpha_eq(S.a, S.a)
@@ -533,7 +536,7 @@ def test_unify():  # noqa: D103  -- pytest discovers or injects this callable; i
     got = unify(S.Parent(V.x, S.Bob), S.Parent(S.Tom, S.Bob))
     assert got == {"x": S.Tom}
     assert unify(S.Parent(V.x, V.x), S.Parent(S.a, S.b)) is None
-    assert unify(V.x, expr(S.a)) == {"x": expr(S.a)}
+    assert unify(V.x, Expression((S.a,))) == {"x": Expression((S.a,))}
 
 
 def test_ground_equality_is_the_engines():
@@ -605,7 +608,7 @@ def test_deep_terms_cross_and_print():
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     atom = Gnd(1)
     for _ in range(5000):
-        atom = expr(S.wrap, atom)
+        atom = Expression((S.wrap, atom))
     assert from_wire(atom.to_wire()) == atom
     assert str(atom).startswith("(wrap (wrap")
     assert variables(atom) == []

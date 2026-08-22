@@ -29,7 +29,9 @@ Guarantees:
 Decides:
   - source text is NOT parsed here, because parsing needs the engine and
     this module's contract is engine-freedom; parse() first, or build
-    atoms with S/V/expr
+    atoms with S/V/Expression
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -70,7 +72,7 @@ def _as_atom(value: Any) -> Atom:
         msg = (
             f"petta.structures never parses source text ({value!r}), because "
             f"parsing needs the engine and this module runs without one; "
-            f"petta.parse() it first, or build the atom with S/V/expr"
+            f"petta.parse() it first, or build the atom with S/V/Expression"
         )
         raise TypeError(
             msg

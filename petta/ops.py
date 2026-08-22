@@ -45,6 +45,8 @@ Guarantees:
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;
     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -78,7 +80,7 @@ from ._type_annotations import (
 from ._type_annotations import (
     callable_name as _callable_name,
 )
-from .atoms import Atom, Expr, S, Sym, _to_atom, expr
+from .atoms import Atom, Expr, Expression, S, Sym, _to_atom
 
 _CO_GENERATOR = getattr(inspect, "CO_GENERATOR", 0x0020)
 _CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
@@ -120,10 +122,10 @@ def _op_facts(op: Operation) -> list[Expr]:
     the transaction, rollback, re-registration diff and unregister all treat
     the effect atom exactly as they treat the op atoms.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    facts = [expr(S.op, S[op.name], arity, S[op.kind]) for arity in op.arities]
+    facts = [Expression((S.op, S[op.name], arity, S[op.kind])) for arity in op.arities]
     facts.extend(fact for fact in op.catalog if fact not in facts)
     if op.inverse is not None:
-        facts.append(expr(S.inverse, S[op.name]))
+        facts.append(Expression((S.inverse, S[op.name])))
     return facts
 
 
@@ -485,11 +487,11 @@ def _partition_declarations(  # noqa: C901  -- _partition_declarations keeps the
 
 
 def _is_immutable(name: str, catalog: tuple[Expr, ...]) -> bool:
-    return expr(S.effect, S[name], S.immutable) in catalog
+    return Expression((S.effect, S[name], S.immutable)) in catalog
 
 
 def _passes_atoms(name: str, catalog: tuple[Expr, ...]) -> bool:
-    return expr(S.arguments, S[name], S.atoms) in catalog
+    return Expression((S.arguments, S[name], S.atoms)) in catalog
 
 
 def _operation_declarations(

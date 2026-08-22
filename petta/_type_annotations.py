@@ -20,6 +20,8 @@ Guarantees:
     type continues to determine arrow types and runtime conversion [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
     commit=f97e7f465274d378d2222f5b30b1b737c96f35f5]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,7 +41,7 @@ from typing import Any
 from ._config import config
 from ._convert_registry import _lookup as _lookup_conversion
 from ._parameterized import hook_for as _parameterized_hook
-from .atoms import Atom, Expr, Gnd, S, Sym, Var, encode, expr
+from .atoms import Atom, Expr, Expression, Gnd, S, Sym, Var, encode
 
 _TYPE_NAMES: tuple[tuple[type, str], ...] = (
     (bool, "Bool"),
@@ -313,7 +315,7 @@ def declaration_exprs(name: str, arg_annotations: list, ret_annotation: Any) -> 
         [*arg_lists, return_types],
         f"the signature of {name}",
     ):
-        declaration = expr(S[":"], S[name], Expr([S["->"], *combination]))
+        declaration = Expression((S[":"], S[name], Expr([S["->"], *combination])))
         _add_unique(declarations, seen, declaration)
     return declarations
 
@@ -323,15 +325,15 @@ def annotation_exprs(
 ) -> list[Expr]:
     """Represent full Python annotations as ordinary, matchable claims."""
     claims = [
-        expr(
-            S.annotation,
+        Expression(
+            (S.annotation,
             S[name],
-            expr(S.param, index, annotation_atom_for(annotation)),
-        )
+            Expression((S.param, index, annotation_atom_for(annotation))),
+        ))
         for index, annotation in enumerate(arg_annotations, start=1)
     ]
     claims.append(
-        expr(S.annotation, S[name], expr(S["return"], annotation_atom_for(ret_annotation)))
+        Expression((S.annotation, S[name], Expression((S["return"], annotation_atom_for(ret_annotation)))))
     )
     return claims
 

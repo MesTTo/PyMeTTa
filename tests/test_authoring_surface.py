@@ -15,11 +15,17 @@ Guarantees:
     test_one_name_resolution_rule_across_every_door,
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=88d2e764c999d89e8919172e5c1455be804b293d].
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
 import pytest
 
-from petta import Atom, CompileError, EngineError, Expr, S, V, equation, expr, rules
+from petta import Atom, CompileError, EngineError, Expr, Expression, S, V, equation, rules
 
 
 def test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself(
@@ -87,7 +93,7 @@ def test_yield_from_a_call_delegates_only_when_nondeterminism_is_known(metta):
             yield from local_stream(start + 1, stop)
 
     assert local.eval(S.collapse(S["p14-surface-stream"](1, 5))) == [
-        expr(1, 2, 3, 4)
+        Expression((1, 2, 3, 4))
     ]
 
     @metta.define

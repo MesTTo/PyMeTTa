@@ -15,7 +15,7 @@ Guarantees:
     - each test fails if its outcome is reverted, which is what makes it
       evidence rather than decoration
       [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
-      commit=dcfc20be4933c19140ccb5759291401d13058301]
+      commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -47,7 +47,10 @@ RUFF_FAMILY_BURN_DOWN = {
     # named-constant convention (`TRUE, FALSE = val(value=True), ...`) is used
     # where the value is reused rather than asked about once.
     "FBT": 67,
-    "N": 35,
+    # 35 -> 36 for R6's settled public `Expression(children)` constructor.
+    # It is deliberately a function because it encodes each item and returns
+    # the existing Expr kind rather than introducing a fifth atom class.
+    "N": 36,
     "A": 8,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
@@ -99,14 +102,18 @@ RUFF_FAMILY_BURN_DOWN = {
     # when it lands. Measured on the merged tree, after the last merge.
     # 2149 after the phrasebook lane joined the tree. Measured on the merged
     # tree, after the last merge.
-    "D": 2149,
-    # 145, from 139 before the idiomatic twin corpus. Every one of the six new
+    # 2149 -> 2151 before R6: the detached base already carried two more
+    # reviewed suppressions while retaining the older ceiling
+    # [measured: D=2151 and ARG=147; command=python -m pytest bindings/python/tests/test_gate_completeness.py::test_the_ruff_configuration_enables_every_family_or_records_why_not -q; fixture=detached df5063e8; commit=df5063e8aec3df48323dc402bca9b3fce427830a].
+    "D": 2151,
+    # 147, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
     # callback parameter a protocol fixes. Each carries a suppression naming
     # its reason, and --ignore-noqa counts the site whatever the suppression
-    # says, which is the point of a burn-down.
-    "ARG": 145,
+    # says, which is the point of a burn-down. Two later reviewed sites were
+    # already present at the detached R6 base measured above.
+    "ARG": 147,
     "PERF": 0,
     "C90": 24,
     "TRY": 23,

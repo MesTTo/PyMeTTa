@@ -1,4 +1,4 @@
-"""examples/control/sealed.metta in Python: freshening an atom's variables.
+"""Purpose: examples/control/sealed.metta in Python: freshening an atom's variables.
 
 `sealed` answers an Atom whose variables are fresh, except for the ones named
 in its ignore list, and the caller runs that Atom when it wants to. Every
@@ -21,9 +21,16 @@ the match answers `[($_716 ok), ($_716 ok)]` because each answer atom is
 decoded with its own variable numbering, while collapsing it first answers
 `(($_1732 ok) ($_1714 ok))`, which is the distinctness the claim is about.
 Filed as residue against P14.4.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, alpha_eq, equation, expr
+from petta import Expression, S, V, alpha_eq, equation
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "the `let`s here bind the variables whose identity is under test, which a Python name cannot be"
@@ -58,7 +65,7 @@ def twin(m):
     # the returned Atom is fresh.
     # !(test (collapse (let $z 7 (sealed ($z) ($z $w)))) ((7 $unbound)))
     kept = m.eval(S.let(V.z, 7, S.sealed((V.z,), (V.z, V.w))))
-    assert alpha_eq(expr(*kept), expr(expr(7, V.unbound)))
+    assert alpha_eq(Expression(kept), Expression((Expression((7, V.unbound)),)))
 
     # A ground Atom has no variable to rename.
     # !(test (sealed () 42) 42)
@@ -85,13 +92,13 @@ def twin(m):
     # !(test (collapse (let $f (mk-tagger) (superpose (($f 1) ($f 2)))))
     #        ((tagged 1 $a) (tagged 2 $b)))
     tagged = S.let(V.f, S["mk-tagger"](), S.superpose(((V.f, 1), (V.f, 2))))
-    assert alpha_eq(m.eval(S.collapse(tagged))[0], expr(S.tagged(1, V.a), S.tagged(2, V.b)))
+    assert alpha_eq(m.eval(S.collapse(tagged))[0], Expression((S.tagged(1, V.a), S.tagged(2, V.b))))
 
     # An ignored variable keeps its surrounding binding.
     # !(test (collapse (let $outer 7 (sealed ($outer) (both $outer $local))))
     #        ((both 7 $c)))
     outer = m.eval(S.let(V.outer, 7, S.sealed((V.outer,), S.both(V.outer, V.local))))
-    assert alpha_eq(expr(*outer), expr(S.both(7, V.c)))
+    assert alpha_eq(Expression(outer), Expression((S.both(7, V.c),)))
 
     # Freshen a rule's variables before adding it so two stored rules do not
     # share one identity. Evaluating the `sealed` first is what the original's
@@ -104,13 +111,13 @@ def twin(m):
     # !(test (collapse (match &self (stored-rule $x $y) ($x $y)))
     #        (($p ok) ($q ok)))
     both = S.match(S[m.space_name], S["stored-rule"](V.x, V.y), (V.x, V.y))
-    assert alpha_eq(m.eval(S.collapse(both))[0], expr(expr(V.p, S.ok), expr(V.q, S.ok)))
+    assert alpha_eq(m.eval(S.collapse(both))[0], Expression((Expression((V.p, S.ok)), Expression((V.q, S.ok)))))
 
     # The ignored $y keeps its binding; the unignored $x is fresh.
     # !(test (collapse (let $x 1 (let $y 2 (sealed ($y) (pair $x $y)))))
     #        ((pair $fresh 2)))
     paired = m.eval(S.let(V.x, 1, S.let(V.y, 2, S.sealed((V.y,), S.pair(V.x, V.y)))))
-    assert alpha_eq(expr(*paired), expr(S.pair(V.fresh, 2)))
+    assert alpha_eq(Expression(paired), Expression((S.pair(V.fresh, 2),)))
 
     # The returned Atom stays inert until eval is asked to run it.
     # !(test (let $atom (sealed () (+ 1 2)) (eval $atom)) 3)

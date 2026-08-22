@@ -1,5 +1,8 @@
 """Purpose: regressions for complete, idempotent library imports across
 pooled-space reuse, including loud errors from imported source files.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -8,7 +11,7 @@ Open Obligations:
 
 import pytest
 
-from petta import EngineError, S, expr
+from petta import EngineError, Expression, S
 
 DATETIME_IMPORT = "!(import! (context-space) (library lib_datetime))"
 FORMAT_DATE_CALL = '!(format-date 1735689600 "%B")'
@@ -33,7 +36,7 @@ def test_reused_pooled_space_reimports_complete_library(metta):  # noqa: D103  -
         for _ in range(2):
             with metta.new_space() as scratch:
                 names.append(scratch.space_name)
-                assert scratch.run(DATETIME_IMPORT) == [[expr()]]
+                assert scratch.run(DATETIME_IMPORT) == [[Expression(())]]
                 assert _format_date_clause_count(scratch) == 1
                 assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
 
@@ -45,11 +48,11 @@ def test_reused_pooled_space_reimports_complete_library(metta):  # noqa: D103  -
 
 def test_same_life_double_import_is_a_no_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta.new_space() as scratch:
-        assert scratch.run(DATETIME_IMPORT) == [[expr()]]
+        assert scratch.run(DATETIME_IMPORT) == [[Expression(())]]
         clauses_before = _format_date_clause_count(scratch)
         atoms_before = scratch.count()
 
-        assert scratch.run(DATETIME_IMPORT) == [[expr()]]
+        assert scratch.run(DATETIME_IMPORT) == [[Expression(())]]
         assert _format_date_clause_count(scratch) == clauses_before == 1
         assert scratch.count() == atoms_before
         assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
@@ -101,7 +104,7 @@ def test_imported_source_error_names_the_file(metta, tmp_path):  # noqa: D103  -
 
         broken.write_text("(= (recovered-import) recovered)\n")
         # import! answers the unit value, the way add-atom and pragma! do.
-        assert scratch.run(f'!(import! (context-space) "{broken}")') == [[expr()]]
+        assert scratch.run(f'!(import! (context-space) "{broken}")') == [[Expression(())]]
         assert scratch.run("!(recovered-import)") == [[S.recovered]]
 
 
@@ -131,21 +134,21 @@ def test_an_import_into_a_named_space_registers_its_equations_there(
     module.write_text("(= (scoped-swap (Pair $a $b)) (Pair $b $a))\n")
     with metta.new_space() as importer:
         assert importer.run(f'!(import! (context-space) "{module}")') == [
-            [expr()]
+            [Expression(())]
         ]
         assert importer.run("!(scoped-swap (Pair a b))") == [
-            [expr(S.Pair, S.b, S.a)]
+            [Expression((S.Pair, S.b, S.a))]
         ]
         # While the importer holds it, the top level still never imported
         # it, so there the name stays data, whole call handed back.
         stayed = metta.run("!(scoped-swap (Pair c d))")
-        assert stayed == [[expr(S["scoped-swap"], expr(S.Pair, S.c, S.d))]]
+        assert stayed == [[Expression((S["scoped-swap"], Expression((S.Pair, S.c, S.d))))]]
 
     # The arbiter's own spelling, a built-in module under an alias.
     bound = metta.run("!(bind! &scoped-skel (new-space))")
-    assert bound == [[expr()]]
-    assert metta.run("!(import! &scoped-skel skel)") == [[expr()]]
+    assert bound == [[Expression(())]]
+    assert metta.run("!(import! &scoped-skel skel)") == [[Expression(())]]
     alias_probe = metta.run("!(skel-swap-pair (Pair a b))")
     assert alias_probe == [
-        [expr(S["skel-swap-pair"], expr(S.Pair, S.a, S.b))]
+        [Expression((S["skel-swap-pair"], Expression((S.Pair, S.a, S.b))))]
     ]

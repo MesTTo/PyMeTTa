@@ -1,5 +1,8 @@
 """Purpose: the five-minute surface: run MeTTa source, build atoms in Python,
 query with joins, evaluate, and see why an answer holds.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -8,7 +11,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, V, expr
+from petta import Expression, MeTTa, S, V
 
 m = MeTTa().new_space()
 
@@ -24,7 +27,7 @@ check("join count", len(rows), 2)
 check("first grandparent", (rows[0].gp, rows[0].gc), (S.Tom, S.Ann))
 
 # Evaluation is what ! runs, nondeterminism included.
-check("eval", m.eval(S.superpose(expr(1, 2, 3))), [1, 2, 3])
+check("eval", m.eval(S.superpose(Expression((1, 2, 3)))), [1, 2, 3])
 
 # And an answer can explain itself: the proof names equations and facts.
 m.run("(= (anc $x $y) (match (context-space) (Parent $x $y) $y))\n"

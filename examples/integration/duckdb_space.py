@@ -7,6 +7,9 @@ symbol NULL both ways, non-primitive scalars (dates, decimals) cross as
 their ISO text so value semantics survive the boundary, and comparisons
 use IS NOT DISTINCT FROM so a NULL binding matches NULLs. The provider
 below is the whole worked SQL instance, not an import.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,7 +27,7 @@ try:
 except ImportError:
     skip("duckdb is not installed")
 
-from petta import MeTTa, S, V, expr
+from petta import Expression, MeTTa, S, V
 from petta.atoms import Atom, Expr, Gnd, Sym, Var, decode
 from petta.errors import PettaError
 from petta.foreign import SpaceProvider
@@ -251,7 +254,7 @@ def demo() -> None:
     provider = attach(m, "&crm", conn)
 
     check("enumerate", m.run("!(collapse (match &crm (users $id $n) $n))"),
-          [[expr("Ada", "Bob", "Cy")]])
+          [[Expression(("Ada", "Bob", "Cy"))]])
     check("pushdown filter", m.run("!(match &crm (users 2 $n) $n)"), [["Bob"]])
 
     # The filter genuinely ran in SQL: a spy connection sees the WHERE clause.
@@ -273,7 +276,7 @@ def demo() -> None:
 
     # Provider-level match answers atoms directly.
     check("provider-level match", list(provider.match(S.users(2, V.n))),
-          [expr(S.users, 2, "Bob")])
+          [Expression((S.users, 2, "Bob"))])
 
     # One match joins SQL tables with each other and with native facts.
     m.run("(nickname 1 the-countess)")
@@ -281,7 +284,7 @@ def demo() -> None:
         "!(collapse (match &crm (, (vips $id) (users $id $n)) "
         "(match (context-space) (nickname $id $nick) ($n $nick))))"
     )
-    check("SQL joined with native facts", group, [expr(expr("Ada", S["the-countess"]))])
+    check("SQL joined with native facts", group, [Expression((Expression(("Ada", S["the-countess"])),))])
 
     # Writes: add-atom inserts, remove-atom deletes, from running MeTTa.
     m.run('!(add-atom &crm (users 4 "Dee"))')
@@ -305,7 +308,7 @@ def demo() -> None:
           m.run('!(match &crm (logs "2026-08-13" $n) $n)'), [["shipped"]])
     provider.clear()
     check("clear empties, schema stays",
-          m.run("!(collapse (match &crm (logs $d $n) x))"), [[expr()]])
+          m.run("!(collapse (match &crm (logs $d $n) x))"), [[Expression(())]])
 
     m.unregister_space("&crm")
     done("duckdb_space")

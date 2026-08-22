@@ -1,4 +1,4 @@
-"""examples/data/listhead.metta in Python: list structure, twice over.
+"""Purpose: examples/data/listhead.metta in Python: list structure, twice over.
 
 `(cons $Head $Tail)` is how MeTTa takes an expression apart, and `head, *tail =
 e` is how Python does, at no engine cost at all: the first claim is that
@@ -10,9 +10,16 @@ name is Python's own builtin.
 That name is the interesting part. The engine walks the structure clause by
 clause and Python's `len` reads the count off the expression, and the third
 claim says they agree.
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation, expr
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: RE-PINNED 2026-08-22, 4655 to 3099, -1556 (-33.43%), by the twin-shape
@@ -27,10 +34,10 @@ BUDGET = 3099
 
 def twin(m):
     """Unpack an expression, then count one the long way and the short way."""
-    m += equation(S.len(expr())).to(0)
+    m += equation(S.len(Expression(()))).to(0)
     m += equation(S.len(S.cons(V.head, V.tail))).to(S.len(V.tail) + 1)
 
-    head, *tail = expr(1, 2, 3, 4, 5, 6)
+    head, *tail = Expression((1, 2, 3, 4, 5, 6))
     assert (head, tail) == (1, [2, 3, 4, 5, 6])
-    assert m.fn("len")(expr(1, 2, 3)) == len(expr(1, 2, 3)) == 3
-    assert m.fn("cons")(42, expr()) == expr(42)
+    assert m.fn("len")(Expression((1, 2, 3))) == len(Expression((1, 2, 3))) == 3
+    assert m.fn("cons")(42, Expression(())) == Expression((42,))

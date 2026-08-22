@@ -12,6 +12,8 @@ Guarantees:
     test_atomic_run_commits_or_rolls_back_whole,
     test_speculative_run_answers_and_discards;
     commit=6fbd5872cc0ff7abf9c99b90f915f8a31470a861]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -38,6 +40,7 @@ import petta
 from petta import (
     Bindings,
     EngineError,
+    Expression,
     InferenceLimitError,
     PettaError,
     ResourceLimitError,
@@ -46,7 +49,6 @@ from petta import (
     V,
     bridge,
     convert,
-    expr,
     remote,
     val,
 )
@@ -359,21 +361,21 @@ def test_a_grounded_matchable_composes_with_structural_match(m):  # noqa: D103  
 
     m.add(S.person(S.ada), S.person(S.alan), S.person(S.grace))
     rows = m.eval(
-        expr(
-            S.collapse,
-            expr(
-                S.match,
-                expr(S["context-space"]),
+        Expression(
+            (S.collapse,
+            Expression(
+                (S.match,
+                Expression((S["context-space"],)),
                 S.person(V.p),
-                expr(
-                    S.unify,
+                Expression(
+                    (S.unify,
                     Gnd(Initial("a")),
                     V.p,
                     V.p,
-                    expr(S.superpose, expr()),
-                ),
-            ),
-        )
+                    Expression((S.superpose, Expression(()))),
+                )),
+            )),
+        ))
     )
     assert sorted(str(x) for x in rows[0]) == ["ada", "alan"]
 
@@ -393,7 +395,7 @@ def test_embedding_store_is_a_semantic_matcher(m):  # noqa: D103  -- pytest disc
             assert 0.0 <= score <= 1.0
             yield Bindings({out: key})
 
-    rows = m.eval(expr(S.unify, Gnd(Nearest()), expr(S.dog, V.k), V.k, S.none))
+    rows = m.eval(Expression((S.unify, Gnd(Nearest()), Expression((S.dog, V.k)), V.k, S.none)))
     assert rows == [S.dog]
 
 
@@ -441,7 +443,7 @@ def test_type_declares_enum_members(m):  # noqa: D103  -- pytest discovers or in
         Calm = 1
         Storm = 2
 
-    assert expr(S[":"], S.Calm, S.DeclaredMood) in m
+    assert Expression((S[":"], S.Calm, S.DeclaredMood)) in m
 
 
 # ----------------------------------------------------- host values in source
@@ -477,7 +479,7 @@ def test_save_and_load_round_trip(metta, tmp_path):  # noqa: D103  -- pytest dis
     with metta.new_space() as reborn:
         reborn.load(str(path))
         assert len(reborn.query(S.fact(V.x))) == 2
-        assert reborn.run("!(greet world)") == [[expr(S.hello, S.world)]]
+        assert reborn.run("!(greet world)") == [[Expression((S.hello, S.world))]]
 
 
 def test_save_refuses_live_objects(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -613,12 +615,12 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
         (group,) = local.run(
             "!(collapse (match (context-space) (vip $id) (match &hq (users $id $n) $n)))"
         )
-        assert group == [expr("Ada")]
+        assert group == [Expression(("Ada",))]
         # Writes cross too, and the remote engine answers them back.
         local.run('!(add-atom &hq (users 3 "Cy"))')
         assert local.run("!(match &hq (users 3 $n) $n)") == [["Cy"]]
         local.run('!(remove-atom &hq (users 3 "Cy"))')
-        assert local.run("!(collapse (match &hq (users 3 $n) $n))") == [[expr()]]
+        assert local.run("!(collapse (match &hq (users 3 $n) $n))") == [[Expression(())]]
         # A space outside the allowlist is refused with the remote's words.
         stray = remote.RemoteSpace(remote.connect(info["url"]), "&self")
         with pytest.raises(PettaError):
@@ -650,7 +652,7 @@ def test_type_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest disc
     # A method answering the class answers a constructor TERM: MeTTa keeps
     # matching it, and Python builds it back as the object it is.
     (scaled,) = m.run("!(MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0)")[0]
-    assert scaled == expr(S.MethodPoint, 6.0, 8.0)
+    assert scaled == Expression((S.MethodPoint, 6.0, 8.0))
     assert convert.build(scaled, MethodPoint) == MethodPoint(6.0, 8.0)
     # An equation over the constructor is a method written in MeTTa, on
     # equal footing: MeTTa "modifies the object" and Python receives it.
@@ -658,7 +660,7 @@ def test_type_methods_run_on_terms_and_handles(m):  # noqa: D103  -- pytest disc
     (flipped,) = m.run("!(MethodPoint-flip (MethodPoint-scaled (MethodPoint 3.0 4.0) 2.0))")[0]
     assert convert.build(flipped, MethodPoint) == MethodPoint(8.0, 6.0)
     # A live handle works through the same methods.
-    assert m.eval(expr(S["MethodPoint-norm"], val(MethodPoint(3.0, 4.0)))) == [5.0]
+    assert m.eval(Expression((S["MethodPoint-norm"], val(MethodPoint(3.0, 4.0))))) == [5.0]
 
 
 def test_enum_members_match_in_metta(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -738,7 +740,7 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
             ssl_context=client_context,
         )
         atoms = list(remote.RemoteSpace(transport, served.space_name).atoms())
-        assert atoms == [expr(S.tls, S.ok)]
+        assert atoms == [Expression((S.tls, S.ok))]
         with pytest.raises(PettaError, match="not authorized"):
             bad_token = remote.connect(
                 server.url,
@@ -785,7 +787,7 @@ def test_limits_leave_finished_work_standing(m):  # noqa: D103  -- pytest discov
             "!(with-pragma! ((max-stack-depth 300000000)) (spin-c 100000000))",
             timeout=0.05,
         )
-    assert expr(S.landed, S.first) in m  # the fact before the stop stands
+    assert Expression((S.landed, S.first)) in m  # the fact before the stop stands
 
 
 def test_limits_on_query_eval_value_and_prepared(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -839,7 +841,7 @@ def test_eval_capture(m):  # noqa: D103  -- pytest discovers or injects this cal
     assert "from-eval" in output.text
     # println! answers the UNIT value, `()`, which is what the specification
     # types it with: "(-> %Undefined% (->))". It used to answer True.
-    assert answers == [expr()]
+    assert answers == [Expression(())]
 
 
 def test_stats_block_counts_the_work(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -990,21 +992,21 @@ def test_atomic_run_commits_or_rolls_back_whole(m):  # noqa: D103  -- pytest dis
     with pytest.raises(EngineError):
         with m.atomic():
             m.run("(kept fact) !(+ $left $right)")
-    assert expr(S.kept, S.fact) not in m  # the fact rolled back with the throw
+    assert Expression((S.kept, S.fact)) not in m  # the fact rolled back with the throw
     with m.atomic():
         m.run("(kept fact) !(+ 1 1)")
-    assert expr(S.kept, S.fact) in m  # and commits whole on success
+    assert Expression((S.kept, S.fact)) in m  # and commits whole on success
 
 
 def test_speculative_run_answers_and_discards(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with m.speculative():
         groups = m.run("(ghost fact) !(+ 2 2)")
     assert groups[-1] == [4]
-    assert expr(S.ghost, S.fact) not in m
+    assert Expression((S.ghost, S.fact)) not in m
     with m.speculative(), m.capture() as output:
         groups = m.run("(ghost2 x) !(println! spec-out)")
     assert "spec-out" in output.text
-    assert expr(S.ghost2, S.x) not in m
+    assert Expression((S.ghost2, S.x)) not in m
     with pytest.raises(ValueError):
         with m.atomic(), m.speculative():
             pass
@@ -1082,7 +1084,7 @@ def test_profile_extension_separates_an_indexed_table_from_a_single_clause(profi
 
 def test_profile_extension_shows_a_left_behind_choice_point(profiled):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     groups, costs = profiled.profile_extension("!(collapse (pd-many 1))", extension="profile_demo")
-    assert groups == [[expr(1, 2, 3)]]
+    assert groups == [[Expression((1, 2, 3))]]
     by_name = {cost.name: cost for cost in costs}
     # Three answers from one call, so the engine re-enters twice for the
     # second and third. That is what a leftover choice point looks like from
@@ -1168,7 +1170,7 @@ def test_relational_arithmetic_runs_backwards(m):  # noqa: D103  -- pytest disco
     assert m.run("!(let 4 (- $x 1) $x)") == [[5]]
     assert m.run("!(let 6 (* $x 2) $x)") == [[3]]
     # no integer doubles to 7, so that branch answers nothing
-    assert m.run("!(collapse (let 7 (* $x 2) $x))") == [[expr()]]
+    assert m.run("!(collapse (let 7 (* $x 2) $x))") == [[Expression(())]]
     assert m.run("!(let 2 (/ 6 $b) $b)") == [[3]]
     with pytest.raises(petta.MettaOperationError):
         m.run("!(+ $x $y)")

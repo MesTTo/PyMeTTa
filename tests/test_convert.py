@@ -4,6 +4,9 @@ refusals for unrepresentable state and type-name collisions.
 Owns:
   - test_registration_collisions_are_serialized joins both registry workers
     before checking the unique owner [tested test_registration_collisions_are_serialized]
+Guarantees:
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,7 +20,7 @@ from typing import NamedTuple
 
 import pytest
 
-from petta import Gnd, S, Sym, V, expr, val
+from petta import Expression, Gnd, S, Sym, V, val
 from petta.convert import (
     _is_plain_class,
     build,
@@ -55,14 +58,13 @@ def test_enum_projects_to_symbols_with_declarations():  # noqa: D103  -- pytest 
 
 def test_dataclass_projects_to_constructor_expression():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     projected = project(Person("Ada", 36))
-    assert projected.atom == expr(S.Person, "Ada", 36)
+    assert projected.atom == Expression((S.Person, "Ada", 36))
     assert "(: Person (-> String Number Person))" in set(map(str, projected.declarations))
 
 
 def test_namedtuple_projects_like_a_dataclass():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert project(CoordinateTuple(1.0, 2.0)).atom == expr(
-        S.CoordinateTuple, 1.0, 2.0
-    )
+    assert project(CoordinateTuple(1.0, 2.0)).atom == Expression(
+        (S.CoordinateTuple, 1.0, 2.0))
 
 
 def test_nesting_is_the_pytree_rule():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -72,7 +74,7 @@ def test_nesting_is_the_pytree_rule():  # noqa: D103  -- pytest discovers or inj
         colour: Color
 
     projected = project(Team(Person("Ada", 36), Color.blue))
-    assert projected.atom == expr(S.Team, expr(S.Person, "Ada", 36), S.blue)
+    assert projected.atom == Expression((S.Team, Expression((S.Person, "Ada", 36)), S.blue))
     decls = set(map(str, projected.declarations))
     assert "(: Color Type)" in decls
     assert any(d.startswith("(: Team") for d in decls)
@@ -114,7 +116,7 @@ def test_registered_custom_type_round_trips():  # noqa: D103  -- pytest discover
         from_atom=lambda lo, hi: Interval(lo, hi),
     )
     atom = project(Interval(1, 5)).atom
-    assert atom == expr(S.Interval, 1, 5)
+    assert atom == Expression((S.Interval, 1, 5))
     assert build(atom) == Interval(1, 5)
 
 
@@ -164,14 +166,14 @@ def test_metta_dunder_hooks_work_unregistered():  # noqa: D103  -- pytest discov
             self.label = label
 
         def __metta__(self):
-            return expr(S.Tagged, self.label)
+            return Expression((S.Tagged, self.label))
 
         @classmethod
         def __from_metta__(cls, label):
             return cls(label)
 
     atom = project(Tagged("x")).atom
-    assert atom == expr(S.Tagged, "x")
+    assert atom == Expression((S.Tagged, "x"))
     rebuilt = build(atom, Tagged)
     assert isinstance(rebuilt, Tagged) and rebuilt.label == "x"
 
@@ -193,7 +195,7 @@ def test_projected_facts_reason_in_the_engine(metta):  # noqa: D103  -- pytest d
 
 def test_grounded_and_container_projections():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert project(3).atom == Gnd(3)
-    assert project([1, 2]).atom == expr(1, 2)
+    assert project([1, 2]).atom == Expression((1, 2))
     assert isinstance(val({"a": 1}), Gnd)
 
 
@@ -205,7 +207,7 @@ def test_pydantic_models_project_like_dataclasses():  # noqa: D103  -- pytest di
         value: float
 
     projected = project(Reading(sensor="t1", value=21.5))
-    assert projected.atom == expr(S.Reading, "t1", 21.5)
+    assert projected.atom == Expression((S.Reading, "t1", 21.5))
     assert "(: Reading (-> String Number Reading))" in set(
         map(str, projected.declarations)
     )
@@ -214,7 +216,7 @@ def test_pydantic_models_project_like_dataclasses():  # noqa: D103  -- pytest di
     # The rebuild runs through the model itself, so validation runs where
     # pydantic runs it: a field refusing its type is pydantic's own error.
     with pytest.raises(pydantic.ValidationError):
-        build(expr(S.Reading, "t1", S.tall), Reading)
+        build(Expression((S.Reading, "t1", S.tall)), Reading)
 
 
 def test_pydantic_alias_fields_rebuild(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
@@ -366,4 +368,4 @@ def test_union_build_selects_by_shape_and_surfaces_reverse_errors():  # noqa: D1
         fields=("value",),
     )
     with pytest.raises(TypeError, match="selected reverse failed"):
-        build(expr(S.BrokenReverseProbe, 1), BrokenReverse | str)
+        build(Expression((S.BrokenReverseProbe, 1)), BrokenReverse | str)

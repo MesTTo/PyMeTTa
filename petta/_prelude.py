@@ -14,6 +14,8 @@ Guarantees:
     implementation annotations or helper documentation into &self [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=443d80f634f8074a24ecf28807beef9ecf1a9d0d]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,7 +29,7 @@ from typing import Any
 
 from . import ops as _ops_module
 from ._api_types import MettaName
-from .atoms import Expr, Gnd, S, Sym, expr
+from .atoms import Expr, Expression, Gnd, S, Sym
 
 __all__ = ["NAMES", "install", "pythonic"]
 
@@ -163,6 +165,6 @@ def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude regist
             runtime,
             fn,
             name=MettaName(name),
-            declarations=[expr(S.arguments, S[name], S.atoms)],
+            declarations=[Expression((S.arguments, S[name], S.atoms))],
             arities=arities,
         )
