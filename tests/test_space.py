@@ -274,7 +274,7 @@ def test_query_surfaces_share_column_order(m):  # noqa: D103  -- pytest discover
         assert cursor.columns == expected
 
 
-def test_wide_query_projection_is_identical_through_every_answer_door(m):  # noqa: D103
+def test_wide_query_projection_is_identical_through_every_answer_door(m):  # noqa: D103 -- pytest discovers this descriptive contract test
     variables = [V[f"column_{index:08x}"] for index in range(64)]
     relations = [S[f"wide_{index:08x}"] for index in range(64)]
     m.add(*(relation(S.only) for relation in relations), S.repeat(S.only))
