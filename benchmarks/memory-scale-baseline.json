@@ -7,7 +7,7 @@
           "post_gc_atom_count is selected by minimum of repetitions",
           "the intended complexity family is constant"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "constant",
       "fit": {
@@ -74,7 +74,7 @@
           "compiled_predicate_bytes is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
@@ -141,58 +141,58 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 8.122496919285274,
+        "last_ratio": 8.122927618277396,
         "models": {
           "capped_linear": {
-            "intercept": 9049.06932296729,
-            "nrms": 0.002384150228692752,
-            "slope": 412.95564600191796
+            "intercept": 9045.688046647236,
+            "nrms": 0.0023828544940544326,
+            "slope": 412.95701873394336
           },
           "constant": {
-            "intercept": 123747.5,
-            "nrms": 0.4182467428654518,
+            "intercept": 123744.5,
+            "nrms": 0.41825014870057925,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 9049.06932296729,
-            "nrms": 0.002384150228692752,
-            "slope": 412.95564600191796
+            "intercept": 9045.688046647236,
+            "nrms": 0.0023828544940544326,
+            "slope": 412.95701873394336
           },
           "log_n": {
-            "intercept": -68187.69999999998,
-            "nrms": 0.23500767435427317,
-            "slope": 55570.93216199801
+            "intercept": -68190.40000000002,
+            "nrms": 0.23501206821881923,
+            "slope": 55570.84530310164
           },
           "n_log_n": {
-            "intercept": 14642.013679451411,
-            "nrms": 0.014905920994310418,
-            "slope": 59.04537153194391
+            "intercept": 14638.646202279517,
+            "nrms": 0.014905317459723547,
+            "slope": 59.04557040210961
           },
           "quadratic": {
-            "intercept": 22953.114497605726,
-            "nrms": 0.037086177183611006,
-            "slope": 0.39914577058093903
+            "intercept": 22949.77568302171,
+            "nrms": 0.03708622085722991,
+            "slope": 0.39914711228670513
           }
         },
-        "power_exponent": 0.5715989727852264
+        "power_exponent": 0.5716195164177217
       },
       "gated": true,
       "noise": {
-        "absolute_max": 24,
-        "relative_max": 0.0004621072088724584,
+        "absolute_max": 31,
+        "relative_max": 0.0006230529595015577,
         "resolution_bytes": 1
       },
       "primary_metric": "inferences",
       "representative": [
         8357,
-        12847,
-        51936,
-        421850
+        12840,
+        51933,
+        421848
       ],
       "sizes": [
         1,
@@ -208,58 +208,58 @@
           "instructions is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "n_log_n",
-        "last_ratio": 16.872783805856457,
+        "last_ratio": 16.94192381048024,
         "models": {
           "capped_linear": {
-            "intercept": -22360178.460641444,
-            "nrms": 0.016170718591852748,
-            "slope": 1505663.49940825
+            "intercept": -22472040.08778751,
+            "nrms": 0.016271725599532914,
+            "slope": 1505541.9076067957
           },
           "constant": {
-            "intercept": 395837858.5,
-            "nrms": 0.4246818495588015,
+            "intercept": 395692224.75,
+            "nrms": 0.4247114075379671,
             "slope": 0.0
           },
           "linear": {
-            "intercept": -22360178.460641444,
-            "nrms": 0.016170718591852748,
-            "slope": 1505663.49940825
+            "intercept": -22472040.08778751,
+            "nrms": 0.016271725599532914,
+            "slope": 1505541.9076067957
           },
           "log_n": {
-            "intercept": -284994722.0,
-            "nrms": 0.25240619697700545,
-            "slope": 197121221.87406766
+            "intercept": -284990138.70000005,
+            "nrms": 0.25249256054224795,
+            "slope": 197077729.5834658
           },
           "n_log_n": {
-            "intercept": -2489742.179553926,
-            "nrms": 0.0034936035478506477,
-            "slope": 215565.70587525517
+            "intercept": -2606004.0288673043,
+            "nrms": 0.0035944497708076464,
+            "slope": 215549.81048037516
           },
           "quadratic": {
-            "intercept": 26995700.48239261,
-            "nrms": 0.01915838484460837,
-            "slope": 1460.614960355875
+            "intercept": 26872606.547110736,
+            "nrms": 0.019059370782406916,
+            "slope": 1460.5257026886984
           }
         },
-        "power_exponent": 1.0275311492794004
+        "power_exponent": 1.0273195485978552
       },
       "gated": true,
       "noise": {
-        "absolute_max": 79814,
-        "relative_max": 0.00016718773510775249,
+        "absolute_max": 1385,
+        "relative_max": 0.00022871853790344888,
         "resolution_bytes": 1
       },
       "primary_metric": "instructions",
       "representative": [
-        1315886,
-        6749366,
-        88138826,
-        1487147356
+        1316028,
+        6748655,
+        87766743,
+        1486937473
       ],
       "sizes": [
         1,
@@ -275,7 +275,7 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
@@ -342,7 +342,7 @@
           "live_module_bytes is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
@@ -409,7 +409,7 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
@@ -476,45 +476,45 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 10.491844519994997,
+        "last_ratio": 10.491969504013827,
         "models": {
           "capped_linear": {
-            "intercept": -6477.755102040828,
-            "nrms": 0.0018587668535354704,
-            "slope": 369.6288947262073
+            "intercept": -6479.108519598376,
+            "nrms": 0.0018592371952474297,
+            "slope": 369.62920198725413
           },
           "constant": {
-            "intercept": 1020166.5,
-            "nrms": 0.41984348195509535,
+            "intercept": 1020166.0,
+            "nrms": 0.4198436052954686,
             "slope": 0.0
           },
           "linear": {
-            "intercept": -6477.755102040828,
-            "nrms": 0.0018587668535354704,
-            "slope": 369.6288947262073
+            "intercept": -6479.108519598376,
+            "nrms": 0.0018592371952474297,
+            "slope": 369.62920198725413
           },
           "log_n": {
-            "intercept": -1824513.0,
-            "nrms": 0.23919181877474982,
-            "slope": 494171.44385332055
+            "intercept": -1824514.0,
+            "nrms": 0.23919221778053767,
+            "slope": 494171.5307122169
           },
           "n_log_n": {
-            "intercept": 30793.372686171555,
-            "nrms": 0.0076090452313074914,
-            "slope": 39.775912032933036
+            "intercept": 30792.025283163995,
+            "nrms": 0.00760857777932848,
+            "slope": 39.77594610119965
           },
           "quadratic": {
-            "intercept": 117221.19545619003,
-            "nrms": 0.03303605473032135,
-            "slope": 0.03575663441750122
+            "intercept": 117219.85992942622,
+            "nrms": 0.03303559191149135,
+            "slope": 0.0357566675043614
           }
         },
-        "power_exponent": 0.9940149014761038
+        "power_exponent": 0.9940144782590837
       },
       "gated": true,
       "noise": {
@@ -526,8 +526,8 @@
       "representative": [
         3906,
         34067,
-        351788,
-        3690905
+        351784,
+        3690907
       ],
       "sizes": [
         10,
@@ -543,45 +543,45 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "n_log_n",
-        "last_ratio": 17.558827235686984,
+        "last_ratio": 17.558659217877096,
         "models": {
           "capped_linear": {
-            "intercept": -6676.948493683187,
-            "nrms": 0.017079261020149006,
-            "slope": 423.5596705443139
+            "intercept": -6676.804664723022,
+            "nrms": 0.01707904172052235,
+            "slope": 423.5555523482377
           },
           "constant": {
-            "intercept": 110966.75,
-            "nrms": 0.425138538299586,
+            "intercept": 110965.75,
+            "nrms": 0.4251384685801742,
             "slope": 0.0
           },
           "linear": {
-            "intercept": -6676.948493683187,
-            "nrms": 0.017079261020149006,
-            "slope": 423.5596705443139
+            "intercept": -6676.804664723022,
+            "nrms": 0.01707904172052235,
+            "slope": 423.5555523482377
           },
           "log_n": {
-            "intercept": -80272.0,
-            "nrms": 0.25340701611347244,
-            "slope": 55369.28923405034
+            "intercept": -80271.20000000001,
+            "nrms": 0.2534068223485654,
+            "slope": 55368.76808067205
           },
           "n_log_n": {
-            "intercept": -1094.2878640795534,
-            "nrms": 0.004356914431632897,
-            "slope": 60.644847826443765
+            "intercept": -1094.1966058562248,
+            "nrms": 0.004356696160590216,
+            "slope": 60.644257262674635
           },
           "quadratic": {
-            "intercept": 7189.468373834723,
-            "nrms": 0.01830616418529567,
-            "slope": 0.4109580393491949
+            "intercept": 7189.481797549888,
+            "nrms": 0.01830637855557743,
+            "slope": 0.4109540261912427
           }
         },
-        "power_exponent": 1.0061899517894832
+        "power_exponent": 1.0061887050737002
       },
       "gated": true,
       "noise": {
@@ -594,7 +594,7 @@
         457,
         1580,
         23807,
-        418023
+        418019
       ],
       "sizes": [
         1,
@@ -610,7 +610,7 @@
           "retained_atom_count is selected by minimum of repetitions",
           "the intended complexity family is constant"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "constant",
       "fit": {
@@ -677,7 +677,7 @@
           "post_drop_live_objects is selected by minimum of repetitions",
           "the intended complexity family is constant"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "constant",
       "fit": {
@@ -744,58 +744,58 @@
           "python_peak_bytes is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
-        "best_model": "n_log_n",
-        "last_ratio": 9.317242097012397,
+        "best_model": "quadratic",
+        "last_ratio": 9.537063947759135,
         "models": {
           "capped_linear": {
-            "intercept": 188459.8033689668,
-            "nrms": 0.02104472327756128,
-            "slope": 400.62896368354035
+            "intercept": 186504.49011985748,
+            "nrms": 0.026593021254967153,
+            "slope": 342.8497785347048
           },
           "constant": {
-            "intercept": 1301206.75,
-            "nrms": 0.4268508650384046,
+            "intercept": 1138769.75,
+            "nrms": 0.4285711361866939,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 188459.8033689668,
-            "nrms": 0.02104472327756128,
-            "slope": 400.62896368354035
+            "intercept": 186504.49011985748,
+            "nrms": 0.026593021254967153,
+            "slope": 342.8497785347048
           },
           "log_n": {
-            "intercept": -1695072.0,
-            "nrms": 0.25741791031242356,
-            "slope": 520506.9309475892
+            "intercept": -1405710.0,
+            "nrms": 0.26220100068724733,
+            "slope": 442021.4058958263
           },
           "n_log_n": {
-            "intercept": 227770.05806903704,
-            "nrms": 0.01142603175308737,
-            "slope": 43.155531773024585
+            "intercept": 219881.23577573348,
+            "nrms": 0.016952096988474833,
+            "slope": 36.94220886015984
           },
           "quadratic": {
-            "intercept": 318875.3063918799,
-            "nrms": 0.014557164308117118,
-            "slope": 0.03890032555588481
+            "intercept": 297212.3949194938,
+            "nrms": 0.009093184667153973,
+            "slope": 0.03332567159444476
           }
         },
-        "power_exponent": 0.3784837679706513
+        "power_exponent": 0.3517650057158353
       },
       "gated": false,
       "noise": {
-        "absolute_max": 60,
-        "relative_max": 0.00013285123097736437,
+        "absolute_max": 45,
+        "relative_max": 0.00011738380837093284,
         "resolution_bytes": 1
       },
       "primary_metric": "python_peak_bytes",
       "representative": [
         272610,
-        272610,
-        451633,
-        4207974
+        272642,
+        380545,
+        3629282
       ],
       "sizes": [
         10,
@@ -808,61 +808,61 @@
       "cause": {
         "chain": [
           "bench.py --memory-scale spawns query-stream in a fresh process",
-          "inferences is selected by minimum of repetitions",
-          "the intended complexity family is linear"
+          "python_peak_bytes is selected by minimum of repetitions",
+          "the intended complexity family is constant"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
-      "expected": "linear",
+      "expected": "constant",
       "fit": {
-        "best_model": "linear",
-        "last_ratio": 9.925136341100645,
+        "best_model": "quadratic",
+        "last_ratio": 1.000333882466034,
         "models": {
           "capped_linear": {
-            "intercept": 16.928085519922206,
-            "nrms": 4.006173793508324e-06,
-            "slope": 2.0002059098038085
+            "intercept": 272585.2727567217,
+            "nrms": 8.799692818670411e-05,
+            "slope": 0.005302337813956322
           },
           "constant": {
-            "intercept": 5572.5,
-            "nrms": 0.4192045777327325,
+            "intercept": 272600.0,
+            "nrms": 0.00011991165905121902,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 16.928085519922206,
-            "nrms": 4.006173793508324e-06,
-            "slope": 2.0002059098038085
+            "intercept": 272585.2727567217,
+            "nrms": 8.799692818670411e-05,
+            "slope": 0.005302337813956322
           },
           "log_n": {
-            "intercept": -9863.999999999996,
-            "nrms": 0.23743412775614267,
-            "slope": 2681.594707959818
+            "intercept": 272581.0,
+            "nrms": 0.00011578950935487928,
+            "slope": 3.3006380624647145
           },
           "n_log_n": {
-            "intercept": 219.15011581275485,
-            "nrms": 0.00944903228025028,
-            "slope": 0.21522150561443487
+            "intercept": 272585.4836427163,
+            "nrms": 8.625202360572837e-05,
+            "slope": 0.000583603227552293
           },
           "quadratic": {
-            "intercept": 688.1058876765555,
-            "nrms": 0.03482677977060732,
-            "slope": 0.0001934220087822285
+            "intercept": 272585.9298829827,
+            "nrms": 8.122589209460792e-05,
+            "slope": 5.571766394565804e-07
           }
         },
-        "power_exponent": 0.916796813087455
+        "power_exponent": 1.210577913243876e-05
       },
       "gated": true,
       "noise": {
-        "absolute_max": 0,
-        "relative_max": 0.0,
+        "absolute_max": 59,
+        "relative_max": 0.00021647324720877928,
         "resolution_bytes": 1
       },
-      "primary_metric": "inferences",
+      "primary_metric": "python_peak_bytes",
       "representative": [
-        37,
-        217,
-        2017,
-        20019
+        272597,
+        272610,
+        272551,
+        272642
       ],
       "sizes": [
         10,
@@ -878,45 +878,45 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 9.813257692676125,
+        "last_ratio": 9.813236405436761,
         "models": {
           "capped_linear": {
-            "intercept": 1948.987042436027,
-            "nrms": 2.9250890291468674e-07,
-            "slope": 92.00360502522555
+            "intercept": 1949.0589569160948,
+            "nrms": 3.705338064717718e-07,
+            "slope": 92.00339911542174
           },
           "constant": {
-            "intercept": 257489.0,
-            "nrms": 0.4192033875683552,
+            "intercept": 257488.5,
+            "nrms": 0.41920336155325055,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 1948.987042436027,
-            "nrms": 2.9250890291468674e-07,
-            "slope": 92.00360502522555
+            "intercept": 1949.0589569160948,
+            "nrms": 3.705338064717718e-07,
+            "slope": 92.00339911542174
           },
           "log_n": {
-            "intercept": -452549.0,
-            "nrms": 0.23743042556084415,
-            "slope": 123346.23413664845
+            "intercept": -452548.0,
+            "nrms": 0.23743034773662772,
+            "slope": 123345.9735599593
           },
           "n_log_n": {
-            "intercept": 11250.663401258586,
-            "nrms": 0.009453239002478006,
-            "slope": 9.899555734123483
+            "intercept": 11250.715648327605,
+            "nrms": 0.009453325216653081,
+            "slope": 9.89953353205408
           },
           "quadratic": {
-            "intercept": 32821.387580040115,
-            "nrms": 0.03483092440993751,
-            "slope": 0.008896837540798787
+            "intercept": 32821.39429189768,
+            "nrms": 0.034831009041000095,
+            "slope": 0.008896817475009026
           }
         },
-        "power_exponent": 0.8446654658259277
+        "power_exponent": 0.8446651831998854
       },
       "gated": true,
       "noise": {
@@ -929,7 +929,7 @@
         2869,
         11149,
         93953,
-        921985
+        921983
       ],
       "sizes": [
         10,
@@ -945,45 +945,45 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 9.666261244140378,
+        "last_ratio": 9.665771403957736,
         "models": {
           "capped_linear": {
-            "intercept": 1464.4965986394527,
-            "nrms": 1.4760520743440198e-06,
-            "slope": 38.00144136862666
+            "intercept": 1465.1373501781636,
+            "nrms": 7.496714737783573e-07,
+            "slope": 38.00139069300516
           },
           "constant": {
-            "intercept": 107013.5,
-            "nrms": 0.41920382198229916,
+            "intercept": 107014.0,
+            "nrms": 0.41920326296435867,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 1464.4965986394527,
-            "nrms": 1.4760520743440198e-06,
-            "slope": 38.00144136862666
+            "intercept": 1465.1373501781636,
+            "nrms": 7.496714737783573e-07,
+            "slope": 38.00139069300516
           },
           "log_n": {
             "intercept": -186262.0,
-            "nrms": 0.2374318669836264,
-            "slope": 50947.172530966855
+            "nrms": 0.23743002293734702,
+            "slope": 50947.25938986323
           },
           "n_log_n": {
-            "intercept": 5306.479165270939,
-            "nrms": 0.009451536755060047,
-            "slope": 4.088942181841416
+            "intercept": 5307.126743240151,
+            "nrms": 0.00945370722889877,
+            "slope": 4.088936248742811
           },
           "quadratic": {
-            "intercept": 14216.09240814553,
-            "nrms": 0.03482923826384755,
-            "slope": 0.003674777377385211
+            "intercept": 14216.756815598681,
+            "nrms": 0.0348313872283043,
+            "slope": 0.003674770866850001
           }
         },
-        "power_exponent": 0.7821236526678558
+        "power_exponent": 0.782125853521664
       },
       "gated": true,
       "noise": {
@@ -995,7 +995,7 @@
       "representative": [
         1845,
         5265,
-        39465,
+        39467,
         381479
       ],
       "sizes": [
@@ -1012,7 +1012,7 @@
           "second_cycle_module_delta is selected by minimum of repetitions",
           "the intended complexity family is constant"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "constant",
       "fit": {
@@ -1079,58 +1079,58 @@
           "private_steady_bytes is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "n_log_n",
-        "last_ratio": 13.941747572815533,
+        "last_ratio": 13.821153846153846,
         "models": {
           "capped_linear": {
-            "intercept": 16678.561710397713,
-            "nrms": 0.017307694025710366,
-            "slope": 2931.2437221564724
+            "intercept": 39809.61710398458,
+            "nrms": 0.017380541955482165,
+            "slope": 2931.7639542379893
           },
           "constant": {
-            "intercept": 8158208.0,
-            "nrms": 0.4246723865460931,
+            "intercept": 8182784.0,
+            "nrms": 0.42475060614745636,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 16678.561710397713,
-            "nrms": 0.017307694025710366,
-            "slope": 2931.2437221564724
+            "intercept": 39809.61710398458,
+            "nrms": 0.017380541955482165,
+            "slope": 2931.7639542379893
           },
           "log_n": {
-            "intercept": -13907967.999999996,
-            "nrms": 0.2529652616873263,
-            "slope": 3833287.389402387
+            "intercept": -13883392.0,
+            "nrms": 0.25309655301567174,
+            "slope": 3833287.3894023877
           },
           "n_log_n": {
-            "intercept": 305838.9313907102,
-            "nrms": 0.00781158744258962,
-            "slope": 315.6899381036604
+            "intercept": 328989.04960203636,
+            "nrms": 0.007872847349836773,
+            "slope": 315.74726303702465
           },
           "quadratic": {
-            "intercept": 975935.1292087398,
-            "nrms": 0.018011154832003627,
-            "slope": 0.284418008527514
+            "intercept": 999136.8143056063,
+            "nrms": 0.017942763948070307,
+            "slope": 0.2844724313982223
           }
         },
-        "power_exponent": 0.5885291278359316
+        "power_exponent": 0.5801261240062413
       },
       "gated": false,
       "noise": {
         "absolute_max": 8192,
-        "relative_max": 0.012903225806451613,
+        "relative_max": 0.0125,
         "resolution_bytes": 4096
       },
       "primary_metric": "private_steady_bytes",
       "representative": [
-        479232,
-        634880,
-        2109440,
-        29409280
+        507904,
+        655360,
+        2129920,
+        29437952
       ],
       "sizes": [
         10,
@@ -1146,7 +1146,7 @@
           "storage_module_bytes is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
@@ -1213,45 +1213,45 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 9.514634640949955,
+        "last_ratio": 9.514442792122933,
         "models": {
           "capped_linear": {
-            "intercept": 2381.452866861029,
+            "intercept": 2382.452866861029,
             "nrms": 1.5202862010678745e-05,
             "slope": 419.88855853515383
           },
           "constant": {
-            "intercept": 119005.5,
+            "intercept": 119006.5,
             "nrms": 0.41920005347555817,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 2381.452866861029,
+            "intercept": 2382.452866861029,
             "nrms": 1.5202862010678745e-05,
             "slope": 419.88855853515383
           },
           "log_n": {
-            "intercept": -75427.79999999999,
+            "intercept": -75426.79999999999,
             "nrms": 0.2374185721096173,
             "slope": 56294.20619215969
           },
           "n_log_n": {
-            "intercept": 8049.5798973557685,
+            "intercept": 8050.5798973557685,
             "nrms": 0.012580816006158978,
             "slope": 60.04678359511089
           },
           "quadratic": {
-            "intercept": 16471.38472678633,
+            "intercept": 16472.38472678633,
             "nrms": 0.034845386112581214,
             "slope": 0.40603510054227715
           }
         },
-        "power_exponent": 0.7365991526632913
+        "power_exponent": 0.7365472618825498
       },
       "gated": true,
       "noise": {
@@ -1261,10 +1261,10 @@
       },
       "primary_metric": "inferences",
       "representative": [
-        2797,
-        6575,
-        44381,
-        422269
+        2798,
+        6576,
+        44382,
+        422270
       ],
       "sizes": [
         1,
@@ -1280,45 +1280,45 @@
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 9.993774551984735,
+        "last_ratio": 9.993776880212424,
         "models": {
           "capped_linear": {
             "intercept": 146.82086167798843,
-            "nrms": 7.71332405202297e-06,
-            "slope": 2671.0924541433737
+            "nrms": 7.710437447903312e-06,
+            "slope": 2672.0924541433737
           },
           "constant": {
-            "intercept": 742042.75,
-            "nrms": 0.41920061023857413,
+            "intercept": 742320.5,
+            "nrms": 0.4192006112755004,
             "slope": 0.0
           },
           "linear": {
             "intercept": 146.82086167798843,
-            "nrms": 7.71332405202297e-06,
-            "slope": 2671.0924541433737
+            "nrms": 7.710437447903312e-06,
+            "slope": 2672.0924541433737
           },
           "log_n": {
-            "intercept": -494821.09999999986,
-            "nrms": 0.2374230897309384,
-            "slope": 358108.7632804076
+            "intercept": -495006.3999999999,
+            "nrms": 0.23742309252211147,
+            "slope": 358242.8299869711
           },
           "n_log_n": {
-            "intercept": 36203.86429226142,
-            "nrms": 0.012573697252845519,
-            "slope": 381.98371735278624
+            "intercept": 36217.36313393642,
+            "nrms": 0.012573694400076049,
+            "slope": 382.1267239819415
           },
           "quadratic": {
-            "intercept": 89778.00626599509,
-            "nrms": 0.0348380884145893,
-            "slope": 2.5829684110163433
+            "intercept": 89811.56189597188,
+            "nrms": 0.034838085639293824,
+            "slope": 2.5839354207313057
           }
         },
-        "power_exponent": 0.9938130149830767
+        "power_exponent": 0.9938152792648919
       },
       "gated": true,
       "noise": {
@@ -1328,10 +1328,10 @@
       },
       "primary_metric": "inferences",
       "representative": [
-        2797,
-        26848,
-        267290,
-        2671236
+        2798,
+        26858,
+        267390,
+        2672236
       ],
       "sizes": [
         1,
@@ -1347,7 +1347,7 @@
           "table_bytes_after_clear is selected by minimum of repetitions",
           "the intended complexity family is constant"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "constant",
       "fit": {
@@ -1414,7 +1414,7 @@
           "wire_symbol_cache_entries is selected by minimum of repetitions",
           "the intended complexity family is capped_linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "capped_linear",
       "fit": {
@@ -1481,7 +1481,7 @@
           "wire_variable_cache_entries is selected by minimum of repetitions",
           "the intended complexity family is capped_linear"
         ],
-        "commit": "84d3d69c1886990860e77616f47bfbca647c39e5"
+        "commit": "ab3fa646c01ebce5d43e4b177365ef244955793b"
       },
       "expected": "capped_linear",
       "fit": {
