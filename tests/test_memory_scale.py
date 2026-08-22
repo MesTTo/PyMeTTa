@@ -1,0 +1,107 @@
+"""Purpose: verify memory/scale fitting, pin comparison, and process isolation.
+
+Guarantees:
+  - raw repetitions survive aggregation with their full observed band.
+  - linear and quadratic synthetic curves are classified by their intended
+    complexity families.
+  - the CLI quick lane executes each point in a distinct spawned process.
+"""
+
+import json
+
+from bench import main as benchmark_main
+from benchmarks.memory_scale import (
+    CASES,
+    aggregate_samples,
+    baseline_document,
+    compare_baseline,
+    fit_curve,
+)
+
+
+def test_curve_fit_distinguishes_linear_and_quadratic_growth():  # noqa: D103
+    sizes = [10, 100, 1_000, 10_000]
+    linear = fit_curve(sizes, [71, 611, 6_011, 60_011])
+    quadratic = fit_curve(sizes, [103, 10_003, 1_000_003, 100_000_003])
+
+    assert linear["best_model"] == "linear"
+    assert linear["models"]["linear"]["nrms"] < 1e-9
+    assert quadratic["best_model"] == "quadratic"
+    assert quadratic["models"]["quadratic"]["nrms"] < 1e-9
+
+
+def test_aggregation_preserves_samples_and_noise_band():  # noqa: D103
+    case = CASES["join-shared"]
+    raw = {
+        1: [
+            {"inferences": 10, "_worker_pid": 101},
+            {"inferences": 12, "_worker_pid": 102},
+        ],
+        10: [
+            {"inferences": 100, "_worker_pid": 103},
+            {"inferences": 105, "_worker_pid": 104},
+        ],
+        100: [
+            {"inferences": 1_000, "_worker_pid": 105},
+            {"inferences": 1_003, "_worker_pid": 106},
+        ],
+    }
+
+    result = aggregate_samples(case, raw)
+
+    metric = result["metrics"]["inferences"]
+    assert metric["samples"] == {
+        "1": [10, 12],
+        "10": [100, 105],
+        "100": [1_000, 1_003],
+    }
+    assert metric["representative"] == [10, 100, 1_000]
+    assert metric["noise"]["absolute_max"] == 5
+    assert result["worker_pids"]["10"] == [103, 104]
+
+
+def test_baseline_comparison_uses_pinned_noise_and_names_a_regression():  # noqa: D103
+    case = CASES["join-shared"]
+    raw = {
+        size: [{"inferences": size * 10, "_worker_pid": size}]
+        for size in case.sizes
+    }
+    result = {
+        "schema": 1,
+        "repetitions": 1,
+        "cases": {case.name: aggregate_samples(case, raw)},
+    }
+    baseline = baseline_document(result, cause_commit="a" * 40)
+
+    assert compare_baseline(result, baseline) == []
+    moved = json.loads(json.dumps(result))
+    moved["cases"][case.name]["metrics"]["inferences"]["representative"][-1] *= 2
+    failures = compare_baseline(moved, baseline)
+    assert len(failures) == 1
+    assert "moved" in failures[0]
+
+
+def test_memory_scale_cli_runs_fresh_workers(tmp_path):  # noqa: D103
+    output = tmp_path / "memory.json"
+
+    assert benchmark_main(
+        [
+            "--memory-scale",
+            "--memory-quick",
+            "--memory-repetitions",
+            "1",
+            "--timeout",
+            "60",
+            "--json",
+            str(output),
+            "stored-atoms-native",
+        ]
+    ) == 0
+
+    document = json.loads(output.read_text(encoding="utf-8"))
+    result = document["cases"]["stored-atoms-native"]
+    assert result["sizes"] == [10, 100]
+    pids = [pid for samples in result["worker_pids"].values() for pid in samples]
+    assert len(pids) == len(set(pids)) == 2
+    assert result["metrics"]["storage_module_bytes"]["representative"][1] > 0
+
