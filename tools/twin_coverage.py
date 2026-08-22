@@ -46,11 +46,11 @@ Guarantees:
   - a twin naming something the narrow core deleted is a finding that names the
     current spelling, so `val`, `sym`, `var`, `m.new_space` and `m.fn("name")`
     cannot pass as vocabulary [tested:
-    test_a_retired_name_is_a_finding_naming_its_replacement; commit=WORKTREE]
+    test_a_retired_name_is_a_finding_naming_its_replacement; commit=8c057bb8055459cc13127d89b418deb634b90ae4]
   - every door the surface tracks landed reads clean: the naming factories,
     the answer view, the keyword builders, the coordination verbs, the class
     door and the standard-module mentions inside a compiled body
-    [tested: test_the_landed_doors_read_clean; commit=WORKTREE]
+    [tested: test_the_landed_doors_read_clean; commit=8c057bb8055459cc13127d89b418deb634b90ae4]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the
@@ -204,7 +204,7 @@ NAMING_NAMESPACES = frozenset({"S", "V", "fn"})
 #: the bracket spells. `fn` is deliberately absent: its catalog is generated and
 #: closed, so a bracket name it does not alias has no attribute spelling at all
 #: [source: bindings/python/petta/_name_mapping.py generated_aliases;
-#: commit=WORKTREE].
+#: commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 MINTING_NAMESPACES = frozenset({"S", "V"})
 
 #: Module-level constants a twin declares ABOUT itself rather than as
@@ -273,8 +273,8 @@ DISSOLVED = {
     # a door that does not exist. `get-type` left this note when R5 shipped
     # `Space.type(atom)` as the accessor and moved the class declaration onto
     # `Space.define` [source: ai-report-p14-r5.md, built surface item 5;
-    # commit=WORKTREE] [measured 2026-08-23: `Space.doc` does not exist, so
-    # P14.25 is still the row that closes it; commit=WORKTREE].
+    # commit=8c057bb8055459cc13127d89b418deb634b90ae4] [measured 2026-08-23: `Space.doc` does not exist, so
+    # P14.25 is still the row that closes it; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 }
 
 
@@ -285,7 +285,7 @@ DISSOLVED = {
 #: carries that rule's honest scope: it flags accidental use and does not chase
 #: every way a name could be reached [source:
 #: https://docs.astral.sh/ruff/rules/banned-api; the rewrite map is
-#: ai-narrow-core-renames.md's twin-visible table; commit=WORKTREE].
+#: ai-narrow-core-renames.md's twin-visible table; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 RETIRED_ROOT = {
     "Expr": "Expression",
     "Gnd": "Grounded",
@@ -348,7 +348,7 @@ RETIRED_HANDLE = {
 #: 366 times in the old corpus. Only a call through a RECEIVER is read, so a
 #: twin's own local helper named `one` is nobody's business but its own
 #: [source: bindings/python/petta/results.py Answers.one, Answers.first and
-#: Answers.count; ai-report-p14-r3.md corpus counts; commit=WORKTREE].
+#: Answers.count; ai-report-p14-r3.md corpus counts; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 RETIRED_CALL_SHAPES = {
     #  name: (positional arguments that mark the retired call, current spelling)
     "count": (0, "len(space)"),
@@ -467,7 +467,7 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
     arrives bare (`S.f`, `fn["=="]`) and through a receiver (`m.fn.xor`,
     `petta.S.done`) and the rules below must not care which
     [tested: test_a_term_may_name_a_head_that_shares_a_source_doors_name;
-    commit=WORKTREE].
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4].
     """
     if isinstance(node, ast.Attribute):
         root, name = node.value, node.attr
@@ -496,7 +496,7 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 #: refuses as impure [found 2026-08-22 by the libraries agent, which lost the
 #: @m.cache spelling and fn.cache_info() to this]. `rules` joined them when R3
 #: landed the bundle door [source: ai-report-p14-r3.md, rules and per-yield
-#: equation emission; commit=WORKTREE].
+#: equation emission; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 COMPILING_DECORATORS = frozenset({"define", "cache", "rules"})
 
 #: The subset whose body is LOWERED from Python syntax, where `a + b` emits
@@ -504,7 +504,7 @@ COMPILING_DECORATORS = frozenset({"define", "cache", "rules"})
 #: Python's own structural equality and `.eq(...)` is the building spelling
 #: there; the operator rule below would report a correct bundle
 #: [source: bindings/python/petta/_rules.py rules, which calls the generator
-#: with Variable arguments; commit=WORKTREE].
+#: with Variable arguments; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 LOWERING_DECORATORS = frozenset({"define", "cache"})
 
 
@@ -577,7 +577,7 @@ def _printing_strings(tree: ast.Module) -> set[int]:
         # A class body's bare `balance: int` is an AnnAssign with NO value,
         # which the class door made ordinary: reading it as a subtree crashed
         # the whole lane on the first twin that declared a record
-        # [tested: test_the_landed_doors_read_clean; commit=WORKTREE].
+        # [tested: test_the_landed_doors_read_clean; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
         if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
             continue
         targets = node.targets if isinstance(node, ast.Assign) else [node.target]
@@ -611,7 +611,7 @@ def _declared_strings(node: ast.Module | ast.FunctionDef | ast.ClassDef) -> set[
     declaring a rung turns the lane red, which makes the ladder's own escape
     unusable, found 2026-08-22 by two twin agents at once [tested:
     test_an_empirical_envelope_passes_its_observations_and_fails_new_spread;
-    commit=WORKTREE].
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4].
     """
     permitted: set[int] = set()
     head = node.body[0] if node.body else None
@@ -716,9 +716,9 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str] | None:
     to NFKC while parsing, so a non-ASCII spelling changes at the attribute
     door too. Both keep the bracket, which is rung 5 doing its job
     [source: bindings/python/petta/_name_mapping.py attribute_name;
-    commit=WORKTREE]
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4]
     [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one;
-    commit=WORKTREE].
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4].
     """
     reached = _factory(node)
     if reached is None or reached[0] not in MINTING_NAMESPACES:
@@ -806,7 +806,7 @@ def idiom(twin: Path) -> list[str]:
             # names such as `&&&` and `&^&`, so `fn["&&&"]` names a combinator
             # and not a space [source: bindings/python/tests/twins/libraries/
             # roman_test.py; tested: test_an_engine_function_may_be_named_with_
-            # an_ampersand; commit=WORKTREE].
+            # an_ampersand; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
             if (
                 reached is not None
                 and reached[0] in MINTING_NAMESPACES
@@ -1363,7 +1363,7 @@ def _budget_findings(
         # A malformed declaration reports the error and stops there; reading it
         # as a number below raised TypeError out of the lane instead
         # [tested: test_a_malformed_budget_is_reported_and_not_a_traceback;
-        # commit=WORKTREE].
+        # commit=8c057bb8055459cc13127d89b418deb634b90ae4].
         return [f"{relative}: {error}"]
     if budget is None:
         return [f"{relative}: the twin states no BUDGET"]
@@ -1446,7 +1446,7 @@ def definitions(twin: Path) -> int:
     [assumed 2026-08-23: the per-definition figure below was measured on
     `@define` functions and is applied to the class and bundle doors without a
     second measurement; the band is loosened, never tightened, by the
-    extension; commit=WORKTREE].
+    extension; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
     """
     tree = _parse(twin)
     return sum(

@@ -17,17 +17,17 @@ Guarantees:
     test_an_empirical_envelope_requires_complete_measurement_metadata,
     test_spread_is_not_a_budget_door,
     test_a_malformed_budget_is_reported_and_not_a_traceback;
-    commit=WORKTREE]
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4]
   - expected printing text is written as Python text while strings carried as
     MeTTa data still require ground() [tested:
     test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=WORKTREE]
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4]
   - every door the surface tracks landed reads clean, and every name they
     retired is a finding that says what replaced it [tested:
     test_the_landed_doors_read_clean,
     test_a_retired_name_is_a_finding_naming_its_replacement,
     test_an_exact_bracket_spelling_is_not_the_attribute_one;
-    commit=WORKTREE]
+    commit=8c057bb8055459cc13127d89b418deb634b90ae4]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -244,7 +244,7 @@ def test_a_string_in_a_compiled_body_is_a_metta_literal(tmp_path):
 #: Every door the surface tracks landed, written the way a twin writes it. This
 #: is the lane's own acceptance for the vocabulary: a door that reads as a
 #: string, a transliteration or a retired name here would report a correct twin
-#: [source: ai-briefs/twins-wave.md, Stage L's door list; commit=WORKTREE].
+#: [source: ai-briefs/twins-wave.md, Stage L's door list; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 LANDED_DOORS = (
     '"""Purpose: every landed door, once."""\n'
     "import math\n"
