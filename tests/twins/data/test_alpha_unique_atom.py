@@ -28,9 +28,10 @@ BUDGET = 15730
 
 
 def check(given, expected):
-    """`(test (=alpha (alpha-unique-atom given) expected) True)`, the one form
-    every case of this example takes.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The one form every case of this example takes.
+
+    `(test (=alpha (alpha-unique-atom given) expected) True)`.
+    """
     return S.test(S["=alpha"](S["alpha-unique-atom"](given), expected), TRUE)
 
 

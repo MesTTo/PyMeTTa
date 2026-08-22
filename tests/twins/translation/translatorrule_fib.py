@@ -22,7 +22,7 @@ function cannot be reached from one. Both are recorded against P14.4.
 from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6199 to 8072, +1873 (+30.21%), by the wave-4 idiom
+#: RE-PINNED 2026-08-22, 6199 to 8119, +1920 (+30.97%), by the wave-4 idiom
 #: rewrite moving `compilefib` and `smartfun` onto @m.define. COMPILING a
 #: definition costs more than STORING one, and the difference is paid once per
 #: process plus a little per definition, never per call: four trivial
@@ -32,7 +32,13 @@ from petta import S, V, equation
 #: compiled definition costs 1,629 more and each one after it 193 more. The
 #: 6199 this twin was pinned at is the same four equations stored, so the
 #: whole move is those two definitions, 51 above 1629 + 193.
-BUDGET = 8072
+#: A second, smaller cause is in this figure: binding an engine function with
+#: `m.fn(...)` makes its name PYTHON-RESOLVABLE, so @m.define records no
+#: hazard and builds a RUNNABLE Python twin where it would otherwise build one
+#: that refuses. Measured by deleting only that binding line: 8072 against
+#: 8119, and with it `compilefib.py(10)` answers where without it the twin raises
+#: "its body uses the engine function ..., which exist only in the engine".
+BUDGET = 8119
 
 
 def twin(m):
@@ -41,6 +47,10 @@ def twin(m):
     A `test` form answers `(True)` and prints `is X, should Y. ✅`;
     the `add-translator-rule!` form answers the rule it registered.
     """
+    # `fib`, whose equation is stored below, bound so the Python stays valid.
+    # A compiled body resolves the NAME through the engine's registry rather
+    # than through this object, so the binding changes nothing it emits.
+    fib = m.fn("fib")
     # (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
     m += equation(S["fib-tr"](V.n, V.a, V.b)).to(
         S["if"](
@@ -54,7 +64,7 @@ def twin(m):
     @m.define
     def compilefib(n):
         # (= (compilefib $n) (fib $n))
-        return fib(n)  # noqa: F821  -- fib is the equation stored above, resolved by name
+        return fib(n)
 
     # can be commented out but then the following will be slower:
     # !(add-translator-rule! compilefib)

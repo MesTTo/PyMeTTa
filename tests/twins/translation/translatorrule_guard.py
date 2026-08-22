@@ -31,9 +31,10 @@ BUDGET = 17296
 
 
 def pair_sum(head):
-    """`(= (head (pair $a $b) (pair $c $d)) (noeval (pair (+ $a $c) (+ $b $d))))`,
-    the guarded clause both `add-pairs` and `hold-pairs` are written from.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The guarded clause both `add-pairs` and `hold-pairs` are written from.
+
+    `(= (head (pair $a $b) (pair $c $d)) (noeval (pair (+ $a $c) (+ $b $d))))`.
+    """
     return equation(head(S.pair(V.a, V.b), S.pair(V.c, V.d))).to(
         S.noeval(S.pair(V.a + V.c, V.b + V.d))
     )

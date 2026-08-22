@@ -27,9 +27,10 @@ BUDGET = 16069
 
 
 def member(needle, haystack, expected):
-    """`(test (is-alpha-member needle haystack) expected)`, the one form every
-    case of this example takes.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The one form every case of this example takes.
+
+    `(test (is-alpha-member needle haystack) expected)`.
+    """
     return S.test(S["is-alpha-member"](needle, haystack), expected)
 
 

@@ -62,12 +62,14 @@ def twin(m):
         yield 3
 
     @m.define
-    def g(n=1):  # noqa: ARG001  -- a literal default is the head PATTERN for that position, so the parameter is matched rather than read
-        # (= (g 1) 2): a literal default is the head pattern for that position
+    def g(_n=1):
+        # (= (g 1) 2): a literal default is the head pattern for that
+        # position, so the parameter is MATCHED and never read, which is what
+        # the underscore says
         return 2
 
     @m.define
-    def g(n=2):  # noqa: ARG001, F811  -- a literal default is the head PATTERN for that position, so the parameter is matched rather than read; and this is a second clause of the same equation, not a redefinition
+    def g(_n=2):  # noqa: F811  -- a second clause of the same equation, not a redefinition
         # (= (g 2) 3)
         return 3
 

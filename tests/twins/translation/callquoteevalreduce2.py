@@ -19,7 +19,7 @@ residue table records that against P14.4.
 from petta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 10973 to 13511, +2538 (+23.13%), by the wave-4 idiom
+#: RE-PINNED 2026-08-22, 10973 to 13558, +2585 (+23.56%), by the wave-4 idiom
 #: rewrite moving `fib`, `myfunc`, `eval-fib` and `reduce-fib` onto @m.define.
 #: COMPILING a definition costs more than STORING one, and the difference is
 #: paid once per process plus a little per definition, never per call: four
@@ -31,7 +31,13 @@ from petta import S, equation
 #: instead measured 10973, the figure this twin was pinned at before. The 330
 #: above 1629 + 3*193 is `fib`'s body being larger than the trivial ones the
 #: rate was taken on.
-BUDGET = 13511
+#: A second, smaller cause is in this figure: binding an engine function with
+#: `m.fn(...)` makes its name PYTHON-RESOLVABLE, so @m.define records no
+#: hazard and builds a RUNNABLE Python twin where it would otherwise build one
+#: that refuses. Measured by deleting only that binding line: 13511 against
+#: 13558, and with it `reduce_fib.py()` answers where without it the twin raises
+#: "its body uses the engine function ..., which exist only in the engine".
+BUDGET = 13558
 
 
 def twin(m):
@@ -39,6 +45,10 @@ def twin(m):
 
     A `test` form answers `(True)` and prints `is X, should Y. ✅`.
     """
+    # The engine's own `reduce`, bound so the Python below stays valid. A
+    # compiled body resolves the NAME through the engine's registry rather
+    # than through this object, so the binding changes nothing it emits.
+    reduce = m.fn("reduce")
 
     @m.define
     def fib(n):
@@ -64,7 +74,7 @@ def twin(m):
     @m.define(name="reduce-fib")
     def reduce_fib():
         # (= (reduce-fib) (reduce (fib (myfunc))))
-        return reduce(fib(myfunc()))  # noqa: F821  -- reduce is the engine's, resolved by name
+        return reduce(fib(myfunc()))
 
     # !(test (fib-call (call-fib)) (fib-call 5))
     yield m.eval(S.test(S["fib-call"](S["call-fib"]()), S["fib-call"](5)))

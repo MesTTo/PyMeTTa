@@ -14,7 +14,7 @@ reaches both.
 from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4064 to 6257, +2193 (+53.96%), by the wave-4 idiom
+#: RE-PINNED 2026-08-22, 4064 to 6498, +2434 (+59.89%), by the wave-4 idiom
 #: rewrite moving all three definitions onto @m.define.
 #: COMPILING a definition costs more than STORING one, and the difference is
 #: paid once per process plus a little per definition, never per call: four
@@ -25,7 +25,13 @@ from petta import S
 #: The 4064 this twin was pinned at is the same three equations stored, so the
 #: whole move is those three; the 178 above 1629 + 2*193 is these bodies being
 #: larger than the trivial ones the rate was taken on.
-BUDGET = 6257
+#: A second, smaller cause is in this figure: binding an engine function with
+#: `m.fn(...)` makes its name PYTHON-RESOLVABLE, so @m.define records no
+#: hazard and builds a RUNNABLE Python twin where it would otherwise build one
+#: that refuses. Measured by deleting only that binding line: 6257 against
+#: 6498, and with it `compile42.py((43,))` answers where without it the twin raises
+#: "its body uses the engine function ..., which exist only in the engine".
+BUDGET = 6498
 
 
 def twin(m):
@@ -34,21 +40,26 @@ def twin(m):
     A `test` form answers `(True)` and prints `is X, should Y. ✅`;
     an `add-translator-rule!` form answers the rule it registered.
     """
+    # The engine's own `cons` and `noeval`, bound so the Python below stays
+    # valid. A compiled body resolves the NAME through the engine's registry
+    # rather than through these objects, so the bindings change nothing the
+    # equations emit.
+    cons, noeval = m.fn("cons"), m.fn("noeval")
 
     @m.define
     def runtime42(arg):
         # (= (runtime42 $arg) (cons 42 $arg))
-        return cons(42, arg)  # noqa: F821  -- cons is the engine's, resolved by name
+        return cons(42, arg)
 
     @m.define
     def compileeval42(arg):
         # (= (compileeval42 $arg) (cons 42 $arg))
-        return cons(42, arg)  # noqa: F821  -- cons is the engine's, resolved by name
+        return cons(42, arg)
 
     @m.define
     def compile42(arg):
         # (= (compile42 $arg) (noeval (cons 42 $arg)))
-        return noeval(cons(42, arg))  # noqa: F821  -- both are the engine's, resolved by name
+        return noeval(cons(42, arg))
 
     # !(add-translator-rule! compileeval42)
     yield m.eval(S["add-translator-rule!"](S.compileeval42))

@@ -1,11 +1,13 @@
-"""The Python twin of examples/data/streamops.metta: the same four set
-operations over NONDETERMINISM rather than over expressions.
+"""The Python twin of examples/data/streamops.metta.
 
-`unique-atom` walks an expression; `unique` walks a superposition and needs a
-`collapse` to become one answer again. The twin is the term door throughout:
-a symbol calls to build, and a plain Python tuple is the expression it is
-called on.
-"""  # noqa: D205  -- the twin's contract is one continuous statement, not summary-and-body prose
+The same four set operations as multiset_operations.metta, over
+NONDETERMINISM rather than over expressions: `unique-atom` walks an
+expression, while `unique` walks a superposition and needs a `collapse` to
+become one answer again.
+
+The twin is the term door throughout: a symbol calls to build, and a plain
+Python tuple is the expression it is called on.
+"""
 
 from petta import S
 

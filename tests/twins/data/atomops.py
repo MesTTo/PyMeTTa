@@ -35,10 +35,11 @@ BUDGET = 17624
 
 
 def refuses(call):
-    """`(test (if-error (catch call) refused answered) refused)`: the shape the
-    refusal half of this example takes, named once so each case reads as the
-    call it makes.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """The shape the refusal half of this example takes.
+
+    `(test (if-error (catch call) refused answered) refused)`, named once so
+    each case below reads as the call it makes.
+    """
     return S.test(
         S["if-error"](S.catch(call), S.refused, S.answered), S.refused
     )
