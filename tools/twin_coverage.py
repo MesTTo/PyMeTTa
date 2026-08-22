@@ -507,6 +507,22 @@ COMPILING_DECORATORS = frozenset({"define", "cache", "rules"})
 #: with Variable arguments; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 LOWERING_DECORATORS = frozenset({"define", "cache"})
 
+#: Decorators whose body is HOST PYTHON rather than knowledge. An operation
+#: RUNS in Python, so the `" "` in `title.replace(" ", "-")` is an argument to
+#: a Python method and never a program; the guide's own exemplar for the door
+#: is a string-slugging function. Without this the lane sent an author through
+#: `space.op(...)`, which is what it tells a twin that wrote `register_op`, and
+#: then refused the ordinary Python inside it [source: ai-python-conventions.md
+#: section 3.11, the grounded boundary; commit=WORKTREE]
+#: [tested: test_a_host_operation_body_holds_python_text; commit=WORKTREE].
+HOST_BODY_DECORATORS = frozenset({"op"})
+
+#: What the string rule reads: a compiled body's constants are MeTTa string
+#: literals and a host body's are Python arguments, and neither is source text.
+#: The source doors stay refused in both, because a door is a call and the call
+#: rule does not care where the call sits.
+LITERAL_BODY_DECORATORS = COMPILING_DECORATORS | HOST_BODY_DECORATORS
+
 
 def _decorated(node: ast.FunctionDef | ast.ClassDef, names: frozenset[str]) -> bool:
     """Whether a definition carries one of `names` as a decorator."""
@@ -627,7 +643,7 @@ def _declared_strings(node: ast.Module | ast.FunctionDef | ast.ClassDef) -> set[
         )
     )
     if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and _decorated(
-        node, COMPILING_DECORATORS
+        node, LITERAL_BODY_DECORATORS
     ):
         permitted |= _text_ids([node])
     return permitted

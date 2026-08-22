@@ -238,6 +238,36 @@ def test_a_string_in_a_compiled_body_is_a_metta_literal(tmp_path):
     assert "calls run(), which takes MeTTa source" in findings[0]
 
 
+def test_a_host_operation_body_holds_python_text(tmp_path):
+    """An operation RUNS in Python, so its strings are Python arguments.
+
+    The guide's own exemplar for the door slugs a title, and the lane sends a
+    twin that wrote `register_op` to `space.op(...)`, so refusing
+    `title.replace(" ", "-")` there would refuse the door it recommends. The
+    source doors stay refused inside an operation for the reason they are
+    refused inside a compiled body: a door is a call.
+    """
+    planted = tmp_path / "op.py"
+    planted.write_text(
+        '"""Op."""\n'
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    @m.op\n"
+        "    def slug(title: str) -> str:\n"
+        '        return title.lower().replace(" ", "-")\n'
+        "    @m.op\n"
+        "    def cheat() -> str:\n"
+        '        return m.run("(f)")\n',
+        encoding="utf-8",
+    )
+    findings = coverage.scan(planted)
+    assert len(findings) == 1, findings
+    assert "calls run(), which takes MeTTa source" in findings[0]
+    # An operation registers a grounding; it authors no equation, so it buys
+    # none of the band's authoring allowance.
+    assert coverage.definitions(planted) == 0
+
+
 # ----------------------------------------------------------- the finished surface
 
 
