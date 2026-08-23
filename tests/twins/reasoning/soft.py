@@ -1,91 +1,89 @@
-"""Purpose: express the soft-reasoning example through the Python surface.
+"""Purpose: examples/reasoning/soft.metta in Python: weak unification and attention.
 
-Weak unification and attention run in the shipped ``lib_soft`` and
-``lib_measure`` libraries.
+`lib_soft` scores two terms against each other: structure crisp, symbols soft,
+minimum aggregation, and a variable binding at degree one. `lib_measure` then
+turns the scored candidates into a distribution. Every claim is a call on one
+of the two libraries.
 
-Guarantees:
-  - all seventeen source claims cover symmetric symbol similarity, recursive
-    soft scoring, variable binding, space matching, best-match selection, and
-    normalized attention [measured: twin completed; command=PYTHONPATH=bindings/python python -c "import runpy; from petta import MeTTa; runpy.run_path('bindings/python/tests/twins/reasoning/soft.py') ['twin'](MeTTa(petta_path='.'))"; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+The zoo is an ordinary space, and the Python variable IS its binding, so it
+needs no name: the handle crosses a term position as itself, which is what
+`soft-match` receives where the example writes `&zoo`.
+
+The claim that reads a binding is `solve`, the relational `let`: unify the
+score against 1.0 and the subject's own `$who` comes back bound to `cat`,
+which is exactly what the example's `(let $probe ... ($probe $who))` says.
 """
 
-from petta import S, V
+import petta
+from petta import Expression, S, V, fn
 
-#: Imports and the soft library's hyphenated names use the current naming
-#: doors. The binding-producing score also stays a let term because a value
-#: call does not expose the variable binding it found.
-RUNG = "imports and soft-library calls use current naming doors, and one binding leaves through let"
-
-#: The import target and the named zoo operand required by current term forms.
-SELF = S["&self"]
-ZOO = S["&zoo"]
-
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 186644..186685 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 186644,
-    "maximum": 186685,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here. THIS TWIN'S
+#: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 186644, maximum 186685 over
+#: 28 observations under `full-lane/218/workers=32`, so the re-pin owes it an
+#: envelope rather than a point
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+BUDGET = 1
 
 
 def twin(m):
     """Load soft matching, state two similarities, then check all seventeen claims."""
-    m.eval(S["import!"](SELF, S.library(S.lib_measure)))
-    m.eval(S["import!"](SELF, S.library(S.lib_soft)))
+    m.eval(fn["import!"](m, S.library(S["lib_measure"])))
+    m.eval(fn["import!"](m, S.library(S["lib_soft"])))
 
     m += S.similar(S.cat, S.feline, 0.8)
     m += S.similar(S.dog, S.wolf, 0.7)
 
-    sym_sim = m.fn("sym-sim")
-    soft_score = m.fn("soft-score")
+    sym_sim = m.fn.sym_sim
+    soft_score = m.fn.soft_score
 
-    assert sym_sim(S.cat, S.cat) == 1.0
-    assert sym_sim(S.cat, S.feline) == 0.8
-    assert sym_sim(S.feline, S.cat) == 0.8
-    assert sym_sim(S.cat, S.dog) == 0.0
+    assert sym_sim(S.cat, S.cat).one() == 1.0
+    assert sym_sim(S.cat, S.feline).one() == 0.8
+    assert sym_sim(S.feline, S.cat).one() == 0.8
+    assert sym_sim(S.cat, S.dog).one() == 0.0
 
-    assert soft_score(S.likes(S.cat, S.fish), S.likes(S.cat, S.fish)) == 1.0
-    assert soft_score(S.likes(S.feline, S.fish), S.likes(S.cat, S.fish)) == 0.8
-    assert soft_score(S.likes(S.feline, S.wolf), S.likes(S.cat, S.dog)) == 0.7
-    assert soft_score(S.likes(S.cat), S.likes(S.cat, S.fish)) == 0.0
-    assert soft_score(S.likes(S.cat, S.fish), S.hates(S.cat, S.fish)) == 0.0
-    assert soft_score(3, 3) == 1.0
-    assert soft_score(3, 4) == 0.0
+    assert soft_score(S.likes(S.cat, S.fish), S.likes(S.cat, S.fish)).one() == 1.0
+    assert soft_score(S.likes(S.feline, S.fish), S.likes(S.cat, S.fish)).one() == 0.8
+    assert soft_score(S.likes(S.feline, S.wolf), S.likes(S.cat, S.dog)).one() == 0.7
+    assert soft_score(S.likes(S.cat), S.likes(S.cat, S.fish)).one() == 0.0
+    assert soft_score(S.likes(S.cat, S.fish), S.hates(S.cat, S.fish)).one() == 0.0
+    assert soft_score(3, 3).one() == 1.0
+    assert soft_score(3, 4).one() == 0.0
 
-    assert soft_score(V.x, S.anything) == 1.0
-    probe = m.one(
-        S.let(
-            V.probe,
-            S["soft-score"](S.likes(V.who, S.fish), S.likes(S.cat, S.fish)),
-            (V.probe, V.who),
-        )
-    )
-    assert tuple(probe) == (1.0, S.cat)
+    # A variable binds at degree one, and the binding is real.
+    #
+    # Known issue: a call carrying a caller variable answers that variable's
+    # BINDINGS and drops the value, so the calling door cannot state the first
+    # of these two claims. It should read:
+    #     assert soft_score(V.x, S.anything).one() == 1.0
+    assert m.eval(S["soft-score"](V.x, S.anything)) == [1.0]
+    scored = S["soft-score"](S.likes(V.who, S.fish), S.likes(S.cat, S.fish))
+    assert m.solve(1.0, scored).who == S.cat
 
-    zoo = m.space("&zoo")
+    # Soft matching over a space, feeding the measure algebra.
+    zoo = petta.space()
     zoo += S.likes(S.cat, S.fish)
     zoo += S.likes(S.dog, S.bones)
     zoo += S.likes(S.bird, S.seeds)
 
-    soft_match = m.fn("soft-match")
-    closest = soft_match.all(ZOO, S.likes(S.feline, S.fish), 0.5)
-    assert (
-        len(closest) == 1
-        and closest[0][0] == 0.8
-        and closest[0][1] == S.likes(S.cat, S.fish)
-    )
-    assert m.fn("soft-best")(ZOO, S.likes(S.feline, S.fish)) == S.likes(
-        S.cat, S.fish
-    )
-    assert len(soft_match.all(ZOO, S.likes(V.x, V.y), 0.0)) == 3
+    soft_match = m.fn.soft_match
+    closest = soft_match(zoo, S.likes(S.feline, S.fish), 0.5).one()
+    assert tuple(closest) == (0.8, S.likes(S.cat, S.fish))
+    assert m.fn.soft_best(zoo, S.likes(S.feline, S.fish)).one() == S.likes(S.cat, S.fish)
 
-    scored = soft_match.all(ZOO, S.likes(S.feline, V.f), 0.0)
-    distribution = m.fn("ws-softmax")(scored, 1.0)
-    assert abs(m.fn("ws-total")(distribution) - 1.0) < 1.0e-9
+    # Attention over terms: every candidate scored, softmaxed into a
+    # distribution, which sums to one whatever the temperature.
+    # `Expression(answers)` is the collapse door: the scored candidates become
+    # ONE ordered atom, which is what the measure algebra takes.
+    #
+    # Known issue: both of these calls carry caller variables, so the calling
+    # door answers those variables' BINDINGS instead of the scored pairs the
+    # example collapses, and the count would be right for the wrong reason.
+    # They should read:
+    #     assert len(soft_match(zoo, S.likes(V.x, V.y), 0.0)) == 3
+    #     candidates = Expression(soft_match(zoo, S.likes(S.feline, V.f), 0.0))
+    assert len(m.eval(S["soft-match"](zoo, S.likes(V.x, V.y), 0.0))) == 3
+    candidates = Expression(m.eval(S["soft-match"](zoo, S.likes(S.feline, V.f), 0.0)))
+    distribution = m.fn.ws_softmax(candidates, 1.0).one()
+    assert abs(m.fn.ws_total(distribution).one() - 1.0) < 1.0e-9

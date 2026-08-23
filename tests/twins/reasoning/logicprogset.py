@@ -11,39 +11,28 @@ first conjunct binds for the second, and that binding IS the example. So the
 term is built as it is, with `&` for `and` and `.eq` for the equality term,
 since `==` between atoms is Python's own structural equality.
 
-The claim keeps `if` and `once` for a reason worth stating: an evaluation
-answers VALUES, and `$M` is a BINDING. There is no Python door that hands back
-an evaluation's bindings, so the variable has to be carried out of the term by
-the term itself; `space[pattern]` binds only over stored atoms, and nothing
-here is stored.
-Guarantees:
-  - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+The claim is `solve`, which is the relational `let`: the subject is evaluated,
+its answer is unified with the pattern, and the subject's own variables come
+back as bindings. That is what carries `$M` out, where an evaluation would
+answer values.
 """
 
-from petta import Expression, S, V, equation
+from petta import TRUE, S, V, equation, fn
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 2948 to 2719, -229 (-7.77%), by the twin contract
-#: change: the `test` wrapper left the engine for Python's own `assert`. The
-#: search itself did not move. Against the example's 5305 the ratio is 0.5125
-#: [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/reasoning/logicprogset.metta`]. Prior: ADDED 2026-08-22 at 2948 by
-#: the wave-3 twin baseline.
-BUDGET = 2719
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+BUDGET = 1
 
 
 def twin(m):
     """Say what the set is, then let the search find one."""
     m += equation(S.myf(V.M)).to(
-        S.member(S.a, V.M) & S.member(S.b, V.M)
-        & S["size-atom"](V.M).eq(2)  # rung: `len()` needs a value; $M is a variable the search has not bound yet
+        fn.member(S.a, V.M) & fn.member(S.b, V.M)
+        & fn.size_atom(V.M).eq(2)  # rung: `len()` needs a value; $M is a variable the search has not bound yet
     )
 
-    # `(a b)` is the two-member SET the search found, not a call, so it is built
-    # with Expression rather than as `S.a(S.b)`, which would read as one.
-    assert m.eval(S["if"](S.once(S.myf(V.M)), V.M)) == [Expression((S.a, S.b))]  # rung: $M is a binding no Python door hands back, and (a b) is a set rather than a call
+    # `(a b)` is the two-member SET the search found. Calling the head is the
+    # shorter spelling of that same two-element atom.
+    assert m.solve(TRUE, fn.once(S.myf(V.M))).M == S.a(S.b)

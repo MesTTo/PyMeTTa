@@ -1,45 +1,47 @@
-"""Purpose: express the tile-puzzle example through the Python surface.
+"""Purpose: examples/reasoning/tilepuzzle.metta in Python: the eight-tile state graph.
 
-The twin includes all twenty-four moves and the breadth-first queue search.
+Twenty-four move equations say where the blank may go from each of the nine
+positions, and a breadth-first loop walks the reachable states, refusing a
+duplicate, until the queue empties. The claim is the count it reaches, 181441.
 
-Guarantees:
-  - the generated move equations cover every legal blank swap and the search
-    exhausts the eight-tile state graph at the source count of 181441 [measured: twin completed; command=PYTHONPATH=bindings/python python -c "import runpy; from petta import MeTTa; runpy.run_path('bindings/python/tests/twins/reasoning/tilepuzzle.py') ['twin'](MeTTa(petta_path='.'))"; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+The moves are one shape repeated, so a pair of loops writes them: the blank's
+position and the direction are the loop variables, and the row is the eight
+placeholders with the blank swapped into place. The example writes all
+twenty-four out; here the shape is stated once and the loops supply the rest.
+
+Everything stays at the container door. Every move head destructures a
+nine-cell board, `bfs_loop` has two clauses under one head that are
+ALTERNATIVES rather than first-match, and its body binds with `let*` over a
+queue library whose names are not Python identifiers.
+
+Three names carry a genuine underscore, `bfs_loop`, `bfs_all` and `$_1`, and
+the factory attribute door maps every underscore to a hyphen, so all of them
+take the bracket: `S.bfs_loop` would be the DIFFERENT head `bfs-loop`.
 """
 
-from petta import S, V, equation, sym
+import petta
+from petta import S, V, equation, fn, if_
 
-#: Move heads destructure a nine-cell board, bfs_loop has two identical heads,
-#: and its queue body carries let bindings over named spaces. Those are laws at
-#: the current rules/term door rather than flat compiled Python functions.
-RUNG = "structured move heads and same-head breadth-first laws use the rules and term doors"
+#: The blank, and one variable per board position.
+BLANK = S["___"]
+SLOTS = (V["_1"], V["_2"], V["_3"], V["_4"], V["_5"],
+         V["_6"], V["_7"], V["_8"], V["_9"])
 
-#: The blank is a source symbol Python reserves from the factory attribute door.
-BLANK = sym("___")
-
-#: One source variable per board position. The blank replaces one in each rule.
-SLOTS = (V._1, V._2, V._3, V._4, V._5, V._6, V._7, V._8, V._9)
+#: The two search heads, whose MeTTa names are underscored.
+BFS_LOOP = S["bfs_loop"]
+BFS_ALL = S["bfs_all"]
 
 #: Source order is up, left, right, down wherever the move is legal.
 DIRECTIONS = ((S.U, -3), (S.L, -1), (S.R, 1), (S.D, 3))
 
-#: The import target and duplicate-detection space required by current terms.
-SELF = S["&self"]
-DUPLICATES = S["&dup"]
-
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 55047786..55047980 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 55047786,
-    "maximum": 55047980,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here. THIS TWIN'S
+#: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 55047786, maximum 55047980
+#: over 28 observations under `full-lane/218/workers=32`, so the re-pin owes
+#: it an envelope rather than a point
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+BUDGET = 1
 
 
 def _legal(blank, direction):
@@ -70,45 +72,50 @@ def _moves():
 def twin(m):
     """State the moves and queue laws, then exhaust the reachable state graph."""
     m.add(*_moves())
-    m.eval(S["import!"](SELF, S.library(S.lib_datastructures)))
+    m.eval(fn["import!"](m, S.library(S["lib_datastructures"])))
 
-    m += equation(S.bfs_loop(V.Q, V.N0)).to(
-        S["if"](V.Q.eq(S["empty-queue"]()), V.N0, S.empty())
+    # The duplicate store is an ordinary space, and the Python variable IS its
+    # binding, so it needs no name: the handle crosses a term position as
+    # itself, which is what `add-unique-or-fail` receives.
+    duplicates = petta.space()
+
+    # `empty-queue` is a function, so the base case tests the queue against
+    # what it produces rather than writing the call in the head, which would
+    # be a pattern matched structurally.
+    m += equation(BFS_LOOP(V.Q, V.N0)).to(
+        if_(V.Q.eq(S["empty-queue"]()), V.N0, fn.empty())
     )
-    m += equation(S.bfs_loop(V.Q, V.N0)).to(
-        S["let*"](
+    m += equation(BFS_LOOP(V.Q, V.N0)).to(
+        fn["let*"](  # rung: a let* over queue calls a compiled body cannot name (P14.4)
             (
-                (V.Q1, S.once(S.dequeue(V.S, V.Q))),
+                (V.Q1, fn.once(S.dequeue(V.S, V.Q))),
                 (
                     V.Ln,
-                    S.collapse(
-                        S["let*"](
+                    fn.collapse(  # rung: a collapse INSIDE a stored body, where list() is a Python read (P14.4)
+                        fn["let*"](  # rung: the same let* (P14.4)
                             (
                                 (V.Snew, S.move(V.S, V._)),
-                                (
-                                    V.receipt,
-                                    S["add-unique-or-fail"](DUPLICATES, V.Snew),
-                                ),
+                                (V.receipt, S["add-unique-or-fail"](duplicates, V.Snew)),
                             ),
                             V.Snew,
                         )
                     ),
                 ),
-                (V.Q2, S.foldl(S.enqueue, V.Ln, V.Q1)),
+                (V.Q2, fn.foldl(S.enqueue, V.Ln, V.Q1)),
                 (V.N1, V.N0 + 1),
             ),
-            S.bfs_loop(V.Q2, V.N1),
+            BFS_LOOP(V.Q2, V.N1),
         )
     )
-    m += equation(S.bfs_all(V.Start)).to(
-        S["let*"](
+    m += equation(BFS_ALL(V.Start)).to(
+        fn["let*"](  # rung: the same let* (P14.4)
             (
                 (V.receipt, S["add-unique-item-or-empty"](V.Start)),
                 (V.Q1, S.enqueue(V.Start, S["empty-queue"]())),
             ),
-            S.bfs_loop(V.Q1, 0),
+            BFS_LOOP(V.Q1, 0),
         )
     )
 
     start = (BLANK, 1, 2, 3, 4, 5, 6, 7, 8)
-    assert m.one(S.let(V.x, S.bfs_all(start), V.x)) == 181441
+    assert m.fn["bfs_all"](start).one() == 181441

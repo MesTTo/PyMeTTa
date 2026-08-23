@@ -7,7 +7,7 @@ states the seam claim the six rest on, that the engine's `repr` says the same
 thing about the same atoms.
 
 Expected printed output is Python text. The atom being printed still crosses
-through `val` when it is a MeTTa String value.
+through `ground` when it is a MeTTa String value.
 
 Two spellings are worth naming. A plain Python tuple builds an expression, so
 `(, B , C ,)` is `(S[","], S.B, S[","], S.C, S[","])`, five children under no
@@ -28,23 +28,18 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import S, val
+from petta import S, ground
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 3394 to 1744, -1650 (-48.6%), by the twin contract
-#: change: six `(test (repr X) "...")` terms became six Python `assert`s over
-#: `str(atom)`, so the `test` wrapper left the engine entirely and what is left
-#: is the six-call seam loop below. Against the example's 5730 the ratio is
-#: 0.3044.
-#: Prior: 3394, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 1744
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+BUDGET = 1
 
 #: Every atom of the original, beside the text `repr` prints it as.
 PRINTED = [
-    (val(42), "42"),
-    (val("42"), '"42"'),
+    (ground(42), "42"),
+    (ground("42"), '"42"'),
     (S.A(S.B(S.C)), "(A (B C))"),
     (S.A((S[","], S.B, S[","], S.C, S[","])), "(A (, B , C ,))"),
     (S["2025_12_12"], "2025_12_12"),
@@ -68,4 +63,4 @@ def twin(m):
 
     # Python's `str` is the engine's `repr`: the same atom, the same text,
     # either side of the seam.
-    assert [m.fn("repr")(atom) for atom, _ in PRINTED] == [text for _, text in PRINTED]
+    assert [m.fn.repr(atom).one() for atom, _ in PRINTED] == [text for _, text in PRINTED]

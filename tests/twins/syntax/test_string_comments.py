@@ -1,4 +1,4 @@
-"""examples/syntax/test_string_comments.metta in Python: `;` inside a string.
+"""Purpose: examples/syntax/test_string_comments.metta in Python: `;` inside a string.
 
 The original is a READER test: a semicolon inside a string starts no comment, a
 lone `(` or `)` is a string rather than a paren, and a backslash escape
@@ -8,50 +8,56 @@ where syntax/parse.metta records it.
 
 What a Python program CAN say is the other half, and it is the half the reader
 exists to protect: each of these values crosses into the engine and comes back
-as itself. `m.one(val(text))` is that crossing, one answer out, and it is the
-same round trip the original's `!(test "x" "x")` forms make.
+as itself, which is the same round trip the original's `!(test "x" "x")` forms
+make.
 
 The last form is an ordinary definition, written at the container door one rung
 below `@m.define`: its body is the lowercase symbol `result`, and a compiled
 body reads a lowercase free name as a CALL, so the symbol has no decorator
 spelling (residue, P14.4).
+
+The file keeps its example-derived name, `test_string_comments.py`, because the
+lane derives a twin's path from its example's; the pytest collection it invites
+is the integrator's to configure, not this file's to rename around.
 """
 
-from petta import S, equation, val
+from petta import S, equation, fn, ground
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 3883 to 1680, -2203 (-56.7%), by the twin contract
-#: change: eleven `(test X X)` terms became eleven Python `assert`s, so the
-#: `test` wrapper left the engine and the ten crossings plus one definition are
-#: what remains. Against the example's 8232 the ratio is 0.2041.
-#: Prior: 3883, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 1680
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+BUDGET = 1
 
 
 def twin(m):
     """Send nine awkward strings through the engine, then define a function."""
     # A lone paren is a string, not punctuation.
-    assert m.one(val(")")) == val(")")
-    assert m.one(val("(")) == val("(")
+    close, open_ = ground(")"), ground("(")
+    assert m.eval(close) == [close]
+    assert m.eval(open_) == [open_]
     # A lone semicolon is a string, not the start of a comment.
-    assert m.one(val(";")) == val(";")
+    semicolon = ground(";")
+    assert m.eval(semicolon) == [semicolon]
 
     # `quote` holds its argument rather than reducing it, so the semicolon
     # survives one level in as well.
-    assert m.one(S.quote(val(";"))) == S.quote(val(";"))
+    quoted = fn.quote(semicolon)
+    assert m.eval(quoted) == [quoted]
 
     # A semicolon in the middle, three of them, one at each end.
-    assert m.one(val("foo;bar")) == val("foo;bar")
-    assert m.one(val(";;;")) == val(";;;")
-    assert m.one(val(";start")) == val(";start")
-    assert m.one(val("end;")) == val("end;")
+    middle, three = ground("foo;bar"), ground(";;;")
+    assert m.eval(middle) == [middle]
+    assert m.eval(three) == [three]
+    first, last = ground(";start"), ground("end;")
+    assert m.eval(first) == [first]
+    assert m.eval(last) == [last]
 
     # An escaped quote, and a backslash.
-    assert m.one(val('quote: "')) == val('quote: "')
-    assert m.one(val("path\\file")) == val("path\\file")
+    escaped, backslash = ground('quote: "'), ground("path\\file")
+    assert m.eval(escaped) == [escaped]
+    assert m.eval(backslash) == [backslash]
 
     # (= (test-func) result)
     m += equation(S["test-func"]()).to(S.result)
-    assert m.one(S["test-func"]()) == S.result
+    assert m.fn.test_func() == [S.result]

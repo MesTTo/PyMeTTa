@@ -16,7 +16,8 @@ in prose, because a bare one is a confusable ruff refuses.
 `kb` stays at the container door because its body is DATA rather than a
 computation: a compiled body's free names must be parameters, functions the
 engine knows by exactly that name, or capitalised constructors, and `-->`,
-`==>` and the product head are none of the three (residue, P14.4).
+`==>` and the product head are none of the three (residue, P14.4). The import
+takes the space HANDLE, because a space crosses a term position as itself.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -26,19 +27,13 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation
+from petta import Expression, S, V, equation, fn
 
-#: The space the import writes.
-SELF = S["&self"]  # rung: no import door hangs off the space handle
-
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 16271945 to 16270900, -1045 (-0.0064%), by the twin
-#: contract change: the `test` wrapper left the engine for Python's own
-#: `assert`, which is all that could move; the NARS query is the example.
-#: Against the example's 16284409 the ratio is 0.9992 [measured 2026-08-22
-#: min-of-3: `twin_coverage.py --measure examples/reasoning/nars_tuffy.metta`].
-#: Prior: ADDED 2026-08-22 at 16271945 by the wave-3 twin baseline.
-BUDGET = 16270900
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+BUDGET = 1
 
 
 def inheritance(subject, predicate):
@@ -52,7 +47,22 @@ def implication(premise, conclusion):
 
 
 def product(left, right):
-    """`(multiplication-sign left right)`, the NARS product of two terms."""
+    """`(multiplication-sign left right)`, the NARS product of two terms.
+
+    Known issue, and it decides whether this twin agrees with its example: the
+    engine reads a `.metta` file with the LOCALE's encoding, so under
+    `LC_ALL=C` every non-ASCII head in `lib/lib_nars.metta` arrives as U+FFFD
+    (measured: 123 replacement characters over the 51 `|-` clauses, against 0
+    under any UTF-8 locale). A `.metta` program stays self-consistent because
+    its own heads are corrupted the same way; a twin builds the REAL U+00D7,
+    which then matches no rule, and NARS answers
+    `((stv 0.6 0.486) (2 10))` instead of
+    `((stv 0.6 0.48941156079382964) (2 5 6 9 10))`. `twin_coverage.py`'s
+    `_environment` pins `LC_ALL=C`, so the lane measures that engine. The
+    engine should read its sources as UTF-8 whatever the locale
+    (`:- set_prolog_flag(encoding, utf8).`), or the lane should pin
+    `LC_ALL=C.UTF-8`; this line is already what it should be.
+    """
     return S["\N{MULTIPLICATION SIGN}"](left, right)
 
 
@@ -82,7 +92,9 @@ def smokes(who):
 
 def twin(m):
     """State ten sentences, then ask NARS about one of their consequences."""
-    m.eval(S["import!"](SELF, S.library(S.lib_nars)))
+    # The library's file name is `lib_nars.metta`, and the factory attribute
+    # door maps every underscore to a hyphen, so the name takes the bracket.
+    m.eval(fn["import!"](m, S.library(S["lib_nars"])))
 
     # The knowledge base, as the ten rows it is. `$1` and `$2` in the first two
     # rows are the rules' variables; everything below them is ground.
@@ -132,6 +144,6 @@ def twin(m):
 
     # Edward smokes, so Edward is cancerous, and the answer names the five
     # sentences the derivation used.
-    assert m.eval(
-        S["NARS.Query"](S.kb(), inheritance(S.Edward, prop(S.cancerous)))
+    assert m.fn["NARS.Query"](
+        S.kb(), inheritance(S.Edward, prop(S.cancerous))
     ) == [Expression((S.stv(0.6, 0.48941156079382964), Expression((2, 5, 6, 9, 10))))]

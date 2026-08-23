@@ -23,17 +23,13 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation
+from petta import Expression, S, V, equation, fn, if_
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 20711 to 19483, -1228 (-5.93%), by the twin-shape
-#: rewrite: the two `test` wrappers left the engine for `assert`; the
-#: computed-type walk over `(cons ...)` is unchanged and is nearly the whole
-#: cost. Against the example's 25435 the ratio is 0.7660 [measured 2026-08-22
-#: min-of-3: `twin_coverage.py --measure
-#: examples/types/types_dependent.metta`]. Prior: RE-PINNED at 20711 by
-#: P14.8's m.eval fuel-scope alignment.
-BUDGET = 19483
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+BUDGET = 1
 
 
 class EvenNumber:
@@ -46,10 +42,18 @@ class EvenNumberList:
 
 def twin(m):
     """Teach get-type two new answers, then use them as declared types."""
-    alpha = S["=alpha"]
+    alpha, kind = fn["=alpha"], fn.get_type
 
-    even = S["if"](alpha(V.x % 2, 0), S.EvenNumber)  # rung: the body belongs to a clause OF get-type, so it is a term (P14.4)
-    m += equation(S["get-type"](V.x)).to(S.catch(even))  # rung: the head is the engine's own get-type, which the program extends (P14.4)
+    # The head IS the engine's own get-type, which the program extends, so
+    # the clause is written as the equation it is.
+    #
+    # Known issue: both bodies are ONE-ARMED ifs, and `if_(condition,
+    # consequent, alternative)` fixes the arity at three, so the builder
+    # cannot say them and Python's conditional expression cannot either. It
+    # should read:
+    #     even = if_(alpha(V.x % 2, 0), S.EvenNumber)
+    even = fn["if"](alpha(V.x % 2, 0), S.EvenNumber)  # rung: a one-armed `if` has no builder and no Python expression (P14.4)
+    m += equation(kind(V.x)).to(fn.catch(even))
 
     @m.define
     def f(x: EvenNumber, y: EvenNumber) -> EvenNumber:
@@ -57,9 +61,11 @@ def twin(m):
 
     assert f(2, 4) == [6]
 
-    ends = S["if"](alpha(V.tail, Expression(())), S.EvenNumberList, S["get-type"](V.tail))  # rung: same clause, same reason
-    walk = S["if"](alpha(S["get-type"](V.head), S.EvenNumber), ends)  # rung: same clause, same reason
-    m += equation(S["get-type"](S.cons(V.head, V.tail))).to(walk)  # rung: the head is get-type again, over a cons cell
+    ends = if_(alpha(V.tail, Expression(())), S.EvenNumberList, kind(V.tail))
+    # Known issue again, and it should read `if_(alpha(kind(V.head),
+    # S.EvenNumber), ends)`.
+    walk = fn["if"](alpha(kind(V.head), S.EvenNumber), ends)  # rung: a one-armed `if` has no builder (P14.4)
+    m += equation(kind(S.cons(V.head, V.tail))).to(walk)
 
     @m.define
     def g(items: EvenNumberList) -> bool:  # noqa: ARG001  -- the parameter is what the signature declares; the body answers a constant

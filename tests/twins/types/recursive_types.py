@@ -1,4 +1,4 @@
-"""examples/types/recursive_types.metta in Python: one name, two arrows.
+"""Purpose: examples/types/recursive_types.metta in Python: one name, two arrows.
 
 A blacksmith turns Metal into a Sword, and also into a Paperclip. Both arrows
 are declared for the one name, so every question about the name answers twice,
@@ -12,23 +12,18 @@ its parts' types, elementwise, and it answers once per arrow the second element
 has.
 """
 
-from petta import S
+from petta import S, arrow, typed
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4238 to 2011, -2227 (-52.55%), by the twin-shape
-#: rewrite: four `test`-plus-`collapse` wrappers left the engine for `assert`
-#: over `.all()`; the four declarations and the four questions are what
-#: remains. Against the example's 8577 the ratio is 0.2345 [measured
-#: 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/types/recursive_types.metta`]. Prior: RE-PINNED at 4238 by
-#: P14.8's m.eval fuel-scope alignment.
-BUDGET = 2011
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+BUDGET = 1
 
 
 def twin(m):
     """Declare two arrows for one name, then ask four questions."""
-    typed, arrow = S[":"], S["->"]
-    kind = m.fn("get-type")
+    kind = m.fn.get_type
     sword = arrow(S.Metal, S.Sword)
     paperclip = arrow(S.Metal, S.Paperclip)
 
@@ -37,7 +32,7 @@ def twin(m):
     m += typed(S.iron, S.Metal)
     m += typed(S.gold, S.Metal)
 
-    assert m.fn("iron").type == S.Metal
-    assert kind.all(S.blacksmith) == [sword, paperclip]
-    assert kind.all(S.blacksmith(S.iron)) == [S.Sword, S.Paperclip]
-    assert kind.all(S.iron(S.blacksmith)) == [S.Metal(sword), S.Metal(paperclip)]
+    assert m.type(S.iron) == S.Metal
+    assert kind(S.blacksmith) == [sword, paperclip]
+    assert kind(S.blacksmith(S.iron)) == [S.Sword, S.Paperclip]
+    assert kind(S.iron(S.blacksmith)) == [S.Metal(sword), S.Metal(paperclip)]
