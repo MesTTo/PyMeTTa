@@ -27,7 +27,7 @@ Guarantees:
   - package ``match`` reads the default space while ``superpose`` evaluates
     its expression form; compiled definitions lower their syntactic match
     calls before either Python function executes [tested:
-    test_module_tier_exposes_the_mode_and_definition_family; commit=WORKTREE]
+    test_module_tier_exposes_the_mode_and_definition_family; commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
   - ``view`` lazily opens a live provider space over Python mappings, sets,
     and sequences [tested: test_view_is_a_live_queryable_space;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

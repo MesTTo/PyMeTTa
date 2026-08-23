@@ -2,7 +2,7 @@
 Guarantees:
   - the renamed package surface has 88 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=WORKTREE]
+    commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every retired root, context, and atom name is absent rather than aliased
@@ -15,7 +15,7 @@ Guarantees:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the upstream ``python.petta`` alias and its two-method ``PeTTa`` wrapper
     are absent [tested: test_upstream_python_package_path_is_gone;
-    commit=WORKTREE]
+    commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
 Owns:
   - subprocesses used for clean import-order probes are waited synchronously
     by ``subprocess.run(check=True)`` [tested:
@@ -25,7 +25,7 @@ Decides:
     [measured: 90 to 20 MeTTa names and 152 to 88 metta names after the
     module-tier family and the package rename;
     command=python -m pytest bindings/python/tests/test_m7_narrow_core.py -q;
-    fixture=a142938d baseline and the current generated root; commit=WORKTREE]
+    fixture=a142938d baseline and the current generated root; commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
 Open Obligations:
   To Do: None
   Hacks: None
