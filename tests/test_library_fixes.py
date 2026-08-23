@@ -30,6 +30,9 @@ Guarantees:
   - a grounded atom participates in term-building operators instead of
     computing as its carried Python value [tested:
     test_grounded_atoms_lift_python_operators_to_terms; commit=WORKTREE]
+  - an Answers view used as a term operand is observed through exact-one
+    cardinality, making deterministic calls nest and refusing ambiguity
+    [tested: test_answer_views_observe_when_used_as_operands; commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -39,6 +42,7 @@ import pytest
 
 from petta import TRUE, UNIT, Expression, G, S, V, space
 from petta.atoms import order_key
+from petta.errors import EngineError
 
 
 def test_resolved_bang_call_is_eager(tmp_path: Path) -> None:
@@ -235,3 +239,19 @@ def test_grounded_atoms_lift_python_operators_to_terms() -> None:
     assert 2 + G(1) == S["+"](2, 1)
     assert -G(1) == S["-"](0, 1)
     assert target.answers(G(1) + 2).one() == 3
+
+
+def test_answer_views_observe_when_used_as_operands() -> None:
+    """Term construction is the explicit observation point for a view."""
+    target = space()
+    target.run(
+        "(= (libfix-inner $x) (+ $x 1))\n"
+        "(= (libfix-outer $x) (* $x 2))\n"
+        "(= (libfix-many) (superpose (1 2)))"
+    )
+
+    nested = target.fn["libfix-outer"](target.fn["libfix-inner"](2))
+
+    assert nested.one() == 6
+    with pytest.raises(EngineError, match="exactly one answer"):
+        target.fn["libfix-outer"](target.fn["libfix-many"]())

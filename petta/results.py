@@ -35,6 +35,9 @@ Guarantees:
   - evaluation values and their caller-binding rows are parallel faces of one
     Answers cursor [tested: test_calls_keep_values_and_binding_rows;
     commit=WORKTREE]
+  - an Answers view crossing into a term observes exact-one cardinality and
+    encodes that answer as the operand [tested:
+    test_answer_views_observe_when_used_as_operands; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -58,7 +61,7 @@ from typing import Any, Final, NamedTuple, Self, SupportsIndex, overload
 
 from ._config import config
 from ._optional import require_module
-from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode
+from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode, _encode
 from .errors import EngineError, MettaResultError
 
 __all__ = ["Answers", "Row", "Rows"]
@@ -844,6 +847,10 @@ class Answers[T](Sequence[T]):
 
     def __dir__(self) -> list[str]:  # noqa: D105 -- completion extends Python's standard directory
         return sorted(set(super().__dir__()) | set(self._columns))
+
+    def __metta__(self) -> Atom:
+        """Observe exactly one answer when this view enters a term."""
+        return _encode(self.one())
 
     @staticmethod
     def _scalar(answer: Any) -> Any:
