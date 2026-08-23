@@ -10,6 +10,12 @@ is Python's own `assert`.
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
 #: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: RE-PINNED 2026-08-23, 2230 to 2240, at the p14-kernel merge. The move is
+#: LAYOUT inside the band the entry below already measured: on the kernel
+#: branch, deleting the new metta_host_function_generation/1 service row,
+#: deleting its shim wrapper, or moving the service left the reading at 2240
+#: unchanged, and on the merged tree three runs read 2240 identically
+#: [measured 2026-08-23, min-of-3 through tools/twin_coverage.run_twin].
 #: RE-PINNED 2026-08-23, 2208 to 2230, by the indexed equation lookup in
 #: engine/filereader.pl. The move is LAYOUT, not work: with
 #: translated_equation_of/3 present in that file but never called this twin
@@ -23,7 +29,7 @@ is Python's own `assert`.
 #: 2026-08-23, min-of-3 per variant through tools/twin_coverage.run_twin,
 #: every variant's three runs identical].
 #: Prior: INTERIM PIN 2026-08-23, min-of-3 on the wave-merged tree (2208 against the example's 2626): this file gates the pytest lane, so it is priced ahead of the corpus-wide pass that follows the library fixes, the guide update, and the marked-site sweep, and it is re-priced there with everything else.
-BUDGET = 2230
+BUDGET = 2240
 
 
 def twin(m):
