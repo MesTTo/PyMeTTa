@@ -9,6 +9,11 @@ Guarantees:
     cardinality, slicing, truth, and engine-count protocol [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
     test_query_single_unpack_pulls_at_most_two_answers; commit=WORKTREE]
+  - package ``superpose`` and ``match`` evaluate the same expressions they
+    lower inside compiled bodies, with an empty zero-branch superposition and
+    ambient-space matching [tested:
+    test_expression_position_superpose_and_match_share_the_ambient_space;
+    commit=WORKTREE]
 """
 
 import copy
@@ -16,7 +21,7 @@ from collections import Counter
 
 import pytest
 
-from petta import MeTTa, S, V, space
+from petta import MeTTa, S, V, match, space, superpose
 from petta.errors import EngineError
 from petta.results import Answers
 
@@ -118,3 +123,27 @@ def test_define_accepts_a_plain_annotated_data_class() -> None:
     assert target.eval(S["InventoryLine-quantity"](two))[0] == 2
     if hasattr(copy, "replace"):
         assert copy.replace(two, quantity=3).quantity == 3
+
+
+def test_expression_position_superpose_and_match_share_the_ambient_space() -> None:
+    """The package functions evaluate outside bodies and lower inside them."""
+    target = space("&libfix-expression-position")
+    target.clear()
+    target += S.parent(S.Tom, S.Bob)
+
+    with target:
+        assert list(superpose(3, 4)) == [3, 4]
+        assert list(superpose()) == []
+        assert list(match(S.parent(S.Tom, V.child), V.child)) == [S.Bob]
+
+    @target.define
+    def choose(value):
+        return superpose(value, value + 1)
+
+    @target.define
+    def child_of(parent):
+        return match(S.parent(parent, child), child)  # noqa: F821
+
+    assert list(choose(8)) == [8, 9]
+    assert list(child_of(S.Tom)) == [S.Bob]
+    target.drop()

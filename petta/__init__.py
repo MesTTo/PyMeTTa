@@ -28,6 +28,11 @@ Guarantees:
   - ``fn`` is an inert, generated, statically typed mention namespace and
     importing it never starts the engine [tested:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - package ``superpose`` and ``match`` evaluate their expression forms in
+    the ambient space and compile as those same forms inside definitions
+    [tested:
+    test_expression_position_superpose_and_match_share_the_ambient_space;
+    commit=WORKTREE]
 Decides:
   - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
     stack policy [source: PeTTa-base/python/petta/__init__.py:8;
@@ -329,6 +334,39 @@ def query(*patterns: _Any, **kwargs: _Any):
     return engine().self.query(*patterns, **kwargs)
 
 
+def _ambient_space():
+    """Open the space selected by the active Python or engine context."""
+    return engine().space(current_space())
+
+
+def superpose(*alternatives: _Any):
+    """Evaluate expression-position alternatives in the ambient space.
+
+    With no alternatives this evaluates ``(empty)``. Inside a compiled
+    definition the compiler lowers this same function spelling directly to
+    ``(superpose (...))``.
+    """
+    target = S.empty() if not alternatives else S.superpose(Expression(alternatives))
+    return _ambient_space().answers(target)
+
+
+def match(*args: _Any):
+    """Evaluate a match expression against the ambient or named space.
+
+    ``match(pattern, template)`` supplies the ambient space. The three-argument
+    form keeps an explicit space first, matching the compiled-body form.
+    """
+    if len(args) == 2:
+        ambient = _ambient_space()
+        pattern, template = args
+        return ambient.answers(S.match(ambient, pattern, template))
+    if len(args) == 3:
+        source, pattern, template = args
+        return _ambient_space().answers(S.match(source, pattern, template))
+    msg = "match takes (pattern, template) or (space, pattern, template)"
+    raise TypeError(msg)
+
+
 def add(*atoms: _Any):
     """Add atoms to the default context's self space."""
     return engine().self.add(*atoms)
@@ -402,6 +440,7 @@ __all__ = [
     "integrate",
     "lint",
     "manifest",
+    "match",
     "not_",
     "or_",
     "parallel",
@@ -418,6 +457,7 @@ __all__ = [
     "spaces",
     "structures",
     "subscribe",
+    "superpose",
     "tables",
     "testing",
     "trace",
