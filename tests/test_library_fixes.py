@@ -12,6 +12,9 @@ Guarantees:
     mixed operands symmetrically, and leave comparison terms to explicit
     symbol construction [tested: test_atom_comparisons_are_only_ordering;
     commit=WORKTREE]
+  - builtin discovery is cached per logical space and invalidated after every
+    function-catalog mutation [tested: test_builtin_discovery_is_cached,
+    test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
 """
 
 from pathlib import Path
@@ -85,3 +88,45 @@ def test_atom_comparisons_are_only_ordering() -> None:
         S["space-atom-count"](pool), S["car-atom"](Expression(2))
     )
     assert pool.eval(guard) == [TRUE]
+
+
+def test_builtin_discovery_is_cached() -> None:
+    """A second namespace lookup does not enumerate the engine catalogue."""
+    target = space()
+    with target.stats() as first:
+        first_handle = target.fn.car_atom
+    with target.stats() as second:
+        second_handle = target.fn.cdr_atom
+
+    assert first_handle.__name__ == "car-atom"
+    assert second_handle.__name__ == "cdr-atom"
+    assert second.inferences < first.inferences // 10
+
+
+def test_builtin_cache_invalidates_after_a_miss(tmp_path: Path) -> None:
+    """Registration, definition, and import cannot hide behind stale misses."""
+    target = space()
+    operation_name = "libfix-late-operation"
+    assert operation_name not in target.builtins()
+
+    @target.op(name=operation_name)
+    def late_operation(value):
+        return value
+
+    assert operation_name in target.builtins()
+    target.unregister_op(operation_name)
+    assert operation_name not in target.builtins()
+
+    definition_name = "libfix-late-definition"
+
+    @target.define(name=definition_name)
+    def late_definition(value):
+        return value
+
+    assert definition_name in target.builtins()
+
+    import_name = "libfix-late-import"
+    source = tmp_path / "late-import.metta"
+    source.write_text(f"(= ({import_name}) imported)\n", encoding="utf-8")
+    target.fn["import!"](target, str(source))
+    assert import_name in target.builtins()

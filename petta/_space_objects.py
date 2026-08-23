@@ -11,6 +11,8 @@ Guarantees:
   - a resolved bang call completes before the call returns while retaining a
     replayable answer view [tested: test_resolved_bang_call_is_eager;
     commit=WORKTREE]
+  - resolved bang mutations invalidate the owning space's builtin catalogue
+    [tested: test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -860,6 +862,7 @@ class _EngineFunction:
         answers = self._space.answers(self._term(args))
         if self._name.endswith("!"):
             answers._materialize()
+            self._space._invalidate_builtins()
         return answers
 
     # ------------------------------------------------------- introspection

@@ -35,6 +35,9 @@ Guarantees:
     test_bound_function_namespace_validates_at_access,
     test_function_calls_pull_engine_answers_only_as_demanded;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - builtin discovery is cached per logical space and invalidated by every
+    catalogue mutation [tested: test_builtin_discovery_is_cached,
+    test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
   - ``Space`` is a grounded ``Handle`` that crosses as a term operand, and
     ``peek`` and ``take`` expose the engine's event-driven Linda operations
     [tested: test_space_handles_are_term_operands_and_round_trip,
@@ -57,6 +60,8 @@ import hashlib
 import importlib as _importlib
 import os
 import sys
+import threading
+import weakref
 from collections import abc as _abc
 from collections.abc import Callable, Iterable, Iterator
 from contextvars import ContextVar
@@ -141,6 +146,35 @@ __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_spa
 _CastT = TypeVar("_CastT")
 _R = TypeVar("_R")
 _P = ParamSpec("_P")
+
+_BUILTINS_CACHE_LOCK = threading.RLock()
+_BUILTINS_CACHE: weakref.WeakKeyDictionary[
+    Runtime, tuple[int, dict[str, tuple[str, ...]]]
+] = weakref.WeakKeyDictionary()
+
+
+def _invalidate_builtins_cache(rt: Runtime) -> None:
+    """Advance one runtime's catalogue generation and discard every space view."""
+    with _BUILTINS_CACHE_LOCK:
+        generation, _ = _BUILTINS_CACHE.get(rt, (0, {}))
+        _BUILTINS_CACHE[rt] = (generation + 1, {})
+
+
+def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
+    """Read one generation-stamped per-space builtin catalogue."""
+    while True:
+        with _BUILTINS_CACHE_LOCK:
+            generation, catalogues = _BUILTINS_CACHE.setdefault(rt, (0, {}))
+            cached = catalogues.get(space_name)
+            if cached is not None:
+                return list(cached)
+        discovered = tuple(rt.builtins())
+        with _BUILTINS_CACHE_LOCK:
+            current_generation, current = _BUILTINS_CACHE.get(rt, (0, {}))
+            if current_generation != generation:
+                continue
+            current[space_name] = discovered
+            return list(discovered)
 
 _ACTIVE_SPACE: ContextVar[_SpaceId | None] = ContextVar(
     "petta_active_space", default=None
@@ -666,14 +700,17 @@ class Space(Handle):
             self._refuse_unreduced(
                 run_status(self._rt, self._space, source, timeout, inferences)
             )
-        return run_source(
-            self._rt,
-            self._space,
-            source,
-            _RUN_BINDINGS.get(),
-            timeout=timeout,
-            inferences=inferences,
-        )
+        try:
+            return run_source(
+                self._rt,
+                self._space,
+                source,
+                _RUN_BINDINGS.get(),
+                timeout=timeout,
+                inferences=inferences,
+            )
+        finally:
+            _invalidate_builtins_cache(self._rt)
 
     def _refuse_unreduced(
         self, groups: list[list[tuple[str, Any]]]
@@ -842,9 +879,12 @@ class Space(Handle):
         carry `!` directives and an import graph, so it takes the same pair
         its siblings take.
         """
-        return load_space(
-            self._rt, self._space, path, timeout=timeout, inferences=inferences
-        )
+        try:
+            return load_space(
+                self._rt, self._space, path, timeout=timeout, inferences=inferences
+            )
+        finally:
+            _invalidate_builtins_cache(self._rt)
 
     def parse(self, source: str) -> Atom:
         """Read one form into an atom without evaluating it."""
@@ -901,6 +941,7 @@ class Space(Handle):
             self._rt.do_must("petta_py_add", self._space, wires[0])
         else:
             self._rt.do_must("petta_py_add_many", self._space, wires)
+        _invalidate_builtins_cache(self._rt)
 
     def remove(self, atom: Any) -> bool:
         """Remove an atom, engine semantics: multiset subtraction, so ONE
@@ -920,6 +961,7 @@ class Space(Handle):
             "petta_py_remove", self._space, pattern.to_wire()
         )
         result = _atom_from_wire(removed)
+        _invalidate_builtins_cache(self._rt)
         return bool(getattr(result, "value", True))
 
     def atoms(self) -> list[Atom]:
@@ -1098,6 +1140,7 @@ class Space(Handle):
         """Remove everything stored here, compiled equations included."""
         _refuse_in_batch(self._space, "clear")
         clear_definitions(self)
+        _invalidate_builtins_cache(self._rt)
 
     # A handle mutates its store while an atom's + constructs a term.
     def __iadd__(self, atom: Any) -> Self:  # type: ignore[override]
@@ -1530,14 +1573,28 @@ class Space(Handle):
         raising TimeLimitError or InferenceLimitError when hit. A surrounding
         `capture()` scope collects printed text without changing the list.
         """
-        return evaluate(
-            self._rt,
-            self._space,
-            target,
-            timeout,
-            inferences,
-            using=using,
+        changes_catalogue = isinstance(target, str) or (
+            isinstance(target, Expression)
+            and target.head
+            in {
+                Symbol("="),
+                Symbol("import!"),
+                Symbol("add-translator-rule!"),
+                Symbol("remove-translator-rule!"),
+            }
         )
+        try:
+            return evaluate(
+                self._rt,
+                self._space,
+                target,
+                timeout,
+                inferences,
+                using=using,
+            )
+        finally:
+            if changes_catalogue:
+                _invalidate_builtins_cache(self._rt)
 
     def answers(
         self,
@@ -1919,7 +1976,7 @@ class Space(Handle):
         """
 
         def apply(f: Callable) -> Callable:
-            return _ops_module.register(
+            registered = _ops_module.register(
                 self._rt,
                 f,
                 name=name,
@@ -1929,6 +1986,8 @@ class Space(Handle):
                 arities=arities,
                 inverse=inverse,
             )
+            _invalidate_builtins_cache(self._rt)
+            return registered
 
         return apply(fn) if fn is not None else apply
 
@@ -1940,12 +1999,17 @@ class Space(Handle):
         about, not a no-op to absorb.
         """
         _ops_module.unregister(self._rt, name)
+        _invalidate_builtins_cache(self._rt)
 
     # -------------------------------------------------------------- inspection
 
     def builtins(self) -> list[str]:
         """Every registered function and translator special-form name."""
-        return self._rt.builtins()
+        return _space_builtins(self._rt, str(self._space))
+
+    def _invalidate_builtins(self) -> None:
+        """Discard cached catalogues after an engine-side mutation."""
+        _invalidate_builtins_cache(self._rt)
 
     def is_function(self, name: str) -> bool:
         """Report whether a function is visible from this space."""
@@ -2078,7 +2142,9 @@ class Space(Handle):
                 msg
             )
         if isinstance(names, _abc.Mapping):
-            return self._register_renamed(path, names)
+            registered = self._register_renamed(path, names)
+            _invalidate_builtins_cache(self._rt)
+            return registered
         for name in names:
             _require_name(name, "register_prolog")
         wanted = [str(name) for name in names]
@@ -2106,8 +2172,11 @@ class Space(Handle):
             # An extension that exports nothing registers nothing, and that is
             # the shape of a provider: it contributes clauses to a seam.
             if declares == "extension":
+                _invalidate_builtins_cache(self._rt)
                 return ()
-            return self._declared_exports(origin)
+            registered = self._declared_exports(origin)
+            _invalidate_builtins_cache(self._rt)
+            return registered
 
         # One goal, so the engine validates every name before it registers any:
         # a typo in the third name used to leave the first two registered and
@@ -2115,6 +2184,7 @@ class Space(Handle):
         # The rule lives there rather than here, so this and the MeTTa spelling
         # cannot drift apart.
         self._rt.must("import_prolog_functions(Names, _)", Names=wanted)
+        _invalidate_builtins_cache(self._rt)
         return tuple(wanted)
 
     def _require_a_declaration(self, source: str | None, path: Any) -> str:
@@ -2332,6 +2402,7 @@ class Space(Handle):
         )
         names = tuple(str(name) for name in released.get("Names", []))
         self._rt.must("petta_py_unregister_extension(Name)", Name=str(extension))
+        _invalidate_builtins_cache(self._rt)
         return names
 
     # ----------------------------------------------------------- subscriptions
