@@ -22,6 +22,9 @@ Guarantees:
     [tested: GATE_ONLY=1 sh check.sh llms; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all failures are reported at once, not just the first
     [source: bindings/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - repository paths such as ``engine/metta.pl`` are not mistaken for Python
+    submodules [tested: test_the_llms_module_scanner_ignores_engine_paths;
+    commit=WORKTREE]
 Fails when:
   - a claim is prose rather than a name, a count or a path. Those stay the
     reader's job; this checks what a machine can check
@@ -45,7 +48,7 @@ DOC = ROOT / "llms.txt"
 BACKTICK = re.compile(r"`([^`\n]+)`")
 PATH_LIKE = re.compile(r"^[\w./*-]+\.(?:md|py|pl|metta|sh|ipynb|toml|txt|json)$")
 METHOD = re.compile(r"\bm\.([a-z_]\w*)")
-METTA_ATTR = re.compile(r"\bmetta\.([a-z_]\w*)(?:\.([a-z_]\w*))?")
+METTA_ATTR = re.compile(r"(?<![/\w])metta\.([a-z_]\w*)(?:\.([a-z_]\w*))?")
 SECTION = re.compile(r"^## (.+)$", re.MULTILINE)
 
 
