@@ -2040,6 +2040,9 @@ class Space(Handle):
                 yield n - 1                     # a generator is nondeterministic
                 yield n + 1
 
+        An implicit Python name maps underscores to MeTTa hyphens. ``name=``
+        is exact, for source vocabularies that deliberately use underscores.
+
         A name must read back as one MeTTa symbol. A space, parenthesis,
         quote, comment opener, variable spelling, number, boolean, or another
         registered reader token is refused before any registry changes, with
