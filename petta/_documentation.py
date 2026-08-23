@@ -23,16 +23,17 @@ from __future__ import annotations
 
 import ast
 import doctest
-import importlib
 import inspect
 import textwrap
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+# The runtime dependency does not publish typing metadata.
+import docstring_parser as _docstring_parser  # type: ignore[import-not-found]
+
 from ._type_annotations import metta_type_for
 from .atoms import Expression, S, _expr, parse
 
-_docstring_parser = importlib.import_module("docstring_parser")
 DocstringStyle = _docstring_parser.DocstringStyle
 parse_docstring = _docstring_parser.parse
 
