@@ -16,12 +16,20 @@ Guarantees:
     test_define_absorbs_class_declaration_and_frees_space_type,
     test_fn_strips_one_bang_only_when_the_exact_name_is_absent, and
     test_transaction_term_uses_empty_answer_rollback_law; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+  - relational solve exposes variables from its pattern before variables from
+    its subject [tested: test_solve_projects_variables_from_the_winning_pattern;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
     test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``MeTTa.space()`` creates named or anonymous handles through one door
     [tested: test_module_tier_is_sugar_over_one_default_engine;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - named space construction accepts a space-name Symbol as well as its text
+    spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - handle-level Linda waits load their support into the default caller space,
+    never into a distinct waited-on space [tested:
+    test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - ``Space.query``, every ``declare_*`` verb, and the write door retain their
     established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
@@ -35,6 +43,9 @@ Guarantees:
     test_bound_function_namespace_validates_at_access,
     test_function_calls_pull_engine_answers_only_as_demanded;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - builtin discovery is cached per logical space and invalidated by every
+    catalogue mutation [tested: test_builtin_discovery_is_cached,
+    test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - ``Space`` is a grounded ``Handle`` that crosses as a term operand, and
     ``peek`` and ``take`` expose the engine's event-driven Linda operations
     [tested: test_space_handles_are_term_operands_and_round_trip,
@@ -57,6 +68,8 @@ import hashlib
 import importlib as _importlib
 import os
 import sys
+import threading
+import weakref
 from collections import abc as _abc
 from collections.abc import Callable, Iterable, Iterator
 from contextvars import ContextVar
@@ -141,6 +154,35 @@ __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_spa
 _CastT = TypeVar("_CastT")
 _R = TypeVar("_R")
 _P = ParamSpec("_P")
+
+_BUILTINS_CACHE_LOCK = threading.RLock()
+_BUILTINS_CACHE: weakref.WeakKeyDictionary[
+    Runtime, tuple[int, dict[str, tuple[str, ...]]]
+] = weakref.WeakKeyDictionary()
+
+
+def _invalidate_builtins_cache(rt: Runtime) -> None:
+    """Advance one runtime's catalogue generation and discard every space view."""
+    with _BUILTINS_CACHE_LOCK:
+        generation, _ = _BUILTINS_CACHE.get(rt, (0, {}))
+        _BUILTINS_CACHE[rt] = (generation + 1, {})
+
+
+def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
+    """Read one generation-stamped per-space builtin catalogue."""
+    while True:
+        with _BUILTINS_CACHE_LOCK:
+            generation, catalogues = _BUILTINS_CACHE.setdefault(rt, (0, {}))
+            cached = catalogues.get(space_name)
+            if cached is not None:
+                return list(cached)
+        discovered = tuple(rt.builtins())
+        with _BUILTINS_CACHE_LOCK:
+            current_generation, current = _BUILTINS_CACHE.get(rt, (0, {}))
+            if current_generation != generation:
+                continue
+            current[space_name] = discovered
+            return list(discovered)
 
 _ACTIVE_SPACE: ContextVar[_SpaceId | None] = ContextVar(
     "petta_active_space", default=None
@@ -400,12 +442,14 @@ class Space(Handle):
 
     def __init__(
         self,
-        name: str = _DEFAULT_SPACE,
+        name: str | Symbol = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
         petta_path: str | None = None,
         _runtime: Runtime | None = None,
     ) -> None:
+        if isinstance(name, Symbol):
+            name = name.name
         if not isinstance(name, str):
             msg = (
                 f"a space name is a string starting with &, as in &self or "
@@ -666,14 +710,17 @@ class Space(Handle):
             self._refuse_unreduced(
                 run_status(self._rt, self._space, source, timeout, inferences)
             )
-        return run_source(
-            self._rt,
-            self._space,
-            source,
-            _RUN_BINDINGS.get(),
-            timeout=timeout,
-            inferences=inferences,
-        )
+        try:
+            return run_source(
+                self._rt,
+                self._space,
+                source,
+                _RUN_BINDINGS.get(),
+                timeout=timeout,
+                inferences=inferences,
+            )
+        finally:
+            _invalidate_builtins_cache(self._rt)
 
     def _refuse_unreduced(
         self, groups: list[list[tuple[str, Any]]]
@@ -842,9 +889,12 @@ class Space(Handle):
         carry `!` directives and an import graph, so it takes the same pair
         its siblings take.
         """
-        return load_space(
-            self._rt, self._space, path, timeout=timeout, inferences=inferences
-        )
+        try:
+            return load_space(
+                self._rt, self._space, path, timeout=timeout, inferences=inferences
+            )
+        finally:
+            _invalidate_builtins_cache(self._rt)
 
     def parse(self, source: str) -> Atom:
         """Read one form into an atom without evaluating it."""
@@ -901,6 +951,7 @@ class Space(Handle):
             self._rt.do_must("petta_py_add", self._space, wires[0])
         else:
             self._rt.do_must("petta_py_add_many", self._space, wires)
+        _invalidate_builtins_cache(self._rt)
 
     def remove(self, atom: Any) -> bool:
         """Remove an atom, engine semantics: multiset subtraction, so ONE
@@ -920,6 +971,7 @@ class Space(Handle):
             "petta_py_remove", self._space, pattern.to_wire()
         )
         result = _atom_from_wire(removed)
+        _invalidate_builtins_cache(self._rt)
         return bool(getattr(result, "value", True))
 
     def atoms(self) -> list[Atom]:
@@ -952,11 +1004,16 @@ class Space(Handle):
         ):
             msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
             raise ValueError(msg)
-        self.eval(
+        caller = (
+            self
+            if self._space == _DEFAULT_SPACE
+            else Space(_DEFAULT_SPACE, _runtime=self._rt)
+        )
+        caller.eval(
             Expression(
                 [
                     Symbol("import!"),
-                    self,
+                    caller,
                     Expression([Symbol("library"), Symbol("lib_thread")]),
                 ]
             )
@@ -1098,6 +1155,7 @@ class Space(Handle):
         """Remove everything stored here, compiled equations included."""
         _refuse_in_batch(self._space, "clear")
         clear_definitions(self)
+        _invalidate_builtins_cache(self._rt)
 
     # A handle mutates its store while an atom's + constructs a term.
     def __iadd__(self, atom: Any) -> Self:  # type: ignore[override]
@@ -1373,13 +1431,16 @@ class Space(Handle):
 
         ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
         lets the arithmetic relation solve backwards, and projects ``x``.
-        The answer template is derived from the subject's variables, so the
-        third hand-written ``let`` argument disappears.
+        The answer template is derived from the pattern's variables followed
+        by any new subject variables, so either relational direction can
+        introduce the bindings and the third hand-written ``let`` argument
+        disappears.
         """
+        pattern_atom = _to_atom(pattern)
         subject_atom = _to_atom(subject)
-        columns = tuple(_column_names([subject_atom]))
+        columns = tuple(_column_names([pattern_atom, subject_atom]))
         if not columns:
-            msg = "solve needs at least one variable in its subject"
+            msg = "solve needs at least one variable in its pattern or subject"
             raise ValueError(msg)
         template: Atom = (
             Variable(columns[0])
@@ -1387,7 +1448,7 @@ class Space(Handle):
             else Expression([Variable(name) for name in columns])
         )
         answers = self.eval(
-            Expression([Symbol("let"), _to_atom(pattern), subject_atom, template])
+            Expression([Symbol("let"), pattern_atom, subject_atom, template])
         )
         return solve_rows(columns, cast(list[Atom], answers))
 
@@ -1530,14 +1591,28 @@ class Space(Handle):
         raising TimeLimitError or InferenceLimitError when hit. A surrounding
         `capture()` scope collects printed text without changing the list.
         """
-        return evaluate(
-            self._rt,
-            self._space,
-            target,
-            timeout,
-            inferences,
-            using=using,
+        changes_catalogue = isinstance(target, str) or (
+            isinstance(target, Expression)
+            and target.head
+            in {
+                Symbol("="),
+                Symbol("import!"),
+                Symbol("add-translator-rule!"),
+                Symbol("remove-translator-rule!"),
+            }
         )
+        try:
+            return evaluate(
+                self._rt,
+                self._space,
+                target,
+                timeout,
+                inferences,
+                using=using,
+            )
+        finally:
+            if changes_catalogue:
+                _invalidate_builtins_cache(self._rt)
 
     def answers(
         self,
@@ -1919,7 +1994,7 @@ class Space(Handle):
         """
 
         def apply(f: Callable) -> Callable:
-            return _ops_module.register(
+            registered = _ops_module.register(
                 self._rt,
                 f,
                 name=name,
@@ -1929,6 +2004,8 @@ class Space(Handle):
                 arities=arities,
                 inverse=inverse,
             )
+            _invalidate_builtins_cache(self._rt)
+            return registered
 
         return apply(fn) if fn is not None else apply
 
@@ -1940,12 +2017,17 @@ class Space(Handle):
         about, not a no-op to absorb.
         """
         _ops_module.unregister(self._rt, name)
+        _invalidate_builtins_cache(self._rt)
 
     # -------------------------------------------------------------- inspection
 
     def builtins(self) -> list[str]:
         """Every registered function and translator special-form name."""
-        return self._rt.builtins()
+        return _space_builtins(self._rt, str(self._space))
+
+    def _invalidate_builtins(self) -> None:
+        """Discard cached catalogues after an engine-side mutation."""
+        _invalidate_builtins_cache(self._rt)
 
     def is_function(self, name: str) -> bool:
         """Report whether a function is visible from this space."""
@@ -2078,7 +2160,9 @@ class Space(Handle):
                 msg
             )
         if isinstance(names, _abc.Mapping):
-            return self._register_renamed(path, names)
+            registered = self._register_renamed(path, names)
+            _invalidate_builtins_cache(self._rt)
+            return registered
         for name in names:
             _require_name(name, "register_prolog")
         wanted = [str(name) for name in names]
@@ -2106,8 +2190,11 @@ class Space(Handle):
             # An extension that exports nothing registers nothing, and that is
             # the shape of a provider: it contributes clauses to a seam.
             if declares == "extension":
+                _invalidate_builtins_cache(self._rt)
                 return ()
-            return self._declared_exports(origin)
+            registered = self._declared_exports(origin)
+            _invalidate_builtins_cache(self._rt)
+            return registered
 
         # One goal, so the engine validates every name before it registers any:
         # a typo in the third name used to leave the first two registered and
@@ -2115,6 +2202,7 @@ class Space(Handle):
         # The rule lives there rather than here, so this and the MeTTa spelling
         # cannot drift apart.
         self._rt.must("import_prolog_functions(Names, _)", Names=wanted)
+        _invalidate_builtins_cache(self._rt)
         return tuple(wanted)
 
     def _require_a_declaration(self, source: str | None, path: Any) -> str:
@@ -2332,6 +2420,7 @@ class Space(Handle):
         )
         names = tuple(str(name) for name in released.get("Names", []))
         self._rt.must("petta_py_unregister_extension(Name)", Name=str(extension))
+        _invalidate_builtins_cache(self._rt)
         return names
 
     # ----------------------------------------------------------- subscriptions
@@ -2526,16 +2615,17 @@ class Space(Handle):
             S.add_one(5)                # (add_one 5), staged as data
             add_one.py(5)               # 6, ordinary Python
 
-        The equation's name is the Python name, verbatim, or `name=`
-        when given. Hyphens are the MeTTa convention and Python cannot
-        spell one, so a hyphenated name is asked for rather than inferred:
+        The equation's implicit name applies the factories' total mechanical
+        map, replacing each underscore with a hyphen. ``name=`` is the exact
+        quoted-name escape for punctuation that map cannot preserve:
 
             @m.define(name="add-one")
             def add_one(n):
                 return n + 1
 
-        Nothing is rewritten behind the author's back, which is the whole
-        of the rule: the name in the source is the name in the space.
+        This is rung 4 of the naming ladder applied to the definition door
+        itself: ``def not_provable`` lands as ``not-provable``. An authored
+        MeTTa underscore therefore uses explicit ``name="not_provable"``.
 
         A generator compiles to nondeterminism (each yield one answer), a
         lambda to the engine's own |->, a comprehension to map-atom and

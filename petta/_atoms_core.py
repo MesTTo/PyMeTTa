@@ -1,11 +1,16 @@
 """Purpose: immutable atom values, Python value encoding, and bounded identity caches.
 Guarantees:
-  - standard callable mentions encode as their symbolic MeTTa heads and
-    Atom.__lt__ follows the engine order used by plain sorted [tested:
+  - standard callable mentions encode as their symbolic MeTTa heads and all
+    four atom rich comparisons follow the engine order used by plain sorted [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names and
-    test_plain_sorted_uses_the_engines_elementwise_order; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+    test_atom_comparisons_are_only_ordering; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Grounded normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
+  - exact rational values retain their Fraction payload through the n wire
+    tag [tested: test_rational_payloads_cross_the_scalar_door;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - pathlib paths encode as symbols rather than opaque host boxes [tested:
+    test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Grounded carries the engine's two relations, one per operand kind: against a
     raw value it is the == operator's numeric tower, against another atom it
     is unification identity (integer and float atoms distinct, signed zeros
@@ -90,7 +95,9 @@ import weakref
 from abc import ABCMeta
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from fractions import Fraction
 from functools import singledispatch
+from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._callable_mentions import callable_mention
@@ -121,7 +128,7 @@ def _encodable(value: str) -> str:
 
 def _normalize_grounded(value: Any) -> Any:
     """Convert the numeric tower to the exact host types the engine carries."""
-    if type(value) in (bool, int, float, str):
+    if type(value) in (bool, int, float, Fraction, str):
         return value
     if isinstance(value, _numbers.Integral):
         return int(value)
@@ -132,7 +139,7 @@ def _normalize_grounded(value: Any) -> Any:
 
 def _is_primitive(value: Any) -> bool:
     """Whether PeTTa has a native term for this value: string, number, boolean."""
-    return type(value) in (str, int, float, bool)
+    return type(value) in (str, int, float, Fraction, bool)
 
 
 def _ground_equal(mine: Any, theirs: Any) -> bool:
@@ -152,7 +159,9 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
     theirs = _normalize_grounded(theirs)
     if isinstance(mine, bool) or isinstance(theirs, bool):
         return type(mine) is type(theirs) is bool and mine == theirs
-    if isinstance(mine, (int, float)) and isinstance(theirs, (int, float)):
+    if isinstance(mine, (int, float, Fraction)) and isinstance(
+        theirs, (int, float, Fraction)
+    ):
         return mine == theirs
     if type(mine) is not type(theirs):
         return False
@@ -417,14 +426,10 @@ class Atom:
     def __getitem__(self, i: int | slice) -> Any:
         raise TypeError(_leaf_refusal_message(self, "is not indexable"))
 
-    # Term-building operators, the query-builder lesson: arithmetic and
-    # order comparisons on symbols, variables and expressions CONSTRUCT the
-    # corresponding term, so V.age >= 18 is (>= $age 18) and V.x + 1 is
-    # (+ $x 1), guards and bodies written as the Python they look like.
-    # Grounded overrides both families with VALUE semantics (its comparisons
-    # answer booleans, engine-exactly), so a grounded number never quietly
-    # becomes a program. Equality stays equality everywhere; the term is
-    # spelled x.eq(y), since overloading == would cost structural equality.
+    # Arithmetic operators construct terms on symbolic atoms. Rich
+    # comparisons compare atom values in the engine's total order; comparison
+    # terms use explicit heads such as S[">="](left, right). Equality stays
+    # equality everywhere; its term is x.eq(y).
 
     def _build(self, op: str, other: Any, flipped: bool = False) -> Expression:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
         left, right = (encode(other), self) if flipped else (self, encode(other))
@@ -465,9 +470,9 @@ class Atom:
         def __neg__(self) -> Expression: ...
         def __abs__(self) -> Expression: ...
         def __lt__(self, other: Any) -> bool: ...
-        def __le__(self, other: Any) -> Expression | bool: ...
-        def __gt__(self, other: Any) -> Expression | bool: ...
-        def __ge__(self, other: Any) -> Expression | bool: ...
+        def __le__(self, other: Any) -> bool: ...
+        def __gt__(self, other: Any) -> bool: ...
+        def __ge__(self, other: Any) -> bool: ...
 
     def eq(self, other: Any) -> Expression:
         """The equality TERM, (== self other); == itself compares atoms."""
@@ -816,103 +821,13 @@ class Grounded(Atom):
             )
         return Grounded, (self.value,)
 
-    # Grounded values are VALUES throughout: comparisons answer booleans
-    # (engine-exactly) and arithmetic computes, so an answer post-processes
-    # like the number it is; term building belongs to symbols, variables
-    # and expressions.
-
-    def _value_of(self, other: Any) -> Any:
-        return other.value if isinstance(other, Grounded) else other
-
-    def __add__(self, other: Any) -> Any:
-        return self.value + self._value_of(other)
-
-    def __radd__(self, other: Any) -> Any:
-        return self._value_of(other) + self.value
-
-    def __sub__(self, other: Any) -> Any:
-        return self.value - self._value_of(other)
-
-    def __rsub__(self, other: Any) -> Any:
-        return self._value_of(other) - self.value
-
-    def __mul__(self, other: Any) -> Any:
-        return self.value * self._value_of(other)
-
-    def __rmul__(self, other: Any) -> Any:
-        return self._value_of(other) * self.value
-
-    def __truediv__(self, other: Any) -> Any:
-        return self.value / self._value_of(other)
-
-    def __rtruediv__(self, other: Any) -> Any:
-        return self._value_of(other) / self.value
-
-    def __floordiv__(self, other: Any) -> Any:
-        return self.value // self._value_of(other)
-
-    def __rfloordiv__(self, other: Any) -> Any:
-        return self._value_of(other) // self.value
-
-    def __mod__(self, other: Any) -> Any:
-        return self.value % self._value_of(other)
-
-    def __rmod__(self, other: Any) -> Any:
-        return self._value_of(other) % self.value
-
-    def __pow__(self, other: Any) -> Any:
-        return self.value ** self._value_of(other)
-
-    def __rpow__(self, other: Any) -> Any:
-        return self._value_of(other) ** self.value
-
-    def __matmul__(self, other: Any) -> Any:
-        return self.value @ self._value_of(other)
-
-    def __rmatmul__(self, other: Any) -> Any:
-        return self._value_of(other) @ self.value
-
-    def __lshift__(self, other: Any) -> Any:
-        return self.value << self._value_of(other)
-
-    def __rlshift__(self, other: Any) -> Any:
-        return self._value_of(other) << self.value
-
-    def __rshift__(self, other: Any) -> Any:
-        return self.value >> self._value_of(other)
-
-    def __rrshift__(self, other: Any) -> Any:
-        return self._value_of(other) >> self.value
-
-    def __and__(self, other: Any) -> Any:
-        return self.value & self._value_of(other)
-
-    def __rand__(self, other: Any) -> Any:
-        return self._value_of(other) & self.value
-
-    def __or__(self, other: Any) -> Any:
-        return self.value | self._value_of(other)
-
-    def __ror__(self, other: Any) -> Any:
-        return self._value_of(other) | self.value
-
-    def __xor__(self, other: Any) -> Any:
-        return self.value ^ self._value_of(other)
-
-    def __rxor__(self, other: Any) -> Any:
-        return self._value_of(other) ^ self.value
-
-    def __invert__(self) -> Any:
-        return ~self.value
-
-    def __neg__(self) -> Any:
-        return -self.value
-
-    def __abs__(self) -> Any:
-        return abs(self.value)
+    # Grounded values are atoms at the operator boundary.  They inherit the
+    # base class's term builders, making G(value) the explicit lift from host
+    # data into staged syntax.  Their carried Python value remains available
+    # through .value and through the numeric conversion methods below.
 
     # Grounded primitives order like their values, so answers sort and
-    # compare with plain numbers: max(rows["age"]) and Grounded(7) >= 5
+    # compare with plain numbers: max(rows.age) and Grounded(7) >= 5
     # both mean what they read as. Anything else refuses loudly.
 
     def _ordered(self, other: Any):
@@ -941,18 +856,24 @@ class Grounded(Atom):
         return pair[0] < pair[1]
 
     def __le__(self, other: Any) -> bool:
+        if isinstance(other, Atom):
+            return _standard_order_le(self, other)
         pair = self._ordered(other)
         if pair is None:
             return NotImplemented
         return pair[0] <= pair[1]
 
     def __gt__(self, other: Any) -> bool:
+        if isinstance(other, Atom):
+            return _standard_order_gt(self, other)
         pair = self._ordered(other)
         if pair is None:
             return NotImplemented
         return pair[0] > pair[1]
 
     def __ge__(self, other: Any) -> bool:
+        if isinstance(other, Atom):
+            return _standard_order_ge(self, other)
         pair = self._ordered(other)
         if pair is None:
             return NotImplemented
@@ -978,13 +899,15 @@ class Grounded(Atom):
             return '"' + escaped + '"'
         if isinstance(v, float):
             return _float_text(v)
+        if isinstance(v, Fraction):
+            return f"{v.numerator}r{v.denominator}"
         if isinstance(v, int):
             return repr(v)
         return _object_str(v)
 
-    def _number(self, target: str) -> int | float:
+    def _number(self, target: str) -> int | float | Fraction:
         v = self.value
-        if isinstance(v, bool) or not isinstance(v, (int, float)):
+        if isinstance(v, bool) or not isinstance(v, (int, float, Fraction)):
             msg = (
                 f"cannot read {self} as a Python {target}: it is not a Number "
                 f"in MeTTa. int(atom.value) is how to say parse this text."
@@ -1027,7 +950,7 @@ class Grounded(Atom):
             return ["b", "true" if v else "false"]
         if isinstance(v, str):
             return ["g", _encodable(v)]
-        if isinstance(v, (int, float)):
+        if isinstance(v, (int, float, Fraction)):
             return ["n", v]
         if isinstance(v, Box):
             return ["o", v]
@@ -1359,10 +1282,40 @@ def _standard_order_lt(self: Atom, other: Any) -> bool:
     return order_key(self) < order_key(other)
 
 
+def _standard_order_le(self: Atom, other: Any) -> bool:
+    """Compare atoms by the engine order, refusing non-atoms."""
+    if not isinstance(other, Atom):
+        return NotImplemented
+    from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
+
+    return order_key(self) <= order_key(other)
+
+
+def _standard_order_gt(self: Atom, other: Any) -> bool:
+    """Compare atoms by the engine order, refusing non-atoms."""
+    if not isinstance(other, Atom):
+        return NotImplemented
+    from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
+
+    return order_key(self) > order_key(other)
+
+
+def _standard_order_ge(self: Atom, other: Any) -> bool:
+    """Compare atoms by the engine order, refusing non-atoms."""
+    if not isinstance(other, Atom):
+        return NotImplemented
+    from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
+
+    return order_key(self) >= order_key(other)
+
+
 # Appendix stamp 6 rules plain sorting over the old ``<`` term-building
 # spelling. Compiled Python comparisons lower from the AST, while quoted code
 # spells the relation explicitly as ``S["<"](left, right)``.
 Atom.__lt__ = _standard_order_lt  # type: ignore[method-assign]
+Atom.__le__ = _standard_order_le  # type: ignore[method-assign]
+Atom.__gt__ = _standard_order_gt  # type: ignore[method-assign]
+Atom.__ge__ = _standard_order_ge  # type: ignore[method-assign]
 
 
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.
@@ -1431,6 +1384,12 @@ def _(value: Atom) -> Atom:
 def _(value: str) -> Atom:
     # A Python str is a grounded string, never a symbol. Symbols come from S.
     return Grounded(value)
+
+
+@_encode_value.register
+def _(value: PurePath) -> Atom:
+    """A filesystem path is an engine atom, distinct from text payload."""
+    return Symbol(str(value))
 
 
 @_encode_value.register(bool)

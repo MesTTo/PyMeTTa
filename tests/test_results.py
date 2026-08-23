@@ -5,6 +5,8 @@ Guarantees:
     zero-column row counts [tested test_rows_to_dicts_returns_plain_records]
   - eager query results explain empty pattern, join, and guard outcomes [tested
     test_query_rows_explain_empty_results]
+  - query comparison guards use explicit comparison heads [tested:
+    test_query_rows_explain_empty_results; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -82,7 +84,7 @@ def test_query_rows_explain_empty_results(m):  # noqa: D103  -- pytest discovers
     joined = m.query(S.edge(V.left, V.middle), S.edge(V.middle, V.right))
     assert "shared variable binding" in joined.why()
 
-    guarded = m.query(S.age(S.Ada, V.years), where=V.years >= 18)
+    guarded = m.query(S.age(S.Ada, V.years), where=S[">="](V.years, 18))
     assert "where guard" in guarded.why()
 
     with pytest.raises(ValueError, match="returned 1 row"):
@@ -153,7 +155,7 @@ def test_rows_sequence_operations_preserve_columns():  # noqa: D103  -- pytest d
         assert isinstance(derived, Rows)
         assert derived.columns == rows.columns
         assert all(type(row)._columns == rows.columns for row in derived)
-    assert rows["score"] == [3, 5]
+    assert rows.score == [3, 5]
 
     with pytest.raises(ValueError, match="cannot combine Rows"):
         rows + Rows(("other",), [(1,)])
@@ -167,7 +169,7 @@ def test_rows_mutations_preserve_invariants():  # noqa: D103  -- pytest discover
     rows[0] = ("Eve", 21)
     rows[1:2] = [("Fox", 34)]
     rows += [("Gia", 55)]
-    assert rows["name"] == ["Eve", "Fox", "Bob", "Dee", "Gia"]
+    assert rows.name == ["Eve", "Fox", "Bob", "Dee", "Gia"]
     assert all(type(row)._columns == rows.columns for row in rows)
 
     with pytest.raises(ValueError, match="1 values for 2 columns"):

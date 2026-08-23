@@ -4,6 +4,9 @@ Guarantees:
     [tested test_literal_defaults_are_head_patterns_and_clauses_stack]
   - twin views see definitions added after an earlier twin was compiled
     [tested test_existing_twin_sees_later_redefinition]
+  - twin dispatch skips clauses whose callable arity cannot accept the call
+    [tested: test_define_supports_one_name_at_multiple_arities;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a twin that cannot run names the eager Defined call as the engine door
     [tested: test_twin_refuses_engine_only_bodies; commit=88d2e764c999d89e8919172e5c1455be804b293d]
 Guarded by:
@@ -197,12 +200,16 @@ def _guard_twin(
     patterns: dict[str, Atom] | None,
 ) -> Callable[..., Any]:
     """Apply one literal-head guard to either kind of clause twin."""
-    if not patterns:
-        return twin
+    signature = inspect.signature(twin)
 
     def guarded(*args):
+        try:
+            signature.bind(*args)
+        except TypeError as exc:
+            msg = f"{name}: this clause does not accept {len(args)} argument(s)"
+            raise _ClauseMiss(msg) from exc
         for position, value in zip(order, args, strict=False):
-            expected = patterns.get(position)
+            expected = (patterns or {}).get(position)
             if expected is not None and expected != value:
                 msg = f"{name}: this clause's head matches {position}={expected}, not {value!r}"
                 raise _ClauseMiss(
@@ -212,6 +219,7 @@ def _guard_twin(
 
     guarded.__name__ = name
     guarded.__doc__ = twin.__doc__
+    guarded.__signature__ = signature  # type: ignore[attr-defined]
     return guarded
 
 

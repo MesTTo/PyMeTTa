@@ -2,7 +2,8 @@
 Guarantees:
   - relational solve answers retain variable columns and expose one-answer
     attribute projection [tested:
-    test_solve_retires_the_five_relational_let_workarounds; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    test_solve_retires_the_five_relational_let_workarounds,
+    test_solve_projects_variables_from_the_winning_pattern; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - conjunctive patterns preserve first-appearance column order [tested
     test_query_surfaces_share_column_order]
   - guards and limits are sent to the engine rather than applied after
@@ -39,7 +40,7 @@ class SolveRows(Rows):
         if resolved is None:
             msg = f"no solution variable {name!r}; variables are {list(self.columns)}"
             raise AttributeError(msg)
-        values = self[resolved]
+        values = self._column(resolved)
         return values[0] if len(values) == 1 else values
 
 

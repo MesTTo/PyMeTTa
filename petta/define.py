@@ -41,6 +41,13 @@ Guarantees:
     while control-flow yields retain one superpose body [tested:
     test_flat_generator_emits_one_equation_per_yield,
     test_loop_yields_remain_one_superpose_equation; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - a host-bound sibling Defined resolves to its declared MeTTa name inside a
+    compiled body, while self-recursion remains runnable by the Python twin
+    [tested: test_compiled_body_calls_renamed_defined_sibling,
+    test_compiled_calls_share_the_installed_name_resolver; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - ordinary Defined calls keep the held evaluation cursor inside a stats
+    scope, so a bounded view suspends an endless producer [tested:
+    test_function_calls_suspend_endless_producers; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -64,7 +71,6 @@ from ._define_twins import _python_twin
 from ._fn import fn as fn_namespace
 from ._name_mapping import resolve_known_name
 from ._rules import _defined_calls_are_staged
-from ._space_objects import _stats_active
 from ._type_annotations import type_atoms_for
 from .atoms import (
     Atom,
@@ -306,7 +312,7 @@ class Defined[**P, R]:
         term = Expression([Symbol(self.name), *(_encode(a) for a in args)])
         if _defined_calls_are_staged():
             return term
-        if self._uses_main_engine or _stats_active():
+        if self._uses_main_engine:
             # SWI answer tables belong to the main engine. A child engine is
             # the right suspension mechanism for ordinary lazy evaluation,
             # but a cached definition must populate the table cache_info()
@@ -461,6 +467,9 @@ def compile_function(
     nondet: Callable[[str], bool] | None = None,
     pure: Callable[[str], bool] | None = None,
     metta_name: str | None = None,
+    *,
+    returns_bool: Callable[[str], bool] | None = None,
+    defined_name: Callable[[object], str | None] | None = None,
 ) -> Compiled:
     """Read a function's source into a Compiled clause.
 
@@ -539,10 +548,12 @@ def compile_function(
         scope,
         known,
         nondet=nondet,
+        returns_bool=returns_bool,
         pyname=fn.__name__,
         host=host,
         builders=builders,
         host_value=host_value,
+        defined_name=defined_name,
         annotation_resolver=_annotation_resolver(fn),
     )
     generator = _is_generator(definition)
@@ -648,6 +659,7 @@ class _Compiler(
         *,
         used: set[str] | None = None,
         nondet: Callable[[str], bool] | None = None,
+        returns_bool: Callable[[str], bool] | None = None,
         aux: list | None = None,
         lifted: dict | None = None,
         closer: Callable[[_Compiler], Atom] | None = None,
@@ -655,6 +667,7 @@ class _Compiler(
         host: Callable[[str], bool] | None = None,
         builders: frozenset[str] = frozenset(),
         host_value: Callable[[str], Any] | None = None,
+        defined_name: Callable[[object], str | None] | None = None,
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
@@ -670,6 +683,7 @@ class _Compiler(
         self.host = _provided(host, _never)
         self.builders = builders
         self.host_value = _provided(host_value, lambda _name: _MISSING_HOST)
+        self.defined_name = _provided(defined_name, lambda _value: None)
         # The prelude operations this definition leans on, and the reasons
         # its Python twin cannot run (a match, a constructor); both shared
         # across every compiler of the definition, like aux.
@@ -681,6 +695,7 @@ class _Compiler(
         # generator or a generator operation): iterating one binds the call
         # directly, since the call itself is the fork.
         self._given_nondet = _provided(nondet, _never)
+        self.returns_bool = _provided(returns_bool, _never)
         # Every variable name any compiler of this definition has minted;
         # shared across forks so two branches never mint the same fresh name.
         self.used: set[str] = _provided(used, set(self.scope.values()))
@@ -719,16 +734,26 @@ class _Compiler(
 
     def _resolved_call_name(self, called: str) -> str:
         """Apply the compiled body's exact-then-mapped callee rule."""
-        if called in self.lifted or called in (self.pyname, self.name):
-            return called
-        return (
-            resolve_known_name(
-                called,
-                self.known,
-                allow_mapped=not self.host(called),
-            )
-            or called
+        return self._resolved_name(called) or called
+
+    def _resolved_name(self, identifier: str) -> str | None:
+        """Use one resolver for recursive, sibling, and catalog names."""
+        if identifier in self.lifted:
+            return identifier
+        if identifier in (self.pyname, self.name):
+            return self.name
+        if defined_name := self._bound_defined_name(identifier):
+            return defined_name
+        return resolve_known_name(
+            identifier,
+            self.known,
+            allow_mapped=not self.host(identifier),
         )
+
+    def _bound_defined_name(self, identifier: str) -> str | None:
+        """The MeTTa name carried by a lexically bound Defined, if any."""
+        value = self.host_value(identifier)
+        return value.name if isinstance(value, Defined) else self.defined_name(value)
 
     def _fork(self) -> _Compiler:
         """A compiler for one branch: its own scope, the shared minted set."""
@@ -741,6 +766,7 @@ class _Compiler(
             self.known,
             used=self.used,
             nondet=self._given_nondet,
+            returns_bool=self.returns_bool,
             aux=self.aux,
             lifted=self.lifted,
             closer=self.closer,
@@ -748,6 +774,7 @@ class _Compiler(
             host=self.host,
             builders=self.builders,
             host_value=self.host_value,
+            defined_name=self.defined_name,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
@@ -773,6 +800,7 @@ class _Compiler(
             self.known,
             used=None,
             nondet=self._given_nondet,
+            returns_bool=self.returns_bool,
             aux=self.aux,
             lifted=self.lifted,
             closer=closer,
@@ -780,6 +808,7 @@ class _Compiler(
             host=self.host,
             builders=self.builders,
             host_value=self.host_value,
+            defined_name=self.defined_name,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
@@ -854,7 +883,11 @@ class _Compiler(
         """Whether the twin could resolve this callee: a host binding or a
         Python builtin. An engine-only name makes the twin unrunnable.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self.host(identifier) or identifier in self._builtins
+        return (
+            identifier in (self.pyname, self.name)
+            or self.host(identifier)
+            or identifier in self._builtins
+        )
 
     def _temp(self, base: str) -> str:
         """A fresh variable for the compiler's own use, outside any Python

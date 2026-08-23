@@ -5,6 +5,18 @@ Guarantees:
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - install_define keeps stacked clauses in Python first-match order [tested
     test_literal_defaults_are_head_patterns_and_clauses_stack]
+  - clauses at different arities under one MeTTa name stack instead of
+    replacing one another [tested:
+    test_define_supports_one_name_at_multiple_arities; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - implicit definition names apply the total underscore-to-hyphen map while
+    explicit name= remains exact [tested: test_define_maps_its_implicit_python_name;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - a previously installed Python callable carries its exact MeTTa name into
+    later compiled definitions [tested:
+    test_compiled_calls_share_the_installed_name_resolver; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - the compiler sees declared Bool result types, so condition positions do
+    not add a redundant host-truthiness operation [tested:
+    test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - clear_definitions removes process bookkeeping with the equations it
     describes [tested test_reflection_facts_follow_a_dropped_space]
   - a definition is exposed only after its first twin clause exists, and its
@@ -56,6 +68,7 @@ from ._define_twins import (
     twin_dispatcher,
 )
 from ._documentation import documentation_atom
+from ._name_mapping import attribute_name
 from ._ops import REGISTRY
 from .atoms import Atom, Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode, _expr
 from .define import (
@@ -79,6 +92,7 @@ _DEFINED_GENERATORS: set[tuple[str, str]] = set()
 _DEFINE_DOCUMENTATION: dict[tuple[str, str], Expression] = {}
 _DEFINE_REFLECTION: dict[tuple[str, str], tuple[Expression, ...]] = {}
 _DEFINE_FACT_REFS: dict[str, int] = {}
+_DEFINED_FUNCTION_NAMES: dict[tuple[str, types.FunctionType], set[str]] = {}
 _DEFINE_LOCK = threading.RLock()
 
 
@@ -100,6 +114,10 @@ def clear_definitions(space: Any) -> None:
         _DEFINED_GENERATORS.difference_update(
             {key for key in _DEFINED_GENERATORS if key[0] == space.name}
         )
+        for defined_key in [
+            key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name
+        ]:
+            del _DEFINED_FUNCTION_NAMES[defined_key]
 
 
 def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):
@@ -120,7 +138,7 @@ def install_prolog_define(
     if not isinstance(fn, types.FunctionType):
         msg = f"define expects a Python function, got {type(fn).__name__}"
         raise TypeError(msg)
-    name = name or fn.__name__
+    name = attribute_name(fn.__name__) if name is None else name
     origin = os.fspath(prolog)
     registered = space.register_prolog(path=origin)
     if name not in registered:
@@ -135,6 +153,7 @@ def install_prolog_define(
         )
     params = list(_inspect.signature(fn).parameters)
     _refuse_mismatched_twin_arity(space, name, params, origin)
+    _remember_defined_callable(space, fn, name)
     return PrologBacked(name, params, fn, space, origin)
 
 
@@ -173,10 +192,42 @@ def _is_pure(space: Any, called: str) -> bool:
     return bool(space.runtime.once("seam:pure_operation(Name)", Name=called))
 
 
+def _returns_bool(space: Any, called: str) -> bool:
+    """Whether get-type declares a named function's result as Bool."""
+    declared = space.type(Symbol(called))
+    return (
+        isinstance(declared, Expression)
+        and len(declared.children) >= 2
+        and declared.children[0] == Symbol("->")
+        and declared.children[-1] == Symbol("Bool")
+    )
+
+
+def _remember_defined_callable(space: Any, fn: types.FunctionType, name: str) -> None:
+    """Record the exact installed name carried by one source function."""
+    _DEFINED_FUNCTION_NAMES.setdefault((space.name, fn), set()).add(name)
+
+
+def _installed_callable_name(space: Any, value: object) -> str | None:
+    """Resolve a bound source function only when its installed name is unique."""
+    if not isinstance(value, types.FunctionType):
+        return None
+    names = _DEFINED_FUNCTION_NAMES.get((space.name, value), set())
+    live = sorted(name for name in names if space.is_function(name))
+    if len(live) <= 1:
+        return live[0] if live else None
+    msg = (
+        f"{value.__name__!r} is installed as {', '.join(map(repr, live))}; "
+        "use fn[...] to choose the exact MeTTa name"
+    )
+    raise CompileError(msg, construct="ambiguous defined call")
+
+
 def _validate_clause_order(
     space: Any,
     name: str,
     patterns: dict[str, Atom],
+    arity: int,
     earlier: list[dict[str, Any]],
 ) -> None:
     """Refuse collisions and clauses hidden by an earlier Python head."""
@@ -192,7 +243,8 @@ def _validate_clause_order(
             msg,
             construct="name collision",
         )
-    if patterns and any(not clause["patterns"] for clause in earlier):
+    same_arity = [clause for clause in earlier if clause["arity"] == arity]
+    if patterns and any(not clause["patterns"] for clause in same_arity):
         msg = (
             f"a clause of {name} with a literal head comes after the "
             f"general clause, which already matches everything; define "
@@ -202,7 +254,7 @@ def _validate_clause_order(
             msg,
             construct="clause order",
         )
-    for clause in earlier:
+    for clause in same_arity:
         earlier_patterns = clause["patterns"]
         if len(earlier_patterns) < len(patterns) and all(
             patterns.get(param) == value for param, value in earlier_patterns.items()
@@ -230,6 +282,7 @@ def _same_clause(clause: dict[str, Any], canonical: tuple[Expression, ...], name
 def _locate_clause(
     earlier: list[dict[str, Any]],
     patterns: dict[str, Atom],
+    arity: int,
     canonical: tuple[Expression, ...],
     name: str,
 ) -> tuple[bool, int | None]:
@@ -238,7 +291,7 @@ def _locate_clause(
     for position, clause in enumerate(earlier):
         if _same_clause(clause, canonical, name):
             return True, position
-        if clause["patterns"] == patterns:
+        if clause["arity"] == arity and clause["patterns"] == patterns:
             replaced = position
     return False, replaced
 
@@ -305,6 +358,7 @@ def _clause_record(
     patterns: dict[str, Atom], equations: tuple[Expression, ...], compiled: Compiled
 ) -> dict[str, Any]:
     return {
+        "arity": len(compiled.params),
         "patterns": patterns.copy(),
         "equations": equations,
         "aux": tuple(compiled.aux),
@@ -476,22 +530,23 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         msg = f"define expects a Python function, got {type(fn).__name__}"
         raise TypeError(msg)
 
-    # The equation's name is the Python name, verbatim, or the one asked
-    # for: one policy across both decorators, and neither rewrites what the
-    # author wrote.
-    name = name or fn.__name__
+    # Implicit names use the same total mechanical map as the factories;
+    # explicit names preserve every authored character.
+    name = attribute_name(fn.__name__) if name is None else name
     compiled = compile_function(
         fn,
         known=space.is_function,
         nondet=partial(_is_nondeterministic, space),
         pure=partial(_is_pure, space),
+        returns_bool=partial(_returns_bool, space),
         metta_name=name,
+        defined_name=partial(_installed_callable_name, space),
     )
     params, patterns = compiled.params, compiled.patterns
     # Clause stacking is per (space, name), process-wide: equations live
     # in the space, not in whichever MeTTa instance happened to add them.
     earlier = _DEFINE_CLAUSES.setdefault((space.name, name), [])
-    _validate_clause_order(space, name, patterns, earlier)
+    _validate_clause_order(space, name, patterns, len(params), earlier)
     # MeTTa equations are alternatives, and a Python author stacking
     # clauses means first-match, so each clause is guarded against every
     # earlier literal head it would otherwise also answer for. The guard
@@ -515,7 +570,9 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         params,
     )
     clause_twin.__doc__ = compiled.facts.doc
-    duplicate, replaced = _locate_clause(earlier, patterns, canonical, name)
+    duplicate, replaced = _locate_clause(
+        earlier, patterns, len(params), canonical, name
+    )
     if duplicate:
         # A re-run cell or module reload must not duplicate answers.
         if replaced is None:
@@ -529,6 +586,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         earlier[replaced]["facts"] = compiled.facts
         replace_twin_clause(dispatcher, replaced, clause_twin)
         _document_definition(space, name, dispatcher)
+        _remember_defined_callable(space, fn, name)
         return _defined_result(space, name, compiled, bodies, dispatcher)
     prospective = earlier.copy()
     record = _clause_record(patterns, equations, compiled)
@@ -561,6 +619,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     _document_definition(space, name, dispatcher)
     if compiled.generator:
         _DEFINED_GENERATORS.add((space.name, name))
+    _remember_defined_callable(space, fn, name)
     return defined
 
 

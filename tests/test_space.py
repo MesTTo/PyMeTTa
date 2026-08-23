@@ -261,8 +261,8 @@ def test_query_join(m):  # noqa: D103  -- pytest discovers or injects this calla
 def test_query_projection_and_column(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.age(S.Ada, 36), S.age(S.Bob, 41))
     rows = m.query(S.age(V.who, V.years))
-    assert set(rows["who"]) == {S.Ada, S.Bob}
-    assert sorted(rows["years"], key=int) == [36, 41]
+    assert set(rows.who) == {S.Ada, S.Bob}
+    assert sorted(rows.years, key=int) == [36, 41]
 
 
 def test_query_surfaces_share_column_order(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -306,10 +306,10 @@ def test_empty_space_is_still_true(m):  # noqa: D103  -- pytest discovers or inj
 
 def test_getitem_queries_and_a_tuple_joins(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
-    assert set(m[S.edge(V.x, V.y)]["x"]) == {S.a, S.b}
+    assert set(m[S.edge(V.x, V.y)].x) == {S.a, S.b}
     assert len(m["(edge $x $y)"]) == 2
     joined = m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
-    assert list(joined["c"]) == [S.c]
+    assert list(joined.c) == [S.c]
 
 
 def test_getitem_refuses_a_slice_naming_the_doors(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -692,7 +692,7 @@ def test_add_table_reads_records_by_value(m):  # noqa: D103  -- pytest discovers
     # Iterating a mapping yields keys, so this once stored ("x" "y").
     assert [str(atom) for atom in records.atoms()] == ['(p "a" "b")']
     lossless = m._new_space()
-    tables.add(lossless, S.p, {c: rows[c] for c in rows.columns})
+    tables.add(lossless, S.p, {c: getattr(rows, c) for c in rows.columns})
     assert lossless.digest() == m.digest()
 
 
@@ -783,8 +783,8 @@ def test_removing_what_was_never_registered_is_reported(metta):  # noqa: D103  -
 def test_an_unknown_column_names_the_columns_that_exist(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a))
     rows = m.query(S.p(V.who))
-    with pytest.raises(KeyError, match="did you mean 'who'"):
-        rows["wh"]
+    with pytest.raises(AttributeError, match="did you mean 'who'"):
+        _ = rows.wh
 
 
 @pytest.mark.parametrize(

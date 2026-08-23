@@ -3,6 +3,9 @@ Guarantees:
   - the atom ordering expectation is elementwise for unequal expression
     lengths [tested: test_atoms_sort_in_prologs_standard_order;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+  - rational grounded numbers retain exact Fraction wire payloads [tested:
+    test_numbers_tower_reals_normalize_and_non_reals_stay_opaque;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Owns:
   - test_atom_identity_caches_are_thread_safe joins every cache worker
     before checking identity [tested test_atom_identity_caches_are_thread_safe]
@@ -156,8 +159,8 @@ def test_non_real_numpy_values_stay_opaque():  # noqa: D103  -- pytest discovers
 
 def test_numbers_tower_reals_normalize_and_non_reals_stay_opaque():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     real = Grounded(Fraction(3, 2))
-    assert type(real.value) is float
-    assert real.to_wire() == ["n", 1.5]
+    assert type(real.value) is Fraction
+    assert real.to_wire() == ["n", Fraction(3, 2)]
 
     decimal = Decimal("1.5")
     opaque = Grounded(decimal)

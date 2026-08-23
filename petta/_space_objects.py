@@ -8,6 +8,11 @@ Guarantees:
     bracket names, resolves a trailing bang, and rejects unknown names at
     access [tested: test_bound_function_namespace_validates_at_access;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - a resolved bang call completes before the call returns while retaining a
+    replayable answer view [tested: test_resolved_bang_call_is_eager;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - resolved bang mutations invalidate the owning space's builtin catalogue
+    [tested: test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -847,8 +852,18 @@ class _EngineFunction:
         return Expression([Symbol(self._name), *(_encode(a) for a in args)])
 
     def __call__(self, *args: Any) -> Any:
-        """Evaluate this call and return its lazy, replayable Answers."""
-        return self._space.answers(self._term(args))
+        """Evaluate this call and return its replayable Answers.
+
+        MeTTa's trailing ``!`` is its effect marker, not a Python convention
+        invented by this namespace.  A resolved bang name therefore drains
+        at the call boundary so the statement has happened when its line
+        completes.  Non-bang calls retain demand-driven evaluation.
+        """
+        answers = self._space.answers(self._term(args))
+        if self._name.endswith("!"):
+            answers._materialize()
+            self._space._invalidate_builtins()
+        return answers
 
     # ------------------------------------------------------- introspection
 
@@ -937,7 +952,11 @@ class _EngineFunction:
 
 
 class _FunctionNamespace:
-    """Functions visible to one space, resolved when an attribute is read."""
+    """Functions visible to one space, resolved when an attribute is read.
+
+    MeTTa marks effects with a trailing ``!``.  Calls whose resolved name has
+    that marker execute eagerly at the call door; all other calls stay lazy.
+    """
 
     __slots__ = ("_space",)
 

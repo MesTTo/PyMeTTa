@@ -4,6 +4,9 @@ Guarantees:
     [tested test_pure_workload_counts_are_derived]
   - json_wire round-trips the same 200-answer DAS-shaped payload through
     every measured iteration [tested test_pure_workload_counts_are_derived]
+  - term_operators builds explicit comparison terms now that rich comparison
+    is reserved for atom ordering [tested: test_pure_workload_counts_are_derived;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -81,7 +84,7 @@ def json_wire(payload: dict, trips: int = JSON_TRIPS) -> int:
 def term_operators(terms: int = TERM_COUNT) -> int:
     """Build comparison terms and return the number built."""
     for index in range(terms):
-        (V.age >= index) & (V.age <= index + 10) | ~V.retired
+        S[">="](V.age, index) & S["<="](V.age, index + 10) | ~V.retired
     return terms
 
 

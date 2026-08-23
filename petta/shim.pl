@@ -48,6 +48,9 @@
 %     PeTTa's evaluation paths produced each answer, leaving the ordinary
 %     entry points' output unchanged [tested
 %     test_eval_status_reports_the_four_outcomes]
+%   - the held evaluation cursor is present at bridge boot, so the first lazy
+%     answer pull performs no late consult [tested:
+%     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 %   - petta_py_operation_error/5 reports a builtin refusal as its written
 %     operation, formal functor, expected type and culprit, and every value it
 %     yields is one Janus can carry [tested
@@ -658,6 +661,7 @@ petta_py_wrappable(petta_py_atomic).
 petta_py_wrappable(petta_py_speculative).
 petta_py_wrappable(petta_py_profiled).
 petta_py_wrappable(petta_py_cursor_next).
+petta_py_wrappable(petta_py_eval_count).
 petta_py_wrappable(petta_py_derivation).
 
 petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-
@@ -1614,6 +1618,62 @@ petta_py_eval_using_all(Space, Target, Pairs, Encoded) :-
     ( Answers == [], petta_py_preserve_unmatched(Space, Term, Original)
       -> Encoded = [Original]
       ;  Encoded = Answers ).
+
+%The lazy Answers door shares target decoding with eager eval, then holds one
+%SWI engine so each Python pull resumes the producer rather than materializing
+%it. These predicates live in the boot-consulted shim: consulting them on the
+%first pull charged every fresh process for loading infrastructure rather than
+%for its query.
+petta_py_eval_target(Space, Target, Pairs, Term, Bindings) :-
+    (   Target = [_, _]
+    ->  petta_py_decode_shared(Target, Term0, Bindings)
+    ;   \+ is_list(Target)
+    ->  petta_py_read_form(Target, Read, Bindings),
+        (   Space == '&self'
+        ->  Term0 = Read
+        ;   atom(Target), sub_atom(Target, _, _, _, '&self')
+        ->  metta_substitute_self(Space, Read, Term0)
+        ;   string(Target), sub_string(Target, _, _, _, "&self")
+        ->  metta_substitute_self(Space, Read, Term0)
+        ;   Term0 = Read
+        )
+    ;   throw(error(domain_error(petta_py_wire_term, Target), none))
+    ),
+    (   Pairs == []
+    ->  Term = Term0
+    ;   maplist(petta_py_using_pair, Pairs, Substitutions),
+        metta_host_substitute(Substitutions, Term0, Term)
+    ).
+
+petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :-
+    petta_py_eval_target(Space, Target, Pairs, Term, Bindings),
+    Goal = ( statistics(inferences, Before),
+             petta_py_eval_term_bounded(Space, Term, Encoded),
+             petta_py_row(VarNames, Bindings, Row),
+             statistics(inferences, Now), Used is Now - Before ),
+    ( Inf < 0 -> Bounded = Goal
+    ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
+                  ( Result == inference_limit_exceeded
+                    -> petta_py_raise(inference_limit, Inf)
+                  ; true ) )
+    ),
+    engine_create([Encoded, Row, Used], Bounded, Engine).
+
+petta_py_eval_count(Space, Target, Pairs, Count) :-
+    petta_py_eval_target(Space, Target, Pairs, Term, _),
+    aggregate_all(
+        count,
+        petta_run_with_fuel(petta_py_answer(Out), _,
+                            petta_py_eval_solution(Space, Term, Out)),
+        Count).
+
+petta_py_eval_solution(Space, Term, Out) :-
+    petta_py_module(Space, Module),
+    ( petta_py_direct_goal(Module, Term, Goal, Out)
+      -> petta_py_in_module(Module, call_delays(call(Module:Goal), _))
+    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
+                                   call_delays(petta_py_call_goals(Module, Goals),
+                                               _) )) ).
 
 %A direct compiled predicate that fails can mean either that its written head
 %did not match or that a matching body's answer set was empty. Only the first

@@ -32,6 +32,18 @@ Guarantees:
     test_answers_are_lazy_cached_and_cardinality_aware,
     test_answers_project_caller_variables_and_slices_stay_answers;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - evaluation values and their caller-binding rows are parallel faces of one
+    Answers cursor [tested: test_calls_keep_values_and_binding_rows;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - an Answers view crossing into a term observes exact-one cardinality and
+    encodes that answer as the operand [tested:
+    test_answer_views_observe_when_used_as_operands; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - Rows and Answers project caller variables by attribute, Variable key, or
+    exact string key
+    [tested: test_rows_share_the_answer_projection_contract; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - len on an untouched engine-backed Answers view uses its engine count door
+    without populating the Python cache [tested:
+    test_len_counts_an_unmaterialised_view_engine_side; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -55,7 +67,7 @@ from typing import Any, Final, NamedTuple, Self, SupportsIndex, overload
 
 from ._config import config
 from ._optional import require_module
-from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode
+from .atoms import Atom, Expression, Grounded, Symbol, Undefined, Variable, _decode, _encode
 from .errors import EngineError, MettaResultError
 
 __all__ = ["Answers", "Row", "Rows"]
@@ -174,6 +186,13 @@ class Row(tuple):
         return _restore_row, (type(self)._columns, tuple(self))
 
 
+class _AnswerItem(NamedTuple):
+    """One engine answer and the caller bindings produced alongside it."""
+
+    value: Any
+    row: Row | None
+
+
 @lru_cache(maxsize=256)
 def _row_class(columns: tuple[str, ...]) -> type[Row]:
     return type("Row", (Row,), {"__slots__": (), "_columns": columns})
@@ -194,8 +213,9 @@ def _restore_rows(
 class Rows(UserList[Row]):
     """Every answer to a query, in the order the engine produced them.
 
-    Sequence operations retain this type and its columns. ``rows["name"]``
-    projects a column, while integer and slice indexing follow a normal list.
+    Sequence operations retain this type and its columns. ``rows.name``,
+    ``rows[V.name]``, and ``rows["name"]`` project a column, matching Answers,
+    while integer and slice indexing follow a normal list.
     """
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
@@ -227,23 +247,35 @@ class Rows(UserList[Row]):
             )
         return _row_class(self.columns)(values)
 
+    @overload  # type: ignore[override]
+    def __getitem__(self, i: Variable) -> list[Any]: ...  # type: ignore[overload-overlap]
+
+    @overload
+    def __getitem__(self, i: str) -> list[Any]: ...
+
     @overload
     def __getitem__(self, i: SupportsIndex) -> Row: ...
 
     @overload
     def __getitem__(self, i: slice[SupportsIndex | None]) -> Rows: ...
 
-    @overload
-    def __getitem__(self, i: str) -> list[Any]: ...
-
     def __getitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        self, i: SupportsIndex | slice[SupportsIndex | None] | str
+        self, i: SupportsIndex | slice[SupportsIndex | None] | Variable | str
     ) -> Row | Rows | list[Any]:
-        if isinstance(i, str):
-            return self._column(i)
+        if isinstance(i, (Variable, str)):
+            return self._column(i.name if isinstance(i, Variable) else i)
         if isinstance(i, slice):
             return Rows(self.columns, self.data[i])
         return self.data[i]
+
+    def __getattr__(self, name: str) -> list[Any]:  # noqa: D105  -- projection is the documented data-model extension
+        try:
+            return self._column(name)
+        except KeyError as exc:
+            raise AttributeError(str(exc)) from None
+
+    def __dir__(self) -> list[str]:  # noqa: D105  -- completion exposes the documented projection columns
+        return sorted(set(super().__dir__()) | set(self.columns))
 
     def __setitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self,
@@ -300,8 +332,8 @@ class Rows(UserList[Row]):
         return self * n
 
     def _column(self, name: str) -> list[Any]:
-        #rows[name] is the one public door; this is its implementation,
-        #shared with the cast route.
+        # Attribute and Variable-key projection share this implementation
+        # with the cast route.
         if name not in self.columns:
             # tuple.index would otherwise report this as
             # "tuple.index(x): x not in tuple", naming neither the column
@@ -660,9 +692,12 @@ class Answers[T](Sequence[T]):
     __slots__ = (
         "_cache",
         "_columns",
+        "_count_source",
         "_done",
         "_error",
+        "_known_length",
         "_lock",
+        "_row_cache",
         "_source",
         "_space",
         "_target",
@@ -670,17 +705,21 @@ class Answers[T](Sequence[T]):
 
     def __init__(  # noqa: D107 -- the enclosing type documents construction
         self,
-        source: Iterable[T],
+        source: Iterable[T | _AnswerItem],
         *,
         columns: Iterable[str] = (),
         space: str | None = None,
         target: object = None,
+        count: Callable[[], int] | None = None,
     ) -> None:
         self._source = iter(source)
         self._columns = tuple(columns)
+        self._count_source = count
+        self._known_length: int | None = None
         self._space = space
         self._target = target
         self._cache: list[T] = []
+        self._row_cache: list[Row | None] = []
         self._done = False
         self._error: Exception | None = None
         self._lock = threading.RLock()
@@ -695,7 +734,13 @@ class Answers[T](Sequence[T]):
         with self._lock:
             while len(self._cache) <= index and not self._done:
                 try:
-                    self._cache.append(next(self._source))
+                    item = next(self._source)
+                    if isinstance(item, _AnswerItem):
+                        self._cache.append(item.value)
+                        self._row_cache.append(item.row)
+                    else:
+                        self._cache.append(item)
+                        self._row_cache.append(None)
                 except StopIteration:
                     self._done = True
                 except Exception as exc:  # noqa: BLE001 -- replay requires caching the source's terminal failure unchanged
@@ -732,7 +777,16 @@ class Answers[T](Sequence[T]):
         return self._pull(0)
 
     def __len__(self) -> int:  # noqa: D105 -- Python's sequence protocol names the contract
-        return len(self._materialize())
+        with self._lock:
+            if self._done:
+                self._known_length = len(self._cache)
+                return self._known_length
+            if self._cache or self._count_source is None:
+                self._known_length = len(self._materialize())
+                return self._known_length
+            if self._known_length is None:
+                self._known_length = self._count_source()
+            return self._known_length
 
     @overload
     def __getitem__(self, key: int) -> T: ...
@@ -743,15 +797,21 @@ class Answers[T](Sequence[T]):
     @overload
     def __getitem__(self, key: Variable) -> Answers[Any]: ...
 
+    @overload
+    def __getitem__(self, key: str) -> Answers[Any]: ...
+
     def __getitem__(  # noqa: D105 -- Python's sequence protocol names the contract
-        self, key: int | slice | Variable
+        self, key: int | slice | Variable | str
     ) -> T | Answers[T] | Answers[Any]:
-        if isinstance(key, Variable):
-            return self._project(key.name)
+        if isinstance(key, (Variable, str)):
+            return self._project(key.name if isinstance(key, Variable) else key)
         if isinstance(key, slice):
             return self._slice(key)
         if not isinstance(key, int):
-            msg = f"Answers indices are integers, slices, or Variables, not {type(key).__name__}"
+            msg = (
+                "Answers indices are integers, slices, Variables, or exact "
+                f"column strings, not {type(key).__name__}"
+            )
             raise TypeError(msg)
         return self._at(key)
 
@@ -760,19 +820,25 @@ class Answers[T](Sequence[T]):
             msg = "slice step cannot be zero"
             raise ValueError(msg)
 
-        def selected() -> Iterator[T]:
+        def selected() -> Iterator[T | _AnswerItem]:
             if any(
                 value is not None and value < 0
                 for value in (window.start, window.stop, window.step)
             ):
-                yield from self._materialize()[window]
+                self._materialize()
+                for index in range(len(self._cache))[window]:
+                    yield _AnswerItem(self._cache[index], self._row_cache[index])
                 return
-            yield from itertools.islice(
-                self,
+            indices = itertools.islice(
+                itertools.count(),
                 window.start or 0,
                 window.stop,
                 window.step or 1,
             )
+            for index in indices:
+                if not self._pull(index):
+                    return
+                yield _AnswerItem(self._cache[index], self._row_cache[index])
 
         return Answers(
             selected(), columns=self._columns, space=self._space, target=self._target
@@ -785,19 +851,45 @@ class Answers[T](Sequence[T]):
         index = self._columns.index(name)
 
         def values() -> Iterator[Any]:
-            for answer in self:
-                if not isinstance(answer, Row):
-                    msg = f"answer {answer!r} carries no variable row for {name!r}"
+            position = 0
+            while self._pull(position):
+                row = self._row_cache[position]
+                if row is None:
+                    msg = (
+                        f"answer {self._cache[position]!r} carries no variable "
+                        f"row for {name!r}"
+                    )
                     raise TypeError(msg)
-                yield answer[index]
+                yield row[index]
+                position += 1
 
         return Answers(values(), space=self._space, target=self._target)
+
+    @property
+    def rows(self) -> Answers[Row]:
+        """The caller-binding row paired with each evaluation answer."""
+
+        def values() -> Iterator[Row]:
+            position = 0
+            while self._pull(position):
+                row = self._row_cache[position]
+                if row is None:
+                    msg = f"answer {self._cache[position]!r} carries no variable row"
+                    raise TypeError(msg)
+                yield row
+                position += 1
+
+        return Answers(values(), columns=self._columns, space=self._space, target=self._target)
 
     def __getattr__(self, name: str) -> Answers[Any]:  # noqa: D105 -- projection is documented by the type
         return self._project(name)
 
     def __dir__(self) -> list[str]:  # noqa: D105 -- completion extends Python's standard directory
         return sorted(set(super().__dir__()) | set(self._columns))
+
+    def __metta__(self) -> Atom:
+        """Observe exactly one answer when this view enters a term."""
+        return _encode(self.one())
 
     @staticmethod
     def _scalar(answer: Any) -> Any:

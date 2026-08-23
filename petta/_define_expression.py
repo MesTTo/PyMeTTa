@@ -15,6 +15,15 @@ Guarantees:
     callees ask for exact, hyphenated, then banged catalog spellings [tested:
     test_compiled_bodies_reach_all_four_mention_families,
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - a host-bound Defined mention lowers to the sibling's declared MeTTa name
+    [tested: test_compiled_body_calls_renamed_defined_sibling;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - host-bound and parameter-carried space handles remain operands of compiled
+    match calls [tested: test_compiled_match_accepts_space_handles;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - calls whose declared output is Bool remain direct conditions rather than
+    acquiring py-truthy [tested:
+    test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,7 +42,7 @@ from collections.abc import Callable
 from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext
 from ._name_mapping import attribute_name, resolve_known_name
-from .atoms import Atom, Expression, Grounded, Symbol, Variable
+from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError
 
 # Python operator to the MeTTa function the engine registers for it. Every
@@ -116,12 +125,11 @@ class ExpressionCompilerMixin(CompilerContext):
     def _x_Name(self, node: ast.Name) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if node.id in self.scope:
             return Variable(self.scope[node.id])
-        if node.id in (self.pyname, self.name):
-            # Recursion, in either spelling; the equation carries the MeTTa
-            # name.
-            return Symbol(self.name)
         if node.id in _MAGIC:
             return Symbol(node.id)
+        host_value = self.host_value(node.id)
+        if isinstance(host_value, Handle):
+            return host_value
         known = self._known_symbol(node.id)
         if known is not None:
             return known
@@ -151,11 +159,7 @@ class ExpressionCompilerMixin(CompilerContext):
         # ended func namespace. [source:
         # https://docs.python.org/3/reference/executionmodel.html#binding-of-names;
         # commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
-        resolved = resolve_known_name(
-            identifier,
-            self.known,
-            allow_mapped=not self.host(identifier),
-        )
+        resolved = self._resolved_name(identifier)
         if resolved is None:
             return None
         if not self._python_resolvable(identifier):
@@ -315,14 +319,22 @@ class ExpressionCompilerMixin(CompilerContext):
         already boolean-valued by its syntax wraps in py-truthy, whose
         answer IS bool() of the value. A comparison or a `not` stays bare.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        term = self.expression(node)
         if isinstance(node, ast.Compare):
-            return self.expression(node)
+            return term
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            return self.expression(node)
+            return term
         if isinstance(node, ast.Constant) and isinstance(node.value, bool):
-            return Grounded(node.value)
+            return term
+        if (
+            isinstance(term, Expression)
+            and term.children
+            and isinstance(term.children[0], Symbol)
+            and self.returns_bool(term.children[0].name)
+        ):
+            return term
         self.runtime_ops.add("py-truthy")
-        return Expression([Symbol("py-truthy"), self.expression(node)])
+        return Expression([Symbol("py-truthy"), term])
 
     def _compare_link(self, op_node: ast.cmpop, left: Atom, right: Atom, line) -> Atom:
         """One comparison: order through the engine's numeric functions,
@@ -706,27 +718,33 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _match_call(self, node: ast.Call) -> Atom:
         """match(Pattern(...), template) runs against the running space;
-        match("&name", pattern, template) names one. Pattern variables are
-        the names not otherwise bound, exactly as in source MeTTa.
+        match(space, pattern, template) accepts a name or handle operand.
+        Pattern variables are the names not otherwise bound, exactly as in
+        source MeTTa.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         args = node.args
         if len(args) == 3:
             space_node, pattern_node, template_node = args
-            if not (
+            if (
                 isinstance(space_node, ast.Constant)
                 and isinstance(space_node.value, str)
                 and space_node.value.startswith("&")
             ):
+                space: Atom = Symbol(space_node.value)
+            else:
+                space = self.expression(space_node)
+            if not isinstance(space, (Handle, Variable)) and not (
+                isinstance(space, Symbol) and space.name.startswith("&")
+            ):
                 msg = (
-                    "match with three arguments names its space first, as a "
-                    'string: match("&kb", pattern, template)'
+                    "match with three arguments takes a space handle, a space "
+                    'parameter, or a name such as "&kb" first'
                 )
                 raise CompileError(
                     msg,
                     construct="match",
                     line=node.lineno,
                 )
-            space: Atom = Symbol(space_node.value)
         elif len(args) == 2:
             pattern_node, template_node = args
             space = Expression([Symbol("context-space")])

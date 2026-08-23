@@ -211,9 +211,9 @@ def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
                 field(V.manager, S.age, V.age),
                 S.band(V.age, V.band),
             )
-            assert rows["who"] == [S.ada]
-            assert rows["age"] == [31]
-            assert rows["band"] == [S.senior]
+            assert rows.who == [S.ada]
+            assert rows.age == [31]
+            assert rows.band == [S.senior]
 
             manager.age = 32
             stored.add(S.band(32, S.current))
@@ -221,14 +221,14 @@ def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
                 S.manager(S.ada, V.manager),
                 field(V.manager, S.age, V.age),
                 S.band(V.age, V.band),
-            )["band"] == [S.current]
+            ).band == [S.current]
 
             metta._at(view_name).add(field(ground(manager), S.age, 33))
             assert manager.age == 33
             assert joined.query(
                 S.manager(S.ada, V.manager),
                 field(V.manager, S.age, V.age),
-            )["age"] == [33]
+            ).age == [33]
         finally:
             metta._unregister_space(join_name)
             metta._unregister_space(view_name)

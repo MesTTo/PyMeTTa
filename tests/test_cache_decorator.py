@@ -52,7 +52,7 @@ def test_a_cached_definition_tables_and_answers_from_its_trie() -> None:
     # bag-preserving memoization would deliberately accelerate this shape, so
     # the control uses its public refuse declaration.
     plain = MeTTa().space("&cachedecorator-plain")
-    refusal = "(cache cachedec_plain refuse)"
+    refusal = "(cache cachedec-plain refuse)"
     plain.run(f"!(add-atom &petta {refusal})")
     try:
 

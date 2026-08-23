@@ -463,7 +463,7 @@ def _people_space():
 def test_query_where(benchmark, inference_baseline):
     repeats = 20
     expected_rows = 508
-    guard = (V.age >= 18) & (V.age <= 40)
+    guard = S[">="](V.age, 18) & S["<="](V.age, 40)
 
     def operation(space):
         return sum(len(space.query(S.person(V.name, V.age), where=guard)) for _ in range(repeats))

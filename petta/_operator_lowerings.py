@@ -4,6 +4,9 @@ Guarantees:
     operators have one entry and no runtime remapping door [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
     commit=613f35974fa98746552dba584ad66082fdd1f3c7]
+  - all four rich-comparison entries are reserved for atom ordering rather
+    than term construction [tested: test_atom_comparisons_are_only_ordering;
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Decides:
   - ``@`` always lowers to the library-provided name ``matmul``; libraries
     define that MeTTa name rather than remapping Python syntax [tested:
@@ -74,10 +77,10 @@ OPERATOR_LOWERINGS: tuple[OperatorLowering, ...] = (
     OperatorLowering("__and__", "__rand__", "x & y", "symbol", "and"),
     OperatorLowering("__or__", "__ror__", "x | y", "symbol", "or"),
     OperatorLowering("__xor__", "__rxor__", "x ^ y", "symbol", "xor"),
-    OperatorLowering("__lt__", None, "x < y", "symbol", "<"),
-    OperatorLowering("__le__", None, "x <= y", "symbol", "<="),
-    OperatorLowering("__gt__", None, "x > y", "symbol", ">"),
-    OperatorLowering("__ge__", None, "x >= y", "symbol", ">="),
+    OperatorLowering("__lt__", None, "x < y", "taken", "<", method="order_key"),
+    OperatorLowering("__le__", None, "x <= y", "taken", "<=", method="order_key"),
+    OperatorLowering("__gt__", None, "x > y", "taken", ">", method="order_key"),
+    OperatorLowering("__ge__", None, "x >= y", "taken", ">=", method="order_key"),
     OperatorLowering("__invert__", None, "~x", "symbol", "not", arity=1),
     OperatorLowering(
         "__neg__", None, "-x", "template", ("-", 0, "$value"), arity=1

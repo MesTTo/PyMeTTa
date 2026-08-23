@@ -1,18 +1,17 @@
-"""Purpose: pin Phase 9 item P9.6: every term-building operator on atoms is
-documented in one table, derived from the class rather than maintained by
-hand, and the two operators that are deliberately NOT symbolic (`==`, whose
-term is spelled `.eq()`, and `<`, whose term is spelled `.lt()`) are called
-out. Before this, `S.x + S.y` built a
+"""Purpose: pin Phase 9 item P9.6: every atom operator is documented in one
+table, derived from the class rather than maintained by hand, with rich
+comparisons reserved for ordering and their terms built through explicit
+heads. Before this, `S.x + S.y` built a
 term and no page in website/ showed the form at all [measured 2026-08-19].
 Guarantees:
-    - ``Atom.__lt__`` is the standard-order sorting exception and the ``<``
-      term remains explicitly buildable [tested:
+    - all atom rich comparisons use standard ordering and comparison terms
+      remain explicitly buildable [tested:
       test_every_operator_is_documented_including_non_symbolic_comparisons;
-      commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+      commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
-      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+      commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in
@@ -37,7 +36,7 @@ from petta import (
     S,
     V,
 )
-from petta.atoms import OPERATOR_LOWERINGS
+from petta.atoms import OPERATOR_LOWERINGS, order_key
 
 DOC = Path(__file__).resolve().parents[3] / "website" / "guide" / "atoms-terms.md"
 
@@ -69,6 +68,8 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
         if entries[dunder].kind == "absent":
             with pytest.raises(TypeError, match="has no MeTTa lowering"):
                 method(S.x, V.y)
+            continue
+        if entries[dunder].kind == "taken":
             continue
         term = method(S.x, V.y)
         built[dunder] = _head(term)
@@ -116,13 +117,11 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
 
     for entry in OPERATOR_LOWERINGS:
         if entry.kind == "taken":
-            assert entry.method in {"eq", "ne"}
-            assert callable(getattr(Atom, entry.method))
+            assert entry.method in {"eq", "ne", "order_key"}
+            implementation = order_key if entry.method == "order_key" else getattr(Atom, entry.method)
+            assert callable(implementation)
             continue
         method = getattr(Atom, entry.dunder)
-        if entry.dunder == "__lt__":
-            assert method(S.a, S.b) is True
-            continue
         assert method.__petta_lowering__ == entry
         if entry.reflected is not None:
             assert getattr(Atom, entry.reflected).__petta_lowering__ == entry
@@ -144,10 +143,12 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     metta.run("(= (matmul $left $right) (* $left $right))")
     assert metta.eval(provided) == [42]
 
-    assert Grounded(7) // 2 == 3
-    assert -Grounded(7) == -7
-    assert abs(Grounded(-7)) == 7
-    assert Grounded(3) << 2 == 12
-    assert Grounded(12) >> 2 == 3
+    assert Grounded(7) // 2 == S["floor-math"](S["/"](7, 2))
+    assert -Grounded(7) == S["-"](0, 7)
+    assert abs(Grounded(-7)) == S["abs-math"](-7)
+    with pytest.raises(TypeError, match="MeTTa has no integer-left-shift operation"):
+        Grounded(3) << 2
+    with pytest.raises(TypeError, match="MeTTa has no integer-right-shift operation"):
+        Grounded(12) >> 2
     assert (S.x == S.x) is True
     assert str(S.x.eq(S.y)) == "(== x y)"
