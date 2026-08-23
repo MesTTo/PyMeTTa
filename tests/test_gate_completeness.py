@@ -109,7 +109,11 @@ RUFF_FAMILY_BURN_DOWN = {
     # 147 after the startup-perf merge; its two new files carry two sites.
     "ARG": 147,
     "PERF": 0,
-    "C90": 24,
+    # 24 -> 25 at the twins-wave merge: functions/specialize.py mirrors an
+    # example that defines thirteen functions in a source order its
+    # interleaved claims depend on, so the twin is one function by fidelity
+    # rather than by accretion, and says so at its own noqa.
+    "C90": 25,
     "TRY": 23,
     "EM": 0,
 }

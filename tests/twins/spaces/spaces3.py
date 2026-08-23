@@ -27,7 +27,8 @@ from petta import Expression, S, V
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
 #: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
-BUDGET = 1
+#: INTERIM PIN 2026-08-23, min-of-3 on the wave-merged tree (359 against the example's 8573): this file gates the pytest lane, so it is priced ahead of the corpus-wide pass that follows the library fixes, the guide update, and the marked-site sweep, and it is re-priced there with everything else.
+BUDGET = 359
 
 
 def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the default handle stays untouched
