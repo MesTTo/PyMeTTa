@@ -6,10 +6,10 @@ Assumes:
 Guarantees:
   - every wire-crossable scalar produces the same answer through the native
     dispatch and the retained host route [tested:
-    test_wire_scalars_match_the_python_host_oracle; commit=50e914ec00b986964784af05521b224f3456655c]
+    test_wire_scalars_match_the_python_host_oracle; commit=WORKTREE]
   - Python's named edge cases and expression-container truth rules retain
     their exact answers [tested: test_python_edge_cases_and_containers;
-    commit=50e914ec00b986964784af05521b224f3456655c]
+    commit=WORKTREE]
 Fails when:
   - a new wire value class is routed natively without implementing Python's
     comparison and truth protocols for it.
@@ -44,14 +44,14 @@ def _routes(space, operation, *values):
             "petta_py_decode_shared(WA, A, _), "
             "petta_py_decode_shared(WB, B, _), "
             "petta_py_dispatch_det_host(Op, [A, B], Host), "
-            "petta_py_dispatch_det(Op, [A, B], Native)"
+            "petta_py_dispatch_eq(A, B, Native)"
         )
         row = space.runtime.once(goal, WA=wires[0], WB=wires[1], Op=operation)
     else:
         goal = (
             "petta_py_decode_shared(W, A, _), "
             "petta_py_dispatch_det_host(Op, [A], Host), "
-            "petta_py_dispatch_det(Op, [A], Native)"
+            "petta_py_dispatch_truthy(A, Native)"
         )
         row = space.runtime.once(goal, W=wires[0], Op=operation)
     return row["Host"], row["Native"]
@@ -89,7 +89,7 @@ def test_python_edge_cases_and_containers(metta):
         "petta_py_decode_shared(WA, A, _), "
         "petta_py_decode_shared(WB, B, _), "
         "petta_py_dispatch_det_host('py-eq', [A, B], Host), "
-        "petta_py_dispatch_det('py-eq', [A, B], Native)",
+        "petta_py_dispatch_eq(A, B, Native)",
         WA=ground("same").to_wire(),
         WB=Symbol("same").to_wire(),
     )
@@ -112,7 +112,7 @@ def test_python_edge_cases_and_containers(metta):
         row = metta.runtime.once(
             "petta_py_decode_shared(W, A, _), "
             "petta_py_dispatch_det_host('py-truthy', [A], Host), "
-            "petta_py_dispatch_det('py-truthy', [A], Native)",
+            "petta_py_dispatch_truthy(A, Native)",
             W=atom.to_wire(),
         )
         assert row["Host"] == row["Native"] == ("true" if expected else "false")

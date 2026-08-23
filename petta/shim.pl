@@ -111,7 +111,7 @@
 %     opaque grounded objects, including None and objects with __eq__ or
 %     __bool__, retain the Python dispatch fallback [tested:
 %     shim_python_scalar_semantics,
-%     test_wire_scalars_match_the_python_host_oracle; commit=50e914ec00b986964784af05521b224f3456655c]
+%     test_wire_scalars_match_the_python_host_oracle; commit=WORKTREE]
 %   - petta_py_limited/6 adds a negative-sentinel stack byte ceiling to the
 %     existing time and inference bounds and restores it on every exit path
 %     [tested: test_janus_stack_scope_restores_on_all_exits; commit=81c50d3ae4c03ddfd70ed3f1ff70e085cfee3978]
@@ -1821,30 +1821,31 @@ petta_py_declined(TR) :- TR = [T, D], petta_py_tag(T, x), petta_py_tag(D, declin
 %its Python class may implement __eq__ or __bool__, so only the retained host
 %route may decide it [source: Python 3.14 data model, object.__eq__ and
 %object.__bool__, https://docs.python.org/3/reference/datamodel.html;
-%commit=50e914ec00b986964784af05521b224f3456655c].
+%commit=WORKTREE].
 %Numbers lead because compiled arithmetic comparisons are the loop case. The
 %two guards and arithmetic comparison are in this clause so that case pays no
 %classification or helper calls.
-petta_py_dispatch_det('py-eq', [Left, Right], Result) :-
+petta_py_dispatch_eq(Left, Right, Result) :-
     number(Left), number(Right),
     !,
     ( Left =:= Right -> Result = true ; Result = false ).
-petta_py_dispatch_det('py-eq', [Left, Right], Result) :-
+petta_py_dispatch_eq(Left, Right, Result) :-
     petta_py_native_eq(Left, Right, Result),
     !.
-petta_py_dispatch_det('py-truthy', [Value], Result) :-
+petta_py_dispatch_eq(Left, Right, Result) :-
+    petta_py_dispatch_det('py-eq', [Left, Right], Result).
+
+petta_py_dispatch_truthy(Value, Result) :-
     number(Value),
     !,
     ( Value =:= 0 -> Result = false ; Result = true ).
-petta_py_dispatch_det('py-truthy', [Value], Result) :-
+petta_py_dispatch_truthy(Value, Result) :-
     petta_py_native_truthy(Value, Result),
     !.
-petta_py_dispatch_det(Name, Args, Result) :-
-    petta_py_dispatch_det_host(Name, Args, Result).
+petta_py_dispatch_truthy(Value, Result) :-
+    petta_py_dispatch_det('py-truthy', [Value], Result).
 
-%The old route remains named so both differential suites send identical
-%decoded terms through it. It is also the ordinary fallback above.
-petta_py_dispatch_det_host(Name, Args, Result) :-
+petta_py_dispatch_det(Name, Args, Result) :-
     maplist(petta_py_encode, Args, TA),
     catch(py_call(petta_ops:dispatch(Name, TA), TR),
           Error, TR = '$petta_op_error'(Error)),
@@ -1863,6 +1864,12 @@ petta_py_dispatch_det_host(Name, Args, Result) :-
         ;   petta_py_decode_shared_(TR, Result, variables_of(Args), _)
         )
     ).
+
+%A differential-only name for the retained host route. Production generic
+%operations call petta_py_dispatch_det/3 directly, preserving their original
+%one-clause path; native operations use this route only for opaque values.
+petta_py_dispatch_det_host(Name, Args, Result) :-
+    petta_py_dispatch_det(Name, Args, Result).
 
 petta_py_native_eq(Left, Right, Result) :-
     petta_py_native_class(Left, LeftClass),
@@ -2126,6 +2133,8 @@ petta_py_register_op(Name0, Arity, Kind) :-
 :- multifile seam:effect_operation_name/3.
 seam:effect_operation_name(petta_py_dispatch_det(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
+seam:effect_operation_name(petta_py_dispatch_eq(_, _, _), 'py-eq', 2).
+seam:effect_operation_name(petta_py_dispatch_truthy(_, _), 'py-truthy', 1).
 seam:effect_operation_name(petta_py_dispatch_many(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
 seam:effect_operation_name(petta_py_dispatch_raw_det(Name, Args, _), Name, Arity) :-
@@ -2138,6 +2147,10 @@ seam:effect_operation_name(petta_py_dispatch_raw_many(Name, Args, _), Name, Arit
 petta_py_dispatch_arity(Args, Arity) :- is_list(Args), !, length(Args, Arity).
 petta_py_dispatch_arity(_, unknown).
 
+petta_py_op_body(det,      'py-eq', [Left, Right], R,
+                 petta_py_dispatch_eq(Left, Right, R)) :- !.
+petta_py_op_body(det,      'py-truthy', [Value], R,
+                 petta_py_dispatch_truthy(Value, R)) :- !.
 petta_py_op_body(det,      Name, Args, R, petta_py_dispatch_det(Name, Args, R)).
 petta_py_op_body(many,     Name, Args, R, petta_py_dispatch_many(Name, Args, R)).
 petta_py_op_body(raw_det,  Name, Args, R, petta_py_dispatch_raw_det(Name, Args, R)).
