@@ -2678,7 +2678,7 @@
       "missing": "a solve whose answer template can bind a SECOND variable, which is how this file tests a constraint the first one left standing",
       "row": "P14.7",
       "section": "\u00a79d the Rows retirement; decision 11's carrier note",
-      "detail": "NARROWED 2026-08-23. R5's `Space.solve` closes the plain shape, and the six `(let True (f $x) $x)` claims here are now `m.solve(TRUE, f(V.x)).x`. Fourteen claims are a different shape: `(let True (has-no-outgoing $x) (let $x c $x))` binds a SECOND variable in the TEMPLATE to test the constraint the negation left standing, and solve derives its template from the subject's variables, so it has no spelling for that. Those keep the term."
+      "detail": "NARROWED 2026-08-23. R5's `Space.solve` closes the plain shape, and the six `(let True (f $x) $x)` claims here are now `m.solve(TRUE, f(V.x)).x`. Sixteen claims are a different shape: `(let True (has-no-outgoing $x) (let $x c $x))` binds a SECOND variable in the TEMPLATE to test the constraint the negation left standing, and solve derives its template from the subject's variables, so it has no spelling for that. Those keep the term."
     },
     {
       "kind": "friction",
