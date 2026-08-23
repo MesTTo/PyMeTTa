@@ -25,7 +25,7 @@ from petta import S, V, equation, ground
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=WORKTREE].
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
 BUDGET = 1
 
 
