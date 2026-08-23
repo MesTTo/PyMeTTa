@@ -12,35 +12,32 @@ builds `(+ (+ $x $y) $z)` without a word about it.
 
 from petta import S, equation, rules
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 131896 to 125272, -6624 (-5.02%), by the idiomatic
-#: rewrite: five `test` wrappers left the engine for `assert`, and the two
-#: arities now arrive through one `@rules` write where the source wrote two
-#: equations. Measured min-of-three with the MORK backend linked into this
-#: worktree, which the earlier figure may not have been. Prior: 131896 was
-#: the last figure for the generator twin that yielded `m.eval(S.test(...))`
-#: once per runnable form.
-BUDGET = 125272
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Two arities of one name, one of them cached."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_memo"])))
 
     @rules
     def add(x, y, z):
         yield equation(S.add(x, y)).to(x + y)
         yield equation(S.add(x, y, z)).to(x + y + z)
 
-    m.add(*add)
+    m += add
     m.eval(S.memoize(S.add, 2))
 
-    sum_ = m.fn("add")
-    assert sum_(3, 4) == 7
-    assert sum_(3, 4) == 7
+    sum_ = m.fn.add
+    assert sum_(3, 4) == [7]
+    assert sum_(3, 4) == [7]
 
     # The three-argument arity is untouched by the declaration above.
-    assert sum_(1, 2, 3) == 6
+    assert sum_(1, 2, 3) == [6]
 
-    assert sum_(5, 6) == 11
-    assert sum_(5, 6) == 11
+    assert sum_(5, 6) == [11]
+    assert sum_(5, 6) == [11]

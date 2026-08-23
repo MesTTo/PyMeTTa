@@ -14,20 +14,17 @@ divergence is in the residue table with its reproduction.
 
 from petta import S
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 128946 to 125604, -3342 (-2.59%), by the idiomatic
-#: rewrite: three `test` wrappers left the engine for `assert`; `sq` is now
-#: compiled by `@m.define` where the source wrote the equation. Measured min-
-#: of-three with the MORK backend linked into this worktree, which the
-#: earlier figure may not have been. Prior: 128946 was the last figure for
-#: the generator twin that yielded `m.eval(S.test(...))` once per runnable
-#: form.
-BUDGET = 125604
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Square nine three times over a memoized definition."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_memo"])))
 
     @m.define
     def sq(x):

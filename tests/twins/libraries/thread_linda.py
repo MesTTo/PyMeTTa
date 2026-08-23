@@ -1,4 +1,4 @@
-"""Purpose: express the thread-Linda example through Python blocking binds.
+"""Purpose: examples/libraries/thread_linda.metta in Python: the two blocking binds.
 
 A space is a tuple space. `peek-atom` waits until a matching atom is there and
 answers it LEAVING it, which is Linda's rd; `take-atom` does the same and
@@ -9,85 +9,83 @@ engine's own write hooks rather than polls, and both take an optional deadline
 in seconds. The non-blocking pair needs nothing new: matching is Linda's rdp
 and removing is its inp.
 
-Those four are the file's subject and they stay named, and they name their
-space, because a space handle does not encode as an atom and the handle carries
-no take or peek of its own; both are in the residue table. Everything else is
-Python: writing is `+=`, enumerating is `list`, the example's `let` chains are
-assignments, and taking the number out of a `(job N)` atom is `atom[1]`.
+DEFECT, twice over, and it decides how the four blocking claims are written.
+They ought to read `jobs.peek((S.job, V.n))` and `jobs.take(...)`, the handle
+verbs the coordination family rules. Two things stop them here. `Space.peek`
+and `Space.take` import lib_thread INTO the space they are called on, so
+`&jobs` would hold the library's own atoms and this example's `(get-atoms
+&jobs)` claim, that the space is empty afterwards, could not be made at all.
+And the pattern carries `$n`, which the answer view reads as one of the
+caller's own variables, so the call door would answer a binding row where the
+claim is about the atom. The space itself is handed over as the HANDLE it is,
+which is what R2's term-operand encoding bought.
 
-Assumes:
-  - every engine-owned future is awaited before the isolated twin process exits
-    [tested: bindings/python/tools/twin_coverage.py --measure --rounds 1
-    examples/libraries/thread_linda.metta; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Guarantees:
-  - the empirical budget applies only to the complete concurrent lane named in
-    its declaration [tested:
-    test_an_empirical_envelope_cannot_license_another_protocol;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Everything else is Python: writing is `+=`, enumerating is `list`, the
+example's `let` chains are assignments, and taking the number out of a
+`(job N)` atom is `atom[1]`.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
+import petta
 from petta import S, V
 
-#: Successful costs from two complete concurrent ten-round observations and
-#: eight subsequent complete gate-protocol observations. One original attempt
-#: failed to rendezvous and is not a cost observation
-#: [measured: 154894..154908 over 27 observations and 1 twin failure; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-#: A separate ten-process serial probe observed 154894..154908; it is a
-#: separate population and does not license this concurrent declaration
-#: [measured: 154894..154908 over 10 observations; command=PYTHONPATH=bindings/python python -c "import sys; from pathlib import Path; sys.path.insert(0, 'bindings/python/tools'); import twin_coverage as c; e=Path('examples/libraries/thread_linda.metta').resolve(); print([c.run_twin(c.twin_for(e)).cost for _ in range(10)])"; fixture=serial fresh processes; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 154894,
-    "maximum": 154908,
-    "observations": 27,
-    "protocol": "full-lane/218/workers=32",
-}
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree. This one
+#: needs an EMPIRICAL ENVELOPE rather than a point: its cost moved across
+#: 14 inferences over the concurrent lane's own observations, because
+#: the rendezvous waits on another thread
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=WORKTREE].
+#: Until it is measured again, this file's own distribution-budget residue
+#: entry, retired 2026-08-22 because the twin declared an envelope, is
+#: unbacked: a point budget is not the envelope that retired it.
+BUDGET = 1
 
 
 def twin(m):
     """Peek twice, take once, drain a queue, and rendezvous with a thread."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_thread)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_thread"])))
 
     @m.define
     def inc(x):
         return x + 1
 
-    peek, take = m.fn("peek-atom"), m.fn("take-atom")
+    peek, take = S["peek-atom"], S["take-atom"]
 
     # A peek leaves the atom, so two peeks answer the same job.
-    jobs = m.space("&jobs")
+    jobs = petta.space("&jobs")
     jobs += S.job(7)
-    assert peek(S["&jobs"], S.job(V.n)) == S.job(7)  # rung: peek-atom takes its space as an ARGUMENT and the handle carries no peek of its own
-    assert peek(S["&jobs"], S.job(V.n)) == S.job(7)  # rung: as above
+    assert m.eval(peek(jobs, S.job(V.n))) == [S.job(7)]
+    assert m.eval(peek(jobs, S.job(V.n))) == [S.job(7)]
 
     # await-atom is the older name for the same thing and stays as sugar.
-    assert m.fn("await-atom")(S["&jobs"], S.job(V.n)) == S.job(7)  # rung: as above
+    assert m.eval(S["await-atom"](jobs, S.job(V.n))) == [S.job(7)]
 
     # A take removes the one it answers, so the second finds nothing and gives
     # up on its deadline instead of answering the same job twice.
-    assert take(S["&jobs"], S.job(V.n)) == S.job(7)  # rung: take-atom takes its space as an ARGUMENT and the handle carries no take of its own
-    assert m.eval(S["take-atom"](S["&jobs"], S.job(V.n), 0.05)) == []  # rung: as above
+    assert m.eval(take(jobs, S.job(V.n))) == [S.job(7)]
+    assert m.eval(take(jobs, S.job(V.n), 0.05)) == []
     assert list(jobs) == []
 
     # A worker is the point: take a job, do it, take the next. Each take
     # consumes its own job, so two takes drain two.
-    work = m.space("&work")
+    work = petta.space("&work")
     work += S.job(1)
     work += S.job(2)
-    first = take(S["&work"], S.job(V.a), 1)  # rung: as above
-    second = take(S["&work"], S.job(V.b), 1)  # rung: as above
+    [first] = m.eval(take(work, S.job(V.a), 1))
+    [second] = m.eval(take(work, S.job(V.b), 1))
     assert first[1] + second[1] == 3
     assert list(work) == []
 
     # Blocking means blocking: the take below starts before the atom exists and
     # another thread writes it, which is the rendezvous a channel would
     # otherwise be needed for.
-    inbox = m.space("&inbox")
-    worker = m.one(S.spawn(S["add-atom"](S["&inbox"], S.msg(S.hello))))  # rung: the spawned form is DATA handed to another thread, so its write is a term naming its space rather than a write this process performs
-    seen = take(S["&inbox"], S.msg(V.what), 10)  # rung: as above
+    inbox = petta.space("&inbox")
+    worker = m.answers(S.spawn(S["add-atom"](inbox, S.msg(S.hello)))).one()  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
+    [seen] = m.eval(take(inbox, S.msg(V.what), 10))
     m.eval(S["await"](worker))
     assert seen == S.msg(S.hello)
     assert list(inbox) == []

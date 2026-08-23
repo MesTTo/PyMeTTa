@@ -8,28 +8,33 @@ The equation goes to the container door for two reasons already in the residue
 table: its head carries a PATTERN, `(shape-kind (Pair $x $y))`, where a
 decorated function's parameters are always plain variables; and its body is the
 bare lowercase symbol `pair`, which a compiled body resolves as a function.
+
+DEFECT, and it decides both claims. They ought to read
+`m.fn.shape_kind(S.Pair(V.a, 2))`, the call door. The argument CARRIES a
+variable without the answer depending on it, and the answer view reads every
+variable in a call as one of the caller's own, so the call door answers a
+binding row for `$a` where the claim is about the answer `pair`. Until it
+distinguishes them, both are stated as the terms they are, which is also the
+only way to keep the example's point: the two calls differ ONLY in the
+variable's name.
 """
 
 from petta import S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 126917 to 126700, -217 (-0.17%), by the idiomatic
-#: rewrite: two `test` wrappers left the engine for `assert`; the equation
-#: keeps its pattern head at the container door, so nothing else moved.
-#: Measured min-of-three with the MORK backend linked into this worktree,
-#: which the earlier figure may not have been. Prior: 126917 was the last
-#: figure for the generator twin that yielded `m.eval(S.test(...))` once per
-#: runnable form.
-BUDGET = 126700
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Ask the same shape twice, under two different variable names."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_memo"])))
 
     m += equation(S["shape-kind"](S.Pair(V.x, V.y))).to(S.pair)
     m.eval(S.memoize(S["shape-kind"]))
 
-    kind = m.fn("shape-kind")
-    assert kind(S.Pair(V.a, 2)) == S.pair
-    assert kind(S.Pair(V.b, 2)) == S.pair
+    assert m.eval(S["shape-kind"](S.Pair(V.a, 2))) == [S.pair]
+    assert m.eval(S["shape-kind"](S.Pair(V.b, 2))) == [S.pair]

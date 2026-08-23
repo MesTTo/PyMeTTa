@@ -9,8 +9,8 @@ two patterns.
 and reads its pattern as syntax, which is the source's own shape, and the table
 is declared after it exactly as the example declares it. The `@m.cache` door
 would say both in one act, and does in tabling_fib; it cannot here, because the
-lane reads a string inside a `define`-decorated body as an equation's own
-literal and does not yet know that `cache` compiles a body too.
+compiled `match(...)` requires its space as a string constant while caching
+refuses the two-argument form that lowers to `(context-space)`.
 
 `twohop` and `bypattern` stay at the container door, both already in the residue
 table. A conjunction pattern `(, p q)` has no compiled spelling, because a
@@ -19,28 +19,40 @@ head position; and `bypattern` takes its pattern as a PARAMETER, which the
 compiled `match(...)` refuses because it reads its pattern as syntax. That
 refusal is the last claim's subject, so it is asked for deliberately.
 
+DEFECT, and the two doors say it between them. `reach` has a Python name and
+its claims ought to read `reach(S.a, V.y).y == [S.b]`, the projection the
+answers family rules; `twohop` has none, so it is called through the space's
+own function namespace and `.z` is that same projection. Only the second one
+works: a Python-named call LOSES its caller-variable columns inside a
+`space.stats()` scope, which is the scope every twin runs in, so `reach`'s
+answers are compared directly and `twohop`'s are projected. Outside a stats
+scope both project; that difference is the defect.
+
+The refusal at the end comes back through `eval`, because its `$p` is an
+argument the answer does not depend on and the answer view would report a
+binding row for it.
+
 The last claim is compared with `alpha_eq` rather than against printed text. The
 engine names the unresolved variable freshly, so the example's `$_0` is `$_558`
 here and would be a third name tomorrow; alpha equality is the relation the law
-already defines for exactly this.
+already defines for exactly this, and it belongs to the atom. The refusal's
+own head keeps the bracket: `petta_tabling_unresolved_read` really has
+underscores, and the attribute door maps every underscore to a hyphen.
 """
 
-from petta import S, V, alpha_eq, equation
+from petta import S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 86854 to 82560, -4294 (-4.94%), by the idiomatic
-#: rewrite: six `test` wrappers, five `collapse`s, a `sort-atom` and a `repr`
-#: left the engine for `assert`, `.all()`, `sorted` and `alpha_eq`; the two
-#: tables and their invalidations still run there. Measured min-of-three with
-#: the MORK backend linked into this worktree, which the earlier figure may
-#: not have been. Prior: 86854 was the last figure for the generator twin
-#: that yielded `m.eval(S.test(...))` once per runnable form.
-BUDGET = 82560
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Table two readers of a space, then write to the space under them."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_tabling)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_tabling"])))
 
     m += S.edge(S.a, S.b)
     m += S.edge(S.b, S.c)
@@ -49,13 +61,14 @@ def twin(m):
     def reach(x, y):
         return match("&self", edge(x, y), y)  # noqa: F821  -- match reads its pattern as syntax: `edge` is the relation symbol and `x`, `y` are the parameters
 
-    m += equation(S.twohop(V.x, V.z)).to(S.match(S["&self"], S[","](S.edge(V.x, V.y), S.edge(V.y, V.z)), V.z))  # rung: an equation is DATA, so it carries its space by name; and the conjunction `,` has no Python head spelling, which is why this one is built rather than compiled
+    m += equation(S.twohop(V.x, V.z)).to(S.match(m, S[","](S.edge(V.x, V.y), S.edge(V.y, V.z)), V.z))  # rung: the conjunction `,` has no Python head spelling, which is why this equation is built rather than compiled
 
     m.eval(S.tabled(S.reach(V.x, V.y)))
     m.eval(S.tabled(S.twohop(V.x, V.z)))
 
+    twohop = m.fn.twohop
     assert reach(S.a, V.y) == [S.b]
-    assert m.fn("twohop").all(S.a, V.z) == [S.c]
+    assert twohop(S.a, V.z).z == [S.c]
 
     # Adding an atom the table read. Sorted for the same reason as
     # tabling_equation_change: a tabled function answers from its trie, not in
@@ -69,10 +82,10 @@ def twin(m):
 
     # A conjunction reads each of its patterns, so it tracks them all.
     m += S.edge(S.c, S.d)
-    assert m.fn("twohop").all(S.b, V.z) == [S.d]
+    assert twohop(S.b, V.z).z == [S.d]
 
     # A read the engine cannot resolve to one space predicate is refused rather
     # than tabled without the guarantee.
-    m += equation(S.bypattern(V.p)).to(S.match(S["&self"], V.p, V.p))  # rung: as above, and the pattern is a PARAMETER, which is the refusal this claim asks for
+    m += equation(S.bypattern(V.p)).to(S.match(m, V.p, V.p))  # rung: the pattern is a PARAMETER, which is the refusal this claim asks for
     [refused] = m.eval(S.catch(S.tabled(S.bypattern(V.p))))
-    assert alpha_eq(refused, S.Error(S.petta_tabling_unresolved_read(S.match, V.p), S.none))
+    assert refused.alpha_eq(S.Error(S["petta_tabling_unresolved_read"](S.match, V.p), S.none))

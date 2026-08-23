@@ -14,58 +14,70 @@ add a failure message and otherwise behave as their bases.
 
 `adder` stays at the container door: its body is a bare MeTTa variable, which a
 compiled body has no spelling for.
-Guarantees:
-  - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation, val
+from petta import Expression, G, S, V, equation
 
 #: Why this twin sits below the top rung: every claim here is about a member of
 #: the assert family, so naming them is the file's subject rather than MeTTa
 #: written in Python punctuation.
 RUNG = "the assert family is this file's subject, so each claim names one of its twelve members"
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 21497 to 20065, -1432 (-6.66%), by the idiomatic
-#: rewrite: twelve `test` wrappers left the engine for `assert`; the twelve
-#: assert-family calls they wrapped are the whole of what remains, which is
-#: why this file moves least of the he_ set. Measured min-of-three with the
-#: MORK backend linked into this worktree, which the earlier figure may not
-#: have been. Prior: 21497 was the last figure for the generator twin that
-#: yielded `m.eval(S.test(...))` once per runnable form.
-BUDGET = 20065
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Ask each member of the assert family whether it holds."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))
+    m.eval(S["import!"](m, S.library(S["lib_he"])))
 
-    assert m.fn("assertEqual")(S["+"](1, 2), S["-"](6, 3)) is True
-    alpha = m.fn("assertAlphaEqual")
-    assert alpha(S.h(V.x, V.y), S.h(V.a, V.b)) is True
-    assert alpha(S.quote(V.x + V.y), S.quote(V.a + V.b)) is True
+    assert m.fn.assertEqual(S["+"](1, 2), S["-"](6, 3)) == [True]
+
+    # DEFECT, and this is what it costs the Alpha family. Every alpha claim
+    # ought to read `m.fn.assertAlphaEqual(...)`, the call door. Comparing
+    # modulo variable renaming means carrying variables by definition, and the
+    # answer view reads every variable in a call as one of the caller's own and
+    # answers a binding row instead of the True this family reports. The five
+    # alpha claims are therefore stated as the terms they are.
+    assert m.eval(S.assertAlphaEqual(S.h(V.x, V.y), S.h(V.a, V.b))) == [True]
+    assert m.eval(
+        S.assertAlphaEqual(S.quote(V.x + V.y), S.quote(V.a + V.b))
+    ) == [True]
 
     # The ToResult forms take the expected results as a tuple, not a bare
     # value, and do not evaluate it. A single result is therefore (3), not 3.
-    to_result = m.fn("assertEqualToResult")
-    assert to_result(S["+"](1, 2), (3,)) is True
-    assert to_result(S.superpose((1, 2)), (1, 2)) is True
+    to_result = m.fn.assertEqualToResult
+    assert to_result(S["+"](1, 2), (3,)) == [True]
+    assert to_result(S.superpose((1, 2)), (1, 2)) == [True]
 
     m += equation(S.adder()).to(Expression((V.x,)))
-    assert m.fn("assertAlphaEqualToResult")(S.adder(), (Expression((V.y,)),)) is True
+    assert m.eval(
+        S.assertAlphaEqualToResult(S.adder(), (Expression((V.y,)),))
+    ) == [True]
 
     # Every expected result must appear among those produced.
-    includes = m.fn("assertIncludes")
-    assert includes(S.superpose((1, 2, 3)), (2,)) is True
-    assert includes(S.superpose((1, 2, 3)), (2, 3)) is True
+    includes = m.fn.assertIncludes
+    assert includes(S.superpose((1, 2, 3)), (2,)) == [True]
+    assert includes(S.superpose((1, 2, 3)), (2, 3)) == [True]
 
     # The Msg variants take a failure message and otherwise behave as their bases.
-    assert m.fn("assertEqualMsg")(S["+"](1, 2), S["-"](6, 3), val("sums differ")) is True
-    assert m.fn("assertAlphaEqualMsg")(S.h(V.x, V.y), S.h(V.a, V.b), val("not alpha equal")) is True
-    assert m.fn("assertEqualToResultMsg")(S["+"](1, 2), (3,), val("not the expected result")) is True
-    assert m.fn("assertAlphaEqualToResultMsg")(S.adder(), (Expression((V.y,)),), val("not alpha equal")) is True
+    assert m.fn.assertEqualMsg(S["+"](1, 2), S["-"](6, 3), G("sums differ")) == [True]
+    assert m.eval(
+        S.assertAlphaEqualMsg(S.h(V.x, V.y), S.h(V.a, V.b), G("not alpha equal"))
+    ) == [True]
+    assert m.fn.assertEqualToResultMsg(
+        S["+"](1, 2), (3,), G("not the expected result")
+    ) == [True]
+    assert m.eval(
+        S.assertAlphaEqualToResultMsg(
+            S.adder(), (Expression((V.y,)),), G("not alpha equal")
+        )
+    ) == [True]

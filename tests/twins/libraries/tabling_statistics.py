@@ -13,24 +13,31 @@ asserting a clause invalidates all affected tables" and closes with "Future
 versions may implement a more fine grained approach". Reading the counters
 BEFORE the next call is what shows it, because they are cumulative.
 
+DEFECT, and it decides how the counters are read. Each of the six reads ought
+to be `m.fn.table_stats(S.reach(V.x, V.y))`, the call door. `table-stats` takes
+the subgoal as a PATTERN, so its `$x` and `$y` are part of the question rather
+than answers to it, and the answer view reads every variable in a call as one
+of the caller's own and answers a binding row instead of the counter
+expression. So the counters come back through `eval`, the term door.
+
+A second one, quieter: a call is LAZY, so `reach(S.a, V.y)` on its own performs
+no engine work and the counters below it would all read zero. The example's own
+`(collapse (reach a $y))` is what forces it, and `list(...)` is that collapse.
+
 `reach` is written by `@m.define` and tabled by hand rather than by `@m.cache`,
-whose `cache_info()` is this counter set under Python's own name, for the reason
-tabling_space_write gives: the lane reads a string inside a `define`-decorated
-body as an equation's literal and does not yet know that `cache` compiles a body
-too, and the compiled `match(...)` has to name its space.
+whose `cache_info()` is this counter set under Python's own name, for the
+reason tabling_space_write gives: the compiled `match(...)` has to name its
+space, and caching refuses the two-argument form that would let it stay silent.
 """
 
 from petta import S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 105819 to 99288, -6531 (-6.17%), by the idiomatic
-#: rewrite: six `test` wrappers and two `collapse`s left the engine, and
-#: reading the counters is now a list comparison in Python rather than a term
-#: compared by `test`. Measured min-of-three with the MORK backend linked
-#: into this worktree, which the earlier figure may not have been. Prior:
-#: 105819 was the last figure for the generator twin that yielded
-#: `m.eval(S.test(...))` once per runnable form.
-BUDGET = 99288
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=WORKTREE].
+BUDGET = 1
 
 #: One call, one answer, nothing invalidated: what the first three claims all
 #: expect, because the two writes between them are writes the subgoal never read.
@@ -42,7 +49,7 @@ UNTOUCHED = [
 
 def twin(m):
     """Call a tabled reader once, then write around it and watch its counters."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_tabling)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_tabling"])))
 
     m += S.edge(S.a, S.b)
 
@@ -51,25 +58,29 @@ def twin(m):
         return match("&self", edge(x, y), y)  # noqa: F821  -- match reads its pattern as syntax: `edge` is the relation symbol and `x`, `y` are the parameters
 
     m.eval(S.tabled(S.reach(V.x, V.y)))
-    counters = m.fn("table-stats")
+    subgoal = S["table-stats"](S.reach(V.x, V.y))
 
     # Nothing has happened yet: one call, one answer, no invalidation.
-    reach(S.a, V.y)
-    assert list(counters(S.reach(V.x, V.y))) == UNTOUCHED
+    assert list(reach(S.a, V.y)) == [S.b]
+    [counted] = m.eval(subgoal)
+    assert list(counted) == UNTOUCHED
 
     # A write under a key this subgoal does not read leaves the table alone.
     # Not "leaves the answers alone", which a rebuild would too: the table is
     # never invalidated at all.
     m += S.edge(S.b, S.d)
-    assert list(counters(S.reach(V.x, V.y))) == UNTOUCHED
+    [counted] = m.eval(subgoal)
+    assert list(counted) == UNTOUCHED
 
     # Nor does an atom with a different head in the same space.
     m += S.unrelated(S.x, S.y)
-    assert list(counters(S.reach(V.x, V.y))) == UNTOUCHED
+    [counted] = m.eval(subgoal)
+    assert list(counted) == UNTOUCHED
 
     # A write under a key it DOES read invalidates, and only that.
     m += S.edge(S.a, S.c)
-    assert list(counters(S.reach(V.x, V.y))) == [
+    [counted] = m.eval(subgoal)
+    assert list(counted) == [
         S.tables(1), S.answers(1), S["complete-call"](1),
         S.invalidated(1), S.reevaluated(0),
     ]
@@ -78,7 +89,8 @@ def twin(m):
     # invalidated would be SWI deciding a dependency changed without changing
     # this table's answers, which is the incremental win rather than a rebuild.
     assert sorted(reach(S.a, V.y), key=str) == [S.b, S.c]
-    assert list(counters(S.reach(V.x, V.y))) == [
+    [counted] = m.eval(subgoal)
+    assert list(counted) == [
         S.tables(1), S.answers(2), S["complete-call"](3),
         S.invalidated(1), S.reevaluated(1),
     ]

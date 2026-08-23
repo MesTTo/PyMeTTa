@@ -10,15 +10,12 @@ Nothing here imports lib_tabling by hand. The declaration needs it and the
 decorator asks for it, which is what a declaration over a call means.
 """
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 83268 to 82247, -1021 (-1.23%), by the idiomatic
-#: rewrite: the `test` wrapper and the separate `tabled` declaration left the
-#: engine: `@m.cache` says the definition and the declaration in one act, and
-#: the memoised recursion is everything else. Measured min-of-three with the
-#: MORK backend linked into this worktree, which the earlier figure may not
-#: have been. Prior: 83268 was the last figure for the generator twin that
-#: yielded `m.eval(S.test(...))` once per runnable form.
-BUDGET = 82247
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
