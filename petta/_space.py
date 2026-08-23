@@ -27,6 +27,10 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - a tuple headed by an atom is one subscript pattern, a tuple of complete
+    patterns is a join, list writes stream their atoms, and del drains every
+    match or raises KeyError [tested:
+    test_subscript_one_pattern_and_bulk_delete_laws; commit=WORKTREE]
   - handle-level Linda waits load their support into the default caller space,
     never into a distinct waited-on space [tested:
     test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -1159,12 +1163,18 @@ class Space(Handle):
 
     # A handle mutates its store while an atom's + constructs a term.
     def __iadd__(self, atom: Any) -> Self:  # type: ignore[override]
-        """add()'s operator spelling, one atom per use: `m += [1, 2]`
-        LIFTS the list into one expression atom, exactly as m.add([1, 2])
-        does, so the two spellings never read one operand two ways. The
-        bulk spelling is |=, whose operand has no lifted reading.
+        """add()'s operator spelling: one tuple builds one expression, while
+        a list streams its elements through the bulk add door.
+
+        ``m += (S.Edge, a, b)`` adds one fact. ``m += [(S.Edge, a, b),
+        (S.Edge, b, c)]`` adds two. The explicit ``add(list_value)`` door
+        remains available when the list itself is intended as one expression.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(atom, _Rules):
+            self.add(*atom)
+        elif isinstance(atom, list) and all(
+            isinstance(item, (Expression, tuple)) for item in atom
+        ):
             self.add(*atom)
         else:
             self.add(atom)
@@ -1233,10 +1243,17 @@ class Space(Handle):
         return iter(self.atoms())
 
     def __getitem__(self, i: Any) -> Rows:
-        """Subscription is query: m[pattern] answers query(pattern), and
-        m[p1, p2] arrives as a tuple, so the comma spells the join:
+        """Subscription is query. A tuple headed by an atom is one built
+        expression pattern; a tuple of complete expression patterns is a join:
 
-            rows = m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
+            m[(S.Parent, V.x, S.Bob)]
+            m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
+
+        Python hands both spellings to ``__getitem__`` as a tuple, so shape is
+        the visible classifier. A mixed tuple beginning with a complete
+        pattern and followed by a bare atom can only be the tuple mistake; it
+        raises and names the one-pattern and join spellings instead of
+        silently asking an impossible bare-atom conjunct.
 
         A str key parses first, matching query()'s tolerance. A slice is
         refused: a slice of a space has no one meaning, and the bounded
@@ -1253,6 +1270,16 @@ class Space(Handle):
                 msg
             )
         if isinstance(pattern, tuple):
+            complete = (Expression, tuple)
+            if not pattern or not isinstance(pattern[0], complete):
+                return self.query(pattern)
+            if not all(isinstance(part, complete) for part in pattern):
+                msg = (
+                    "a subscript is one pattern as space[(head, ...)] or a "
+                    "join of complete patterns as space[p1, p2] (equivalently "
+                    "space.match(p1, p2)); a bare atom cannot be a join conjunct"
+                )
+                raise TypeError(msg)
             return self.query(*pattern)
         return self.query(pattern)
 
