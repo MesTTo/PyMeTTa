@@ -3,6 +3,8 @@ Guarantees:
   - the atom ordering expectation is elementwise for unequal expression
     lengths [tested: test_atoms_sort_in_prologs_standard_order;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+  - the kind ladder follows msort's string, opaque, empty-list, symbol order
+    [tested: test_atoms_sort_in_prologs_standard_order; commit=WORKTREE]
   - rational grounded numbers retain exact Fraction wire payloads [tested:
     test_numbers_tower_reals_normalize_and_non_reals_stay_opaque;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -664,10 +666,11 @@ def test_atoms_sort_in_prologs_standard_order():  # noqa: D103  -- pytest discov
     assert [str(a) for a in sorted(atoms, key=order_key)] == [
         "$x",              # variables first
         "1", "2.5",        # then numbers, in value order
+        '"text"',          # then strings
+        "()",              # the empty list is SWI's [] atom
         "True", "a",       # then symbols, and True IS one despite being a
                            # Python int
-        '"text"',          # then strings
-        "()", "(edge a b)", "(edge b c)",  # expressions compare their
+        "(edge a b)", "(edge b c)",  # nonempty expressions compare their
         "(f a)",             # children in order, length only after a prefix
     ]
 

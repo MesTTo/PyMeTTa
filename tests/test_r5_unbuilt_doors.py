@@ -302,10 +302,10 @@ def test_rules_lower_refuses_an_empty_rule_set_before_mutating(metta):
         if False:
             yield equation(S.unreachable).to(S.unreachable)
 
-    before = tuple(metta)
+    before = metta.digest()
     with pytest.raises(ValueError, match="empty rule set"):
         empty_rules.lower(S.topdown, requires=S.mork, space=metta)
-    assert tuple(metta) == before
+    assert metta.digest() == before
 
 
 def test_transaction_term_uses_empty_answer_rollback_law(metta):
