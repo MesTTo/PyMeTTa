@@ -40,6 +40,9 @@ Guarantees:
     test_answer_views_observe_when_used_as_operands; commit=WORKTREE]
   - Rows and Answers project caller variables by attribute or Variable key
     [tested: test_rows_share_the_answer_projection_contract; commit=WORKTREE]
+  - len on an untouched engine-backed Answers view uses its engine count door
+    without populating the Python cache [tested:
+    test_len_counts_an_unmaterialised_view_engine_side; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -685,6 +688,7 @@ class Answers[T](Sequence[T]):
     __slots__ = (
         "_cache",
         "_columns",
+        "_count_source",
         "_done",
         "_error",
         "_lock",
@@ -692,6 +696,7 @@ class Answers[T](Sequence[T]):
         "_source",
         "_space",
         "_target",
+        "_known_length",
     )
 
     def __init__(  # noqa: D107 -- the enclosing type documents construction
@@ -701,9 +706,12 @@ class Answers[T](Sequence[T]):
         columns: Iterable[str] = (),
         space: str | None = None,
         target: object = None,
+        count: Callable[[], int] | None = None,
     ) -> None:
         self._source = iter(source)
         self._columns = tuple(columns)
+        self._count_source = count
+        self._known_length: int | None = None
         self._space = space
         self._target = target
         self._cache: list[T] = []
@@ -765,7 +773,16 @@ class Answers[T](Sequence[T]):
         return self._pull(0)
 
     def __len__(self) -> int:  # noqa: D105 -- Python's sequence protocol names the contract
-        return len(self._materialize())
+        with self._lock:
+            if self._done:
+                self._known_length = len(self._cache)
+                return self._known_length
+            if self._cache or self._count_source is None:
+                self._known_length = len(self._materialize())
+                return self._known_length
+            if self._known_length is None:
+                self._known_length = self._count_source()
+            return self._known_length
 
     @overload
     def __getitem__(self, key: int) -> T: ...

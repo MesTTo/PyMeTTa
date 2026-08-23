@@ -658,6 +658,7 @@ petta_py_wrappable(petta_py_atomic).
 petta_py_wrappable(petta_py_speculative).
 petta_py_wrappable(petta_py_profiled).
 petta_py_wrappable(petta_py_cursor_next).
+petta_py_wrappable(petta_py_eval_count).
 petta_py_wrappable(petta_py_derivation).
 
 petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-

@@ -50,6 +50,9 @@ Guarantees:
   - state cells are shared by eager evaluation and held answer engines in
     both directions [tested: test_state_cells_are_shared_across_answer_engines;
     commit=WORKTREE]
+  - len on an untouched evaluation view counts inside the engine without
+    materialising its Python answer cache [tested:
+    test_len_counts_an_unmaterialised_view_engine_side; commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -348,3 +351,20 @@ def test_state_cells_are_shared_across_answer_engines() -> None:
 
     assert target.eval(S["change-state!"](cell, S.rest)) == [cell]
     assert target.answers(S["get-state"](cell)).one() == S.rest
+
+
+def test_len_counts_an_unmaterialised_view_engine_side() -> None:
+    """Counting leaves the held producer unopened until iteration begins."""
+    target = space()
+    target.run(
+        "(= (libfix-count-view) "
+        "(match &self (libfix-counted $value) $value))"
+    )
+    target += S["libfix-counted"](1)
+    view = target.fn["libfix-count-view"]()
+
+    assert len(view) == 1
+    target += S["libfix-counted"](2)
+
+    assert list(view) == [G(1), G(2)]
+    assert len(view) == 2

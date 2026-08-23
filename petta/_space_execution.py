@@ -60,7 +60,7 @@ _SCOPED_EXECUTION: ContextVar[frozenset[str]] = ContextVar(
 )
 
 _ANSWERS_SHIM = r"""
-petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :-
+petta_py_eval_target(Space, Target, Pairs, Term, Bindings) :-
     (   Target = [_, _]
     ->  petta_py_decode_shared(Target, Term0, Bindings)
     ;   \+ is_list(Target)
@@ -79,7 +79,10 @@ petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :
     ->  Term = Term0
     ;   maplist(petta_py_using_pair, Pairs, Substitutions),
         metta_host_substitute(Substitutions, Term0, Term)
-    ),
+    ).
+
+petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :-
+    petta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     Goal = ( statistics(inferences, Before),
              petta_py_eval_term_bounded(Space, Term, Encoded),
              petta_py_row(VarNames, Bindings, Row),
@@ -91,6 +94,22 @@ petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :
                   ; true ) )
     ),
     engine_create([Encoded, Row, Used], Bounded, Engine).
+
+petta_py_eval_count(Space, Target, Pairs, Count) :-
+    petta_py_eval_target(Space, Target, Pairs, Term, _),
+    aggregate_all(
+        count,
+        petta_run_with_fuel(petta_py_answer(Out), _,
+                            petta_py_eval_solution(Space, Term, Out)),
+        Count).
+
+petta_py_eval_solution(Space, Term, Out) :-
+    petta_py_module(Space, Module),
+    ( petta_py_direct_goal(Module, Term, Goal, Out)
+      -> petta_py_in_module(Module, call_delays(call(Module:Goal), _))
+    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
+                                   call_delays(petta_py_call_goals(Module, Goals),
+                                               _) )) ).
 """
 _ANSWERS_SHIM_LOCK = threading.Lock()
 _ANSWERS_SHIM_LOADED = threading.Event()
@@ -428,6 +447,24 @@ def evaluate_answers(
     seconds = None if limits is None or limits[0] < 0 else limits[0]
     steps = -1 if limits is None else limits[1]
 
+    def count_answers() -> int:
+        _ensure_answers_shim(rt)
+        predicate = "petta_py_eval_count"
+        inputs: list[Any] = [space, encoded_target, pairs or []]
+        captured = _CAPTURED_OUTPUT.get()
+        if captured is not None:
+            predicate, inputs = "petta_py_captured", [predicate, inputs]
+        if limits is None:
+            output = rt.apply_must(predicate, *inputs)
+        else:
+            output = rt.apply_must(
+                "petta_py_limited", limits[0], limits[1], predicate, inputs
+            )
+        if captured is not None:
+            output, captured_text = output
+            captured._append(str(captured_text))
+        return int(output)
+
     def stream() -> Iterator[Any]:
         _ensure_answers_shim(rt)
         handle = rt.apply_must(
@@ -471,7 +508,13 @@ def evaluate_answers(
         finally:
             rt.do("petta_py_cursor_close", handle)
 
-    return Answers(stream(), columns=columns, space=space, target=target)
+    return Answers(
+        stream(),
+        columns=columns,
+        space=space,
+        target=target,
+        count=count_answers,
+    )
 
 
 def value_one(target: Any, answers: list[Atom | Undefined]) -> Any:
