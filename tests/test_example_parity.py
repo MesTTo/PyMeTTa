@@ -7,7 +7,7 @@ report them.
 Guarantees:
   - the llms module scanner distinguishes ``engine/metta.pl`` from the
     ``metta.remote`` Python module [tested:
-    test_the_llms_module_scanner_ignores_engine_paths; commit=WORKTREE]
+    test_the_llms_module_scanner_ignores_engine_paths; commit=b962cf7c06b2680f94174515e24a3b6afd5ee5c4]
 Open Obligations:
   To Do: None
   Hacks: None

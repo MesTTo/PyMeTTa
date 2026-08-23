@@ -24,7 +24,7 @@ Guarantees:
     [source: bindings/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - repository paths such as ``engine/metta.pl`` are not mistaken for Python
     submodules [tested: test_the_llms_module_scanner_ignores_engine_paths;
-    commit=WORKTREE]
+    commit=b962cf7c06b2680f94174515e24a3b6afd5ee5c4]
 Fails when:
   - a claim is prose rather than a name, a count or a path. Those stay the
     reader's job; this checks what a machine can check
