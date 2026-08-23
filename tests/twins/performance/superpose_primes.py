@@ -15,7 +15,7 @@ all, and a compiled `if` used to wrap any non-comparison condition in
 compiled `if` now emits it bare, and `fn["=="](0, n % test_divisor)` stores
 exactly the original's condition [measured 2026-08-23 on the merged tree, min
 of one fresh process each: 922,119 inferences with the Python operators and
-539,720 with the named head, against the example's 543,116; commit=WORKTREE].
+539,720 with the named head, against the example's 543,116; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
 
 `with-pragma!` stays a term for the one gap left: the four searches overflow the
 evaluator's default stack depth without it, and `m.limits` bounds inferences

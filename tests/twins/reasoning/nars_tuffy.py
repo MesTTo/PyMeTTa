@@ -55,7 +55,7 @@ def product(left, right):
     `LC_ALL=C` [measured 2026-08-23 under `LC_ALL=C`: 0 U+FFFD replacement
     characters and 12 real U+00D7 heads in the imported library, where the
     locale-dependent reader gave 123 replacements over the 51 `|-` clauses;
-    commit=WORKTREE].
+    commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
     """
     return S["\N{MULTIPLICATION SIGN}"](left, right)
 

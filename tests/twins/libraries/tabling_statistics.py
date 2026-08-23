@@ -19,7 +19,7 @@ the function namespace and `m.answers` alike, answers all five counters as
 zero where `m.eval` answers `(tables 1) (answers 1) (complete-call 1)` for the
 same subgoal, inside a `m.stats()` scope and outside one: a lazy pull runs on
 the held cursor's own SWI engine and SWI's tabling statistics are per-engine
-[measured 2026-08-23; commit=WORKTREE]. So the counters come back through
+[measured 2026-08-23; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95]. So the counters come back through
 `eval`, the term door.
 
 A second thing does have to be forced: a call is LAZY, so `reach(S.a, V.y)` on

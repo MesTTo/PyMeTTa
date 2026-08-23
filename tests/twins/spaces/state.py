@@ -26,7 +26,7 @@ evaluation door says it: the held engine the lazy view runs on shares its
 state cells with the main one, so a `change-state!` performed through
 `m.answers(...).one()` is what the handle reads afterwards [measured
 2026-08-23: the cell reads `active` after the answer-view composition and
-after the bound `m.fn["change-state!"]`; commit=WORKTREE].
+after the bound `m.fn["change-state!"]`; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
 
 Where the walrus DOES reach is the closing claim, which is about a cell needing
 no name at all: binding in expression position is `let`, so the cell is built,

@@ -24,7 +24,7 @@ The claims read through the answer view's cardinality doors, over answers that
 still carry rational bindings: `m.answers(where(half, fn.repr(V.x))).one()`
 answers `'1r2'`, because the view decodes a rational payload as a
 `fractions.Fraction` [measured 2026-08-23: probe over the merged tree;
-commit=WORKTREE].
+commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;

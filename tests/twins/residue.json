@@ -3,7 +3,7 @@
   "note": "What the twins could not say, and what they could only say the long way round. A `declined` entry names a FORM the twin yields None for, and its example loses that form's coverage; a `friction` entry names a form the twin does reach, through a spelling the surface should not have needed. Both derive backlog, which is why they are one table. `row` is the ai-spec-execution.md row the fix lands on and `section` is the ai-python-first-revamp-discussion.md section that predicted it, or the correction where it did not.",
   "provenance": {
     "purpose": "Record active and retired Python-twin surface residue.",
-    "guarantee": "Exactly 159 distribution-budget entries moved from entries to retired [tested: test_the_distribution_budget_retirement_is_exact; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. A further 48 entries retired 2026-08-23 against the p14 library-fixes merge, each naming the fix that closed it and the twin spelling that now stands [commit=WORKTREE].",
+    "guarantee": "Exactly 159 distribution-budget entries moved from entries to retired [tested: test_the_distribution_budget_retirement_is_exact; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. A further 48 entries retired 2026-08-23 against the p14 library-fixes merge, each naming the fix that closed it and the twin spelling that now stands [commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].",
     "open_obligations": "To Do: None; Hacks: None; Future Enhancements: None."
   },
   "entries": [

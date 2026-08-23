@@ -13,7 +13,7 @@ Slicing the endless producer answers the right four numbers and suspends
 the producer at the frontier the slice asked for, so the cost moves with k
 rather than driving a self-recursive superposition to a fixed internal bound
 [measured 2026-08-23 on the merged tree: 157 inferences to pull 4 and 234 to
-pull 8, where the same slices cost 1,500,141 each before; commit=WORKTREE].
+pull 8, where the same slices cost 1,500,141 each before; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
 
 A refusal crosses the seam as a Python exception, so `catch` is `except` and
 the branch that reads what came back is Python's own.

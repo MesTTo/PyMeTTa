@@ -14,7 +14,7 @@ it evaluated to whether or not its arguments carry the caller's variables, in
 a `stats()` scope and outside one, and the bindings those variables took are
 the parallel row face on the same view [measured 2026-08-23 on the merged
 tree: `m.fn.unify(V.x, S.f(V.x), S.cyclic, S.sound)` answers `[sound]` and its
-`.rows` answers `[Row(x=$_70)]`; commit=WORKTREE].
+`.rows` answers `[Row(x=$_70)]`; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
 Open Obligations:
   To Do: None
   Hacks: None

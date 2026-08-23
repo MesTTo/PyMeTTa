@@ -16,7 +16,7 @@ carried scalars: `+` over a grounded atom STAGES `(+ ...)` rather than
 computing it, which is what makes `G(1) + 2` a term everywhere else in this
 corpus [source: bindings/python/petta/_atoms_core.py:769 Grounded.value;
 measured 2026-08-23: `sum(m.fn.gen())` builds `(+ (+ (+ 0 1) 2) 3)`;
-commit=WORKTREE].
+commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
 
 `gen` has three clauses for one head. Stacked `@m.define` will not say that:
 stacking reads as first-match, so two clauses fixing no literal are a
