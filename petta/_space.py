@@ -29,18 +29,18 @@ Guarantees:
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric
     space, while a free variable refuses before engine state changes [tested:
-    test_python_space_factory_accepts_atom_valued_names; commit=WORKTREE]
+    test_python_space_factory_accepts_atom_valued_names; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a tuple headed by an atom is one subscript pattern, a tuple of complete
     patterns is a join, list writes stream their atoms, and del drains every
     match or raises KeyError [tested:
-    test_subscript_one_pattern_and_bulk_delete_laws; commit=WORKTREE]
+    test_subscript_one_pattern_and_bulk_delete_laws; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``Space.query`` returns a lazy Answers view; truth and single unpack pull
     only their demanded prefix, while len counts inside the engine [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
-    test_query_single_unpack_pulls_at_most_two_answers; commit=WORKTREE]
+    test_query_single_unpack_pulls_at_most_two_answers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - handle-level Linda waits load their support into the default caller space,
     never into a distinct waited-on space [tested:
     test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -52,19 +52,19 @@ Guarantees:
   - all fifteen declaration verbs use the atom head as the method name,
     inject the receiver where it is the subject, and expose no ``declare_*``
     aliases [tested: test_declarations_use_their_atom_heads_on_the_receiver,
-    test_m7_narrow_core_surface; commit=WORKTREE]
+    test_m7_narrow_core_surface; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - Expression recognizes Space as the one iterable Handle whose listing is
     collected as an assembly-order snapshot [tested:
-    test_expression_of_a_space_is_an_assembly_order_snapshot; commit=WORKTREE]
+    test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - native iteration snapshots assembly order at iterator creation, handles
     stay truthy independently of contents, and provider length requires its
     Sized declaration [tested:
     test_native_iteration_snapshots_before_mutation,
     test_space_truth_does_not_ask_for_emptiness,
-    test_provider_length_requires_and_uses_sized; commit=WORKTREE]
+    test_provider_length_requires_and_uses_sized; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``Space.limits(stack=bytes)`` scopes a positive stack byte count beside
     time and inference bounds [tested:
-    test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -78,7 +78,7 @@ Guarantees:
     doors retaining eager invalidation [tested:
     test_cache_reads_compare_the_function_generation,
     test_builtin_discovery_is_cached,
-    test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
+    test_builtin_cache_invalidates_after_a_miss; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``Space`` is a grounded ``Handle`` that crosses as a term operand, and
     ``peek`` and ``take`` expose the engine's event-driven Linda operations
     [tested: test_space_handles_are_term_operands_and_round_trip,

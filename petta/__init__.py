@@ -32,16 +32,16 @@ Guarantees:
     the ambient space and compile as those same forms inside definitions
     [tested:
     test_expression_position_superpose_and_match_share_the_ambient_space;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``view`` lazily opens a live provider space over Python mappings, sets,
     and sequences [tested: test_view_is_a_live_queryable_space;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - coordination functions are lazy satellite exports and Timeout remains
     catchable as builtin TimeoutError [tested:
-    test_the_coordination_family_is_python_shaped; commit=WORKTREE]
+    test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - module define/cache/stats/limits/strict/trace verbs defer engine creation
     until called and target the default self space [tested:
-    test_module_tier_exposes_the_mode_and_definition_family; commit=WORKTREE]
+    test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Decides:
   - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
     stack policy [source: PeTTa-base/python/petta/__init__.py:8;

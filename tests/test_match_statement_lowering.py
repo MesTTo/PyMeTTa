@@ -2,15 +2,15 @@
 Guarantees:
   - ordered match arms lower into one engine-side case tower with value,
     capture, as-pattern, guard, alternative, and fallback semantics [tested:
-    test_match_statement_lowers_to_one_ordered_case_tower; commit=WORKTREE]
+    test_match_statement_lowers_to_one_ordered_case_tower; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a compiled ``with space.limits(stack=N)`` block lowers to the sibling
     engine's ``stack-limit`` scoped pragma spelling [tested:
-    test_compiled_stack_limit_uses_the_scoped_pragma_contract; commit=WORKTREE]
+    test_compiled_stack_limit_uses_the_scoped_pragma_contract; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - star patterns refuse with the named segment-variable remedy [tested:
-    test_match_star_refusal_names_the_engine_remedy; commit=WORKTREE]
+    test_match_star_refusal_names_the_engine_remedy; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - overlapping decorator clauses share one exclusive case equation while
     disjoint heads remain separate equations [tested:
-    test_overlapping_clauses_materialize_as_one_case_equation; commit=WORKTREE]
+    test_overlapping_clauses_materialize_as_one_case_equation; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 """  # noqa: D205, D415 -- the obligation block is a searchable contract, not a prose module summary
 
 from __future__ import annotations

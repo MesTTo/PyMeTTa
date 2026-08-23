@@ -3,7 +3,7 @@ Guarantees:
   - mixed variables, numbers, strings, opaque values, symbols, empty lists,
     and nonempty expressions sort exactly as msort sorts their shared wire
     image [tested: test_order_key_matches_msort_across_kinds;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

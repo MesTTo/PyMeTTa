@@ -31,7 +31,7 @@
 %     test_loading_the_same_file_twice_leaves_one_copy]
 %   - stack-bounded text and fast loads have explicit wrappable entries for
 %     petta_py_limited/6 [tested:
-%     test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
+%     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - Engine atom hooks exist only while a Python space subscription exists
 %     [tested test_subscription_hooks_follow_the_active_space_set]
 %   - petta_py_new_space/2 and petta_py_release_space/1 keep inherited-space
@@ -40,7 +40,7 @@
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 %   - petta_py_open_atom_space/2 decodes and declares a ground expression
 %     identity once for Python space handles [tested:
-%     test_python_space_factory_accepts_atom_valued_names; commit=WORKTREE]
+%     test_python_space_factory_accepts_atom_valued_names; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]
@@ -55,7 +55,7 @@
 %     PeTTa's evaluation paths produced each answer, leaving the ordinary
 %     entry points' output unchanged [tested:
 %     test_eval_status_reports_the_four_outcomes,
-%     test_strict_eval_refuses_only_not_reducible; commit=WORKTREE]
+%     test_strict_eval_refuses_only_not_reducible; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - the held evaluation cursor is present at bridge boot, so the first lazy
 %     answer pull performs no late consult [tested:
 %     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -153,7 +153,7 @@
 %   - petta_py_query_count/6 counts a query inside the engine for an untouched
 %     lazy Python answer view [tested:
 %     test_query_answers_complete_the_lazy_projection_protocol;
-%     commit=WORKTREE]
+%     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - evaluation emits one undefined-truth frame and never a flag-selected
 %     residual-program shape [tested:
 %     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;

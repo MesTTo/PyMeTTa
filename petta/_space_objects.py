@@ -3,7 +3,7 @@ Guarantees:
   - scoped timeout, inference, and stack-byte bounds are task-local and stack
     bounds select ``petta_py_limited/6`` while the unbounded path preserves
     ``petta_py_limited/5`` [tested:
-    test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - Cursor keeps exhaustion distinct from explicit close [tested
     test_stream_agrees_with_query_and_closes_on_exhaustion]
   - Prepared preserves first-appearance query columns [tested
@@ -14,7 +14,7 @@ Guarantees:
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - bound function attributes consult the operator word table before the
     mechanical map [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a resolved bang call completes before the call returns while retaining a
     replayable answer view [tested: test_resolved_bang_call_is_eager;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

@@ -8,7 +8,7 @@ Guarantees:
     leaving disjoint heads separate [tested:
     test_literal_defaults_are_head_patterns_and_clauses_stack,
     test_overlapping_clauses_materialize_as_one_case_equation;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - clauses at different arities under one MeTTa name stack instead of
     replacing one another [tested:
     test_define_supports_one_name_at_multiple_arities; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -46,7 +46,7 @@ Guarantees:
   - install_type equips a plain annotated class with data construction,
     __match_args__, and __replace__ before registering its full-arity term
     image [tested: test_define_accepts_a_plain_annotated_data_class;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]

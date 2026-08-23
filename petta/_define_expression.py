@@ -26,10 +26,10 @@ Guarantees:
     test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - pre-add verdict builders are known expression-position callees inside a
     compiled judge [tested: test_pre_add_compiles_the_four_verdict_judge;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - imported ``functools.reduce`` lowers named reducers to ``foldl-atom`` and
     lambdas to its explicit accumulator/item template [tested:
-    test_reduce_lowers_named_and_lambda_reducers; commit=WORKTREE]
+    test_reduce_lowers_named_and_lambda_reducers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

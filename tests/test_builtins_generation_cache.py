@@ -2,10 +2,10 @@
 Guarantees:
   - a cache hit performs one generation read, reuses an equal generation,
     and refills after a change [tested:
-    test_cache_reads_compare_the_function_generation; commit=WORKTREE]
+    test_cache_reads_compare_the_function_generation; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a raw equation written by evaluation and the same definition written from
     source text are visible through the next function-namespace access [tested:
-    test_eval_definitions_reach_the_next_namespace_access; commit=WORKTREE]
+    test_eval_definitions_reach_the_next_namespace_access; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 """  # noqa: D205, D415 -- the obligation block is a searchable contract, not a prose module summary
 
 from __future__ import annotations

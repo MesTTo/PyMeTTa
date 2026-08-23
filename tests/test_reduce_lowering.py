@@ -3,10 +3,10 @@ Guarantees:
   - imported and module-qualified ``functools.reduce`` lower a named reducer
     to three-argument ``foldl-atom`` and a lambda to its bound-variable
     template form [tested: test_reduce_lowers_named_and_lambda_reducers;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - reduce recognition follows the imported callable's identity rather than
     claiming an unrelated function named reduce [tested:
-    test_reduce_requires_the_functools_callable_identity; commit=WORKTREE]
+    test_reduce_requires_the_functools_callable_identity; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 """  # noqa: D205, D415 -- the obligation block is a searchable contract, not a prose module summary
 
 from __future__ import annotations

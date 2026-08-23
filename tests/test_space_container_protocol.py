@@ -2,12 +2,12 @@
 Guarantees:
   - len() uses a provider's Sized declaration and refuses to invent a count by
     enumeration [tested: test_provider_length_requires_and_uses_sized;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - space handles stay truthy independently of contents, with existence asked
     through a query [tested: test_space_truth_does_not_ask_for_emptiness;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - native iteration snapshots assembly order when the iterator is created
-    [tested: test_native_iteration_snapshots_before_mutation; commit=WORKTREE]
+    [tested: test_native_iteration_snapshots_before_mutation; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 """  # noqa: D205, D415 -- the obligation block is a searchable contract, not a prose module summary
 
 from __future__ import annotations

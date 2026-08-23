@@ -18,7 +18,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - text and fast loads apply a scoped stack byte bound through the /6 seam
     while preserving the established guard path otherwise [tested:
-    test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save

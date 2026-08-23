@@ -4,23 +4,23 @@ Guarantees:
   - a tuple whose first element is its head is one subscript pattern, complete
     expression patterns form a join, mixed tuple mistakes refuse, list writes
     stream atoms, and deletion drains every occurrence or raises KeyError
-    [tested: test_subscript_one_pattern_and_bulk_delete_laws; commit=WORKTREE]
+    [tested: test_subscript_one_pattern_and_bulk_delete_laws; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - the ask door returns a lazy Answers view with the complete projection,
     cardinality, slicing, truth, and engine-count protocol [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
-    test_query_single_unpack_pulls_at_most_two_answers; commit=WORKTREE]
+    test_query_single_unpack_pulls_at_most_two_answers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - package ``superpose`` and ``match`` evaluate the same expressions they
     lower inside compiled bodies, with an empty zero-branch superposition and
     ambient-space matching [tested:
     test_expression_position_superpose_and_match_share_the_ambient_space;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``Space.pre_add`` installs one compiled judge whose package verdict
     builders preserve, transform, refuse, or silently drop each offered atom
-    [tested: test_pre_add_compiles_the_four_verdict_judge; commit=WORKTREE]
+    [tested: test_pre_add_compiles_the_four_verdict_judge; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - all fifteen declaration verbs use their atom heads on Space and
     AsyncMeTTa, inject a space subject, and leave every ``declare_*`` spelling
     absent [tested: test_declarations_use_their_atom_heads_on_the_receiver;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 """
 
 import copy

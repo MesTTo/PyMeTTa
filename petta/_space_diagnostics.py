@@ -10,7 +10,7 @@ Guarantees:
     rejecting guard [tested test_query_rows_explain_empty_results]
   - derivation enumeration selects ``petta_py_limited/6`` when a scoped stack
     bound exists [tested: test_stack_limit_is_carried_to_the_limited_six_seam;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

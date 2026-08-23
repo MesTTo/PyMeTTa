@@ -12,7 +12,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - implicit operation names map every underscore to a hyphen while an
     explicit name remains exact [tested: test_op_uses_the_define_name_ladder;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

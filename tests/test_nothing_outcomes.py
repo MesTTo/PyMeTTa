@@ -2,10 +2,10 @@
 Guarantees:
   - eager eval returns no atoms for Empty and the written atom for
     NotReducible, while eval_status names both paths [tested:
-    test_eager_eval_keeps_empty_and_not_reducible_distinct; commit=WORKTREE]
+    test_eager_eval_keeps_empty_and_not_reducible_distinct; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - strict eager eval accepts Empty and raises StrictError carrying an
     unreduced term, including after using= substitution [tested:
-    test_strict_eval_refuses_only_not_reducible; commit=WORKTREE]
+    test_strict_eval_refuses_only_not_reducible; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 """  # noqa: D205, D415 -- the obligation block is a searchable contract, not a prose module summary
 
 from __future__ import annotations

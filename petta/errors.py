@@ -3,7 +3,7 @@
 Guarantees:
   - Timeout is both the PeTTa coordination miss and a builtin TimeoutError,
     so callers may catch at either abstraction [tested:
-    test_the_coordination_family_is_python_shaped; commit=WORKTREE]
+    test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - every PettaError carries atom, space, operation and capability
     attributes, None by default, the message unchanged for their presence
     [tested test_base_fields_default_to_none]

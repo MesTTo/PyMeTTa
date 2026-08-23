@@ -4,9 +4,9 @@
 #     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 #   - operator word aliases are explicit members generated from the runtime
 #     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
-#     commit=WORKTREE]
+#     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 #   - catalog-row documentation is attached to explicit members for static
-#     help [tested: test_generated_fn_help_is_offline; commit=WORKTREE]
+#     help [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None

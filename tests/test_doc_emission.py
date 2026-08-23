@@ -4,12 +4,12 @@ Assumes: sectioned docstrings use Google style and doctest prompts carry MeTTa
 Guarantees:
   - define and op emit kind, summary, typed parameters, typed return, and one
     example atom per doctest pair [tested:
-    test_a_docstring_emits_the_whole_doc_vocabulary; commit=WORKTREE]
+    test_a_docstring_emits_the_whole_doc_vocabulary; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a record field's attribute docstring becomes that constructor parameter's
     description [tested: test_record_attribute_docstrings_describe_parameters;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - generated fn mentions carry offline runtime and stub documentation [tested:
-    test_generated_fn_help_is_offline; commit=WORKTREE]
+    test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -13,7 +13,7 @@ Guarantees:
   - the S, static fn, and bound fn attribute doors share Python's operator
     word vocabulary while bracket access remains exact and composite
     operators refuse with their honest images [tested:
-    test_operator_words_precede_the_mechanical_name_map; commit=WORKTREE]
+    test_operator_words_precede_the_mechanical_name_map; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -5,12 +5,12 @@ Assumes: structured callable prose uses Google docstring sections; examples
 Guarantees:
   - docstring-parser owns Google section parsing while signature order owns
     positional ``@param`` order [tested:
-    test_a_docstring_emits_the_whole_doc_vocabulary; commit=WORKTREE]
+    test_a_docstring_emits_the_whole_doc_vocabulary; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - annotations project through ``metta_type_for`` and missing annotations stay
     explicit as ``%Undefined%`` [tested:
-    test_a_docstring_emits_the_whole_doc_vocabulary; commit=WORKTREE]
+    test_a_docstring_emits_the_whole_doc_vocabulary; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - adjacent attribute docstrings become record-field descriptions [tested:
-    test_record_attribute_docstrings_describe_parameters; commit=WORKTREE]
+    test_record_attribute_docstrings_describe_parameters; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Fails when: a MeTTa doctest expectation is not a Python literal. Emission
   refuses it rather than publishing a different example than the author wrote.
 Open Obligations:

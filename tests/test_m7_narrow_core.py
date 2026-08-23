@@ -9,7 +9,7 @@ Guarantees:
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen ``declare_*`` spellings are absent from both synchronous and
     asynchronous space handles [tested: test_m7_narrow_core_surface;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - plain import and ``dir(petta)`` load no satellite, while either explicit
     import order preserves real module identity [tested:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -25,7 +25,7 @@ Decides:
     [measured: 90 to 20 MeTTa names and 152 to 91 petta names after the
     module-tier family;
     command=python -m pytest bindings/python/tests/test_m7_narrow_core.py -q;
-    fixture=a142938d baseline and the current generated root; commit=WORKTREE]
+    fixture=a142938d baseline and the current generated root; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

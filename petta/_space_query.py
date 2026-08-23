@@ -14,10 +14,10 @@ Guarantees:
     test_query_rows_explain_empty_results]
   - query_count returns one integer from an engine-side aggregate rather than
     crossing answer rows [tested:
-    test_query_answers_complete_the_lazy_projection_protocol; commit=WORKTREE]
+    test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - eager and prepared queries carry a scoped stack bound through the shared
     limited-call selector [tested:
-    test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

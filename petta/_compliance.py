@@ -51,7 +51,7 @@ Guarantees:
   - provider enumeration and countability are separate: every Enumerable is
     checked through atoms(), while len(space) is checked only for Sized
     providers [tested: test_declared_length_answers_the_provider_size;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - `rules` is checked on the provider's STORAGE and not only on the rule
     firing. The engine compiles an equation as it passes through add-atom, so
     a provider whose add() drops the atom still answers the call

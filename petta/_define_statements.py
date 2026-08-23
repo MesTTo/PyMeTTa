@@ -7,11 +7,11 @@ Guarantees:
   - Python match arms compile to one ordered case tower, including captures,
     dotted value patterns, guards, alternatives, as-bindings, and fallback
     [tested: test_match_statement_lowers_to_one_ordered_case_tower;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a final ``with space.limits(stack=N)`` block compiles to the scoped
     ``stack-limit`` pragma contract [tested:
     test_compiled_stack_limit_uses_the_scoped_pragma_contract;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - an annotated assignment lowers its target as an in-place type claim in
     ordinary and generator blocks, using an internal marker so source-level
     colon patterns remain data [tested:

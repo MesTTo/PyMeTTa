@@ -39,7 +39,7 @@ Guarantees:
     test_a_false_exact_claim_is_caught]
   - provider length exists only through Python's Sized protocol and never
     falls back to enumeration [tested:
-    test_provider_length_requires_and_uses_sized; commit=WORKTREE]
+    test_provider_length_requires_and_uses_sized; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Guarded by:
   - _PROVIDER_LOCK serializes library registration and provider lookups
     [tested test_provider_registration_is_transactional]

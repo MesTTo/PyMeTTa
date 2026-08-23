@@ -8,7 +8,7 @@ Guarantees:
   - Symbol attribute doors consult Python's operator word vocabulary before
     the mechanical name map, while composite operators refuse with their
     explicit images [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,7 +23,7 @@ from typing import Final
 
 # Python's operator module owns these public words. ``neg`` and ``floordiv``
 # are intentionally absent because each needs more than one engine head.
-# [source: https://docs.python.org/3.14/library/operator.html; commit=WORKTREE]
+# [source: https://docs.python.org/3.14/library/operator.html; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 OPERATOR_WORDS: Final[dict[str, str]] = {
     "eq": "==",
     "ne": "!=",

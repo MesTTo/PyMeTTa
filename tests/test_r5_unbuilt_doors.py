@@ -9,10 +9,10 @@ Guarantees:
     commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the package coordination family exposes future spaces, races, timers,
     channels, parallel maps, and quiet-gap watch timeouts [tested:
-    test_the_coordination_family_is_python_shaped; commit=WORKTREE]
+    test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - unary plus preserves atom identity while unary minus keeps its staged
     subtraction meaning [tested: test_unary_plus_is_atom_identity;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None

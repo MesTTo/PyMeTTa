@@ -3,7 +3,7 @@ Guarantees:
   - order_key matches the engine's msort across every public atom kind,
     including float/integer ties, strings, opaque values, and the empty-list
     atom [tested: test_order_key_matches_msort_across_kinds;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - type and keyword builders produce stored terms while ``order_key`` and
     Atom.__lt__ agree on elementwise expression order [tested:
     test_typed_and_arrow_retire_49_raw_type_symbols,

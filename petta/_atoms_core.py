@@ -25,9 +25,9 @@ Guarantees:
   - Expression collects one generic iterable, snapshots a Space listing, and
     keeps its kind when sliced [tested:
     test_expression_collects_iterables_and_slices_keep_the_expression_kind,
-    test_expression_of_a_space_is_an_assembly_order_snapshot; commit=WORKTREE]
+    test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - unary plus is atom identity and allocates no staged expression [tested:
-    test_unary_plus_is_atom_identity; commit=WORKTREE]
+    test_unary_plus_is_atom_identity; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - Expression virtual Sequence registration uses 4.00% fewer instructions than
     nominal inheritance [measured 2026-08-14: minimum of three instructions:u runs]
   - Expression writes its slots through their descriptors rather than

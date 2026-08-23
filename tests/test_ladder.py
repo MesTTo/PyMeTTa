@@ -5,10 +5,10 @@ block (M5), the shipped pytest fixtures (M6), and the exported strategies
 Guarantees:
   - module define/cache/stats/limits/strict/trace verbs defer to one lazy
     default engine [tested: test_module_tier_exposes_the_mode_and_definition_family;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - scoped stack bounds retain an explicit byte count for
     ``petta_py_limited/6`` [tested:
-    test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - class declarations are context-relative through ``Space.define`` and the
     retired root ``record`` door is not used [tested:
     test_define_wires_the_declarative_dance and

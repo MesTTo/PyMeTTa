@@ -24,7 +24,7 @@ Guarantees:
   - package coordination functions evaluate lib_thread in the ambient space;
     spawned and repeating computations stay Space handles whose answers may
     be iterated as they arrive [tested:
-    test_the_coordination_family_is_python_shaped; commit=WORKTREE]
+    test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a worker engine answers exactly what the home engine answers
     [tested test_pool_agrees_with_the_home_engine]
   - map answers in input order however the workers finish

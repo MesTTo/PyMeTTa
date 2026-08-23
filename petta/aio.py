@@ -35,7 +35,7 @@ Guarantees:
   - all fifteen synchronous declaration names have asynchronous head-named
     mirrors and no ``declare_*`` aliases [tested:
     test_aio_covers_the_whole_synchronous_surface,
-    test_m7_narrow_core_surface; commit=WORKTREE]
+    test_m7_narrow_core_surface; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
@@ -45,7 +45,7 @@ Guarantees:
     test_async_space_forwards_restriction_and_grants; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async scoped limits forward stack byte bounds through the synchronous
     task-local scope [tested: test_stack_limit_is_carried_to_the_limited_six_seam;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - reader-token registration and removal run on the owning engine worker and
     mirror the synchronous surface [tested:
     test_aio_plain_methods_forward_on_the_worker; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
