@@ -144,3 +144,14 @@ _.test_the_lifecycle_streams_the_same_answers_the_eager_door_gives
 _.test_the_lifecycle_refuses_what_it_cannot_answer
 _.test_a_client_cursor_takes_two_answers_and_stops
 _.test_the_kit_certifies_the_attached_space
+
+# The standard order of terms installs the full rich-comparison protocol on
+# Atom (appendix stamp 6); the interpreter calls these through the type slots
+# (sorted, min, max, heapq, bisect), never by attribute load.
+_.__le__
+_.__gt__
+_.__ge__
+
+# Generated vocabulary member: the space-capability set crosses as atoms and
+# is read by MeTTa-side capability rows; no in-package Python loads the name.
+_.network

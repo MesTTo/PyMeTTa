@@ -1593,6 +1593,7 @@ class Space(Handle):
         """
         changes_catalogue = isinstance(target, str) or (
             isinstance(target, Expression)
+            # policy-inventory-exempt: mechanism-internal; reason=the defining heads whose evaluation can grow the definition catalogue, so the per-space builtins cache invalidates exactly when one runs; evidence=bindings/python/petta/_space.py:_invalidate_builtins_cache
             and target.head
             in {
                 Symbol("="),

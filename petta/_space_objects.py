@@ -335,11 +335,6 @@ def _record_engine_inferences(count: int) -> None:
         block._engine_inferences += count
 
 
-def _stats_active() -> bool:
-    """Whether this context is measuring engine work."""
-    return bool(_ACTIVE_STATS.get())
-
-
 def _forward_window(window: slice) -> tuple[int, int | None]:
     """A cursor slice's bounds, refusing the ones that need the whole stream.
 

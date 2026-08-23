@@ -219,7 +219,7 @@ def _guard_twin(
 
     guarded.__name__ = name
     guarded.__doc__ = twin.__doc__
-    guarded.__signature__ = signature  # type: ignore[attr-defined]
+    guarded.__signature__ = signature  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
     return guarded
 
 
