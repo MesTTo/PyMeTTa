@@ -1,27 +1,19 @@
-"""examples/control/chain.metta in Python: `chain` names its result.
+"""Purpose: examples/control/chain.metta in Python: `chain` names its result.
 
 `(chain expr $n body)` runs `expr`, binds the answer to a name, and runs the
 body with that name in scope. Python spells that with an ordinary assignment
 statement, and a second assignment nests inside the first exactly as a second
 `chain` nests inside the first, which is what `summed` below reads like.
-
-Both forms are compiled now. The first was written as a term while the band
-priced two definitions against an example that authors none; with the
-authoring allowance in place the two definitions cost 4,415 against a ceiling
-of 7,268, so the file says in Python what it had been describing in a comment.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 3918 to 4415, +497 (+12.7%), by lifting this twin to
-#: the definitional door now that the band pays for authoring: the first
-#: chain ENTERED the engine as a second compiled definition, so both forms
-#: are now assignments rather than one being a term. The increase is one
-#: decoration's marginal cost and nothing else. Measured min-of-3 over fresh
-#: processes with the MORK backend linked in; against the example's 3893 the
-#: ratio is 1.1341, and the ceiling is 7268, the example plus 10% plus 2986
-#: to author 2 definitions. Prior: 3918, the term-door twin the old band
-#: forced.
-BUDGET = 4415
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):

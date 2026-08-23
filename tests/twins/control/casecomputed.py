@@ -1,4 +1,4 @@
-"""examples/control/casecomputed.metta in Python: cases as a value.
+"""Purpose: examples/control/casecomputed.metta in Python: cases as a value.
 
 The cases of a `case` are usually written out, and then they are syntax: the
 form compiles one nested conditional out of them once. They do not have to be
@@ -17,6 +17,10 @@ Two things do move into Python. `cons-atom` onto a tail is writing the
 expression, so `numbered-cases` says the pair list it builds; and a refusal
 crosses the seam as a Python exception, so `catch` is `except` and the branch
 that reads what came back is Python's own.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
 from petta import S, V, equation
@@ -25,17 +29,10 @@ from petta.errors import MettaOperationError
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `case` whose branches arrive as a VALUE has no Python spelling: match's arms are syntax"
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 10558 to 9636, -922 (-8.7%), by the twin contract
-#: change: eleven `test` wrappers, two collapses and one `car-atom`/`catch`
-#: LEFT the engine for `assert`, an empty list and Python's `except`; nothing
-#: entered, because a `case` over branches a program computes has no Python
-#: spelling to enter as. Measured min-of-3 over fresh processes with the MORK
-#: backend linked in, which the artefact-free worktree omits and which moves
-#: a compiled twin by about 10 inferences per definition; against the
-#: example's 21371 the ratio is 0.4509. Prior: 10558, the transliterated twin
-#: this replaces.
-BUDGET = 9636
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):
@@ -43,6 +40,10 @@ def twin(m):
     numbers = ((1, S.one), (2, S.two))
     with_default = ((1, S.one), (S.Empty, S.none))
 
+    # The top rung is Python's `match` statement, whose arms are SYNTAX. No
+    # Python spelling takes them as an argument, which is this file's whole
+    # subject, and the compiled subset has no lowering for the statement
+    # either. Residue: P14.4.
     # (= (switch $value $cases) (case $value $cases))
     m += equation(S.switch(V.value, V.cases)).to(S.case(V.value, V.cases))
 

@@ -7,7 +7,7 @@ holding one atom: evaluating a term already answers the multiset, so
 `collapse` needs no spelling of its own.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,16 +16,10 @@ Open Obligations:
 
 from petta import Expression
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 617 to 226, -391 (-63.4%), by the twin contract
-#: change: the `test` wrapper and the `collapse` LEFT the engine entirely;
-#: what is left is building the term and evaluating it, because calling
-#: already answers the multiset a collapse gathers. Measured min-of-3 over
-#: fresh processes with the MORK backend linked in, which the artefact-free
-#: worktree omits and which moves a compiled twin by about 10 inferences per
-#: definition; against the example's 1790 the ratio is 0.1263. Prior: 617,
-#: the transliterated twin this replaces.
-BUDGET = 226
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):

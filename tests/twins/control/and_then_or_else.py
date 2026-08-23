@@ -21,37 +21,46 @@ The original opens a second space to keep its two experiments apart. Python
 keeps them apart with a slice of the first, so `note2` records into the same
 space `note` does and the two equations really are the same equation twice,
 which is what the original's two are once the space is factored out.
+
+The write itself goes through a grounded operation. A compiled body reaches a
+space that is a PARAMETER or the context space, and `&ran` is neither: it is a
+host value the body would have to close over, which would pin the equation to
+this process. Filed as residue against P14.4.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
+import petta
 from petta import FALSE, TRUE, Atom, S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 11903 to 16522, +4619 (+38.8%), by the twin contract
-#: change: six definitions ENTERED the engine, `note`, `note2`, `both`,
-#: `either`, `gated` and `fallback`, where the old twin stated every
-#: connective as a term, so the short circuit and the skipping now run as
-#: compiled equations and each definition pays `@m.define`'s fixed
-#: registration; the nine `test` wrappers and two `get-atoms` collapses LEFT
-#: for `assert` and `list`, which is the smaller half. Measured min-of-3 over
-#: fresh processes with the MORK backend linked in, which the artefact-free
-#: worktree omits and which moves a compiled twin by about 10 inferences per
-#: definition; against the example's 23624 the ratio is 0.6994. Prior: 11903,
-#: the transliterated twin this replaces.
-BUDGET = 16522
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):
     """Skip a branch, take a branch, and prove which one ran."""
-    ran = m.space("&ran")
+    ran = petta.space("&ran")
 
+    # The top rung writes from inside the equation, with no operation at all:
+    #
+    #     @m.define
+    #     def note(tag):
+    #         ran += S.ran(tag)      # a body statement that lowers to add-atom
+    #         return True
+    #
+    # A compiled body is pure atoms and reaches a space that is a PARAMETER or
+    # `(context-space)`; `&ran` is neither, so closing over it would pin the
+    # equation to this process. control/unify and control/eval write over
+    # `(context-space)` and need no operation; this file cannot, because its
+    # two experiments must not share `&self`. Residue: P14.4.
     @m.op
     def record(tag: Atom) -> bool:
         """Write the tag and answer True: `space += atom` is add-atom's door."""
@@ -105,14 +114,17 @@ def twin(m):
         # (or-else $flag (note $tag))
         return flag or note(tag)
 
+    # Each form is run by READING its answer: creating the answer view does no
+    # engine work, so a call whose result is dropped never reaches the engine
+    # and the skipping this file is about would be unobservable.
     # !(and-then False (note skipped-by-and-then))
-    gated(FALSE, S["skipped-by-and-then"])
+    assert gated(FALSE, S["skipped-by-and-then"]) == [False]
     # !(or-else True (note skipped-by-or-else))
-    fell_back(TRUE, S["skipped-by-or-else"])
+    assert fell_back(TRUE, S["skipped-by-or-else"]) == [True]
     # !(and-then True (note taken-by-and-then))
-    gated(TRUE, S["taken-by-and-then"])
+    assert gated(TRUE, S["taken-by-and-then"]) == [True]
     # !(or-else False (note taken-by-or-else))
-    fell_back(FALSE, S["taken-by-or-else"])
+    assert fell_back(FALSE, S["taken-by-or-else"]) == [True]
 
     # !(test (collapse (get-atoms &ran))
     #        ((ran taken-by-and-then) (ran taken-by-or-else)))
@@ -121,6 +133,12 @@ def twin(m):
     # The contrast, in one place: `and` does NOT skip, so its second argument
     # runs even though the first is False. Both forms are written the same way
     # so the pair stays comparable.
+    # The original opens `&ran2` to keep this experiment apart. The top rung
+    # would open a second space here too, `petta.space("&ran2")`, and `note2`
+    # would write into it; a compiled body cannot name either, so both
+    # equations route through the one operation and the experiments are kept
+    # apart by a slice of the same space instead. Residue: P14.4, the same
+    # entry as the write above.
     already = len(ran)
     # !(and False (note2 and-runs-it))
     m.eval(S["and"](FALSE, S.note2(S["and-runs-it"])))

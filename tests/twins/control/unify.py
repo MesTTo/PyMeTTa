@@ -10,44 +10,46 @@ terms and chooses a branch: `petta.unify(pattern, atom)` answers bindings on
 atoms Python already holds, which is a different act, and the four-argument
 form the ledger designs is not built yet. What does move into Python is
 everything around it: a stored marker is asked for with `in`, which IS match
-containment, and the two probes are ordinary definitions whose effect goes
-through the one door an effect goes through, a grounded operation.
+containment, and the space operand is the handle itself, because a space is a
+grounded atom and no symbol names it.
 
-The two markers are capitalised and wrapped. A compiled body reads a
-lowercase free name as a function and a capitalised one as data, the gap case2
-records against P14.4; and `m.add` refuses a bare symbol, "a stored atom is a
-non-empty expression", where MeTTa's own `add-atom` stores one, so the marker
-is `(Ran ThenRan)` rather than `then-ran`. Both are filed as residue.
+Both probes are compiled definitions that write from inside their own
+equations, over `(context-space)`, which is the space the equation runs in. So
+the markers stored are the example's own bare symbols. The Python write door
+still refuses one, `m.add(S.then_ran)` answering "a stored atom is a non-empty
+expression", where the engine's `add-atom` takes it; the two doors disagreeing
+is filed as residue against P14.10.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import Atom, Expression, S, V, val
+from petta import Expression, S, V, ground
 
 #: The two strings the ground decisions compare, carried whole.
-STRING_X, STRING_Y = val("x"), val("y")
+STRING_X, STRING_Y = ground("x"), ground("y")
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 9314 to 10397, +1083 (+11.6%), by the twin contract
-#: change: the two probe definitions ENTERED the engine as compiled bodies
-#: calling a grounded operation, which pays `@m.define`'s fixed registration
-#: twice plus one crossing per probe; fifteen `test` wrappers and two
-#: collapses LEFT for `assert`s and Python's `in`, which IS match
-#: containment. Measured min-of-3 over fresh processes with the MORK backend
-#: linked in, which the artefact-free worktree omits and which moves a
-#: compiled twin by about 10 inferences per definition; against the example's
-#: 20259 the ratio is 0.5132. Prior: 9314, the transliterated twin this
-#: replaces.
-BUDGET = 10397
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):
     """Match ground terms, terms with variables, and a space."""
+    # The top rung is the expression-position function the guide rules and
+    # prints twice, `unify(a, b, then, els)`. It is not built. Measured
+    # 2026-08-23: the root `unify` is the two-argument matcher over two atoms
+    # Python already holds and raises "unify() takes 2 positional arguments but
+    # 4 were given", and a bare `unify(...)` inside a compiled body raises
+    # CompileError because it is not one of the four magic names a body reads.
+    # `S.unify(x, pattern, then, els)` in a body does work, so the gap is the
+    # FUNCTION rather than the instruction. Residue: P14.4.
+    #
     # Ground decisions, including numeric promotion: 1 matches 1.0.
     # !(test (unify 1 1 same different) same)
     assert m.eval(S.unify(1, 1, S.same, S.different)) == [S.same]
@@ -69,26 +71,16 @@ def twin(m):
     # !(test (unify $x (f $x) cyclic sound) sound)
     assert m.eval(S.unify(V.x, S.f(V.x), S.cyclic, S.sound)) == [S.sound]
 
-    @m.op
-    def mark(tag: Atom) -> bool:
-        """Store the marker, through the write door spelled as a method.
-
-        `space += atom` is the door; `+=` would rebind the name inside this
-        closure, so the same write is spelled as the method it already is.
-        """
-        m.add(tag)
-        return True
-
     @m.define(name="then-probe")
     def then_probe():
         # (= (then-probe) (chain (add-atom &self then-ran) $_ 3))
-        _ = mark(Ran(ThenRan))  # noqa: F821  -- capitalised free names in a compiled body are MeTTa data, which has no Python value to bind
+        _marked = S["add-atom"](S["context-space"](), S.then_ran)  # rung: `space += atom` is a Python statement over a handle, and a compiled body is pure atoms
         return 3
 
     @m.define(name="else-probe")
     def else_probe():
         # (= (else-probe) (chain (add-atom &self else-ran) $_ 4))
-        _ = mark(Ran(ElseRan))  # noqa: F821  -- the other marker, the same way
+        _marked = S["add-atom"](S["context-space"](), S.else_ran)  # rung: the other marker, the same way
         return 4
 
     probes = (S["then-probe"](), S["else-probe"]())
@@ -98,11 +90,11 @@ def twin(m):
     # !(test (unify A A (then-probe) (else-probe)) 3)
     assert m.eval(S.unify(S.A, S.A, *probes)) == [3]
     # !(test (collapse (match &self else-ran hit)) ())
-    assert S.Ran(S.ElseRan) not in m
+    assert S.else_ran not in m
     # !(test (unify A B (then-probe) (else-probe)) 4)
     assert m.eval(S.unify(S.A, S.B, *probes)) == [4]
     # !(test (collapse (match &self then-ran hit)) (hit))
-    assert S.Ran(S.ThenRan) in m
+    assert S.then_ran in m
 
     # A space is a grounded atom whose custom matching is query, so a space
     # operand routes through match: one then-answer per stored match, the
@@ -112,20 +104,19 @@ def twin(m):
     m += S.friend(S.Sam, S.Alice)
 
     # !(test (collapse (unify &self (friend $who Alice) $who no-friends)) (Bob Sam))
-    here = S[m.space_name]
-    assert m.eval(S.unify(here, S.friend(V.who, S.Alice), V.who, S["no-friends"])) == [S.Bob, S.Sam]
+    assert m.eval(S.unify(m, S.friend(V.who, S.Alice), V.who, S["no-friends"])) == [S.Bob, S.Sam]
     # !(test (unify &self (friend Pol $who) $who no-friends) no-friends)
-    assert m.eval(S.unify(here, S.friend(S.Pol, V.who), V.who, S["no-friends"])) == [S["no-friends"]]
+    assert m.eval(S.unify(m, S.friend(S.Pol, V.who), V.who, S["no-friends"])) == [S["no-friends"]]
 
     # A variable operand binds the space whole without querying it.
     # !(test (unify $s &self bound queried) bound)
-    assert m.eval(S.unify(V.s, here, S.bound, S.queried)) == [S.bound]
+    assert m.eval(S.unify(V.s, m, S.bound, S.queried)) == [S.bound]
 
     # Empty in a branch is the branch remover: the else here answers nothing
     # at all, so the collapse is the empty expression. The collapsing has to
     # happen in the ENGINE, because `Empty` is what the branch answers and it
-    # is the collapse that drops it: measured 2026-08-22, `m.eval` of the
-    # unify answers `[Sym('Empty')]` where collapsing it first answers `()`.
+    # is the collapse that drops it: measured 2026-08-23, `m.eval` of the
+    # unify answers `[Empty]` where collapsing it first answers `()`.
     # !(test (collapse (unify a b then Empty)) ())
     removed = S.unify(S.a, S.b, S.then, S.Empty)
     assert m.eval(S.collapse(removed)) == [Expression(())]  # rung: `collapse` is what drops the Empty marker, and a Python list does not

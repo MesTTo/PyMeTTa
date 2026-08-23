@@ -11,14 +11,10 @@ compiled equation comes out as the original's own shape. `case-nondet` is the
 same program through `case`, which is what Python's `match` statement would
 spell and the compiled subset has no lowering for (P14.4), so writing it as an
 `if` would only repeat the line above it.
-
-The two answers are capitalised. A compiled body reads a lowercase free name
-as a function and a capitalised one as data, which case2 records against
-P14.4.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,17 +23,10 @@ Open Obligations:
 
 from petta import FALSE, TRUE, S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 3789 to 5441, +1652 (+43.6%), by the twin contract
-#: change: `if-nondet` ENTERED the engine as a compiled `for` loop over its
-#: argument with a conditional expression inside, which is the original's own
-#: shape, and pays `@m.define`'s fixed registration; two `test`s and two
-#: collapses LEFT for `assert`s and lists. Measured min-of-3 over fresh
-#: processes with the MORK backend linked in, which the artefact-free
-#: worktree omits and which moves a compiled twin by about 10 inferences per
-#: definition; against the example's 7251 the ratio is 0.7504. Prior: 3789,
-#: the transliterated twin this replaces.
-BUDGET = 5441
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):
@@ -46,11 +35,22 @@ def twin(m):
     def if_nondet(y):
         # (= (if-nondet $y) (if (superpose $y) a b))
         for flag in y:
-            yield A if flag else B  # noqa: F821  -- capitalised free names in a compiled body are MeTTa data, which has no Python value to bind
+            yield S.a if flag else S.b
 
     # !(test (collapse (if-nondet (True False True))) (a b a))
-    assert if_nondet((True, False, True)) == [S.A, S.B, S.A]
+    assert if_nondet((True, False, True)) == [S.a, S.b, S.a]
 
+    # The top rung is the same loop above with a `match` statement inside,
+    # which is what a MeTTa `case` is:
+    #
+    #     @m.define(name="case-nondet")
+    #     def case_nondet(y):
+    #         for flag in y:
+    #             match flag:
+    #                 case True: yield S.a
+    #                 case False: yield S.b
+    #
+    # `ast.Match` has no lowering in the compiled subset. Residue: P14.4.
     # (= (case-nondet $y) (case (superpose $y) ((True a) (False b))))
     cases = S.case(S.superpose(V.y), ((TRUE, S.a), (FALSE, S.b)))  # rung: a `case` over patterns is Python's `match` statement, which has no lowering
     m += equation(S["case-nondet"](V.y)).to(cases)

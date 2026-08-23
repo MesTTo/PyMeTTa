@@ -8,44 +8,41 @@ special form rather than a function.
 Most of them keep MeTTa's name, because a special form is exactly a thing
 whose arguments Python would have evaluated before the call. What does move
 into Python is everything around them: `size-atom` is `len`, `msort` is
-`sorted`, a match is the query door, a `let` that only names an intermediate
-result is an assignment, `(let ($v $s) ...)` over an answer already in hand is
-tuple unpacking, and `(timeout 5 ...)` is `m.eval(term, timeout=5)`, the same
-bound as a keyword argument.
+`sorted` (atoms carry the engine's own order, so the two agree by
+construction), a match is the subscript door, a `let` that only names an
+intermediate result is an assignment, `(let ($v $s) ...)` over an answer
+already in hand is tuple unpacking, `(timeout 5 ...)` is
+`m.eval(term, timeout=5)`, `once` is `first(default=...)` over the lazy answer
+view, and every `transaction` is `m.transaction(term)`, the door that keeps the
+engine's own empty-answer rollback.
 
-Two places where the dissolution table's `collapse` is `list()` does not
-hold, both measured 2026-08-22 and both filed against P14.4. Collapsing
-gathers the answers into one ATOM, so the collapse of no answers is `()` while
-the list of no answers is `[]`, which is the distinction the first three
-claims are about; `Expression(answers)` is the ordered atom form. And
-`(let $b (tx-body) (transaction $b))` binds the body so the special form sees
-a VARIABLE holding a value; substituting the term in Python instead would hand
+One place where the dissolution table's `collapse` is `list()` does not hold,
+measured 2026-08-23 and filed against P14.4: collapsing gathers the answers
+into one ATOM, so the collapse of no answers is `()` while the list of no
+answers is `[]`, which is the distinction the first three claims are about;
+`Expression(answers)` is the ordered atom form. And
+`(let $b (tx-body) (transaction $b))` binds the body so the special form sees a
+VARIABLE holding a value; substituting the term in Python instead would hand
 `transaction` the term itself, and it would run rather than come back unrun.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation, order_key, rules
+from petta import UNIT, Expression, S, V, equation, rules
 
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 26649..53210 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 26649,
-    "maximum": 53210,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):
     """Exercise nine special forms, one property each."""
-    here = S[m.space_name]
     nothing = S.superpose(())
 
     # ----------------------------------------------------- test-no-answer
@@ -69,22 +66,32 @@ def twin(m):
 
     # ----------------------------------------------------- transaction
     # Every write inside is undone when the body fails, which is what a
-    # transaction is FOR and what a plain progn does not give.
+    # transaction is FOR and what a plain progn does not give. The handle is
+    # the space operand, so no symbol names it.
     # !(test (collapse (transaction (progn (add-atom &self (tx-rolled a))
     #                                      (superpose ()))))
     #        ())
-    rolls_back = S.progn(S["add-atom"](here, S["tx-rolled"](S.a)), nothing)  # rung: the write has to be inside the engine's transaction, and `m.transaction` rolls back on a Python EXCEPTION rather than on a body with no answers
-    assert m.eval(S.transaction(rolls_back)) == []
+    # The top rung is a scope, with the ordinary write door inside it:
+    #
+    #     with m.transaction():
+    #         m += S["tx-rolled"](S.a)
+    #         ...                        # answering nothing rolls it back
+    #
+    # `transaction` takes a callable or a term, and an open `with` scope is
+    # appendix stamp 4, unruled: a callable rolls back on a Python EXCEPTION,
+    # and this file's claim is a body that simply answers nothing.
+    rolls_back = S.progn(S["add-atom"](m, S["tx-rolled"](S.a)), nothing)  # rung: the write has to be inside the engine's transaction, and `space += atom` is a statement over a handle
+    assert m.transaction(rolls_back) == []
     # !(test (collapse (match &self (tx-rolled $x) $x)) ())
-    assert m.query(S["tx-rolled"](V.x))["x"] == []
+    assert m[S["tx-rolled"](V.x)]["x"] == []
 
     # A body that succeeds keeps its writes. The transaction answers whatever
     # its body did, and add-atom answers the unit value.
     # !(test (collapse (transaction (add-atom &self (tx-kept a)))) (()))
-    keeps = S["add-atom"](here, S["tx-kept"](S.a))  # rung: the same, for the committing case
-    assert m.eval(S.transaction(keeps)) == [Expression(())]
+    keeps = S["add-atom"](m, S["tx-kept"](S.a))  # rung: the same, for the committing case
+    assert m.transaction(keeps) == [Expression(())]
     # !(test (collapse (match &self (tx-kept $x) $x)) (a))
-    assert m.query(S["tx-kept"](V.x))["x"] == [S.a]
+    assert m[S["tx-kept"](V.x)]["x"] == [S.a]
 
     # "whatever its body did" means EVERY answer, not the first one. Until
     # 2026-08-19 this answered (1), because SWI's transaction/1 runs its goal
@@ -96,17 +103,17 @@ def twin(m):
         yield equation(S["tx-three"]()).to(2)
         yield equation(S["tx-three"]()).to(3)
 
-    m.add(*three)
+    m += three
 
     # !(test (collapse (transaction (tx-three))) (1 2 3))
-    assert m.eval(S.transaction(S["tx-three"]())) == [1, 2, 3]
+    assert m.transaction(S["tx-three"]()) == [1, 2, 3]
     # !(test (collapse (transaction (superpose ((add-atom &self (tx-each 1))
     #                                           (add-atom &self (tx-each 2))))))
     #        (() ()))
-    each = S.superpose((S["add-atom"](here, S["tx-each"](1)), S["add-atom"](here, S["tx-each"](2))))  # rung: two writes inside one transaction, which the Python door cannot spell for the same reason
-    assert m.eval(S.transaction(each)) == [Expression(()), Expression(())]
+    each = S.superpose((S["add-atom"](m, S["tx-each"](1)), S["add-atom"](m, S["tx-each"](2))))  # rung: two writes inside one transaction, and a write is a statement over a handle
+    assert m.transaction(each) == [Expression(()), Expression(())]
     # !(test (collapse (match &self (tx-each $x) $x)) (1 2))
-    assert m.query(S["tx-each"](V.x))["x"] == [1, 2]
+    assert m[S["tx-each"](V.x)]["x"] == [1, 2]
 
     # ----------------------------------------------------- atomically
     # The same operation under the name the concurrency vocabulary uses, and
@@ -118,12 +125,10 @@ def twin(m):
     # compiles its body into the call site, so a variable there is a value and
     # the term comes back unrun; atomically takes its body as an unreduced
     # Atom and evaluates it, so the body can be a term the program computed.
-    noeval, superpose = m.fn("noeval"), m.fn("superpose")
-
     @m.define(name="tx-body")
     def tx_body():
         # (= (tx-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))
-        return noeval(superpose(1 + 1, 2 + 2))
+        return noeval(superpose(1 + 1, 2 + 2))  # noqa: F821  -- `noeval` and `superpose` are names a compiled body reads as MeTTa; the package exports neither yet (residue, P14.4)
 
     computed = S["tx-body"]()
     # !(test (collapse (let $b (tx-body) (atomically $b))) (2 4))
@@ -149,31 +154,32 @@ def twin(m):
     @m.define
     def spin(n):
         # (= (spin $n) (if (== $n 0) done (spin (- $n 1))))
-        return Done if n == 0 else spin(n - 1)  # noqa: F821  -- a capitalised free name in a compiled body is MeTTa data, which has no Python value to bind
+        return S.done if n == 0 else spin(n - 1)
 
     # !(test (timeout 5 (spin 10)) done)
-    assert m.eval(S.spin(10), timeout=5) == [S.Done]
+    assert m.eval(S.spin(10), timeout=5) == [S.done]
 
     # ----------------------------------------------------- with_mutex
-    # Named, so two different names do not serialise against each other.
+    # Named, so two different names do not serialise against each other. The
+    # name really has an underscore, and the factory's attribute map is total,
+    # so it takes the bracket: `S.with_mutex` would be `with-mutex`.
     # !(test (with_mutex thin-lock-a (+ 1 2)) 3)
-    assert m.eval(S.with_mutex(S["thin-lock-a"], S["+"](1, 2))) == [3]
+    assert m.eval(S["with_mutex"](S["thin-lock-a"], S["+"](1, 2))) == [3]
     # !(test (with_mutex thin-lock-b (+ 2 2)) 4)
-    assert m.eval(S.with_mutex(S["thin-lock-b"], S["+"](2, 2))) == [4]
+    assert m.eval(S["with_mutex"](S["thin-lock-b"], S["+"](2, 2))) == [4]
 
     # ----------------------------------------------------- hyperpose
     # Runs its branches concurrently, so `once` over an expensive branch and a
     # cheap one answers as soon as the cheap one is done.
     # !(test (once (hyperpose ((spin 3000000) (spin 3)))) done)
-    # The empirical BUDGET admits the measured scheduler envelope, while a
-    # later run outside it remains a two-sided finding.
-    assert m.eval(S.once(S.hyperpose((S.spin(3_000_000), S.spin(3))))) == [S.Done]
+    branches = S.hyperpose((S.spin(3_000_000), S.spin(3)))
+    assert m.answers(branches).first(default=UNIT) == S.done
     #
     # Both branches ran and both answers came back, which is what collapsing
     # over hyperpose observes. The sort is the assertion's, not the form's:
     # answers arrive in COMPLETION order, so (4 2) is as correct as (2 4).
     # !(test (msort (collapse (hyperpose ((+ 1 1) (+ 2 2))))) (2 4))
-    assert sorted(m.parallel(S["+"](1, 1), S["+"](2, 2)), key=order_key) == [2, 4]
+    assert sorted(m.parallel(S["+"](1, 1), S["+"](2, 2))) == [2, 4]
 
     # ----------------------------------------------------- call
     # Reaches a Prolog predicate with no registration at all, which is the

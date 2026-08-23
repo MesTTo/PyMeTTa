@@ -21,7 +21,7 @@ stays a term.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,16 +30,10 @@ Open Obligations:
 
 from petta import FALSE, TRUE, S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 10686 to 7517, -3169 (-29.7%), by the twin contract
-#: change: five `test` wrappers LEFT the engine for five `assert`s; the four
-#: equations still run where they did, three of them as compiled Python `if`
-#: statements. Measured min-of-3 over fresh processes with the MORK backend
-#: linked in, which the artefact-free worktree omits and which moves a
-#: compiled twin by about 10 inferences per definition; against the example's
-#: 15197 the ratio is 0.4946. Prior: 10686, the transliterated twin this
-#: replaces.
-BUDGET = 7517
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):
@@ -66,6 +60,19 @@ def twin(m):
     # !(test (pick-then 1 2) 1)
     assert pick_then(1, 2) == [1]
 
+    # The top rung is the same `if` statement above, written through
+    # Python's `match`, which is what a MeTTa `case` is:
+    #
+    #     @m.define(name="case-else")
+    #     def case_else(a, b):
+    #         match a < a:
+    #             case True:
+    #                 _c = a
+    #                 return a
+    #             case False:
+    #                 return b
+    #
+    # `ast.Match` has no lowering in the compiled subset. Residue: P14.4.
     # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
     arms = ((TRUE, S["let*"](((V.c, V.a),), V.a)), (FALSE, V.b))  # rung: a `case` is Python's `match` statement, which has no lowering yet
     m += equation(S["case-else"](V.a, V.b)).to(S.case(V.a < V.a, arms))  # rung: the same

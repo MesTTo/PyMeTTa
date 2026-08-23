@@ -1,4 +1,4 @@
-"""examples/control/case.metta in Python: the first matching branch.
+"""Purpose: examples/control/case.metta in Python: the first matching branch.
 
 The key 5 misses the literal branch 4 and meets the first variable pattern, so
 the answer is 44 and the third branch never runs at all.
@@ -9,18 +9,16 @@ unreachable in either spelling. What is NOT reachable is a `case` whose
 branches are PATTERNS over structure: Python's `match` statement has no
 lowering in the compiled subset yet, which the residue table records against
 P14.4, and this file's `case` happens not to need one.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 1529 to 2704, +1175 (+76.8%), by the twin contract
-#: change: the `case` equation ENTERED the engine as a compiled Python
-#: conditional, whose fixed registration is the whole increase, while the
-#: `test` wrapper LEFT for `assert`. Measured min-of-3 over fresh processes
-#: with the MORK backend linked in, which the artefact-free worktree omits
-#: and which moves a compiled twin by about 10 inferences per definition;
-#: against the example's 3724 the ratio is 0.7261. Prior: 1529, the
-#: transliterated twin this replaces.
-BUDGET = 2704
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+BUDGET = 1
 
 
 def twin(m):
