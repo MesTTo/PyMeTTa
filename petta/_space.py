@@ -197,22 +197,19 @@ _P = ParamSpec("_P")
 
 _BUILTINS_CACHE_LOCK = threading.RLock()
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
-    Runtime, tuple[int, int | None, dict[str, tuple[str, ...]]]
-] = weakref.WeakKeyDictionary()
-_FUNCTION_GENERATION_AVAILABLE: weakref.WeakKeyDictionary[
-    Runtime, bool
+    Runtime, tuple[int, int, dict[str, tuple[str, ...]]]
 ] = weakref.WeakKeyDictionary()
 
 
 def _invalidate_builtins_cache(rt: Runtime) -> None:
     """Advance the Python-door epoch and discard every cached space view."""
     with _BUILTINS_CACHE_LOCK:
-        epoch, function_generation, _ = _BUILTINS_CACHE.get(rt, (0, None, {}))
+        epoch, function_generation, _ = _BUILTINS_CACHE.get(rt, (0, -1, {}))
         _BUILTINS_CACHE[rt] = (epoch + 1, function_generation, {})
 
 
-def _function_generation(rt: Runtime) -> int | None:
-    """Read the engine's fun/1 generation, or None before its sibling lands.
+def _function_generation(rt: Runtime) -> int:
+    """Read the engine's fun/1 generation through its Janus seam.
 
     The service is SWI's ``last_modified_generation`` for exactly the dynamic
     ``fun/1`` set read by ``petta_py_builtins/1``; translator rules are static
@@ -220,17 +217,6 @@ def _function_generation(rt: Runtime) -> int | None:
     engine/metta.pl:metta_host_function_generation/1;
     commit=4c9a794750103e0a3a2e9d883adde337ffb501f0].
     """
-    with _BUILTINS_CACHE_LOCK:
-        known = rt in _FUNCTION_GENERATION_AVAILABLE
-        available = _FUNCTION_GENERATION_AVAILABLE.get(rt, False)
-    if not known:
-        available = bool(
-            rt.once("current_predicate(petta_py_function_generation/1)")
-        )
-        with _BUILTINS_CACHE_LOCK:
-            _FUNCTION_GENERATION_AVAILABLE[rt] = available
-    if not available:
-        return None
     return int(rt.apply_must("petta_py_function_generation"))
 
 
@@ -254,7 +240,7 @@ def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
             continue
         with _BUILTINS_CACHE_LOCK:
             current_epoch, current_generation, current = _BUILTINS_CACHE.get(
-                rt, (0, None, {})
+                rt, (0, -1, {})
             )
             if current_epoch != epoch or current_generation != confirmed_generation:
                 continue

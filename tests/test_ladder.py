@@ -127,9 +127,7 @@ def test_stack_limit_is_carried_to_the_limited_six_seam(metta) -> None:
 
 
 def test_stack_limit_through_petta_py_limited_6(metta) -> None:
-    """Exercise the sibling engine seam when this worktree contains it."""
-    if not metta._rt.once("current_predicate(petta_py_limited/6)"):
-        pytest.skip("petta_py_limited/6 is supplied by the sibling engine job")
+    """Exercise the merged sibling engine seam through the public block."""
     with metta.limits(stack=4_000_000):
         assert metta.eval(S["+"](1, 2)) == [3]
 
