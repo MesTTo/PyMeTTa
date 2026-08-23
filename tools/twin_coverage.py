@@ -47,18 +47,18 @@ Guarantees:
     current spelling, so `val`, `sym`, `var`, `m.new_space`, `m.fn("name")`,
     `HERE`, `m.query(...)` and every `declare_*` method cannot pass as
     vocabulary [tested:
-    test_a_retired_name_is_a_finding_naming_its_replacement; commit=WORKTREE]
+    test_a_retired_name_is_a_finding_naming_its_replacement; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
   - a twin importing the module the rename deleted is a finding, whichever
     spelling it reaches for: the distribution is `pymetta` and the module it
     installs is `metta`, so neither `petta` nor `pymetta` imports
-    [tested: test_a_retired_module_import_is_a_finding; commit=WORKTREE]
+    [tested: test_a_retired_module_import_is_a_finding; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
   - every door the surface tracks landed reads clean: the naming factories,
     the answer view with its defaulted cells, the keyword builders, the
     coordination verbs, the class door, the verdict builders under
     `@space.pre_add`, the head-named declaration methods, package `match`
     and `superpose`, `view()`, `@space.cache`, `limits(stack=)` and the
     standard-module mentions inside a compiled body
-    [tested: test_the_landed_doors_read_clean; commit=WORKTREE]
+    [tested: test_the_landed_doors_read_clean; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the
@@ -191,7 +191,7 @@ SOURCE_DOORS = frozenset({"run", "load", "parse", "save", "forms"})
 #: idiom check still reports `S["&kb"]` as a space named as a symbol
 #: [measured 2026-08-24: `metta.space(S.users)` answers a handle whose `.name`
 #: is '&users', and `metta.space("and-string")` refuses, naming the prefix;
-#: commit=WORKTREE]. The retired carriers `val`, `sym`, `var` and `new_space`
+#: commit=5c67147566907276a95a5fbf059cf8f98b6685f1]. The retired carriers `val`, `sym`, `var` and `new_space`
 #: are NOT here; RETIRED_ROOT and RETIRED_HANDLE name them and their
 #: replacements.
 NAMING_CALLS = frozenset({
@@ -204,7 +204,7 @@ NAMING_CALLS = frozenset({
     # a Python value whole: it makes a LIVE provider over the object, so the
     # keys of `view({"port": 80})` are Python text and never a program
     # [source: ai-python-conventions.md 3.12, the three routes for Python data;
-    # commit=WORKTREE].
+    # commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "view",
 })
 
@@ -217,7 +217,7 @@ HOST_TEXT_CALLS = frozenset({"print", "Path", "open", "warning", "info", "debug"
 #: writes one declaration atom and its head IS the method name, so
 #: `(capacity &pool 8)` is written `pool.capacity(8)` [source:
 #: ai-narrow-core-renames.md rows 71-89, the fifteen replacements;
-#: commit=WORKTREE].
+#: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 DECLARATION_CALLS = frozenset({
     "admits", "agenda", "algebra", "annotations", "capacity", "context",
     "emits", "events", "handles", "image", "merge", "on_error", "reaction",
@@ -234,13 +234,13 @@ DECLARATION_CALLS = frozenset({
 #: metta.vocabularies is a bare word, 77 of them, and `Space.image`'s
 #: 'opaque'/'transparent'/'auto' is declared inline rather than exported;
 #: ai-python-conventions.md "Strings are text" lists option values under
-#: never-strings; commit=WORKTREE].
+#: never-strings; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 #:
 #: A word, and nothing else: `reaction("(Job $n)", op)` still reports, because
 #: a program carries a parenthesis, a space or a dollar and a vocabulary word
 #: carries none of them. That is what keeps a `str | Atom` pattern parameter
 #: from being a sixth source door
-#: [tested: test_a_declaration_takes_a_word_and_refuses_a_program; commit=WORKTREE].
+#: [tested: test_a_declaration_takes_a_word_and_refuses_a_program; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 VOCABULARY_WORD = re.compile(r"[\w.-]+\Z")
 
 #: The factories whose attribute or subscript spells a NAME rather than calling
@@ -296,7 +296,7 @@ DISSOLVED = {
     # pattern, the receiver method takes a conjunction, and bare `match(...)`
     # is the expression-position function over the ambient context space
     # [source: ai-python-conventions.md Part 2, "match is one word at three
-    # positions"; commit=WORKTREE].
+    # positions"; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "match": "space[pattern], space.match(...), or bare match(...) in expression position",
     "collapse": "list()",
     "car-atom": "e[0]",
@@ -315,7 +315,7 @@ DISSOLVED = {
     # the arity the engine's `if` has: a one-armed `if_(c, t)` is a filter
     # Python's conditional expression cannot spell, and stored code is where
     # it is written [source: ai-python-conventions.md 3.8, the keyword family;
-    # commit=WORKTREE].
+    # commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "if": "Python's own if, its conditional expression, or if_(c, t, e) for stored code",
     "let": "assignment, or solve(pattern, subject) when the pattern must win what the subject produces",
     "let*": "a statement sequence",
@@ -335,7 +335,7 @@ DISSOLVED = {
     # `Space.define` [source: ai-report-p14-r5.md, built surface item 5;
     # commit=8c057bb8055459cc13127d89b418deb634b90ae4] [measured 2026-08-24: neither `Space.doc` nor
     # `metta.doc` exists on the merged P14 surface, so P14.25 is still the row
-    # that closes it; commit=WORKTREE].
+    # that closes it; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 }
 
 
@@ -362,7 +362,7 @@ RETIRED_ROOT = {
     # two twins reach past the root for the private atom rather than write the
     # receiver [measured 2026-08-24: `from metta.atoms import _HERE as HERE` in
     # tests/twins/reasoning/peano.py and tests/twins/reasoning/scallop_readme.py,
-    # and nowhere else in the corpus; commit=WORKTREE].
+    # and nowhere else in the corpus; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "HERE": "the space handle itself; match(...) reads the ambient space",
     "_HERE": "the space handle itself; match(...) reads the ambient space",
     "REFLECTION_SPACE": "metta.reflection",
@@ -406,7 +406,7 @@ RETIRED_HANDLE = {
     # is the door and `metta.match` is its ambient face
     # [measured 2026-08-24: neither `Space.query` nor `metta.query` exists;
     # source: CHANGELOG.md "Rename `Space.query` and `AsyncMeTTa.query` to
-    # `match`"; commit=WORKTREE].
+    # `match`"; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "query": "space.match(pattern), or space[pattern] for one pattern",
     "register_op": "space.op(...), or @space.op",
     "register_space": "metta.attach(name, provider)",
@@ -418,7 +418,7 @@ RETIRED_HANDLE = {
     # `pool.capacity(8)` and the ceremony is gone. Every entry is one row of
     # the rewrite map [source: ai-narrow-core-renames.md rows 71-89;
     # CHANGELOG.md "Remove all 15 synchronous `declare_*` methods";
-    # commit=WORKTREE].
+    # commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "declare_admits": "space.admits(...)",
     "declare_agenda": "space.agenda(...)",
     "declare_algebra": "space.algebra(...)",
@@ -449,7 +449,7 @@ RETIRED_HANDLE = {
 #: [measured 2026-08-24: `Answers.one` and `Answers.first` are
 #: `(self, *, default=...)`, so both defaults are KEYWORD-only and neither
 #: live call has a positional argument to be confused with the deleted one;
-#: commit=WORKTREE].
+#: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 RETIRED_CALL_SHAPES = {
     #  name: (positional arguments that mark the retired call, current spelling)
     "count": (0, "len(space)"),
@@ -465,7 +465,7 @@ RETIRED_CALL_SHAPES = {
 #: `ModuleNotFoundError` says only that something is missing
 #: [source: CHANGELOG.md "Rename the Python distribution to `pymetta` and its
 #: import module to `metta` ... Neither `petta` nor `pymetta` remains an
-#: importable module"; commit=WORKTREE].
+#: importable module"; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 RETIRED_MODULES = {
     "petta": "metta",
     "pymetta": "metta",
@@ -610,7 +610,7 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 #: compiled into this space before claiming the hook"]
 #: [measured 2026-08-24: a bare `@space.pre_add` judge stores
 #: `(= (intake $a) (case ...))`, its match statement lowered to the case tower
-#: and its `accept`/`refuse` verdicts intact; commit=WORKTREE].
+#: and its `accept`/`refuse` verdicts intact; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 #: `rules` joined them when R3
 #: landed the bundle door [source: ai-report-p14-r3.md, rules and per-yield
 #: equation emission; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
@@ -622,7 +622,7 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 #: `@space.cache` stores `(match &self (entry $k $v) $v)` where the
 #: one-pattern form raises "caching refuses context-space/1: nothing declares
 #: it pure"; found 2026-08-22 by the libraries agent, which lost the @m.cache
-#: spelling and fn.cache_info() to this; commit=WORKTREE].
+#: spelling and fn.cache_info() to this; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 COMPILING_DECORATORS = frozenset({"define", "cache", "pre_add", "rules"})
 
 #: The subset whose body is LOWERED from Python syntax, where `a + b` emits
@@ -844,7 +844,7 @@ RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
 #: emits a `let*` over `py-truthy`; `a // b` and `a & b` REFUSE, naming
 #: `floor_math(a / b)` and "MeTTa has no bitwise operators";
 #: source: bindings/python/metta/_define_expression.py _BINOPS, _COMPARE,
-#: _INSTEAD and _compare_link; commit=WORKTREE].
+#: _INSTEAD and _compare_link; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 #:
 #: So `**` and `//` are NOT here: neither is an engine head, and demanding an
 #: operator for `floor-math` would demand the one spelling the translator
@@ -1122,7 +1122,7 @@ def retired(twin: Path) -> list[str]:
     are read at doors and not at names [measured 2026-08-24: reading them at
     every attribute reported both, `V.query` twice in
     tests/twins/reasoning/nilbc.py and `fn.first` wherever the catalog's own
-    `first` is mentioned; commit=WORKTREE].
+    `first` is mentioned; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     """
     tree = _parse(twin)
     if tree is None:
@@ -1644,7 +1644,7 @@ def definitions(twin: Path) -> int:
     [assumed 2026-08-24: the per-definition figure below was measured on
     `@define` functions and is applied to the class, bundle and judge doors
     without a second measurement; the band is loosened, never tightened, by the
-    extension; commit=WORKTREE].
+    extension; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     """
     tree = _parse(twin)
     return sum(

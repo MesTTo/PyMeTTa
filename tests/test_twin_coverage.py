@@ -28,16 +28,16 @@ Guarantees:
     test_a_retired_name_is_a_finding_naming_its_replacement,
     test_a_retired_module_import_is_a_finding,
     test_an_exact_bracket_spelling_is_not_the_attribute_one;
-    commit=WORKTREE]
+    commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
   - a declaration takes its vocabulary word and nothing else, so the doors
     that replaced the `declare_*` family are writable without opening a
     source door on their `str | Atom` pattern parameters [tested:
     test_a_declaration_takes_a_word_and_refuses_a_program,
-    test_the_declaration_vocabulary_is_the_librarys_own; commit=WORKTREE]
+    test_the_declaration_vocabulary_is_the_librarys_own; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
   - the operator heads the lane refuses inside a compiled body are the ones
     the TRANSLATOR emits, so `pow-math` and `py-eq` report while `floor-math`,
     which no operator reaches, does not [tested:
-    test_the_operator_heads_are_the_ones_the_translator_emits; commit=WORKTREE]
+    test_the_operator_heads_are_the_ones_the_translator_emits; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -362,7 +362,7 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
 #: Every door the surface tracks landed, written the way a twin writes it. This
 #: is the lane's own acceptance for the vocabulary: a door that reads as a
 #: string, a transliteration or a retired name here would report a correct twin
-#: [source: ai-briefs/twins-wave.md, Stage L's door list; commit=WORKTREE].
+#: [source: ai-briefs/twins-wave.md, Stage L's door list; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 #:
 #: The file is READ and never run, because `take` and `watch` PARK by design
 #: and `every` starts a timer, so each door's existence and signature is
@@ -371,7 +371,7 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
 #: `&roster`, `view({"port": 80})` answers a Space whose subscript reads
 #: `[Row(v=Grounded(80))]`, `limits(stack=...)` answers a ScopedLimits, and
 #: `Answers.one`/`Answers.first` take their default as a KEYWORD;
-#: commit=WORKTREE].
+#: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 LANDED_DOORS = (
     '"""Purpose: every landed door, once."""\n'
     "import math\n"
@@ -602,7 +602,7 @@ def test_a_retired_module_import_is_a_finding(tmp_path):
 #: [measured 2026-08-24: `metta.alpha_eq` and `metta.atom_from_wire` are gone
 #: while `Atom.alpha_eq` and `metta.wire.atom_from_wire` are live; source:
 #: ai-narrow-core-renames.md, the wire-functions and alpha_eq rows;
-#: commit=WORKTREE].
+#: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 RELOCATED = frozenset({"alpha_eq", "atom_from_wire"})
 
 
