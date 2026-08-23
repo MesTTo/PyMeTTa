@@ -3,39 +3,40 @@
 `countitem` answers 1 once per atom the match finds, and folding those ones
 with `merge` counts them, so three `foo` facts make 3. The counting is done by
 the fold rather than by a length, which is the point: the generator answers
-once per row and the aggregator never sees the rows at all.
+once per row and the aggregator never sees a row at all.
 
-`countitem` and `spacecount` are written as equations because their bodies are
-generator terms: `foldall` is an interpreter form rather than a registered
-function, so a compiled body has no name for it, and the match's template
-repeats its own pattern, which the compiled match reads as a function call
-(both filed as friction). `merge` is an ordinary compiled function. The space inside the match term
-is the handle itself, which crosses into a built term as a grounded operand.
+All three definitions are compiled. `countitem` binds the row and does not use
+it, which is what the original's `let` does too, and a bound-then-unused name
+is Python's own `_row`; the match reads the handle it was given, so no space is
+ever named as a symbol. `spacecount`'s parameter is `_`, MeTTa's own anonymous
+variable, because the original ignores it as well.
 """
 
-from metta import S, V, equation
+from metta import S, V, match
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Put three facts in the space, then count them by folding ones."""
-    m += S.foo(1)
-    m += S.foo(2)
-    m += S.foo(3)
-
-    found = S.match(m, S.foo(V.n), S.foo(V.n))  # rung: the generator reaches foldall as a term, and the space crosses into it as a handle
-    m += equation(S.countitem()).to(S.let(V.x, found, 1))  # rung: same clause; the `let` throws the row away and answers one
+    m += [(S.foo, n) for n in (1, 2, 3)]         # (foo 1) (foo 2) (foo 3)
 
     @m.define
-    def merge(a, b):
+    def countitem():                             # (= (countitem)
+        _row = match(m, S.foo(V.n), S.foo(V.n))  #    (let $x (match &self (foo $1) (foo $1))
+        return 1                                 #         1))
+
+    @m.define
+    def merge(a, b):                             # (= (merge $a $b) (+ $a $b))
         return a + b
 
-    m += equation(S.spacecount(V.x)).to(S.foldall(S.merge, S.countitem(), 0))
+    @m.define
+    def spacecount(_):                           # (= (spacecount $x)
+        return S.foldall(merge, countitem(), 0)  #    (foldall merge (countitem) 0))
 
-    assert m.fn.foldall(S.merge, S.countitem(), 0).one() == 3
+    assert m.fn.foldall(S.merge, S.countitem(), 0).one() == 3   # [3]

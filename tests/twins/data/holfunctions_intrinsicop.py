@@ -1,50 +1,50 @@
-"""Purpose: examples/data/holfunctions_intrinsicop.metta in Python: a builtin, partially applied.
+"""examples/data/holfunctions_intrinsicop.metta in Python: a builtin, half applied.
 
-`mymap` is written out rather than borrowed: two clauses, one for the empty
-expression and one for a cons cell, walking the structure and rebuilding it.
-Both select on SHAPE in the head, which a compiled parameter list cannot spell,
-so they are written as the equations they are.
+`mymap` is written out rather than borrowed: an empty expression answers an
+empty expression and a cons cell rebuilds itself around the applied function.
+Both clauses select on the SHAPE of the second argument, which is Python's
+`match` statement lowering to MeTTa's own case tower.
 
 The claim is that a builtin and a defined function behave the same when either
-is handed to `mymap` half-applied. `(== 1)` is `==` with one argument, `(eq 1)`
-is the same for a function whose body IS `==`, and mapping either over
-`(1 2 3)` answers `(True False False)`. The specializer sees both and compiles
-a clause for each, which is what makes the comparison worth making.
+is handed to `mymap` half applied. `(== 1)` is equality with one argument, and
+`eq` is a function whose whole body is that same equality written as Python's
+own operator, so the two calls differ in nothing but which of them the engine
+had to compile. Applying a half-applied head is the one place a tuple beats a
+call, because the head is a value here rather than a name.
 
-`eq` is written as an equation rather than as `def eq(a, b): return a == b`,
-and the reason is the claim itself: Python's `==` in a compiled body lowers to
-`(py-eq $a $b)`, a crossing to the host per comparison, not to MeTTa's own
-`==` (measured; filed as P14.24). Comparing a builtin against a host crossing
-would be a different claim from the one the example makes. `a > b` in the same
-position DOES lower to MeTTa's `>`, so this is one operator, not the family.
-Guarantees:
-  - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+The two half applications sit either side of the operator word table. `fn.eq`
+is `==`, the builtin, because the word table maps every operator to its
+`operator`-module name at the attribute door; the DEFINED function is the
+symbol literally spelled `eq`, so it takes the bracket, which is the exact
+door by the same ruling. Naming both on one line is what makes the claim
+readable.
 """
 
-from metta import Expression, S, V, equation
+from metta import Expression, S, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
-    """Map a partially applied builtin and its defined twin over one list."""
-    m += equation(S.mymap(V.f, Expression(()))).to(Expression(()))
-    m += equation(S.mymap(V.f, S.cons(V.x, V.xs))).to(
-        S.cons(Expression((V.f, V.x)), S.mymap(V.f, V.xs))
-    )
+    """Map a half-applied builtin and its defined twin over one list."""
 
-    m += equation(S.eq(V.a, V.b)).to(V.a.eq(V.b))
+    @m.define
+    def mymap(f, items):                    # (= (mymap $f ()) ())
+        match items:                        # (= (mymap $f (cons $x $xs))
+            case ():                        #    (cons ($f $x) (mymap $f $xs)))
+                return ()
+            case (S.cons, x, rest):
+                return S.cons((f, x), mymap(f, rest))
+
+    @m.define
+    def eq(a, b):                           # (= (eq $a $b) (== $a $b))
+        return a == b
 
     numbers = Expression((1, 2, 3))
-    mymap = m.fn.mymap
-    assert mymap(S["=="](1), numbers) == mymap(S.eq(1), numbers)
+    defined = S["eq"](1)  # rung: the word table owns S.eq, which is ==, so the symbol named eq takes rung 5's exact door
+    assert mymap(fn.eq(1), numbers) == mymap(defined, numbers)   # [(True False False)]
