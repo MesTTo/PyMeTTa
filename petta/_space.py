@@ -168,6 +168,22 @@ def _invalidate_builtins_cache(rt: Runtime) -> None:
         _BUILTINS_CACHE[rt] = (generation + 1, {})
 
 
+# Built once: rebuilding this literal inside eval cost four Symbol
+# constructions per call, +15.5k instructions:u on every evaluation
+# (py-method-call 1,497,380,759 -> 1,652,818,021 over 10,000 calls,
+# isolated by bisection to the commit that introduced the inline set).
+# The set stays the defining heads whose evaluation can grow the definition
+# catalogue, so the per-space builtins cache invalidates exactly when one runs.
+_CATALOGUE_HEADS = frozenset(
+    (
+        Symbol("="),
+        Symbol("import!"),
+        Symbol("add-translator-rule!"),
+        Symbol("remove-translator-rule!"),
+    )
+)
+
+
 def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
     """Read one generation-stamped per-space builtin catalogue."""
     while True:
@@ -1592,15 +1608,7 @@ class Space(Handle):
         `capture()` scope collects printed text without changing the list.
         """
         changes_catalogue = isinstance(target, str) or (
-            isinstance(target, Expression)
-            # policy-inventory-exempt: mechanism-internal; reason=the defining heads whose evaluation can grow the definition catalogue, so the per-space builtins cache invalidates exactly when one runs; evidence=bindings/python/petta/_space.py:_invalidate_builtins_cache
-            and target.head
-            in {
-                Symbol("="),
-                Symbol("import!"),
-                Symbol("add-translator-rule!"),
-                Symbol("remove-translator-rule!"),
-            }
+            isinstance(target, Expression) and target.head in _CATALOGUE_HEADS
         )
         try:
             return evaluate(
