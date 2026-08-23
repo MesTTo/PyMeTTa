@@ -70,11 +70,21 @@ _ROWS = 2_000
 # by the helper's port to the handle surface at the narrow-core integration:
 # MeTTa().space() costs a constant 20 inferences over the old MeTTa()
 # construction in each fresh sample, and the growth ratios are untouched.
+# RE-PINNED 2026-08-23, plain -62/-62/-60/-64 and automatic -12/+0/+12/+20, by
+# keying each support edge on a hash of its endpoints. The plain samples fall
+# because the specializer no longer reads a callee's equations for a call whose
+# arguments cannot carry a function. The automatic samples move both ways: the
+# probe that asks whether an edge already exists now hashes its two endpoints,
+# which the counter SEES, and skips a scan of every edge sharing a node functor,
+# which the counter cannot see at all. Loading 8,000 definitions costs 3.25
+# seconds and costs 0.73 for that reason, and a 500-form program, whose graph is
+# small enough that the scan was cheap anyway, is unchanged at 82 microseconds a
+# form.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 86_912, "automatic": 5_478},
-    15: {"plain": 689_060, "automatic": 6_549},
-    18: {"plain": 5_506_163, "automatic": 7_620},
-    20: {"plain": 22_021_912, "automatic": 8_334},
+    12: {"plain": 86_850, "automatic": 5_466},
+    15: {"plain": 688_998, "automatic": 6_549},
+    18: {"plain": 5_506_103, "automatic": 7_632},
+    20: {"plain": 22_021_848, "automatic": 8_354},
 }
 
 

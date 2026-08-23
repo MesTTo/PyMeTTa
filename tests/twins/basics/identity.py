@@ -29,7 +29,22 @@ is Python's own `assert`.
 #: 2026-08-23, min-of-3 per variant through tools/twin_coverage.run_twin,
 #: every variant's three runs identical].
 #: Prior: INTERIM PIN 2026-08-23, min-of-3 on the wave-merged tree (2208 against the example's 2626): this file gates the pytest lane, so it is priced ahead of the corpus-wide pass that follows the library fixes, the guide update, and the marked-site sweep, and it is re-priced there with everything else.
-BUDGET = 2240
+#: RE-PINNED 2026-08-23, 2230 to 2221, by the call-side precondition on
+#: specialization_plan/5, which stops this twin's call sites reading the callee's
+#: equations to find nothing. Inside the 2210..2250 band recorded above, and DOWN,
+#: which the point budget refuses in both directions.
+#: RE-PINNED 2026-08-23, 2221 to 2258, by keying each support edge on a hash of
+#: its endpoints. Eight above the band's top, and the reason is that the keys are
+#: inferences the counter SEES while what they buy, a scan of every edge sharing
+#: a node functor, is a C-level clause walk it cannot see: this example's graph
+#: is far too small to collect any of that, where loading 8,000 definitions fell
+#: from 3.25 seconds to 0.73.
+#: RE-PINNED 2026-08-24 at the integration merge, both parents' chains kept:
+#: this side had read 2240 on the kernel+dispatch+library tree, the branch
+#: 2258 with its two entries above; the merged tree's own min-of-3 reading
+#: is what the budget below pins [measured 2026-08-24 through
+#: tools/twin_coverage.run_twin on the merged tree].
+BUDGET = 2258
 
 
 def twin(m):
