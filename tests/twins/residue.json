@@ -92,7 +92,7 @@
       "kind": "declined",
       "example": "examples/syntax/parse.metta",
       "form": 0,
-      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in ground() does not turn it into data",
       "row": "P14.1",
       "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input A is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids. Forms 5-7 remain covered because they begin with ordinary string data and the program itself applies repr before parse."
@@ -101,7 +101,7 @@
       "kind": "declined",
       "example": "examples/syntax/parse.metta",
       "form": 1,
-      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in ground() does not turn it into data",
       "row": "P14.1",
       "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input (R A B) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
@@ -110,7 +110,7 @@
       "kind": "declined",
       "example": "examples/syntax/parse.metta",
       "form": 2,
-      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in ground() does not turn it into data",
       "row": "P14.1",
       "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input (R A (S B C)) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
@@ -119,7 +119,7 @@
       "kind": "declined",
       "example": "examples/syntax/parse.metta",
       "form": 3,
-      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in ground() does not turn it into data",
       "row": "P14.1",
       "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input (* 2 21) is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
@@ -128,7 +128,7 @@
       "kind": "declined",
       "example": "examples/syntax/parse.metta",
       "form": 4,
-      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in val() does not turn it into data",
+      "missing": "a zero-source structured spelling for reader input; wrapping MeTTa source in ground() does not turn it into data",
       "row": "P14.1",
       "section": "\u00a77 the examples-twin coverage lane",
       "detail": "The input \"42\" is MeTTa source consumed by parse. A faithful twin would have to carry that source spelling in a Python string, which the zero-source law forbids."
@@ -1629,15 +1629,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/types/types.metta",
-      "form": null,
-      "missing": "typed(x, T), the builder for the declaration term (: x T)",
-      "row": "P14.9",
-      "section": "\u00a79e builders promoted from warts",
-      "detail": "The design authority promotes `equation(lhs).to(rhs)` for `(= lhs rhs)` and `typed(x, T)` for `(: x T)` as the two declaration builders, and names the sibling wart explicitly: \"The user then caught the sibling wart S[\\\":\\\"](x, T): the declaration-term builder is typed(x, T), building (: x T), with Python types accepted through the one table\". `equation` is exported from petta.rules and shipped; `typed` does not exist, so every declaration about a bare SYMBOL is written `S[\":\"](x, T)`. That is 45 occurrences across twelve twins in this wave: types/types (11), types_nondet (9), subtyping (6 beside the sibling S[\":<\"]), recursive_types (4), engine_surface (3), recursive_types2 (3), dont_eval_type (2), inplace_annotations (2), types_dependent (2), functiontypes (1), typing_rules (1), and control/letstarcomputed (1). Two twins already name the concept locally rather than repeat the punctuation, `of = S[\":\"]` in inplace_annotations and `below = S[\":<\"]` in subtyping, which is what an imported builder would make unnecessary. The annotation door covers a declaration about a FUNCTION and is used where one exists (parametric_types, outputtype, functiontypes' wu1 and wu2); it cannot carry `(: a A)`, which is a claim about a symbol with no Python signature to hang it on. Each of the eleven twins declares RUNG naming this gap."
-    },
-    {
-      "kind": "friction",
       "example": "examples/types/subtyping.metta",
       "form": null,
       "missing": "a builder for the subtype edge (:< Sub Super)",
@@ -1716,15 +1707,6 @@
       "row": "P14.4",
       "section": "\u00a74 surface gaps",
       "detail": "add-atom-no-duplicate matches against a space its CALLER names, and a compiled match() takes its space as a literal \"&name\" string, never a parameter. Same wall as examples/control/cut.metta. expand-once is additionally a `case`, and expandK and demo-peano bind with let and let* over calls to names that are not Python identifiers."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/permutations.metta",
-      "form": null,
-      "missing": "a symbol whose name begins with `__` through the S factory",
-      "row": "P14.5",
-      "section": "\u00a79d terminology and the factory doors",
-      "detail": "The example's hole symbol is `___`. S.___ raises AttributeError because _atom_namespace refuses every name starting with `__` to keep Python's own dunder protocol working, and the SUBSCRIPT door, which exists precisely for names attribute access cannot reach, forwards to the same guard: S[\"___\"] raises too. The twin reaches it through sym(\"___\"), the lowercase trio \u00a79d otherwise folds into S/V/G. examples/integration/py_numpy.metta needs the same escape for __class__ and __name__."
     },
     {
       "kind": "friction",
@@ -2486,28 +2468,10 @@
       "kind": "friction",
       "example": "examples/types/builin_types.metta",
       "form": null,
-      "missing": "a Python door for `import!`, whose space argument sits in a TERM position",
+      "missing": "an import VERB on the space handle, so a library import is a call rather than an evaluated directive term",
       "row": "P14.13",
       "section": "\u00a74 surface gaps: declarations that are directives (import!, bind!, pragmas)",
-      "detail": "The example's first form imports lib_builtin_types and the twin has to write it as a term, `m.eval(S[\"import!\"](S[\"&self\"], (S.library, S.lib_builtin_types)))`, which the lane flags for naming a space as a symbol until the line declares a rung. There is no Python spelling for the directive: the library itself does the same thing internally (space.py:2541 evaluates `(import! &self (library lib_tabling))` to open the tabling library), and `m.register_library_path` registers a path rather than importing. Passing the space HANDLE instead of the symbol does not work either: `m.eval(S[\"import!\"](m.space(\"&self\"), ...))` fails inside the loader [measured 2026-08-22]. Two doors would close it: an `m.import_(name)` on the space handle, and a term-position spelling for a space that is not its symbol."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/builin_types.metta",
-      "form": null,
-      "missing": "a Python-type conversion at the TERM door: arrow(int, int) for (-> Number Number), and Any for %Undefined%",
-      "row": "P14.9",
-      "section": "\u00a79e type constants, resolved (no exported constants; one conversion table)",
-      "detail": "The ruling is that every position expecting a TYPE takes a Python type through the one table, \"so the awkward S[\\\"%Undefined%\\\"] never needs writing\". It holds at the two doors that read annotations (`@m.define` maps int to Number, Any to %Undefined%, Atom to Atom, a TypeVar to one shared $t, and `Callable[[X], Y]` to `(-> (-> $x $y) $x $y)`, all measured 2026-08-22) and at `m.cast`, whose `_type_atom` maps bool/int/float/str and any other class to its own name. It does NOT hold where a twin builds an EXPECTED type atom, which is what asking `get-type` a question means: this file writes `S[\"->\"](S.Number, S.Number, S.Number)` and its siblings 40 times, and engine_surface writes `S[\"%Undefined%\"]` six times. The missing piece is small and public: an `arrow(...)` builder beside `equation` and the proposed `typed`, taking Python types through the same table, so `arrow(int, int)` and `arrow(Any, Atom)` build what the annotation door already builds."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/types.metta",
-      "form": null,
-      "missing": "space.type(atom), the get-type door the lane's own dissolution table names",
-      "row": "P14.25",
-      "section": "\u00a79e becomes methods: kb.type(a) (get-type-space)",
-      "detail": "twin_coverage.py:189 maps `get-type` to `space.type(atom)` and the discussion ledger settles the same name (\"`kb.type(atom)` over `type_of`\"), but `MeTTa.type` is the CLASS-declaration decorator, `@m.type` over a dataclass (space.py:2556, install_type), so handing it an atom raises `AttributeError: 'Gnd' object has no attribute '__mro__'` [measured 2026-08-22]. Two accessors exist and both are used in this wave: `m.fn(name).type`, a property that answers a NAME's first declared type and reads %Undefined% as None (_space_objects.py:857), and `m.fn(\"get-type\").all(atom)` for any other atom and for every answer. The gap is therefore a naming collision rather than a missing capability: one of the two meanings of `type` has to move before the ledger's own spelling can ship, and P14.5's naming pass is where that decision belongs."
+      "detail": "NARROWED 2026-08-23. R2 closed the term-position half: a space is an atom, so `m.eval(fn['import!'](m, S.library(S['lib_builtin_types'])))` hands the import its own handle and the twin writes no `&self` symbol and needs no rung line. What remains is that importing a library is still an evaluated DIRECTIVE rather than a verb: the guide's own spelling is `space += lib.he` with `lib` a catalog-generated namespace, which is appendix stamp 1 and unbuilt. Note the library's file name is `lib_builtin_types`, a genuine underscore, so it takes the bracket at the factory door."
     },
     {
       "kind": "friction",
@@ -2540,19 +2504,10 @@
       "kind": "friction",
       "example": "examples/types/parametric_types.metta",
       "form": null,
-      "missing": "a two-way unify at the Python door, so a pattern can instantiate an arrow that carries its own variables",
+      "missing": "an answer template that can carry a variable from the PATTERN side, which is what instantiating a declared arrow needs",
       "row": "P14.4",
       "section": "\u00a710b the expression-position rule (unify(a, b, then, els))",
-      "detail": "The example's claim instantiates the declared arrow: `(let (get-type apply) (-> (-> Bool Bool) Bool $result) $result)` answers Bool. `petta.unify` cannot say it: its own docstring states the contract, \"One-way: variables on the pattern side bind; a variable on the atom side matches only the same variable\", and the arrow it would match against IS `(-> (-> $tx $ty) $tx $ty)`, all variables, so `unify(S[\"->\"](S[\"->\"](S.Bool, S.Bool), S.Bool, V.result), m.fn(\"apply\").type)` answers None [measured 2026-08-22]. MeTTa's `let` unifies both ways, and \u00a710b already rules that expression-position `unify(a, b, then, els)` ships as a surface function; the same door answers this. The twin asks the type of the APPLICATION instead, which is the example's own second form and needs nothing new."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/parametric_types.metta",
-      "form": null,
-      "missing": "a lane rule that reads TypeVar(\"X\") as a NAME, the way it already reads sym(\"x\") and fn(\"f\")",
-      "row": "P14.1",
-      "section": "\u00a77 the coverage instrument: the examples-twin lane",
-      "detail": "A type variable is `$t` by the concept map, and Python spells one with `TypeVar(\"X\")`. The lane's source scan reads that string as program text, because NAMING_CALLS holds petta's own naming doors (sym, var, val, fn, space, new_space) and not the stdlib's, so the twin writes `TypeVar(name=\"X\")`, which the lane permits through its `name=` keyword rule. The modern spelling that needs no string at all, `def apply[X, Y](f: Callable[[X], Y], x: X) -> Y`, is PEP 695 and works at run time on this interpreter (3.14, measured: the arrow is `(-> (-> $x $y) $x $y)`), but ruff refuses it because bindings/python/pyproject.toml sets `target-version = \"py311\"`: \"Cannot use type parameter lists on Python 3.11\". Both are one-line fixes and the second also unblocks \u00a79k's own worked example, `@petta.record class Cons[T]`."
+      "detail": "NARROWED 2026-08-23. R5 shipped `Space.solve(pattern, subject)`, the relational let, and it derives the answer template from the SUBJECT's variables: `(get-type apply)` has none, so solve refuses with `solve needs at least one variable in its subject` and cannot say the example's `(let (get-type apply) (-> (-> Bool Bool) Bool $result) $result)`, whose answer variable lives in the pattern. `petta.unify` still cannot say it either, for the reason this entry recorded: it is one-way, and the arrow it matches against is all variables. The twin asks the type of the APPLICATION instead, which is the example's own second form [measured 2026-08-23: ai-tmp/e-probe-doors.py neighbours]."
     },
     {
       "kind": "friction",
@@ -2700,24 +2655,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/reasoning/newtons_method.metta",
-      "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
-      "row": "P14.13",
-      "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta, beside the already-filed batch-loading entry."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/nars_tuffy.metta",
-      "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
-      "row": "P14.13",
-      "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta."
-    },
-    {
-      "kind": "friction",
       "example": "examples/integration/c_space/c_space.metta",
       "form": null,
       "missing": "a compliance kit that reaches a Prolog or C provider, not only a Python one",
@@ -2736,39 +2673,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/reasoning/nilbc.metta",
-      "form": null,
-      "missing": "`typed(x, T)` exported as the declaration-term builder, and `a.alpha_eq(b)` as a method",
-      "row": "P14.5",
-      "section": "\u00a79e builders promoted from warts; \u00a79d the method forms",
-      "detail": "\u00a79e names `typed(x, T)` as the builder for `(: x T)` precisely so nobody writes `S[':'](x, T)`, and it is not exported, so this twin defines its own three-line `typed`. And \u00a79d settles `a.alpha_eq(b)` as a method while only the module function exists: `Expr` has no `alpha_eq` attribute, which this twin met as an AttributeError and now spells `alpha_eq(answer, expected)`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/logicprogset.metta",
-      "form": null,
-      "missing": "an answers view that carries an evaluation's BINDINGS",
-      "row": "P14.7",
-      "section": "\u00a79d the Rows retirement; decision 11's carrier note",
-      "detail": "`(if (once (myf $M)) $M)` asks for the BINDING of $M, and `m.eval` answers values. `m.query` binds only over stored atoms and nothing here is stored, so the variable has to leave through the term and the `if` cannot become Python's. The same wall appears in plntestdirect (`let $derivation ... $TV`) and twenty-five times in constructive_negation (`let True (f $x) $x`); P14.7 already owns the fix and this is what its absence costs the surface."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/plntestdirect.metta",
-      "form": null,
-      "missing": "an answers view that carries an evaluation's BINDINGS",
-      "row": "P14.7",
-      "section": "\u00a79d the Rows retirement; decision 11's carrier note",
-      "detail": "Same wall as logicprogset.metta: `(let $derivation (sentence (Inheritance a c) $TV) $TV)` carries $TV out of the evaluation because no Python door hands back an evaluation's bindings."
-    },
-    {
-      "kind": "friction",
       "example": "examples/reasoning/constructive_negation.metta",
       "form": null,
-      "missing": "an answers view that carries an evaluation's BINDINGS",
+      "missing": "a solve whose answer template can bind a SECOND variable, which is how this file tests a constraint the first one left standing",
       "row": "P14.7",
       "section": "\u00a79d the Rows retirement; decision 11's carrier note",
-      "detail": "Same wall as logicprogset.metta, twenty-five times over: every `(collapse (let True (f $x) $x))` claim in this file loses its `collapse` to Python's answer list and keeps its `let`, because the `let` is what carries the binding out."
+      "detail": "NARROWED 2026-08-23. R5's `Space.solve` closes the plain shape, and the six `(let True (f $x) $x)` claims here are now `m.solve(TRUE, f(V.x)).x`. Fourteen claims are a different shape: `(let True (has-no-outgoing $x) (let $x c $x))` binds a SECOND variable in the TEMPLATE to test the constraint the negation left standing, and solve derives its template from the subject's variables, so it has no spelling for that. Those keep the term."
     },
     {
       "kind": "friction",
@@ -2786,7 +2696,7 @@
       "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
       "row": "P14.7",
       "section": "\u00a79e the performance note; \u00a75 the three lanes",
-      "detail": "The same wall peanofast.metta measures. Here `len(m.eval(S['demo-peano'](300)))` costs 2,549,185 inferences against the engine's 2,186,259, +16.2%, past the lane's 10% band [measured 2026-08-22, ai-tmp/probe/f_peano_reasoning_routes.py]."
+      "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `collapse` is `list()` and `length` is `len()`, so the claim reads `len(m.fn.demo_peano(300)) == 301` and costs 2,833,146 inferences against the engine's 2,195,554, +29%, past the lane's 10% band. The answers are Peano terms up to 300 deep, so building them in Python is the cost. The missing door is a query that projects or aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/reasoning/peano.metta]."
     },
     {
       "kind": "friction",
@@ -2795,7 +2705,7 @@
       "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
       "row": "P14.7",
       "section": "\u00a79e the performance note; \u00a75 the three lanes",
-      "detail": "Python's own conjunction door exists and is correct: `m[p1, p2, ...]` answers the 362,880-row join. Counting through it costs 41,213,543 inferences against the engine's 17,626,820, +134%, because every row's ten bindings become Python atoms [measured 2026-08-22, ai-tmp/probe/f_perm_routes.py]."
+      "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `len(m[conjuncts])` counts the 362,880-row join through Python's own conjunction door and costs 55,719,867 inferences against the engine's own 32,521,598, +71%, past the lane's 10% band, because every row's ten bindings become Python atoms. The missing door is a query that aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/reasoning/permutations.metta]."
     },
     {
       "kind": "friction",
@@ -2841,6 +2751,51 @@
       "row": "P14.4",
       "section": "\u00a74 surface gaps",
       "detail": "A NEW instance of the family case2.metta states in full, created by lifting this twin to the definitional door under the authoring allowance: the inner `(if True 42 lol)` answers `lol`, written `Lol`, because a compiled body resolves a lowercase free name as a FUNCTION and a capitalised one as data. At the term door the twin wrote `S.lol` and the exact symbol; compiled, it writes `Lol` and carries a `# noqa: F821`. The gap did not grow, it moved into one more file, which is what closing the band exposes."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/types_dependent.metta",
+      "form": null,
+      "missing": "a one-armed `if_`, for MeTTa's two-argument `if` inside stored code",
+      "row": "P14.4",
+      "section": "\u00a79e the keyword builders",
+      "detail": "R5's `if_(condition, consequent, alternative)` fixes the arity at three, and MeTTa's `if` admits two: this example's computed types are `(if (=alpha (% $x 2) 0) EvenNumber)` and `(if (=alpha (get-type $head) EvenNumber) <walk>)`, each answering nothing when the test fails. Python's conditional expression cannot spell a missing else either, so the twin names the head, `fn['if'](test, then)`, and declares the rung on the line. Making `alternative` optional closes it [measured 2026-08-23: `if_` raises `TypeError: if_() missing 1 required positional argument: 'alternative'`]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/functiontypes.metta",
+      "form": null,
+      "missing": "`<` as a term builder, which appendix stamp 6 gave to the engine's sort order",
+      "row": "P14.4",
+      "section": "\u00a79u the operator fences",
+      "detail": "`Atom.__lt__` is `_standard_order_lt` so that plain `sorted(atoms)` follows the engine's term order, and the operator table's `__lt__` entry is overwritten by it. The consequence is a three-to-one split nothing announces: `V.a <= 10`, `V.a > 10` and `V.a >= 10` build `(<= $a 10)`, `(> $a 10)` and `(>= $a 10)`, while `V.a < 10` raises `TypeError: '<' not supported between instances of 'Variable' and 'int'` and `V.a < S.b` answers a Python bool. The guide's own mirroring fence goes with it: `2 > V.a` should build `(< $a 2)` and now raises, because the reflected `__lt__` refuses a non-atom. Three twins name the head instead (`fn['<']`), and the resolution wants either a `sorted(key=order_key)` reading or an explicit ruling that `<` alone is not a builder [measured 2026-08-23]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/meta_types.metta",
+      "form": null,
+      "missing": "a calling door that answers the VALUE when the call carries a caller variable",
+      "row": "P14.7",
+      "section": "\u00a79t the answer protocol",
+      "detail": "A call through the bound function namespace answers `Row` bindings whenever the call carries one of the caller's variables, and the engine's own answer is dropped: `m.fn.get_metatype(V.x)` answers `[Row(x=$_70)]` where the form answers `[Variable]`. The shape is the ordinary one in MeTTa, so it costs several twins their calling door: meta_types' variable metatype, types.metta's `(mid ($a b))`, soft's `(soft-score $x anything)` and its two `soft-match` collapses, and every one of nilbc's nine proof searches, whose query is `(: $prf <theorem>)` and whose answer is the proof term. Each reads `m.eval(form)` instead and says so on the line. The fix is an answer that carries BOTH, which is what \u00a79t's binding-carrying answer already describes [measured 2026-08-23]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/inplace_annotations.metta",
+      "form": null,
+      "missing": "attribute and variable projection on the eager Rows a subscript answers",
+      "row": "P14.7",
+      "section": "\u00a79t the answer protocol",
+      "detail": "`Answers.who` and `answers[V.who]` project, and the guide's own anti-pattern pair says the string key is the wrong spelling; the eager `Rows` a subscript answers has only the string key. `m[p].t` raises `AttributeError: 'Rows' object has no attribute 't'` and `m[p][V.t]` raises `TypeError: cannot read $t as a Python int` from `Variable.__index__`. The twin reads each row instead, `[row.t for row in m[p]]`, which keeps the string out and is the per-row half of the same protocol [measured 2026-08-23]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/measure.metta",
+      "form": null,
+      "missing": "the underscore-to-hyphen map at the `@define` door, which every factory door applies",
+      "row": "P14.5",
+      "section": "\u00a79d rung 4 of the descent ladder",
+      "detail": "Rung 4 of the descent rule says hyphen and underscore map to each other IN BOTH DIRECTIONS, and the guide's own example is `def not_provable` landing as `not-provable`. The `S`, `V` and `fn` factories apply that map; `@space.define` does not, and takes the Python name verbatim, so `def sc_pick_max` stores `sc_pick_max` and a hyphenated MeTTa name needs `name='sc-pick-max'` at this one door. Three twins carry that keyword (measure's `first-weight`, scallop_readme's `sc-pick-max`, constructive_negation's two `mask-example` definitions) and the reflectivity check is what makes it load-bearing: the stored head has to be the example's [measured 2026-08-23: `@m.define def sc_pick_max` stores `(= (sc_pick_max $a $b) ...)`]."
     }
   ],
   "retired": [
@@ -4600,6 +4555,96 @@
       "section": "correction to the lane's determinism assumption",
       "detail": "Form 1 shares the same file-level blocker. The source cost 5,531-5,555, the faithful twin 4,190-4,206, and definition installation alone 2,971-3,007. Declining either or both forms cannot produce a stable point budget.",
       "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/types.metta",
+      "form": null,
+      "missing": "typed(x, T), the builder for the declaration term (: x T)",
+      "row": "P14.9",
+      "detail": "CLOSED by R5. `typed(subject, type_)` is exported from the package root and builds `(: subject type)`, taking a Python type through the same annotation table `arrow` uses, so no twin writes `S[':'](x, T)` any more. The eleven twins this entry counted now import it; the sibling `:<` head still has no builder and keeps its own entry.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/types.metta",
+      "form": null,
+      "missing": "space.type(atom), the get-type door the lane's own dissolution table names",
+      "row": "P14.25",
+      "detail": "CLOSED by R5. `Space.type(atom)` is the get-type accessor and the class declaration moved onto `Space.define`, so the naming collision this entry described is resolved in the direction the ledger named. The accessor answers the FIRST type; a symbol declared twice is read as the relation it is, `space.fn.get_type(atom)`, which this twin does once.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/builin_types.metta",
+      "form": null,
+      "missing": "a Python-type conversion at the TERM door: arrow(int, int) for (-> Number Number), and Any for %Undefined%",
+      "row": "P14.9",
+      "detail": "CLOSED by R5. Root `arrow(*positions)` builds an arrow type from Python types through the one table, so `arrow(int, int, int)` is `(-> Number Number Number)` and `arrow(Any, int)` is `(-> %Undefined% Number)`. This twin's seven arrow shapes and engine_surface's twenty-two are now written that way. What the table does not do is read a Python type on the RIGHT of an equality, so a bare `%Undefined%` ANSWER is still compared against `S['%Undefined%']`.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nilbc.metta",
+      "form": null,
+      "missing": "`typed(x, T)` exported as the declaration-term builder, and `a.alpha_eq(b)` as a method",
+      "row": "P14.5",
+      "detail": "CLOSED by R5 and R6. `typed(x, T)` is exported from the package root, so this twin's local three-line copy is gone, and `Atom.alpha_eq(other)` is a method, so the easy claim reads `answer.alpha_eq(expected)`.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/permutations.metta",
+      "form": null,
+      "missing": "a symbol whose name begins with `__` through the S factory",
+      "row": "P14.5",
+      "detail": "CLOSED. `S['___']` builds the hole symbol: the subscript door no longer forwards a leading-double-underscore name to the attribute guard, so the twin needs no lowercase escape [measured 2026-08-23: PYTHONPATH=bindings/python python -c \"from petta import S; print(S['___'])\" answers `___`].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/parametric_types.metta",
+      "form": null,
+      "missing": "a lane rule that reads TypeVar(\"X\") as a NAME, the way it already reads sym(\"x\") and fn(\"f\")",
+      "row": "P14.1",
+      "detail": "CLOSED twice over. The lane's NAMING_CALLS now holds `TypeVar`, so its one string is a name rather than program text; and ruff's target-version is py312, so PEP 695's own type-parameter syntax is writable and this twin uses it: `def apply[X, Y](f: Callable[[X], Y], x: X) -> Y` declares `(-> (-> $x $y) $x $y)` with no name written as a string at all.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/newtons_method.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "detail": "CLOSED by R2. A space crosses a term position as itself, so `m.eval(fn['import!'](m, S.library(S['lib_memo'])))` names no `&self` symbol. What is still missing is an import VERB on the handle, and that is the surviving builin_types entry on this row.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nars_tuffy.metta",
+      "form": null,
+      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "row": "P14.13",
+      "detail": "CLOSED by R2, the same way examples/reasoning/newtons_method.metta is: the import takes the handle and no `&self` symbol is written.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/logicprogset.metta",
+      "form": null,
+      "missing": "an answers view that carries an evaluation's BINDINGS",
+      "row": "P14.7",
+      "detail": "CLOSED by R5. `Space.solve(pattern, subject)` is the relational let: it evaluates the subject, unifies the answer with the pattern, and answers binding rows keyed by the subject's own variables, so `m.solve(True, fn.once(S.myf(V.M))).M` is the example's `(if (once (myf $M)) $M)`.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/plntestdirect.metta",
+      "form": null,
+      "missing": "an answers view that carries an evaluation's BINDINGS",
+      "row": "P14.7",
+      "detail": "CLOSED by R5's `Space.solve`: `m.solve(V.derivation, S.sentence(S.Inheritance(S.a, S.c), V.TV)).TV` is the example's `(let $derivation (sentence (Inheritance a c) $TV) $TV)`.",
+      "retired": "2026-08-23"
     }
   ]
 }

@@ -1,34 +1,26 @@
-"""Purpose: express the PLN Roman example through the Python surface.
+"""Purpose: examples/reasoning/pln_roman.metta in Python: one bounded PLN proof search.
 
-The twin runs its bounded proof search over the four-sentence knowledge base.
+Four sentences say how strongly A inherits B, A inherits C, B inherits D and C
+inherits D, and the query asks what PLN makes of A inheriting D. The answer is
+a truth value and the four premises it came from.
 
-Guarantees:
-  - the query derives the source truth value and the complete four-premise
-    evidence stamp [measured: twin completed; command=PYTHONPATH=bindings/python python -c "import runpy; from petta import MeTTa; runpy.run_path('bindings/python/tests/twins/reasoning/pln_roman.py') ['twin'](MeTTa(petta_path='.'))"; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+`STV` and `kb` are written as the equations they are: `STV`'s four clauses fix
+a SYMBOL in the head, which a compiled parameter list spells only as a literal
+default, and `kb`'s body is DATA rather than a computation. The bounded search
+is intentionally larger than the evaluator's default fuel, so the example
+states its own budget and the twin evaluates the same scoped pragma.
 """
 
-from petta import S, equation
+from petta import S, equation, fn
 
-#: STV's four symbol-head clauses, the data-valued knowledge base, the scoped
-#: stack pragma, and PLN.Query's dotted name require the current term doors.
-RUNG = "symbol-head STV clauses, knowledge-base data, and the scoped PLN query use term doors"
-
-#: The import target required by the current import form.
-SELF = S["&self"]
-
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 3285491..3285661 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 3285491,
-    "maximum": 3285661,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here. THIS TWIN'S
+#: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 3285491, maximum 3285661
+#: over 28 observations under `full-lane/218/workers=32`, so the re-pin owes
+#: it an envelope rather than a point
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+BUDGET = 1
 
 
 def _sentence(left, right, strength, identifier):
@@ -41,7 +33,7 @@ def _sentence(left, right, strength, identifier):
 
 def twin(m):
     """Load PLN, state the Roman-diamond knowledge base, and ask for A to D."""
-    m.eval(S["import!"](SELF, S.library(S.lib_pln)))
+    m.eval(fn["import!"](m, S.library(S["lib_pln"])))
 
     for concept, strength in (
         (S.A, 0.5),
@@ -61,15 +53,11 @@ def twin(m):
     )
 
     raised_stack = ((S["max-stack-depth"], 100_000_000),)
-    answer = m.one(
-        S["with-pragma!"](
+    answer = m.answers(
+        fn.with_pragma(
             raised_stack,
             S["PLN.Query"](S.kb(), S.Inheritance(S.A, S.D)),
         )
-    )
-    assert answer[0] == S.stv(0.5, 0.9473684210526316) and tuple(answer[1]) == (
-        1,
-        2,
-        3,
-        4,
-    )
+    ).one()
+    assert answer[0] == S.stv(0.5, 0.9473684210526316)
+    assert tuple(answer[1]) == (1, 2, 3, 4)

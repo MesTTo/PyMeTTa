@@ -25,36 +25,35 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation
+from petta import Atom, Expression, S, V, arrow, equation, fn, typed
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5359 to 2794, -2565 (-47.86%), by the twin-shape
-#: rewrite: the three `test` wrappers left the engine for `assert`;
-#: installing and removing the typing rule and the three calls are what
-#: remains. Against the example's 12703 the ratio is 0.2199 [measured
-#: 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/types/typing_rules.metta`]. Prior: RE-PINNED at 5359 by P14.8's
-#: m.eval fuel-scope alignment.
-BUDGET = 2794
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+BUDGET = 1
+
+#: The unconstrained type, as the rule's own argument spells it. `Any` is
+#: its image where a declaration is being BUILT; here it is being named.
+UNDEFINED = S["%Undefined%"]
 
 
 def twin(m):
     """Accept, then refuse under a user rule, then accept again."""
-    typed, arrow = S[":"], S["->"]
     demo, payload = S["typing-rule-demo"], S["unknown-demo"]
     rule, words = S["deny-unknown-demo"], S["unknown-demo-is-not-a-payload"]
 
-    m += typed(demo, arrow(S.DemoPayload, S.Atom))
+    m += typed(demo, arrow(S.DemoPayload, Atom))
     m += equation(demo(V.value)).to(S.seen(V.value))
-    assert m.fn("typing-rule-demo")(payload) == S.seen(payload)
+    assert m.fn.typing_rule_demo(payload) == [S.seen(payload)]
 
-    m.eval(S["add-typing-rule!"](
-        rule, S.ordinary, S["%Undefined%"], S.DemoPayload, S.refuse(words)
+    m.eval(fn.add_typing_rule(
+        rule, S.ordinary, UNDEFINED, S.DemoPayload, S.refuse(words)
     ))
-    refusal = S.BadArgType(1, S.DemoPayload, S["%Undefined%"],
+    refusal = S.BadArgType(1, S.DemoPayload, UNDEFINED,
                            S.TypingRuleRefusal(rule, words))
-    refused = m.eval(S.collapse(demo(payload)))  # rung: collapse is list(), but a FLAT call at the Python door skips the argument check this claim is about
+    refused = m.eval(fn.collapse(demo(payload)))  # rung: collapse is list(), but a FLAT call at the Python door skips the argument check this claim is about
     assert refused == [Expression((S.Error(demo(payload), refusal),))]
 
-    m.eval(S["remove-typing-rule!"](rule))
-    assert m.fn("typing-rule-demo")(payload) == S.seen(payload)
+    m.eval(fn.remove_typing_rule(rule))
+    assert m.fn.typing_rule_demo(payload) == [S.seen(payload)]

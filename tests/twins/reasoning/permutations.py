@@ -1,4 +1,4 @@
-"""examples/reasoning/permutations.metta in Python: 9! by joining inequalities.
+"""Purpose: examples/reasoning/permutations.metta in Python: 9! by joining inequalities.
 
 Three kinds of knowledge, each written the way Python already writes it.
 
@@ -8,49 +8,33 @@ anything that yields tuples is a fact stream.
 
 The nine `E` facts move one hole through the nine slots of a row, so the hole's
 position is the loop variable and the row is built by slicing the eight
-placeholders around it. `___` cannot come from the `S` factory at all: the
-namespace refuses every name beginning with `__` and the subscript door forwards
-to the same guard, so the hole is `sym("___")` (residue, P14.5).
+placeholders around it.
 
-The 29-conjunct join stays one term, and this is the measured half. Python's own
-conjunction door exists and is correct, `m[p1, p2, ...]`, but counting through it
-means building 362,880 rows of ten bindings in Python: 41,213,543 inferences
-against the engine's 17,626,820, +134%, far past the lane's 10% band
-[measured 2026-08-22, ai-tmp/probe/f_perm_routes.py]. So the count stays
-engine-side, the conjuncts keep the original's triangular layout, which is this
-file's documentation of the constraint graph, and the missing door, a query that
-aggregates before it crosses, is filed as friction.
+The 29-conjunct join is Python's own conjunction door, the comma inside a
+subscript, and the answer is a row per solution, so the example's
+`(length (collapse (match ...)))` is `len()` over what the door already
+answers. The conjuncts keep the original's triangular layout, which is this
+file's documentation of the constraint graph.
 """
 
-from petta import S, V, sym
+from petta import S, V
 
-#: Why this file sits below the top rung: the join's 362,880 rows cannot cross
-#: into Python within the band, so the count stays a term.
-RUNG = "counting the join's 362,880 rows through the Python conjunction door costs +134%, so the count stays engine-side"
-
-#: The space the facts land in and the join reads, named as a symbol because a
-#: term carries no handle.
-SELF = S["&self"]
-
-#: The inequality symbol, named once because it is neither a Python identifier
-#: nor a Python operator here: `!=` on atoms is structural inequality, while
-#: `(1 != 2)` in this example is a stored FACT with `!=` in the middle.
+#: The inequality head, the hole, and the eight placeholder variables every
+#: fact and the query share.
+#:
+#: The example's names are `$_1` and `___`, both of which carry a genuine
+#: underscore: the factory attribute door maps every underscore to a hyphen,
+#: so `V._1` would be `$-1` and these take the bracket, which is what rung 5
+#: is for.
 NE = S["!="]
+HOLE = S["___"]
+SLOT = (V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"])
 
-#: The hole the nine `E` facts move through the nine positions of a row.
-HOLE = sym("___")
-
-#: The eight placeholder variables every fact and the query share.
-SLOT = (V._1, V._2, V._3, V._4, V._5, V._6, V._7, V._8)
-
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 17626924 to 17626820, -104 (-0.0006%), by the twin
-#: contract change: the `test` wrapper left the engine for Python's own
-#: `assert`, which is all that could move; the join is the example. Against the
-#: example's 18015290 the ratio is 0.9784 [measured 2026-08-22 min-of-3:
-#: `twin_coverage.py --measure examples/reasoning/permutations.metta`]. Prior:
-#: ADDED 2026-08-22 at 17626924 by the wave-3 twin baseline.
-BUDGET = 17626820
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+BUDGET = 1
 
 
 def ne(left, right):
@@ -83,6 +67,4 @@ def twin(m):
         ne(7, 8), ne(8, 6), ne(8, 5), ne(8, 4), ne(8, 3), ne(8, 2), ne(8, 1),
         S.E(*SLOT, V.x, V.state),
     )
-    assert m.eval(
-        S.length(S.collapse(S.match(SELF, S[","](*conjuncts), S.state1(V.state))))
-    ) == [362880]
+    assert len(m[conjuncts]) == 362880

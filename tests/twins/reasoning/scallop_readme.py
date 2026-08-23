@@ -28,31 +28,20 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import HERE, TRUE, Expression, S, V, equation, val
-
-#: Why this file sits below the top rung: every definition but `sc-pick-max`
-#: calls a hyphenated sibling, which a compiled body cannot name.
-RUNG = "every definition but sc-pick-max calls a hyphenated sibling, and a compiled body names a callee by exactly its MeTTa spelling"
+from petta import HERE, TRUE, Expression, G, S, V, equation, fn, if_
 
 #: The colours, the grades and the taxonomy the last three programs work over.
-COLOURS = ((0, val("blue")), (1, val("green")), (2, val("blue")))
-GRADES = ((0, val("tom"), 50), (0, val("jerry"), 70), (0, val("alice"), 60),
-          (1, val("bob"), 80), (1, val("sherry"), 90), (1, val("frank"), 30))
+COLOURS = ((0, G("blue")), (1, G("green")), (2, G("blue")))
+GRADES = ((0, G("tom"), 50), (0, G("jerry"), 70), (0, G("alice"), 60),
+          (1, G("bob"), 80), (1, G("sherry"), 90), (1, G("frank"), 30))
 KINDS = ((S.giraffe, S.mammal), (S.tiger, S.mammal), (S.mammal, S.animal))
 NAMES = ((1, S.giraffe), (1, S.tiger), (2, S.giraffe), (2, S.tiger))
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 44899 to 40968, -3931 (-8.75%), by the twin contract
-#: change: five `test` wrappers left the engine for Python's own `assert`, which
-#: is all that could move; the five README programs are the example.
-#: `sc-pick-max` was already compiled at the previous pin, so `@m.define`'s
-#: per-name admission (~1.6k inferences paid once at decoration) is inside both
-#: figures. Against the example's 76585 the ratio is 0.5349 [measured 2026-08-22
-#: min-of-3: `twin_coverage.py --measure
-#: examples/reasoning/scallop_readme.metta`]. Prior: RE-PINNED at 44899, +1623,
-#: when `sc-pick-max` gained the decorator; ADDED 2026-08-22 at 43276 by the
-#: wave-3 twin baseline.
-BUDGET = 40968
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -60,74 +49,93 @@ def twin(m):
     # 1. Paths over edges. README result {(0,1), (0,2), (1,2)}.
     m += S["sc-edge"](0, 1)
     m += S["sc-edge"](1, 2)
-    m += equation(S["sc-edge-to"](V.a)).to(S.match(HERE, S["sc-edge"](V.a, V.b), V.b))
+    m += equation(S["sc-edge-to"](V.a)).to(
+        fn.match(HERE, S["sc-edge"](V.a, V.b), V.b)  # rung: a match INSIDE a stored body, where the subscript door is a Python read (P14.4)
+    )
     m += equation(S["sc-path-to"](V.a)).to(S["sc-edge-to"](V.a))
     m += equation(S["sc-path-to"](V.a)).to(
-        S.let(V.b, S["sc-edge-to"](V.a), S["sc-path-to"](V.b))
+        fn.let(V.b, S["sc-edge-to"](V.a), S["sc-path-to"](V.b))  # rung: a let over a hyphenated sibling, which a compiled body cannot name (P14.4)
     )
     m += equation(S["sc-paths"]()).to(
-        S.collapse(S.let(V.a, S.match(HERE, S["sc-edge"](V.a, V._), V.a),
-                         S.let(V.b, S["sc-path-to"](V.a), (V.a, V.b))))
+        fn.collapse(  # rung: a collapse INSIDE a stored body, where list() is a Python read (P14.4)
+            fn.let(V.a, fn.match(HERE, S["sc-edge"](V.a, V._), V.a),  # rung: the same let and match (P14.4)
+                   fn.let(V.b, S["sc-path-to"](V.a), (V.a, V.b)))  # rung: the same let (P14.4)
+        )
     )
 
-    assert m.eval(S["sc-paths"]()) == [Expression((Expression((0, 1)), Expression((0, 2)), Expression((1, 2))))]
+    assert m.fn.sc_paths() == [
+        Expression((Expression((0, 1)), Expression((0, 2)), Expression((1, 2))))
+    ]
 
     # 2. Stratified even-or-odd: negation sees the finite number relation whole.
     for number in range(11):
         m += S["sc-number"](number)
     m += equation(S["sc-odd?"](1)).to(TRUE)
     m += equation(S["sc-odd?"](V.x)).to(
-        S.let(V.n, S.match(HERE, S["sc-number"](V.x), V.x), S["sc-odd?"](V.n - 2))
+        fn.let(V.n, fn.match(HERE, S["sc-number"](V.x), V.x), S["sc-odd?"](V.n - 2))  # rung: the same let and match (P14.4)
     )
     m += equation(S["sc-evens"]()).to(
-        S.collapse(S.let(V.y, S.match(HERE, S["sc-number"](V.y), V.y),
-                         S.let(TRUE, S["not-provable"](S["sc-odd?"](V.y)), V.y)))
+        fn.collapse(  # rung: the same collapse (P14.4)
+            fn.let(V.y, fn.match(HERE, S["sc-number"](V.y), V.y),  # rung: the same let and match (P14.4)
+                   fn.let(TRUE, fn.not_provable(S["sc-odd?"](V.y)), V.y))  # rung: the same let (P14.4)
+        )
     )
 
-    assert m.eval(S["sc-evens"]()) == [Expression((0, 2, 4, 6, 8, 10))]
+    assert m.fn.sc_evens() == [Expression((0, 2, 4, 6, 8, 10))]
 
     # 3. A count per colour, through the general fold rather than a counter.
     for obj, colour in COLOURS:
         m += S["sc-object-color"](obj, colour)
     m += equation(S["sc-one-color"](V.c)).to(
-        S.let(V.o, S.match(HERE, S["sc-object-color"](V.o, V.c), V.o), 1)
+        fn.let(V.o, fn.match(HERE, S["sc-object-color"](V.o, V.c), V.o), 1)  # rung: the same let and match (P14.4)
     )
-    m += equation(S["sc-color-count"](V.c)).to(S.foldall(S["+"], S["sc-one-color"](V.c), 0))
+    m += equation(S["sc-color-count"](V.c)).to(
+        fn.foldall(fn["+"], S["sc-one-color"](V.c), 0)
+    )
     m += equation(S["sc-color-counts"]()).to(
-        S.collapse(S.let(V.c, S.superpose((val("blue"), val("green"))),
-                         (V.c, S["sc-color-count"](V.c))))
+        fn.collapse(  # rung: the same collapse (P14.4)
+            fn.let(V.c, fn.superpose((G("blue"), G("green"))),  # rung: the same let (P14.4)
+                   (V.c, S["sc-color-count"](V.c)))
+        )
     )
 
-    assert m.eval(S["sc-color-counts"]()) == [
-        Expression((Expression((val("blue"), 2)), Expression((val("green"), 1))))
+    assert m.fn.sc_color_counts() == [
+        Expression((Expression((G("blue"), 2)), Expression((G("green"), 1))))
     ]
 
     # 4. An argmax per class, through an open reducer rather than a closed list.
     for klass, student, grade in GRADES:
         m += S["sc-class-student-grade"](klass, student, grade)
 
+    # Known issue: `@m.define` takes the Python name VERBATIM, where the `S`,
+    # `V` and `fn` factories map every underscore to a hyphen, so a hyphenated
+    # MeTTa name needs `name=` at this one door. It should read:
+    #     @m.define
+    #     def sc_pick_max(a, b):
     @m.define(name="sc-pick-max")
     def sc_pick_max(a, b):
         """The larger of two grades."""
         return a if a > b else b  # noqa: FURB136  -- max(b, a) compiles to (max $b $a), a different equation from the example's (if (> $a $b) $a $b)
 
     m += equation(S["sc-class-max"](V.c)).to(
-        S.foldall(S["sc-pick-max"],
-                  S.match(HERE, S["sc-class-student-grade"](V.c, V._, V.g), V.g),
-                  -1)
+        fn.foldall(S["sc-pick-max"],
+                   fn.match(HERE, S["sc-class-student-grade"](V.c, V._, V.g), V.g),  # rung: the same match (P14.4)
+                   -1)
     )
     m += equation(S["sc-class-top"]()).to(
-        S.collapse(S.let(V.c, S.superpose((0, 1)),
-                         S.let(V.g, S["sc-class-max"](V.c),
-                               S.let(V.s,
-                                     S.match(HERE,
-                                             S["sc-class-student-grade"](V.c, V.s, V.g),
-                                             V.s),
-                                     (V.c, V.s)))))
+        fn.collapse(  # rung: the same collapse (P14.4)
+            fn.let(V.c, fn.superpose((0, 1)),  # rung: the same let (P14.4)
+                   fn.let(V.g, S["sc-class-max"](V.c),  # rung: the same let (P14.4)
+                          fn.let(V.s,  # rung: the same let (P14.4)
+                                 fn.match(HERE,  # rung: the same match (P14.4)
+                                          S["sc-class-student-grade"](V.c, V.s, V.g),
+                                          V.s),
+                                 (V.c, V.s))))
+        )
     )
 
-    assert m.eval(S["sc-class-top"]()) == [
-        Expression((Expression((0, val("jerry"))), Expression((1, val("sherry")))))
+    assert m.fn.sc_class_top() == [
+        Expression((Expression((0, G("jerry"))), Expression((1, G("sherry")))))
     ]
 
     # 5. The animal count as a SET: the raw proof multiset has four
@@ -136,18 +144,24 @@ def twin(m):
         m += S["sc-is-a"](kind, parent)
     for obj, kind in NAMES:
         m += S["sc-name"](obj, kind)
-    m += equation(S["sc-parent-kind"](V.x)).to(S.match(HERE, S["sc-is-a"](V.x, V.y), V.y))
+    m += equation(S["sc-parent-kind"](V.x)).to(
+        fn.match(HERE, S["sc-is-a"](V.x, V.y), V.y)  # rung: the same match (P14.4)
+    )
     m += equation(S["sc-ancestor-kind"](V.x)).to(S["sc-parent-kind"](V.x))
     m += equation(S["sc-ancestor-kind"](V.x)).to(
-        S.let(V.y, S["sc-parent-kind"](V.x), S["sc-ancestor-kind"](V.y))
+        fn.let(V.y, S["sc-parent-kind"](V.x), S["sc-ancestor-kind"](V.y))  # rung: the same let (P14.4)
     )
     m += equation(S["sc-animal-object"]()).to(
-        S.let((V.o, V.kind),
-              S.match(HERE, S["sc-name"](V.o, V.kind), (V.o, V.kind)),
-              S.let(V.ancestor, S["sc-ancestor-kind"](V.kind),
-                    S["if"](V.ancestor.eq(S.animal), V.o, S.empty())))
+        fn.let((V.o, V.kind),  # rung: the same let (P14.4)
+               fn.match(HERE, S["sc-name"](V.o, V.kind), (V.o, V.kind)),  # rung: the same match (P14.4)
+               fn.let(V.ancestor, S["sc-ancestor-kind"](V.kind),  # rung: the same let (P14.4)
+                      if_(V.ancestor.eq(S.animal), V.o, fn.empty())))
     )
-    m += equation(S["sc-one-animal"]()).to(S.let(V.o, S.unique(S["sc-animal-object"]()), 1))
-    m += equation(S["sc-animal-count"]()).to(S.foldall(S["+"], S["sc-one-animal"](), 0))
+    m += equation(S["sc-one-animal"]()).to(
+        fn.let(V.o, fn.unique(S["sc-animal-object"]()), 1)  # rung: the same let (P14.4)
+    )
+    m += equation(S["sc-animal-count"]()).to(
+        fn.foldall(fn["+"], S["sc-one-animal"](), 0)
+    )
 
-    assert m.eval(S["sc-animal-count"]()) == [2]
+    assert m.fn.sc_animal_count() == [2]

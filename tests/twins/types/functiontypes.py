@@ -9,7 +9,8 @@ answers a plain expression on one branch and a number on the other, which
 `wu1` and `wu2` say their types as ANNOTATIONS, which is the whole declaration:
 `int` is Number, `Atom` is the Atom metatype, and `Any` is `%Undefined%`, all
 through the one conversion table, so the arrow is written once and the engine
-checks it. `wu3` is written at the container door because its second branch
+checks it. `arrow(int, int, Any)` is that same table at the TERM door, which is
+what `wu3` needs: it is written at the container door because its second branch
 answers `(a list not a number)`, four lowercase SYMBOLS, and a compiled body
 reads a lowercase free name as a function to call.
 
@@ -27,22 +28,17 @@ Open Obligations:
 
 from typing import Any
 
-from petta import Atom, Expression, S, V, equation
+from petta import Atom, Expression, S, V, arrow, equation, fn, if_, typed
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 9738 to 7371, -2367 (-24.31%), by the twin-shape
-#: rewrite: the four `test` wrappers left the engine, and with them the
-#: `noeval` their expected terms needed: Python's `==` evaluates nothing, so
-#: an expected term needs no protection. Against the example's 14038 the
-#: ratio is 0.5251 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/types/functiontypes.metta`]. Prior: RE-PINNED at 9738 by P14.9's
-#: declaration-order correction.
-BUDGET = 7371
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Declare three signatures, then watch each one shape its call."""
-    typed, arrow = S[":"], S["->"]
     not_a_number = S.a(S.list, S["not"], S.a, S.number)
 
     @m.define
@@ -53,8 +49,13 @@ def twin(m):
     def wu2(a: int, b: int) -> int:
         return a + b
 
-    m += typed(S.wu3, arrow(S.Number, S.Number, S["%Undefined%"]))
-    m += equation(S.wu3(V.a, V.b)).to(S["if"](V.a < 10, V.a + V.b, not_a_number))  # rung: the clause is a built term because its body answers lowercase symbols as data, so its `if` is one too (P14.4)
+    m += typed(S.wu3, arrow(int, int, Any))
+    # Known issue: `<` is the one comparison that no longer builds its term.
+    # Appendix stamp 6 gave `Atom.__lt__` to the engine's sort order, so
+    # `V.a < 10` raises TypeError while `<=`, `>` and `>=` still build. It
+    # should read:
+    #     m += equation(S.wu3(V.a, V.b)).to(if_(V.a < 10, V.a + V.b, not_a_number))
+    m += equation(S.wu3(V.a, V.b)).to(if_(fn["<"](V.a, 10), V.a + V.b, not_a_number))
 
     # The Atom-typed argument arrives unevaluated; the Number-typed one does
     # not, so only the first of the two sums survives into the answer.
@@ -62,5 +63,5 @@ def twin(m):
     assert wu2(S["+"](2, 4), S["+"](4, 2)) == [12]
 
     # %Undefined% output: either branch is acceptable to the checker.
-    assert m.fn("wu3")(42, 0) == not_a_number
-    assert m.fn("wu3")(2, 0) == 2
+    assert m.fn.wu3(42, 0) == [not_a_number]
+    assert m.fn.wu3(2, 0) == [2]

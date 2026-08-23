@@ -23,9 +23,10 @@ and each has its own reason:
   `(= (g 1) ...)` but nothing writes `(= (g Inheritance) ...)`.
 
 Each is a residue entry against P14.4. Where an operator does build the term it
-is used; where it cannot, the tuple is. `0 < V.As` would answer `(> $As 0)`
-because Python reflects `<` into `>`, so `(< 0 $As)` is written the way MeTTa
-writes it, as `(LT, 0, V.As)`.
+is used; where it cannot, the head is named. `Truth_Deduction` carries a
+genuine underscore, so it takes the bracket: the factory attribute door maps
+every underscore to a hyphen, and `S.Truth_Deduction` would be a DIFFERENT
+head from the example's.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -35,72 +36,65 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import TRUE, Expression, S, V, equation
+from petta import TRUE, Expression, S, V, arrow, equation, fn, if_, typed
 
-#: Why this file sits below the top rung: every definition but `clamp` is at
-#: the container door, for the four reasons the docstring lists, so the MeTTa
-#: heads inside those equation bodies are deliberate.
-RUNG = "every definition but clamp divides, uses MeTTa's and, destructures in the head, or has a symbol head, and none of those compiles"
+#: The deduction formula's own head, and the comparison this file needs with a
+#: GROUND left operand.
+#:
+#: Known issue: `<` is the one comparison that builds no term at all now that
+#: appendix stamp 6 gave `Atom.__lt__` to the engine's sort order, and the
+#: three that do build still have no right-hand method, so a ground LEFT
+#: operand reflects into the mirrored head. `(< 0 $As)` should read
+#: `LESS(0, V.As)` only for the mirroring, and `V.a < 10` should build.
+DEDUCTION = S["Truth_Deduction"]
+LESS = fn["<"]
 
-#: The comparison head this file needs with a GROUND left operand, which is the
-#: one shape Python's own operators cannot build: `<` reflects into `>`.
-LT = S["<"]
-
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 33388 to 32531, -857 (-2.57%), by the twin contract
-#: change: the `test` wrapper left the engine for Python's own `assert`, which
-#: is all that could move; the deduction formula is the example. `clamp` was
-#: already compiled at the previous pin, so `@m.define`'s per-name admission
-#: (~1.6k inferences paid once at decoration) is inside both figures. Against
-#: the example's 52673 the ratio is 0.6176 [measured 2026-08-22 min-of-3:
-#: `twin_coverage.py --measure examples/reasoning/plntest.metta`]. Prior:
-#: RE-PINNED at 33388, +1629, when `clamp` gained the decorator; ADDED
-#: 2026-08-22 at 31759 by the wave-3 twin baseline.
-BUDGET = 32531
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Build the deduction formula, then run one syllogism through it."""
+    smallest = S["smallest-intersection-probability"]
+    largest = S["largest-intersection-probability"]
+    consistent = S["conditional-probability-consistency"]
+
     @m.define
     def clamp(v, low, high):
         """Keep v inside [low, high]."""
         return min(high, max(v, low))
 
-    m += S[":"](S["smallest-intersection-probability"],
-                S["->"](S.Number, S.Number, S.Number))
-    m += equation(S["smallest-intersection-probability"](V.As, V.Bs)).to(
+    m += typed(smallest, arrow(int, int, int))
+    m += equation(smallest(V.As, V.Bs)).to(
         S.clamp((V.As + V.Bs - 1) / V.As, 0, 1)
     )
 
-    m += S[":"](S["largest-intersection-probability"],
-                S["->"](S.Number, S.Number, S.Number))
-    m += equation(S["largest-intersection-probability"](V.As, V.Bs)).to(
-        S.clamp(V.Bs / V.As, 0, 1)
-    )
+    m += typed(largest, arrow(int, int, int))
+    m += equation(largest(V.As, V.Bs)).to(S.clamp(V.Bs / V.As, 0, 1))
 
     # A conditional probability is consistent when it sits between the two
     # bounds its marginals allow.
-    m += S[":"](S["conditional-probability-consistency"],
-                S["->"](S.Number, S.Number, S.Number, S.Bool))
-    m += equation(S["conditional-probability-consistency"](V.As, V.Bs, V.ABs)).to(
-        (LT, 0, V.As)
-        & ((S["smallest-intersection-probability"](V.As, V.Bs) <= V.ABs)
-           & (V.ABs <= S["largest-intersection-probability"](V.As, V.Bs)))
+    m += typed(consistent, arrow(int, int, int, bool))
+    m += equation(consistent(V.As, V.Bs, V.ABs)).to(
+        LESS(0, V.As)
+        & ((smallest(V.As, V.Bs) <= V.ABs) & (V.ABs <= largest(V.As, V.Bs)))
     )
 
     # The deduction formula itself: strength from the two conditionals, and
     # confidence as the weakest link. Preconditions unmet answer (stv 1 0).
-    m += equation(S.Truth_Deduction(S.stv(V.Ps, V.Pc), S.stv(V.Qs, V.Qc),
-                                    S.stv(V.Rs, V.Rc), S.stv(V.PQs, V.PQc),
-                                    S.stv(V.QRs, V.QRc))).to(
-        S["if"](S["conditional-probability-consistency"](V.Ps, V.Qs, V.PQs)
-                & S["conditional-probability-consistency"](V.Qs, V.Rs, V.QRs),
-                S.stv(S["if"]((LT, 0.9999, V.Qs),  # Qs tending to 1 would divide by zero
-                              V.Rs,
-                              V.PQs * V.QRs
-                              + (1 - V.PQs) * (V.Rs - V.Qs * V.QRs) / (1 - V.Qs)),
-                      S.min(V.Pc, S.min(V.Qc, S.min(V.Rc, S.min(V.PQc, V.QRc))))),
-                S.stv(1, 0))
+    m += equation(DEDUCTION(S.stv(V.Ps, V.Pc), S.stv(V.Qs, V.Qc),
+                            S.stv(V.Rs, V.Rc), S.stv(V.PQs, V.PQc),
+                            S.stv(V.QRs, V.QRc))).to(
+        if_(consistent(V.Ps, V.Qs, V.PQs) & consistent(V.Qs, V.Rs, V.QRs),
+            S.stv(if_(LESS(0.9999, V.Qs),  # Qs tending to 1 would divide by zero
+                      V.Rs,
+                      V.PQs * V.QRs
+                      + (1 - V.PQs) * (V.Rs - V.Qs * V.QRs) / (1 - V.Qs)),
+                  fn.min(V.Pc, fn.min(V.Qc, fn.min(V.Rc, fn.min(V.PQc, V.QRc))))),
+            S.stv(1, 0))
     )
 
     for link in (S.Inheritance, S.Implication):
@@ -111,13 +105,13 @@ def twin(m):
     # The syllogism: two links sharing a middle term compose into one.
     m += equation(S["|-"](((V.LinkType, V.A, V.B), V.T1),
                           ((V.LinkType, V.B, V.C), V.T2))).to(
-        S["if"](S.SyllogisticRuleGuard(V.LinkType),
-                ((V.LinkType, V.A, V.C),
-                 S.Truth_Deduction(S.STV(V.A), S.STV(V.B), S.STV(V.C), V.T1, V.T2)),
-                S.empty())
+        if_(S.SyllogisticRuleGuard(V.LinkType),
+            ((V.LinkType, V.A, V.C),
+             DEDUCTION(S.STV(V.A), S.STV(V.B), S.STV(V.C), V.T1, V.T2)),
+            fn.empty())
     )
 
-    assert m.eval(S["|-"]((S.Inheritance(S.a, S.b), S.stv(0.9, 0.9)),
-                          (S.Inheritance(S.b, S.c), S.stv(0.8, 0.9)))) == [
+    assert m.fn["|-"]((S.Inheritance(S.a, S.b), S.stv(0.9, 0.9)),
+                      (S.Inheritance(S.b, S.c), S.stv(0.8, 0.9))) == [
         Expression((S.Inheritance(S.a, S.c), S.stv(0.7333333333333334, 0.9)))
     ]

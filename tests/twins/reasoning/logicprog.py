@@ -3,7 +3,7 @@
 Six successor facts and a transitive closure over them, asked backwards: which
 letters come before `d`. The two dispatch policies go into the reflection space
 through the ordinary write door, `space += atom`, because that is what
-`add-atom` is; `petta.REFLECTION_SPACE` names it so the `&petta` symbol is
+`add-atom` is; `petta.reflection` IS that space, so the `&petta` symbol is
 never written.
 
 `successor`'s six clauses are ground facts, so they are a Python loop over
@@ -22,27 +22,24 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import REFLECTION_SPACE, TRUE, Expression, S, V, equation
+import petta
+from petta import TRUE, Expression, S, V, equation
 
 #: Six letters, each with the one before it.
 SUCCESSORS = ((S.b, S.a), (S.c, S.b), (S.d, S.c), (S.e, S.d), (S.f, S.e), (S.g, S.f))
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 9036 to 7849, -1187 (-13.1%), by the twin contract
-#: change: the `test` wrapper and the `collapse` left the engine for Python's
-#: own `assert` and the answer list `m.eval` already hands back, and the two
-#: `add-atom` forms became `space += atom`. The closure search itself did not
-#: move. Against the example's 16678 the ratio is 0.4706 [measured 2026-08-22
-#: min-of-3: `twin_coverage.py --measure examples/reasoning/logicprog.metta`].
-#: Prior: ADDED 2026-08-22 at 9036 by the wave-3 twin baseline.
-BUDGET = 7849
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """State six facts, close them transitively, and search backwards."""
     # Reaching either relation's unmatched boundary must FAIL the search rather
     # than answering the P3 residual-call dispatch value.
-    reflection = m.space(REFLECTION_SPACE)
+    reflection = petta.reflection
     reflection += S["dispatch-policy"](S.successor, S.NoMatchEnum, S.NoMatchFail)
     reflection += S["dispatch-policy"](S["later-in-alphabet"], S.NoMatchEnum, S.NoMatchFail)
 
