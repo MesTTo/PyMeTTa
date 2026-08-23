@@ -13,19 +13,17 @@ name really has an underscore and the attribute door maps every underscore to
 a hyphen; `with-lock` beside it is the ordinary hyphenated name and takes the
 attribute.
 
-DEFECT: the rendezvous at the end ought to read
-`m.fn.await_atom(m, S.ready(V.what), 10)`, the call door. Its pattern carries
-`$what`, and the answer view reads every variable in a call as one of the
-caller's own and answers a binding row instead of the atom that arrived, so the
-claim is stated through `eval`. The space it waits on is handed over as the
-HANDLE it is.
+The rendezvous at the end is the call door like the rest,
+`m.fn.await_atom(m, S.ready(V.what), 10)`: the pattern carries `$what` and the
+call answers the atom that arrived rather than a binding row. The space it
+waits on is handed over as the HANDLE it is.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation
+from petta import Expression, S, V, equation, if_
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree. This one
@@ -43,7 +41,7 @@ BUDGET = 1
 
 def twin(m):
     """Run parallel collections, futures, timers, channels, pools, and locks."""
-    m.eval(S["import!"](m, S.library(S["lib_thread"])))
+    m.fn["import!"](m, S.library(S["lib_thread"]))
 
     @m.define
     def inc(x):
@@ -55,7 +53,7 @@ def twin(m):
 
     spin = S.spin
     m += equation(spin(V.n)).to(
-        S["if"](V.n > 0, spin(V.n - 1), S.done)  # rung: lowercase `done` is data in a stored equation and cannot be returned by a compiled body yet
+        if_(S[">"](V.n, 0), spin(V.n - 1), S.done)  # rung: lowercase `done` is data in a stored equation and cannot be returned by a compiled body yet
     )
     m += equation(S.slow(V.x)).to(S.let(V._, spin(300000), V.x))  # rung: discarding a call before returning has no compiled statement spelling yet
 
@@ -89,8 +87,8 @@ def twin(m):
     await_(future).one()
     assert await_(future) == [2]
 
-    assert list(await_(spawn(S.superpose((1, 2, 3))).one())) == [1, 2, 3]
-    assert list(await_(spawn(S.superpose(())).one())) == []
+    assert list(await_(spawn(S.superpose((1, 2, 3))))) == [1, 2, 3]
+    assert list(await_(spawn(S.superpose(())))) == []
 
     space_future = spawn(S.inc(1)).one()
     assert m.fn.is_space(space_future) == [True]
@@ -104,7 +102,7 @@ def twin(m):
     cancel = m.fn.cancel
     settled = m.fn["settled?"]
 
-    assert list(await_(after(0.05, S.inc(41)).one())) == [42]
+    assert list(await_(after(0.05, S.inc(41)))) == [42]
 
     timer = after(30, S.inc(41)).one()
     was_settled = settled(timer).one()
@@ -133,7 +131,7 @@ def twin(m):
     assert await_(submitted) == [10]
 
     writer = m.answers(S.spawn(S["add-atom"](m, S.ready(S.now)))).one()  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
-    [seen] = m.eval(S["await-atom"](m, S.ready(V.what), 10))
+    seen = m.fn.await_atom(m, S.ready(V.what), 10).one()
     await_(writer).one()
     assert seen == S.ready(S.now)
 

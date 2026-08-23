@@ -12,7 +12,7 @@ cardinality door for the single answer each of these calls has, and
 sequence it is.
 """
 
-from petta import S, fn
+from petta import S
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -31,7 +31,7 @@ def _rows(pairs):
 
 def twin(m):
     """Import the measure algebra and check its deterministic and sampled faces."""
-    m.eval(fn["import!"](m, S.library(S["lib_measure"])))
+    m.fn["import!"](m, S.library(S["lib_measure"]))
 
     ws_total = m.fn.ws_total
     ws_normalize = m.fn.ws_normalize
@@ -68,12 +68,7 @@ def twin(m):
         (0.4, S.dog),
     )
 
-    # Known issue: `@m.define` takes the Python name VERBATIM, where the `S`,
-    # `V` and `fn` factories map every underscore to a hyphen, so a hyphenated
-    # MeTTa name needs `name=` at this one door. It should read:
-    #     @m.define
-    #     def first_weight(pairs):
-    @m.define(name="first-weight")
+    @m.define
     def first_weight(pairs):
         """Return the first pair's weight through Python sequence indexing."""
         return pairs[0][0]

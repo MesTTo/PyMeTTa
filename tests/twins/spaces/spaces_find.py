@@ -4,22 +4,12 @@ lib_spaces' `find` asks whether a pattern matches AND binds what it matched, so
 the original nests two of them and falls back twice: no continuation gives
 `MissedSecondPiece`, no starting link at all would give `MissedAllPieces`.
 
-The bindings now cross. A call carrying the caller's own variables answers
-ROWS, so `find` is asked here exactly as the original asks it and Python's own
-`if` does the falling back, which is what the original's `if` is.
-
-What the row does not carry is `find`'s own True/False ANSWER, so the two
-readings are told apart by whether the variable came back BOUND. PERFECT is the
-spelling the fallback wants:
-
-    onward = find(space, S.friend(start.b, V.c))
-    if not onward:                      # no solution is no rows
-        found.append(S.MissedSecondPiece())
-
-A failing `find` answers one row whose variable is still free instead of no
-rows at all, because the False the predicate answers is dropped once a caller
-variable turns the answer into a binding row (residue, P14.10). `row.c.vars`
-is the honest reading of that row until the answer value travels beside it.
+A call keeps both faces. Iterating `find(...)` answers what the predicate
+DECIDED, one `True` per solution or a single `False` when there is none, and
+`.rows` answers the bindings it made, paired position for position. So `find`
+is asked here exactly as the original asks it, the decision drives Python's own
+`if` the way it drives the original's, and the bindings come off the row beside
+it.
 
 `import!` is a directive with no Python door yet, so the library arrives
 through the engine's own function, with the handle in the space position
@@ -41,27 +31,30 @@ BUDGET = 1
 def chains(space, find):
     """Every friendship chain the space holds, with the original's fallbacks."""
     found = []
-    for start in find(space, S.friend(V.a, V.b)):
-        if start.a.vars:
+    starts = find(space, S.friend(V.a, V.b))
+    for started, start in zip(starts, starts.rows, strict=True):
+        if not started:
             return [S.MissedAllPieces()]
-        for row in find(space, S.friend(start.b, V.c)):
-            if row.c.vars:
-                found.append(S.MissedSecondPiece())
-            else:
-                found.append(S.FoundChain(start.a, start.b, row.c))
+        onward = find(space, S.friend(start.b, V.c))
+        for continued, row in zip(onward, onward.rows, strict=True):
+            found.append(
+                S.FoundChain(start.a, start.b, row.c)
+                if continued
+                else S.MissedSecondPiece()
+            )
     return found
 
 
 def twin(m):
     """Import lib_spaces, store two friendships, then walk them."""
-    m.fn["import!"](m, S.library(S["lib_spaces"])).one()
+    m.fn["import!"](m, S.library(S["lib_spaces"]))
     find = m.fn["find"]
 
     m += (S.friend, S.a, S.b)
     m += (S.friend, S.b, S.c)
 
     # What `find` says at this door: one row per solution, bound.
-    assert [(row.a, row.b) for row in find(m, S.friend(V.a, V.b))] == [
+    assert [(row.a, row.b) for row in find(m, S.friend(V.a, V.b)).rows] == [
         (S.a, S.b),
         (S.b, S.c),
     ]

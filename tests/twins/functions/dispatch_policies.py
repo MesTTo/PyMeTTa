@@ -11,13 +11,10 @@ and clearing it is `-=`: the library steers from inside MeTTa rather than
 through a Python knob, and `petta.reflection` is the handle for the space that
 holds it.
 
-One wall, measured here 2026-08-22 and filed as friction against P14.4:
-`m.eval` DROPS the not-reducible answer that this example is about. For a
-defined function whose clauses do not match, `!(pick 2)` answers `(pick 2)`
-and `(collapse (pick 2))` holds one answer, while `m.eval(S.pick(2))` answers
-`[]`, which is the other of the two nothings and makes the override
-indistinguishable from the default. So the three claims are read through the
-engine's own reducer, which does apply the policy.
+The three claims are read through `m.eval`, which keeps the not-reducible
+answer this example is about: a call nothing matches answers itself under the
+default, and answers nothing under the override, so the two nothings stay
+apart.
 
 The equation is written at the container door, one rung below the decorator,
 because its head fixes a SYMBOL: `(only-a A)` matches the atom `A`. A stacked
@@ -40,32 +37,18 @@ BUDGET = 1
 def twin(m):
     """Read one call under the default policy, the override, and the default again."""
     only_a = S["only-a"]
-    reduce = m.fn.reduce
 
     # (= (only-a A) hit)
     m += equation(only_a(S.A)).to(S.hit)  # rung: the head fixes a SYMBOL
 
     # The catalogued default: a call nothing matches answers itself.
-    #
-    # DEFECT, and the three claims below are the workaround. The perfect
-    # spelling is the evaluation door,
-    #
-    #     assert m.eval(only_a(S.B)) == [only_a(S.B)]
-    #
-    # and it answers `[]`: for a DEFINED function whose clauses do not match,
-    # `m.eval` drops the unreduced answer a runnable form keeps, so the
-    # override and the default become indistinguishable in exactly the file
-    # that is about telling them apart. `m.eval`'s own docstring says it is
-    # "what !(...) runs, minus the printing". The engine's `reduce` does apply
-    # the policy, so these read through it
-    # [measured 2026-08-22, reproduced 2026-08-23; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
-    assert reduce(only_a(S.B)) == [only_a(S.B)]
+    assert m.eval(only_a(S.B)) == [only_a(S.B)]
 
     reflection = petta.reflection
     policy = S["dispatch-policy"](only_a, S.NoMatchEnum, S.NoMatchFail)
 
     reflection += policy
-    assert reduce(only_a(S.B)) == []
+    assert m.eval(only_a(S.B)) == []
 
     reflection -= policy
-    assert reduce(only_a(S.B)) == [only_a(S.B)]
+    assert m.eval(only_a(S.B)) == [only_a(S.B)]

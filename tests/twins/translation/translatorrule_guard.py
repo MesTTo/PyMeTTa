@@ -50,13 +50,7 @@ def twin(m):
     # which is the shape the rewrite knows how to add.
     m += S[":"](S["add-pairs"], atom_pair)
     m += pair_sum(S["add-pairs"])
-    # Known issue: a call through the function namespace answers a LAZY view,
-    # so the perfect statement-level spelling of a directive,
-    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
-    # its answers [measured 2026-08-23: the rule fires only after list() of the
-    # view]. The term door evaluates eagerly, so a directive is written that
-    # way until a side-effecting call runs at statement level.
-    m.eval(S["add-translator-rule!"](S["add-pairs"]))
+    m.fn.add_translator_rule(S["add-pairs"])
 
     assert m.fn.add_pairs(S.pair(1, 2), S.pair(10, 20)).one() == S.pair(11, 22)
 
@@ -75,7 +69,7 @@ def twin(m):
     m += equation(S["hold-pairs"](V.a, V.b)).to(
         S.noeval(S.noeval(S["hold-pairs"](V.a, V.b)))
     )
-    m.eval(S["add-translator-rule!"](S["hold-pairs"]))
+    m.fn.add_translator_rule(S["hold-pairs"])
 
     assert m.fn.hold_pairs(S.pair(1, 2), S.pair(10, 20)).one() == S.pair(11, 22)
     # The original writes this claim as `(test (hold-pairs 1 2) (hold-pairs 1 2))`,
@@ -95,7 +89,7 @@ def twin(m):
     m += S[":"](S.pick, S["->"](S.Atom, S["%Undefined%"]))
     m += equation(S.pick(S.a)).to(S.empty())
     m += equation(S.pick(V.x)).to(S.noeval(S.picked(V.x)))
-    m.eval(S["add-translator-rule!"](S.pick))
+    m.fn.add_translator_rule(S.pick)
 
     assert m.fn.pick(S.a).one() == S.picked(S.a)
     assert m.fn.pick(S.b).one() == S.picked(S.b)
@@ -104,7 +98,7 @@ def twin(m):
     # to ordinary dispatch, which here has no answer either.
     m += S[":"](S["only-a"], S["->"](S.Atom, S["%Undefined%"]))
     m += equation(S["only-a"](S.a)).to(S.empty())
-    m.eval(S["add-translator-rule!"](S["only-a"]))
+    m.fn.add_translator_rule(S["only-a"])
 
     assert m.fn.only_a(S.a) == []
 

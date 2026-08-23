@@ -72,7 +72,7 @@ def _moves():
 def twin(m):
     """State the moves and queue laws, then exhaust the reachable state graph."""
     m.add(*_moves())
-    m.eval(fn["import!"](m, S.library(S["lib_datastructures"])))
+    m.fn["import!"](m, S.library(S["lib_datastructures"]))
 
     # The duplicate store is an ordinary space, and the Python variable IS its
     # binding, so it needs no name: the handle crosses a term position as

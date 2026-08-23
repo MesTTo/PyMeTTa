@@ -45,20 +45,10 @@ def twin(m):
         # (= (f1 $f $a) (if (< $a 0) ($f nevercalled 42)
         #                   (if (== $a 0) (f2 $f (- $a 1)) finish)))
         #
-        # DEFECT, and the line below is the workaround. The perfect spelling of
-        # the first condition is Python's own operator over an atom,
-        #
-        #     a < 0
-        #
-        # which is what `>`, `<=` and `>=` still do here: `a > 0` builds
-        # `(> $a 0)`. `<` alone no longer builds anything, because
-        # `Atom.__lt__` was given the engine's standard atom ORDER, so
-        # `Variable < int` raises `TypeError: '<' not supported between
-        # instances of 'Variable' and 'int'` and the mirrored form `0 > a`
-        # raises too, comparisons having no right-hand methods. The operator
-        # table is asymmetric until one of the two meanings moves off `<`
-        # [measured 2026-08-23 on this worktree; ai-report-twins2-d.md carries
-        # it; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+        # The comparison names its head. `<`, `>`, `<=` and `>=` all carry the
+        # engine's total atom ORDER, so none of the four builds a term; `.eq`
+        # is the equality TERM for the same reason, `==` being Python's own
+        # structural equality.
         yield equation(S.f1(f, a)).to(
             S["if"](
                 S["<"](a, 0),

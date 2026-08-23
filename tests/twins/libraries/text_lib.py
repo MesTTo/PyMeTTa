@@ -17,8 +17,11 @@ A trailing `!` has no Python image, so `write_file` and its siblings resolve to
 `write-file!`: rung 4 of the descent ladder, applied at the function namespace.
 
 The file this writes is named for the twin rather than for the example, so the
-two can never meet on one path.
+two can never meet on one path, and it is a `pathlib.Path` rather than text:
+a path crosses the call door as the atom its codec makes of it.
 """
+
+from pathlib import Path
 
 import petta
 from petta import G, S, V
@@ -31,13 +34,13 @@ from petta import G, S, V
 BUDGET = 1
 
 #: Written, appended to, read back four ways, then removed.
-SCRATCH = G("/tmp/petta-text-twin.txt")
+SCRATCH = Path("/tmp/petta-text-twin.txt")
 
 
 def twin(m):
     """Walk lib_string's measuring, slicing, testing and padding, then lib_file."""
-    m.eval(S["import!"](m, S.library(S["lib_string"])))
-    m.eval(S["import!"](m, S.library(S["lib_file"])))
+    m.fn["import!"](m, S.library(S["lib_string"]))
+    m.fn["import!"](m, S.library(S["lib_file"]))
 
     # Measuring and slicing. string-slice is half-open, From included, To not.
     string_length = m.fn.string_length
@@ -125,7 +128,7 @@ def twin(m):
     # (line Number Text) atoms in a space, so the file is QUERYABLE rather than
     # one long string you then have to take apart. The line number is kept
     # because a space is unordered.
-    log = petta.space(str(m.fn.file_space(SCRATCH).one()))
+    log = petta.space(m.fn.file_space(SCRATCH).one())
     assert [(row.n, row.t) for row in log[S.line(V.n, V.t)]] == [
         (1, G("one")), (2, G("two")), (3, G("three")), (4, G("four")),
     ]

@@ -38,7 +38,7 @@ PROVIDER = G("./examples/libraries/_fixtures/rule_provider.pl")
 
 def twin(m):
     """Put five rules and one fact in a foreign space, then evaluate them there."""
-    m.eval(S["import!"](m, S.library(S["lib_import"])))
+    m.fn["import!"](m, S.library(S["lib_import"]))
     m.eval(S["import_prolog_functions_from_file"](PROVIDER, ()))
 
     demo = petta.space("&rule_demo")

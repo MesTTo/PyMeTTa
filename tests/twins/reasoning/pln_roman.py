@@ -33,7 +33,7 @@ def _sentence(left, right, strength, identifier):
 
 def twin(m):
     """Load PLN, state the Roman-diamond knowledge base, and ask for A to D."""
-    m.eval(fn["import!"](m, S.library(S["lib_pln"])))
+    m.fn["import!"](m, S.library(S["lib_pln"]))
 
     for concept, strength in (
         (S.A, 0.5),

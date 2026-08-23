@@ -25,25 +25,11 @@ which is what builds an expression out of a head and its arguments. And
 `1 + 2 + 3` left-associates into `(+ (+ 1 2) 3)` and would compute 6 before
 the engine saw anything.
 
-`overloaded-curry` is the one definition that stays at the rule door.
-DEFECT, not a missing spelling: its two clauses have DIFFERENT ARITY under one
-name, and the shape this file wants,
-
-    @m.define(name="overloaded-curry")
-    def overloaded_curry(a):
-        return a
-
-    @m.define(name="overloaded-curry")
-    def overloaded_curry_3(a, b, c):
-        return a + (b + c)
-
-raises `IndexError: list assignment index out of range` inside
-`_define_twins.replace_twin_clause`, because two clauses that fix no literal
-head are located as a REDEFINITION of each other and the replacement index is
-then used against a dispatcher keyed by the PYTHON name, which is a fresh
-empty one. The residue table carries the defect and its root cause against
-P14.4; `@m.rules` writes both equations with parameter-scoped variables and
-takes no such path.
+`overloaded-curry` is two STACKED clauses of different arity under one name,
+which the decorator dispatches independently. The first Python name reaches
+`overloaded-curry` through the naming ladder's own underscore map; the second
+cannot, because `overloaded_curry_3` would map to a different head, so that
+one door states the exact name.
 Guarantees:
   - expected printed output in this twin remains Python str text
     [tested: test_printing_text_is_not_forced_through_the_value_carrier;
@@ -57,7 +43,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, equation, fn
+from petta import Expression, S, fn
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
@@ -113,32 +99,15 @@ def twin(m):
     assert m.eval(S.empty(1, 2)) == [S.empty(1, 2)]
 
     # A gap between overloaded arities is still a valid partial application.
-    #
-    # DEFECT, and the bundle below is the workaround. The perfect spelling is
-    # two clauses under one name,
-    #
-    #     @m.define(name="overloaded-curry")
-    #     def overloaded_curry(a):
-    #         return a
-    #
-    #     @m.define(name="overloaded-curry")
-    #     def overloaded_curry_3(a, b, c):
-    #         return a + (b + c)
-    #
-    # and the second decoration raises `IndexError: list assignment index out
-    # of range` in `_define_twins.replace_twin_clause`: two clauses that fix no
-    # literal head are located as a REDEFINITION of each other, arity is never
-    # consulted, and the replacement index is then used against a dispatcher
-    # keyed by the PYTHON name, which is a fresh empty one. Either key the twin
-    # dispatcher by the MeTTa name, or refuse the second clause with the
-    # sentence `_validate_clause_order` already writes
-    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
-    @m.rules
-    def overloaded(a, b, c):
-        # (= (overloaded-curry $a) $a)
-        yield equation(S["overloaded-curry"](a)).to(a)
-        # (= (overloaded-curry $a $b $c) (+ $a (+ $b $c)))
-        yield equation(S["overloaded-curry"](a, b, c)).to(a + (b + c))
+    # (= (overloaded-curry $a) $a)
+    @m.define
+    def overloaded_curry(a):
+        return a
+
+    # (= (overloaded-curry $a $b $c) (+ $a (+ $b $c)))
+    @m.define(name="overloaded-curry")
+    def overloaded_curry_3(a, b, c):
+        return a + (b + c)
 
     assert m.fn.repr(S["overloaded-curry"](1, 2)) == [
         "(partial overloaded-curry (1 2))"

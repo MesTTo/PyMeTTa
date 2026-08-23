@@ -14,15 +14,18 @@ versions may implement a more fine grained approach". Reading the counters
 BEFORE the next call is what shows it, because they are cumulative.
 
 DEFECT, and it decides how the counters are read. Each of the six reads ought
-to be `m.fn.table_stats(S.reach(V.x, V.y))`, the call door. `table-stats` takes
-the subgoal as a PATTERN, so its `$x` and `$y` are part of the question rather
-than answers to it, and the answer view reads every variable in a call as one
-of the caller's own and answers a binding row instead of the counter
-expression. So the counters come back through `eval`, the term door.
+to be `m.fn.table_stats(S.reach(V.x, V.y))`, the call door. Every LAZY door,
+the function namespace and `m.answers` alike, answers all five counters as
+zero where `m.eval` answers `(tables 1) (answers 1) (complete-call 1)` for the
+same subgoal, inside a `m.stats()` scope and outside one: a lazy pull runs on
+the held cursor's own SWI engine and SWI's tabling statistics are per-engine
+[measured 2026-08-23; commit=WORKTREE]. So the counters come back through
+`eval`, the term door.
 
-A second one, quieter: a call is LAZY, so `reach(S.a, V.y)` on its own performs
-no engine work and the counters below it would all read zero. The example's own
-`(collapse (reach a $y))` is what forces it, and `list(...)` is that collapse.
+A second thing does have to be forced: a call is LAZY, so `reach(S.a, V.y)` on
+its own performs no engine work and the counters below it would all read zero
+for that reason too. The example's own `(collapse (reach a $y))` is what forces
+it, and `list(...)` is that collapse.
 
 `reach` is written by `@m.define` and tabled by hand rather than by `@m.cache`,
 whose `cache_info()` is this counter set under Python's own name, for the
@@ -49,13 +52,13 @@ UNTOUCHED = [
 
 def twin(m):
     """Call a tabled reader once, then write around it and watch its counters."""
-    m.eval(S["import!"](m, S.library(S["lib_tabling"])))
+    m.fn["import!"](m, S.library(S["lib_tabling"]))
 
     m += S.edge(S.a, S.b)
 
     @m.define
     def reach(x, y):
-        return match("&self", edge(x, y), y)  # noqa: F821  -- match reads its pattern as syntax: `edge` is the relation symbol and `x`, `y` are the parameters
+        return match(m, edge(x, y), y)  # noqa: F821  -- match reads its pattern as syntax: `edge` is the relation symbol and `x`, `y` are the parameters
 
     m.eval(S.tabled(S.reach(V.x, V.y)))
     subgoal = S["table-stats"](S.reach(V.x, V.y))

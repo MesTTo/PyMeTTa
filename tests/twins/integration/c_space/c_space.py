@@ -54,16 +54,12 @@ BUDGET = 1
 
 def twin(m):
     """Write into C, read back out of it, and prove the provider."""
-    # Known issue, two halves. `import!` has no Python door on the handle: the
-    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
-    # shipped library (appendix stamp 1), and neither exists yet. And the
-    # generic call door cannot stand in for it, because a call through the
-    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
-    # statement IMPORTS NOTHING until something pulls its answers [measured
-    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
-    # that way.
+    # Known issue: `import!` has no Python door on the handle. The perfect
+    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
+    # library (appendix stamp 1), and neither exists yet, so the directive is
+    # reached by its own bang name, which performs it where it is written.
     for library in LIBRARIES:
-        m.eval(S["import!"](m, S.library(library)))
+        m.fn["import!"](m, S.library(library))
 
     if not CSTORE_SO.exists():
         # The example prints its skip here. A twin has no door for prose.

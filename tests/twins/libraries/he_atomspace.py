@@ -32,7 +32,7 @@ BUDGET = 1
 
 def twin(m):
     """Write one definition each way, read both back, then type and unify."""
-    m.eval(S["import!"](m, S.library(S["lib_he"])))
+    m.fn["import!"](m, S.library(S["lib_he"]))
 
     m += equation(S.addnormal()).to(S["+"](1, 3))
     m += equation(S.addreduct()).to(m.answers(S["+"](1, 3)).one())

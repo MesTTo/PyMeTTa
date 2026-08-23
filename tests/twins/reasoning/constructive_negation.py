@@ -23,12 +23,11 @@ annotations are the example's `(: ...)` declarations, `int` is Number and
 `Atom` is the metatype that keeps the argument unreduced, and `10` as a
 parameter default is the equation's head pattern rather than a Python default.
 
-Where an operator builds the term it is used: `~` is `not`, `&` is `and`, `>`
-and `*` are themselves, and `x.eq(y)` is the equality TERM because `==` between
-atoms is Python's own structural equality. Where it cannot, the head is named:
-`(> 1 2)` and `(< 5 1)` have GROUND left operands, which Python's comparisons
-mirror rather than build, and `V.r != 5` compares the atom rather than building
-`(!= $r 5)`.
+Where an operator builds the term it is used: `~` is `not`, `&` is `and`, `*`
+is itself, and `x.eq(y)` is the equality TERM because `==` between atoms is
+Python's own structural equality. The comparison relations are named heads
+instead, bound once as `NE`, `GT` and `EQ` at the top of the file, because
+Python's four rich comparisons order atoms and build nothing.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
@@ -42,14 +41,11 @@ Open Obligations:
 import petta
 from petta import FALSE, TRUE, Atom, S, V, equation, fn
 
-#: The three comparison heads this file needs as TERMS over operands Python's
-#: own operators would compute on, or would build the wrong term for: `!=` on
-#: atoms is structural inequality and `==` is structural equality.
-#:
-#: Known issue: `<` builds no term at all now that appendix stamp 6 gave
-#: `Atom.__lt__` to the engine's sort order, and none of the four comparisons
-#: has a right-hand method, so a GROUND left operand mirrors instead of
-#: building. `(> 1 2)` should read `1 > 2` and build, not compute.
+#: The three comparison heads this file needs as TERMS. Python's `<`, `>`,
+#: `<=` and `>=` order atoms rather than building, `!=` on atoms is structural
+#: inequality and `==` is structural equality, so every comparison term in this
+#: file is written by naming its head. They come from `fn` rather than `S`
+#: because they are engine functions and a typo raises where it is written.
 NE, GT, EQ = fn["!="], fn[">"], fn["=="]
 
 #: The nine relations the example gives NoMatchFail, so a missing proof is
@@ -161,7 +157,7 @@ def twin(m):
     m += equation(S.marks(S.carol)).to(30)
     m += equation(S.marks(S.dave)).to(10)
     m += equation(S.marks(S.dave)).to(20)
-    m += equation(S["any-pass"](V.w)).to(fn.let(V.m, S.marks(V.w), V.m > 50))  # rung: a let that BINDS inside a stored body (P14.4)
+    m += equation(S["any-pass"](V.w)).to(fn.let(V.m, S.marks(V.w), GT(V.m, 50)))  # rung: a let that BINDS inside a stored body (P14.4)
 
     assert m.fn.any_pass(S.carol) == [True, False]
     assert m.fn.not_provable(S["any-pass"](S.carol)) == [False]
@@ -229,18 +225,15 @@ def twin(m):
 
     # A declaration can make an argument data, and both the positive and the
     # constructive-negation path preserve the written term instead of reducing
-    # it. `10` as a parameter default is the equation's head pattern.
-    #
-    # Known issue: `@m.define` takes the Python name VERBATIM, where the `S`,
-    # `V` and `fn` factories map every underscore to a hyphen, so a hyphenated
-    # MeTTa name needs `name=` at this one door. Both should read
-    # `@m.define` over their Python names.
-    @m.define(name="mask-example-double")
+    # it. `10` as a parameter default is the equation's head pattern, and both
+    # Python names reach their hyphenated MeTTa names through the naming
+    # ladder's own underscore map.
+    @m.define
     def mask_example_double(x: int) -> int:
         """Twice x."""
         return x * 2
 
-    @m.define(name="mask-example-holds")
+    @m.define
     def mask_example_holds(_x: Atom = 10) -> bool:
         """True of the written term 10, and of nothing else."""
         return True

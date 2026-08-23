@@ -30,12 +30,12 @@ BUDGET = 1
 
 def twin(m):
     """Two spaces, one function name, two caches, and one equation change."""
-    m.eval(S["import!"](m, S.library(S["lib_memo"])))
+    m.fn["import!"](m, S.library(S["lib_memo"]))
 
     metric = petta.space("&metric")
     metric += equation(S["shipping-cost"](V.w)).to(V.w * 9)
 
-    @m.define(name="shipping-cost")
+    @m.define
     def shipping_cost(w):
         return w * 2
 

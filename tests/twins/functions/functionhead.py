@@ -46,7 +46,10 @@ def twin(m):
         # (= (myfunc $A $B) (append (append (42) $A) $B))
         return fn.append(fn.append((42,), a), b)
 
-    @m.define
+    # The example's own head carries an underscore, which the naming ladder's
+    # total underscore-to-hyphen map does not produce, so this one door takes
+    # the exact name.
+    @m.define(name="h_old")
     def h_old(a, c):
         # (= (h_old $A $C) (if (= $A (myfunc (10) $B)) ($B $C) (empty)))
         return S["if"](fn["="](a, myfunc((10,), V.b)), (V.b, c), fn.empty())  # rung: MeTTa's if over a unification

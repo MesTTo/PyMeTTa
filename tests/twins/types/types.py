@@ -66,11 +66,7 @@ def twin(m):
     # Function types.
     m += typed(S.mid, arrow(V.a, V.a))
     m += equation(S.mid(V.x)).to(fn.let(S.a(S.b), V.x, V.x))  # rung: this let's pattern is an EXPRESSION, so it unifies where Python's assignment binds a name (P14.4)
-    # Known issue: a call carrying a caller variable answers that variable's
-    # BINDINGS and drops the value, so this claim reads the form. It should
-    # read:
-    #     assert m.fn.mid(Expression((V.a, S.b))) == [S.a(S.b)]
-    assert m.eval(S.mid(Expression((V.a, S.b)))) == [S.a(S.b)]
+    assert m.fn.mid(Expression((V.a, S.b))) == [S.a(S.b)]
 
     m += typed(S.testx, arrow(V.a, V.b, V.a))
     assert m.type(S.testx(1, ground("f"))) == S.Number

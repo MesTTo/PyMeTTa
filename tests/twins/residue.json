@@ -3,7 +3,7 @@
   "note": "What the twins could not say, and what they could only say the long way round. A `declined` entry names a FORM the twin yields None for, and its example loses that form's coverage; a `friction` entry names a form the twin does reach, through a spelling the surface should not have needed. Both derive backlog, which is why they are one table. `row` is the ai-spec-execution.md row the fix lands on and `section` is the ai-python-first-revamp-discussion.md section that predicted it, or the correction where it did not.",
   "provenance": {
     "purpose": "Record active and retired Python-twin surface residue.",
-    "guarantee": "Exactly 159 distribution-budget entries moved from entries to retired [tested: test_the_distribution_budget_retirement_is_exact; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].",
+    "guarantee": "Exactly 159 distribution-budget entries moved from entries to retired [tested: test_the_distribution_budget_retirement_is_exact; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. A further 48 entries retired 2026-08-23 against the p14 library-fixes merge, each naming the fix that closed it and the twin spelling that now stands [commit=WORKTREE].",
     "open_obligations": "To Do: None; Hacks: None; Future Enhancements: None."
   },
   "entries": [
@@ -90,24 +90,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_per_arity.metta",
-      "form": null,
-      "missing": "two arities under one MeTTa name; the second @m.define raises IndexError",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "DEFECT, not only a gap. @m.define(name='add') for (add $x $y) and then for (add $x $y $z) raises IndexError: list assignment index out of range at _define_twins.replace_twin_clause line 229, re-measured 2026-08-23 on this branch. The clause table `earlier` is keyed by the MeTTa name and both clauses carry no literal head patterns, so _locate_clause answers replaced=0; the twin dispatcher is keyed by (id(fn.__globals__), PYTHON function name), so the second decoration addresses position 0 of a dispatcher that has no clauses yet. Reusing the same Python name avoids the crash but then REPLACES the first arity, so neither route defines two arities. Both twins now write both arities through R3's @rules bundle, which lands them in one write; the decorator door is still the one that crashes."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/test_memo_same_name_multi_arity.metta",
-      "form": null,
-      "missing": "two arities under one MeTTa name; the second @m.define raises IndexError",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "DEFECT, not only a gap. @m.define(name='add') for (add $x $y) and then for (add $x $y $z) raises IndexError: list assignment index out of range at _define_twins.replace_twin_clause line 229, re-measured 2026-08-23 on this branch. The clause table `earlier` is keyed by the MeTTa name and both clauses carry no literal head patterns, so _locate_clause answers replaced=0; the twin dispatcher is keyed by (id(fn.__globals__), PYTHON function name), so the second decoration addresses position 0 of a dispatcher that has no clauses yet. Reusing the same Python name avoids the crash but then REPLACES the first arity, so neither route defines two arities. Both twins now write both arities through R3's @rules bundle, which lands them in one write; the decorator door is still the one that crashes."
-    },
-    {
-      "kind": "friction",
       "example": "examples/libraries/memo_spaces.metta",
       "form": null,
       "missing": "a redefinition under a fresh Python function name, which addresses the new function's empty twin dispatcher and raises IndexError",
@@ -164,10 +146,10 @@
       "kind": "friction",
       "example": "examples/libraries/tabling_space_write.metta",
       "form": null,
-      "missing": "a compiled match() whose space, pattern and template are PARAMETERS",
+      "missing": "a compiled match() whose pattern is a PARAMETER",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "(= (bypattern $p) (match &self $p $p)) passes its pattern through, and the compiled match() reads its pattern as syntax rather than as a value. Same missing spelling as examples/control/cut and examples/control/once."
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The space half is closed by fix 15, and `reach` now reads `match(m, ...)`. What survives is the pattern: (= (bypattern $p) (match &self $p $p)) passes its pattern through, and the compiled match() reads its pattern as syntax rather than as a value. Same missing spelling as examples/control/cut and examples/control/once."
     },
     {
       "kind": "friction",
@@ -234,15 +216,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/json_lib.metta",
-      "form": null,
-      "missing": "a space handle from the space a library function ANSWERS",
-      "row": "P14.13",
-      "section": "§9j: the web datastore IS a space",
-      "detail": "json-decode, dict-space and file-space! each answer a space by NAME, as Symbol('&json-1'), and petta.space takes a string, refusing a Symbol with 'a space name is a string starting with &, as in &self or &kb'. So every use round-trips through str(): petta.space(str(decode(text).one())). Re-measured 2026-08-23 on this branch. The design point underneath works beautifully once the handle is in hand, and it is what makes these twins short: the decoded object's keys are the heads of its atoms, its lookup is a subscript, an absent key answers no rows, and file-space!'s (line N Text) atoms are queried by line number. text_lib needs the same round trip."
-    },
-    {
-      "kind": "friction",
       "example": "examples/libraries/he_minimalmetta.metta",
       "form": null,
       "missing": "a with-block for the stack-depth bound, where m.limits covers inferences and timeout",
@@ -252,183 +225,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/roman_test.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/he_assert.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/he_types.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/he_error.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/minimal_metta.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/patrick_test.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
       "example": "examples/libraries/tabling_statistics.metta",
       "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "missing": "a lazy door that reads the same tabling statistics the term door reads",
       "row": "P14.7",
       "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/test_memo_variant_nonground.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/thread_lib.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/thread_linda.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/tabling_space_write.metta",
-      "form": null,
-      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/tabling_space_write.metta",
-      "form": null,
-      "missing": "a Python-named call that keeps its answer columns inside a stats scope",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: the projection depends on the enclosing scope",
-      "detail": "Calling a @m.define'd function by its Python name answers [Row(y=b)] with columns ('y',) outside a stats scope and [b] with columns () inside one, so reach(S.a, V.y).y raises AttributeError: no answer variable 'y'; variables are []. The same call through the function namespace, m.fn.reach(S.a, V.y), keeps its columns in both. Every twin runs inside `with m.stats() as spent:` because that is how the lane prices it, so a twin can never write the projection on a Python-named call, and code that works in the lane would raise outside it or the reverse. The twin compares reach's answers directly and projects twohop's, which is the same claim said two ways in one file. Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/he_quoting.metta",
-      "form": null,
-      "missing": "a grounded operand that STAGES its operator, so G(1) + 2 builds (+ 1 2)",
-      "row": "P14.5",
-      "section": "correction to §9e builders promoted from warts: the guide's grounded lift is unbuilt",
-      "detail": "§3.2 of the style guide teaches `G(1) + 2` as THE lift, 'one grounded ATOM stages (+ 1 2); sympy writes S(1)/2 for the same reason', and gallery II's whole program rests on it: `sum_ = G(1) + 2` then `S.quote(sum_)` is supposed to build (quote (+ 1 2)). Grounded arithmetic COMPUTES instead: G(1) + 2 answers the integer 3, so gallery II as written quotes 3 and this twin has nothing left to quote. The term is built by naming the head, S['+'](1, 2). The neighbouring fence is unbuilt too: §3.2 says a ground LEFT operand builds the MIRRORED comparison, and 2 > V.a raises TypeError: '>' not supported between instances of 'int' and 'Variable'. V.n * 2 does build, so the variable side of the rule is shipped and the grounded side is not. Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/he_math.metta",
-      "form": null,
-      "missing": "an answer view as an operand, so engine calls nest the way Python nests calls",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: composition stops at the call door",
-      "detail": "m.fn.isnan_math(m.fn.sqrt_math(-1)) answers (Error (isnan-math <Answers>) (BadArgType 1 Number Answers)): an answer view crosses as an ordinary grounded Python object, so a call cannot be handed to a call. `.one()` at every nesting level would say the same thing four times on a line AND cross the boundary once per sub-call, which the three-lane cost model prices per collection rather than per element. The twins build the nested TERM instead, binding each head once as a mention and evaluating the whole of it, which is also what the example's own single form does. datastructures_fingertree is written entirely that way, eleven mentions and fifteen composed terms. Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/datastructures_fingertree.metta",
-      "form": null,
-      "missing": "an answer view as an operand, so engine calls nest the way Python nests calls",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: composition stops at the call door",
-      "detail": "m.fn.isnan_math(m.fn.sqrt_math(-1)) answers (Error (isnan-math <Answers>) (BadArgType 1 Number Answers)): an answer view crosses as an ordinary grounded Python object, so a call cannot be handed to a call. `.one()` at every nesting level would say the same thing four times on a line AND cross the boundary once per sub-call, which the three-lane cost model prices per collection rather than per element. The twins build the nested TERM instead, binding each head once as a mention and evaluating the whole of it, which is also what the example's own single form does. datastructures_fingertree is written entirely that way, eleven mentions and fifteen composed terms. Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/minimal_metta.metta",
-      "form": null,
-      "missing": "an answer view as an operand, so engine calls nest the way Python nests calls",
-      "row": "P14.7",
-      "section": "correction to §9f the answer container: composition stops at the call door",
-      "detail": "m.fn.isnan_math(m.fn.sqrt_math(-1)) answers (Error (isnan-math <Answers>) (BadArgType 1 Number Answers)): an answer view crosses as an ordinary grounded Python object, so a call cannot be handed to a call. `.one()` at every nesting level would say the same thing four times on a line AND cross the boundary once per sub-call, which the three-lane cost model prices per collection rather than per element. The twins build the nested TERM instead, binding each head once as a mention and evaluating the whole of it, which is also what the example's own single form does. datastructures_fingertree is written entirely that way, eleven mentions and fifteen composed terms. Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/thread_linda.metta",
-      "form": null,
-      "missing": "peek and take on the handle without importing lib_thread INTO that space",
-      "row": "P14.10",
-      "section": "§9b: the space handle carries every context-relative door",
-      "detail": "§3.14 rules jobs.take((S.Job, V.n)) and jobs.peek(...) as the coordination doors, and R5 shipped both. Space._wait_for_atom evaluates (import! <self> (library lib_thread)) on the space it was called on before waiting, so jobs.peek(...) leaves lib_thread's own definitions IN &jobs. This example claims that &jobs, &work and &inbox are EMPTY afterwards, (collapse (get-atoms &jobs)) == (), which the handle verbs make false. The twin names peek-atom and take-atom and hands the space over as the handle instead. The library it needs is already in the space that calls it, so the import belongs where the caller asks for it, not on the target. Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/tabling_space_write.metta",
-      "form": null,
-      "missing": "a compiled match() that takes the space HANDLE the twin holds",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "R2 made a Space an operand everywhere a TERM wants one, and a compiled body is the one place it does not reach: match(...) inside @m.define reads its space as SYNTAX, so the body writes the string \"&self\" and a handle held by the enclosing Python function cannot be spelled there at all. The two-argument form would dissolve the question by lowering to (context-space), and @m.cache refuses that as impure, which is why both twins declare `tabled` by hand and lose fn.cache_info(). Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/tabling_statistics.metta",
-      "form": null,
-      "missing": "a compiled match() that takes the space HANDLE the twin holds",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "R2 made a Space an operand everywhere a TERM wants one, and a compiled body is the one place it does not reach: match(...) inside @m.define reads its space as SYNTAX, so the body writes the string \"&self\" and a handle held by the enclosing Python function cannot be spelled there at all. The two-argument form would dissolve the question by lowering to (context-space), and @m.cache refuses that as impure, which is why both twins declare `tabled` by hand and lose fn.cache_info(). Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/doc_lib.metta",
-      "form": null,
-      "missing": "one projection spelling across both answer containers",
-      "row": "P14.7",
-      "section": "§9d the Rows retirement; decision 11's carrier note",
-      "detail": "The call door answers Answers, which projects by attribute and by answers[V.name] exactly as §3.15 rules; the subscript and query doors answer Rows, whose only projection is a STRING key, rows['desc']. The anti-pattern table names a string projection key as the wrong spelling, so a twin cannot use it, and Rows has no attribute form on the container. The twins write [row.desc for row in space[pattern]], a comprehension over rows where each ROW does project by attribute. It is lawful and it reads, but it is a second spelling for one concept, and json_lib, text_lib, foreign_rules and conformance all pay it too. Measured 2026-08-23 on this branch."
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The caller-variable half is closed by fix 2. What survives is narrower and was measured here: every LAZY door reads all five counters as zero. m.fn.table_stats(S.reach(V.x, V.y)).one() and m.answers(S[\"table-stats\"](...)).one() both answer ((tables 0) (answers 0) (complete-call 0) (invalidated 0) (reevaluated 0)) where m.eval of the same term answers (tables 1) (answers 1) (complete-call 1), inside a m.stats() scope and outside one, because a lazy pull runs on the held cursor's own SWI engine and SWI's tabling statistics are per-engine. So the six counter reads stay at the term door."
     },
     {
       "kind": "friction",
@@ -437,7 +239,7 @@
       "missing": "a call made for its EFFECT, where creating the answer view performs no engine work",
       "row": "P14.7",
       "section": "correction to §9f the answer container: laziness is silent at a declaration",
-      "detail": "R3's answer view is lazy by design, which is right for an ask and silent for a DECLARATION. m.fn.config_memoize(S.aggregate(S.sum)) written for its effect, which is how the example writes it, does nothing at all: get-memoize-config still answers (aggregate none) and every later claim reads the old mode. reach(S.a, V.y) on its own is the same shape and leaves tabling_statistics' counters at zero. Both twins pull the answer, and both state it rather than discarding it, so the pull is visible. What is missing is either a door that says 'perform this' or a refusal when an answer view is dropped unread. Measured 2026-08-23 on this branch."
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). Fix 1 gives an EAGER call door to any name whose resolved MeTTa spelling ends in `!`, MeTTa's own effect marker. `config-memoize` carries none, so a call for its effect alone is still silent and the twin states the True the call answers, which both pulls it and says what it answered."
     },
     {
       "kind": "friction",
@@ -446,16 +248,7 @@
       "missing": "a call made for its EFFECT, where creating the answer view performs no engine work",
       "row": "P14.7",
       "section": "correction to §9f the answer container: laziness is silent at a declaration",
-      "detail": "R3's answer view is lazy by design, which is right for an ask and silent for a DECLARATION. m.fn.config_memoize(S.aggregate(S.sum)) written for its effect, which is how the example writes it, does nothing at all: get-memoize-config still answers (aggregate none) and every later claim reads the old mode. reach(S.a, V.y) on its own is the same shape and leaves tabling_statistics' counters at zero. Both twins pull the answer, and both state it rather than discarding it, so the pull is visible. What is missing is either a door that says 'perform this' or a refusal when an answer view is dropped unread. Measured 2026-08-23 on this branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/roman_test.metta",
-      "form": null,
-      "missing": "a solve whose PATTERN wins the variables, which is the guide's own first exemplar",
-      "row": "P14.4",
-      "section": "§3.6 the let family, and where solve comes from",
-      "detail": "§3.6 teaches two solve exemplars: solve(S.cons(V.h, V.t), items), where 'pattern must WIN variables from what the subject PRODUCES', and solve(4, V.x - 1).x, where the variables sit on the subject side. R5 shipped the second and refuses the first: m.solve(S.head(V.x), (1, 2, 3)) raises ValueError: solve needs at least one variable in its subject, while m.solve(4, V.x - 1).x answers 5. The six reverse-function-matching claims here are exactly the refused reading, so they are written as the let terms they are. The ledger records that three twins hand-rolled solve identically before it had a name, and those three are this shape. Measured 2026-08-23 on this branch."
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). As for test_memo_aggregate: fix 1 covers bang names only, and neither `table-stats` nor a tabled reader carries one, so `list(reach(S.a, V.y))` is still what forces the call the counters are about."
     },
     {
       "kind": "friction",
@@ -585,15 +378,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/control/take.metta",
-      "form": null,
-      "missing": "a lazy answer view that is lazy in its PRODUCER, not only in its answers",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "p14-r3-calling landed the door: calling a definition answers a lazy `Answers` view, slices stay `Answers`, and `list(count_up(0)[:4])` answers the right four numbers over a producer that never stops, where nothing could before. What it costs is the library's problem, not this twin's. Measured 2026-08-23 on `(= (from $n) (superpose ($n (from (+ $n 1)))))`: pulling 1, 2, 4 and 8 answers costs 1,500,147, 1,500,141, 1,500,141 and 1,500,141 inferences, a FLAT figure that does not move with k, against 700 for the engine-side `(take 4 (from 0))`. So the first pull drives a self-recursive superposition to a fixed internal bound whatever the slice asks for: the view is lazy in the answers it hands back and not in the producer behind them. The twin slices every producer anyway, the endless one included, because the slice is the ruled spelling for at-most-k of a stream and the cost belongs to the library: control/take.metta therefore carries a BAND finding, twin 1,510,583 against the example's 16,419 at ratio 92.00, which no re-pin can clear and which closes when the pull suspends the producer. The finite producers cost 5,077 through the same door against the engine's 434. This is a cost gap rather than a capability gap, which is a different fix."
-    },
-    {
-      "kind": "friction",
       "example": "examples/control/supercollapse.metta",
       "form": null,
       "missing": "`superpose` over a BOUND value in expression position",
@@ -693,15 +477,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/spaces/evalc.metta",
-      "form": null,
-      "missing": "a term builder for an operator head over GROUND operands",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "WIDENED, re-anchored 2026-08-23. Three of this file's terms are arithmetic over two ground operands, (+ 5 5) twice and (+ 1 1) once, and on a grounded number Python's operators are that number's own arithmetic, so `ground(5) + 5` is 10 rather than the term (+ 5 5); only INSIDE a compiled body does + build one. The head therefore has to be named at the S[\"+\"] door. R5 widened the hole rather than closing it: `Atom.__lt__` is now the engine's sort order, so `V.a < 2` raises TypeError and `2 > V.a` raises too, where every other comparison still builds and mirrors [measured 2026-08-23; see the admission_pools entry]."
-    },
-    {
-      "kind": "friction",
       "example": "examples/spaces/super.metta",
       "form": null,
       "missing": "a compiled body naming `super`",
@@ -783,39 +558,21 @@
     },
     {
       "kind": "friction",
-      "example": "examples/performance/superpose_primes.metta",
-      "form": null,
-      "missing": "a compiled `if` that leaves an engine-Bool condition alone",
-      "row": "P14.24",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "RE-ANCHORED 2026-08-23, and the twin now COMPILES both equations. MeTTa's own `==` IS reachable in a compiled body, `fn[\"==\"](0, n % d)`, which is what this entry asked for; it does not help, because a compiled `if` wraps any condition that is not already a comparison in `py-truthy`, so the crossing moves rather than leaving. Measured 2026-08-23 on the four searches, one fresh process each: the term door spends 531,461 inferences, `fn[\"==\"]` under a compiled `if` spends 943,162, +77.5%, and the two stored bodies differ only by that wrapper. Python's own `n % d == 0` lowers to `py-eq` inside the same `py-truthy`. The twin writes the liked Python spelling and the cost is the library's; P14.24 is the row."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/hyperpose_primes.metta",
-      "form": null,
-      "missing": "a compiled `if` that leaves an engine-Bool condition alone",
-      "row": "P14.24",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "RE-ANCHORED 2026-08-23, and the twin now COMPILES both equations. MeTTa's own `==` IS reachable in a compiled body, `fn[\"==\"](0, n % d)`, which is what this entry asked for; it does not help, because a compiled `if` wraps any condition that is not already a comparison in `py-truthy`, so the crossing moves rather than leaving. Measured 2026-08-23 on the four searches, one fresh process each: the term door spends 531,461 inferences, `fn[\"==\"]` under a compiled `if` spends 943,162, +77.5%, and the two stored bodies differ only by that wrapper. Python's own `n % d == 0` lowers to `py-eq` inside the same `py-truthy`. The twin writes the liked Python spelling and the cost is the library's; P14.24 is the row."
-    },
-    {
-      "kind": "friction",
       "example": "examples/performance/matespacefast.metta",
       "form": null,
-      "missing": "a compiled `if` that leaves an engine-Bool condition alone, so a compiled recursion reaches the depth the built one does",
+      "missing": "a compiled recursion that reaches the depth the built one does",
       "row": "P14.24",
       "section": "§4 surface gaps",
-      "detail": "RE-ANCHORED 2026-08-23. `add-atom` is spellable in a compiled body now and both equations COMPILE. They then cannot run: a compiled `if` wraps its condition in `py-truthy` and `==` lowers to `py-eq`, so every level spends reductions the original does not, and the evaluator's default 100,000 stack bound is reached long before nineteen levels. The compiled pair answers (Error (rewriteK (M (W ...)) 2) StackOverflow) at K=14 where the built pair completes K=19 [measured 2026-08-23]. `m.limits` bounds inferences and time and not stack depth, and the example states no pragma to copy, so the twin builds both equations as terms."
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The py-truthy half is closed by fix 20: a condition whose head is declared `(-> ... Bool)` is emitted bare, so `fn[\"==\"](n, 0)` in a compiled `if` stores `(if (== $n 0) ...)`. The depth half is not. A compiled rewriteK and mate-space-demo run correctly at depth 3, writing and counting 22 atoms, and at depth 19 the same pair answers 1 atom where the built equations answer 1,572,862, so the built door stays."
     },
     {
       "kind": "friction",
       "example": "examples/performance/scale.metta",
       "form": null,
-      "missing": "a compiled body spelling for `collapse`, and a compiled `if` that leaves an engine-Bool condition alone",
+      "missing": "a compiled body spelling for `collapse`",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "RE-ANCHORED 2026-08-23. The hyphenated siblings are nameable now, through the mention door, so `indexing-demo` compiles and calls all six by name. Two blockers are left. The five queries are `(collapse (match ...))` and a compiled body has no spelling for collapse at all: `list(...)` and `fn.collapse` are both refused, and a comprehension over a match lowers to `map-atom`, a different operation, answering once per solution where collapse answers once [measured 2026-08-23]. And `addK` compiles and then cannot run: the compiled `if`'s `py-truthy` plus `py-eq` push a million-deep recursion past the default 100,000 stack bound, answering (Error 75002 StackOverflow) at K=100,000 where the term door completes a million [measured 2026-08-23]. Both stay at the container door."
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The compiled-`if` half is closed by fix 20, measured on superpose_primes: a Bool-typed head in condition position is emitted bare. What survives is the first blocker unchanged: the five queries are `(collapse (match ...))` and a compiled body has no spelling for collapse at all."
     },
     {
       "kind": "friction",
@@ -891,15 +648,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/performance/matespacefast.metta",
-      "form": null,
-      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
-      "row": "P14.7",
-      "section": "§9e the performance note; §5 the three lanes",
-      "detail": "STILL OPEN, re-anchored 2026-08-23, and the recorded FAILURE is gone. `len(m.fn[\"mate-space-demo\"](19))` used to overflow the Prolog stack before it could count 1,572,862 answers; the R3 answer view streams where the old door built one Prolog list, so the same count now completes at 295,442,370 inferences, 66 seconds and 5.3 GB of resident memory in one process [measured 2026-08-23]. The wall moved from \"cannot run\" to \"expensive\", and this is the largest memory figure in the corpus, so the re-pin pass should know it exists. The missing door is the one peanofast names."
-    },
-    {
-      "kind": "friction",
       "example": "examples/performance/superpose_primes.metta",
       "form": null,
       "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
@@ -918,66 +666,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": null,
-      "missing": "an operator door for `<`, which the atom sort order took",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "R5's appendix-6 stamp put the engine's standard atom order on `Atom.__lt__` so that plain `sorted(atoms)` is `msort`, and that took the term-building `<` with it. Measured 2026-08-23: `V.x < V.y` answers Python's bool True, `V.a < 2` raises TypeError, and its mirror `2 > V.a` raises too, while `>`, `<=`, `>=` and their mirrors all still build. The guide's own fence, \"a ground LEFT operand builds the MIRRORED term: 2 > V.a builds (< $a 2)\", is therefore false for one direction only. The code says the trade is deliberate (_atoms_core.py:1362-1365, \"quoted code spells the relation explicitly as S['<'](left, right)\"), which makes this a documentation and critical-pair item rather than a bug, but it is silent: this twin's capacity guard read `(< (space-atom-count $pool) (car-atom $limits))` as the constant False and refused every write until the head was named. PERFECT: sorting and building do not share one dunder, or the guide records the split where it teaches the fence."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces3.metta",
-      "form": null,
-      "missing": "one answer shape at both doors: the ask door answers Rows, which projects only through a string key and is mutable",
-      "row": "P14.7",
-      "section": "§9e: projection is the naming convention re-applied",
-      "detail": "`space.query(...)` and `space[...]` answer `Rows`; `space.fn.name(...)` answers `Answers`. Only the second projects by attribute, `answers.x`; `Rows` offers `rows[\"x\"]`, the string-key spelling the surface's own anti-pattern table retires, and `rows[V.x]` raises \"cannot read $x as a Python int\". `Rows` also carries the mutable list protocol, append/clear/insert/pop/remove/sort, where answers are immutable and slices stay Answers [measured 2026-08-23]. The twin reads `[row.x for row in rows]`, which is honest and one step longer than the ruled `rows.x`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_find.metta",
-      "form": null,
-      "missing": "a call door that keeps a predicate's own answer beside the bindings it made",
-      "row": "P14.7",
-      "section": "§10 decision 11: the relational op yields bindings, and answers surface them",
-      "detail": "R3 made a call carrying caller variables answer Row answers, which is what this file's older entry asked for. The answer VALUE is what the row then drops: lib_spaces' `find` answers True per solution and False when nothing matches, and at the Python door a failing find is one row whose variable is still FREE rather than no rows at all, `Row(c=$_94)` [measured 2026-08-23]. So the twin tells the two readings apart with `row.c.vars`, which is the honest test and not the one the fallback wants. PERFECT: no solution is no rows, or the answer travels beside the bindings."
-    },
-    {
-      "kind": "friction",
       "example": "examples/spaces/mutex_and_transaction.metta",
       "form": null,
       "missing": "a compiled body spelling for a space handle that is not the ambient one",
       "row": "P14.4",
       "section": "§4 surface gaps",
       "detail": "A compiled body refuses a host value, \"closing over a host value would pin it to this process\", so the only space spellings inside one are `fn.context_space()` for the ambient space, a PARAMETER, and `S[\"&name\"]` as a symbol. A nullary definition that writes into a named space therefore has to name that space as a symbol, which is the one thing the space family rules out: the container door takes the handle itself [measured 2026-08-23]. It is why sloppyinc, which is otherwise compilable, stays beside its two blocked siblings at the container door. PERFECT: a compiled body carries a handle the way a term does, since a handle is already a grounded atom."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/peanofast.metta",
-      "form": null,
-      "missing": "the define door applying rung 4's underscore-to-hyphen map to the def name",
-      "row": "P14.4",
-      "section": "§9o.2 the descent ladder, rung 4",
-      "detail": "The ladder documents rung 4 as total in both directions and gives the define door as its own example, \"def not_provable lands as not-provable\". It does not: `def find_divisor` under @m.define lands as the atom `find_divisor` [measured 2026-08-23]. Every hyphenated MeTTa name in this corpus therefore states itself twice, once as a snake_case Python name the linter wants and once as `name=\"...\"`. PERFECT: the map applies at the define door as it does at S, V and fn, and `name=` is left for names Python cannot spell at all, such as `prime?` and `range`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/state.metta",
-      "form": null,
-      "missing": "one evaluation door, so a state-cell write performed through the answer view is visible to the caller",
-      "row": "P14.10",
-      "section": "§9b: control and modes",
-      "detail": "A state cell lives in the THREAD's global store, `nb_setval`, and the lazy answer view evaluates on a held SWI engine with its own globals. So the same term performs differently at the two doors: `m.eval(S[\"get-state\"](S[\"change-state!\"](cell, active)))` answers active and leaves the cell reading active, while `m.answers(...).one()` answers active and leaves the cell reading `rest`; the bound `m.fn[\"change-state!\"]` loses it the same way [measured 2026-08-23]. Space writes DO persist through both, because the clause store is shared, so the divergence is specific to thread-local state. PERFECT: the two doors agree, or the answer view refuses a term whose effects it cannot commit."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/restricted_spaces.metta",
-      "form": null,
-      "missing": "a capability ENUM, and a Path codec",
-      "row": "P14.37",
-      "section": "§9n: minimise strings",
-      "detail": "Two option values cross this file as text where the string law rules objects. A capability is granted as `grants=[\"file\"]`: petta.vocabularies.SpaceCapability is a `Literal['file','process','network']` TYPE, so mypy checks the word and nothing autocompletes it, renames with it or greps for it; PERFECT is `grants=[SpaceCapability.FILE]`, the enum the option-value rule names. And a path crosses as `ground(str(SOURCE))`, because `ground(Path(...))` reaches the engine as an opaque box that `exists_file` refuses, \"cannot write <py_Box> as MeTTa text\" [measured 2026-08-23]; PERFECT is `S[\"exists_file\"](SOURCE)` with a Path codec doing the conversion the str() does by hand."
     },
     {
       "kind": "friction",
@@ -1080,15 +774,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/functions/curry.metta",
-      "form": null,
-      "missing": "two stacked @m.define clauses of one name that fix no literal head, which raise IndexError instead of stacking or refusing",
-      "row": "P14.4",
-      "section": "correction to §9c's definitional decorator: its two shapes are not interchangeable, and the function shape CRASHES where it owes a refusal",
-      "detail": "DEFECT, not a missing spelling, found writing this twin and reproduced in three files. Minimal case: `@m.define(name='oc')\\ndef oc1(a): return a` followed by `@m.define(name='oc')\\ndef oc3(a, b, c): return a + (b + c)` raises `IndexError: list assignment index out of range` at _define_twins.replace_twin_clause. Root cause: _space_definitions._locate_clause answers a replacement index whenever an earlier clause has the SAME patterns (both `{}` here, since neither fixes a literal), and _store_clause then calls replace_twin_clause(dispatcher, that_index, ...) on `twin_dispatcher(fn)`, which is keyed by the PYTHON function name (`oc3`) and is therefore a fresh dispatcher with no clauses. Arity is not consulted, so two clauses of DIFFERENT arity under one name hit it as well. Two consequences: the crash, and the design underneath it, that a second patternless clause is located as a REDEFINITION of the first rather than an alternative beside it, which is P14.3's own note that stacked @define clauses cannot express non-exclusive equations on one head. curry (`overloaded-curry`, two arities), multicall (`mycalc`, two alternatives) and functionremoval/functionremovalspec (`f`, two alternatives) all take the @rules shape because of it. The fix is either to key the twin dispatcher by the METTA name so the clause list and the dispatcher agree, or to refuse the second clause with the sentence _validate_clause_order already writes for the other collisions."
-    },
-    {
-      "kind": "friction",
       "example": "examples/basics/factorial.metta",
       "form": null,
       "missing": "a compiled body that stores the equation the example stores, rather than one that only answers alike",
@@ -1143,24 +828,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/basics/math.metta",
-      "form": null,
-      "missing": "an operator that BUILDS a term over two ground operands",
-      "row": "P14.4",
-      "section": "§9b: the vocabulary, operators compute on ground operands",
-      "detail": "The refusals this file is about are terms over two grounded numbers, and a Python operator over two grounded numbers is that number's own arithmetic: `val(7) / 0` raises ZeroDivisionError in Python instead of building `(/ 7 0)`. So every such term is named at the `m.fn` door, and the same is true of `==` and `!=`, whose operators are taken by Python's own structural equality on atoms while MeTTa's compare numeric VALUES across int and float, which is the claim the file opens with. The method forms do not close it either: `a.eq(b)` wants an atom on the left, which two bare literals are not, and `a.ne(b)` builds `(not (== a b))`, a different atom from `(!= 1.0 1)`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/functions/dispatch_policies.metta",
-      "form": null,
-      "missing": "the not-reducible answer through `m.eval`, which a runnable form keeps and the Python door drops",
-      "row": "P14.4",
-      "section": "correction: P5.21 says the unreduced term IS the answer",
-      "detail": "MEASURED DEFECT, 2026-08-22, minimal reproduction: `@m.define def pick(n=1): return 7` then `m.run(\"!(pick 2)\")` answers `[[(pick 2)]]` and `m.eval(S.collapse(S.pick(2)))` answers `[((pick 2))]`, while `m.eval(S.pick(2))` answers `[]` and `m.eval_status(S.pick(2))` says `[('empty', None)]`. So for a DEFINED function whose clauses do not match, the Python evaluation door drops the answer the engine produced, and reports the other of the two nothings that eval_status exists to keep apart. `MeTTa.eval`'s own docstring says 'This is what !(...) runs, minus the printing'. A head with NO equations is unaffected: both doors answer the unreduced term. This example is exactly the affected case in both directions, so the twin reads its three claims through `m.fn(\"reduce\")`, which does apply the NoMatchEnum policy: unreduced under the default, nothing under NoMatchFail, unreduced again after the override is removed. examples/functions/functionremoval.metta's last claim is the same shape once both clauses are gone."
-    },
-    {
-      "kind": "friction",
       "example": "examples/functions/lambda.metta",
       "form": null,
       "missing": "applying a lambda WHERE IT STANDS inside a compiled body",
@@ -1176,42 +843,6 @@
       "row": "P14.4",
       "section": "§4 surface gaps: bare equations and rewrite rules",
       "detail": "(= (only $C $X) (let $constraint $C $X)) evaluates its first argument for effect and answers the second. Python's assignment is the dissolution of let, but a compiled body's assignment mints its own name and stores let*, so the stored equation would not be the one the example stores. The twin writes S.let(V.constraint, c, x) inside an ordinary @m.define body, which R1's V. door makes possible; what is still missing is a Python STATEMENT that means the one-pair let rather than let*."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/basics/fibsmart.metta",
-      "form": null,
-      "missing": "a compiled body naming a SIBLING DEFINITION whose MeTTa name differs from its Python name",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "DEFECT, the narrow remainder of the retired hyphenated-callee row. A compiled body resolves a free name by asking for the exact spelling and then for its underscore-to-hyphen image, and _known_symbol blocks the MAPPED half whenever the identifier is BOUND in the host scope, deliberately, so that sc-edge-to is never silently chosen over a Python sc_edge_to object. A @m.define(name='fib-tr') def fib_tr(...) is exactly that shape: the Python name is bound to the Defined whose MeTTa name is fib-tr, so a sibling body writing fib_tr(n, 0, 1) raises CompileError 'not a parameter of fib, not a function the engine knows'. Neither rung 1 nor rung 4 reaches it and the body descends to rung 5, S['fib-tr']. The fix is to consult a bound Defined's OWN MeTTa name before treating the binding as opaque host state; the same wall is why examples/functions/partialdef.metta writes S['..'] and examples/functions/specialize.metta writes S['higher-order-fun'], while its wrapper reaches map-flat as the bare map_flat because a rule bundle binds no Python name at all. Measured 2026-08-23 on this worktree."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/functions/specializecyclic.metta",
-      "form": null,
-      "missing": "`<` over an atom, which builds nothing where `>`, `<=` and `>=` build their terms",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "DEFECT, and an asymmetry inside one operator family. R5 gave Atom.__lt__ the engine's standard atom ORDER so that sorted(atoms) and msort agree, which took the one comparison operator that also had to BUILD. Measured 2026-08-23: V.a > 0 builds (> $a 0), V.a <= 0 builds (<= $a 0), V.a >= 0 builds (>= $a 0), and V.a < 0 raises TypeError: '<' not supported between instances of 'Variable' and 'int'. The mirrored form 0 > V.a raises too, because comparisons have no right-hand methods and reflection lands back on __lt__. So a term-building site descends to S['<'](a, 0) for one member of a family whose other three members need nothing, which the guide's own (V.a >= 18) & (V.a < 65) says should read alike. Either the order moves off < (order_key is already the public spelling) or __lt__ dispatches on the other operand's kind."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/basics/constraint_domains.metta",
-      "form": null,
-      "missing": "the answer view's cardinality doors over an answer that still carries a rational binding",
-      "row": "P14.4",
-      "section": "correction to Track R3's answer view",
-      "detail": "DEFECT. m.eval answers [Grounded('1r2')] for (let True (clpq (= (* 2 $x) 1)) (repr $x)), and m.answers(<the same term>).one() raises ValueError: wire number payload must be numeric, got Fraction(1, 2). The lazy view decodes every BINDING an answer carries, where m.eval decodes only the answer template, so a CLP(Q) answer that leaves a rational standing cannot be read through one(), first() or the list comparison. Every claim in this example that leaves a rational standing therefore reads through m.eval. The wire codec needs a Fraction case, or the view must not decode bindings the caller did not ask for. Measured 2026-08-23 on this worktree."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/basics/constraint_domains.metta",
-      "form": null,
-      "missing": "a call door that answers what a formula DECIDES when the formula's own variable is not a caller variable",
-      "row": "P14.4",
-      "section": "correction to Track R3's answer view",
-      "detail": "R3 rules that a call containing caller variables answers Row bindings, which is right for ancestor(V.who, S.Jim).who and wrong for (clpb-taut (+ $t (~ $t))), where $t is quantified inside the formula and the answer wanted is True. Measured 2026-08-23: m.fn['clpb-taut'](V.t + S['~'](V.t)) answers [Row(t=$_788)] while m.eval of the same term answers [True]. The two readings need separate doors, or the binding reading needs to be asked for rather than inferred from the presence of a variable; examples/functions/functionhead3.metta hits the same split from the other side, where (collapse (myplus $x 3)) wants the reduced values and the call answers the bindings."
     },
     {
       "kind": "declined",
@@ -1469,10 +1100,10 @@
       "kind": "friction",
       "example": "examples/reasoning/peano.metta",
       "form": null,
-      "missing": "a compiled `match()` whose space, pattern and template are PARAMETERS",
+      "missing": "a compiled body spelling for `collapse`, `once` and `case`",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "add-atom-no-duplicate matches against a space its CALLER names, and a compiled match() takes its space as a literal \"&name\" string, never a parameter. Same wall as examples/control/cut.metta. expand-once is additionally a `case`, and expandK and demo-peano bind with let and let* over calls to names that are not Python identifiers."
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The space half is closed by fix 15: a compiled match() takes the handle its caller passes, measured on this tree. What survives is what stops each of the four definitions anyway: add-atom-no-duplicate collapses a `once` over its match and a compiled body spells neither, expand-once is a `case`, and expandK and demo-peano bind with `let` and `let*` over calls to those two names."
     },
     {
       "kind": "friction",
@@ -1629,66 +1260,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/reasoning/peano.metta",
-      "form": null,
-      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
-      "row": "P14.7",
-      "section": "§9e the performance note; §5 the three lanes",
-      "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `collapse` is `list()` and `length` is `len()`, so the claim reads `len(m.fn.demo_peano(300)) == 301` and costs 2,833,146 inferences against the engine's 2,195,554, +29%, past the lane's 10% band. The answers are Peano terms up to 300 deep, so building them in Python is the cost. The missing door is a query that projects or aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/reasoning/peano.metta]."
-    },
-    {
-      "kind": "friction",
       "example": "examples/reasoning/permutations.metta",
       "form": null,
       "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
       "row": "P14.7",
       "section": "§9e the performance note; §5 the three lanes",
       "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `len(m[conjuncts])` counts the 362,880-row join through Python's own conjunction door and costs 55,719,867 inferences against the engine's own 32,521,598, +71%, past the lane's 10% band, because every row's ten bindings become Python atoms. The missing door is a query that aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/reasoning/permutations.metta]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/types_dependent.metta",
-      "form": null,
-      "missing": "a one-armed `if_`, for MeTTa's two-argument `if` inside stored code",
-      "row": "P14.4",
-      "section": "§9e the keyword builders",
-      "detail": "R5's `if_(condition, consequent, alternative)` fixes the arity at three, and MeTTa's `if` admits two: this example's computed types are `(if (=alpha (% $x 2) 0) EvenNumber)` and `(if (=alpha (get-type $head) EvenNumber) <walk>)`, each answering nothing when the test fails. Python's conditional expression cannot spell a missing else either, so the twin names the head, `fn['if'](test, then)`, and declares the rung on the line. Making `alternative` optional closes it [measured 2026-08-23: `if_` raises `TypeError: if_() missing 1 required positional argument: 'alternative'`]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/functiontypes.metta",
-      "form": null,
-      "missing": "`<` as a term builder, which appendix stamp 6 gave to the engine's sort order",
-      "row": "P14.4",
-      "section": "§9u the operator fences",
-      "detail": "`Atom.__lt__` is `_standard_order_lt` so that plain `sorted(atoms)` follows the engine's term order, and the operator table's `__lt__` entry is overwritten by it. The consequence is a three-to-one split nothing announces: `V.a <= 10`, `V.a > 10` and `V.a >= 10` build `(<= $a 10)`, `(> $a 10)` and `(>= $a 10)`, while `V.a < 10` raises `TypeError: '<' not supported between instances of 'Variable' and 'int'` and `V.a < S.b` answers a Python bool. The guide's own mirroring fence goes with it: `2 > V.a` should build `(< $a 2)` and now raises, because the reflected `__lt__` refuses a non-atom. Three twins name the head instead (`fn['<']`), and the resolution wants either a `sorted(key=order_key)` reading or an explicit ruling that `<` alone is not a builder [measured 2026-08-23]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/meta_types.metta",
-      "form": null,
-      "missing": "a calling door that answers the VALUE when the call carries a caller variable",
-      "row": "P14.7",
-      "section": "§9t the answer protocol",
-      "detail": "A call through the bound function namespace answers `Row` bindings whenever the call carries one of the caller's variables, and the engine's own answer is dropped: `m.fn.get_metatype(V.x)` answers `[Row(x=$_70)]` where the form answers `[Variable]`. The shape is the ordinary one in MeTTa, so it costs several twins their calling door: meta_types' variable metatype, types.metta's `(mid ($a b))`, soft's `(soft-score $x anything)` and its two `soft-match` collapses, and every one of nilbc's nine proof searches, whose query is `(: $prf <theorem>)` and whose answer is the proof term. Each reads `m.eval(form)` instead and says so on the line. The fix is an answer that carries BOTH, which is what §9t's binding-carrying answer already describes [measured 2026-08-23]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/inplace_annotations.metta",
-      "form": null,
-      "missing": "attribute and variable projection on the eager Rows a subscript answers",
-      "row": "P14.7",
-      "section": "§9t the answer protocol",
-      "detail": "`Answers.who` and `answers[V.who]` project, and the guide's own anti-pattern pair says the string key is the wrong spelling; the eager `Rows` a subscript answers has only the string key. `m[p].t` raises `AttributeError: 'Rows' object has no attribute 't'` and `m[p][V.t]` raises `TypeError: cannot read $t as a Python int` from `Variable.__index__`. The twin reads each row instead, `[row.t for row in m[p]]`, which keeps the string out and is the per-row half of the same protocol [measured 2026-08-23]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/measure.metta",
-      "form": null,
-      "missing": "the underscore-to-hyphen map at the `@define` door, which every factory door applies",
-      "row": "P14.5",
-      "section": "§9d rung 4 of the descent ladder",
-      "detail": "Rung 4 of the descent rule says hyphen and underscore map to each other IN BOTH DIRECTIONS, and the guide's own example is `def not_provable` landing as `not-provable`. The `S`, `V` and `fn` factories apply that map; `@space.define` does not, and takes the Python name verbatim, so `def sc_pick_max` stores `sc_pick_max` and a hyphenated MeTTa name needs `name='sc-pick-max'` at this one door. Three twins carry that keyword (measure's `first-weight`, scallop_readme's `sc-pick-max`, constructive_negation's two `mask-example` definitions) and the reflectivity check is what makes it load-bearing: the stored head has to be the example's [measured 2026-08-23: `@m.define def sc_pick_max` stores `(= (sc_pick_max $a $b) ...)`]."
     },
     {
       "kind": "declined",
@@ -2576,82 +2153,82 @@
       "kind": "friction",
       "example": "examples/integration/git_import.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
       "example": "examples/integration/import_duplicate_cycle.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
       "example": "examples/integration/import_error_surface.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
       "example": "examples/integration/import_relative_nested.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
       "example": "examples/integration/import_space_identity.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
       "example": "examples/integration/python_import.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
       "example": "examples/integration/c_extension/c_extension.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
       "example": "examples/integration/c_extension/handle.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
       "example": "examples/integration/c_space/c_space.metta",
       "form": null,
-      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
+      "missing": "a Python import door on the space handle",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
     },
     {
       "kind": "friction",
@@ -2670,15 +2247,6 @@
       "row": "P14.5",
       "section": "§9d the concept map, \"the Python CLASS of an atom to its metatype\"",
       "detail": "The design's rule is that the Python class of an atom IS its metatype, so `isinstance(a, Grounded)` should answer what `(get-metatype a)` answers. It does not for a native handle: `Handle.__mro__` is (Handle, Atom, object), `issubclass(Handle, Grounded)` is False, and the engine still says Grounded [re-measured 2026-08-23 on the narrow core]. Separately `atom.metatype` answers the STRING 'Grounded' rather than `S.Grounded`, so the claim reads `vector.metatype == S.Grounded.name`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/translation/translatorrule.metta",
-      "form": null,
-      "missing": "an EAGER call door, so a directive reached by name runs at statement level",
-      "row": "P14.13",
-      "section": "§4 surface gaps: declarations that are directives",
-      "detail": "Measured 2026-08-23. `_EngineFunction.__call__` answers a lazy `Answers` view, and creating that view performs no engine work, so `m.fn.add_translator_rule(S.unpack)` written as a statement registers NOTHING: the control shows `(twin (a b c) (a b c))` unchanged after the call and rewritten only after `list()` of the view. The same swallows `m.fn[\"import!\"](m, target)`. Every directive in data/, integration/ and translation/ is therefore written through the eager term door, `m.eval(S[\"add-translator-rule!\"](S.unpack))`, with a comment naming the perfect spelling. The style guide's own row for `!(expr)` is \"a call at statement level\", so the fix is for a call whose answers nobody reads to still perform its effect, or for the directives to gain handle verbs."
     },
     {
       "kind": "friction",
@@ -5064,6 +4632,486 @@
       "section": "§9d terminology and the factory doors",
       "detail": "CLOSED by R1's mention doors. Re-measured 2026-08-23: `S[\"__class__\"]` and `S[\"__name__\"]` build the symbols they name, which is rung 5 doing its job; only the ATTRIBUTE door still refuses a leading double underscore, and it must, because inside a class body Python's own compiler mangles such a name. The twin writes the brackets and needs no escape. ORIGINAL ENTRY: py-dot reaches __class__ and __name__, and S.__class__ raises AttributeError because _atom_namespace refuses every name starting with `__`; the SUBSCRIPT door forwards to the same guard, so S[\"__class__\"] raises too. The twin reaches them through sym(...). examples/reasoning/permutations.metta needs the same escape for `___`.",
       "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_per_arity.metta",
+      "form": null,
+      "missing": "two arities under one MeTTa name; the second @m.define raises IndexError",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "DEFECT, not only a gap. @m.define(name='add') for (add $x $y) and then for (add $x $y $z) raises IndexError: list assignment index out of range at _define_twins.replace_twin_clause line 229, re-measured 2026-08-23 on this branch. The clause table `earlier` is keyed by the MeTTa name and both clauses carry no literal head patterns, so _locate_clause answers replaced=0; the twin dispatcher is keyed by (id(fn.__globals__), PYTHON function name), so the second decoration addresses position 0 of a dispatcher that has no clauses yet. Reusing the same Python name avoids the crash but then REPLACES the first arity, so neither route defines two arities. Both twins now write both arities through R3's @rules bundle, which lands them in one write; the decorator door is still the one that crashes.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 6, one defined MeTTa name holds independently dispatched clauses of different arities; the twin stacks two @m.define decorations of `add` and the second states the exact name"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_same_name_multi_arity.metta",
+      "form": null,
+      "missing": "two arities under one MeTTa name; the second @m.define raises IndexError",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "DEFECT, not only a gap. @m.define(name='add') for (add $x $y) and then for (add $x $y $z) raises IndexError: list assignment index out of range at _define_twins.replace_twin_clause line 229, re-measured 2026-08-23 on this branch. The clause table `earlier` is keyed by the MeTTa name and both clauses carry no literal head patterns, so _locate_clause answers replaced=0; the twin dispatcher is keyed by (id(fn.__globals__), PYTHON function name), so the second decoration addresses position 0 of a dispatcher that has no clauses yet. Reusing the same Python name avoids the crash but then REPLACES the first arity, so neither route defines two arities. Both twins now write both arities through R3's @rules bundle, which lands them in one write; the decorator door is still the one that crashes.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 6, as for test_memo_per_arity; the twin stacks two @m.define decorations of `mix`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/json_lib.metta",
+      "form": null,
+      "missing": "a space handle from the space a library function ANSWERS",
+      "row": "P14.13",
+      "section": "§9j: the web datastore IS a space",
+      "detail": "json-decode, dict-space and file-space! each answer a space by NAME, as Symbol('&json-1'), and petta.space takes a string, refusing a Symbol with 'a space name is a string starting with &, as in &self or &kb'. So every use round-trips through str(): petta.space(str(decode(text).one())). Re-measured 2026-08-23 on this branch. The design point underneath works beautifully once the handle is in hand, and it is what makes these twins short: the decoded object's keys are the heads of its atoms, its lookup is a subscript, an absent key answers no rows, and file-space!'s (line N Text) atoms are queried by line number. text_lib needs the same round trip.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 12, petta.space accepts a space-name Symbol, so `opened` is petta.space(answers.one()) with no str() between them"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/roman_test.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2, a call answers its evaluation value and the caller's bindings are the parallel row face; the nine set operations are called through m.fn"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/he_assert.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; the five alpha claims are called through m.fn.assertAlphaEqual and its siblings"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/he_types.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; match_types over a type carrying a variable is called through m.fn"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/he_error.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; the host-error catch is m.fn.catch of a term carrying two variables"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; twenty-five of the twenty-eight instruction claims are called through m.fn"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/patrick_test.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; the comprehension and the fold are called through m.fn"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/test_memo_variant_nonground.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; both shape-kind claims are m.fn calls whose argument carries a variable the answer does not depend on"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; the rendezvous is m.fn.await_atom over a pattern carrying $what"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/thread_linda.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2 and fix 14; the blocking binds are the handle verbs and the sugar claim is m.fn.await_atom"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_space_write.metta",
+      "form": null,
+      "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
+      "detail": "R3's answer view projects the caller's own pattern variables, which is right for an ask and wrong for a CALL whose argument merely contains a variable. m.fn.shape_kind(S.Pair(V.a, 2)) answers [Row(a=$_82)] where the example claims `pair`; m.fn['/=\\\\']((1, 2, V.a), (2, 3, 4)) answers [Row(a=2)] where the claim is the expression (2 2). Every kind of variable is caught by it: a MeTTa lambda's own binder ((|-> ($i $x) (+ $x $i))), a comprehension's binder ((for $x ... )), a chain's binder, a pattern handed to table-stats, a type carrying a variable, and the alpha family, which compares modulo renaming and therefore carries variables by definition. The twins state those claims through m.eval, the term door, which keeps the atom. Measured 2026-08-23 on this branch; 11 files in libraries/ are affected and minimal_metta is the extreme, where twenty of twenty-eight claims are instruction-set terms full of binders.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; both tabled readers are projected by name"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_space_write.metta",
+      "form": null,
+      "missing": "a Python-named call that keeps its answer columns inside a stats scope",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: the projection depends on the enclosing scope",
+      "detail": "Calling a @m.define'd function by its Python name answers [Row(y=b)] with columns ('y',) outside a stats scope and [b] with columns () inside one, so reach(S.a, V.y).y raises AttributeError: no answer variable 'y'; variables are []. The same call through the function namespace, m.fn.reach(S.a, V.y), keeps its columns in both. Every twin runs inside `with m.stats() as spent:` because that is how the lane prices it, so a twin can never write the projection on a Python-named call, and code that works in the lane would raise outside it or the reverse. The twin compares reach's answers directly and projects twohop's, which is the same claim said two ways in one file. Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; `reach(S.a, V.y).y` answers [b] inside the `space.stats()` scope every twin runs in, measured on the merged tree"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/he_quoting.metta",
+      "form": null,
+      "missing": "a grounded operand that STAGES its operator, so G(1) + 2 builds (+ 1 2)",
+      "row": "P14.5",
+      "section": "correction to §9e builders promoted from warts: the guide's grounded lift is unbuilt",
+      "detail": "§3.2 of the style guide teaches `G(1) + 2` as THE lift, 'one grounded ATOM stages (+ 1 2); sympy writes S(1)/2 for the same reason', and gallery II's whole program rests on it: `sum_ = G(1) + 2` then `S.quote(sum_)` is supposed to build (quote (+ 1 2)). Grounded arithmetic COMPUTES instead: G(1) + 2 answers the integer 3, so gallery II as written quotes 3 and this twin has nothing left to quote. The term is built by naming the head, S['+'](1, 2). The neighbouring fence is unbuilt too: §3.2 says a ground LEFT operand builds the MIRRORED comparison, and 2 > V.a raises TypeError: '>' not supported between instances of 'int' and 'Variable'. V.n * 2 does build, so the variable side of the rule is shipped and the grounded side is not. Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 9, a grounded operand stages its operator; the twin builds its sum as `G(1) + 2`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/he_math.metta",
+      "form": null,
+      "missing": "an answer view as an operand, so engine calls nest the way Python nests calls",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: composition stops at the call door",
+      "detail": "m.fn.isnan_math(m.fn.sqrt_math(-1)) answers (Error (isnan-math <Answers>) (BadArgType 1 Number Answers)): an answer view crosses as an ordinary grounded Python object, so a call cannot be handed to a call. `.one()` at every nesting level would say the same thing four times on a line AND cross the boundary once per sub-call, which the three-lane cost model prices per collection rather than per element. The twins build the nested TERM instead, binding each head once as a mention and evaluating the whole of it, which is also what the example's own single form does. datastructures_fingertree is written entirely that way, eleven mentions and fifteen composed terms. Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 10, an answer view crossing into term position is an observation point, so deterministic engine calls nest"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/datastructures_fingertree.metta",
+      "form": null,
+      "missing": "an answer view as an operand, so engine calls nest the way Python nests calls",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: composition stops at the call door",
+      "detail": "m.fn.isnan_math(m.fn.sqrt_math(-1)) answers (Error (isnan-math <Answers>) (BadArgType 1 Number Answers)): an answer view crosses as an ordinary grounded Python object, so a call cannot be handed to a call. `.one()` at every nesting level would say the same thing four times on a line AND cross the boundary once per sub-call, which the three-lane cost model prices per collection rather than per element. The twins build the nested TERM instead, binding each head once as a mention and evaluating the whole of it, which is also what the example's own single form does. datastructures_fingertree is written entirely that way, eleven mentions and fifteen composed terms. Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 10; every fingertree claim nests calls through m.fn with no .one() between the levels"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/minimal_metta.metta",
+      "form": null,
+      "missing": "an answer view as an operand, so engine calls nest the way Python nests calls",
+      "row": "P14.7",
+      "section": "correction to §9f the answer container: composition stops at the call door",
+      "detail": "m.fn.isnan_math(m.fn.sqrt_math(-1)) answers (Error (isnan-math <Answers>) (BadArgType 1 Number Answers)): an answer view crosses as an ordinary grounded Python object, so a call cannot be handed to a call. `.one()` at every nesting level would say the same thing four times on a line AND cross the boundary once per sub-call, which the three-lane cost model prices per collection rather than per element. The twins build the nested TERM instead, binding each head once as a mention and evaluating the whole of it, which is also what the example's own single form does. datastructures_fingertree is written entirely that way, eleven mentions and fifteen composed terms. Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 10; the minimal-MeTTa instructions nest"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/thread_linda.metta",
+      "form": null,
+      "missing": "peek and take on the handle without importing lib_thread INTO that space",
+      "row": "P14.10",
+      "section": "§9b: the space handle carries every context-relative door",
+      "detail": "§3.14 rules jobs.take((S.Job, V.n)) and jobs.peek(...) as the coordination doors, and R5 shipped both. Space._wait_for_atom evaluates (import! <self> (library lib_thread)) on the space it was called on before waiting, so jobs.peek(...) leaves lib_thread's own definitions IN &jobs. This example claims that &jobs, &work and &inbox are EMPTY afterwards, (collapse (get-atoms &jobs)) == (), which the handle verbs make false. The twin names peek-atom and take-atom and hands the space over as the handle instead. The library it needs is already in the space that calls it, so the import belongs where the caller asks for it, not on the target. Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 14, peek and take load lib_thread in the caller's context, so the waited-on space keeps only its own atoms"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/doc_lib.metta",
+      "form": null,
+      "missing": "one projection spelling across both answer containers",
+      "row": "P14.7",
+      "section": "§9d the Rows retirement; decision 11's carrier note",
+      "detail": "The call door answers Answers, which projects by attribute and by answers[V.name] exactly as §3.15 rules; the subscript and query doors answer Rows, whose only projection is a STRING key, rows['desc']. The anti-pattern table names a string projection key as the wrong spelling, so a twin cannot use it, and Rows has no attribute form on the container. The twins write [row.desc for row in space[pattern]], a comprehension over rows where each ROW does project by attribute. It is lawful and it reads, but it is a second spelling for one concept, and json_lib, text_lib, foreign_rules and conformance all pay it too. Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 11, Rows and Answers share attribute, Variable and exact-string projection"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/roman_test.metta",
+      "form": null,
+      "missing": "a solve whose PATTERN wins the variables, which is the guide's own first exemplar",
+      "row": "P14.4",
+      "section": "§3.6 the let family, and where solve comes from",
+      "detail": "§3.6 teaches two solve exemplars: solve(S.cons(V.h, V.t), items), where 'pattern must WIN variables from what the subject PRODUCES', and solve(4, V.x - 1).x, where the variables sit on the subject side. R5 shipped the second and refuses the first: m.solve(S.head(V.x), (1, 2, 3)) raises ValueError: solve needs at least one variable in its subject, while m.solve(4, V.x - 1).x answers 5. The six reverse-function-matching claims here are exactly the refused reading, so they are written as the let terms they are. The ledger records that three twins hand-rolled solve identically before it had a name, and those three are this shape. Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 13, solve's answer template takes the variables the pattern introduces; the six reverse-matching claims are m.solve"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/evalc.metta",
+      "form": null,
+      "missing": "a term builder for an operator head over GROUND operands",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "WIDENED, re-anchored 2026-08-23. Three of this file's terms are arithmetic over two ground operands, (+ 5 5) twice and (+ 1 1) once, and on a grounded number Python's operators are that number's own arithmetic, so `ground(5) + 5` is 10 rather than the term (+ 5 5); only INSIDE a compiled body does + build one. The head therefore has to be named at the S[\"+\"] door. R5 widened the hole rather than closing it: `Atom.__lt__` is now the engine's sort order, so `V.a < 2` raises TypeError and `2 > V.a` raises too, where every other comparison still builds and mirrors [measured 2026-08-23; see the admission_pools entry].",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 9; the three arithmetic terms are written `G(5) + 5` and `G(1) + 1`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/superpose_primes.metta",
+      "form": null,
+      "missing": "a compiled `if` that leaves an engine-Bool condition alone",
+      "row": "P14.24",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "RE-ANCHORED 2026-08-23, and the twin now COMPILES both equations. MeTTa's own `==` IS reachable in a compiled body, `fn[\"==\"](0, n % d)`, which is what this entry asked for; it does not help, because a compiled `if` wraps any condition that is not already a comparison in `py-truthy`, so the crossing moves rather than leaving. Measured 2026-08-23 on the four searches, one fresh process each: the term door spends 531,461 inferences, `fn[\"==\"]` under a compiled `if` spends 943,162, +77.5%, and the two stored bodies differ only by that wrapper. Python's own `n % d == 0` lowers to `py-eq` inside the same `py-truthy`. The twin writes the liked Python spelling and the cost is the library's; P14.24 is the row.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 20, a compiled call whose declared result type is Bool is emitted directly in condition position; the twin writes fn[\"==\"] and the stored body holds no py-truthy, measured 922,119 inferences before and 539,720 after"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/hyperpose_primes.metta",
+      "form": null,
+      "missing": "a compiled `if` that leaves an engine-Bool condition alone",
+      "row": "P14.24",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "RE-ANCHORED 2026-08-23, and the twin now COMPILES both equations. MeTTa's own `==` IS reachable in a compiled body, `fn[\"==\"](0, n % d)`, which is what this entry asked for; it does not help, because a compiled `if` wraps any condition that is not already a comparison in `py-truthy`, so the crossing moves rather than leaving. Measured 2026-08-23 on the four searches, one fresh process each: the term door spends 531,461 inferences, `fn[\"==\"]` under a compiled `if` spends 943,162, +77.5%, and the two stored bodies differ only by that wrapper. Python's own `n % d == 0` lowers to `py-eq` inside the same `py-truthy`. The twin writes the liked Python spelling and the cost is the library's; P14.24 is the row.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 20, as for superpose_primes"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/matespacefast.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "§9e the performance note; §5 the three lanes",
+      "detail": "STILL OPEN, re-anchored 2026-08-23, and the recorded FAILURE is gone. `len(m.fn[\"mate-space-demo\"](19))` used to overflow the Prolog stack before it could count 1,572,862 answers; the R3 answer view streams where the old door built one Prolog list, so the same count now completes at 295,442,370 inferences, 66 seconds and 5.3 GB of resident memory in one process [measured 2026-08-23]. The wall moved from \"cannot run\" to \"expensive\", and this is the largest memory figure in the corpus, so the re-pin pass should know it exists. The missing door is the one peanofast names.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 17, len() on an untouched engine-backed view uses an engine count cursor and leaves the Python answer cache empty; the twin's `len(m.fn[\"mate-space-demo\"](19))` is that door"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": null,
+      "missing": "an operator door for `<`, which the atom sort order took",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "R5's appendix-6 stamp put the engine's standard atom order on `Atom.__lt__` so that plain `sorted(atoms)` is `msort`, and that took the term-building `<` with it. Measured 2026-08-23: `V.x < V.y` answers Python's bool True, `V.a < 2` raises TypeError, and its mirror `2 > V.a` raises too, while `>`, `<=`, `>=` and their mirrors all still build. The guide's own fence, \"a ground LEFT operand builds the MIRRORED term: 2 > V.a builds (< $a 2)\", is therefore false for one direction only. The code says the trade is deliberate (_atoms_core.py:1362-1365, \"quoted code spells the relation explicitly as S['<'](left, right)\"), which makes this a documentation and critical-pair item rather than a bug, but it is silent: this twin's capacity guard read `(< (space-atom-count $pool) (car-atom $limits))` as the constant False and refused every write until the head was named. PERFECT: sorting and building do not share one dunder, or the guide records the split where it teaches the fence.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 3 ruled the other way and closed it: all four rich comparisons order atoms, and a comparison TERM is built at the naming door, which is what this judge already writes"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces3.metta",
+      "form": null,
+      "missing": "one answer shape at both doors: the ask door answers Rows, which projects only through a string key and is mutable",
+      "row": "P14.7",
+      "section": "§9e: projection is the naming convention re-applied",
+      "detail": "`space.query(...)` and `space[...]` answer `Rows`; `space.fn.name(...)` answers `Answers`. Only the second projects by attribute, `answers.x`; `Rows` offers `rows[\"x\"]`, the string-key spelling the surface's own anti-pattern table retires, and `rows[V.x]` raises \"cannot read $x as a Python int\". `Rows` also carries the mutable list protocol, append/clear/insert/pop/remove/sort, where answers are immutable and slices stay Answers [measured 2026-08-23]. The twin reads `[row.x for row in rows]`, which is honest and one step longer than the ruled `rows.x`.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 11; the ask door's Rows projects by attribute, so `one.x == [S.wu]` is the claim"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_find.metta",
+      "form": null,
+      "missing": "a call door that keeps a predicate's own answer beside the bindings it made",
+      "row": "P14.7",
+      "section": "§10 decision 11: the relational op yields bindings, and answers surface them",
+      "detail": "R3 made a call carrying caller variables answer Row answers, which is what this file's older entry asked for. The answer VALUE is what the row then drops: lib_spaces' `find` answers True per solution and False when nothing matches, and at the Python door a failing find is one row whose variable is still FREE rather than no rows at all, `Row(c=$_94)` [measured 2026-08-23]. So the twin tells the two readings apart with `row.c.vars`, which is the honest test and not the one the fallback wants. PERFECT: no solution is no rows, or the answer travels beside the bindings.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; iterating `find(...)` answers what the predicate decided and `.rows` answers the bindings, paired"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/peanofast.metta",
+      "form": null,
+      "missing": "the define door applying rung 4's underscore-to-hyphen map to the def name",
+      "row": "P14.4",
+      "section": "§9o.2 the descent ladder, rung 4",
+      "detail": "The ladder documents rung 4 as total in both directions and gives the define door as its own example, \"def not_provable lands as not-provable\". It does not: `def find_divisor` under @m.define lands as the atom `find_divisor` [measured 2026-08-23]. Every hyphenated MeTTa name in this corpus therefore states itself twice, once as a snake_case Python name the linter wants and once as `name=\"...\"`. PERFECT: the map applies at the define door as it does at S, V and fn, and `name=` is left for names Python cannot spell at all, such as `prime?` and `range`.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 18, an implicit @define name applies the naming ladder's underscore map, and fix 7 lets the sibling call say `expand_k(S.Z, k)`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/restricted_spaces.metta",
+      "form": null,
+      "missing": "a capability ENUM, and a Path codec",
+      "row": "P14.37",
+      "section": "§9n: minimise strings",
+      "detail": "Two option values cross this file as text where the string law rules objects. A capability is granted as `grants=[\"file\"]`: petta.vocabularies.SpaceCapability is a `Literal['file','process','network']` TYPE, so mypy checks the word and nothing autocompletes it, renames with it or greps for it; PERFECT is `grants=[SpaceCapability.FILE]`, the enum the option-value rule names. And a path crosses as `ground(str(SOURCE))`, because `ground(Path(...))` reaches the engine as an opaque box that `exists_file` refuses, \"cannot write <py_Box> as MeTTa text\" [measured 2026-08-23]; PERFECT is `S[\"exists_file\"](SOURCE)` with a Path codec doing the conversion the str() does by hand.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 21; the twin passes SpaceCapability.file and a pathlib.Path across the call door"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/curry.metta",
+      "form": null,
+      "missing": "two stacked @m.define clauses of one name that fix no literal head, which raise IndexError instead of stacking or refusing",
+      "row": "P14.4",
+      "section": "correction to §9c's definitional decorator: its two shapes are not interchangeable, and the function shape CRASHES where it owes a refusal",
+      "detail": "DEFECT, not a missing spelling, found writing this twin and reproduced in three files. Minimal case: `@m.define(name='oc')\\ndef oc1(a): return a` followed by `@m.define(name='oc')\\ndef oc3(a, b, c): return a + (b + c)` raises `IndexError: list assignment index out of range` at _define_twins.replace_twin_clause. Root cause: _space_definitions._locate_clause answers a replacement index whenever an earlier clause has the SAME patterns (both `{}` here, since neither fixes a literal), and _store_clause then calls replace_twin_clause(dispatcher, that_index, ...) on `twin_dispatcher(fn)`, which is keyed by the PYTHON function name (`oc3`) and is therefore a fresh dispatcher with no clauses. Arity is not consulted, so two clauses of DIFFERENT arity under one name hit it as well. Two consequences: the crash, and the design underneath it, that a second patternless clause is located as a REDEFINITION of the first rather than an alternative beside it, which is P14.3's own note that stacked @define clauses cannot express non-exclusive equations on one head. curry (`overloaded-curry`, two arities), multicall (`mycalc`, two alternatives) and functionremoval/functionremovalspec (`f`, two alternatives) all take the @rules shape because of it. The fix is either to key the twin dispatcher by the METTA name so the clause list and the dispatcher agree, or to refuse the second clause with the sentence _validate_clause_order already writes for the other collisions.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 6; overloaded-curry is two stacked @m.define decorations of different arity"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/math.metta",
+      "form": null,
+      "missing": "an operator that BUILDS a term over two ground operands",
+      "row": "P14.4",
+      "section": "§9b: the vocabulary, operators compute on ground operands",
+      "detail": "The refusals this file is about are terms over two grounded numbers, and a Python operator over two grounded numbers is that number's own arithmetic: `val(7) / 0` raises ZeroDivisionError in Python instead of building `(/ 7 0)`. So every such term is named at the `m.fn` door, and the same is true of `==` and `!=`, whose operators are taken by Python's own structural equality on atoms while MeTTa's compare numeric VALUES across int and float, which is the claim the file opens with. The method forms do not close it either: `a.eq(b)` wants an atom on the left, which two bare literals are not, and `a.ne(b)` builds `(not (== a b))`, a different atom from `(!= 1.0 1)`.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 9; the refused division and remainder are written `G(7) / 0` and `G(7) % 0`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/dispatch_policies.metta",
+      "form": null,
+      "missing": "the not-reducible answer through `m.eval`, which a runnable form keeps and the Python door drops",
+      "row": "P14.4",
+      "section": "correction: P5.21 says the unreduced term IS the answer",
+      "detail": "MEASURED DEFECT, 2026-08-22, minimal reproduction: `@m.define def pick(n=1): return 7` then `m.run(\"!(pick 2)\")` answers `[[(pick 2)]]` and `m.eval(S.collapse(S.pick(2)))` answers `[((pick 2))]`, while `m.eval(S.pick(2))` answers `[]` and `m.eval_status(S.pick(2))` says `[('empty', None)]`. So for a DEFINED function whose clauses do not match, the Python evaluation door drops the answer the engine produced, and reports the other of the two nothings that eval_status exists to keep apart. `MeTTa.eval`'s own docstring says 'This is what !(...) runs, minus the printing'. A head with NO equations is unaffected: both doors answer the unreduced term. This example is exactly the affected case in both directions, so the twin reads its three claims through `m.fn(\"reduce\")`, which does apply the NoMatchEnum policy: unreduced under the default, nothing under NoMatchFail, unreduced again after the override is removed. examples/functions/functionremoval.metta's last claim is the same shape once both clauses are gone.",
+      "retired": "2026-08-23: closed on the merged tree; m.eval keeps the not-reducible answer, so all three dispatch-policy claims read through it (measured: [(only-a B)], [], [(only-a B)])"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/fibsmart.metta",
+      "form": null,
+      "missing": "a compiled body naming a SIBLING DEFINITION whose MeTTa name differs from its Python name",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "DEFECT, the narrow remainder of the retired hyphenated-callee row. A compiled body resolves a free name by asking for the exact spelling and then for its underscore-to-hyphen image, and _known_symbol blocks the MAPPED half whenever the identifier is BOUND in the host scope, deliberately, so that sc-edge-to is never silently chosen over a Python sc_edge_to object. A @m.define(name='fib-tr') def fib_tr(...) is exactly that shape: the Python name is bound to the Defined whose MeTTa name is fib-tr, so a sibling body writing fib_tr(n, 0, 1) raises CompileError 'not a parameter of fib, not a function the engine knows'. Neither rung 1 nor rung 4 reaches it and the body descends to rung 5, S['fib-tr']. The fix is to consult a bound Defined's OWN MeTTa name before treating the binding as opaque host state; the same wall is why examples/functions/partialdef.metta writes S['..'] and examples/functions/specialize.metta writes S['higher-order-fun'], while its wrapper reaches map-flat as the bare map_flat because a rule bundle binds no Python name at all. Measured 2026-08-23 on this worktree.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 7, a compiled body emits a host-bound Defined sibling's installed MeTTa name; `fib_tr(n, 0, 1)` stores `(fib-tr $n 0 1)`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/specializecyclic.metta",
+      "form": null,
+      "missing": "`<` over an atom, which builds nothing where `>`, `<=` and `>=` build their terms",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "DEFECT, and an asymmetry inside one operator family. R5 gave Atom.__lt__ the engine's standard atom ORDER so that sorted(atoms) and msort agree, which took the one comparison operator that also had to BUILD. Measured 2026-08-23: V.a > 0 builds (> $a 0), V.a <= 0 builds (<= $a 0), V.a >= 0 builds (>= $a 0), and V.a < 0 raises TypeError: '<' not supported between instances of 'Variable' and 'int'. The mirrored form 0 > V.a raises too, because comparisons have no right-hand methods and reflection lands back on __lt__. So a term-building site descends to S['<'](a, 0) for one member of a family whose other three members need nothing, which the guide's own (V.a >= 18) & (V.a < 65) says should read alike. Either the order moves off < (order_key is already the public spelling) or __lt__ dispatches on the other operand's kind.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 3 ruled the other way and closed it: all four rich comparisons order atoms and none builds, so the asymmetry the entry named is gone"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/constraint_domains.metta",
+      "form": null,
+      "missing": "the answer view's cardinality doors over an answer that still carries a rational binding",
+      "row": "P14.4",
+      "section": "correction to Track R3's answer view",
+      "detail": "DEFECT. m.eval answers [Grounded('1r2')] for (let True (clpq (= (* 2 $x) 1)) (repr $x)), and m.answers(<the same term>).one() raises ValueError: wire number payload must be numeric, got Fraction(1, 2). The lazy view decodes every BINDING an answer carries, where m.eval decodes only the answer template, so a CLP(Q) answer that leaves a rational standing cannot be read through one(), first() or the list comparison. Every claim in this example that leaves a rational standing therefore reads through m.eval. The wire codec needs a Fraction case, or the view must not decode bindings the caller did not ask for. Measured 2026-08-23 on this worktree.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 5, rational wire payloads decode to fractions.Fraction through lazy values and binding rows; the claims read m.answers(...).one()"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/constraint_domains.metta",
+      "form": null,
+      "missing": "a call door that answers what a formula DECIDES when the formula's own variable is not a caller variable",
+      "row": "P14.4",
+      "section": "correction to Track R3's answer view",
+      "detail": "R3 rules that a call containing caller variables answers Row bindings, which is right for ancestor(V.who, S.Jim).who and wrong for (clpb-taut (+ $t (~ $t))), where $t is quantified inside the formula and the answer wanted is True. Measured 2026-08-23: m.fn['clpb-taut'](V.t + S['~'](V.t)) answers [Row(t=$_788)] while m.eval of the same term answers [True]. The two readings need separate doors, or the binding reading needs to be asked for rather than inferred from the presence of a variable; examples/functions/functionhead3.metta hits the same split from the other side, where (collapse (myplus $x 3)) wants the reduced values and the call answers the bindings.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; `m.fn[\"clpb-taut\"](...)` answers True and False rather than a binding row for the formula's own variable"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/peano.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "§9e the performance note; §5 the three lanes",
+      "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `collapse` is `list()` and `length` is `len()`, so the claim reads `len(m.fn.demo_peano(300)) == 301` and costs 2,833,146 inferences against the engine's 2,195,554, +29%, past the lane's 10% band. The answers are Peano terms up to 300 deep, so building them in Python is the cost. The missing door is a query that projects or aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/reasoning/peano.metta].",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 17; `len(m.fn.demo_peano(300))` counts through the engine count cursor"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/types_dependent.metta",
+      "form": null,
+      "missing": "a one-armed `if_`, for MeTTa's two-argument `if` inside stored code",
+      "row": "P14.4",
+      "section": "§9e the keyword builders",
+      "detail": "R5's `if_(condition, consequent, alternative)` fixes the arity at three, and MeTTa's `if` admits two: this example's computed types are `(if (=alpha (% $x 2) 0) EvenNumber)` and `(if (=alpha (get-type $head) EvenNumber) <walk>)`, each answering nothing when the test fails. Python's conditional expression cannot spell a missing else either, so the twin names the head, `fn['if'](test, then)`, and declares the rung on the line. Making `alternative` optional closes it [measured 2026-08-23: `if_` raises `TypeError: if_() missing 1 required positional argument: 'alternative'`].",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 23, if_ accepts the engine's one-armed filtering form as well as the three-armed conditional"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/functiontypes.metta",
+      "form": null,
+      "missing": "`<` as a term builder, which appendix stamp 6 gave to the engine's sort order",
+      "row": "P14.4",
+      "section": "§9u the operator fences",
+      "detail": "`Atom.__lt__` is `_standard_order_lt` so that plain `sorted(atoms)` follows the engine's term order, and the operator table's `__lt__` entry is overwritten by it. The consequence is a three-to-one split nothing announces: `V.a <= 10`, `V.a > 10` and `V.a >= 10` build `(<= $a 10)`, `(> $a 10)` and `(>= $a 10)`, while `V.a < 10` raises `TypeError: '<' not supported between instances of 'Variable' and 'int'` and `V.a < S.b` answers a Python bool. The guide's own mirroring fence goes with it: `2 > V.a` should build `(< $a 2)` and now raises, because the reflected `__lt__` refuses a non-atom. Three twins name the head instead (`fn['<']`), and the resolution wants either a `sorted(key=order_key)` reading or an explicit ruling that `<` alone is not a builder [measured 2026-08-23].",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 3 ruled the other way and closed it: the comparison TERM is built at the naming door, `fn[\"<\"](V.a, 10)`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/meta_types.metta",
+      "form": null,
+      "missing": "a calling door that answers the VALUE when the call carries a caller variable",
+      "row": "P14.7",
+      "section": "§9t the answer protocol",
+      "detail": "A call through the bound function namespace answers `Row` bindings whenever the call carries one of the caller's variables, and the engine's own answer is dropped: `m.fn.get_metatype(V.x)` answers `[Row(x=$_70)]` where the form answers `[Variable]`. The shape is the ordinary one in MeTTa, so it costs several twins their calling door: meta_types' variable metatype, types.metta's `(mid ($a b))`, soft's `(soft-score $x anything)` and its two `soft-match` collapses, and every one of nilbc's nine proof searches, whose query is `(: $prf <theorem>)` and whose answer is the proof term. Each reads `m.eval(form)` instead and says so on the line. The fix is an answer that carries BOTH, which is what §9t's binding-carrying answer already describes [measured 2026-08-23].",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 2; `metatype(V.x) == [S.Variable]`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/inplace_annotations.metta",
+      "form": null,
+      "missing": "attribute and variable projection on the eager Rows a subscript answers",
+      "row": "P14.7",
+      "section": "§9t the answer protocol",
+      "detail": "`Answers.who` and `answers[V.who]` project, and the guide's own anti-pattern pair says the string key is the wrong spelling; the eager `Rows` a subscript answers has only the string key. `m[p].t` raises `AttributeError: 'Rows' object has no attribute 't'` and `m[p][V.t]` raises `TypeError: cannot read $t as a Python int` from `Variable.__index__`. The twin reads each row instead, `[row.t for row in m[p]]`, which keeps the string out and is the per-row half of the same protocol [measured 2026-08-23].",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 11; `m[typed(S.Zeus, V.t)].t == [S.God]`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/measure.metta",
+      "form": null,
+      "missing": "the underscore-to-hyphen map at the `@define` door, which every factory door applies",
+      "row": "P14.5",
+      "section": "§9d rung 4 of the descent ladder",
+      "detail": "Rung 4 of the descent rule says hyphen and underscore map to each other IN BOTH DIRECTIONS, and the guide's own example is `def not_provable` landing as `not-provable`. The `S`, `V` and `fn` factories apply that map; `@space.define` does not, and takes the Python name verbatim, so `def sc_pick_max` stores `sc_pick_max` and a hyphenated MeTTa name needs `name='sc-pick-max'` at this one door. Three twins carry that keyword (measure's `first-weight`, scallop_readme's `sc-pick-max`, constructive_negation's two `mask-example` definitions) and the reflectivity check is what makes it load-bearing: the stored head has to be the example's [measured 2026-08-23: `@m.define def sc_pick_max` stores `(= (sc_pick_max $a $b) ...)`].",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 18; `@m.define` over `def first_weight` installs `first-weight`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/translatorrule.metta",
+      "form": null,
+      "missing": "an EAGER call door, so a directive reached by name runs at statement level",
+      "row": "P14.13",
+      "section": "§4 surface gaps: declarations that are directives",
+      "detail": "Measured 2026-08-23. `_EngineFunction.__call__` answers a lazy `Answers` view, and creating that view performs no engine work, so `m.fn.add_translator_rule(S.unpack)` written as a statement registers NOTHING: the control shows `(twin (a b c) (a b c))` unchanged after the call and rewritten only after `list()` of the view. The same swallows `m.fn[\"import!\"](m, target)`. Every directive in data/, integration/ and translation/ is therefore written through the eager term door, `m.eval(S[\"add-translator-rule!\"](S.unpack))`, with a comment naming the perfect spelling. The style guide's own row for `!(expr)` is \"a call at statement level\", so the fix is for a call whose answers nobody reads to still perform its effect, or for the directives to gain handle verbs.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 1, an fn call whose resolved MeTTa name ends in `!` drains at the call boundary, so `m.fn.add_translator_rule(S.compile42)` registers where it is written"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/state.metta",
+      "form": null,
+      "missing": "one evaluation door, so a state-cell write performed through the answer view is visible to the caller",
+      "row": "P14.10",
+      "section": "§9b: control and modes",
+      "detail": "A state cell lives in the THREAD's global store, `nb_setval`, and the lazy answer view evaluates on a held SWI engine with its own globals. So the same term performs differently at the two doors: `m.eval(S[\"get-state\"](S[\"change-state!\"](cell, active)))` answers active and leaves the cell reading active, while `m.answers(...).one()` answers active and leaves the cell reading `rest`; the bound `m.fn[\"change-state!\"]` loses it the same way [measured 2026-08-23]. Space writes DO persist through both, because the clause store is shared, so the divergence is specific to thread-local state. PERFECT: the two doors agree, or the answer view refuses a term whose effects it cannot commit.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 16, the held and main engines share state cells bidirectionally, so the twin composes the write and the read through m.answers(...).one() and the handle reads `active` afterwards"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_space_write.metta",
+      "form": null,
+      "missing": "a compiled match() that takes the space HANDLE the twin holds",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "R2 made a Space an operand everywhere a TERM wants one, and a compiled body is the one place it does not reach: match(...) inside @m.define reads its space as SYNTAX, so the body writes the string \"&self\" and a handle held by the enclosing Python function cannot be spelled there at all. The two-argument form would dissolve the question by lowering to (context-space), and @m.cache refuses that as impure, which is why both twins declare `tabled` by hand and lose fn.cache_info(). Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 15, a compiled match() accepts captured and parameter-carried Space handles as its first operand; `reach`'s body reads `match(m, edge(x, y), y)`"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_statistics.metta",
+      "form": null,
+      "missing": "a compiled match() that takes the space HANDLE the twin holds",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "R2 made a Space an operand everywhere a TERM wants one, and a compiled body is the one place it does not reach: match(...) inside @m.define reads its space as SYNTAX, so the body writes the string \"&self\" and a handle held by the enclosing Python function cannot be spelled there at all. The two-argument form would dissolve the question by lowering to (context-space), and @m.cache refuses that as impure, which is why both twins declare `tabled` by hand and lose fn.cache_info(). Measured 2026-08-23 on this branch.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 15, as for tabling_space_write"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/take.metta",
+      "form": null,
+      "missing": "a lazy answer view that is lazy in its PRODUCER, not only in its answers",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "p14-r3-calling landed the door: calling a definition answers a lazy `Answers` view, slices stay `Answers`, and `list(count_up(0)[:4])` answers the right four numbers over a producer that never stops, where nothing could before. What it costs is the library's problem, not this twin's. Measured 2026-08-23 on `(= (from $n) (superpose ($n (from (+ $n 1)))))`: pulling 1, 2, 4 and 8 answers costs 1,500,147, 1,500,141, 1,500,141 and 1,500,141 inferences, a FLAT figure that does not move with k, against 700 for the engine-side `(take 4 (from 0))`. So the first pull drives a self-recursive superposition to a fixed internal bound whatever the slice asks for: the view is lazy in the answers it hands back and not in the producer behind them. The twin slices every producer anyway, the endless one included, because the slice is the ruled spelling for at-most-k of a stream and the cost belongs to the library: control/take.metta therefore carries a BAND finding, twin 1,510,583 against the example's 16,419 at ratio 92.00, which no re-pin can clear and which closes when the pull suspends the producer. The finite producers cost 5,077 through the same door against the engine's 434. This is a cost gap rather than a capability gap, which is a different fix.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 8, function handles and Defined calls use the held-engine incremental cursor while statistics are active, so a slice suspends the producer at the requested frontier; measured 157 inferences to pull 4 and 234 to pull 8, against 1,500,141 for each before"
     }
   ]
 }

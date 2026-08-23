@@ -86,13 +86,7 @@ def twin(m):
 
     # GATE 1: the whole pattern is a colon expression, so this retrieves the
     # stored declaration rather than annotating anything.
-    #
-    # Known issue: the eager Rows a subscript answers projects only through a
-    # string key, `rows["t"]`, where the lazy Answers projects by attribute
-    # and by variable. Reading each row keeps the string out; the whole-column
-    # spelling should read:
-    #     assert m[typed(S.Zeus, V.t)].t == [S.God]
-    assert [row.t for row in m[typed(S.Zeus, V.t)]] == [S.God]
+    assert m[typed(S.Zeus, V.t)].t == [S.God]
 
     # `::` means nothing special to the engine, which is the point of not
     # having taken it. Here is the tutorial's own list program, verbatim.

@@ -33,11 +33,10 @@ The example's variables carry genuine underscores (`$knowledge_base`,
 `$premise_proof1`), and the factory attribute door maps every underscore to a
 hyphen, so those names take the bracket.
 
-Known issue, and it decides how every claim below is written: a call carrying
-a caller variable answers that variable's BINDINGS and drops the value, and
-every query here passes `(: $prf <theorem>)`, whose ANSWER is the proof term
-the chainer built. So the claims read the form. They should read
-`m.fn.bc(kbh, S.fromNumber(1), typed(V.prf, sum_is_t)) == [...]`.
+Every claim is the chainer CALLED, `m.fn.bc(kbh, S.fromNumber(1), typed(V.prf,
+sum_is_t))`. Each query passes `(: $prf <theorem>)` and what comes back is the
+proof term the chainer built, because a call answers its value whether or not
+its arguments carry variables.
 """
 
 import petta
@@ -45,10 +44,6 @@ from petta import S, V, equation, fn, if_, typed
 
 #: Metamath's vocabulary, as this example spells it.
 TERM, WFF, ZERO, TT = S["⟨term⟩"], S["⟨wff⟩"], S["⟨0⟩"], S["⟨t⟩"]
-
-#: The addition head, needed with a GROUND left operand, where Python's own
-#: `+` would compute instead of building.
-PLUS = fn["+"]
 
 #: The example's premise variables, in its own spelling: the one-premise clause
 #: writes them without a digit and the rest number them from one.
@@ -115,10 +110,12 @@ def twin(m):
     m += typed(S.Z, S.Nat)
     m += typed(S.S, S["->"](S.Nat, S.Nat))
     m += typed(S.fromNumber, S["->"](S.Number, S.Nat))
-    m += equation(S.fromNumber(V.n)).to(if_(V.n <= 0, S.Z, S.S(S.fromNumber(V.n - 1))))
+    m += equation(S.fromNumber(V.n)).to(
+        if_(fn["<="](V.n, 0), S.Z, S.S(S.fromNumber(V.n - 1)))
+    )
     m += typed(S.fromNat, S["->"](S.Nat, S.Number))
     m += equation(S.fromNat(S.Z)).to(0)
-    m += equation(S.fromNat(S.S(V.k))).to(PLUS(1, S.fromNat(V.k)))
+    m += equation(S.fromNat(S.S(V.k))).to(1 + S.fromNat(V.k))
 
     # The chainer: a knowledge base, a maximum depth, a query, an answer.
     m += typed(S.bc, S["->"](V.a, S.Nat, V.b, V.b))
@@ -144,7 +141,7 @@ def twin(m):
 
     # Prove that equality is reflexive. The answer carries a free variable, so
     # the claim is alpha-equality rather than identity.
-    reflexive, = m.eval(S.bc(kbe, S.fromNumber(1), typed(V.prf, eq(V.t, V.t))))
+    reflexive = m.fn.bc(kbe, S.fromNumber(1), typed(V.prf, eq(V.t, V.t))).one()
     assert reflexive.alpha_eq(typed(S.a1(S.a2, S.a2), eq(V.t, V.t)))
 
     # MEDIUM: the same, with the term and wff types used.
@@ -160,7 +157,7 @@ def twin(m):
 
     # Several proofs come back at this depth, so the claim is membership.
     expected = typed(S.a1(plus(TT, ZERO), TT, TT, S.a2(TT), S.a2(TT)), eq(TT, TT))
-    assert expected in m.eval(S.bc(kbm, S.fromNumber(3), typed(V.prf, eq(TT, TT))))
+    assert expected in m.fn.bc(kbm, S.fromNumber(3), typed(V.prf, eq(TT, TT)))
 
     # HARD: Metamath's own implication, and modus ponens with the major premise
     # first to speed the search up.
@@ -182,34 +179,34 @@ def twin(m):
     t_is_t = eq(TT, TT)
 
     # If t = t and t = t, then t = t.
-    assert m.eval(S.bc(kbh, S.fromNumber(1),
-                       typed(V.prf, implies(t_is_t, implies(t_is_t, t_is_t))))) == [
+    assert m.fn.bc(kbh, S.fromNumber(1),
+                   typed(V.prf, implies(t_is_t, implies(t_is_t, t_is_t)))) == [
         typed(S.a1(TT, TT, TT), implies(t_is_t, implies(t_is_t, t_is_t)))
     ]
 
     # If t + 0 = t and t + 0 = t, then t = t.
-    assert m.eval(S.bc(kbh, S.fromNumber(2),
-                       typed(V.prf, implies(sum_is_t, implies(sum_is_t, t_is_t))))) == [
+    assert m.fn.bc(kbh, S.fromNumber(2),
+                   typed(V.prf, implies(sum_is_t, implies(sum_is_t, t_is_t)))) == [
         typed(S.a1(t_plus_zero, TT, TT), implies(sum_is_t, implies(sum_is_t, t_is_t)))
     ]
 
     # t + 0 = t.
-    assert m.eval(S.bc(kbh, S.fromNumber(1), typed(V.prf, sum_is_t))) == [
+    assert m.fn.bc(kbh, S.fromNumber(1), typed(V.prf, sum_is_t)) == [
         typed(S.a2(TT), sum_is_t)
     ]
 
     # Both equalities are well formed formulas.
-    assert m.eval(S.bc(kbh, S.fromNumber(2), typed(sum_is_t, WFF))) == [typed(sum_is_t, WFF)]
-    assert m.eval(S.bc(kbh, S.fromNumber(1), typed(t_is_t, WFF))) == [typed(t_is_t, WFF)]
+    assert m.fn.bc(kbh, S.fromNumber(2), typed(sum_is_t, WFF)) == [typed(sum_is_t, WFF)]
+    assert m.fn.bc(kbh, S.fromNumber(1), typed(t_is_t, WFF)) == [typed(t_is_t, WFF)]
 
     # If t + 0 = t, then t = t: one modus ponens over the two axioms.
     one_step = S.mp(S.a1(t_plus_zero, TT, TT), sum_is_t, implies(sum_is_t, t_is_t), S.a2(TT))
-    assert m.eval(S.bc(kbh, S.fromNumber(4),
-                       typed(V.prf, implies(sum_is_t, t_is_t)))) == [
+    assert m.fn.bc(kbh, S.fromNumber(4),
+                   typed(V.prf, implies(sum_is_t, t_is_t))) == [
         typed(one_step, implies(sum_is_t, t_is_t))
     ]
 
     # And equality is reflexive: modus ponens twice over the same two axioms.
-    assert m.eval(S.bc(kbh, S.fromNumber(5), typed(V.prf, t_is_t))) == [
+    assert m.fn.bc(kbh, S.fromNumber(5), typed(V.prf, t_is_t)) == [
         typed(S.mp(one_step, sum_is_t, t_is_t, S.a2(TT)), t_is_t)
     ]

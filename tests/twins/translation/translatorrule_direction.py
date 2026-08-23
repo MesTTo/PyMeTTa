@@ -28,13 +28,7 @@ def twin(m):
     m += equation(S.celsius(S.degrees(V.c))).to(
         S.noeval(S.kelvin(V.c + 273))
     )
-    # Known issue: a call through the function namespace answers a LAZY view,
-    # so the perfect statement-level spelling of a directive,
-    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
-    # its answers [measured 2026-08-23: the rule fires only after list() of the
-    # view]. The term door evaluates eagerly, so a directive is written that
-    # way until a side-effecting call runs at statement level.
-    m.eval(S["add-translator-rule!"](S.celsius, Expression((S.direction(S.forward),))))
+    m.fn.add_translator_rule(S.celsius, Expression((S.direction(S.forward),)))
 
     assert m.fn.celsius(S.degrees(27)).one() == S.kelvin(300)
 
@@ -42,7 +36,7 @@ def twin(m):
     m += equation(S.unpack(S.wrap(S.box(V.x)))).to(
         S.noeval(S.twin(V.x, V.x))
     )
-    m.eval(S["add-translator-rule!"](S.unpack, Expression((S.direction(S.bidirectional),))))
+    m.fn.add_translator_rule(S.unpack, Expression((S.direction(S.bidirectional),)))
 
     small = S.twin(1, 1)
     small_unpack = S.unpack(S.wrap(S.box(1)))
@@ -65,6 +59,6 @@ def twin(m):
     assert m.eval(small) == [small_unpack]
     assert m.eval(large_unpack) == [large_unpack]
 
-    m.eval(S["remove-translator-rule!"](S.unpack))
+    m.fn.remove_translator_rule(S.unpack)
 
     assert m.eval(large_twin) == [large_twin]

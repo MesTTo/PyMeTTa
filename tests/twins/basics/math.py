@@ -13,13 +13,12 @@ Package-level `fn.<name>` is the STATIC one: its members are the symbols
 themselves, which is what a NESTED argument needs, since `(isnan-math
 (sqrt-math -1))` is one term to evaluate once rather than two crossings.
 
-Two things Python's own punctuation will not do here. Arithmetic operators
-build MeTTa terms only on SYMBOLIC atoms; over two grounded numbers they are
-that number's own arithmetic, so `ground(7) / 0` raises ZeroDivisionError in
-Python instead of building `(/ 7 0)`, and the terms whose refusals this file
-is about are named at the function-namespace door instead. And `==` is
-Python's own structural equality on atoms, so MeTTa's `==` and `!=`, which
-compare NUMERIC VALUES across int and float, are named too.
+One thing Python's own punctuation will not do here. `==` is Python's own
+structural equality on atoms, so MeTTa's `==` and `!=`, which compare NUMERIC
+VALUES across int and float, are named at the function-namespace door. The
+arithmetic terms whose refusals this file is about ARE written as operators:
+one grounded operand stages the term, so `G(7) / 0` builds `(/ 7 0)` rather
+than raising ZeroDivisionError.
 
 `min-atom` and `max-atom` dissolve: an expression is a sequence, so Python's
 own `min` and `max` read it with no engine crossing at all.
@@ -33,7 +32,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, fn, ground
+from petta import Expression, G, S, fn, ground
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
@@ -68,14 +67,14 @@ def twin(m):
     # Division and remainder by zero answer contained error atoms, and an
     # error is an ordinary ANSWER: the answer list holds it where a scalar
     # door would raise, and the form after it still runs.
-    assert divide(7, 0) == [S.Error(fn["/"](7, 0), S.DivisionByZero)]
-    assert remainder(7, 0) == [S.Error(fn["%"](7, 0), S.DivisionByZero)]
+    assert divide(7, 0) == [S.Error(G(7) / 0, S.DivisionByZero)]
+    assert remainder(7, 0) == [S.Error(G(7) % 0, S.DivisionByZero)]
     # (collapse (/ 7 0)) adds the cardinality: exactly one answer, and it is
     # that error. `len()` is the size question over the answers a collapse
     # would have built.
     assert len(divide(7, 0)) == 1
 
-    @m.define(name="math-string")
+    @m.define
     def math_string():
         # (= (math-string) "s")
         return "s"

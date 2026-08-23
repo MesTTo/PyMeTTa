@@ -5,22 +5,19 @@ budget. Both equations are ordinary Python functions under the decorator: the
 recursion delegates by name, and the arithmetic is Python's own, which is what
 the guide means by the syntax BEING the semantics.
 
-Two things are worth knowing about what the body compiles to, because both are
-the library's to close and neither changes an answer.
+One thing is worth knowing about what the body compiles to, and it is the
+reason the two equality tests name their head.
 
-A compiled `if` wraps a condition that is not already a comparison in
-`py-truthy`, and `==` inside a body lowers to the prelude's `py-eq`, so the
-inner loop of a divisor search crosses to the host twice per iteration where
-the original's `(== 0 (% $n $d))` crosses not at all. MeTTa's own `==` IS
-reachable now, `fn["=="](0, n % d)`, which is what the residue asked for; it
-does not help, because the `if` then wraps THAT in `py-truthy`. Measured
-2026-08-23 on this tree, min of one fresh process each: the term door spends
-531,461 inferences on these four searches, `fn["=="]` under a compiled `if`
-spends 943,162, +77.5%, and the two stored bodies differ only by that wrapper
-[commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: a compiled `if` that leaves an engine-Bool
-condition alone.
+Python's `==` inside a compiled body lowers to the prelude's `py-eq`, a host
+crossing per iteration where the original's `(== 0 (% $n $d))` crosses not at
+all, and a compiled `if` used to wrap any non-comparison condition in
+`py-truthy` besides. MeTTa's own `==` is declared `(-> $t $t Bool)`, so a
+compiled `if` now emits it bare, and `fn["=="](0, n % test_divisor)` stores
+exactly the original's condition [measured 2026-08-23 on the merged tree, min
+of one fresh process each: 922,119 inferences with the Python operators and
+539,720 with the named head, against the example's 543,116; commit=WORKTREE].
 
-`with-pragma!` stays a term for the second gap: the four searches overflow the
+`with-pragma!` stays a term for the one gap left: the four searches overflow the
 evaluator's default stack depth without it, and `m.limits` bounds inferences
 and time but not stack depth (residue, P14.14). PERFECT:
 `with m.limits(stack=1_000_000): ...`, the mode family carrying the pragma
@@ -52,17 +49,17 @@ DEEP = (S["max-stack-depth"](1_000_000),)
 def twin(m):
     """Define trial division, then ask it about four primes."""
 
-    @m.define(name="find-divisor")
+    @m.define
     def find_divisor(n, test_divisor):
         if test_divisor * test_divisor > n:
             return n
-        if n % test_divisor == 0:
+        if fn["=="](0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
             return test_divisor
         return find_divisor(n, test_divisor + 1)
 
     @m.define(name="prime?")
     def prime(n):
-        return n == fn.find_divisor(n, 2)
+        return fn["=="](n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
 
     # Four searches share one branch budget, so the benchmark states a finite
     # allowance above the evaluator's 100000 default.

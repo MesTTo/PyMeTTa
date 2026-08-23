@@ -14,13 +14,11 @@ What the answered form shows is the dissolution table three times over: `let` is
 an assignment, `collapse` is the answer list `m.hyperpose` already hands back,
 and `msort` is `sorted`, because atoms carry the engine's own order.
 
-Both equations are ordinary Python functions under the decorator. They cost
-more compiled than built, for the reason superpose_primes.py measures beside
-this file: a compiled `if` wraps a non-comparison condition in `py-truthy` and
-`==` lowers to `py-eq`, so the inner loop crosses to the host where the
-original's does not. PERFECT: a compiled `if` that leaves an engine-Bool
-condition alone; superpose_primes.py beside this file carries the measurement.
-It changes no answer.
+Both equations are ordinary Python functions under the decorator, and both
+equality tests name their head: Python's `==` inside a compiled body lowers to
+the prelude's `py-eq`, a host crossing per iteration, where MeTTa's own `==` is
+declared `(-> $t $t Bool)` and a compiled `if` emits it bare.
+superpose_primes.py beside this file carries the measurement.
 """
 
 from petta import fn
@@ -38,17 +36,17 @@ BUDGET = 1
 def twin(m):
     """Fan three numbers out over threads, and put the primes back together."""
 
-    @m.define(name="find-divisor")
+    @m.define
     def find_divisor(n, test_divisor):
         if test_divisor * test_divisor > n:
             return n
-        if n % test_divisor == 0:
+        if fn["=="](0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
             return test_divisor
         return find_divisor(n, test_divisor + 1)
 
     @m.define(name="prime?")
     def prime(n):
-        return n == fn.find_divisor(n, 2)
+        return fn["=="](n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
 
     # hyperpose takes its branches through a variable as happily as inline, and
     # the answers come back in whatever order the threads finish.

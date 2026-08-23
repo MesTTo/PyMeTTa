@@ -6,10 +6,9 @@ namespace, because the operations ARE the subject: real-valued math promotes
 integers, `pow-math` answers a Float while enforcing the signed-i32 bound only
 for integer exponents, and the nan/inf predicates are how a caller finds out.
 
-The two nested claims build their inner call as the TERM it is, because the
-example evaluates `(isnan-math (sqrt-math -1))` once and an answer view is not
-an operand: handing one to another engine function crosses it as a grounded
-Python object and answers `(BadArgType 1 Number Answers)`.
+The two nested claims nest the way Python nests calls. An answer view
+crossing into term position is an observation point, so a deterministic inner
+call composes without anything written between the levels.
 
 A name used more than once is bound once and called twice, the way a mention
 is bound once for reading. The two special float symbols are what the engine
@@ -38,8 +37,8 @@ def twin(m):
     isnan, isinf = m.fn.isnan_math, m.fn.isinf_math
 
     assert pow_math(2, 3) == [8.0]
-    assert isnan(S["sqrt-math"](-1)) == [True]
-    assert isinf(S["pow-math"](0, -1)) == [True]
+    assert isnan(sqrt_math(-1)) == [True]
+    assert isinf(pow_math(0, -1)) == [True]
     # The signed-i32 bound is enforced only for INTEGER exponents.
     assert pow_math(1, 2147483648.0) == [1.0]
     assert sqrt_math(9) == [3.0]

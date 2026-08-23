@@ -38,7 +38,7 @@ BUDGET = 1
 
 def twin(m):
     """Take each arm of four conditionals whose arms bind."""
-    @m.define(name="pick-else")
+    @m.define
     def pick_else(a, b):
         # (= (pick-else $a $b) (if (< $a $a) (let* (($c $a)) $a) $b))
         if a < a:  # noqa: PLR0124 -- comparing the parameter with itself is the fixture: the then arm must never run, and the else arm must still unify its own output
@@ -49,7 +49,7 @@ def twin(m):
     # !(test (pick-else 1 2) 2)
     assert pick_else(1, 2) == [2]
 
-    @m.define(name="pick-then")
+    @m.define
     def pick_then(a, b):
         # (= (pick-then $a $b) (if (> $a 0) (let* (($c $a)) $a) $b))
         if a > 0:
@@ -75,7 +75,7 @@ def twin(m):
     # `ast.Match` has no lowering in the compiled subset. Residue: P14.4.
     # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
     arms = ((TRUE, S["let*"](((V.c, V.a),), V.a)), (FALSE, V.b))  # rung: a `case` is Python's `match` statement, which has no lowering yet
-    m += equation(S["case-else"](V.a, V.b)).to(S.case(V.a < V.a, arms))  # rung: the same
+    m += equation(S["case-else"](V.a, V.b)).to(S.case(S["<"](V.a, V.a), arms))  # rung: the same
 
     # !(test (case-else 3 4) 4)
     assert m.eval(S["case-else"](3, 4)) == [4]

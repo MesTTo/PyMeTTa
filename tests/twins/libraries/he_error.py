@@ -10,10 +10,6 @@ doors take the loud reading and raise, which is right for a caller that wanted
 a value and wrong for this file, whose claims are about the error atoms
 themselves; unpacking iterates, so it keeps them.
 
-One call goes through `m.eval` instead, and the reason is the answer view
-rather than the error: a call whose ARGUMENT carries the caller's own
-variables answers binding rows, and the claim here is about the term.
-
 Four kinds of nothing-went-right are drawn apart here. An operand whose type
 RULES THE CALL OUT is already an error atom, so if-error sees one with no catch
 in between; an operand whose type merely does not DECIDE is not an error, and
@@ -37,7 +33,7 @@ BAD_TYPE = S.Error(5, S.BadType)
 
 def twin(m):
     """Catch what needs catching, then route four answers through if-error."""
-    m.eval(S["import!"](m, S.library(S["lib_he"])))
+    m.fn["import!"](m, S.library(S["lib_he"]))
 
     if_error = m.fn.if_error
 
@@ -55,13 +51,7 @@ def twin(m):
 
     # catch is for a HOST error, the kind the language has no atom for. Two
     # unbound arithmetic operands are one.
-    #
-    # DEFECT, and this line is what it costs. It ought to read
-    # `m.fn.catch(S["+"](V.left, V.right))` like the first catch above. The
-    # argument carries `$left` and `$right`, and the answer view reads every
-    # variable in a call as one of the caller's own, so the call door answers a
-    # binding row where the claim is about the error atom.
-    [host] = m.eval(S.catch(S["+"](V.left, V.right)))
+    [host] = m.fn.catch(S["+"](V.left, V.right))
     assert if_error(host, S.Error, host) == [S.Error]
 
     # Integer division by zero already is Error data, so it needs no catch.

@@ -17,7 +17,7 @@ P14.4).
 """
 
 import petta
-from petta import S, V, equation, ground
+from petta import S, V, equation, ground, if_
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
@@ -37,19 +37,17 @@ def twin(m):
     # (= (strength (dose $n) (unit mg))
     #    (if (> $n 1000) (refuse "...") (noeval (mg $n))))
     m += equation(S.strength(S.dose(V.n), S.unit(S.mg))).to(
-        S["if"](V.n > 1000, S.refuse(TOO_STRONG), S.noeval(S.mg(V.n)))  # rung: this `if` is the stored BODY of an equation, so it is data rather than control flow
+        # The `if` is the stored BODY of an equation, so it is data rather than
+        # control flow, and `>` is named because Python's own orders atoms.
+        if_(S[">"](V.n, 1000), S.refuse(TOO_STRONG), S.noeval(S.mg(V.n)))
     )
     # A refusal is a decline, so a rule with another equation tries that one.
     m += equation(S.strength(S.dose(V.n), S.unit(S.mg))).to(
         S.noeval(S.grams(V.n / 1000))
     )
-    # Known issue: a call through the function namespace answers a LAZY view,
-    # so the perfect statement-level spelling of a directive,
-    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
-    # its answers [measured 2026-08-23: the rule fires only after list() of the
-    # view]. The term door evaluates eagerly, so a directive is written that
-    # way until a side-effecting call runs at statement level.
-    m.eval(S["add-translator-rule!"](S.strength))
+    # The directive's MeTTa name ends in `!`, so calling it is the whole of
+    # performing it and the statement needs no forcing read.
+    m.fn.add_translator_rule(S.strength)
 
     # A match the rule can honour rewrites.
     assert m.fn.strength(S.dose(250), S.unit(S.mg)).one() == S.mg(250)

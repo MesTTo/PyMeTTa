@@ -8,8 +8,9 @@ whole claim is `len(...) == 301` over the answers the call already hands back.
 All four definitions stay at the container door, and each names the construct
 that has no compiled spelling:
 
-- `add-atom-no-duplicate` matches against a space its CALLER names, and a
-  compiled `match()` takes its space as a literal, never as a parameter;
+- `add-atom-no-duplicate` collapses a `once` over its match, and a compiled
+  body has a spelling for neither, though the space its CALLER names would
+  cross a compiled `match()` as the handle it is;
 - `expand-once` is a `case`, which is what Python's `match` statement would
   spell and the subset has no lowering for yet;
 - `expandK` and `demo-peano` bind with `let` and `let*` over calls to the two
@@ -32,7 +33,7 @@ BUDGET = 1
 def twin(m):
     """Expand the space 300 times, then count what is in it."""
     # Nothing is written twice: an atom that already matches is skipped.
-    seen = fn.collapse(fn.once(fn.match(V.Space, V.Atom, V.Atom)))  # rung: a compiled match() takes its space as a literal, never as this clause's parameter (P14.4)
+    seen = fn.collapse(fn.once(fn.match(V.Space, V.Atom, V.Atom)))  # rung: a compiled body spells neither `collapse` nor `once` (P14.4)
     m += equation(S["add-atom-no-duplicate"](V.Space, V.Atom)).to(
         if_(UNIT.eq(seen), fn.add_atom(V.Space, V.Atom), fn.empty())
     )

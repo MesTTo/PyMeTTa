@@ -38,16 +38,11 @@ Open Obligations:
 
 from petta import TRUE, Expression, S, V, arrow, equation, fn, if_, typed
 
-#: The deduction formula's own head, and the comparison this file needs with a
-#: GROUND left operand.
-#:
-#: Known issue: `<` is the one comparison that builds no term at all now that
-#: appendix stamp 6 gave `Atom.__lt__` to the engine's sort order, and the
-#: three that do build still have no right-hand method, so a ground LEFT
-#: operand reflects into the mirrored head. `(< 0 $As)` should read
-#: `LESS(0, V.As)` only for the mirroring, and `V.a < 10` should build.
+#: The deduction formula's own head, and the two comparison heads this file
+#: builds terms with. Python's `<`, `>`, `<=` and `>=` order atoms and build
+#: nothing, so every comparison TERM outside a compiled body names its head.
 DEDUCTION = S["Truth_Deduction"]
-LESS = fn["<"]
+LESS, AT_MOST = fn["<"], fn["<="]
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -80,7 +75,8 @@ def twin(m):
     m += typed(consistent, arrow(int, int, int, bool))
     m += equation(consistent(V.As, V.Bs, V.ABs)).to(
         LESS(0, V.As)
-        & ((smallest(V.As, V.Bs) <= V.ABs) & (V.ABs <= largest(V.As, V.Bs)))
+        & (AT_MOST(smallest(V.As, V.Bs), V.ABs)
+           & AT_MOST(V.ABs, largest(V.As, V.Bs)))
     )
 
     # The deduction formula itself: strength from the two conditionals, and

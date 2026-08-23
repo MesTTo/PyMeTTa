@@ -17,12 +17,15 @@ are spelled with underscores in MeTTa too, and the attribute map would turn
 each one into hyphens and reach a library that does not exist.
 """
 
-from petta import S, ground
+from pathlib import Path
 
-#: The directory `git-import!` clones into, marked because it is data for a
-#: MeTTa call. The fixture's Prolog path is not, because it is a host path for
-#: a Python door, and it sits at the call that takes it.
-REPOS = ground("./repos")
+from petta import S
+
+#: The directory `git-import!` clones into, and the fixture's own Prolog file.
+#: Both are paths, so both are `pathlib.Path`: a path is never text, at the
+#: call door or at the Python one.
+REPOS = Path("./repos")
+FIXTURE_PL = Path("examples/integration/_fixtures/git_fixture.pl")
 
 #: The library shipped with the engine, the Prolog predicate the fixture
 #: exports, and the library the clone provides. Every one of these carries a
@@ -41,25 +44,18 @@ BUDGET = 1
 
 def twin(m):
     """Build a repository, clone it, import it, ask it a question."""
-    # Known issue, two halves. `import!` has no Python door on the handle: the
-    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
-    # shipped library (appendix stamp 1), and neither exists yet. And the
-    # generic call door cannot stand in for it, because a call through the
-    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
-    # statement IMPORTS NOTHING until something pulls its answers [measured
-    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
-    # that way.
-    m.eval(S["import!"](m, S.library(LIB_IMPORT)))
+    # Known issue: `import!` has no Python door on the handle. The perfect
+    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
+    # library (appendix stamp 1), and neither exists yet, so the directive is
+    # reached by its own bang name, which performs it where it is written.
+    m.fn["import!"](m, S.library(LIB_IMPORT))
 
     # The URL comes from Prolog, which register_prolog installs as a MeTTa
     # function of one argument: the base directory in, the clone URL out.
-    m.register_prolog(
-        path="examples/integration/_fixtures/git_fixture.pl",
-        names=["git_fixture_url"],
-    )
-    m.eval(S["git-import!"](FIXTURE_URL(REPOS)))
+    m.register_prolog(path=FIXTURE_PL, names=["git_fixture_url"])
+    m.fn["git-import!"](FIXTURE_URL(REPOS))
 
     # The clone is now an ordinary named library.
-    m.eval(S["import!"](m, S.library(FIXTURE_LIB, S.fixture)))
+    m.fn["import!"](m, S.library(FIXTURE_LIB, S.fixture))
 
     assert m.fn.fixture_answer(14).one() == 42

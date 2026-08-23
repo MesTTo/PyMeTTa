@@ -20,7 +20,7 @@ BUDGET = 1
 
 def twin(m):
     """Double five twice."""
-    m.eval(S["import!"](m, S.library(S["lib_memo"])))
+    m.fn["import!"](m, S.library(S["lib_memo"]))
 
     @m.define
     def double(x):

@@ -37,11 +37,9 @@ BUDGET = 1
 def twin(m):
     """Build 2500 Peano successors, then count them."""
 
-    # The define door does not apply rung 4's underscore-to-hyphen map, so
-    # every MeTTa name that is not a Python identifier states itself through
-    # `name=`; the Python side stays snake_case, which is what PEP 8 and the
-    # linter both want [measured 2026-08-23: `def find_divisor` lands as
-    # `find_divisor`, not `find-divisor`; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+    # `expandK` is camelCase, which the naming ladder's underscore map does
+    # not produce from any Python identifier, so this one door states the
+    # exact name while the Python side stays snake_case.
     @m.define(name="expandK")
     def expand_k(expression, n):
         if n == 0:
@@ -49,18 +47,13 @@ def twin(m):
         _written = fn.add_atom(fn.context_space(), S.num(expression))
         return expand_k(S.S(expression), n - 1)
 
-    @m.define(name="demo-peano")
+    @m.define
     def demo_peano(k):
         """Expand from zero, k times."""
-        # A SELF-recursive call delegates through `name=`, which is why the
-        # body above says `expand_k`. A call to ANOTHER definition resolves
-        # the Python name against the engine instead, so it has to say the
-        # MeTTa name through the mention door: a bare `expand_k(...)` here is
-        # refused with "'expand_k' is not a parameter of demo-peano, not a
-        # function the engine knows" [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
-        # PERFECT: one rule at both call sites, the way `name=` already binds
-        # the two names together.
-        return fn.expandK(S.Z, k)
+        # One rule at both call sites: a compiled body naming a bound
+        # `Defined` sibling emits the MeTTa name that object was installed
+        # under, so this stores `(expandK Z $k)`.
+        return expand_k(S.Z, k)
 
     assert demo_peano(2500) == [S.done]
     assert len(m[S.num(V.stored)]) == 2500

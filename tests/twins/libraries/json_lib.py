@@ -11,12 +11,9 @@ named. What dissolves is everything the example wrapped around them: `let` is
 assignment, `collapse` is a list, and `get-keys` and `get-value` are what
 iterating and subscripting a space already are.
 
-DEFECT, and it is on every line that opens a decoded object. `opened` ought to
-read `petta.space(answers.one())`: a decoded object answers its space NAME as a
-Symbol, which is exactly what the space door is asked for. The door takes text
-only and refuses a Symbol with "a space name is a string starting with &", so
-the twin says `str()` between them. That is the residue entry this file
-carries.
+A decoded object answers its space NAME as a Symbol, and the space door takes
+a Symbol as readily as a string, so `opened` is `petta.space(answers.one())`
+with nothing between them.
 """
 
 import petta
@@ -32,13 +29,13 @@ BUDGET = 1
 
 def twin(m):
     """Decode objects, arrays and scalars, then encode them back."""
-    m.eval(S["import!"](m, S.library(S["lib_json"])))
+    m.fn["import!"](m, S.library(S["lib_json"]))
 
     decode, encode = m.fn.json_decode, m.fn.json_encode
 
     def opened(answers):
         """The handle for the space json-decode or dict-space answered by name."""
-        return petta.space(str(answers.one()))
+        return petta.space(answers.one())
 
     # An object becomes a space, so its keys are the heads of its atoms.
     doc = opened(decode(G('{"a":1,"b":2}')))
@@ -57,13 +54,13 @@ def twin(m):
     # Nesting decodes all the way down, so an inner object is a space too.
     outer = opened(decode(G('{"c":{"d":2}}')))
     [nested] = [row.v for row in outer[S.c(V.v)]]
-    inner = petta.space(str(nested))
+    inner = petta.space(nested)
     assert [row.v for row in inner[S.d(V.v)]] == [2]
 
     # Encoding inverts decoding.
-    assert list(decode(encode((1, 2, 3)).one()).one()) == [1, 2, 3]
-    assert decode(encode(G("text")).one()) == [G("text")]
-    round_trip = opened(decode(encode(m.fn.dict_space(((S.k, 1),)).one()).one()))
+    assert list(decode(encode((1, 2, 3))).one()) == [1, 2, 3]
+    assert decode(encode(G("text"))) == [G("text")]
+    round_trip = opened(decode(encode(m.fn.dict_space(((S.k, 1),)))))
     assert [row.v for row in round_trip[S.k(V.v)]] == [1]
 
     # dict-space builds one from pairs directly, without going through text.

@@ -24,7 +24,7 @@ BUDGET = 1
 
 def twin(m):
     """Square nine three times over a memoized definition."""
-    m.eval(S["import!"](m, S.library(S["lib_memo"])))
+    m.fn["import!"](m, S.library(S["lib_memo"]))
 
     @m.define
     def sq(x):

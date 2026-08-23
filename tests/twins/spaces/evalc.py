@@ -16,12 +16,8 @@ compiled clause with it, so the last question sees the inherited `&self`
 answer.
 
 Three terms here are arithmetic over two GROUND operands, `(+ 5 5)` twice and
-`(+ 1 1)` once, and they name their head at the `S["+"]` door rather than using
-Python's `+`. That is deliberate: on a grounded number Python's operators are
-that number's own arithmetic, so `ground(5) + 5` is 10 rather than the term
-`(+ 5 5)`, and only inside a compiled body does `+` BUILD one (residue, P14.4).
-PERFECT: one lifted operand stages the term, `ground(5) + 5` building `(+ 5 5)`
-the way the guide's `G(1) + 2` does.
+`(+ 1 1)` once, and each is written with the guide's lift: one grounded operand
+STAGES its operator, so `G(5) + 5` is the term `(+ 5 5)` rather than 10.
 
 Guarantees:
   - expected printed output in this twin remains Python str text
@@ -33,7 +29,7 @@ Open Obligations:
 """
 
 import petta
-from petta import S, V, equation
+from petta import G, S, V, equation
 from petta.errors import MettaOperationError
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
@@ -63,12 +59,12 @@ def twin(m):
 
     # &self names the ambient space, so evalc there is eval, and the two doors
     # say so: this handle's own eval, and the engine's `eval` by name.
-    assert m.eval(S["+"](5, 5)) == [10]
-    assert m.fn["eval"](S["+"](5, 5)).one() == 10
+    assert m.eval(G(5) + 5) == [10]
+    assert m.fn["eval"](G(5) + 5).one() == 10
 
     # The expression is handed over unevaluated. Were it not, it would already
     # have been reduced here before the space argument could select another.
-    assert metric.eval(S.distance(S["+"](1, 1))) == [2000]
+    assert metric.eval(S.distance(G(1) + 1)) == [2000]
 
     # context-space, read inside evalc, reports the space evalc selected, and
     # it answers the HANDLE, so the claim compares handles rather than names.
@@ -77,7 +73,7 @@ def twin(m):
 
     # The space argument is evaluated, so a function answering a space name can
     # name it, and that call is not a handle: it goes to `evalc` by name.
-    @m.define(name="preferred-space")
+    @m.define
     def preferred_space():
         return S["&metric"]  # rung: the example's subject is a function that answers a space NAME, where a handle is a host value a body cannot close over
 

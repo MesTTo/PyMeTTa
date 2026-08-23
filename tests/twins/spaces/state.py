@@ -21,15 +21,12 @@ So the perfect spelling is a setter that answers its subject, the way
     assert state.set(S.active).value == S.active
 
 Until one exists the composition is the engine's own, which is what the line
-below asks for, and the ordinary read after it is the handle's. It goes through
-`m.eval` and not through the lazy answer view on purpose: a state cell lives in
-the THREAD's global store (`nb_setval`), the lazy view evaluates on a held SWI
-engine with its own globals, and a `change-state!` performed there is invisible
-afterwards. `m.answers(...).one()` answers `active` and leaves the cell reading
-`rest`, and the bound `m.fn["change-state!"]` loses it the same way; space
-writes DO persist through both, because the clause store is shared [measured
-2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: the two evaluation doors agree, or the
-answer view refuses a term whose effects it cannot commit.
+below asks for, and the ordinary read after it is the handle's. Either
+evaluation door says it: the held engine the lazy view runs on shares its
+state cells with the main one, so a `change-state!` performed through
+`m.answers(...).one()` is what the handle reads afterwards [measured
+2026-08-23: the cell reads `active` after the answer-view composition and
+after the bound `m.fn["change-state!"]`; commit=WORKTREE].
 
 Where the walrus DOES reach is the closing claim, which is about a cell needing
 no name at all: binding in expression position is `let`, so the cell is built,
@@ -57,7 +54,7 @@ def twin(m):
     assert state.value == S.rest
 
     # The write composes with the read, in the engine, for the reason above.
-    assert m.eval(S["get-state"](S["change-state!"](state, S.active))) == [S.active]  # rung: no Python expression writes an attribute
+    assert m.answers(S["get-state"](S["change-state!"](state, S.active))).one() == S.active  # rung: no Python expression writes an attribute
     # And the name still denotes the same cell, so the handle reads it too.
     assert state.value == S.active
 

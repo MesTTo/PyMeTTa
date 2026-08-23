@@ -29,6 +29,6 @@ def twin(m):
 
     # (with-pragma! ((max-stack-depth 100000000)) ...) scopes the same bound
     # to one expression; there is no kwarg for it on m.limits.
-    m.eval(S["pragma!"](S["max-stack-depth"], 100000000))
+    m.fn["pragma!"](S["max-stack-depth"], 100000000)
 
     assert fib(30) == [832040]

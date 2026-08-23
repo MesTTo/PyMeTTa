@@ -33,7 +33,7 @@ BUDGET = 1
 
 def twin(m):
     """Sum t*i over the lower triangle of a thousand rows."""
-    m.eval(S["import!"](m, S.library(S["lib_patrick"])))
+    m.fn["import!"](m, S.library(S["lib_patrick"]))
 
     last, iterate, quad_step = S.last, S.iterate, S["quad-step"]
 

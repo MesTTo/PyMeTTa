@@ -45,14 +45,11 @@ def twin(m):
     def guarded(call):
         """Whether an operation refuses a call or answers it.
 
-        Known issue: the perfect spelling is
-        `m.fn.if_error(S.catch(call), S.refused, S.answered).one()`, and most
-        of these calls carry an unbound variable, where a call through the
-        function namespace answers BINDING ROWS rather than the verdict
-        [measured 2026-08-23]. The term door answers the value whatever the
-        term holds.
+        Most of these calls carry an unbound variable, and the call answers
+        the verdict all the same: the bindings those variables took are the
+        parallel row face on the same view.
         """
-        return m.eval(S.if_error(S.catch(call), S.refused, S.answered))
+        return m.fn.if_error(S.catch(call), S.refused, S.answered).one()
 
     # Structure, in Python, with no crossing at all.
     assert Expression((0, *e)) == Expression((0, 1, 2, 3))
@@ -83,19 +80,17 @@ def twin(m):
 
     # An unbound variable is a program error, and every guarded position
     # refuses it by name rather than solving for it.
-    assert guarded(S.car_atom(V.unbound)) == [S.refused]
-    assert guarded(S.size_atom(V.unbound)) == [S.refused]
-    assert guarded(S.sort_atom(V.unbound)) == [S.refused]
-    assert guarded(S.index_atom(V.unbound, 0)) == [S.refused]
-    assert guarded(S.subtraction_atom(V.unbound, S.a(S.b))) == [S.refused]
+    assert guarded(S.car_atom(V.unbound)) == S.refused
+    assert guarded(S.size_atom(V.unbound)) == S.refused
+    assert guarded(S.sort_atom(V.unbound)) == S.refused
+    assert guarded(S.index_atom(V.unbound, 0)) == S.refused
+    assert guarded(S.subtraction_atom(V.unbound, S.a(S.b))) == S.refused
 
     # A bound argument is untouched, which is the half that makes the refusal
     # worth anything.
-    assert guarded(S.car_atom(Expression((1, 2)))) == [S.answered]
+    assert guarded(S.car_atom(Expression((1, 2)))) == S.answered
     assert Expression((1, 2))[0] == 1
 
     # The refusal is narrow: index-atom's SECOND argument is relational by
     # design, so an unbound index still enumerates every position in turn.
-    # Same issue as `guarded` above: `m.fn.index_atom(...)` would answer the
-    # INDEX each answer bound, where the claim is the element it reached.
-    assert m.eval(S.index_atom(S.a(S.b, S.c), V.i)) == [S.a, S.b, S.c]
+    assert m.fn.index_atom(S.a(S.b, S.c), V.i) == [S.a, S.b, S.c]

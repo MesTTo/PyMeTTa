@@ -49,14 +49,9 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
     # it lands the one-element expression is spelled at the ( ) door and asked
     # through query, which agree.
     one = wuspace.query(Expression((V.x,)))
-    # GAP: the ask door answers `Rows`, which projects only through a
-    # STRING key, `one["x"]`, the spelling the surface's own anti-pattern
-    # table retires; the call door answers `Answers`, which projects by
-    # attribute. PERFECT: `one.x == [S.wu]`, the same projection at both
-    # doors. `Rows` is a mutable list besides, where answers are immutable
-    # [measured 2026-08-23: Rows has append/clear/pop/sort and no attribute
-    # projection; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
-    assert [row.x for row in one] == [S.wu]
+    # Both answer containers project the same way, so the whole column comes
+    # off the ask door by attribute just as it does off a call.
+    assert one.x == [S.wu]
     assert [Expression((row.x,)) for row in one] == [S.wu()]
     assert [S.hu(row.x) for row in one] == [S.hu(S.wu)]
 

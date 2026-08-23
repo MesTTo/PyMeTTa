@@ -27,7 +27,7 @@ BUDGET = 1
 
 def twin(m):
     """Match, find, capture, split and replace, all through lib_regex."""
-    m.eval(S["import!"](m, S.library(S["lib_regex"])))
+    m.fn["import!"](m, S.library(S["lib_regex"]))
 
     # A boolean guard: (?i) is PCRE2's inline case-insensitivity flag.
     re_match = m.fn.re_match

@@ -23,11 +23,11 @@ BUDGET = 1
 def twin(m):
     """Step a natural-number iterator three times and read off the values."""
 
-    @m.define(name="make-nat-iter")
+    @m.define
     def make_nat_iter():
         return 0
 
-    @m.define(name="iter-next")
+    @m.define
     def iter_next(n):
         value = n
         following = n + 1

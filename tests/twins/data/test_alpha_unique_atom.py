@@ -35,13 +35,11 @@ def twin(m):
     def dedupe(items):
         """The engine's own alpha-dedupe of one expression.
 
-        Known issue: the perfect spelling is
-        `m.fn.alpha_unique_atom(items).one()`, and half of these expressions
-        carry variables, where a call through the function namespace answers
-        BINDING ROWS rather than the deduped term [measured 2026-08-23]. The
-        term door answers the value whatever the term holds.
+        Half of these expressions carry variables, and the call answers the
+        deduped term all the same: what those variables bound is the parallel
+        row face on the same view.
         """
-        return m.eval(S.alpha_unique_atom(items))[0]
+        return m.fn.alpha_unique_atom(items).one()
 
     def first_of_each(items):
         """The same walk in Python: AlphaSet membership IS alpha-equivalence."""

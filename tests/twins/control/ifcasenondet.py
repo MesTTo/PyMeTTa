@@ -31,7 +31,7 @@ BUDGET = 1
 
 def twin(m):
     """Give a condition three answers, twice."""
-    @m.define(name="if-nondet")
+    @m.define
     def if_nondet(y):
         # (= (if-nondet $y) (if (superpose $y) a b))
         for flag in y:

@@ -27,16 +27,12 @@ BUDGET = 1
 
 def twin(m):
     """Define the xor guard, then check both of its true cases."""
-    # The MeTTa name really is `check_xor` with an underscore, and `@m.define`
-    # takes the Python name VERBATIM, so this file needs no `name=`. Worth
-    # knowing because the two directions disagree: the guide's rung 4 says a
-    # `def not_provable` lands as `not-provable`, and every other door here
-    # applies that map (`S.check_xor` is the atom `check-xor`, a bare
-    # `check_xor(...)` inside another body resolves `check-xor` first). Only
-    # the decorator does not, which is why a hyphenated head is spelled
-    # `@m.define(name="...")` throughout this corpus
-    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
-    @m.define
+    # The MeTTa name really is `check_xor` with an underscore, which the
+    # naming ladder's own map does not produce: every door here, the decorator
+    # included, turns a Python underscore into a hyphen, so `@m.define` alone
+    # would store `check-xor` and the example's head would go unmatched. An
+    # exact non-mechanical name is what `name=` is for.
+    @m.define(name="check_xor")
     def check_xor(source, destination):
         # (= (check_xor $source $destination)
         #    (if (xor (== $source $destination) (> $source $destination)) 42 0))

@@ -30,7 +30,7 @@ BUDGET = 1
 
 def twin(m):
     """Table one equation, add a second, remove the first, watch the answers move."""
-    m.eval(S["import!"](m, S.library(S["lib_tabling"])))
+    m.fn["import!"](m, S.library(S["lib_tabling"]))
 
     m += equation(S.pick(V.x)).to(S.one)
     m.eval(S.tabled(S.pick(V.x)))

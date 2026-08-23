@@ -22,7 +22,7 @@ pre-pass and `memoize` on an unknown name is a domain error. The residue
 records the missing batch door against P14.4.
 """
 
-from petta import S, fn
+from petta import S
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -35,7 +35,7 @@ def twin(m):
     """Define the recursion, memoise it, then read two of its values."""
     # The library's file name is `lib_memo.metta`, and the factory attribute
     # door maps every underscore to a hyphen, so the name takes the bracket.
-    m.eval(fn["import!"](m, S.library(S["lib_memo"])))
+    m.fn["import!"](m, S.library(S["lib_memo"]))
 
     @m.define
     def energy(x, n):

@@ -15,7 +15,7 @@ which is exactly what the example's `(let $probe ... ($probe $who))` says.
 """
 
 import petta
-from petta import Expression, S, V, fn
+from petta import Expression, S, V
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -29,8 +29,8 @@ BUDGET = 1
 
 def twin(m):
     """Load soft matching, state two similarities, then check all seventeen claims."""
-    m.eval(fn["import!"](m, S.library(S["lib_measure"])))
-    m.eval(fn["import!"](m, S.library(S["lib_soft"])))
+    m.fn["import!"](m, S.library(S["lib_measure"]))
+    m.fn["import!"](m, S.library(S["lib_soft"]))
 
     m += S.similar(S.cat, S.feline, 0.8)
     m += S.similar(S.dog, S.wolf, 0.7)
@@ -52,12 +52,7 @@ def twin(m):
     assert soft_score(3, 4).one() == 0.0
 
     # A variable binds at degree one, and the binding is real.
-    #
-    # Known issue: a call carrying a caller variable answers that variable's
-    # BINDINGS and drops the value, so the calling door cannot state the first
-    # of these two claims. It should read:
-    #     assert soft_score(V.x, S.anything).one() == 1.0
-    assert m.eval(S["soft-score"](V.x, S.anything)) == [1.0]
+    assert soft_score(V.x, S.anything).one() == 1.0
     scored = S["soft-score"](S.likes(V.who, S.fish), S.likes(S.cat, S.fish))
     assert m.solve(1.0, scored).who == S.cat
 
@@ -76,14 +71,7 @@ def twin(m):
     # distribution, which sums to one whatever the temperature.
     # `Expression(answers)` is the collapse door: the scored candidates become
     # ONE ordered atom, which is what the measure algebra takes.
-    #
-    # Known issue: both of these calls carry caller variables, so the calling
-    # door answers those variables' BINDINGS instead of the scored pairs the
-    # example collapses, and the count would be right for the wrong reason.
-    # They should read:
-    #     assert len(soft_match(zoo, S.likes(V.x, V.y), 0.0)) == 3
-    #     candidates = Expression(soft_match(zoo, S.likes(S.feline, V.f), 0.0))
-    assert len(m.eval(S["soft-match"](zoo, S.likes(V.x, V.y), 0.0))) == 3
-    candidates = Expression(m.eval(S["soft-match"](zoo, S.likes(S.feline, V.f), 0.0)))
+    assert len(soft_match(zoo, S.likes(V.x, V.y), 0.0)) == 3
+    candidates = Expression(soft_match(zoo, S.likes(S.feline, V.f), 0.0))
     distribution = m.fn.ws_softmax(candidates, 1.0).one()
     assert abs(m.fn.ws_total(distribution).one() - 1.0) < 1.0e-9

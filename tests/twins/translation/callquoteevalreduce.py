@@ -4,12 +4,9 @@
 stays at the term door; the space that `add-atom` writes is the handle itself,
 which crosses into the built term as a grounded operand.
 
-Known issue on the guard below. The style guide rules that a comparison on an
-atom BUILDS the term, and `>`, `<=` and `>=` still do; `<` does not, because
-`Atom.__lt__` now carries the engine's SORT ORDER, so `V.n < 2` raises
-TypeError and `V.n < V.m` silently answers a bool [measured 2026-08-23]. The
-perfect spelling of this guard is `V.n < 2`; until the two rulings are
-reconciled the head is written out.
+The guard below names its head. Python's `<`, `>`, `<=` and `>=` carry the
+engine's total atom ORDER, so none of the four builds a term and a comparison
+a stored equation is going to hold is written at the naming door.
 
 Assumes:
   - fib is absent for the first claim, installed by compilefib, and present for
@@ -23,7 +20,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation
+from petta import Expression, S, V, equation, if_
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
@@ -56,11 +53,9 @@ def twin(m):
     ]
 
     fib_equation = equation(S.fib(V.n)).to(
-        S["if"](  # rung: this `if` is the stored BODY of an equation, so it is data rather than control flow
-            S["<"](V.n, 2),  # Known issue: `V.n < 2` is the perfect spelling and raises TypeError; see the module docstring
-            V.n,
-            S.fib(V.n - 1) + S.fib(V.n - 2),
-        )
+        # The `if` is the stored BODY of an equation, so it is data rather
+        # than control flow.
+        if_(S["<"](V.n, 2), V.n, S.fib(V.n - 1) + S.fib(V.n - 2))
     )
     compiled_body = Expression(
         (S.within(fib5),

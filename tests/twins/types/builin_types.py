@@ -18,7 +18,7 @@ appears. There is still no Python verb for importing a library (residue,
 P14.13).
 """
 
-from petta import S, V, arrow, fn
+from petta import S, V, arrow
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -37,7 +37,7 @@ def twin(m):
     over_expression = arrow(V.a, int)
     logical = arrow(bool, bool, bool)
 
-    m.eval(fn["import!"](m, S.library(S["lib_builtin_types"])))
+    m.fn["import!"](m, S.library(S["lib_builtin_types"]))
 
     # Arithmetic.
     assert m.type(S["+"]) == binary

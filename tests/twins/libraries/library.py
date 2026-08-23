@@ -24,6 +24,6 @@ BUDGET = 1
 
 def twin(m):
     """Import lib_roman, then map (+ 1) over three numbers."""
-    m.eval(S["import!"](m, S.library(S["lib_roman"])))
+    m.fn["import!"](m, S.library(S["lib_roman"]))
 
     assert m.fn.map_flat(S["+"](1), (1, 2, 3)) == [Expression((2, 3, 4))]

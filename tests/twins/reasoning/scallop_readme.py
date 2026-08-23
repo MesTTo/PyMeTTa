@@ -107,12 +107,7 @@ def twin(m):
     for klass, student, grade in GRADES:
         m += S["sc-class-student-grade"](klass, student, grade)
 
-    # Known issue: `@m.define` takes the Python name VERBATIM, where the `S`,
-    # `V` and `fn` factories map every underscore to a hyphen, so a hyphenated
-    # MeTTa name needs `name=` at this one door. It should read:
-    #     @m.define
-    #     def sc_pick_max(a, b):
-    @m.define(name="sc-pick-max")
+    @m.define
     def sc_pick_max(a, b):
         """The larger of two grades."""
         return a if a > b else b  # noqa: FURB136  -- max(b, a) compiles to (max $b $a), a different equation from the example's (if (> $a $b) $a $b)

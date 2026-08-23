@@ -111,17 +111,12 @@ def twin(m):
             V.limits.eq(Expression(())),
             S.accept(),
             S["if"](
-                # DEFECT: `<` is the one comparison that no longer BUILDS.
-                # R5 put the engine's sort order on Atom.__lt__ so that plain
-                # sorted() is msort, and that took the term-building `<` with
-                # it: `V.a < 2` raises TypeError and its mirror `2 > V.a`
-                # raises too, while >, <= and >= all still build. It is silent
-                # rather than loud, and it read as the constant False here
-                # until the head was named [measured 2026-08-23;
-                # source: bindings/python/petta/_atoms_core.py:1353-1365;
-                # commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: `S["space-atom-count"](V.pool) <
-                # S["car-atom"](V.limits)`, the way every other comparison in
-                # this file's judge is written.
+                # The comparison names its head, like every other comparison
+                # in this judge: `<`, `>`, `<=` and `>=` all carry the
+                # engine's total atom ORDER, so none of the four builds a
+                # term and a guard a stored definition holds is written at
+                # the naming door
+                # [source: bindings/python/petta/_atoms_core.py:1353-1365].
                 S["<"](
                     S["space-atom-count"](V.pool),
                     S["car-atom"](V.limits),  # rung: the value is an engine-time variable

@@ -22,7 +22,7 @@ BUDGET = 1
 
 def twin(m):
     """Store an equation with a literal head, then ask three equality questions."""
-    m.eval(S["import!"](m, S.library(S["lib_he"])))
+    m.fn["import!"](m, S.library(S["lib_he"]))
 
     m += equation(S.add(1, 2)).to(3)
 

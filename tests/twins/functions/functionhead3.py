@@ -17,12 +17,12 @@ The variables `myplus` chains over are holes rather than parameters, which
 `V.x` and `V.y` say inside the body, and `S.let` names the relational `let`
 Python's assignment does not reach.
 
-Two ASKS, and the difference decides three of the six claims. A call carrying
-a caller variable answers that variable's BINDINGS, which is the surface's own
-`ancestor(V.who, S.Jim).who`; this example asks instead what the relation
-REDUCES TO while a variable stands in it, so those claims evaluate the term.
-`collapse` dissolves either way, because an evaluation already answers the
-list of its answers.
+A call answers what the relation reduces to, whether or not its arguments
+carry variables, so running `myplus` backwards is the same Python line as
+running it forwards; the bindings those variables took are the parallel row
+face on the same view. `collapse` dissolves either way, because the view
+already IS the list of answers. Only the last claim evaluates a term instead
+of calling, because a `let`-as-guard has to wrap the call.
 """
 
 from petta import TRUE, S, V, fn
@@ -59,15 +59,10 @@ def twin(m):
     assert myplus(3, 3) == []
     # input out of range:
     assert myplus(3, 4) == []
-    # what can be reached when adding $X to 3. The perfect spelling would be
-    # the call, `myplus(V.x, 3)`, and it answers `[Row(x=1), Row(x=2)]`: a call
-    # carrying a caller variable answers that variable's BINDINGS. That is the
-    # right reading for `ancestor(V.who, S.Jim).who` and the wrong one here,
-    # where the example asks what the relation REDUCES TO while a variable
-    # stands in it, so the term is evaluated instead. Not a defect, a split
-    # with only one door named [measured 2026-08-23; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
-    assert m.eval(S.myplus(V.x, 3)) == [4, 5]
+    # what can be reached when adding $X to 3:
+    assert myplus(V.x, 3) == [4, 5]
     # what can be reached when adding $X to $Y:
-    assert m.eval(S.myplus(V.x, V.y)) == [3, 4, 4, 5, 5]
+    assert myplus(V.x, V.y) == [3, 4, 4, 5, 5]
     # with which $x added to 2 can we reach values above 3?
-    assert m.eval(S.let(TRUE, S.myplus(V.x, 2) > 3, V.x)) == [2, 3]  # rung: let as a guard
+    guard = S[">"](S.myplus(V.x, 2), 3)
+    assert m.eval(S.let(TRUE, guard, V.x)) == [2, 3]  # rung: let as a guard

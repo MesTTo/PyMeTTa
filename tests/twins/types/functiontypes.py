@@ -50,11 +50,9 @@ def twin(m):
         return a + b
 
     m += typed(S.wu3, arrow(int, int, Any))
-    # Known issue: `<` is the one comparison that no longer builds its term.
-    # Appendix stamp 6 gave `Atom.__lt__` to the engine's sort order, so
-    # `V.a < 10` raises TypeError while `<=`, `>` and `>=` still build. It
-    # should read:
-    #     m += equation(S.wu3(V.a, V.b)).to(if_(V.a < 10, V.a + V.b, not_a_number))
+    # `<` is a named head here because Python's four rich comparisons order
+    # atoms rather than building terms; `+` still builds, so it stays an
+    # operator on the line beside it.
     m += equation(S.wu3(V.a, V.b)).to(if_(fn["<"](V.a, 10), V.a + V.b, not_a_number))
 
     # The Atom-typed argument arrives unevaluated; the Number-typed one does

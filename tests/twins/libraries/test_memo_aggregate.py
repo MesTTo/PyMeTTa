@@ -10,11 +10,11 @@ What this twin does state is the half that does hold: the mode is accepted and
 readable, and setting it back to `none` restores the default for whatever runs
 next in the same process, which is why the example ends the way it does.
 
-DEFECT, and it is the quiet kind. A call through the function namespace is
-LAZY: creating the answer view performs no engine work, so
-`config(S.aggregate(S.sum))` written for its EFFECT, which is how the example
-writes it, silently does nothing and every later claim reads the old mode. The
-answer has to be pulled. Both calls therefore state the `True` they answer,
+A call through the function namespace is LAZY unless its resolved MeTTa name
+ends in `!`, the effect marker, and `config-memoize` carries none: creating
+the answer view performs no engine work, so `config(S.aggregate(S.sum))`
+written for its EFFECT alone would silently do nothing and every later claim
+would read the old mode. Both calls therefore state the `True` they answer,
 which both pulls them and says what they answered.
 """
 
@@ -30,7 +30,7 @@ BUDGET = 1
 
 def twin(m):
     """Ask for a summing cache, build the function, and read the mode back."""
-    m.eval(S["import!"](m, S.library(S["lib_memo"])))
+    m.fn["import!"](m, S.library(S["lib_memo"]))
 
     config = m.fn.config_memoize
     assert config(S.aggregate(S.sum)) == [True]

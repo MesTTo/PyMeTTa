@@ -9,16 +9,17 @@ are those two spaces, and neither has a name: the creation options apply only
 to an anonymous space, and every door the example uses hangs off the handle
 they answer.
 
-Two gaps are visible in the code below and both are commented where they bite:
-the named restricted space the original writes has no Python door, and a
-capability is granted as text where the surface rules an enum.
+A path crosses as the `pathlib.Path` it is and a capability as the vocabulary
+value it is, so neither is quoted into text. One gap remains, commented where
+it bites: the named restricted space the original writes has no Python door.
 """
 
 from pathlib import Path
 
 import petta
-from petta import S, ground
+from petta import S
 from petta.errors import SpaceCapabilityError
+from petta.vocabularies import SpaceCapability
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -47,12 +48,9 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
     # A restricted space retains ordinary computation and its own equations.
     assert locked.eval(S.double(21)) == [42]
 
-    # GAP: a path crosses as text rather than as a path. `ground(Path(...))`
-    # reaches the engine as an opaque box and `exists_file` refuses it,
-    # "cannot write <py_Box> as MeTTa text" [measured 2026-08-23]. PERFECT:
-    # `S["exists_file"](SOURCE)`, with a Path codec doing the conversion the
-    # str() below does by hand.
-    asked = S["exists_file"](ground(str(SOURCE)))
+    # A path crosses the call door as the atom its codec makes of it, so
+    # nothing quotes it into a string first.
+    asked = S["exists_file"](SOURCE)
 
     # The file operation reaches a refusal that names what is missing.
     refusal = None
@@ -62,10 +60,7 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
         refusal = error
     assert refusal is not None
 
-    # A capability is granted explicitly when the space is created.
-    # GAP: the capability arrives as text. petta.vocabularies.SpaceCapability
-    # is a Literal type, so mypy checks the word and nothing autocompletes it
-    # or renames with it. PERFECT: `grants=[SpaceCapability.FILE]`, the enum
-    # the surface rules for every option value.
-    reader = petta.space(restricted=True, grants=["file"])
+    # A capability is granted explicitly when the space is created, as the
+    # vocabulary's own value rather than as the word for it.
+    reader = petta.space(restricted=True, grants=[SpaceCapability.file])
     assert reader.eval(asked) == [True]

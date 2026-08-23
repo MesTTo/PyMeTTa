@@ -32,7 +32,7 @@ BUDGET = 1
 
 def twin(m):
     """Observe arrows, cast five atoms, unify four type pairs, take two halves."""
-    m.eval(S["import!"](m, S.library(S["lib_he"])))
+    m.fn["import!"](m, S.library(S["lib_he"]))
 
     is_function = m.fn.is_function
     assert is_function(S["->"](S.Atom, S.Atom)) == [True]
@@ -63,16 +63,7 @@ def twin(m):
     assert match_types(S.Atom, S.Atom, matched, missed) == [matched]
     assert match_types(S.Atom, S.Number, matched, missed) == [matched]
     assert match_types(S.Bool, S.Number, matched, missed) == [missed]
-    # DEFECT, and this line is what it costs. It ought to read
-    # `match_types(S.List(V.x), S.List(S.Number), matched, missed)`, the call
-    # door, like the three above it. The pair carries a variable INSIDE a type,
-    # and the answer view reads every variable in a call as one of the caller's
-    # own, so the call door answers a binding row for `$x` where the claim is
-    # about the answer. Until it distinguishes them, this one is stated as the
-    # term it is.
-    assert m.eval(S["match-types"](S.List(V.x), S.List(S.Number), matched, missed)) == [
-        matched
-    ]
+    assert match_types(S.List(V.x), S.List(S.Number), matched, missed) == [matched]
 
     assert m.fn.first_from_pair((S.A, S.B)) == [S.A]
     assert m.fn.second_from_pair((S.A, S.B)) == [S.B]

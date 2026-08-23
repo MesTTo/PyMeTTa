@@ -57,7 +57,7 @@ BUDGET = 1
 def twin(m):
     """Take a then branch, an else branch, and a nested else branch."""
     # !(import! &self (library lib_he))
-    m.eval(S["import!"](m, (S.library, S["lib_he"])))
+    m.fn["import!"](m, (S.library, S["lib_he"]))
 
     # (Constant wff (Type "$c"))
     m += S.Constant(S.wff, S.Type(CONSTANT))

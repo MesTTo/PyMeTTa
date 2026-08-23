@@ -29,14 +29,14 @@ GREET_DESC = G("Greets somebody by name")
 
 def twin(m):
     """Document two functions from Python, then ask the space what it knows."""
-    m.eval(S["import!"](m, S.library(S["lib_doc"])))
+    m.fn["import!"](m, S.library(S["lib_doc"]))
 
     @m.define
     def greet(who):
         """Greets somebody by name"""  # noqa: D415  -- the text is DATA: it is the @desc atom this file claims, so a period or a recased first word would be a different atom
         return who
 
-    @m.define(name="add-two")
+    @m.define
     def add_two(a, b):
         """Adds two numbers
 

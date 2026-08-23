@@ -34,7 +34,7 @@ PROVIDER = G("./examples/libraries/_fixtures/demo_provider.pl")
 
 def twin(m):
     """Run the seam's own conformance checks, then query through the seam."""
-    m.eval(S["import!"](m, S.library(S["lib_conformance"])))
+    m.fn["import!"](m, S.library(S["lib_conformance"]))
     m.eval(S["import_prolog_functions_from_file"](PROVIDER, ()))
 
     demo = petta.space("&demo_provider")

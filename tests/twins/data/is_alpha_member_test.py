@@ -6,13 +6,10 @@ you have UP TO the names of its variables, so `(f $x)` is a member of
 is not. That difference is the whole subject, so the claims go to the operation
 itself, and the two spellings are put side by side once to show where they part.
 
-Known issue: the perfect spelling of every question below is
-`m.fn.is_alpha_member(needle, haystack).one()`, and half of these needles carry
-variables, where a call through the function namespace answers BINDING ROWS
-rather than the value: `is-alpha-member (f $x) ((f $y) (g $z))` comes back as
-`Row(x=..., y=..., z=...)` and the verdict is gone [measured 2026-08-23]. The
-term door answers the value whatever the term holds, so each question is one
-`m.eval` of the built term until a call can answer a value and its bindings.
+Every question is the operation CALLED, `m.fn.is_alpha_member(needle,
+haystack).one()`. Half of these needles carry variables, and the call still
+answers the verdict: what those variables bound is the parallel row face on
+the same view, so nothing has to choose between them.
 
 The cases walk the edges: an empty list, a variable against ground terms, a
 ground term, nested structure, a repeated variable that must repeat in the
@@ -41,7 +38,7 @@ def twin(m):
 
     def holds(needle, haystack):
         """Whether `haystack` holds a term alpha-equal to `needle`."""
-        return m.eval(S.is_alpha_member(needle, haystack)) == [True]
+        return m.fn.is_alpha_member(needle, haystack).one()
 
     letters = S.a(S.b, S.c)
 

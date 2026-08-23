@@ -37,20 +37,15 @@ BUDGET = 1
 
 def twin(m):
     """Ask each member of the assert family whether it holds."""
-    m.eval(S["import!"](m, S.library(S["lib_he"])))
+    m.fn["import!"](m, S.library(S["lib_he"]))
 
     assert m.fn.assertEqual(S["+"](1, 2), S["-"](6, 3)) == [True]
 
-    # DEFECT, and this is what it costs the Alpha family. Every alpha claim
-    # ought to read `m.fn.assertAlphaEqual(...)`, the call door. Comparing
-    # modulo variable renaming means carrying variables by definition, and the
-    # answer view reads every variable in a call as one of the caller's own and
-    # answers a binding row instead of the True this family reports. The five
-    # alpha claims are therefore stated as the terms they are.
-    assert m.eval(S.assertAlphaEqual(S.h(V.x, V.y), S.h(V.a, V.b))) == [True]
-    assert m.eval(
-        S.assertAlphaEqual(S.quote(V.x + V.y), S.quote(V.a + V.b))
-    ) == [True]
+    # Comparing modulo variable renaming carries variables by definition, and
+    # the call answers the True this family reports all the same.
+    alpha_equal = m.fn.assertAlphaEqual
+    assert alpha_equal(S.h(V.x, V.y), S.h(V.a, V.b)) == [True]
+    assert alpha_equal(S.quote(V.x + V.y), S.quote(V.a + V.b)) == [True]
 
     # The ToResult forms take the expected results as a tuple, not a bare
     # value, and do not evaluate it. A single result is therefore (3), not 3.
@@ -59,8 +54,8 @@ def twin(m):
     assert to_result(S.superpose((1, 2)), (1, 2)) == [True]
 
     m += equation(S.adder()).to(Expression((V.x,)))
-    assert m.eval(
-        S.assertAlphaEqualToResult(S.adder(), (Expression((V.y,)),))
+    assert m.fn.assertAlphaEqualToResult(
+        S.adder(), (Expression((V.y,)),)
     ) == [True]
 
     # Every expected result must appear among those produced.
@@ -70,14 +65,12 @@ def twin(m):
 
     # The Msg variants take a failure message and otherwise behave as their bases.
     assert m.fn.assertEqualMsg(S["+"](1, 2), S["-"](6, 3), G("sums differ")) == [True]
-    assert m.eval(
-        S.assertAlphaEqualMsg(S.h(V.x, V.y), S.h(V.a, V.b), G("not alpha equal"))
+    assert m.fn.assertAlphaEqualMsg(
+        S.h(V.x, V.y), S.h(V.a, V.b), G("not alpha equal")
     ) == [True]
     assert m.fn.assertEqualToResultMsg(
         S["+"](1, 2), (3,), G("not the expected result")
     ) == [True]
-    assert m.eval(
-        S.assertAlphaEqualToResultMsg(
-            S.adder(), (Expression((V.y,)),), G("not alpha equal")
-        )
+    assert m.fn.assertAlphaEqualToResultMsg(
+        S.adder(), (Expression((V.y,)),), G("not alpha equal")
     ) == [True]

@@ -29,7 +29,7 @@ BUDGET = 1
 
 def twin(m):
     """Carry a pair a hundred times, then take its first half."""
-    m.eval(S["import!"](m, S.library(S["lib_patrick"])))
+    m.fn["import!"](m, S.library(S["lib_patrick"]))
 
     first, iterate, fib_step = S.first, S.iterate, S["fib-step"]
 

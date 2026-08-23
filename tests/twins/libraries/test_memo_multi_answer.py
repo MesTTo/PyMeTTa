@@ -26,7 +26,7 @@ BOTH = [S.Pair(7, 7), 7]
 
 def twin(m):
     """Two answers for one call, before and after the cache."""
-    m.eval(S["import!"](m, S.library(S["lib_memo"])))
+    m.fn["import!"](m, S.library(S["lib_memo"]))
 
     @rules
     def choose(x):

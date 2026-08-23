@@ -39,7 +39,7 @@ def twin(m):
     # log-math is the inverse: log base e of e^x is x, within float error.
     assert abs(log(E, fn.exp_math(3.0)).one() - 3.0) < 1.0e-12
 
-    @m.define(name="in-range")
+    @m.define
     def in_range(lo, hi, x):
         # (= (in-range $lo $hi $x) (and (<= $lo $x) (<= $x $hi)))
         return lo <= x <= hi

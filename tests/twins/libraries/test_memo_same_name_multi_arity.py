@@ -2,14 +2,14 @@
 
 `mix` answers at one and at two arguments, and each arity carries its own
 cache: memoizing one leaves the other alone, which is what `is-memoized`
-reports here five times. Both equations come through `@rules`, for the reason
-test_memo_per_arity gives.
+reports here five times. The two clauses are STACKED decorations of one MeTTa
+name, dispatched by arity, for the reason test_memo_per_arity gives.
 
 `is-memoized` answers a boolean, so the claims compare against `[True]` and
 `[False]` rather than against the symbols the example prints.
 """
 
-from petta import S, equation, rules
+from petta import S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -21,14 +21,18 @@ BUDGET = 1
 
 def twin(m):
     """Cache one arity of a name, then the other, and watch both report."""
-    m.eval(S["import!"](m, S.library(S["lib_memo"])))
+    m.fn["import!"](m, S.library(S["lib_memo"]))
 
-    @rules
-    def mix(x, y):
-        yield equation(S.mix(x)).to(x + 1)
-        yield equation(S.mix(x, y)).to(x + y)
+    @m.define
+    def mix(x):
+        # (= (mix $x) (+ $x 1))
+        return x + 1
 
-    m += mix
+    @m.define(name="mix")
+    def mix_2(x, y):
+        # (= (mix $x $y) (+ $x $y))
+        return x + y
+
     m.eval(S.memoize(S.mix, 1))
 
     memoized = m.fn.is_memoized

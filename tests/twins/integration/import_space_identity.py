@@ -40,16 +40,12 @@ def twin(m):
     # door ON that handle's context [measured 2026-08-23: petta.engine() is
     # not the twin's MeTTa object, and their runtimes are the same object].
     a, b = petta.space("&import-space-a"), petta.space("&import-space-b")
-    # Known issue, two halves. `import!` has no Python door on the handle: the
-    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
-    # shipped library (appendix stamp 1), and neither exists yet. And the
-    # generic call door cannot stand in for it, because a call through the
-    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
-    # statement IMPORTS NOTHING until something pulls its answers [measured
-    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
-    # that way.
+    # Known issue: `import!` has no Python door on the handle. The perfect
+    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
+    # library (appendix stamp 1), and neither exists yet, so the directive is
+    # reached by its own bang name, which performs it where it is written.
     for space in (a, b):
-        m.eval(S["import!"](space, PAYLOAD))
+        m.fn["import!"](space, PAYLOAD)
 
     # Each importing space holds the marker, once.
     assert len(a[MARKER]) == 1

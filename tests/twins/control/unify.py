@@ -71,13 +71,13 @@ def twin(m):
     # !(test (unify $x (f $x) cyclic sound) sound)
     assert m.eval(S.unify(V.x, S.f(V.x), S.cyclic, S.sound)) == [S.sound]
 
-    @m.define(name="then-probe")
+    @m.define
     def then_probe():
         # (= (then-probe) (chain (add-atom &self then-ran) $_ 3))
         _marked = S["add-atom"](S["context-space"](), S.then_ran)  # rung: `space += atom` is a Python statement over a handle, and a compiled body is pure atoms
         return 3
 
-    @m.define(name="else-probe")
+    @m.define
     def else_probe():
         # (= (else-probe) (chain (add-atom &self else-ran) $_ 4))
         _marked = S["add-atom"](S["context-space"](), S.else_ran)  # rung: the other marker, the same way

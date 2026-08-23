@@ -60,7 +60,7 @@ def twin(m):
     m += equation(S["q-both"](V.a, V.b)).to(S.collapse(S.match(m, S.r(V.a, V.b), S.r(V.a, V.b))))  # rung: as above
     m += equation(S["q-rel"](V.r)).to(S.collapse(S.match(m, (V.r, 643, 3), (V.r, 643, 3))))  # rung: as above
 
-    @m.define(name="indexing-demo")
+    @m.define
     def indexing_demo(k):
         _loaded = fn.addK(k)
         everything = fn.q_all()

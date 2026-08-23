@@ -53,14 +53,10 @@ def twin(m):
         S.cons((V.f, V.x), S["map-flat"](V.f, V.xs))
     )
 
-    # DEFECT: the descent ladder documents rung 4 as TOTAL in both
-    # directions, "def not_provable lands as not-provable", and the define
-    # door does not apply it: `def find_divisor` lands as `find_divisor`
-    # [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. So every hyphenated MeTTa name
-    # below states itself through `name=`. PERFECT: the map applies at the
-    # define door the way it applies at the S, V and fn factories, and only
-    # a name Python cannot spell at all needs `name=` -- here `range`, which
-    # is a Python builtin, so the def takes rung 2's trailing underscore.
+    # The define door applies rung 4's underscore map like every other door,
+    # so a hyphenated MeTTa name needs nothing said twice. This one still
+    # takes `name=`: `range` is a Python builtin, so the def carries rung 2's
+    # trailing underscore, which the map would turn into a trailing hyphen.
     @m.define(name="range")
     def range_(n):
         if n == 0:
@@ -78,7 +74,7 @@ def twin(m):
                 S["fold-nested"](V.f, S["fold-nested"](V.f, V.init, V.x), V.xs),
                 S["fold-nested"](V.f, (V.f, V.init, V.x), V.xs)))
 
-    @m.define(name="deep-nest")
+    @m.define
     def deep_nest(n):
         if n == 0:
             return ()
@@ -89,7 +85,7 @@ def twin(m):
     ) == [25_500_000]
 
     # A hundred thousand applications of one function to one value.
-    @m.define(name="apply-many")
+    @m.define
     def apply_many(f, n, x):
         if n == 0:
             return x

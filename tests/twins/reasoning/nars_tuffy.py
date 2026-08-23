@@ -27,7 +27,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation, fn
+from petta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -49,19 +49,13 @@ def implication(premise, conclusion):
 def product(left, right):
     """`(multiplication-sign left right)`, the NARS product of two terms.
 
-    Known issue, and it decides whether this twin agrees with its example: the
-    engine reads a `.metta` file with the LOCALE's encoding, so under
-    `LC_ALL=C` every non-ASCII head in `lib/lib_nars.metta` arrives as U+FFFD
-    (measured: 123 replacement characters over the 51 `|-` clauses, against 0
-    under any UTF-8 locale). A `.metta` program stays self-consistent because
-    its own heads are corrupted the same way; a twin builds the REAL U+00D7,
-    which then matches no rule, and NARS answers
-    `((stv 0.6 0.486) (2 10))` instead of
-    `((stv 0.6 0.48941156079382964) (2 5 6 9 10))`. `twin_coverage.py`'s
-    `_environment` pins `LC_ALL=C`, so the lane measures that engine. The
-    engine should read its sources as UTF-8 whatever the locale
-    (`:- set_prolog_flag(encoding, utf8).`), or the lane should pin
-    `LC_ALL=C.UTF-8`; this line is already what it should be.
+    The head is the REAL U+00D7, and it matches the rules in
+    `lib/lib_nars.metta` because the engine reads its sources as UTF-8
+    whatever the locale, which `twin_coverage.py`'s `_environment` pins to
+    `LC_ALL=C` [measured 2026-08-23 under `LC_ALL=C`: 0 U+FFFD replacement
+    characters and 12 real U+00D7 heads in the imported library, where the
+    locale-dependent reader gave 123 replacements over the 51 `|-` clauses;
+    commit=WORKTREE].
     """
     return S["\N{MULTIPLICATION SIGN}"](left, right)
 
@@ -94,7 +88,7 @@ def twin(m):
     """State ten sentences, then ask NARS about one of their consequences."""
     # The library's file name is `lib_nars.metta`, and the factory attribute
     # door maps every underscore to a hyphen, so the name takes the bracket.
-    m.eval(fn["import!"](m, S.library(S["lib_nars"])))
+    m.fn["import!"](m, S.library(S["lib_nars"]))
 
     # The knowledge base, as the ten rows it is. `$1` and `$2` in the first two
     # rows are the rules' variables; everything below them is ground.

@@ -22,7 +22,7 @@ BUDGET = 1
 
 def twin(m):
     """Import lib_roman, define inc, then move it over each side of a pair."""
-    m.eval(S["import!"](m, S.library(S["lib_roman"])))
+    m.fn["import!"](m, S.library(S["lib_roman"]))
 
     @m.define
     def inc(x):

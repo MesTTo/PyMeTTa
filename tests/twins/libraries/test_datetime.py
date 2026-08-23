@@ -25,7 +25,7 @@ NEW_YEAR_2025 = 1735689600
 
 def twin(m):
     """Read the clock, then format and name three fixed timestamps."""
-    m.eval(S["import!"](m, S.library(S["lib_datetime"])))
+    m.fn["import!"](m, S.library(S["lib_datetime"]))
 
     now = m.fn.now
     assert now().one() > NEW_YEAR_2025

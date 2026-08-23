@@ -8,14 +8,12 @@ PARAMETERS, and the handle crosses as a term operand, so the space itself is
 what the call hands over. The rest is ordinary Python: a write is
 `space += atom` and a read is the subscript door.
 
-Two things about the answer view are worth knowing here, both measured
-2026-08-23 and both the library's to fix rather than this file's. Calling a
-DEFINITION answers binding rows for the caller's own variables outside a
-`stats()` scope and the bare answers inside one, and a twin runs inside one;
-and `m.fn.<name>(...)` answers binding rows in BOTH, which discards the
-answer when the variable is an argument rather than an answer template
-(`m.fn.unify(V.x, S.f(V.x), S.cyclic, S.sound)` answers `[Row(x=$_70)]` where
-the form answers `sound`).
+One thing about the answer view is worth knowing here: a call answers what
+it evaluated to whether or not its arguments carry the caller's variables, in
+a `stats()` scope and outside one, and the bindings those variables took are
+the parallel row face on the same view [measured 2026-08-23 on the merged
+tree: `m.fn.unify(V.x, S.f(V.x), S.cyclic, S.sound)` answers `[sound]` and its
+`.rows` answers `[Row(x=$_70)]`; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -46,7 +44,7 @@ def twin(m):
     # note. Nine lines in control/ carry one for the same reason: `match` in
     # cut.py and once.py, `add-atom`/`remove-atom` in eval.py, `add-atom` twice
     # in unify.py and three times in thin_forms.py.
-    @m.define(name="match-single")
+    @m.define
     def match_single(space, pat, ret):
         # (= (match-single $space $pat $ret) (once (match $space $pat $ret)))
         return S.once(fn.match(space, pat, ret))  # rung: the subscript door is a Python statement over a handle, and the space here is a parameter of the equation

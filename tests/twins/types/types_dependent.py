@@ -45,14 +45,10 @@ def twin(m):
     alpha, kind = fn["=alpha"], fn.get_type
 
     # The head IS the engine's own get-type, which the program extends, so
-    # the clause is written as the equation it is.
-    #
-    # Known issue: both bodies are ONE-ARMED ifs, and `if_(condition,
-    # consequent, alternative)` fixes the arity at three, so the builder
-    # cannot say them and Python's conditional expression cannot either. It
-    # should read:
-    #     even = if_(alpha(V.x % 2, 0), S.EvenNumber)
-    even = fn["if"](alpha(V.x % 2, 0), S.EvenNumber)  # rung: a one-armed `if` has no builder and no Python expression (P14.4)
+    # the clause is written as the equation it is. Both bodies are ONE-ARMED
+    # ifs, the filtering form that answers nothing where its condition fails,
+    # which `if_` takes beside the three-armed conditional.
+    even = if_(alpha(V.x % 2, 0), S.EvenNumber)
     m += equation(kind(V.x)).to(fn.catch(even))
 
     @m.define
@@ -62,9 +58,7 @@ def twin(m):
     assert f(2, 4) == [6]
 
     ends = if_(alpha(V.tail, Expression(())), S.EvenNumberList, kind(V.tail))
-    # Known issue again, and it should read `if_(alpha(kind(V.head),
-    # S.EvenNumber), ends)`.
-    walk = fn["if"](alpha(kind(V.head), S.EvenNumber), ends)  # rung: a one-armed `if` has no builder (P14.4)
+    walk = if_(alpha(kind(V.head), S.EvenNumber), ends)
     m += equation(kind(S.cons(V.head, V.tail))).to(walk)
 
     @m.define

@@ -26,16 +26,10 @@ def twin(m):
     """Register the costed and conjunctive rules, then exercise every case."""
     m += S[":"](S.pow2, S["->"](S.Atom, S["%Undefined%"]))
     m += equation(S.pow2(V.x)).to(S.noeval(S.mul(V.x, V.x)))
-    # Known issue: a call through the function namespace answers a LAZY view,
-    # so the perfect statement-level spelling of a directive,
-    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
-    # its answers [measured 2026-08-23: the rule fires only after list() of the
-    # view]. The term door evaluates eagerly, so a directive is written that
-    # way until a side-effecting call runs at statement level.
-    m.eval(S["add-translator-rule!"](
+    m.fn.add_translator_rule(
         S.pow2,
         Expression((S.direction(S.bidirectional), S.cost(10))),
-    ))
+    )
 
     assert m.fn.pow2(3).one() == S.mul(3, 3)
 
@@ -47,10 +41,10 @@ def twin(m):
     m += S[":"](S["unit-of"], S["->"](S.Atom, S["%Undefined%"]))
 
     conjuncts = Expression((S["unit-of"](V.q), S.unit(V.q, V.u)))
-    m.eval(S["add-translator-rule!"](
+    m.fn.add_translator_rule(
         S["unit-of"],
         Expression((S.left(conjuncts), S.right(S["in"](V.u)))),
-    ))
+    )
 
     assert m.fn.unit_of(S.mass).one() == S["in"](S.kg)
     assert m.fn.unit_of(S.length).one() == S["in"](S.m)

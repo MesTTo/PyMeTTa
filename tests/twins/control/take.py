@@ -9,15 +9,11 @@ every producer below is sliced, the endless one included, and the two match
 forms take `limit=`, which the engine applies inside the query rather than
 trimming afterwards.
 
-Slicing the endless producer answers the right four numbers and costs
-1,500,141 inferences to do it, against 700 for the engine-side
-`(take 4 (from 0))`, and the figure does not move with k: the first pull drives
-a self-recursive superposition to a fixed internal bound whatever the slice
-asks for, so the view is lazy in the answers it hands back and not in the
-producer behind them [measured 2026-08-23: 1,500,147 / 1,500,141 / 1,500,141 /
-1,500,141 inferences to pull 1, 2, 4 and 8; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]. That is the
-library's cost to fix, not a reason to write the term: the pull has to suspend
-the producer. Filed as residue against P14.4.
+Slicing the endless producer answers the right four numbers and suspends
+the producer at the frontier the slice asked for, so the cost moves with k
+rather than driving a self-recursive superposition to a fixed internal bound
+[measured 2026-08-23 on the merged tree: 157 inferences to pull 4 and 234 to
+pull 8, where the same slices cost 1,500,141 each before; commit=WORKTREE].
 
 A refusal crosses the seam as a Python exception, so `catch` is `except` and
 the branch that reads what came back is Python's own.
@@ -58,12 +54,7 @@ def twin(m):
         yield from count_up(n + 1)
 
     # The bound is applied OUTSIDE the producer, so it cuts one that would not
-    # stop on its own, and the slice is that bound. This line is why the lane
-    # reports a BAND finding on this file, twin 1,510,583 against the example's
-    # 16,419 at ratio 92.00: the first pull drives the producer to a fixed
-    # internal bound. Writing `m.eval(S.take(4, S["from"](0)))` instead would
-    # clear the band at 700 inferences and is the wrong trade, because the
-    # spelling is right and the cost is the library's. Residue: P14.4.
+    # stop on its own, and the slice is that bound.
     # !(test (collapse (take 4 (from 0))) (0 1 2 3))
     assert list(count_up(0)[:4]) == [0, 1, 2, 3]
 

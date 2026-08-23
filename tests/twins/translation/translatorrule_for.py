@@ -34,13 +34,7 @@ def twin(m):
     m += equation(S["for"](V.var, V.collection, V.body)).to(
         S.noeval(S.let(V.var, S.superpose(V.collection), V.body))  # rung: the bound NAME is a parameter here, where Python's assignment binds a name it can see
     )
-    # Known issue: a call through the function namespace answers a LAZY view,
-    # so the perfect statement-level spelling of a directive,
-    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
-    # its answers [measured 2026-08-23: the rule fires only after list() of the
-    # view]. The term door evaluates eagerly, so a directive is written that
-    # way until a side-effecting call runs at statement level.
-    m.eval(S["add-translator-rule!"](S["for"]))
+    m.fn.add_translator_rule(S["for"])
 
     # (= (myfun $L) (for $x $L (if (== (% $x 2) 0) (even $x) (odd $x))))
     parity = S["if"](S["=="](S["%"](V.x, 2), 0), S.even(V.x), S.odd(V.x))  # rung: this `if` is DATA, the third argument of an Atom-typed form

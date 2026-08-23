@@ -11,6 +11,13 @@ leaves the producer where it stands; and `foldall` with `+` and a zero start is
 `sum`, because a fold over answers is collection work and the dissolution
 table puts collection work in Python.
 
+That last fold adds Python numbers, not atoms, so it reads the answers'
+carried scalars: `+` over a grounded atom STAGES `(+ ...)` rather than
+computing it, which is what makes `G(1) + 2` a term everywhere else in this
+corpus [source: bindings/python/petta/_atoms_core.py:769 Grounded.value;
+measured 2026-08-23: `sum(m.fn.gen())` builds `(+ (+ (+ 0 1) 2) 3)`;
+commit=WORKTREE].
+
 `gen` has three clauses for one head. Stacked `@m.define` will not say that:
 stacking reads as first-match, so two clauses fixing no literal are a
 REDEFINITION. `@rules` is the other shape of the definitional door and says it
@@ -70,4 +77,4 @@ def twin(m):
     m += gen
 
     # !(test (foldall (|-> ($x $y) (+ $x $y)) (gen) 0) 6)
-    assert sum(m.fn.gen()) == 6
+    assert sum(answer.value for answer in m.fn.gen()) == 6

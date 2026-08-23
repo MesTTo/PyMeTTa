@@ -24,7 +24,7 @@ BUDGET = 1
 
 def twin(m):
     """Evaluate a call, a term, a chain, and a print over six items."""
-    m.eval(S["import!"](m, S.library(S["lib_he"])))
+    m.fn["import!"](m, S.library(S["lib_he"]))
 
     @m.define
     def double(x):

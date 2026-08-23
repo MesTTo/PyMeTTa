@@ -31,7 +31,7 @@ DEEP_STACK = (S["max-stack-depth"](1_000_000),)
 
 def twin(m):
     """Write integer division as chain, eval and unify, then run it 70,000 deep."""
-    m.eval(S["import!"](m, S.library(S["lib_he"])))
+    m.fn["import!"](m, S.library(S["lib_he"]))
 
     m += equation(S.div(V.x, V.y, V.accum)).to(
         S.chain(S.eval(S["-"](V.x, V.y)), V.r1,

@@ -27,7 +27,7 @@ BUDGET = 1
 def twin(m):
     """Import the accumulator fib, then run it."""
     # (import! &self fibsmart)
-    m.eval(S["import!"](m, S["examples/basics/fibsmart"]))
+    m.fn["import!"](m, S["examples/basics/fibsmart"])
 
     # COST, the library's rather than this twin's: naming `fib` through the
     # space resolves a handle against the engine (~1,200 inferences) and the

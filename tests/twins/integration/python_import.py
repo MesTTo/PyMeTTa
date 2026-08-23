@@ -30,15 +30,11 @@ BUDGET = 1
 
 def twin(m):
     """Import a Python file, then call two of its functions."""
-    # Known issue, two halves. `import!` has no Python door on the handle: the
-    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
-    # shipped library (appendix stamp 1), and neither exists yet. And the
-    # generic call door cannot stand in for it, because a call through the
-    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
-    # statement IMPORTS NOTHING until something pulls its answers [measured
-    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
-    # that way.
-    m.eval(S["import!"](m, FIXTURE))
+    # Known issue: `import!` has no Python door on the handle. The perfect
+    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
+    # library (appendix stamp 1), and neither exists yet, so the directive is
+    # reached by its own bang name, which performs it where it is written.
+    m.fn["import!"](m, FIXTURE)
 
     py = m.fn.py_call
     greeting = py(S["python_import_file.greet"](ground("PeTTa User")))

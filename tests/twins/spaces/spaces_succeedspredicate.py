@@ -5,10 +5,10 @@ one tuple, and answers whether the relation holds. Ground arguments make it a
 membership test, which is the first claim; variable arguments make it a
 generator, and the second claim USES what it bound.
 
-Both claims are ordinary Python calls now. A ground question answers the
-boolean, and a question carrying the caller's own variables answers one ROW per
-solution, so what the predicate bound is what comes back and the `if` that
-consumes it is Python's own.
+Both claims are ordinary Python calls. A call answers what the predicate
+decided, and `.rows` answers the bindings it made beside those decisions, so a
+question carrying the caller's own variables hands back one row per solution
+and the `if` that consumes it is Python's own.
 
 `import!` is a directive with no Python door yet, so the library arrives
 through the engine's own function, with the handle in the space position
@@ -29,7 +29,7 @@ BUDGET = 1
 
 def twin(m):
     """Ask a predicate a ground question, then a binding one."""
-    m.fn["import!"](m, S.library(S["lib_spaces"])).one()
+    m.fn["import!"](m, S.library(S["lib_spaces"]))
     succeeds = m.fn["succeedsPredicate"]
 
     # Nothing matches, so the ground question is False.
@@ -38,6 +38,6 @@ def twin(m):
     m += (S.friend, S.a, S.b)
 
     # The binding question answers what it bound, one row per solution.
-    assert [(row.a, row.b) for row in succeeds((m, S.friend, V.a, V.b))] == [
+    assert [(row.a, row.b) for row in succeeds((m, S.friend, V.a, V.b)).rows] == [
         (S.a, S.b)
     ]

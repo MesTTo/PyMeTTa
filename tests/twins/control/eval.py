@@ -42,7 +42,7 @@ def twin(m):
     #          (eval $fbody_specialized))
     #        (42.7 42))
     bodies = m[equation(S.f((42,), 40.7, 2)).to(V.x)]
-    assert m.eval(bodies["x"][0]) == [Expression((42.7, 42))]
+    assert m.eval(bodies.x[0]) == [Expression((42.7, 42))]
 
     @m.define(name="evalCustom")
     def eval_custom(body):
@@ -63,4 +63,4 @@ def twin(m):
 
     # !(test (evalCustom (match &self (= (f (42) 40.7 2) $x) $x))
     #        (42.7 42))
-    assert eval_custom(bodies["x"][0]) == [Expression((42.7, 42))]
+    assert eval_custom(bodies.x[0]) == [Expression((42.7, 42))]

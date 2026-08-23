@@ -166,7 +166,7 @@ def twin(m):  # noqa: C901  -- thirteen definitions because the example has thir
 
     assert m.eval(S["fold-nested"](S["+"], 0, (1, (2, 3)))) == [6]
 
-    @m.define(name="higher-order-fun")
+    @m.define
     def higher_order_fun(a, b):
         # (= (higher-order-fun $a $b) (($a 1) ($b 1)))
         return (a(1), b(1))

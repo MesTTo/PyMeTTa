@@ -19,9 +19,8 @@ built at the term door, once each, and the `let` and `let*` that bind them are
 Python name bindings, which is what a `let` is.
 
 The comparison inside a built lambda is `S["<"](...)` rather than `V.v < 2`,
-because `Atom.__lt__` is the engine's standard ORDER over two atoms, so a
-comparison against a Python int has no term to build and raises. `>`, `<=`
-and `>=` still build, which makes `<` the one glyph that changed hands.
+because Python's four rich comparisons are the engine's total ORDER over two
+atoms: none of them builds a term, and one against a Python int raises.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
@@ -56,10 +55,10 @@ def below(limit):
         def below(limit):
             return lambda v: v < limit
 
-    Neither works. `Atom.__lt__` is the engine's standard ORDER over two
-    atoms, so `V.v < 2` raises `'<' not supported between instances of
-    'Variable' and 'int'` instead of building `(< $v 2)`, which makes `<` the
-    one glyph that changed hands: `>`, `<=` and `>=` still build. And a
+    Neither works. The four rich comparisons are the engine's total ORDER
+    over two atoms, so `V.v < 2` raises `'<' not supported between instances
+    of 'Variable' and 'int'` instead of building `(< $v 2)`, and a comparison
+    TERM comes from the naming door instead. And a
     definition whose body IS a lambda folds the lambda's parameter into the
     head's arity, so `(below 2)` answers `(partial below (2))` and
     `arities("below")` is `[3]`. Residue: P14.4.

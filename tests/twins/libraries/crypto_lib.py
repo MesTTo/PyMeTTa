@@ -29,7 +29,7 @@ HELLO_SHA512 = G(
 
 def twin(m):
     """Hash a string two ways, then define a key that hashes its own payload."""
-    m.eval(S["import!"](m, S.library(S["lib_crypto"])))
+    m.fn["import!"](m, S.library(S["lib_crypto"]))
 
     crypto_hash = m.fn.crypto_hash
     assert crypto_hash(S.sha256, G("hello")) == [HELLO_SHA256]

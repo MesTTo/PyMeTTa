@@ -40,13 +40,7 @@ def twin(m):
         return fib(n)  # noqa: F821  -- a free name in a compiled body is resolved against the engine's registry, where `fib` now is
 
     # Can be left out, but then `smartfun` recomputes fib(10) on every call.
-    # Known issue: a call through the function namespace answers a LAZY view,
-    # so the perfect statement-level spelling of a directive,
-    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
-    # its answers [measured 2026-08-23: the rule fires only after list() of the
-    # view]. The term door evaluates eagerly, so a directive is written that
-    # way until a side-effecting call runs at statement level.
-    m.eval(S["add-translator-rule!"](S.compilefib))
+    m.fn.add_translator_rule(S.compilefib)
 
     @m.define
     def smartfun(b):

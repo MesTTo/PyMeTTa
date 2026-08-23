@@ -77,7 +77,7 @@ def twin(m):
     assert apply_l2() == [9]
 
     # A real lambda, mapped over a list: Python's own lambda IS `|->`.
-    @m.define(name="increment-all")
+    @m.define
     def increment_all(items):
         # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
         return fn.maplist(lambda a: 1 + a, items)
@@ -94,7 +94,7 @@ def twin(m):
         return fn.cons(a, b)
 
     # A lambda over a PARTIAL application bound above it.
-    @m.define(name="through-partial")
+    @m.define
     def through_partial():
         # (let $f (myfunc 42) ((|-> ($x) ($f ($x 2 3))) 43))
         f = myfunc(42)

@@ -29,7 +29,7 @@ def twin(m):
     # Before the import, `once` is the compiler's own clause.
     assert once(S.superpose((1, 2, 3))) == [1]
 
-    m.eval(S["import!"](m, S.library(S["lib_derived"])))
+    m.fn["import!"](m, S.library(S["lib_derived"]))
 
     # After it, `once` is an ordinary MeTTa equation, and it answers the same.
     assert once(S.superpose((1, 2, 3))) == [1]
@@ -46,6 +46,6 @@ def twin(m):
 
     # The swap is a session decision, not a per-call one: registering is
     # global, and removing puts the compiler's own clause back in charge.
-    m.eval(S["remove-translator-rule!"](S.once))
+    m.fn.remove_translator_rule(S.once)
 
     assert once(S.superpose((1, 2, 3))) == [1]

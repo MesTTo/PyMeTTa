@@ -34,11 +34,7 @@ def twin(m):
     assert type(ground(1)) is Grounded
     assert metatype(ground(1)) == [S.Grounded]
     assert type(V.x) is Variable
-    # Known issue: a call carrying a caller variable answers that variable's
-    # BINDINGS and drops the value, so the calling door cannot state a claim
-    # about the ANSWER of such a call. It should read:
-    #     assert metatype(V.x) == [S.Variable]
-    assert m.eval(S["get-metatype"](V.x)) == [S.Variable]
+    assert metatype(V.x) == [S.Variable]
     assert type(S.a) is Symbol
     assert metatype(S.a) == [S.Symbol]
 

@@ -83,7 +83,7 @@ def twin(m):
     rolls_back = S.progn(S["add-atom"](m, S["tx-rolled"](S.a)), nothing)  # rung: the write has to be inside the engine's transaction, and `space += atom` is a statement over a handle
     assert m.transaction(rolls_back) == []
     # !(test (collapse (match &self (tx-rolled $x) $x)) ())
-    assert m[S["tx-rolled"](V.x)]["x"] == []
+    assert m[S["tx-rolled"](V.x)].x == []
 
     # A body that succeeds keeps its writes. The transaction answers whatever
     # its body did, and add-atom answers the unit value.
@@ -91,7 +91,7 @@ def twin(m):
     keeps = S["add-atom"](m, S["tx-kept"](S.a))  # rung: the same, for the committing case
     assert m.transaction(keeps) == [Expression(())]
     # !(test (collapse (match &self (tx-kept $x) $x)) (a))
-    assert m[S["tx-kept"](V.x)]["x"] == [S.a]
+    assert m[S["tx-kept"](V.x)].x == [S.a]
 
     # "whatever its body did" means EVERY answer, not the first one. Until
     # 2026-08-19 this answered (1), because SWI's transaction/1 runs its goal
@@ -113,7 +113,7 @@ def twin(m):
     each = S.superpose((S["add-atom"](m, S["tx-each"](1)), S["add-atom"](m, S["tx-each"](2))))  # rung: two writes inside one transaction, and a write is a statement over a handle
     assert m.transaction(each) == [Expression(()), Expression(())]
     # !(test (collapse (match &self (tx-each $x) $x)) (1 2))
-    assert m[S["tx-each"](V.x)]["x"] == [1, 2]
+    assert m[S["tx-each"](V.x)].x == [1, 2]
 
     # ----------------------------------------------------- atomically
     # The same operation under the name the concurrency vocabulary uses, and
@@ -125,7 +125,7 @@ def twin(m):
     # compiles its body into the call site, so a variable there is a value and
     # the term comes back unrun; atomically takes its body as an unreduced
     # Atom and evaluates it, so the body can be a term the program computed.
-    @m.define(name="tx-body")
+    @m.define
     def tx_body():
         # (= (tx-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))
         return noeval(superpose(1 + 1, 2 + 2))  # noqa: F821  -- `noeval` and `superpose` are names a compiled body reads as MeTTa; the package exports neither yet (residue, P14.4)
@@ -145,7 +145,9 @@ def twin(m):
     value, seconds = m.eval(S.elapsed(S["+"](1, 2)))[0]
     assert value == 3
     # !(test (let ($v $s) (elapsed (+ 1 2)) (< $s 60)) True)
-    assert seconds < 60
+    # The carried scalar, because `<` between atoms is the engine's total
+    # ORDER rather than arithmetic, and this claim is about a duration.
+    assert seconds.value < 60
 
     # ----------------------------------------------------- timeout
     # A bound that does not fire leaves the answer alone. The firing case
