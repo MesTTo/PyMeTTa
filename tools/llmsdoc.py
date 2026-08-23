@@ -20,7 +20,7 @@ Guarantees:
     builtin and library named in llms.txt exists, the engine counts and special
     forms include nested consulted source units, and the two modules it says
     are gone really are gone
-    [tested: GATE_ONLY=1 sh check.sh llms; commit=WORKTREE]
+    [tested: GATE_ONLY=1 sh check.sh llms; commit=9a116762fb4372d55675e2ef64b7657092bc136d]
   - all failures are reported at once, not just the first
     [source: bindings/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - repository paths such as ``engine/metta.pl`` are not mistaken for Python

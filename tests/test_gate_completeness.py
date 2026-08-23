@@ -19,7 +19,7 @@ Guarantees:
     - the compiler-state test scans the translator and reader umbrellas plus
       every source unit in their matching fragment directories
       [tested: test_no_dcg_semicontext_threads_the_compilers_state;
-      commit=WORKTREE]
+      commit=9a116762fb4372d55675e2ef64b7657092bc136d]
 Open Obligations:
   To Do: None
   Hacks: None
