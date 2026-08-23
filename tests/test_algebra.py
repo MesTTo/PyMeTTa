@@ -46,7 +46,7 @@ class _WeightedFacts(SpaceProvider):
 
 def _join_annotation(metta, name: str, algebra: str) -> str:
     metta._register_space(_WeightedFacts(), name)
-    metta.declare_annotations(name, algebra)
+    metta.annotations(name, algebra)
     result = metta.run(
         f"!(match {name} (, (left a) (right b)) (annotation))"
     )
@@ -57,7 +57,7 @@ def test_a_declared_semiring_quadruple_serves_annotations_like_a_builtin_one(
     metta,
 ):
     """A user quadruple and the shipped probability preset share one join."""
-    metta.declare_algebra(
+    metta.algebra(
         "p4-user-product",
         combine="+",
         extend="*",
@@ -77,7 +77,7 @@ def test_a_declared_semiring_quadruple_serves_annotations_like_a_builtin_one(
 
 def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
     """Ordinary atomspace facts are authoritative and missing laws are visible."""
-    metta.declare_algebra(
+    metta.algebra(
         "p4-lawless-order",
         combine="pair",
         extend="pair",
@@ -97,7 +97,7 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
         assert evaluation.plan[0].applied is False
         assert evaluation.plan[0].missing_laws == ("combine-associative",)
 
-    metta.declare_algebra(
+    metta.algebra(
         "p4-handwritten-bisim",
         combine="+",
         extend="*",
@@ -142,7 +142,7 @@ def test_a_false_declared_law_is_refused_by_name(metta):
         AlgebraLawError,
         match=r"algebra_law_violation\(p4-bad-associative, combine-associative",
     ):
-        metta.declare_algebra(
+        metta.algebra(
             "p4-bad-associative",
             combine="p4-subtract-mod3",
             extend="p4-subtract-mod3",

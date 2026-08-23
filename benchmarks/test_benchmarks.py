@@ -626,7 +626,7 @@ def _weighted_space():
         yield Answer(value=S.tense, k=0.75)
 
     space.op(mood, name="benchmark-mood")
-    space.declare_annotations("benchmark-mood", "prob")
+    space.annotations("benchmark-mood", "prob")
     return space
 
 

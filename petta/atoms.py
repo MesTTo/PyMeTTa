@@ -1,5 +1,9 @@
 """Purpose: expose PeTTa atoms, the S/V/G factories, parsing, and matching.
 Guarantees:
+  - order_key matches the engine's msort across every public atom kind,
+    including float/integer ties, strings, opaque values, and the empty-list
+    atom [tested: test_order_key_matches_msort_across_kinds;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - type and keyword builders produce stored terms while ``order_key`` and
     Atom.__lt__ agree on elementwise expression order [tested:
     test_typed_and_arrow_retire_49_raw_type_symbols,
@@ -273,11 +277,11 @@ def _is_ground(atom: Atom) -> bool:
     return not _variables(atom)
 
 
-#: Prolog's standard order of terms: Variable < Number < Atom < String < Compound.
-#: A bool is a Python int, so it is ranked with the symbols it reads as rather
-#: than with the numbers it inherits from.
-_ORDER_VAR, _ORDER_NUMBER, _ORDER_SYMBOL = 0, 1, 2
-_ORDER_STRING, _ORDER_OBJECT, _ORDER_EXPR = 3, 4, 5
+#: The engine's SWI standard order on our wire kinds: Variable < Number <
+#: String < Blob < [] < Atom < Compound. A bool is a Python int, so it is
+#: ranked with the symbols it reads as rather than the numbers it inherits.
+_ORDER_VAR, _ORDER_NUMBER, _ORDER_STRING = 0, 1, 2
+_ORDER_OBJECT, _ORDER_EMPTY, _ORDER_SYMBOL, _ORDER_EXPR = 3, 4, 5, 6
 
 
 def order_key(atom: Atom) -> tuple:
@@ -288,7 +292,8 @@ def order_key(atom: Atom) -> tuple:
     Atom.__lt__ delegates to this key, so explicit and plain sorting agree.
     The language's list-shaped expressions compare child by child; length is
     reached only when one expression is a prefix of the other. Variables come
-    before numbers, symbols, strings, objects, and expressions
+    before numbers, strings, opaque objects, the empty expression, symbols,
+    and nonempty expressions
     [source: SWI-Prolog 10.1 Reference Manual, Standard Order of Terms].
 
     Two atoms that compare equal here are not necessarily the same atom: a key
@@ -299,6 +304,8 @@ def order_key(atom: Atom) -> tuple:
     if isinstance(atom, Symbol):
         return (_ORDER_SYMBOL, atom.name)
     if isinstance(atom, Expression):
+        if not atom.children:
+            return (_ORDER_EMPTY,)
         children = tuple(order_key(child) for child in atom.children)
         return (_ORDER_EXPR, children)
     value = getattr(atom, "value", atom)
@@ -306,7 +313,9 @@ def order_key(atom: Atom) -> tuple:
     if isinstance(value, bool):
         return (_ORDER_SYMBOL, str(value))
     if isinstance(value, (int, float)):
-        return (_ORDER_NUMBER, value)
+        # SWI compares numeric value first and sorts a float before an integer
+        # at an arithmetic tie: msort([1, 1.0]) is [1.0, 1].
+        return (_ORDER_NUMBER, value, 0 if isinstance(value, float) else 1)
     if isinstance(value, str):
         return (_ORDER_STRING, value)
     return (_ORDER_OBJECT, type(value).__name__, repr(value))

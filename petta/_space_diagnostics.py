@@ -8,6 +8,9 @@ Guarantees:
     [tested test_why]
   - eager query explanations distinguish a pattern miss, failed join, and
     rejecting guard [tested test_query_rows_explain_empty_results]
+  - derivation enumeration selects ``petta_py_limited/6`` when a scoped stack
+    bound exists [tested: test_stack_limit_is_carried_to_the_limited_six_seam;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,13 +39,20 @@ def derivations(
 ) -> list[Any]:
     """Return each guarded derivation for one target."""
     _validate_depth(depth)
-    seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
-    rows = rt.iter(
-        "petta_py_limited(Seconds, Steps, petta_py_derivation, Ins, Tree)",
-        Seconds=seconds,
-        Steps=steps,
-        Ins=[space, _to_atom(target).to_wire(), -1 if depth is None else depth],
+    seconds, steps, stack = _limits(timeout, inferences) or (-1.0, -1, -1)
+    goal = (
+        "petta_py_limited(Seconds, Steps, petta_py_derivation, Ins, Tree)"
+        if stack < 0
+        else "petta_py_limited(Seconds, Steps, Stack, petta_py_derivation, Ins, Tree)"
     )
+    inputs = {
+        "Seconds": seconds,
+        "Steps": steps,
+        "Ins": [space, _to_atom(target).to_wire(), -1 if depth is None else depth],
+    }
+    if stack >= 0:
+        inputs["Stack"] = stack
+    rows = rt.iter(goal, **inputs)
     derivation_type = _importlib.import_module(
         f"{__package__}.derivation"
     ).Derivation

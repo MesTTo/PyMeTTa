@@ -27,14 +27,44 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - a Symbol or ground Expression names a source-visible atomic or parametric
+    space, while a free variable refuses before engine state changes [tested:
+    test_python_space_factory_accepts_atom_valued_names; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - a tuple headed by an atom is one subscript pattern, a tuple of complete
+    patterns is a join, list writes stream their atoms, and del drains every
+    match or raises KeyError [tested:
+    test_subscript_one_pattern_and_bulk_delete_laws; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``Space.query`` returns a lazy Answers view; truth and single unpack pull
+    only their demanded prefix, while len counts inside the engine [tested:
+    test_query_answers_complete_the_lazy_projection_protocol,
+    test_query_single_unpack_pulls_at_most_two_answers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``Space.pre_add`` declares one compiled unary judge through the engine's
+    existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - handle-level Linda waits load their support into the default caller space,
     never into a distinct waited-on space [tested:
     test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - ``Space.query``, every ``declare_*`` verb, and the write door retain their
-    established semantics after moving off ``MeTTa`` [tested:
+  - ``Space.query``, every head-named declaration verb, and the write door
+    retain their established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
     test_the_python_remove_door_subtracts_one_copy; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - all fifteen declaration verbs use the atom head as the method name,
+    inject the receiver where it is the subject, and expose no ``declare_*``
+    aliases [tested: test_declarations_use_their_atom_heads_on_the_receiver,
+    test_m7_narrow_core_surface; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - Expression recognizes Space as the one iterable Handle whose listing is
+    collected as an assembly-order snapshot [tested:
+    test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - native iteration snapshots assembly order at iterator creation, handles
+    stay truthy independently of contents, and provider length requires its
+    Sized declaration [tested:
+    test_native_iteration_snapshots_before_mutation,
+    test_space_truth_does_not_ask_for_emptiness,
+    test_provider_length_requires_and_uses_sized; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``Space.limits(stack=bytes)`` scopes a positive stack byte count beside
+    time and inference bounds [tested:
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -43,9 +73,12 @@ Guarantees:
     test_bound_function_namespace_validates_at_access,
     test_function_calls_pull_engine_answers_only_as_demanded;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
-  - builtin discovery is cached per logical space and invalidated by every
-    catalogue mutation [tested: test_builtin_discovery_is_cached,
-    test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - builtin discovery is cached per logical space, with namespace reads
+    comparing the engine's function generation and explicit Python mutation
+    doors retaining eager invalidation [tested:
+    test_cache_reads_compare_the_function_generation,
+    test_builtin_discovery_is_cached,
+    test_builtin_cache_invalidates_after_a_miss; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``Space`` is a grounded ``Handle`` that crosses as a term operand, and
     ``peek`` and ``take`` expose the engine's event-driven Linda operations
     [tested: test_space_handles_are_term_operands_and_round_trip,
@@ -131,7 +164,7 @@ from ._space_persistence import (
     raise_unsafe_text_atom,
     save_space,
 )
-from ._space_query import query_rows, solve_rows
+from ._space_query import _validate_limit, query_count, solve_rows
 from ._version import __version__
 from .atoms import (
     Atom,
@@ -146,8 +179,15 @@ from .atoms import (
     parse,
 )
 from .define import Defined, PrologBacked
-from .errors import EngineError, PettaError, SourceNotFound, StrictError
-from .results import Answers, Rows, raise_error_answers, rows_into
+from .errors import EngineError, PettaError, SourceNotFound, StrictError, Timeout
+from .results import (
+    Answers,
+    Rows,
+    _AnswerItem,
+    _QueryContext,
+    raise_error_answers,
+    rows_into,
+)
 
 __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_space"]
 
@@ -157,45 +197,52 @@ _P = ParamSpec("_P")
 
 _BUILTINS_CACHE_LOCK = threading.RLock()
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
-    Runtime, tuple[int, dict[str, tuple[str, ...]]]
+    Runtime, tuple[int, int, dict[str, tuple[str, ...]]]
 ] = weakref.WeakKeyDictionary()
 
 
 def _invalidate_builtins_cache(rt: Runtime) -> None:
-    """Advance one runtime's catalogue generation and discard every space view."""
+    """Advance the Python-door epoch and discard every cached space view."""
     with _BUILTINS_CACHE_LOCK:
-        generation, _ = _BUILTINS_CACHE.get(rt, (0, {}))
-        _BUILTINS_CACHE[rt] = (generation + 1, {})
+        epoch, function_generation, _ = _BUILTINS_CACHE.get(rt, (0, -1, {}))
+        _BUILTINS_CACHE[rt] = (epoch + 1, function_generation, {})
 
 
-# Built once: rebuilding this literal inside eval cost four Symbol
-# constructions per call, +15.5k instructions:u on every evaluation
-# (py-method-call 1,497,380,759 -> 1,652,818,021 over 10,000 calls,
-# isolated by bisection to the commit that introduced the inline set).
-# The set stays the defining heads whose evaluation can grow the definition
-# catalogue, so the per-space builtins cache invalidates exactly when one runs.
-_CATALOGUE_HEADS = frozenset(
-    (
-        Symbol("="),
-        Symbol("import!"),
-        Symbol("add-translator-rule!"),
-        Symbol("remove-translator-rule!"),
-    )
-)
+def _function_generation(rt: Runtime) -> int:
+    """Read the engine's fun/1 generation through its Janus seam.
+
+    The service is SWI's ``last_modified_generation`` for exactly the dynamic
+    ``fun/1`` set read by ``petta_py_builtins/1``; translator rules are static
+    catalogue-neutral metadata [source:
+    engine/metta.pl:metta_host_function_generation/1;
+    commit=4c9a794750103e0a3a2e9d883adde337ffb501f0].
+    """
+    return int(rt.apply_must("petta_py_function_generation"))
 
 
 def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
-    """Read one generation-stamped per-space builtin catalogue."""
+    """Read one engine-generation-stamped per-space builtin catalogue."""
     while True:
+        observed_generation = _function_generation(rt)
         with _BUILTINS_CACHE_LOCK:
-            generation, catalogues = _BUILTINS_CACHE.setdefault(rt, (0, {}))
+            epoch, cached_generation, catalogues = _BUILTINS_CACHE.setdefault(
+                rt, (0, observed_generation, {})
+            )
+            if cached_generation != observed_generation:
+                catalogues = {}
+                _BUILTINS_CACHE[rt] = (epoch, observed_generation, catalogues)
             cached = catalogues.get(space_name)
             if cached is not None:
                 return list(cached)
         discovered = tuple(rt.builtins())
+        confirmed_generation = _function_generation(rt)
+        if confirmed_generation != observed_generation:
+            continue
         with _BUILTINS_CACHE_LOCK:
-            current_generation, current = _BUILTINS_CACHE.get(rt, (0, {}))
-            if current_generation != generation:
+            current_epoch, current_generation, current = _BUILTINS_CACHE.get(
+                rt, (0, -1, {})
+            )
+            if current_epoch != epoch or current_generation != confirmed_generation:
                 continue
             current[space_name] = discovered
             return list(discovered)
@@ -254,11 +301,12 @@ class _BoundValues:
 class _WatchIterator:
     """Own one eager subscription and cancel it whenever the iterator closes."""
 
-    __slots__ = ("_events", "_subscription")
+    __slots__ = ("_deadline", "_events", "_subscription")
 
-    def __init__(self, subscription: Any) -> None:
+    def __init__(self, subscription: Any, deadline: float | None = None) -> None:
         self._subscription = subscription
-        self._events: Iterator[Any] = subscription.events()
+        self._deadline = deadline
+        self._events: Iterator[Any] = subscription.events(deadline)
 
     def __iter__(self) -> Self:
         return self
@@ -268,6 +316,9 @@ class _WatchIterator:
             return next(self._events)
         except StopIteration:
             self.close()
+            if self._deadline is not None:
+                msg = f"no matching change arrived within {self._deadline} seconds"
+                raise Timeout(msg) from None
             raise
 
     def close(self) -> None:
@@ -402,6 +453,18 @@ def _copies_after_its_base(atom: Any) -> bool:
         return False
 
 
+class _HashableSpaceTerm(list[Any]):
+    """A Janus list carrier that can also key Python's per-space registries."""
+
+    def __hash__(self) -> int:  # type: ignore[override]  # Janus requires a list carrier while per-space registries require a stable hash
+        def frozen(value: Any) -> Any:
+            if isinstance(value, list):
+                return tuple(frozen(item) for item in value)
+            return value
+
+        return hash(frozen(self))
+
+
 def _to_stored_atom(value: Any) -> Expression:
     """Accept exactly the non-empty expression shape spaces can store."""
     atom = _to_atom(value)
@@ -450,6 +513,8 @@ class Space(Handle):
         m.query(S.Parent(V.x, S.Bob))
     """
 
+    _expression_listing_snapshot = True
+
     def __setattr__(self, name: str, value: Any, /) -> None:
         object.__setattr__(self, name, value)
 
@@ -458,41 +523,62 @@ class Space(Handle):
 
     def __init__(
         self,
-        name: str | Symbol = _DEFAULT_SPACE,
+        name: str | Symbol | Expression = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
         petta_path: str | None = None,
         _runtime: Runtime | None = None,
     ) -> None:
+        self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
+        self._name_atom: Symbol | Expression | None = None
         if isinstance(name, Symbol):
-            name = name.name
-        if not isinstance(name, str):
+            self._name_atom = name
+            engine_name: str | _HashableSpaceTerm = (
+                name.name if name.name.startswith("&") else f"&{name.name}"
+            )
+        elif isinstance(name, Expression):
+            if name.vars:
+                msg = (
+                    f"a parametric space name must be ground; {name!s} leaves "
+                    f"free variable(s) {list(name.vars)!r} open"
+                )
+                raise ValueError(msg)
+            if not name.children:
+                msg = "a parametric space name is a nonempty ground expression"
+                raise ValueError(msg)
+            self._name_atom = name
+            engine_name = _HashableSpaceTerm(
+                self._rt.apply_must("petta_py_open_atom_space", name.to_wire())
+            )
+        else:
+            engine_name = name
+        if not isinstance(engine_name, (str, list)):
             msg = (
-                f"a space name is a string starting with &, as in &self or "
-                f"&kb; got {name!r}"
+                f"a space name is an & string, Symbol, or ground Expression; "
+                f"got {engine_name!r}"
             )
             raise TypeError(
                 msg
             )
-        if not name.startswith("&"):
+        if isinstance(engine_name, str) and not engine_name.startswith("&"):
             msg = (
-                f"a space name starts with &, as in &self or &kb; got {name!r}. "
+                f"a space name starts with &, as in &self or &kb; got {engine_name!r}. "
                 f"The prefix is load-bearing: is-space recognises it, and a $ "
                 f"name would read back as a variable."
             )
             raise ValueError(
                 msg
             )
-        self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
         # The public parameter takes a plain str so a literal is writable;
         # the NewType is constructed once here and threads through inside.
-        self._name = _SpaceId(name)
+        self._name = cast(_SpaceId, engine_name)
         self._dropped = False
         self._ephemeral = False
         self._backing: Any = None
         self._owns_backing = False
         self._context_tokens: list[Any] = []
-        _remember_space_name(self._name)
+        if isinstance(engine_name, str):
+            _remember_space_name(self._name)
 
     @property
     def _space(self) -> _SpaceId:
@@ -621,14 +707,17 @@ class Space(Handle):
 
     def __repr__(self) -> str:
         state = ", dropped" if self._dropped else ""
-        return f"Space({self._name!r}{state})"
+        shown = self._name_atom if self._name_atom is not None else self._name
+        return f"Space({shown!r}{state})"
 
     def __str__(self) -> str:
-        return str(self._name)
+        return str(self._name_atom if self._name_atom is not None else self._name)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Symbol):
-            return self._name == other.name
+            return self._name_atom == other or self._name == other.name
+        if isinstance(other, Expression):
+            return self._name_atom == other
         return (
             isinstance(other, Space)
             and self._rt is other._rt
@@ -638,10 +727,14 @@ class Space(Handle):
     def __hash__(self) -> int:
         # The engine has one atom for this reference and the legacy Symbol
         # spelling, so equal Python operands must share its symbol hash.
+        if self._name_atom is not None:
+            return hash(self._name_atom)
         return hash(("sym", self._name))
 
     def to_wire(self) -> list:
         """Encode the live engine reference as a portable space operand."""
+        if isinstance(self._name_atom, Expression):
+            return self._name_atom.to_wire()
         return ["p", str(self._space)]
 
     @property
@@ -649,7 +742,9 @@ class Space(Handle):
         return "Grounded"
 
     def __reduce__(self):
-        return Space, (str(self._space),)
+        return Space, (
+            self._name_atom if self._name_atom is not None else str(self._space),
+        )
 
     def __deepcopy__(self, _memo: dict[int, Any]) -> Space:
         msg = (
@@ -739,7 +834,10 @@ class Space(Handle):
             _invalidate_builtins_cache(self._rt)
 
     def _refuse_unreduced(
-        self, groups: list[list[tuple[str, Any]]]
+        self,
+        groups: list[list[tuple[str, Any]]],
+        *,
+        grouped: bool = True,
     ) -> None:
         """Refuse any directive the engine handed back unevaluated."""
         for position, group in enumerate(groups, start=1):
@@ -752,7 +850,7 @@ class Space(Handle):
                     raise StrictError(
                         msg,
                         term=answer,
-                        directive=position,
+                        directive=position if grouped else None,
                     )
 
     def profile(
@@ -1083,7 +1181,7 @@ class Space(Handle):
         max_events bounds the recording, raising past it rather than
         accumulating a long run's trace without limit.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _satellite("trace").trace(self, source, max_events=max_events)
+        return _satellite("_trace").trace(self, source, max_events=max_events)
 
     def lint(self):
         """Diagnose this space for the silently-wrong class: declared
@@ -1152,6 +1250,9 @@ class Space(Handle):
         return str(value)
 
     def __len__(self) -> int:
+        provider_length = _satellite("foreign")._provider_length(self._space)
+        if provider_length is not None:
+            return provider_length
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
@@ -1160,7 +1261,8 @@ class Space(Handle):
         dwindles. Without this, bool() falls through to __len__ and an
         empty space is falsy, so `if space:` skips a perfectly good empty
         space, the bug class that made datetime stop treating midnight as
-        false in 3.5.
+        false in 3.5. Existence is an ask: use
+        ``bool(space.query(V.x))`` rather than ``bool(space)``.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return True
 
@@ -1175,12 +1277,17 @@ class Space(Handle):
 
     # A handle mutates its store while an atom's + constructs a term.
     def __iadd__(self, atom: Any) -> Self:  # type: ignore[override]
-        """add()'s operator spelling, one atom per use: `m += [1, 2]`
-        LIFTS the list into one expression atom, exactly as m.add([1, 2])
-        does, so the two spellings never read one operand two ways. The
-        bulk spelling is |=, whose operand has no lifted reading.
+        """add()'s operator spelling: one tuple builds one expression, while
+        a list streams its elements through the bulk add door.
+
+        ``m += (S.Edge, a, b)`` adds one fact. ``m += [(S.Edge, a, b),
+        (S.Edge, b, c)]`` adds two. The explicit ``add(list_value)`` door
+        remains available when the list itself is intended as one expression.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if isinstance(atom, _Rules):
+        if isinstance(atom, _Rules) or (
+            isinstance(atom, list)
+            and all(isinstance(item, (Expression, tuple)) for item in atom)
+        ):
             self.add(*atom)
         else:
             self.add(atom)
@@ -1245,14 +1352,29 @@ class Space(Handle):
         return self
 
     def __iter__(self):
-        """Iterate the stored atoms: for atom in m."""
+        """Iterate one assembly-order snapshot of the stored atoms.
+
+        A native or inherited-native space materializes its readable chain
+        when ``iter(space)`` is called, so later additions and removals do not
+        alter that iterator. A Python-backed space likewise materializes its
+        provider's ``atoms()`` result before returning the iterator; the
+        provider owns and must document how concurrent mutation behaves while
+        that one enumeration itself is being produced.
+        """
         return iter(self.atoms())
 
     def __getitem__(self, i: Any) -> Rows:
-        """Subscription is query: m[pattern] answers query(pattern), and
-        m[p1, p2] arrives as a tuple, so the comma spells the join:
+        """Subscription is query. A tuple headed by an atom is one built
+        expression pattern; a tuple of complete expression patterns is a join:
 
-            rows = m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
+            m[(S.Parent, V.x, S.Bob)]
+            m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
+
+        Python hands both spellings to ``__getitem__`` as a tuple, so shape is
+        the visible classifier. A mixed tuple beginning with a complete
+        pattern and followed by a bare atom can only be the tuple mistake; it
+        raises and names the one-pattern and join spellings instead of
+        silently asking an impossible bare-atom conjunct.
 
         A str key parses first, matching query()'s tolerance. A slice is
         refused: a slice of a space has no one meaning, and the bounded
@@ -1269,6 +1391,16 @@ class Space(Handle):
                 msg
             )
         if isinstance(pattern, tuple):
+            complete = (Expression, tuple)
+            if not pattern or not isinstance(pattern[0], complete):
+                return self.query(pattern)
+            if not all(isinstance(part, complete) for part in pattern):
+                msg = (
+                    "a subscript is one pattern as space[(head, ...)] or a "
+                    "join of complete patterns as space[p1, p2] (equivalently "
+                    "space.match(p1, p2)); a bare atom cannot be a join conjunct"
+                )
+                raise TypeError(msg)
             return self.query(*pattern)
         return self.query(pattern)
 
@@ -1299,7 +1431,7 @@ class Space(Handle):
         inferences: int | None = None,
         into: _builtins.type | None = None,
     ) -> Any:
-        """Match patterns against this space as one conjunction.
+        """Lazily match patterns against this space as one conjunction.
 
         Variables shared between patterns join, the engine's own match/4
         doing the joining. Columns are the variable names in first
@@ -1315,14 +1447,13 @@ class Space(Handle):
         TimeLimitError or InferenceLimitError when hit, for joins whose
         size is not known in advance.
 
-        **Slicing the result is not the same thing.** query() is EAGER, so
-        `query(pat)[:3]` computes every row and throws all but three away.
-        Over 2,000 stored atoms that measured 26,055 inferences against 20
-        for `stream(pat)[:3]`, which pulls three and stops. Reach for `limit`
-        when you want a bounded answer set, and for stream() when you want to
-        take rows until you have seen enough.
+        The returned Answers view pulls only what Python observes. ``bool``
+        pulls one row, exact-one operations pull at most two, and slicing
+        retains an Answers view. ``len`` uses an engine-side aggregate when
+        no row has yet been pulled.
 
-        `into=` shapes each row into a dataclass, NamedTuple, or
+        `into=Rows` explicitly chooses the eager Rows face. Other `into=`
+        values shape each row into a dataclass, NamedTuple, or
         TypedDict matched by field name, sqlite3's row_factory reading:
         `m.query(S.edge(V.a, V.b), into=Edge)` answers `list[Edge]`,
         and Rows stays the default so nothing is lost. A one-variable query
@@ -1331,18 +1462,53 @@ class Space(Handle):
 
             m.query(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """
-        rows = query_rows(
-            self._rt,
+        _validate_limit(limit)
+        cursor = Cursor(self, patterns, where, timeout, inferences, limit=limit)
+
+        def source() -> Iterator[_AnswerItem]:
+            pulled = 0
+            try:
+                while limit is None or pulled < limit:
+                    try:
+                        row = next(cursor)
+                    except StopIteration:
+                        return
+                    pulled += 1
+                    yield _AnswerItem(row, row)
+            finally:
+                cursor.close()
+
+        query_context = _QueryContext(
             self._space,
-            patterns,
-            where=where,
-            limit=limit,
-            timeout=timeout,
-            inferences=inferences,
+            tuple(_to_atom(pattern) for pattern in patterns),
+            guard_atom(where),
+        )
+        answers: Answers[Any] = Answers(
+            source(),
+            columns=cursor.columns,
+            space=self._space,
+            target=patterns,
+            query=query_context,
+            count=lambda: query_count(
+                self._rt,
+                self._space,
+                patterns,
+                where=where,
+                limit=limit,
+                timeout=timeout,
+                inferences=inferences,
+            ),
         )
         if into is None:
-            return rows
-        return rows_into(rows, into)
+            return answers
+        eager = Rows(
+            cursor.columns,
+            answers,
+            _query=query_context,
+        )
+        if into is Rows:
+            return eager
+        return rows_into(eager, into)
 
     def _stream(
         self,
@@ -1468,15 +1634,29 @@ class Space(Handle):
         )
         return solve_rows(columns, cast(list[Atom], answers))
 
-    def watch(self, pattern: Any, *, on: str = "add"):
-        """Yield matching change events until the iterator closes."""
-        return _WatchIterator(self.subscribe(pattern, on=on))
+    def watch(
+        self,
+        pattern: Any,
+        *,
+        on: str = "add",
+        deadline: float | None = None,
+    ):
+        """Yield matching changes, raising Timeout after each quiet deadline."""
+        if deadline is not None and (
+            isinstance(deadline, bool)
+            or not isinstance(deadline, (int, float))
+            or deadline < 0
+        ):
+            msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
+            raise ValueError(msg)
+        return _WatchIterator(self.subscribe(pattern, on=on), deadline)
 
     def limits(
         self,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        stack: int | None = None,
     ) -> ScopedLimits:
         """Scoped default bounds for every call in the with-block:
 
@@ -1489,7 +1669,7 @@ class Space(Handle):
         block replaces the parameter forest, and the forest remains
         for whoever wants per-call control.
         """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
-        return ScopedLimits(timeout, inferences)
+        return ScopedLimits(timeout, inferences, stack)
 
     def capture(self) -> CapturedOutput:
         r"""Collect printed engine text without changing answer shapes.
@@ -1606,12 +1786,11 @@ class Space(Handle):
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
         raising TimeLimitError or InferenceLimitError when hit. A surrounding
         `capture()` scope collects printed text without changing the list.
+        In a `strict()` scope an unreduced term raises StrictError while a
+        genuinely empty branch still returns no answers.
         """
-        changes_catalogue = isinstance(target, str) or (
-            isinstance(target, Expression) and target.head in _CATALOGUE_HEADS
-        )
-        try:
-            return evaluate(
+        if strict_enabled():
+            statuses = evaluate_status(
                 self._rt,
                 self._space,
                 target,
@@ -1619,9 +1798,20 @@ class Space(Handle):
                 inferences,
                 using=using,
             )
-        finally:
-            if changes_catalogue:
-                _invalidate_builtins_cache(self._rt)
+            self._refuse_unreduced([statuses], grouped=False)
+            return [
+                answer
+                for status, answer in statuses
+                if status != "empty" and answer is not None
+            ]
+        return evaluate(
+            self._rt,
+            self._space,
+            target,
+            timeout,
+            inferences,
+            using=using,
+        )
 
     def answers(
         self,
@@ -1906,6 +2096,9 @@ class Space(Handle):
             def neighbours(n: int):
                 yield n - 1                     # a generator is nondeterministic
                 yield n + 1
+
+        An implicit Python name maps underscores to MeTTa hyphens. ``name=``
+        is exact, for source vocabularies that deliberately use underscores.
 
         A name must read back as one MeTTa symbol. A space, parenthesis,
         quote, comment opener, variable spelling, number, boolean, or another
@@ -2480,7 +2673,7 @@ class Space(Handle):
             ),
         )
 
-    def events(self) -> Any:
+    def _event_stream(self) -> Any:
         """This engine's stream of `(action, space, atom)` changes.
 
             seen = m.events().fold(
@@ -2675,6 +2868,24 @@ class Space(Handle):
         self += bundle
         return bundle
 
+    def pre_add(self, fn: Defined[..., Any] | Callable[..., Any]) -> Defined[..., Any]:
+        """Compile or accept one unary judge and claim this space's write door.
+
+        The common decorator stack places ``@pre_add`` above ``@define``, so
+        an existing Defined keeps the module that owns its equations. A raw
+        function is compiled into this space before claiming the hook.
+        """
+        handler = fn if isinstance(fn, Defined) else self.define(fn)
+        if len(handler.params) != 1:
+            msg = "a pre-add judge takes exactly one incoming atom"
+            raise TypeError(msg)
+        handler.space.eval(
+            Expression(
+                [Symbol("declare-pre-add!"), self, Symbol(handler.name)]
+            )
+        )
+        return handler
+
     @overload
     def cache(self, fn: Callable[_P, _R], /) -> Defined[_P, _R]: ...
 
@@ -2802,9 +3013,8 @@ class Space(Handle):
         """Remove a registered Python-backed space."""
         _satellite("foreign").unregister_provider(self._rt, name)
 
-    def declare_handles(
+    def handles(
         self,
-        name: str,
         pattern: str | Atom,
         fidelity: str,
         *,
@@ -2820,7 +3030,7 @@ class Space(Handle):
         (in $x) at a position to match only queries arriving with it
         bound, so a scan-only source is three words:
 
-            m.declare_handles("&rows", "(edge (in $a) $b)", "Refuse")
+            rows.handles("(edge (in $a) $b)", "Refuse")
 
         Coherence is checked eagerly in the same transaction as the
         write: a new entry that can disagree with an existing one on some
@@ -2850,7 +3060,7 @@ class Space(Handle):
                 msg
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
-        children = [Symbol("handles"), Symbol(str(name)), shape, Symbol(fidelity)]
+        children = [Symbol("handles"), Symbol(str(self.name)), shape, Symbol(fidelity)]
         if det is not None:
             children.append(Symbol(det))
         atom = Expression(children)
@@ -2858,14 +3068,14 @@ class Space(Handle):
             "petta_py_declare_handles(Space, W, Ctx)",
             Space="&petta",
             W=atom.to_wire(),
-            Ctx=str(name),
+            Ctx=str(self.name),
         )
         return atom
 
-    def declare_annotations(
+    def annotations(
         self,
-        name: str,
-        algebra: str,
+        subject_or_algebra: str,
+        algebra: str | None = None,
         *,
         capabilities: _abc.Iterable[str] = (),
     ) -> Atom:
@@ -2874,7 +3084,9 @@ class Space(Handle):
         A context is a space name or an operation name. bool is the
         default at which everything vanishes; ranked admits ordered
         annotations, which is what (top k ...) consumes. A custom name must
-        first be introduced with :meth:`declare_algebra`. Capabilities are
+        first be introduced with :meth:`algebra`. A one-argument call uses
+        this space as the context; the two-argument form keeps an operation
+        context as the explicit first subject. Capabilities are
         checked against the algebra's requirements before the catalog write;
         amplitude programs, for example, must explicitly declare ``finite``,
         ``contractive`` and ``staged`` [tested:
@@ -2882,6 +3094,8 @@ class Space(Handle):
         commit=f88aa8be03cb64cb59d3307515ded8701f418321]. Declaring replaces any earlier row for the
         context, so the reader never meets two disagreeing atoms.
         """
+        name = self.name if algebra is None else subject_or_algebra
+        algebra = subject_or_algebra if algebra is None else algebra
         algebra_api = _satellite("algebra")
         declaration = algebra_api.require(self, algebra)
         declared_capabilities = frozenset(capabilities)
@@ -2921,7 +3135,7 @@ class Space(Handle):
         catalog.add(atom)
         return atom
 
-    def declare_algebra(
+    def algebra(
         self,
         name: str,
         *,
@@ -2964,11 +3178,10 @@ class Space(Handle):
         self.add(atom)
         return atom
 
-    def declare_image(
+    def image(
         self,
-        name: str,
         type_name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=opaque transparent and auto are the three ways this door can carry one Python type across one context boundary, checked again in its body; evidence=bindings/python/petta/_space.py:declare_image
+        # policy-inventory-exempt: mechanism-internal; reason=opaque transparent and auto are the three ways this door can carry one Python type across one context boundary, checked again in its body; evidence=bindings/python/petta/_space.py:image
         setting: Literal["opaque", "transparent", "auto"],
     ) -> Atom:
         """Choose how one Python type crosses one context boundary.
@@ -2986,7 +3199,7 @@ class Space(Handle):
             )
             raise ValueError(msg)
         previous = Expression(
-            [Symbol("image"), Symbol(str(name)), Symbol(type_name), Variable("old")]
+            [Symbol("image"), Symbol(str(self.name)), Symbol(type_name), Variable("old")]
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
@@ -2994,7 +3207,7 @@ class Space(Handle):
             W=previous.to_wire(),
         )
         atom = Expression(
-            [Symbol("image"), Symbol(str(name)), Symbol(type_name), Symbol(setting)]
+            [Symbol("image"), Symbol(str(self.name)), Symbol(type_name), Symbol(setting)]
         )
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
@@ -3026,9 +3239,8 @@ class Space(Handle):
             self, query, algebra=algebra, draws=draws, seed=seed
         )
 
-    def declare_source(
+    def source(
         self,
-        name: str,
         kind: str,
     ) -> Atom:
         """Declare a space's consumption discipline.
@@ -3047,23 +3259,23 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        previous = Expression([Symbol("source"), Symbol(str(name)), Variable("old")])
+        previous = Expression([Symbol("source"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expression([Symbol("source"), Symbol(str(name)), Symbol(kind)])
+        atom = Expression([Symbol("source"), Symbol(str(self.name)), Symbol(kind)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
         return atom
 
-    def declare_on_error(
+    def on_error(
         self,
-        name: str,
-        pattern: str | Atom,
-        mode: str,
+        subject_or_pattern: str | Atom,
+        pattern_or_mode: str | Atom,
+        mode: str | None = None,
     ) -> Atom:
         """Declare what a context's failure becomes, per query shape.
 
@@ -3077,6 +3289,9 @@ class Space(Handle):
         emptied: an interrupt is the caller's, and an absent backend has
         said nothing about the data.
         """
+        name = self.name if mode is None else subject_or_pattern
+        pattern = subject_or_pattern if mode is None else pattern_or_mode
+        mode = str(pattern_or_mode) if mode is None else mode
         modes = _policy("ON_ERROR_MODE")
         if mode not in modes:
             msg = f"mode is one of {', '.join(modes)}, not {mode!r}"
@@ -3090,7 +3305,7 @@ class Space(Handle):
         )
         return atom
 
-    def declare_merge(
+    def merge(
         self,
         pattern: str | Atom,
         policy: str,
@@ -3118,9 +3333,8 @@ class Space(Handle):
         )
         return atom
 
-    def declare_context(
+    def context(
         self,
-        name: str,
         world: str,
     ) -> Atom:
         """Record what a space's absence means.
@@ -3137,21 +3351,20 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        previous = Expression([Symbol("context"), Symbol(str(name)), Variable("old")])
+        previous = Expression([Symbol("context"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expression([Symbol("context"), Symbol(str(name)), Symbol(world)])
+        atom = Expression([Symbol("context"), Symbol(str(self.name)), Symbol(world)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
         return atom
 
-    def declare_agenda(
+    def agenda(
         self,
-        name: str,
         policy: str,
         function: str | None = None,
     ) -> Atom:
@@ -3165,10 +3378,9 @@ class Space(Handle):
         SCORES a reaction, highest first. Every policy breaks ties on
         declaration order.
 
-            m.declare_reaction("&alarms", "(alert $w)", "(insert &log (all $w))")
-            m.declare_reaction("&alarms", "(alert fire)", "(insert &log (fire))",
-                               priority=9)
-            m.declare_agenda("&alarms", "priority")
+            alarms.reaction("(alert $w)", "(insert &log (all $w))")
+            alarms.reaction("(alert fire)", "(insert &log (fire))", priority=9)
+            alarms.agenda("priority")
         """
         policies = _policy("AGENDA_POLICY")
         if policy not in policies:
@@ -3180,19 +3392,19 @@ class Space(Handle):
                 "reaction, and no other policy takes one"
             )
             raise ValueError(msg)
-        previous = Expression([Symbol("agenda"), Symbol(str(name)), Variable("old")])
+        previous = Expression([Symbol("agenda"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)", Space="&petta", W=previous.to_wire()
         )
         previous_named = Expression(
-            [Symbol("agenda"), Symbol(str(name)), Variable("old"), Variable("fn")]
+            [Symbol("agenda"), Symbol(str(self.name)), Variable("old"), Variable("fn")]
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous_named.to_wire(),
         )
-        parts = [Symbol("agenda"), Symbol(str(name)), Symbol(policy)]
+        parts = [Symbol("agenda"), Symbol(str(self.name)), Symbol(policy)]
         if function is not None:
             parts.append(Symbol(str(function)))
         atom = Expression(parts)
@@ -3201,9 +3413,8 @@ class Space(Handle):
         )
         return atom
 
-    def declare_reaction(
+    def reaction(
         self,
-        name: str,
         pattern: str | Atom,
         operation: str | Atom,
         priority: int | None = None,
@@ -3227,7 +3438,7 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         op = parse(operation) if isinstance(operation, str) else _to_atom(operation)
-        parts = [Symbol("on"), Symbol(str(name)), shape, op]
+        parts = [Symbol("on"), Symbol(str(self.name)), shape, op]
         if priority is not None:
             if not isinstance(priority, int) or isinstance(priority, bool):
                 msg = f"priority is an integer, not {priority!r}"
@@ -3240,7 +3451,7 @@ class Space(Handle):
         self._rt.must("petta_install_bridges")
         return atom
 
-    def declare_admits(self, name: str, type_name: str) -> Atom:
+    def admits(self, type_name: str) -> Atom:
         """Type a pool's membership: only TYPE-carrying atoms enter.
 
         A thread pool is a space whose atoms are spaces, and this is its
@@ -3248,48 +3459,47 @@ class Space(Handle):
         declarations make membership a type judgement the ontology
         already knows how to make.
         """
-        previous = Expression([Symbol("admits"), Symbol(str(name)), Variable("old")])
+        previous = Expression([Symbol("admits"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expression([Symbol("admits"), Symbol(str(name)), Symbol(type_name)])
+        atom = Expression([Symbol("admits"), Symbol(str(self.name)), Symbol(type_name)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
         self._rt.must(
             "petta_admission_claim(Pool, Declarer)",
-            Pool=str(name),
-            Declarer=self._space,
+            Pool=str(self.name),
+            Declarer=current_space(),
         )
         return atom
 
-    def declare_capacity(self, name: str, limit: int) -> Atom:
+    def capacity(self, limit: int) -> Atom:
         """Bound a pool: an add beyond LIMIT atoms is refused loudly."""
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
             msg = f"capacity is a positive integer, not {limit!r}"
             raise ValueError(msg)
-        previous = Expression([Symbol("capacity"), Symbol(str(name)), Variable("old")])
+        previous = Expression([Symbol("capacity"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expression([Symbol("capacity"), Symbol(str(name)), Grounded(limit)])
+        atom = Expression([Symbol("capacity"), Symbol(str(self.name)), Grounded(limit)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
         self._rt.must(
             "petta_admission_claim(Pool, Declarer)",
-            Pool=str(name),
-            Declarer=self._space,
+            Pool=str(self.name),
+            Declarer=current_space(),
         )
         return atom
 
-    def declare_writes(
+    def writes(
         self,
-        name: str,
         atomicity: str,
     ) -> Atom:
         """Declare what a space's writes promise inside a transaction.
@@ -3311,21 +3521,20 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        previous = Expression([Symbol("writes"), Symbol(str(name)), Variable("old")])
+        previous = Expression([Symbol("writes"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expression([Symbol("writes"), Symbol(str(name)), Symbol(atomicity)])
+        atom = Expression([Symbol("writes"), Symbol(str(self.name)), Symbol(atomicity)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
         return atom
 
-    def declare_emits(
+    def emits(
         self,
-        name: str,
         policy: str,
     ) -> Atom:
         """Declare the order a context emits its own answers in.
@@ -3341,25 +3550,24 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        previous = Expression([Symbol("emits"), Symbol(str(name)), Variable("old")])
+        previous = Expression([Symbol("emits"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expression([Symbol("emits"), Symbol(str(name)), Symbol(policy)])
+        atom = Expression([Symbol("emits"), Symbol(str(self.name)), Symbol(policy)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
         return atom
 
-    def declare_events(
+    def events(
         self,
-        name: str,
-        delivery: str,
+        delivery: str | None = None,
         order: str = "unordered",
-    ) -> Atom:
-        """Declare what a context's change events promise.
+    ) -> Atom | Any:
+        """Return the event stream, or declare what this context promises.
 
         Subscribability is a promise about the context, not something the
         seam reads off its methods. A native space needs no declaration:
@@ -3368,14 +3576,16 @@ class Space(Handle):
         declares, and one that declares nothing refuses a subscription
         instead of serving one that silently misses writes.
 
-            m.declare_events("&shared", "at-most-once")   # redis pub/sub
-            m.declare_events("&mirror", "per-write-exactly", "ordered")
+            shared.events("at-most-once")   # redis pub/sub
+            mirror.events("per-write-exactly", "ordered")
 
         delivery is at-most-once, at-least-once or per-write-exactly, and
         order is ordered or unordered, defaulting to unordered because an
         omitted promise is the weaker one. A Python provider says the same
         thing by overriding delivers(), which registration writes here.
         """
+        if delivery is None:
+            return self._event_stream()
         deliveries = _policy("DELIVERY")
         event_orders = _policy("EVENT_ORDER")
         if delivery not in deliveries:
@@ -3385,14 +3595,14 @@ class Space(Handle):
             msg = f"order is one of {', '.join(event_orders)}, not {order!r}"
             raise ValueError(msg)
         previous = Expression(
-            [Symbol("events"), Symbol(str(name)), Variable("delivery"), Variable("order")]
+            [Symbol("events"), Symbol(str(self.name)), Variable("delivery"), Variable("order")]
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
             Space="&petta",
             W=previous.to_wire(),
         )
-        atom = Expression([Symbol("events"), Symbol(str(name)), Symbol(delivery), Symbol(order)])
+        atom = Expression([Symbol("events"), Symbol(str(self.name)), Symbol(delivery), Symbol(order)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )

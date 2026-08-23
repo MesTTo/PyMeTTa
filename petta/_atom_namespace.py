@@ -18,9 +18,15 @@ Guarantees:
     preserves exact target spelling [tested:
     test_attribute_factories_apply_the_total_map_and_brackets_stay_exact;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - Symbol attributes consult the operator word table before transliteration
+    while exact item access remains unchanged [tested:
+    test_operator_words_precede_the_mechanical_name_map; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - hot attribute spellings reuse a separate bounded cache, so the name map
     stays within the established term-building budget [measured: 659673847
     instructions; date=2026-08-23; command=cd bindings/python && ../../../../.venv-pypetta/bin/python -m benchmarks.check_instructions term-operators; fixture=20000 term-operators terms; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - generated Symbol mentions can carry inert per-instance documentation while
+    retaining Symbol equality and hashing [tested: test_generated_fn_help_is_offline;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Guarded by:
   - each namespace lock protects its target and attribute cache tiers; each
     fast-tier hit path reads one dict and takes no lock [tested
@@ -38,12 +44,21 @@ import threading
 from typing import Any, Final
 
 from ._atoms_core import Symbol
-from ._name_mapping import generated_aliases
+from ._name_mapping import generated_aliases, operator_attribute_target
 
 NAMESPACE_CACHE_MAX: Final[int] = 512
 #: The fast tier in front of it, read without the lock and without
 #: reordering. Same ratio as CPython's re cache, 512 over 256.
 NAMESPACE_FAST_MAX: Final[int] = 256
+
+
+class _DocumentedSymbol(Symbol):
+    # An inert generated mention; its instance doc powers offline help().
+    __slots__ = ("__doc__",)
+
+    def __init__(self, name: str, documentation: str) -> None:
+        super().__init__(name)
+        object.__setattr__(self, "__doc__", documentation)
 
 
 class _Namespace:
@@ -58,6 +73,7 @@ class _Namespace:
         "_allowed",
         "_attrs",
         "_cache",
+        "_documentation",
         "_fast",
         "_kind",
         "_label",
@@ -70,6 +86,7 @@ class _Namespace:
         *,
         allowed: frozenset[str] | None = None,
         aliases: dict[str, str] | None = None,
+        documentation: dict[str, str] | None = None,
         label: str = "name",
     ) -> None:
         object.__setattr__(self, "_kind", kind)
@@ -80,6 +97,7 @@ class _Namespace:
             aliases if aliases is not None else generated_aliases(allowed or ()),
         )
         object.__setattr__(self, "_label", label)
+        object.__setattr__(self, "_documentation", documentation or {})
         object.__setattr__(self, "_cache", {})
         object.__setattr__(self, "_fast", {})
         object.__setattr__(self, "_attrs", {})
@@ -122,7 +140,11 @@ class _Namespace:
         except KeyError:
             pass
         aliases = object.__getattribute__(self, "_aliases")
-        if object.__getattribute__(self, "_allowed") is None:
+        kind = object.__getattribute__(self, "_kind")
+        operator_target = operator_attribute_target(name) if kind is Symbol else None
+        if operator_target is not None:
+            target = operator_target
+        elif object.__getattribute__(self, "_allowed") is None:
             target = name
             if name != "_" and "_" in name:
                 target = name.replace("_", "-")
@@ -161,7 +183,13 @@ class _Namespace:
                 return hit
             hit = cache.pop(name, None)
             if hit is None:
-                hit = object.__getattribute__(self, "_kind")(name)
+                kind = object.__getattribute__(self, "_kind")
+                documentation = object.__getattribute__(self, "_documentation")
+                hit = (
+                    _DocumentedSymbol(name, documentation[name])
+                    if kind is Symbol and name in documentation
+                    else kind(name)
+                )
                 if len(cache) >= NAMESPACE_CACHE_MAX:
                     del cache[next(iter(cache))]
             cache[name] = hit

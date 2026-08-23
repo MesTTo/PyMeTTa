@@ -28,7 +28,13 @@ from petta import Expression, S, V
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
 #: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 #: INTERIM PIN 2026-08-23, min-of-3 on the wave-merged tree (359 against the example's 8573): this file gates the pytest lane, so it is priced ahead of the corpus-wide pass that follows the library fixes, the guide update, and the marked-site sweep, and it is re-priced there with everything else.
-BUDGET = 359
+#: RE-PINNED 2026-08-23, 359 to 234, at the p14-library-fixes-2 merge. The
+#: reduction appears exactly at item 3 (f71a7eb325a0360ea1270498a74d635fcefddf0f):
+#: this twin's one-result query now stops and closes a resumable cursor
+#: instead of constructing the complete petta_py_query_all aggregate list, so
+#: the unused answer/list work disappears. Three identical merged-tree
+#: readings [measured 2026-08-23, min-of-3 through tools/twin_coverage.run_twin].
+BUDGET = 234
 
 
 def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the default handle stays untouched

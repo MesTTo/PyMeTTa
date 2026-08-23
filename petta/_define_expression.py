@@ -24,6 +24,12 @@ Guarantees:
   - calls whose declared output is Bool remain direct conditions rather than
     acquiring py-truthy [tested:
     test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - pre-add verdict builders are known expression-position callees inside a
+    compiled judge [tested: test_pre_add_compiles_the_four_verdict_judge;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - imported ``functools.reduce`` lowers named reducers to ``foldl-atom`` and
+    lambdas to its explicit accumulator/item template [tested:
+    test_reduce_lowers_named_and_lambda_reducers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,6 +40,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import functools
 import math
 import operator
 import types
@@ -83,9 +90,9 @@ _INSTEAD = {
 }
 
 # Names with special meaning inside a compiled body. `match` runs a pattern
-# against the running space, the nondeterminism trio passes through, and
-# `empty` answers nothing.
-_MAGIC = ("match", "superpose", "collapse", "empty")
+# against the running space, nondeterminism and verdict forms pass through,
+# and `empty` answers nothing.
+_MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose")
 
 
 class ExpressionCompilerMixin(CompilerContext):
@@ -464,6 +471,8 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Call(self, node: ast.Call) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        if self._is_functools_reduce(node.func):
+            return self._reduce_call(node)
         if node.keywords:
             msg = (
                 "a call in a compiled body passes positional arguments; MeTTa "
@@ -491,6 +500,74 @@ class ExpressionCompilerMixin(CompilerContext):
             return _PYBUILTIN_CALLS[func.id](self, node)
         callee = self._x_Name(func)
         return Expression([callee, *(self.expression(a) for a in node.args)])
+
+    def _is_functools_reduce(self, node: ast.expr) -> bool:
+        """Recognize the imported callable by identity, including an alias."""
+        if isinstance(node, ast.Name):
+            return node.id not in self.scope and self.host_value(node.id) is functools.reduce
+        if not (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id not in self.scope
+        ):
+            return False
+        owner = self.host_value(node.value.id)
+        return (
+            isinstance(owner, types.ModuleType)
+            and vars(owner).get(node.attr) is functools.reduce
+        )
+
+    def _reduce_call(self, node: ast.Call) -> Expression:
+        """Lower Python's seeded left fold to foldl-atom's two forms."""
+        if node.keywords or len(node.args) != 3:
+            msg = "functools.reduce() compiles with a reducer, values, and an initial value"
+            raise CompileError(msg, construct="reduce", line=node.lineno)
+        reducer_node, values_node, initial_node = node.args
+        values = self.expression(values_node)
+        initial = self.expression(initial_node)
+        if isinstance(reducer_node, ast.Lambda):
+            arguments = reducer_node.args
+            extras = (
+                arguments.vararg,
+                arguments.kwarg,
+                arguments.kwonlyargs,
+                arguments.defaults,
+                arguments.posonlyargs,
+            )
+            if len(arguments.args) != 2 or any(extras):
+                msg = "a reduce lambda takes exactly accumulator and item"
+                raise CompileError(msg, construct="reduce lambda", line=reducer_node.lineno)
+            accumulator, item = (argument.arg for argument in arguments.args)
+            inner = self._inner([accumulator, item])
+            return Expression(
+                [
+                    Symbol("foldl-atom"),
+                    values,
+                    initial,
+                    Variable(accumulator),
+                    Variable(item),
+                    inner.expression(reducer_node.body),
+                ]
+            )
+        return Expression(
+            [Symbol("foldl-atom"), values, initial, self._reduce_function(reducer_node)]
+        )
+
+    def _reduce_function(self, node: ast.expr) -> Atom:
+        """Resolve a named engine reducer or an exact standard callable mention."""
+        value: object | None = None
+        if isinstance(node, ast.Name) and node.id not in self.scope:
+            value = self.host_value(node.id)
+        elif (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id not in self.scope
+        ):
+            owner = self.host_value(node.value.id)
+            if isinstance(owner, types.ModuleType):
+                value = vars(owner).get(node.attr)
+        mention = callable_mention(value)
+        return Symbol(mention) if mention is not None else self.expression(node)
 
     def _mentioned_attribute_call(self, node: ast.Call) -> Atom:
         """Lower a standard callable reached through its actual host module."""

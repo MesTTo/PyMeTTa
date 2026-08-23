@@ -14,6 +14,9 @@ Guarantees:
     one symbol and refuses before reflecting or registering anything [tested:
     test_register_op_refuses_a_name_metta_cannot_read;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - implicit operation names apply the total underscore-to-hyphen map while
+    explicit name= remains exact [tested: test_op_uses_the_define_name_ladder;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - full annotations become ordinary claims in the declaration space
     [tested: test_the_four_containers_share_one_parameterised_treatment;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -68,6 +71,7 @@ from typing import Any, Literal
 
 from ._api_types import _DEFAULT_SPACE, _OperationName, _SpaceId
 from ._documentation import documentation_atom
+from ._name_mapping import attribute_name
 from ._ops import REGISTRY, Operation
 from ._type_annotations import (
     annotation_atom_for,
@@ -178,13 +182,13 @@ def class_declarations(cls: type) -> list[Expression]:
 
 
 def _metta_name(fn: Callable, name: str | None) -> _OperationName:
-    """The MeTTa spelling: the Python name verbatim unless overridden.
+    """The MeTTa spelling from the shared implicit-or-exact naming ladder.
 
-    Nothing is rewritten. A hyphenated MeTTa name is one Python cannot
-    spell, so it is asked for with name=, where it is visible at the
-    registration rather than inferred from the identifier.
+    Implicit names map every underscore to a hyphen. An explicit name is
+    authored MeTTa text and remains exact.
     """
-    return _OperationName(name if name is not None else _callable_name(fn))
+    implicit = attribute_name(_callable_name(fn))
+    return _OperationName(implicit if name is None else name)
 
 
 def _arities(
@@ -458,7 +462,7 @@ def _operation_declarations(
     for declaration in supplied:
         if declaration not in declarations:
             declarations.append(declaration)
-    documentation = documentation_atom(name, fn)
+    documentation = documentation_atom(name, fn, kind="operation")
     if documentation is not None:
         declarations.append(documentation)
     return tuple(declarations)

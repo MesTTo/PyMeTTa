@@ -94,15 +94,16 @@ def attach_sqlite(
         "(bridge (document $id $blob)"
         " (row documents (id $id) (payload $blob)))",
     )
-    m.declare_image(name, "Blob", blob_image)
+    target = petta.space(name)
+    target.image("Blob", blob_image)
     provider = TableBridge.from_context(m, name, connection)
     m._register_space(provider, name)
-    m.declare_context(name, "closed-world")
-    m.declare_annotations(name, "bag")
-    m.declare_handles(name, "(edge $x $y)", "Exact")
-    m.declare_handles(name, "(edge $x $x)", "Exact")
-    m.declare_handles(name, "(document $id $blob)", "Exact")
-    m.declare_writes(name, "transactional")
+    target.context("closed-world")
+    target.annotations("bag")
+    target.handles("(edge $x $y)", "Exact")
+    target.handles("(edge $x $x)", "Exact")
+    target.handles("(document $id $blob)", "Exact")
+    target.writes("transactional")
     return provider
 
 

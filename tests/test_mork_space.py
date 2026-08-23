@@ -209,7 +209,7 @@ def test_symbols_without_round_trip_text_refuse_at_every_mork_write(metta, name)
     with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
         space.remove(atom)
     with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
-        space.query(S.holds(S[name]))
+        list(space.query(S.holds(S[name])))
 
 
 def test_mork_bulk_add_refuses_an_unsafe_symbol_before_any_write(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -33,6 +33,9 @@ Guarantees:
   - strict and raw execution choices use scopes and named transport rather
     than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
     test_eval_using_carries_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``Expression(space)`` snapshots the space's assembly-order listing
+    [tested: test_expression_of_a_space_is_an_assembly_order_snapshot;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -68,6 +71,7 @@ from petta.errors import (
     TimeLimitError,
 )
 from petta.foreign import SpaceProvider, register_provider, unregister_provider
+from petta.results import Rows
 
 
 @pytest.fixture()
@@ -302,6 +306,15 @@ def test_empty_space_is_still_true(m):  # noqa: D103  -- pytest discovers or inj
     assert len(m) == 0
     assert bool(m) is True
     assert m
+
+
+def test_expression_of_a_space_is_an_assembly_order_snapshot(m) -> None:
+    """Later writes do not change the expression collected from a space."""
+    m.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
+    snapshot = Expression(m)
+    m.add(S.edge(S.c, S.d))
+
+    assert snapshot == Expression(S.edge(S.a, S.b), S.edge(S.b, S.c))
 
 
 def test_getitem_queries_and_a_tuple_joins(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -686,7 +699,7 @@ def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa
 
 def test_add_table_reads_records_by_value(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a, S.b))
-    rows = m.query(S.p(V.x, V.y))
+    rows = m.query(S.p(V.x, V.y), into=Rows)
     records = m._new_space()
     tables.add(records, S.p, rows.to_dicts())
     # Iterating a mapping yields keys, so this once stored ("x" "y").
@@ -723,7 +736,7 @@ def test_wrong_bound_types_name_the_argument(m):  # noqa: D103  -- pytest discov
         m.run("!(+ 1 2)", timeout="x")
     with pytest.raises(TypeError, match="inferences must be"):
         m.run("!(+ 1 2)", inferences="x")
-    with pytest.raises(TypeError, match="space name is a string"):
+    with pytest.raises(TypeError, match="& string, Symbol, or ground Expression"):
         MeTTa().space(123)
 
 
@@ -741,7 +754,7 @@ def test_a_reserved_limit_does_not_leak_janus_framing(metta):  # noqa: D103  -- 
 
 def test_build_never_hands_back_its_private_sentinel(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a))
-    rows = m.query(S.p(V.x))
+    rows = m.query(S.p(V.x), into=Rows)
     assert petta.convert.build(S.a, str) == S.a
     assert rows.build("x", str) == [S.a]
 

@@ -10,6 +10,10 @@ Guarantees:
   - the runtime fn namespace and its typed stub come from one deterministic
     catalog snapshot [tested: test_the_fn_namespace_is_generated;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - the S, static fn, and bound fn attribute doors share Python's operator
+    word vocabulary while bracket access remains exact and composite
+    operators refuse with their honest images [tested:
+    test_operator_words_precede_the_mechanical_name_map; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -164,6 +168,36 @@ def test_attribute_factories_apply_the_total_map_and_brackets_stay_exact():
     assert V.some_hole == V["some-hole"]
     assert S["take_atom"] != S.take_atom
     assert V["some_hole"] != V.some_hole
+
+
+def test_operator_words_precede_the_mechanical_name_map(m):
+    """All three Symbol mention doors share one fixed operator vocabulary."""
+    words = {
+        "eq": "==",
+        "ne": "!=",
+        "lt": "<",
+        "le": "<=",
+        "gt": ">",
+        "ge": ">=",
+        "add": "+",
+        "sub": "-",
+        "mul": "*",
+        "mod": "%",
+        "pow": "pow-math",
+        "truediv": "/",
+    }
+    for word, head in words.items():
+        assert getattr(S, word) == S[head]
+        assert getattr(fn, word) == S[head]
+        assert getattr(m.fn, word).__name__ == head
+
+    assert S.eq(V.x, 2) == S["=="](V.x, 2)
+    assert S["eq"] != S.eq
+    assert m.fn.add(1, 2).one() == 3
+    with pytest.raises(AttributeError, match=r"neg.*\(- 0 x\)"):
+        _ = S.neg
+    with pytest.raises(AttributeError, match=r"floordiv.*floor-math.* /"):
+        _ = m.fn.floordiv
 
 
 def test_exact_name_mentions_compile_without_transformation(m):

@@ -4,7 +4,7 @@ records the answer rather than the engine's variable counter.
 Assumes:
   - a fresh variable prints as `$_` followed by digits, which is the engine's
     own spelling for a variable it invented [source: engine/metta.pl's writer;
-    commit=WORKTREE]
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Guarantees:
   - two alpha-equivalent printed answers canonicalize identically, and two
     variables never collapse into one [tested: test_alpha_text_canonicalizes_by_first_appearance]

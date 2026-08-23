@@ -4,6 +4,14 @@ Guarantees:
     test_bindings_become_let_star]
   - generator statements preserve answer order and reject return values
     [tested test_generator_with_branches]
+  - Python match arms compile to one ordered case tower, including captures,
+    dotted value patterns, guards, alternatives, as-bindings, and fallback
+    [tested: test_match_statement_lowers_to_one_ordered_case_tower;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - a final ``with space.limits(stack=N)`` block compiles to the scoped
+    ``stack-limit`` pragma contract [tested:
+    test_compiled_stack_limit_uses_the_scoped_pragma_contract;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - an annotated assignment lowers its target as an in-place type claim in
     ordinary and generator blocks, using an internal marker so source-level
     colon patterns remain data [tested:
@@ -22,7 +30,7 @@ import ast
 
 from ._define_context import CompilerContext, next_aux_serial
 from ._define_expression import _name_of
-from .atoms import Atom, Expression, Symbol, Variable
+from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError
 
 
@@ -61,7 +69,7 @@ class StatementCompilerMixin(CompilerContext):
         if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
             return self._bound_block(head, rest)
 
-        if isinstance(head, (ast.If, ast.While, ast.For, ast.FunctionDef)):
+        if isinstance(head, (ast.If, ast.While, ast.For, ast.FunctionDef, ast.Match, ast.With)):
             return self._compound_statement(head, rest)
 
         if isinstance(head, (ast.Break, ast.Continue)):
@@ -113,7 +121,7 @@ class StatementCompilerMixin(CompilerContext):
 
     def _compound_statement(
         self,
-        head: ast.If | ast.While | ast.For | ast.FunctionDef,
+        head: ast.If | ast.While | ast.For | ast.FunctionDef | ast.Match | ast.With,
         rest: list[ast.stmt],
     ) -> Atom:
         if isinstance(head, ast.If):
@@ -122,8 +130,102 @@ class StatementCompilerMixin(CompilerContext):
             return self._while_statement(head, rest)
         if isinstance(head, ast.For):
             return self._for_statement(head, rest)
+        if isinstance(head, ast.Match):
+            return self._match_statement(head, rest)
+        if isinstance(head, ast.With):
+            return self._limits_statement(head, rest)
         self._lift_definition(head)
         return self.block(rest)
+
+    def _match_statement(self, node: ast.Match, rest: list[ast.stmt]) -> Atom:
+        """Compile ordered Python patterns into nested engine ``case`` rows.
+
+        Each arm owns a forked SSA scope. Guard failure jumps to the first
+        row after the whole arm, so an OR-pattern never retries another
+        alternative after its guard has already run. The subject is bound
+        once before the tower, matching Python even when it is a call.
+        """
+        subject_name = self._temp("match-subject")
+        subject = Variable(subject_name)
+        subject_value = self.expression(node.subject)
+
+        if rest and _is_irrefutable(node.cases[-1].pattern):
+            msg = "statements after an exhaustive match are unreachable"
+            raise CompileError(msg, construct="match", line=rest[0].lineno)
+        if rest:
+            fallback = self._fork().block(rest)
+        elif self.closer is not None:
+            fallback = self.closer(self._fork())
+        else:
+            fallback = Expression([Symbol("empty")])
+
+        for case in reversed(node.cases):
+            after_arm = fallback
+            alternatives = (
+                list(case.pattern.patterns)
+                if isinstance(case.pattern, ast.MatchOr)
+                else [case.pattern]
+            )
+            for pattern_node in reversed(alternatives):
+                compiler = self._fork()
+                pattern_scope = _StatementPattern(compiler)
+                pattern = pattern_scope.pattern(pattern_node)
+                arm = compiler.block(case.body)
+                if case.guard is not None:
+                    arm = Expression([Symbol("if"), compiler._truthy(case.guard), arm, after_arm])
+                arm = pattern_scope.wrap_as_bindings(subject, arm)
+                fallback = _case_row(subject, pattern, arm, fallback)
+
+        return Expression(
+            [
+                Symbol("let*"),
+                Expression([Expression([subject, subject_value])]),
+                fallback,
+            ]
+        )
+
+    def _limits_statement(self, node: ast.With, rest: list[ast.stmt]) -> Atom:
+        """Lower a final Space.limits block to the engine's scoped pragma."""
+        if rest:
+            msg = "statements after a compiled limits block are unreachable"
+            raise CompileError(msg, construct="with limits", line=rest[0].lineno)
+        if len(node.items) != 1 or node.items[0].optional_vars is not None:
+            raise _limits_compile_error(node.lineno)
+        context = node.items[0].context_expr
+        if not (
+            isinstance(context, ast.Call)
+            and isinstance(context.func, ast.Attribute)
+            and isinstance(context.func.value, ast.Name)
+            and context.func.attr == "limits"
+            and isinstance(self.host_value(context.func.value.id), Handle)
+            and not context.args
+        ):
+            raise _limits_compile_error(node.lineno)
+        keys = {
+            "timeout": "max-time",
+            "inferences": "max-inferences",
+            "stack": "stack-limit",
+        }
+        settings: list[Expression] = []
+        for keyword in context.keywords:
+            key = keys.get(keyword.arg or "")
+            if key is None or not isinstance(keyword.value, ast.Constant):
+                raise _limits_compile_error(node.lineno)
+            value = keyword.value.value
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+                raise _limits_compile_error(node.lineno)
+            if keyword.arg != "timeout" and not isinstance(value, int):
+                raise _limits_compile_error(node.lineno)
+            settings.append(Expression([Symbol(key), Grounded(value)]))
+        if not settings:
+            raise _limits_compile_error(node.lineno)
+        return Expression(
+            [
+                Symbol("with-pragma!"),
+                Expression(settings),
+                self._fork().block(node.body),
+            ]
+        )
 
     def _binding(
         self,
@@ -352,6 +454,95 @@ def _superpose(answers: list[Atom]) -> Expression:
         else:
             flat.append(a)
     return Expression([Symbol("superpose"), Expression(flat)])
+
+
+class _StatementPattern:
+    """Compile one Python case pattern and remember its whole-value binds."""
+
+    def __init__(self, compiler: CompilerContext):
+        self.compiler = compiler
+        self.as_variables: list[Variable] = []
+
+    def pattern(self, node: ast.pattern) -> Atom:
+        if isinstance(node, ast.MatchValue):
+            return self.compiler.expression(node.value)
+        if isinstance(node, ast.MatchSingleton):
+            return self._singleton(node)
+        if isinstance(node, ast.MatchSequence):
+            return Expression([self.pattern(part) for part in node.patterns])
+        if isinstance(node, ast.MatchClass):
+            return self._class(node)
+        if isinstance(node, ast.MatchAs):
+            return self._as(node)
+        if isinstance(node, ast.MatchStar):
+            msg = (
+                "star patterns need the engine's named segment variables; "
+                "spell the fixed prefix today and use that segment-variable row when it lands"
+            )
+            raise CompileError(msg, construct="match star", line=node.lineno)
+        if isinstance(node, ast.MatchMapping):
+            msg = "mapping patterns need an engine dictionary image; match positional terms instead"
+            raise CompileError(msg, construct="match mapping", line=node.lineno)
+        if isinstance(node, ast.MatchOr):
+            msg = "OR patterns are compiled by the enclosing ordered case arm"
+            raise CompileError(msg, construct="match pattern", line=node.lineno)
+        msg = f"{type(node).__name__} has no MeTTa case-pattern image"
+        raise CompileError(msg, construct="match pattern", line=getattr(node, "lineno", None))
+
+    def _singleton(self, node: ast.MatchSingleton) -> Atom:
+        if isinstance(node.value, bool):
+            return Grounded(node.value)
+        msg = "None has no MeTTa case value; use a data symbol such as Nil"
+        raise CompileError(msg, construct="match pattern", line=node.lineno)
+
+    def _class(self, node: ast.MatchClass) -> Atom:
+        if node.kwd_attrs:
+            msg = (
+                "keyword class patterns have no positional MeTTa image; "
+                "match the constructor's positional fields"
+            )
+            raise CompileError(msg, construct="match pattern", line=node.lineno)
+        return Expression(
+            [self.compiler.expression(node.cls), *(self.pattern(p) for p in node.patterns)]
+        )
+
+    def _as(self, node: ast.MatchAs) -> Atom:
+        inner = Variable("_") if node.pattern is None else self.pattern(node.pattern)
+        if node.name is None:
+            return inner
+        variable = Variable(self.compiler._bind(node.name))
+        if node.pattern is None:
+            return variable
+        self.as_variables.append(variable)
+        return inner
+
+    def wrap_as_bindings(self, subject: Atom, body: Atom) -> Atom:
+        for variable in reversed(self.as_variables):
+            body = Expression([Symbol("let"), variable, subject, body])
+        return body
+
+
+def _case_row(subject: Atom, pattern: Atom, body: Atom, fallback: Atom) -> Expression:
+    rows = Expression(
+        [
+            Expression([pattern, body]),
+            Expression([Variable("_"), fallback]),
+        ]
+    )
+    return Expression([Symbol("case"), subject, rows])
+
+
+def _is_irrefutable(pattern: ast.pattern) -> bool:
+    return isinstance(pattern, ast.MatchAs) and pattern.pattern is None
+
+
+def _limits_compile_error(line: int) -> CompileError:
+    return CompileError(
+        "a compiled with-block is space.limits() with positive literal "
+        "timeout=, inferences=, or stack= bounds and no `as` target",
+        construct="with limits",
+        line=line,
+    )
 
 
 def _is_docstring(node: ast.stmt) -> bool:

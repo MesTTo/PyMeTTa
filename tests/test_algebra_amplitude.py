@@ -32,7 +32,7 @@ def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta)
             AlgebraRequirementError,
             match="amplitude_fragment_refused",
         ):
-            program.declare_annotations(program.name, "amplitude")
+            program.annotations(program.name, "amplitude")
         program.add_tagged_fact(Amplitude(1), S.detect(S.dark_port))
         program.add_tagged_fact(Amplitude(-1), S.detect(S.dark_port))
         with pytest.raises(
@@ -41,7 +41,7 @@ def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta)
         ):
             program.evaluate_algebra(S.detect(S.dark_port), algebra="amplitude")
 
-        program.declare_annotations(
+        program.annotations(
             program.name,
             "amplitude",
             capabilities=("finite", "contractive", "staged"),

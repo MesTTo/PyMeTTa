@@ -8,6 +8,9 @@ Guarantees:
   - an object view joins stored atoms to live fields and writes with setattr
     [tested: test_a_query_joins_stored_atoms_with_live_object_fields;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - view presents dictionaries and zero-based sequences through kv and sets
+    as member spaces, with every read reflecting the current Python value
+    [tested: test_view_is_a_live_queryable_space; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,12 +21,36 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import PettaError, S, V, ground, parse, spaces, testing
+from petta import PettaError, S, V, ground, parse, spaces, testing, view
 
 
 @pytest.fixture()
 def pair(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return metta._new_space(), metta._new_space()
+
+
+def test_view_is_a_live_queryable_space():  # noqa: D103  -- pytest discovers this contract probe by name
+    config = {"port": 80, "backup": 80}
+    config_space = view(config)
+    assert config_space[(S.kv, S.port, V.value)].value == [80]
+    assert config_space[(S.kv, V.key, 80)].key == [S.port, S.backup]
+    config["port"] = 443
+    assert config_space[(S.kv, S.port, V.value)].value == [443]
+
+    values = [S.ready, S.waiting, S.ready]
+    sequence_space = view(values)
+    assert sequence_space[(S.kv, V.i, S.ready)].i == [0, 2]
+    values.append(S.ready)
+    assert sequence_space[(S.kv, V.i, S.ready)].i == [0, 2, 3]
+
+    members = {S.red, S.blue}
+    member_space = view(members)
+    assert set(member_space.query(V.member).member) == members
+    members.add(S.green)
+    assert set(member_space.query(V.member).member) == members
+
+    with pytest.raises(TypeError, match="dict, set, or non-string sequence"):
+        view("not a sequence view")
 
 
 def test_union_reads_every_member_and_engine_matches(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

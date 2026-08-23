@@ -28,6 +28,20 @@ Guarantees:
   - ``fn`` is an inert, generated, statically typed mention namespace and
     importing it never starts the engine [tested:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - package ``superpose`` and ``match`` evaluate their expression forms in
+    the ambient space and compile as those same forms inside definitions
+    [tested:
+    test_expression_position_superpose_and_match_share_the_ambient_space;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``view`` lazily opens a live provider space over Python mappings, sets,
+    and sequences [tested: test_view_is_a_live_queryable_space;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - coordination functions are lazy satellite exports and Timeout remains
+    catchable as builtin TimeoutError [tested:
+    test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - module define/cache/stats/limits/strict/trace verbs defer engine creation
+    until called and target the default self space [tested:
+    test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Decides:
   - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
     stack policy [source: PeTTa-base/python/petta/__init__.py:8;
@@ -75,7 +89,7 @@ from .atoms import (
     typed,
     unify,
 )
-from .errors import NotReducible, PettaError
+from .errors import NotReducible, PettaError, Timeout
 
 _SATELLITES = frozenset(
     {
@@ -98,7 +112,6 @@ _SATELLITES = frozenset(
         "subscribe",
         "tables",
         "testing",
-        "trace",
         "vocabularies",
         "wire",
     }
@@ -115,6 +128,12 @@ _LAZY_ATTRIBUTES = {
     "boot": ("manifest", "boot"),
     "equation": ("_rules", "equation"),
     "rules": ("_rules", "rules"),
+    "channel": ("parallel", "channel"),
+    "every": ("parallel", "every"),
+    "par_map": ("parallel", "par_map"),
+    "race": ("parallel", "race"),
+    "spawn": ("parallel", "spawn"),
+    "view": ("spaces", "view"),
 }
 
 _HIDDEN_IMPLEMENTATION_MODULES = {
@@ -133,6 +152,7 @@ CONSULTED = False
 CONSULT_LOCK = _thread.allocate_lock()
 janus: _Any = None
 DEFAULT_STACK_LIMIT = 8_000_000_000
+_OMITTED = object()
 
 
 def _path_exists(path: str) -> bool:
@@ -272,7 +292,13 @@ def __getattr__(name: str) -> _Any:
         msg = f"module {__name__!r} has no attribute {name!r}"
         raise AttributeError(msg)
     for implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
-        globals().pop(implementation_name, None)
+        replacement = globals().get("_ROOT_IMPLEMENTATION_VERBS", {}).get(
+            implementation_name
+        )
+        if replacement is None:
+            globals().pop(implementation_name, None)
+        else:
+            globals()[implementation_name] = replacement
     globals()[name] = value
     return value
 
@@ -289,7 +315,7 @@ def engine():
 
 
 def space(
-    name: str | Symbol | None = None,
+    name: str | Atom | None = None,
     backing: _Any = None,
     *,
     journal: str | None = None,
@@ -329,6 +355,54 @@ def query(*patterns: _Any, **kwargs: _Any):
     return engine().self.query(*patterns, **kwargs)
 
 
+def _ambient_space():
+    """Open the space selected by the active Python or engine context."""
+    return engine().space(current_space())
+
+
+def superpose(*alternatives: _Any):
+    """Evaluate expression-position alternatives in the ambient space.
+
+    With no alternatives this evaluates ``(empty)``. Inside a compiled
+    definition the compiler lowers this same function spelling directly to
+    ``(superpose (...))``.
+    """
+    target = S.empty() if not alternatives else S.superpose(Expression(alternatives))
+    return _ambient_space().answers(target)
+
+
+def match(*args: _Any):
+    """Evaluate a match expression against the ambient or named space.
+
+    ``match(pattern, template)`` supplies the ambient space. The three-argument
+    form keeps an explicit space first, matching the compiled-body form.
+    """
+    if len(args) == 2:
+        ambient = _ambient_space()
+        pattern, template = args
+        return ambient.answers(S.match(ambient, pattern, template))
+    if len(args) == 3:
+        source, pattern, template = args
+        return _ambient_space().answers(S.match(source, pattern, template))
+    msg = "match takes (pattern, template) or (space, pattern, template)"
+    raise TypeError(msg)
+
+
+def accept(atom: _Any = _OMITTED) -> Expression:
+    """Build a pre-add verdict that keeps or replaces the offered atom."""
+    return S.accept() if atom is _OMITTED else S.accept(atom)
+
+
+def refuse(words: _Any) -> Expression:
+    """Build a pre-add verdict that rejects a write with the judge's words."""
+    return S.refuse(words)
+
+
+def drop() -> Expression:
+    """Build a pre-add verdict that silently skips the offered atom."""
+    return S.drop()
+
+
 def add(*atoms: _Any):
     """Add atoms to the default context's self space."""
     return engine().self.add(*atoms)
@@ -347,6 +421,51 @@ def eval(target: _Any, **kwargs: _Any):  # noqa: A001 -- eval is the ruled publi
 def solve(pattern: _Any, subject: _Any):
     """Solve a relation backwards in the default context."""
     return engine().self.solve(pattern, subject)
+
+
+def define(*args: _Any, **kwargs: _Any):
+    """Define a function or record in the default self space."""
+    return engine().self.define(*args, **kwargs)
+
+
+def cache(*args: _Any, **kwargs: _Any):
+    """Define and memoize a function in the default self space."""
+    return engine().self.cache(*args, **kwargs)
+
+
+def stats():
+    """Measure engine counters across a default-context block."""
+    return engine().self.stats()
+
+
+def limits(
+    *,
+    timeout: float | None = None,
+    inferences: int | None = None,
+    stack: int | None = None,
+):
+    """Scope default time, inference, and stack-byte bounds."""
+    return engine().self.limits(
+        timeout=timeout,
+        inferences=inferences,
+        stack=stack,
+    )
+
+
+def strict():
+    """Refuse unreduced default-context directives within the block."""
+    return engine().self.strict()
+
+
+def trace(source: str, *, max_events: int = 10_000):
+    """Trace source in the default self space."""
+    return engine().self.trace(source, max_events=max_events)
+
+
+_ROOT_IMPLEMENTATION_VERBS = {
+    "define": define,
+    "trace": trace,
+}
 
 
 __all__ = [
@@ -372,10 +491,12 @@ __all__ = [
     "SpaceProvider",
     "State",
     "Symbol",
+    "Timeout",
     "Undefined",
     "V",
     "Variable",
     "__version__",
+    "accept",
     "add",
     "aio",
     "algebra",
@@ -384,15 +505,20 @@ __all__ = [
     "arrow",
     "attach",
     "boot",
+    "cache",
     "casting",
+    "channel",
     "config",
     "convert",
     "current_space",
+    "define",
     "derivation",
+    "drop",
     "engine",
     "equation",
     "eval",
     "events",
+    "every",
     "fn",
     "foreign",
     "forms",
@@ -400,15 +526,20 @@ __all__ = [
     "if_",
     "in_",
     "integrate",
+    "limits",
     "lint",
     "manifest",
+    "match",
     "not_",
     "or_",
+    "par_map",
     "parallel",
     "parse",
     "paths",
     "query",
+    "race",
     "reflection",
+    "refuse",
     "remote",
     "remove",
     "rules",
@@ -416,13 +547,18 @@ __all__ = [
     "solve",
     "space",
     "spaces",
+    "spawn",
+    "stats",
+    "strict",
     "structures",
     "subscribe",
+    "superpose",
     "tables",
     "testing",
     "trace",
     "typed",
     "unify",
+    "view",
     "vocabularies",
     "wire",
 ]
@@ -431,5 +567,10 @@ __all__ = [
 # modules remain explicitly importable, but they are implementation modules,
 # not root attributes.
 for _implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
-    globals().pop(_implementation_name, None)
+    if _implementation_name in _ROOT_IMPLEMENTATION_VERBS:
+        globals()[_implementation_name] = _ROOT_IMPLEMENTATION_VERBS[
+            _implementation_name
+        ]
+    else:
+        globals().pop(_implementation_name, None)
 del _implementation_name

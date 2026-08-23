@@ -44,6 +44,9 @@ Guarantees:
   - len on an untouched engine-backed Answers view uses its engine count door
     without populating the Python cache [tested:
     test_len_counts_an_unmaterialised_view_engine_side; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - one(default=) distinguishes absence from multiplicity for both eager and
+    lazy faces, while first without a default never returns None [tested:
+    test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -63,7 +66,7 @@ from collections import UserList
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from difflib import get_close_matches
 from functools import lru_cache
-from typing import Any, Final, NamedTuple, Self, SupportsIndex, overload
+from typing import Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
 
 from ._config import config
 from ._optional import require_module
@@ -347,17 +350,22 @@ class Rows(UserList[Row]):
         index = self.columns.index(name)
         return [row[index] for row in self]
 
-    def first(self) -> Row | None:
-        """The first row, or None when there are no answers: the tolerant
-        accessor, SQLAlchemy's own naming.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self[0] if self else None
+    def first(self, *, default: Any = _MISSING) -> Row | Any:
+        """Return the first row, or the caller's explicit default."""
+        if self:
+            return self[0]
+        if default is not _MISSING:
+            return default
+        msg = "first() found no rows; pass default= for absence"
+        raise EngineError(msg)
 
-    def one(self) -> Row:
+    def one(self, *, default: Any = _MISSING) -> Row | Any:
         """THE row, when the query is asserted to have exactly one answer;
         none or several raise naming the count, so a lookup that silently
         picked an arbitrary row cannot hide.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if not self and default is not _MISSING:
+            return default
         if len(self) != 1:
             msg = (
                 f"one() expected exactly one row, got {len(self)}; "
@@ -697,6 +705,7 @@ class Answers[T](Sequence[T]):
         "_error",
         "_known_length",
         "_lock",
+        "_query",
         "_row_cache",
         "_source",
         "_space",
@@ -711,6 +720,7 @@ class Answers[T](Sequence[T]):
         space: str | None = None,
         target: object = None,
         count: Callable[[], int] | None = None,
+        query: _QueryContext | None = None,
     ) -> None:
         self._source = iter(source)
         self._columns = tuple(columns)
@@ -718,6 +728,7 @@ class Answers[T](Sequence[T]):
         self._known_length: int | None = None
         self._space = space
         self._target = target
+        self._query = query
         self._cache: list[T] = []
         self._row_cache: list[Row | None] = []
         self._done = False
@@ -846,7 +857,12 @@ class Answers[T](Sequence[T]):
 
     def _project(self, name: str) -> Answers[Any]:
         if name not in self._columns:
-            msg = f"no answer variable {name!r}; variables are {list(self._columns)}"
+            close = get_close_matches(name, self._columns, n=1, cutoff=0.6)
+            suggestion = f"; did you mean {close[0]!r}?" if close else ""
+            msg = (
+                f"no answer variable {name!r}; variables are "
+                f"{list(self._columns)}{suggestion}"
+            )
             raise AttributeError(msg)
         index = self._columns.index(name)
 
@@ -887,6 +903,52 @@ class Answers[T](Sequence[T]):
     def __dir__(self) -> list[str]:  # noqa: D105 -- completion extends Python's standard directory
         return sorted(set(super().__dir__()) | set(self._columns))
 
+    def _eager_rows(self) -> Rows:
+        """Materialize this row-valued view as the eager Rows face."""
+        rows = cast(Iterable[Iterable[Any]], self)
+        return Rows(self._columns, rows, _query=self._query)
+
+    def build(self, *args: Any) -> list[Any]:
+        """Materialize, then rebuild one column through Rows.build."""
+        return self._eager_rows().build(*args)
+
+    def to_dicts(self) -> list[dict[str, Any]]:
+        """Materialize as plain column-to-value records."""
+        return self._eager_rows().to_dicts()
+
+    def table(self) -> dict[str, list[Any]]:
+        """Materialize as a column mapping."""
+        return self._eager_rows().table()
+
+    def to_df(self):
+        """Materialize as a pandas DataFrame."""
+        return self._eager_rows().to_df()
+
+    def to_pl(self):
+        """Materialize as a polars DataFrame."""
+        return self._eager_rows().to_pl()
+
+    def pipe(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        """Materialize and pass the eager Rows face to ``fn``."""
+        return self._eager_rows().pipe(fn, *args, **kwargs)
+
+    def raise_for_errors(self) -> Self:
+        """Raise stored error cells after materializing the row view."""
+        self._eager_rows().raise_for_errors()
+        return self
+
+    def why(self) -> str:
+        """Explain an empty query after materializing it."""
+        return self._eager_rows().why()
+
+    def __rich__(self):
+        """Render a row-valued answer view through the eager table face."""
+        return self._eager_rows().__rich__()
+
+    def _repr_html_(self) -> str:
+        """Render a row-valued answer view as an HTML table."""
+        return self._eager_rows()._repr_html_()
+
     def __metta__(self) -> Atom:
         """Observe exactly one answer when this view enters a term."""
         return _encode(self.one())
@@ -901,9 +963,11 @@ class Answers[T](Sequence[T]):
             raise EngineError(msg)
         return _decode(answer) if isinstance(answer, Grounded) else answer
 
-    def one(self) -> Any:
-        """Return exactly one decoded value, rejecting zero or multiplicity."""
+    def one(self, *, default: Any = _MISSING) -> Any:
+        """Return at most one decoded value, defaulting only on absence."""
         if not self._pull(0):
+            if default is not _MISSING:
+                return default
             msg = "one() expected exactly one answer, got 0"
             raise EngineError(msg)
         first = self._cache[0]

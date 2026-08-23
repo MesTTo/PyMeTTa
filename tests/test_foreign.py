@@ -64,7 +64,7 @@ class ListSpace(SpaceProvider):
     def __init__(self, atoms=()):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self.stored = list(atoms)
 
-    def match(self, pattern):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
+    def match(self, _pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(self.stored)
 
     def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
@@ -296,7 +296,7 @@ def test_a_provider_states_its_own_refusal(metta):  # noqa: D103  -- pytest disc
         def atoms(self):
             return iter(())
 
-        def add(self, atom):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
+        def add(self, _atom):
             msg = "declined before this runs"
             raise AssertionError(msg)
 
@@ -327,7 +327,7 @@ def test_declining_and_not_implementing_read_differently(metta):  # noqa: D103  
         def atoms(self):
             return iter(())
 
-        def add(self, atom):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
+        def add(self, _atom):
             msg = "declined before this runs"
             raise AssertionError(msg)
 
@@ -565,7 +565,11 @@ def test_a_pushdown_class_that_is_neither_word_is_refused(metta):
     metta._register_space(provider, "&nonsense-test")
     try:
         with pytest.raises(PettaError, match="answered 'probably'"):
-            MeTTa().space("&nonsense-test").query(S.fact(V.k, V.v), limit=2)
+            list(
+                MeTTa()
+                .space("&nonsense-test")
+                .query(S.fact(V.k, V.v), limit=2)
+            )
     finally:
         metta._unregister_space("&nonsense-test")
 
@@ -846,8 +850,8 @@ def test_explain_reflects_the_plan(metta):  # noqa: D103  -- pytest discovers or
 
         # A declared (handles ...) entry outranks the provider's method,
         # exact brings the bound line, and Refuse reports as a refusal.
-        sp.declare_handles("&xplan", "(pe $f $t)", "Exact", det="nondet")
-        sp.declare_handles("&xplan", "(xsecret $x)", "Refuse")
+        sp._at("&xplan").handles("(pe $f $t)", "Exact", det="nondet")
+        sp._at("&xplan").handles("(xsecret $x)", "Refuse")
         declared = sp.prepare(parse("(pe $a $b)")).explain()
         assert "exact" in declared
         assert "declared: (handles" in declared and "Exact nondet" in declared

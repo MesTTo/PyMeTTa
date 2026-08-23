@@ -29,9 +29,13 @@ Guarantees:
   - async names and save formats retain the synchronous surface's contextual
     types [tested: test_canonical_context_types_replace_public_newtypes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - async declaration methods reuse the catalog-generated policy aliases and
+  - async head-named declaration methods reuse the catalog-generated policy aliases and
     own no duplicate Literal lists [tested: tests/check_policy_inventory.py;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - all fifteen synchronous declaration names have asynchronous head-named
+    mirrors and no ``declare_*`` aliases [tested:
+    test_aio_covers_the_whole_synchronous_surface,
+    test_m7_narrow_core_surface; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
@@ -39,6 +43,9 @@ Guarantees:
   - async space forwards anonymous-space inheritance, restriction, and grants
     on the owning worker [tested:
     test_async_space_forwards_restriction_and_grants; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - async scoped limits forward stack byte bounds through the synchronous
+    task-local scope [tested: test_stack_limit_is_carried_to_the_limited_six_seam;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - reader-token registration and removal run on the owning engine worker and
     mirror the synchronous surface [tested:
     test_aio_plain_methods_forward_on_the_worker; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -53,7 +60,7 @@ Guarantees:
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - declare_image reaches the synchronous declaration owner on the engine
+  - image reaches the synchronous declaration owner on the engine
     worker [tested: test_aio_covers_the_whole_synchronous_surface;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async peek and take keep event-loop threads unblocked while the engine
@@ -968,23 +975,23 @@ class AsyncMeTTa:
         """Every space name this engine registers, sorted."""
         return await self.call(lambda m: m.space_names())
 
-    async def declare_admits(self, name: str, type_name: str) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        return await self.call(lambda m: m.declare_admits(name, type_name))
+    async def admits(self, type_name: str) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        return await self.call(lambda m: m.admits(type_name))
 
-    async def declare_annotations(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def annotations(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
-        name: str,
-        algebra: str,
+        subject_or_algebra: str,
+        algebra: str | None = None,
         *,
         capabilities: Sequence[str] = (),
     ) -> Atom:
         return await self.call(
-            lambda m: m.declare_annotations(
-                name, algebra, capabilities=capabilities
+            lambda m: m.annotations(
+                subject_or_algebra, algebra, capabilities=capabilities
             )
         )
 
-    async def declare_algebra(
+    async def algebra(
         self,
         name: str,
         *,
@@ -998,7 +1005,7 @@ class AsyncMeTTa:
     ) -> Atom:
         """Declare one checked value algebra on the owning engine thread."""
         return await self.call(
-            lambda m: m.declare_algebra(
+            lambda m: m.algebra(
                 name,
                 combine=combine,
                 extend=extend,
@@ -1051,99 +1058,97 @@ class AsyncMeTTa:
             )
         )
 
-    async def declare_capacity(self, name: str, limit: int) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        return await self.call(lambda m: m.declare_capacity(name, limit))
+    async def capacity(self, limit: int) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        return await self.call(lambda m: m.capacity(limit))
 
-    async def declare_context(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self, name: str, world: World
+    async def context(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        self, world: World
     ) -> Atom:
-        return await self.call(lambda m: m.declare_context(name, world))
+        return await self.call(lambda m: m.context(world))
 
-    async def declare_emits(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self, name: str, policy: AnswerPolicy
+    async def emits(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        self, policy: AnswerPolicy
     ) -> Atom:
-        return await self.call(lambda m: m.declare_emits(name, policy))
+        return await self.call(lambda m: m.emits(policy))
 
-    async def declare_events(
-        self, name: str, delivery: Delivery, order: EventOrder = "unordered"
-    ) -> Atom:
-        """Declare what a context's change events promise; see MeTTa.declare_events."""
-        return await self.call(lambda m: m.declare_events(name, delivery, order))
-
-    async def events(self) -> Any:
-        """This engine's public event stream; see MeTTa.events.
+    async def events(
+        self,
+        delivery: Delivery | None = None,
+        order: EventOrder = "unordered",
+    ) -> Any:
+        """Return the event stream or declare this context's event promise.
 
         A fold registered through it runs on the engine thread, inside the
         write that caused the event, exactly as a synchronous one does.
         `AsyncMeTTa.subscribe` is the async-native door for the delivering
         fold and hands events to an async iterator instead.
         """
-        return await self.call(lambda m: m.events())
+        return await self.call(
+            lambda m: m.events() if delivery is None else m.events(delivery, order)
+        )
 
-    async def declare_handles(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def handles(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
-        name: str,
         pattern: str | Atom,
         fidelity: Fidelity,
         *,
         det: str | None = None,
     ) -> Atom:
         return await self.call(
-            lambda m: m.declare_handles(name, pattern, fidelity, det=det)
+            lambda m: m.handles(pattern, fidelity, det=det)
         )
 
-    async def declare_image(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def image(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
-        name: str,
         type_name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=the three modes by which one Python type crosses one context boundary, forwarded unchanged to the synchronous declaration door that owns them; evidence=bindings/python/petta/_space.py:declare_image
+        # policy-inventory-exempt: mechanism-internal; reason=the three modes by which one Python type crosses one context boundary, forwarded unchanged to the synchronous declaration door that owns them; evidence=bindings/python/petta/_space.py:image
         setting: Literal["opaque", "transparent", "auto"],
     ) -> Atom:
         return await self.call(
-            lambda m: m.declare_image(name, type_name, setting)
+            lambda m: m.image(type_name, setting)
         )
 
-    async def declare_merge(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def merge(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self, pattern: str | Atom, policy: AnswerPolicy
     ) -> Atom:
-        return await self.call(lambda m: m.declare_merge(pattern, policy))
+        return await self.call(lambda m: m.merge(pattern, policy))
 
-    async def declare_on_error(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def on_error(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
-        name: str,
-        pattern: str | Atom,
-        mode: OnErrorMode,
+        subject_or_pattern: str | Atom,
+        pattern_or_mode: str | Atom,
+        mode: OnErrorMode | None = None,
     ) -> Atom:
-        return await self.call(lambda m: m.declare_on_error(name, pattern, mode))
+        return await self.call(
+            lambda m: m.on_error(subject_or_pattern, pattern_or_mode, mode)
+        )
 
-    async def declare_reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
-        name: str,
         pattern: str | Atom,
         operation: str | Atom,
         priority: int | None = None,
     ) -> Atom:
         return await self.call(
-            lambda m: m.declare_reaction(name, pattern, operation, priority)
+            lambda m: m.reaction(pattern, operation, priority)
         )
 
-    async def declare_agenda(
-        self, name: str, policy: AgendaPolicy, function: str | None = None
+    async def agenda(
+        self, policy: AgendaPolicy, function: str | None = None
     ) -> Atom:
-        """Declare which reaction fires first; see MeTTa.declare_agenda."""
-        return await self.call(lambda m: m.declare_agenda(name, policy, function))
+        """Declare which reaction fires first; see Space.agenda."""
+        return await self.call(lambda m: m.agenda(policy, function))
 
-    async def declare_source(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self, name: str, kind: SourceKind
+    async def source(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        self, kind: SourceKind
     ) -> Atom:
-        return await self.call(lambda m: m.declare_source(name, kind))
+        return await self.call(lambda m: m.source(kind))
 
-    async def declare_writes(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def writes(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
-        name: str,
         atomicity: Atomicity,
     ) -> Atom:
-        return await self.call(lambda m: m.declare_writes(name, atomicity))
+        return await self.call(lambda m: m.writes(atomicity))
 
     async def op(
         self,
@@ -1258,13 +1263,14 @@ class AsyncMeTTa:
         *,
         timeout: float | None = None,
         inferences: int | None = None,
+        stack: int | None = None,
     ):
         """Scoped default bounds, the synchronous surface's own block:
         enter and exit only touch a contextvar, so this is an ordinary
         `with` inside async code, and every awaited call in the scope
         carries it to the worker.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self._m.limits(timeout=timeout, inferences=inferences)
+        return self._m.limits(timeout=timeout, inferences=inferences, stack=stack)
 
     def capture(self):
         """Collect awaited run/eval output in an ordinary task-local scope."""

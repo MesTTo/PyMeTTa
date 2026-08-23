@@ -1,12 +1,15 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the post-R5 narrow package surface has 69 names and keeps ``record`` and
+  - the post-item-16 package surface has 91 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - the published before/after counts are exact for ``MeTTa`` and ``petta``
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every retired root, context, and atom name is absent rather than aliased
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - all fifteen ``declare_*`` spellings are absent from both synchronous and
+    asynchronous space handles [tested: test_m7_narrow_core_surface;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - plain import and ``dir(petta)`` load no satellite, while either explicit
     import order preserves real module identity [tested:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -18,10 +21,11 @@ Owns:
     by ``subprocess.run(check=True)`` [tested:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
-  - ``BASELINE_*`` and ``FINAL_*`` are the published M7 surface metrics
-    [measured: 90 to 20 MeTTa names and 152 to 69 petta names after R5;
+  - ``BASELINE_*`` and ``FINAL_*`` are the published surface metrics
+    [measured: 90 to 20 MeTTa names and 152 to 91 petta names after the
+    module-tier family;
     command=python -m pytest bindings/python/tests/test_m7_narrow_core.py -q;
-    fixture=a142938d baseline and cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5 final; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+    fixture=a142938d baseline and the current generated root; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,7 +41,7 @@ from pathlib import Path
 import pytest
 
 import petta
-from petta import MeTTa
+from petta import MeTTa, Space
 from petta import atoms as atom_module
 
 BASELINE_METTA_METHODS = 90
@@ -46,8 +50,10 @@ FINAL_METTA_METHODS = 20
 # 61 at the narrow-core commit; +4 when the R6 merge promoted the canonical
 # atoms TRUE, FALSE, UNIT and HERE to root values the twins can name; +1 when
 # R1 exported the static fn namespace at the root; +8 when R5 landed its
-# ruled doors (typed, arrow, the keyword builders, State and solve's kin).
-FINAL_PETTA_EXPORTS = 74
+# ruled doors (typed, arrow, the keyword builders, State and solve's kin),
+# followed by the five newly surfaced module-tier verbs (trace replaces its
+# satellite module at the same name, so it does not change the count).
+FINAL_PETTA_EXPORTS = 91
 
 SATELLITES = {
     "aio",
@@ -69,7 +75,6 @@ SATELLITES = {
     "subscribe",
     "tables",
     "testing",
-    "trace",
     "vocabularies",
     "wire",
 }
@@ -246,10 +251,10 @@ REMOVED_FROM_ROOT = {
     "Cursor",
     "EngineProfile",
     "Prepared",
-    # Importable implementation modules are not package attributes.
+    # Importable implementation modules are not package attributes. ``define``
+    # is now the ruled default-engine verb, not the implementation module.
     "answer",
     "atoms",
-    "define",
     "errors",
     "ops",
     "results",
@@ -289,6 +294,24 @@ REMOVED_FROM_ASYNC = {
     "unregister_space",
 }
 
+REMOVED_DECLARATION_CEREMONY = {
+    "declare_admits",
+    "declare_agenda",
+    "declare_algebra",
+    "declare_annotations",
+    "declare_capacity",
+    "declare_context",
+    "declare_emits",
+    "declare_events",
+    "declare_handles",
+    "declare_image",
+    "declare_merge",
+    "declare_on_error",
+    "declare_reaction",
+    "declare_source",
+    "declare_writes",
+}
+
 
 def _public_names(value) -> set[str]:
     return {name for name in dir(value) if not name.startswith("_")}
@@ -320,6 +343,8 @@ def test_m7_narrow_core_surface():
     assert "janus" in vars(petta)  # retained only for upstream python.petta
     _assert_absent(atom_module, REMOVED_FROM_ATOMS)
     _assert_absent(AsyncMeTTa, REMOVED_FROM_ASYNC)
+    _assert_absent(Space, REMOVED_DECLARATION_CEREMONY)
+    _assert_absent(AsyncMeTTa, REMOVED_DECLARATION_CEREMONY)
 
 
 def test_m7_satellites_are_lazy_and_identity_stable():

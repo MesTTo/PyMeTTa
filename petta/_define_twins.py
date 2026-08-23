@@ -49,7 +49,7 @@ class TwinDispatcher:
         for clause in clauses:
             try:
                 return clause(*args)
-            except _ClauseMiss:
+            except _ClauseMissError:
                 continue
         msg = f"{self.name}: no clause's head matches {args!r}"
         raise LookupError(msg)
@@ -86,7 +86,7 @@ class TwinDispatcher:
         return f"<python twin of {self.name}, {count} clause(s)>"
 
 
-class _ClauseMiss(LookupError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
+class _ClauseMissError(LookupError):
     """A clause twin refusing arguments its head does not match."""
 
 
@@ -189,6 +189,7 @@ def _python_twin(
         fn.__code__, globals_, name=name, argdefs=fn.__defaults__, closure=closure
     )
     twin.__doc__ = fn.__doc__
+    twin.__annotations__ = fn.__annotations__
     order = list(inspect.signature(fn).parameters)
     return _guard_twin(twin, name, order, patterns)
 
@@ -207,18 +208,19 @@ def _guard_twin(
             signature.bind(*args)
         except TypeError as exc:
             msg = f"{name}: this clause does not accept {len(args)} argument(s)"
-            raise _ClauseMiss(msg) from exc
+            raise _ClauseMissError(msg) from exc
         for position, value in zip(order, args, strict=False):
             expected = (patterns or {}).get(position)
             if expected is not None and expected != value:
                 msg = f"{name}: this clause's head matches {position}={expected}, not {value!r}"
-                raise _ClauseMiss(
+                raise _ClauseMissError(
                     msg
                 )
         return twin(*args)
 
     guarded.__name__ = name
     guarded.__doc__ = twin.__doc__
+    guarded.__annotations__ = getattr(twin, "__annotations__", {})
     guarded.__signature__ = signature  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
     return guarded
 

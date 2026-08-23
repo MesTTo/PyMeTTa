@@ -22,6 +22,12 @@ Guarantees:
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
   - Expression is a complete immutable Sequence with iterative equality and hashing
     [tested test_expr_sequence_index_and_count, test_expr_identity_equality]
+  - Expression collects one generic iterable, snapshots a Space listing, and
+    keeps its kind when sliced [tested:
+    test_expression_collects_iterables_and_slices_keep_the_expression_kind,
+    test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - unary plus is atom identity and allocates no staged expression [tested:
+    test_unary_plus_is_atom_identity; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - Expression virtual Sequence registration uses 4.00% fewer instructions than
     nominal inheritance [measured 2026-08-14: minimum of three instructions:u runs]
   - Expression writes its slots through their descriptors rather than
@@ -473,6 +479,10 @@ class Atom:
         def __le__(self, other: Any) -> bool: ...
         def __gt__(self, other: Any) -> bool: ...
         def __ge__(self, other: Any) -> bool: ...
+
+    def __pos__(self) -> Self:
+        """Return this atom unchanged, Python's unary-plus identity law."""
+        return self
 
     def eq(self, other: Any) -> Expression:
         """The equality TERM, (== self other); == itself compares atoms."""
@@ -965,8 +975,9 @@ class Expression(Atom):
     """An expression: an ordered sequence of atoms. (likes Ada Coffee).
 
     Sequence-shaped, so Python's own idioms apply: expr[0] is car-atom,
-    len(expr) is size-atom, and case [head, *args] destructures it. None of
-    that costs an engine call.
+    len(expr) is size-atom, and case [head, *args] destructures it. A single
+    iterable supplies the children; a Space supplies its assembly-order
+    listing snapshot. None of that costs an engine call after construction.
     """
 
     __slots__ = {
@@ -979,16 +990,19 @@ class Expression(Atom):
     _hash: int | None
 
     def __init__(self, *children: Any) -> None:
-        """Build an expression from one sequence or positional Python values."""
-        parts: Sequence[Any]
-        if len(children) == 1 and (
-            type(children[0]) in (list, tuple)
-            or (
-                not isinstance(children[0], (str, bytes, Atom))
-                and isinstance(children[0], Sequence)
-            )
+        """Build from one iterable snapshot or positional Python values."""
+        parts: Iterable[Any]
+        candidate = children[0] if len(children) == 1 else None
+        if (
+            isinstance(candidate, Handle)
+            and getattr(type(candidate), "_expression_listing_snapshot", False)
+            is True
+        ) or (
+            candidate is not None
+            and not isinstance(candidate, (str, bytes, Atom))
+            and isinstance(candidate, Iterable)
         ):
-            parts = children[0]
+            parts = candidate
         else:
             parts = children
         _set_children(
@@ -1101,7 +1115,8 @@ class Expression(Atom):
         return True
 
     def __getitem__(self, i: int | slice) -> Any:
-        return self.children[i]
+        selected = self.children[i]
+        return _expression_atoms(selected) if isinstance(i, slice) else selected
 
     def index(self, value: Atom, start: int = 0, stop: int | None = None) -> int:
         if stop is None:

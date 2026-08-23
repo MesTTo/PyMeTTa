@@ -12,6 +12,12 @@ Guarantees:
     test_limit_validation_refuses_nonsense]
   - eager Rows retain normalized query context for why() [tested
     test_query_rows_explain_empty_results]
+  - query_count returns one integer from an engine-side aggregate rather than
+    crossing answer rows [tested:
+    test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - eager and prepared queries carry a scoped stack bound through the shared
+    limited-call selector [tested:
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,9 +30,9 @@ from typing import Any
 
 from ._engine import Runtime
 from ._name_mapping import resolve_known_name
-from ._space_objects import _column_names, _limits, guard_atom
-from .atoms import Atom, Expression, _atom_from_wire, _to_atom
-from .results import Rows, _QueryContext
+from ._space_objects import _apply_limited, _column_names, _limits, guard_atom
+from .atoms import Atom, Expression, _to_atom
+from .results import Rows
 
 
 class SolveRows(Rows):
@@ -59,27 +65,7 @@ def solve_rows(columns: tuple[str, ...], answers: list[Atom]) -> SolveRows:
     return SolveRows(columns, rows)
 
 
-def _query_target(
-    space: str,
-    wires: list[Any],
-    columns: list[str],
-    where: Atom | None,
-    limit: int | None,
-) -> tuple[str, list[Any]]:
-    if where is not None:
-        return "petta_py_query_guarded_all", [
-            space,
-            wires,
-            where.to_wire(),
-            columns,
-            limit or 0,
-        ]
-    if limit is not None:
-        return "petta_py_query_limit_all", [space, wires, columns, limit]
-    return "petta_py_query_all", [space, wires, columns]
-
-
-def query_rows(
+def query_count(
     rt: Runtime,
     space: str,
     patterns: tuple[Any, ...],
@@ -88,24 +74,26 @@ def query_rows(
     limit: int | None,
     timeout: float | None,
     inferences: int | None,
-) -> Rows:
-    """Execute one eager query and decode its rows."""
+) -> int:
+    """Count one query wholly inside the engine."""
     _validate_limit(limit)
-    atoms: list[Atom] = [_to_atom(pattern) for pattern in patterns]
+    atoms = [_to_atom(pattern) for pattern in patterns]
     guard = guard_atom(where)
     columns = _column_names(atoms)
-    predicate, inputs = _query_target(
+    inputs = [
         space,
         [atom.to_wire() for atom in atoms],
+        [] if guard is None else guard.to_wire(),
         columns,
-        guard,
-        limit,
-    )
-    answered = _execute_query(rt, predicate, inputs, _limits(timeout, inferences))
-    return Rows(
-        tuple(columns),
-        _decode_rows(answered),
-        _query=_QueryContext(space, tuple(atoms), guard),
+        limit or 0,
+    ]
+    return int(
+        _execute_query(
+            rt,
+            "petta_py_query_count",
+            inputs,
+            _limits(timeout, inferences),
+        )
     )
 
 
@@ -127,12 +115,8 @@ def _execute_query(
     rt: Runtime,
     predicate: str,
     inputs: list[Any],
-    limits: tuple[float, int] | None,
+    limits: tuple[float, int, int] | None,
 ) -> Any:
     if limits is None:
         return rt.apply_must(predicate, *inputs)
-    return rt.apply_must("petta_py_limited", *limits, predicate, inputs)
-
-
-def _decode_rows(answered: Any) -> list[tuple[Atom, ...]]:
-    return [tuple(_atom_from_wire(value) for value in row) for row in answered]
+    return _apply_limited(rt, limits, predicate, inputs)

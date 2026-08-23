@@ -7,6 +7,12 @@ Guarantees:
   - each numbered R5 item has a direct behavioral regression [tested:
     python -m pytest bindings/python/tests/test_r5_unbuilt_doors.py -q;
     commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+  - the package coordination family exposes future spaces, races, timers,
+    channels, parallel maps, and quiet-gap watch timeouts [tested:
+    test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - unary plus preserves atom identity while unary minus keeps its staged
+    subtraction meaning [tested: test_unary_plus_is_atom_identity;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -80,11 +86,60 @@ def test_take_peek_and_watch_retire_the_thread_linda_fn_strings(metta):
 def test_watch_close_before_first_event_cancels_its_eager_subscription(metta):
     """Closing a never-started watch releases its standing query."""
     reflection = metta._at("&petta")
-    descriptor = S.subscription(S[metta.name], S.r5_watch(V.n), S.add)
+    descriptor = S.subscription(S[metta.name], S.r5_watch(V.n), S["add"])
     changes = metta.watch(S.r5_watch(V.n))
     assert len(reflection.query(descriptor)) == 1
     changes.close()
     assert not reflection.query(descriptor)
+
+
+def test_the_coordination_family_is_python_shaped():
+    """Package coordination rides lib_thread while retaining space identity."""
+    from petta import Timeout, channel, every, par_map, race, spawn
+
+    m = petta.engine().self
+
+    @m.define(name="coord-inc")
+    def coord_inc(value):
+        return value + 1
+
+    future = spawn(S.coord_inc(41))
+    assert isinstance(future, petta.Space)
+    assert list(future.wait()) == [42]
+    assert list(future) == [42]
+    assert future.settled()
+
+    assert tuple(par_map(S.coord_inc, [1, 2, 3])) == (2, 3, 4)
+    assert race(S.coord_inc(1), S.coord_inc(2)) in {2, 3}
+
+    timer = every(0.01, S.coord_inc(9))
+    arrivals = iter(timer)
+    assert next(arrivals) == Grounded(10)
+    assert timer.cancel() is True
+    arrivals.close()
+
+    mailbox = channel(max=1)
+    assert mailbox.send(S.job(7)) is True
+    assert mailbox.recv(deadline=0.1) == S.job(7)
+    assert mailbox.try_recv() is None
+    with pytest.raises(Timeout):
+        mailbox.recv(deadline=0.01)
+    mailbox.close()
+
+    quiet = m._new_space()
+    changes = quiet.watch(S.never(V.value), deadline=0.01)
+    with pytest.raises(Timeout):
+        next(changes)
+    quiet.drop()
+
+    assert issubclass(Timeout, TimeoutError)
+
+
+def test_unary_plus_is_atom_identity():
+    """Unary plus has Python's identity meaning and constructs no term."""
+    assert +V.number is V.number
+    assert +S.value is S.value
+    assert -V.number == S["-"](0, V.number)
 
 
 def test_define_absorbs_class_declaration_and_frees_space_type(metta):
@@ -247,10 +302,11 @@ def test_rules_lower_refuses_an_empty_rule_set_before_mutating(metta):
         if False:
             yield equation(S.unreachable).to(S.unreachable)
 
-    before = tuple(metta)
-    with pytest.raises(ValueError, match="empty rule set"):
-        empty_rules.lower(S.topdown, requires=S.mork, space=metta)
-    assert tuple(metta) == before
+    with metta._new_space() as target:
+        before = target.digest()
+        with pytest.raises(ValueError, match="empty rule set"):
+            empty_rules.lower(S.topdown, requires=S.mork, space=target)
+        assert target.digest() == before
 
 
 def test_transaction_term_uses_empty_answer_rollback_law(metta):

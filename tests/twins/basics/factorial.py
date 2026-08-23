@@ -22,7 +22,14 @@ from petta import S, V
 #: a figure measured in this worktree would price a tree that never ships
 #: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 #: INTERIM PIN 2026-08-23, min-of-3 on the wave-merged tree (5119 against the example's 5858): this file gates the pytest lane, so it is priced ahead of the corpus-wide pass that follows the library fixes, the guide update, and the marked-site sweep, and it is re-priced there with everything else.
-BUDGET = 5119
+#: RE-PINNED 2026-08-23, 5119 to 4863, at the p14-library-fixes-2 merge. Two
+#: mechanisms: item 3 (f71a7eb3) stops materializing the full query result
+#: under .one(), -149; the kernel's native py-eq (50e914ec + 551f6236
+#: registration-time specialization) removes the Python host round trip from
+#: each recursive condition, -124 further, net -256 against this pin. Three
+#: identical merged-tree readings [measured 2026-08-23, min-of-3 through
+#: tools/twin_coverage.run_twin].
+BUDGET = 4863
 
 
 def twin(m):

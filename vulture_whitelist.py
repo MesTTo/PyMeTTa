@@ -61,6 +61,12 @@ _.transactional
 _.matching
 _.reachable
 _.watch
+_.pre_add
+_.send
+_.try_recv
+_.__match_args__
+_.__replace__
+_.__metta__
 _.__lt__
 # Subscription.drain is the queue spelling of Fold.take, documented as the
 # sugar it is; the general name is what the library calls internally now.
@@ -121,6 +127,7 @@ _._x_JoinedStr
 # These methods ship as pytest compliance suites and are collected after a
 # provider or gateway supplies the fixture class.
 _.test_enumeration_answers_what_the_provider_holds
+_.test_declared_length_answers_the_provider_size
 _.test_a_stored_atom_matches_itself
 _.test_an_open_pattern_answers_every_stored_atom_of_its_shape
 _.test_a_bound_position_selects_whatever_the_provider_yielded

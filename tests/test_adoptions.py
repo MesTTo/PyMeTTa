@@ -272,7 +272,7 @@ def test_a_weighted_relation_is_an_annotated_op(m):  # noqa: D103  -- pytest dis
         yield Answer(value=S.tense, k=0.75)
 
     m.op(mood, name="mood")
-    m.declare_annotations("mood", "prob")
+    m.annotations("mood", "prob")
     (classes,) = m.run("!(collapse (mood today))")[0]
     assert [str(c) for c in classes] == ["calm", "tense"]
     (best,) = m.run("!(collapse (top 1 (mood today)))")[0]

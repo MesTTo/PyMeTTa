@@ -1,23 +1,18 @@
-"""Purpose: turn Python callable documentation into the portable MeTTa
-``(@doc name (@desc ...) (@params ...) (@return ...))`` atom the operation and
-definition lifecycles write, and that get-doc answers.
-Assumes: a sectioned docstring is Google style, the style this repository and
-  napoleon both write; anything else stays one description and loses nothing.
+"""Purpose: project Python callable and record documentation into portable
+``@doc`` atoms, including kinds, types, descriptions, and MeTTa doctests.
+Assumes: structured callable prose uses Google docstring sections; examples
+  intended for MeTTa start with ``!(`` and answer with a Python literal.
 Guarantees:
-  - inspect.getdoc supplies one cleaned description, or no atom when the
-    source has no documentation [tested:
-    test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - compiled definitions use the same portable atom and cleaned text [tested:
-    test_one_docstring_reaches_help_dot_doc_and_get_doc;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - an Args section becomes one (@param ...) per PARAMETER OF THE SIGNATURE, in
-    signature order, and a Returns section becomes (@return ...), which is the
-    engine's own shape [tested:
-    test_a_docstring_emits_the_whole_doc_vocabulary; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-Fails when: a docstring documents a parameter the signature does not have. The
-  signature decides the list and its order, so the stray entry is dropped
-  rather than shifting every later parameter's description onto the wrong one.
+  - docstring-parser owns Google section parsing while signature order owns
+    positional ``@param`` order [tested:
+    test_a_docstring_emits_the_whole_doc_vocabulary; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - annotations project through ``metta_type_for`` and missing annotations stay
+    explicit as ``%Undefined%`` [tested:
+    test_a_docstring_emits_the_whole_doc_vocabulary; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - adjacent attribute docstrings become record-field descriptions [tested:
+    test_record_attribute_docstrings_describe_parameters; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+Fails when: a MeTTa doctest expectation is not a Python literal. Emission
+  refuses it rather than publishing a different example than the author wrote.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,110 +21,169 @@ Open Obligations:
 
 from __future__ import annotations
 
+import ast
+import doctest
 import inspect
-import re
+import textwrap
+from collections.abc import Mapping, Sequence
 from typing import Any
 
-from .atoms import Expression, S, _expr
+# The runtime dependency does not publish typing metadata.
+import docstring_parser as _docstring_parser  # type: ignore[import-not-found]
 
-__all__ = ["documentation_atom"]
+from ._type_annotations import metta_type_for
+from .atoms import Expression, S, _expr, parse
 
-#: A Google-style section header, `Args:` or `Returns:` on its own line. The
-#: names are napoleon's, so a docstring written for Sphinx reads here too
-#: [source: sphinx.ext.napoleon, "Google style", the _sections table].
-_SECTION = re.compile(
-    r"^(Args|Arguments|Parameters|Returns|Return|Yields|Raises|Examples|Example|"
-    r"Note|Notes|Attributes|Warns|Warnings|Todo|References|See Also)\s*:\s*$",
-    re.MULTILINE,
-)
+DocstringStyle = _docstring_parser.DocstringStyle
+parse_docstring = _docstring_parser.parse
 
-#: One documented parameter inside an Args section: a name, an optional
-#: parenthesised type, then a colon and the description. Continuation lines are
-#: indented further and are joined onto it.
-_PARAMETER = re.compile(r"^(\*{0,2}\w+)\s*(?:\([^)]*\))?\s*:\s*(.*)$")
-
-_ARGUMENT_SECTIONS = frozenset({"Args", "Arguments", "Parameters"})
-_RETURN_SECTIONS = frozenset({"Returns", "Return", "Yields"})
+__all__ = ["attribute_docstrings", "documentation_atom"]
 
 
-def _sections(documentation: str) -> tuple[str, dict[str, str]]:
-    """Split a cleaned docstring into its summary and its named sections."""
-    matches = list(_SECTION.finditer(documentation))
-    if not matches:
-        return documentation, {}
-    summary = documentation[: matches[0].start()].strip()
-    sections: dict[str, str] = {}
-    for index, match in enumerate(matches):
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(documentation)
-        sections[match.group(1)] = documentation[match.end() : end].strip("\n")
-    return summary, sections
-
-
-def _documented_parameters(body: str) -> dict[str, str]:
-    """Read an Args section into name-to-description pairs."""
-    described: dict[str, str] = {}
-    current: str | None = None
-    for line in inspect.cleandoc(body).splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        match = _PARAMETER.match(stripped)
-        if match is not None and not line.startswith((" ", "\t")):
-            current = match.group(1).lstrip("*")
-            described[current] = match.group(2).strip()
-        elif current is not None:
-            described[current] = f"{described[current]} {stripped}".strip()
-    return described
-
-
-def _parameter_names(source: object) -> list[str]:
-    """The callable's own parameter names, in signature order."""
+def _signature(source: object) -> inspect.Signature | None:
     if not callable(source):
-        return []
+        return None
     try:
-        signature = inspect.signature(source)
+        return inspect.signature(source)
     except (TypeError, ValueError):
-        return []
-    return [
-        name
-        for name, parameter in signature.parameters.items()
-        if parameter.kind is not inspect.Parameter.VAR_KEYWORD and name != "self"
+        return None
+
+
+def _description(text: str | None) -> Expression:
+    return _expr(S["@desc"], " ".join((text or "").split()))
+
+
+def _type(annotation: Any) -> Expression:
+    return _expr(S["@type"], S[metta_type_for(annotation)])
+
+
+def _parameters(
+    source: object,
+    described: Mapping[str, str],
+    *,
+    names: Sequence[str] | None,
+    annotations: Mapping[str, Any] | None,
+) -> Expression | None:
+    signature = _signature(source)
+    if names is None:
+        if signature is None:
+            return None
+        parameters = [
+            parameter
+            for parameter in signature.parameters.values()
+            if parameter.name != "self"
+            and parameter.kind is not inspect.Parameter.VAR_KEYWORD
+        ]
+    else:
+        annotations = annotations or {}
+        parameters = [
+            inspect.Parameter(
+                name,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                annotation=annotations.get(name, inspect.Parameter.empty),
+            )
+            for name in names
+        ]
+    if not parameters:
+        return None
+    entries = [
+        _expr(
+            S["@param"],
+            _type(parameter.annotation),
+            _description(described.get(parameter.name)),
+        )
+        for parameter in parameters
     ]
+    return _expr(S["@params"], _expr(*entries))
 
 
-def _paragraph(text: str) -> str:
-    """One section's text as a single line, the way the engine's own @doc reads."""
-    return " ".join(inspect.cleandoc(text).split())
+def _examples(documentation: str) -> list[Expression]:
+    emitted: list[Expression] = []
+    for example in doctest.DocTestParser().get_examples(documentation):
+        source = example.source.strip()
+        if not source.startswith("!("):
+            continue
+        call = parse(source[1:])
+        try:
+            expected = ast.literal_eval(example.want.strip())
+        except (SyntaxError, ValueError) as exc:
+            msg = f"MeTTa doctest {source!r} must answer with a Python literal"
+            raise ValueError(msg) from exc
+        answers = expected if isinstance(expected, (list, tuple)) else [expected]
+        emitted.append(_expr(S["@example"], call, _expr(*answers)))
+    return emitted
 
 
-def documentation_atom(name: str, source: object) -> Expression | None:
-    """Return the source's docstring as the engine's own @doc vocabulary."""
+def documentation_atom(
+    name: str,
+    source: object,
+    *,
+    kind: str,
+    parameters: Sequence[str] | None = None,
+    annotations: Mapping[str, Any] | None = None,
+    parameter_descriptions: Mapping[str, str] | None = None,
+) -> Expression | None:
+    """Return one complete portable ``@doc`` atom for ``source``."""
     documentation = inspect.getdoc(source)
     if not documentation:
         return None
-    summary, sections = _sections(documentation)
-    fields: list[Any] = [_expr(S["@desc"], summary or documentation)]
+    parsed = parse_docstring(documentation, style=DocstringStyle.GOOGLE)
+    described = {item.arg_name: item.description or "" for item in parsed.params}
+    described.update(parameter_descriptions or {})
+    fields: list[Any] = [
+        _expr(S["@kind"], S[kind]),
+        _description(parsed.short_description or documentation),
+    ]
+    params = _parameters(
+        source,
+        described,
+        names=parameters,
+        annotations=annotations,
+    )
+    if params is not None:
+        fields.append(params)
 
-    described = {}
-    for heading in _ARGUMENT_SECTIONS:
-        if heading in sections:
-            described = _documented_parameters(sections[heading])
-            break
-    if described:
-        # The SIGNATURE decides the list and its order, because a @param is
-        # positional in the engine's shape: the nth (@param ...) documents the
-        # nth argument, so a docstring that names a parameter the function does
-        # not take must not shift the rest.
-        ordered = [
-            _expr(S["@param"], described.get(parameter, ""))
-            for parameter in _parameter_names(source)
-        ]
-        if ordered:
-            fields.append(_expr(S["@params"], _expr(*ordered)))
-
-    for heading in _RETURN_SECTIONS:
-        if heading in sections:
-            fields.append(_expr(S["@return"], _paragraph(sections[heading])))
-            break
-
+    signature = _signature(source)
+    return_annotation = (
+        signature.return_annotation
+        if signature is not None
+        else (annotations or {}).get("return", inspect.Parameter.empty)
+    )
+    if kind != "record" and (
+        parsed.returns is not None or return_annotation is not inspect.Parameter.empty
+    ):
+        fields.append(
+            _expr(
+                S["@return"],
+                _type(return_annotation),
+                _description(parsed.returns.description if parsed.returns else None),
+            )
+        )
+    fields.extend(_examples(documentation))
     return _expr(S["@doc"], S[name], *fields)
+
+
+def attribute_docstrings(target: type) -> dict[str, str]:
+    """Read string literals immediately following annotated class fields."""
+    try:
+        source = textwrap.dedent(inspect.getsource(target))
+    except (OSError, TypeError):
+        return {}
+    tree = ast.parse(source)
+    class_node = next(
+        (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)),
+        None,
+    )
+    if class_node is None:
+        return {}
+    found: dict[str, str] = {}
+    for declaration, prose in zip(class_node.body, class_node.body[1:], strict=False):
+        if (
+            isinstance(declaration, ast.AnnAssign)
+            and isinstance(declaration.target, ast.Name)
+            and isinstance(prose, ast.Expr)
+            and isinstance(prose.value, ast.Constant)
+            and isinstance(prose.value.value, str)
+        ):
+            found[declaration.target.id] = inspect.cleandoc(prose.value.value)
+    return found

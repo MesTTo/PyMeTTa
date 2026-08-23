@@ -29,12 +29,18 @@
 %     not only their own [tested 2026-08-19:
 %     test_both_doors_replace_a_files_definitions,
 %     test_loading_the_same_file_twice_leaves_one_copy]
+%   - stack-bounded text and fast loads have explicit wrappable entries for
+%     petta_py_limited/6 [tested:
+%     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - Engine atom hooks exist only while a Python space subscription exists
 %     [tested test_subscription_hooks_follow_the_active_space_set]
 %   - petta_py_new_space/2 and petta_py_release_space/1 keep inherited-space
 %     declarations aligned with anonymous-name reuse [tested:
 %     test_a_recycled_child_name_may_choose_a_different_parent;
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+%   - petta_py_open_atom_space/2 decodes and declares a ground expression
+%     identity once for Python space handles [tested:
+%     test_python_space_factory_accepts_atom_valued_names; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]
@@ -44,10 +50,12 @@
 %     commit=3c7bcde6a0670ec5c563584b26977b41cc727580]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
-%   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
+%   - petta_py_eval_status_all/3, petta_py_eval_status_using_all/4, and
+%     petta_py_run_status/3 report which of
 %     PeTTa's evaluation paths produced each answer, leaving the ordinary
-%     entry points' output unchanged [tested
-%     test_eval_status_reports_the_four_outcomes]
+%     entry points' output unchanged [tested:
+%     test_eval_status_reports_the_four_outcomes,
+%     test_strict_eval_refuses_only_not_reducible; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - the held evaluation cursor is present at bridge boot, so the first lazy
 %     answer pull performs no late consult [tested:
 %     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -142,6 +150,10 @@
 %     561467, 440 over 20 queries on 2026-08-21; command=python bench.py query-2k-rows
 %     --counter-only; fixture=2000-row native space;
 %     commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
+%   - petta_py_query_count/6 counts a query inside the engine for an untouched
+%     lazy Python answer view [tested:
+%     test_query_answers_complete_the_lazy_projection_protocol;
+%     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - evaluation emits one undefined-truth frame and never a flag-selected
 %     residual-program shape [tested:
 %     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -669,9 +681,11 @@ petta_py_wrappable(petta_py_run_using).
 petta_py_wrappable(petta_py_query_all).
 petta_py_wrappable(petta_py_query_guarded_all).
 petta_py_wrappable(petta_py_query_limit_all).
+petta_py_wrappable(petta_py_query_count).
 petta_py_wrappable(petta_py_eval_all).
 petta_py_wrappable(petta_py_eval_using_all).
 petta_py_wrappable(petta_py_eval_status_all).
+petta_py_wrappable(petta_py_eval_status_using_all).
 petta_py_wrappable(petta_py_run_status).
 petta_py_wrappable(petta_py_captured).
 petta_py_wrappable(petta_py_atomic).
@@ -680,6 +694,11 @@ petta_py_wrappable(petta_py_profiled).
 petta_py_wrappable(petta_py_cursor_next).
 petta_py_wrappable(petta_py_eval_count).
 petta_py_wrappable(petta_py_derivation).
+petta_py_wrappable(petta_py_load).
+petta_py_wrappable(petta_py_fast_load_unit).
+
+petta_py_fast_load_unit(File, Space, []) :-
+    petta_py_fast_load(File, Space).
 
 petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-
     ( atom(Pred0) -> Pred = Pred0 ; atom_string(Pred, Pred0) ),
@@ -767,10 +786,18 @@ petta_py_speculative(Pred, Ins, Out) :-
 %dynamic extent lives on the engine's own stack, so it spans every resume,
 %the cumulative-budget reading. Wall bounds stay outside, per pull, where
 %idle time between pulls cannot count.
-petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Inf, prolog(Engine)) :-
-    ( GuardTagged == [] ->
-        Goal = petta_py_query(Space, PatternsTagged, VarNames, Row)
-    ; Goal = petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row)
+petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf,
+                     prolog(Engine)) :-
+    (   GuardTagged == [], Limit > 0,
+        PatternsTagged = [PatternTagged], seam:foreign_space(Space)
+    ->  Goal0 = petta_py_bounded_query(Space, PatternTagged, VarNames,
+                                       Limit, Row)
+    ;   GuardTagged == []
+    ->  Goal0 = petta_py_query(Space, PatternsTagged, VarNames, Row)
+    ;   Goal0 = petta_py_query_guarded(Space, PatternsTagged, GuardTagged,
+                                       VarNames, Row)
+    ),
+    ( Limit > 0 -> Goal = limit(Limit, Goal0) ; Goal = Goal0
     ),
     ( Inf < 0 -> Bounded = Goal
     ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
@@ -1247,6 +1274,10 @@ petta_py_new_space(Parent0, Name) :-
     catch(metta_declare_space_parent(Name, Parent), Error,
           ( petta_py_pool_space(Name), throw(Error) )).
 
+petta_py_open_atom_space(NameWire, Space) :-
+    petta_py_decode_shared(NameWire, Space, _),
+    metta_declare_parametric_space(Space).
+
 petta_py_new_restricted_space(Grants0, Name) :-
     maplist(petta_py_space_capability, Grants0, Grants),
     petta_py_new_space(Name),
@@ -1274,15 +1305,19 @@ petta_py_pool_space(Name) :-
     ( petta_py_free_space(Name) -> true ; assertz(petta_py_free_space(Name)) ).
 
 petta_py_space_releasable(Name0) :-
-    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    ( atom(Name0) -> Name = Name0
+    ; string(Name0) -> atom_string(Name, Name0)
+    ; Name = Name0 ),
     metta_assert_space_releasable(Name).
 
 %Release a space: everything cleared, inheritance unlinked, the execution
 %base forgotten, and only then the name pooled for reuse.
 petta_py_release_space(Name0) :-
-    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    ( atom(Name0) -> Name = Name0
+    ; string(Name0) -> atom_string(Name, Name0)
+    ; Name = Name0 ),
     metta_release_space(Name),
-    petta_py_pool_space(Name).
+    ( atom(Name) -> petta_py_pool_space(Name) ; true ).
 
 %%%%%%%%%% Query %%%%%%%%%%
 %
@@ -1348,6 +1383,23 @@ petta_py_match_goal(Space, Ps, match(Space, [','|Ps], answered, answered)).
 
 petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
     findall(Row, petta_py_query(Space, PatternsTagged, VarNames, Row), Rows).
+
+%Count without encoding or crossing answer rows. GuardTagged=[] selects the
+%unguarded query, and Limit=0 means unbounded, matching the eager query doors.
+petta_py_query_count(Space, PatternsTagged, GuardTagged, VarNames, Limit, Count) :-
+    (   GuardTagged == [], Limit > 0,
+        PatternsTagged = [PatternTagged], seam:foreign_space(Space)
+    ->  Query = petta_py_bounded_query(Space, PatternTagged, VarNames,
+                                       Limit, _)
+    ;   GuardTagged == []
+    ->  Query = petta_py_query(Space, PatternsTagged, VarNames, _)
+    ;   Query = petta_py_query_guarded(Space, PatternsTagged, GuardTagged,
+                                       VarNames, _)
+    ),
+    (   Limit > 0
+    ->  aggregate_all(count, limit(Limit, Query), Count)
+    ;   aggregate_all(count, Query, Count)
+    ).
 
 %The seam's own decision for this query, shown without running it, is the
 %engine's metta_host_explain_match/3; this renders its term report as the
@@ -1755,10 +1807,19 @@ petta_py_eval_term(Space, Term, Encoded) :-
 %so this reports the branch the engine actually took rather than guessing
 %from the answer [tested test_eval_status_reports_the_four_outcomes].
 petta_py_eval_status_all(Space, Tagged, Results) :-
-    petta_py_decode_shared(Tagged, Term, _),
+    petta_py_target_term(Space, Tagged, Term),
+    petta_py_eval_status_term(Space, Term, Results).
+
+petta_py_eval_status_using_all(Space, Tagged, Pairs, Results) :-
+    petta_py_target_term(Space, Tagged, Term0),
+    maplist(petta_py_using_pair, Pairs, Bindings),
+    metta_host_substitute(Bindings, Term0, Term),
+    petta_py_eval_status_term(Space, Term, Results).
+
+petta_py_eval_status_term(Space, Term, Results) :-
     petta_py_module(Space, Module),
     petta_py_eval_status(Module, Term, Status),
-    findall([Status, E], petta_py_eval_bounded(Space, Tagged, E), Answers),
+    findall([Status, E], petta_py_eval_term_bounded(Space, Term, E), Answers),
     ( Answers == []
       -> ( Status == 'not-reducible',
            petta_py_preserve_unmatched(Space, Term, Original)

@@ -3,6 +3,9 @@ union, readonly, mapped, and overlay are ordinary SpaceProvider instances;
 the same engine route therefore matches a live object or composes existing
 spaces without hardcoded integration paths.
 Guarantees:
+  - view presents mappings and zero-based sequences through one kv relation
+    and sets as members, reading the Python object afresh for every query
+    [tested: test_view_is_a_live_queryable_space; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - union and readonly implement no write operation, so the engine's own
     capability refusal answers add-atom on them [tested
     test_union_refuses_writes_through_the_engine]
@@ -24,7 +27,8 @@ Open Obligations:
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from typing import Any
 
 from ._object_fields import field_names
@@ -54,7 +58,118 @@ __all__ = [
     "overlay",
     "readonly",
     "union",
+    "view",
 ]
+
+
+class _LiveDataView(SpaceProvider):
+    """A dict, set, or sequence read through its current Python contents."""
+
+    _relation = Symbol("kv")
+
+    def __init__(self, obj: Mapping[Any, Any] | AbstractSet[Any] | Sequence[Any]) -> None:
+        self.object = obj
+        self._members = isinstance(obj, AbstractSet)
+
+    @staticmethod
+    def _key_atom(key: Any) -> Atom:
+        return Symbol(key) if isinstance(key, str) else _encode(key)
+
+    def _entries(self) -> Iterator[tuple[Any, Any]]:
+        if isinstance(self.object, Mapping):
+            yield from self.object.items()
+        elif isinstance(self.object, Sequence):
+            yield from enumerate(self.object)
+
+    def _kv_atom(self, key: Any, value: Any) -> Expression:
+        return Expression([self._relation, self._key_atom(key), _encode(value)])
+
+    def atoms(self) -> Iterator[Atom]:
+        """Enumerate the object's current transparent image."""
+        if self._members:
+            yield from (_encode(member) for member in self.object)
+            return
+        yield from (self._kv_atom(key, value) for key, value in self._entries())
+
+    def match(self, pattern: Atom) -> Iterator[Atom]:
+        """Narrow bound keys by lookup and reverse-bound values by a scan."""
+        if self._members:
+            yield from self._match_member(pattern)
+            return
+        if (
+            not isinstance(pattern, Expression)
+            or len(pattern.children) != 3
+            or pattern.children[0] != self._relation
+        ):
+            return
+        key_pattern, _value_pattern = pattern.children[1:]
+        for key, value in self._matching_entries(key_pattern):
+            candidate = self._kv_atom(key, value)
+            if unify(pattern, candidate) is not None:
+                yield candidate
+
+    def _matching_entries(self, key_pattern: Atom) -> Iterator[tuple[Any, Any]]:
+        if isinstance(key_pattern, Variable):
+            yield from self._entries()
+            return
+        if isinstance(self.object, Mapping):
+            keys: tuple[Any, ...]
+            if isinstance(key_pattern, Symbol):
+                keys = (key_pattern, key_pattern.name)
+            elif isinstance(key_pattern, Grounded):
+                keys = (_decode(key_pattern),)
+            else:
+                keys = (key_pattern,)
+            seen: set[int] = set()
+            for key in keys:
+                try:
+                    value = self.object[key]
+                except (KeyError, TypeError):
+                    continue
+                identity = id(key)
+                if identity not in seen:
+                    seen.add(identity)
+                    yield key, value
+            return
+        if isinstance(key_pattern, Grounded) and isinstance(self.object, Sequence):
+            index = _decode(key_pattern)
+            if type(index) is int and 0 <= index < len(self.object):
+                yield index, self.object[index]
+
+    def _match_member(self, pattern: Atom) -> Iterator[Atom]:
+        if _is_ground(pattern):
+            member = _decode(pattern)
+            try:
+                present = member in self.object
+            except TypeError:
+                present = False
+            if present:
+                candidate = _encode(member)
+                if unify(pattern, candidate) is not None:
+                    yield candidate
+            return
+        for candidate in self.atoms():
+            if unify(pattern, candidate) is not None:
+                yield candidate
+
+
+def view(obj: Any):
+    """Return an attached live space over a dict, set, or sequence.
+
+    Dictionaries image as ``(kv key value)``. Sequences use that same relation
+    with zero-based integer keys, matching Python's indices; a value-bound
+    query therefore answers every matching index. Sets image as raw members.
+    External mutations are visible on the next query.
+    """
+    supported = isinstance(obj, (Mapping, AbstractSet)) or (
+        isinstance(obj, Sequence) and not isinstance(obj, (str, bytes, bytearray))
+    )
+    if not supported:
+        msg = "view expects a dict, set, or non-string sequence"
+        raise TypeError(msg)
+    from ._space import MeTTa  # noqa: PLC0415 -- the satellite stays lazy at root import
+
+    return MeTTa().space(backing=_LiveDataView(obj))
 
 
 class ObjectView(SpaceProvider):
@@ -257,7 +372,7 @@ def union(*spaces: Any) -> _Union:
 class _ReadOnly(SpaceProvider):
     """The inner space with every write capability stripped: reads
     forward, and the absence of write methods makes the engine refuse
-    add-atom with its standing capability error. declare_writes carries
+    add-atom with its standing capability error. ``writes`` carries
     the policy vocabulary; this is the one-line spelling for handing a
     space to code that must not mutate it.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

@@ -10,6 +10,9 @@ Guarantees:
     policy is reflected by atoms rather than boolean flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - implicit operation names map every underscore to a hyphen while an
+    explicit name remains exact [tested: test_op_uses_the_define_name_ladder;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,6 +45,27 @@ from petta.errors import EngineError, StrictError
 
 def unique(prefix: str) -> str:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return f"{prefix}-{uuid.uuid4().hex[:8]}"
+
+
+def test_op_uses_the_define_name_ladder(metta):  # noqa: D103 -- pytest discovers this naming contract by name
+    @metta.op
+    def implicit_operation(value):
+        return value
+
+    @metta.op(name="exact_operation")
+    def explicit_operation(value):
+        return value
+
+    try:
+        assert metta.eval(S.implicit_operation(7)) == [7]
+        assert metta.eval(S["exact_operation"](8)) == [8]
+        assert metta.eval(S["implicit_operation"](7)) == [S["implicit_operation"](7)]
+    finally:
+        for registered_name in ("implicit-operation", "implicit_operation", "exact_operation"):
+            try:
+                metta.unregister_op(registered_name)
+            except KeyError:
+                pass
 
 
 def test_det_op_composes_with_equations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

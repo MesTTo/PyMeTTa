@@ -1,5 +1,9 @@
 """Purpose: query, profiling, scope, and callable objects returned by MeTTa.
 Guarantees:
+  - scoped timeout, inference, and stack-byte bounds are task-local and stack
+    bounds select ``petta_py_limited/6`` while the unbounded path preserves
+    ``petta_py_limited/5`` [tested:
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - Cursor keeps exhaustion distinct from explicit close [tested
     test_stream_agrees_with_query_and_closes_on_exhaustion]
   - Prepared preserves first-appearance query columns [tested
@@ -8,6 +12,9 @@ Guarantees:
     bracket names, resolves a trailing bang, and rejects unknown names at
     access [tested: test_bound_function_namespace_validates_at_access;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - bound function attributes consult the operator word table before the
+    mechanical map [tested: test_operator_words_precede_the_mechanical_name_map;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - a resolved bang call completes before the call returns while retaining a
     replayable answer view [tested: test_resolved_bang_call_is_eager;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -36,6 +43,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._engine import Runtime
+from ._name_mapping import operator_attribute_target
 from .atoms import (
     Atom,
     Expression,
@@ -79,8 +87,8 @@ def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str)
 #: The scoped defaults `with m.limits(...)` sets: a contextvar, so the
 #: scope is async-correct and thread-local the way decimal.localcontext
 #: is. Per-call kwargs override by simply not being None.
-_SCOPED_LIMITS: ContextVar[tuple[float | None, int | None]] = ContextVar(
-    "petta_scoped_limits", default=(None, None)
+_SCOPED_LIMITS: ContextVar[tuple[float | None, int | None, int | None]] = ContextVar(
+    "petta_scoped_limits", default=(None, None, None)
 )
 
 
@@ -89,10 +97,16 @@ class ScopedLimits:
     entry, restores the previous scope on exit, exceptions included.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, timeout: float | None, inferences: int | None) -> None:
+    def __init__(
+        self,
+        timeout: float | None,
+        inferences: int | None,
+        stack: int | None,
+    ) -> None:
         _require_bound(timeout, "timeout", (int, float), "seconds as a number")
         _require_bound(inferences, "inferences", (int,), "a positive int")
-        self._value = (timeout, inferences)
+        _require_bound(stack, "stack", (int,), "a positive byte count")
+        self._value = (timeout, inferences, stack)
         self._token: Any = None
 
     def __enter__(self) -> Self:
@@ -103,25 +117,50 @@ class ScopedLimits:
         _SCOPED_LIMITS.reset(self._token)
 
 
-def _limits(timeout: float | None, inferences: int | None) -> tuple[float, int] | None:
-    """Validate the per-call bounds into the shim's (-1 = none) pair.
+def _limits(
+    timeout: float | None,
+    inferences: int | None,
+    stack: int | None = None,
+) -> tuple[float, int, int] | None:
+    """Validate the per-call bounds into the shim's ``-1 = none`` triple.
     A bound the call did not name falls back to the scoped default
     m.limits() set, which is how one with-block replaces a parameter
     forest while every per-call kwarg still overrides.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if timeout is None or inferences is None:
-        scoped_timeout, scoped_inferences = _SCOPED_LIMITS.get()
+    if timeout is None or inferences is None or stack is None:
+        scoped_timeout, scoped_inferences, scoped_stack = _SCOPED_LIMITS.get()
         if timeout is None:
             timeout = scoped_timeout
         if inferences is None:
             inferences = scoped_inferences
-    if timeout is inferences is None:
+        if stack is None:
+            stack = scoped_stack
+    if timeout is inferences is stack is None:
         return None
     _require_bound(timeout, "timeout", (int, float), "seconds as a number")
     _require_bound(inferences, "inferences", (int,), "a positive int")
+    _require_bound(stack, "stack", (int,), "a positive byte count")
     return (
         -1.0 if timeout is None else float(timeout),
         -1 if inferences is None else int(inferences),
+        -1 if stack is None else int(stack),
+    )
+
+
+def _apply_limited(
+    runtime: Runtime,
+    limits: tuple[float, int, int],
+    predicate: str,
+    inputs: list[Any],
+) -> Any:
+    """Apply the preserved /5 seam or stack-aware /6 seam as required."""
+    seconds, steps, stack = limits
+    if stack < 0:
+        return runtime.apply_must(
+            "petta_py_limited", seconds, steps, predicate, inputs
+        )
+    return runtime.apply_must(
+        "petta_py_limited", seconds, steps, stack, predicate, inputs
     )
 
 
@@ -425,6 +464,7 @@ class Cursor:
         "_row_cls",
         "_rt",
         "_space_name",
+        "_stack",
         "_timeout",
         "_where_atom",
         "columns",
@@ -437,6 +477,8 @@ class Cursor:
         where: Any | None,
         timeout: float | None,
         inferences: int | None,
+        *,
+        limit: int | None = None,
     ) -> None:
         atoms = [_to_atom(p) for p in patterns]
         columns = _column_names(atoms)
@@ -448,6 +490,7 @@ class Cursor:
         # wraps each pull outside, where idle time between pulls is free.
         self._timeout = None if limits is None or limits[0] < 0 else limits[0]
         steps = -1 if limits is None else limits[1]
+        self._stack = -1 if limits is None else limits[2]
         self._rt = space.runtime
         self._atoms = atoms
         self._space_name = space.name
@@ -456,7 +499,13 @@ class Cursor:
         self._where_atom = checked
         guard = [] if checked is None else checked.to_wire()
         self._handle = self._rt.apply_must(
-            "petta_py_cursor_open", space.name, wires, guard, columns.copy(), steps
+            "petta_py_cursor_open",
+            space.name,
+            wires,
+            guard,
+            columns.copy(),
+            limit or 0,
+            steps,
         )
         self._closed = False
         self._exhausted = False
@@ -481,13 +530,12 @@ class Cursor:
         if self._closed:
             msg = "this cursor is closed"
             raise PettaError(msg)
-        if self._timeout is None:
+        if self._timeout is None and self._stack < 0:
             answer = self._rt.apply_must("petta_py_cursor_next", self._handle)
         else:
-            answer = self._rt.apply_must(
-                "petta_py_limited",
-                self._timeout,
-                -1,
+            answer = _apply_limited(
+                self._rt,
+                (-1.0 if self._timeout is None else self._timeout, -1, self._stack),
                 "petta_py_cursor_next",
                 [self._handle],
             )
@@ -737,7 +785,7 @@ class Prepared:
         if limits is None:
             answered = rt.apply_must(pred, *ins)
         else:
-            answered = rt.apply_must("petta_py_limited", *limits, pred, ins)
+            answered = _apply_limited(rt, limits, pred, ins)
         decoded = [tuple(_atom_from_wire(v) for v in r) for r in answered]
         return Rows(self.columns, decoded)
 
@@ -976,7 +1024,9 @@ class _FunctionNamespace:
     def __getattr__(self, name: str) -> _EngineFunction:
         if name.startswith("_"):
             raise AttributeError(name)
-        return self._resolve(name.replace("_", "-"), attribute=name)
+        resolved = operator_attribute_target(name)
+        target = name.replace("_", "-") if resolved is None else resolved
+        return self._resolve(target, attribute=name)
 
     def __getitem__(self, name: str) -> _EngineFunction:
         if not isinstance(name, str) or not name:

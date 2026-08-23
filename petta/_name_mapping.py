@@ -5,6 +5,10 @@ Guarantees:
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - generated aliases are identifiers, non-keywords, NFKC-stable, and unique
     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - Symbol attribute doors consult Python's operator word vocabulary before
+    the mechanical name map, while composite operators refuse with their
+    explicit images [tested: test_operator_words_precede_the_mechanical_name_map;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,6 +19,42 @@ from __future__ import annotations
 
 import keyword
 from collections.abc import Callable, Iterable
+from typing import Final
+
+# Python's operator module owns these public words. ``neg`` and ``floordiv``
+# are intentionally absent because each needs more than one engine head.
+# [source: https://docs.python.org/3.14/library/operator.html; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+OPERATOR_WORDS: Final[dict[str, str]] = {
+    "eq": "==",
+    "ne": "!=",
+    "lt": "<",
+    "le": "<=",
+    "gt": ">",
+    "ge": ">=",
+    "add": "+",
+    "sub": "-",
+    "mul": "*",
+    "mod": "%",
+    "pow": "pow-math",
+    "truediv": "/",
+}
+
+_COMPOSITE_OPERATOR_IMAGES: Final[dict[str, str]] = {
+    "neg": "(- 0 x)",
+    "floordiv": "floor-math over /",
+}
+
+
+def operator_attribute_target(identifier: str) -> str | None:
+    """Resolve one operator word, refusing words without one target head."""
+    image = _COMPOSITE_OPERATOR_IMAGES.get(identifier)
+    if image is not None:
+        msg = (
+            f"operator word {identifier!r} has no single engine head; "
+            f"its image is {image}"
+        )
+        raise AttributeError(msg)
+    return OPERATOR_WORDS.get(identifier)
 
 
 def attribute_name(identifier: str) -> str:
@@ -86,4 +126,10 @@ def generated_aliases(names: Iterable[str]) -> dict[str, str]:
         )
         msg = f"catalog names have ambiguous Python aliases: {details}"
         raise ValueError(msg)
-    return {alias: targets[0] for alias, targets in sorted(candidates.items())}
+    aliases = {alias: targets[0] for alias, targets in sorted(candidates.items())}
+    aliases.update(
+        (word, target)
+        for word, target in OPERATOR_WORDS.items()
+        if target in catalog
+    )
+    return dict(sorted(aliases.items()))

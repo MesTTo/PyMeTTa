@@ -3,9 +3,15 @@ Guarantees:
   - the atom ordering expectation is elementwise for unequal expression
     lengths [tested: test_atoms_sort_in_prologs_standard_order;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+  - the kind ladder follows msort's string, opaque, empty-list, symbol order
+    [tested: test_atoms_sort_in_prologs_standard_order; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - rational grounded numbers retain exact Fraction wire payloads [tested:
     test_numbers_tower_reals_normalize_and_non_reals_stay_opaque;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - Expression collects a single iterable and slicing preserves Expression
+    [tested:
+    test_expression_collects_iterables_and_slices_keep_the_expression_kind;
+    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Owns:
   - test_atom_identity_caches_are_thread_safe joins every cache worker
     before checking identity [tested test_atom_identity_caches_are_thread_safe]
@@ -180,6 +186,16 @@ def test_expr_is_a_sequence():  # noqa: D103  -- pytest discovers or injects thi
         case _:
             msg = "sequence pattern did not match"
             raise AssertionError(msg)
+
+
+def test_expression_collects_iterables_and_slices_keep_the_expression_kind() -> None:
+    """One iterable supplies children and a slice remains term-shaped."""
+    generated = (value for value in (S.a, 1, S.b))
+    atom = Expression(generated)
+
+    assert atom == Expression(S.a, 1, S.b)
+    assert isinstance(atom[1:], Expression)
+    assert atom[1:] == Expression(1, S.b)
 
 
 def test_expr_sequence_index_and_count():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -650,10 +666,11 @@ def test_atoms_sort_in_prologs_standard_order():  # noqa: D103  -- pytest discov
     assert [str(a) for a in sorted(atoms, key=order_key)] == [
         "$x",              # variables first
         "1", "2.5",        # then numbers, in value order
+        '"text"',          # then strings
+        "()",              # the empty list is SWI's [] atom
         "True", "a",       # then symbols, and True IS one despite being a
                            # Python int
-        '"text"',          # then strings
-        "()", "(edge a b)", "(edge b c)",  # expressions compare their
+        "(edge a b)", "(edge b c)",  # nonempty expressions compare their
         "(f a)",             # children in order, length only after a prefix
     ]
 

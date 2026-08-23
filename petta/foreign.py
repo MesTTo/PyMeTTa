@@ -37,6 +37,9 @@ Guarantees:
     going missing [tested test_a_bound_is_withheld_from_a_provider_that_claimed_nothing,
     test_a_bound_reaches_a_provider_that_takes_one,
     test_a_false_exact_claim_is_caught]
+  - provider length exists only through Python's Sized protocol and never
+    falls back to enumeration [tested:
+    test_provider_length_requires_and_uses_sized; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Guarded by:
   - _PROVIDER_LOCK serializes library registration and provider lookups
     [tested test_provider_registration_is_transactional]
@@ -50,7 +53,7 @@ from __future__ import annotations
 
 import inspect
 import threading
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sized
 from functools import cache
 from types import MappingProxyType
 from typing import Any, ClassVar, Protocol, cast, runtime_checkable
@@ -182,7 +185,7 @@ class MatchClassifier(Protocol):
 class Transactional(Protocol):
     """A provider that participates in the engine's transactions.
 
-    Declared with (writes <ctx> transactional) or declare_writes: the
+    Declared with (writes <ctx> transactional) or ``space.writes``: the
     engine calls begin() at the provider's first write inside the
     outermost transaction, then exactly one of commit() or rollback()
     when it finishes, alongside the engine's own database rollback, so a
@@ -390,6 +393,27 @@ def has_provider(space: str) -> bool:
     """Whether a Python provider currently owns the space."""
     with _PROVIDER_LOCK:
         return space in _PROVIDERS
+
+
+def _provider_length(space: str) -> int | None:
+    """A declared provider length, or None when this is not a provider space.
+
+    ``Sized`` is Python's structural declaration for ``__len__``. Enumerating
+    an arbitrary backend here would turn an absent complexity promise into a
+    potentially remote full scan merely because a caller wrote ``len(space)``.
+    """
+    with _PROVIDER_LOCK:
+        provider = _PROVIDERS.get(space)
+    if provider is None:
+        return None
+    if not isinstance(provider, Sized):
+        msg = (
+            f"len({space}) is unavailable: {type(provider).__name__} does not "
+            f"implement __len__; counting by enumeration would hide the "
+            f"provider's cost"
+        )
+        raise TypeError(msg)
+    return len(provider)
 
 
 def _require_provider(

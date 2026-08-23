@@ -16,6 +16,9 @@ Guarantees:
     than owning a second closed list [tested:
     test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - text and fast loads apply a scoped stack byte bound through the /6 seam
+    while preserving the established guard path otherwise [tested:
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Owns resources:
   - save_space owns one sibling temporary file and removes it after every
     failed or successful save
@@ -38,7 +41,7 @@ from pathlib import Path
 from typing import Literal
 
 from ._engine import Runtime
-from ._space_objects import _limits
+from ._space_objects import _apply_limited, _limits
 from .atoms import Atom, Expression, Grounded, Symbol, _atom_from_wire
 from .errors import EngineError, ResourceLimitError
 
@@ -251,18 +254,31 @@ def _validate_fast_header(path: str, actual: list[bytes], expected: list[bytes])
         raise _cache_rejection(path, "the integrity hash is malformed")
 
 
-def _load_fast(rt: Runtime, space: str, path: str, bounds: tuple[float, int]) -> list[list[Atom]]:
+def _load_fast(
+    rt: Runtime,
+    space: str,
+    path: str,
+    bounds: tuple[float, int, int],
+) -> list[list[Atom]]:
     expected = str(rt.apply_must("metta_host_fast_header")).encode("ascii").split(b"\t")
     _validate_fast_header(path, _fast_header(path), expected)
-    seconds, steps = bounds
+    seconds, steps, stack = bounds
     try:
-        rt.must(
-            "petta_py_guarded(T, I, petta_py_fast_load(File, Space))",
-            T=seconds,
-            I=steps,
-            File=path,
-            Space=space,
-        )
+        if stack < 0:
+            rt.must(
+                "petta_py_guarded(T, I, petta_py_fast_load(File, Space))",
+                T=seconds,
+                I=steps,
+                File=path,
+                Space=space,
+            )
+        else:
+            _apply_limited(
+                rt,
+                bounds,
+                "petta_py_fast_load_unit",
+                [path, space],
+            )
     except ResourceLimitError:
         # The caller's own bound stopped it. Reading that as a corrupt cache
         # would blame the file for the budget.
@@ -289,14 +305,12 @@ def load_space(
 ) -> list[list[Atom]]:
     """Load a text program or validated fast cache into a named space.
 
-    Both bounds go through petta_py_guarded/3, the same guard pair
-    petta_py_limited applies, with the goal written here rather than named
-    as data. petta_py_load is not on the shim's wrappable list, and it does
-    not need to be: the whitelist exists so a predicate NAME arriving from
-    Python cannot become a call, and this name is in this file's own source.
+    Time and inference bounds retain the direct guarded path. A scoped stack
+    bound selects the explicit ``petta_py_limited/6`` whitelist entry instead,
+    so the predicate name remains closed even on the stack-aware route.
     """
     file = str(path)
-    bounds = _limits(timeout, inferences) or (-1.0, -1)
+    bounds = _limits(timeout, inferences) or (-1.0, -1, -1)
     try:
         with _open_maybe_gz(file, "rb") as handle:
             is_fast = handle.read(len(_FAST_PREFIX)) == _FAST_PREFIX
@@ -304,12 +318,16 @@ def load_space(
         is_fast = False
     if is_fast:
         return _load_fast(rt, space, file, bounds)
-    seconds, steps = bounds
-    row = rt.must(
-        "petta_py_guarded(T, I, petta_py_load(File, Space, Groups))",
-        T=seconds,
-        I=steps,
-        File=file,
-        Space=space,
-    )
-    return [[_atom_from_wire(wire) for wire in group] for group in row.get("Groups", [])]
+    seconds, steps, stack = bounds
+    if stack < 0:
+        row = rt.must(
+            "petta_py_guarded(T, I, petta_py_load(File, Space, Groups))",
+            T=seconds,
+            I=steps,
+            File=file,
+            Space=space,
+        )
+        groups = row.get("Groups", [])
+    else:
+        groups = _apply_limited(rt, bounds, "petta_py_load", [file, space])
+    return [[_atom_from_wire(wire) for wire in group] for group in groups]
