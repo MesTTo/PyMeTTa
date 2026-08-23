@@ -6,26 +6,11 @@ is Python's own `assert`.
 """
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 2226 to 2210, -16, by the p14-tabling merge, the sole
-#: change between the two readings. The movement has opposite signs on the two
-#: sides: the Python-define path this twin uses nets -16 even though admission
-#: runs on it (a fresh engine already holds an automatic (cache f ...) row, so
-#: declaring one collides), while the example's file-load side prices the SCC
-#: admission analysis at +51, 2577 to 2628. Ratio now 2210/2628 = 0.8409
-#: [measured 2026-08-23 min-of-3 via tools/twin_coverage.py --measure].
-#: Prior: RE-PINNED 2026-08-23, 2289 to 2226, -63, by two changes with separate
-#: causes that partly cancel. The lane now hands the child a BUILT measurement
-#: environment rather than inheriting the caller's, which is worth -91 to any
-#: twin that compiles a definition and nothing to one that does not; and the
-#: startup-perf merge's type-system work is worth +28 here. Against the
-#: example's 2577 the ratio is 0.8638 [measured 2026-08-23 min-of-3]. NOTE that
-#: the other 203 budgets in this corpus are stale by the same arithmetic and
-#: are re-pinned in the one pass scheduled after the surface tracks land; this
-#: twin and spaces3 are re-pinned now because the gate checks them end to end.
-#: Prior: RE-PINNED 2026-08-22 at 2289 by the twin contract change, when the
-#: definition moved to `@m.define`; the figure before that priced a different
-#: program.
-BUDGET = 2210
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+BUDGET = 1
 
 
 def twin(m):

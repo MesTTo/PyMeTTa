@@ -17,18 +17,11 @@ described, and the residue table records it against P14.4.
 from petta import S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 4665 to 5121, +456, by the p14-tabling merge, the
-#: sole change between the two readings: admission analysis pricing its
-#: recursive definition. Ratio 5121/5860 = 0.8739 [measured 2026-08-23 min-
-#: of-3 via tools/twin_coverage.py --measure]. Prior:
-#: RE-PINNED 2026-08-22, 5101 to 4665, -436 (-8.5%), by the twin contract
-#: change: the `test` wrapper left the engine for `assert`, and a second
-#: claim ENTERED: the twin reads its own stored equation back to show the
-#: condition's head is `py-eq` rather than MeTTa's `==`. Against the
-#: example's 5297 the ratio is 0.8807 [measured 2026-08-22 min-of-3,
-#: `twin_coverage.py --measure`]. The old figure priced a different
-#: program.
-BUDGET = 5121
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+BUDGET = 1
 
 
 def twin(m):

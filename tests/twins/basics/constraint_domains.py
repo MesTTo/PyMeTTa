@@ -15,37 +15,37 @@ operator for.
 One rung is dropped, once, and named: `where`. A constraint has to be POSTED
 and then asked about inside ONE derivation, because the store is undone on the
 way out; two separate calls from Python would ask a question with nothing
-standing. That scope is MeTTa's `(let True <constraint> <question>)`, the same
-guard form examples/functions/functionhead3.metta's twin names, and Python has
-no spelling for it.
+standing. That scope is MeTTa's `(let True <constraint> <question>)`, and
+`m.solve` does not reach it, since solve derives its answer template from the
+subject and here the answer is another question.
+
+The claims read through `m.eval`, not through the answer view's `one()`. A
+CLP(Q) answer still carries its rational bindings, and the lazy view decodes
+them: `m.answers(...).one()` raises `ValueError: wire number payload must be
+numeric, got Fraction(1, 2)` where `m.eval` answers `[Grounded('1r2')]`
+[measured 2026-08-23 on this worktree; ai-report-twins2-d.md records it as a
+defect in the answer view's decoder; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
   - expected constraint reprs are plain Python text rather than grounded data
     [tested: test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import TRUE, S, V, equation
+from petta import TRUE, S, V, equation, fn
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 92108 to 92903, +795, by the p14-tabling merge, the
-#: sole change between the two readings: admission analysis and notification
-#: on its many definitions. Ratio 92903/109228 = 0.8505 [measured 2026-08-23
-#: min-of-3 via tools/twin_coverage.py --measure]. Prior:
-#: RE-PINNED 2026-08-22, 94647 to 92108, -2539 (-2.7%), by the twin
-#: contract change: the `test` wrapper and five `collapse` calls left the
-#: engine for `assert` and the answer list; every constraint post,
-#: entailment check and labelling stayed, which is why the saving is 2.8%
-#: rather than the folder's usual half. Against the example's 108447 the
-#: ratio is 0.8493 [measured 2026-08-22 min-of-3, `twin_coverage.py
-#: --measure`]. The old figure priced a different program.
-BUDGET = 92903
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+BUDGET = 1
 
 
 def twin(m):
@@ -62,16 +62,31 @@ def twin(m):
         """
         return S.let(TRUE, condition, answer)  # rung: let as a guard
 
-    m.eval(S["import!"](S["&self"], (S.library, S.lib_constraints)))  # rung: space as a symbol
+    # (import! &self (library lib_constraints)): the space is the handle
+    # itself, and the library's MeTTa name really does carry an underscore,
+    # so it takes the exact bracket rather than the attribute's hyphen map.
+    m.eval(S["import!"](m, (S.library, S["lib_constraints"])))
 
     # ---------------------------------------------------------------- CLP(Q)
     # Exact rationals: clpfd has no answer to this at all, because 1/2 is not
     # an integer, and ordinary arithmetic cannot solve backwards. Asserted
     # through repr, because the reader has no rational literal to write 1r2
     # as: it would read back as a symbol and compare unequal to the number.
+    #
+    # DEFECT, and the two lines below are the workaround. The perfect spelling
+    # of a one-answer claim is the cardinality door on the answer view,
+    #
+    #     assert m.answers(where(half, fn.repr(V.x))).one() == "1r2"
+    #
+    # and it raises `ValueError: wire number payload must be numeric, got
+    # Fraction(1, 2)`: a CLP(Q) answer still carries its rational bindings and
+    # the lazy view decodes every binding, where `m.eval` decodes only the
+    # answer template. Every claim in this file that leaves a rational standing
+    # has to go through `m.eval` until the view's decoder learns Fraction
+    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     half = S.clpq(equation(2 * V.x).to(1))
-    assert m.one(where(half, S.repr(V.x))) == "1r2"
-    assert m.one(where(half, 2 * V.x)) == 1
+    assert m.eval(where(half, fn.repr(V.x))) == ["1r2"]
+    assert m.eval(where(half, 2 * V.x)) == [1]
 
     # Entailment: is this constraint already implied by what has been posted?
     # That is the question a plain post cannot ask.
@@ -96,9 +111,9 @@ def twin(m):
     # unbound variable.
     residuals = where(
         S.clpq(V.f >= 0),
-        where(S.clpq(S["=<"](V.f, 3)), S.repr(S["residual-goals"](V.f))),
+        where(S.clpq(S["=<"](V.f, 3)), fn.repr(S["residual-goals"](V.f))),
     )
-    assert m.one(residuals) == "(({} (, (>= $_0 0) (=< $_0 3))))"
+    assert m.eval(residuals) == ["(({} (, (>= $_0 0) (=< $_0 3))))"]
 
     # ---------------------------------------------------------------- CLP(B)
     # `(card (1) ($p $q))` is "exactly one of these is true": a list of
@@ -110,9 +125,21 @@ def twin(m):
     assert [tuple(pair) for pair in m.eval(exactly_one)] == [(0, 1), (1, 0)]
 
     # Tautology and contradiction, decided without enumerating anything.
-    taut = m.fn("clpb-taut")
-    assert taut(V.t + S["~"](V.t)) is True
-    assert taut(V.u * S["~"](V.u)) is False
+    #
+    # DEFECT, and the two lines below are the workaround. The perfect spelling
+    # is the bound namespace calling the function,
+    #
+    #     taut = m.fn["clpb-taut"]
+    #     assert taut(V.t + S["~"](V.t)) == [True]
+    #
+    # and it answers `[Row(t=$_788)]`: a call carrying a caller variable
+    # answers that variable's BINDINGS, which is right for `ancestor(V.who,
+    # S.Jim).who` and wrong here, where `$t` is bound inside the formula and
+    # the answer wanted is what the formula DECIDES. The two readings need
+    # separate doors [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+    taut = S["clpb-taut"]
+    assert m.eval(taut(V.t + S["~"](V.t))) == [True]
+    assert m.eval(taut(V.u * S["~"](V.u))) == [False]
 
     # The engine's own and/or/not are NOT replaced by this and should not be:
     # they are generate-and-test over two values, which is cheaper than

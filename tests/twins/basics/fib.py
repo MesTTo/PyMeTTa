@@ -13,20 +13,11 @@ against P14.4.
 from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 28278228 to 25499, -28252729, by the p14-tabling
-#: merge, the sole change between the two readings: automatic memoization
-#: collapsing the exponential: the SCC is called twice per body, so the trie
-#: admits it and the 28.3M-inference doubling tree becomes linear table fills;
-#: the example side collapsed the same way, 27818. Ratio 25499/27818 = 0.9166
-#: [measured 2026-08-23 min-of-3 via tools/twin_coverage.py --measure]. Prior:
-#: RE-PINNED 2026-08-22, 28278972 to 28278228, -744 (-0.0%), by the twin
-#: contract change: the `test` wrapper left the engine for `assert` and
-#: `with-pragma!` became a process-wide `pragma!` beside the call; 28.2
-#: million of the 28.3 are the exponential tree itself, so the shape of the
-#: twin is worth 0.003%. Against the example's 28280157 the ratio is 0.9999
-#: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
-#: figure priced a different program.
-BUDGET = 25499
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+BUDGET = 1
 
 
 def twin(m):

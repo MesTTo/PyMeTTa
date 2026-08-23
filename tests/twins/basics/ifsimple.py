@@ -15,14 +15,11 @@ retired.
 """
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 224 to 3289, by the band's authoring allowance: this
-#: twin now DEFINES `keep` rather than building `(if True 42)` at the term
-#: door, so it pays the per-name admission the old figure was avoiding.
-#: Against the example's 1308 the ceiling is 1308 * 1.10 + 1456 + 765 = 3660,
-#: so it fits with 374 to spare [measured 2026-08-22 min-of-3]. Prior:
-#: RE-PINNED at 224 by the twin contract change, when the `test` wrapper left
-#: the engine for `assert`; the figure before that priced a different program.
-BUDGET = 3289
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+BUDGET = 1
 
 #: The two conditions, named rather than written inline: a bare boolean in an
 #: argument list reads as a Python FLAG, and these are the example's data.

@@ -1,25 +1,23 @@
 """examples/basics/string.metta in Python: a string is a value, not structure.
 
 The parentheses in the text are characters, which is the whole point of the
-original: evaluating a string literal answers that same string. `val(text)`
+original: evaluating a string literal answers that same string. `ground(text)`
 carries the Python string whole, which is how a MeTTa string literal is
 written from Python.
 """
 
-from petta import val
+from petta import ground
 
-#: The text under test. Its parentheses and its spaces are DATA, and `val`
+#: The text under test. Its parentheses and its spaces are DATA, and `ground`
 #: is what says so: every other string in a twin would be program text.
-TEXT = val("a test (with newlines and parentheses)")
+TEXT = ground("a test (with newlines and parentheses)")
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 443 to 141, -302 (-68.2%), by the twin contract
-#: change: the `test` wrapper left the engine for `assert`, so the only
-#: thing the engine is asked is what the string literal reduces to. Against
-#: the example's 1849 the ratio is 0.0763 [measured 2026-08-22 min-of-3,
-#: `twin_coverage.py --measure`]. The old figure priced a different
-#: program.
-BUDGET = 141
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+BUDGET = 1
 
 
 def twin(m):

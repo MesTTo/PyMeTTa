@@ -5,10 +5,12 @@ application, which prints as `(partial f (1))` and can be called again later.
 Calling one with too many is an error, and the error is an ANSWER: nothing
 catches it and the form after it still runs.
 
-Three of the five definitions are ordinary Python functions. `h` names the
-engine's `append`, bound with `m.fn` so the Python side of the twin runs it
-too, and passes `(a,)`, a one-element Python tuple, which is the one-element
-expression `($A)` the original writes.
+Four of the five definitions are ordinary Python functions. `h` names the
+engine's `append` through the static function namespace, `fn.append`, and
+passes `(a,)`, a one-element Python tuple, which is the one-element expression
+`($A)` the original writes. `show` names the engine's own `repr` the same way:
+Python's builtin `repr` is bridged into a compiled body as `py-repr`, so
+`fn.repr` is what stores the equation the original stores.
 
 `map-atom` dissolves the way the table says: a comprehension builds the three
 applications and ONE evaluation runs them, which is the crossing rule as well
@@ -23,42 +25,50 @@ which is what builds an expression out of a head and its arguments. And
 `1 + 2 + 3` left-associates into `(+ (+ 1 2) 3)` and would compute 6 before
 the engine saw anything.
 
-Two definitions sit one rung below the decorator, each for its own reason.
-`(= (show) (repr (f 1)))`: `repr` inside a compiled body is PYTHON's repr,
-which the subset routes to `py-repr`, so a decorated `show` would store a
-different equation from the one the original stores. And `overloaded-curry` is
-two clauses of DIFFERENT ARITY under one name; stacking two
-`@m.define(name="overloaded-curry")` clauses raises `IndexError` today,
-because two clauses that fix no literal head are located as a redefinition of
-each other and the replacement index is then used against a twin dispatcher
-keyed by the PYTHON name, which is a fresh empty one. `@rules` writes both
-equations with parameter-scoped variables and no such path. The residue table
-records both against P14.4.
+`overloaded-curry` is the one definition that stays at the rule door.
+DEFECT, not a missing spelling: its two clauses have DIFFERENT ARITY under one
+name, and the shape this file wants,
+
+    @m.define(name="overloaded-curry")
+    def overloaded_curry(a):
+        return a
+
+    @m.define(name="overloaded-curry")
+    def overloaded_curry_3(a, b, c):
+        return a + (b + c)
+
+raises `IndexError: list assignment index out of range` inside
+`_define_twins.replace_twin_clause`, because two clauses that fix no literal
+head are located as a REDEFINITION of each other and the replacement index is
+then used against a dispatcher keyed by the PYTHON name, which is a fresh
+empty one. The residue table carries the defect and its root cause against
+P14.4; `@m.rules` writes both equations with parameter-scoped variables and
+takes no such path.
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier;
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+  - every ordered atom assembled in this file passes one iterable to
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import S, equation, rules
+from petta import Expression, S, equation, fn
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 14982 to 12965, -2017 (-13.5%), by the twin
-#: contract change: ten `test` wrappers left the engine for `assert`, and
-#: `map-atom` left it for a comprehension that builds the three
-#: applications so ONE evaluation runs them, which is the crossing rule as
-#: well as the spelling. Against the example's 21688 the ratio is 0.5978
-#: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
-#: figure priced a different program.
-BUDGET = 12965
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+BUDGET = 1
 
 
 def twin(m):
     """Apply four functions with too few arguments, and three with too many."""
-    append = m.fn("append")
 
     @m.define
     def f(a, b):
@@ -70,27 +80,27 @@ def twin(m):
         # (= (g $a $b $c) (+ $c (+ $a $b)))
         return c + (a + b)
 
-    # (= (show) (repr (f 1)))
-    # rung: `repr` in a compiled body is PYTHON's repr, which the subset routes to
-    #   py-repr, not the engine's own (residue, P14.4)
-    m += equation(S.show()).to(S.repr(S.f(1)))
+    @m.define
+    def show():
+        # (= (show) (repr (f 1)))
+        return fn.repr(f(1))
 
-    assert m.one(S.repr(S.f(1))) == "(partial f (1))"
+    assert m.fn.repr(S.f(1)) == ["(partial f (1))"]
     assert m.eval((S.f(1), 2)) == [3]
-    assert m.one(S.repr(S.g(1, 2))) == "(partial g (1 2))"
+    assert m.fn.repr(S.g(1, 2)) == ["(partial g (1 2))"]
 
     @m.define
     def h(a, b):
         # (= (h $A $B) (append ($A) $B))
-        return append((a,), b)
+        return fn.append((a,), b)
 
-    assert tuple(m.one((S.h(42), (1, 2, 3)))) == (42, 1, 2, 3)
-    assert m.one(S.repr(S.h(42))) == "(partial h (42))"
+    assert m.eval((S.h(42), (1, 2, 3))) == [Expression((42, 1, 2, 3))]
+    assert m.fn.repr(S.h(42)) == ["(partial h (42))"]
 
     # (map-atom (1 2 3) (+ 1)): a comprehension builds the applications and
     # one evaluation runs them.
     add_one = S["+"](1)
-    assert tuple(m.one(tuple((add_one, x) for x in (1, 2, 3)))) == (2, 3, 4)
+    assert m.eval(tuple((add_one, x) for x in (1, 2, 3))) == [Expression((2, 3, 4))]
 
     # Too many arguments are an error, both for compiled and for
     # runtime-dispatched calls, and the error is an ANSWER: no catch stands
@@ -103,18 +113,33 @@ def twin(m):
     assert m.eval(S.empty(1, 2)) == [S.empty(1, 2)]
 
     # A gap between overloaded arities is still a valid partial application.
-    # rung: two @m.define clauses of one name that fix no literal head raise
-    #   IndexError today, and would be a redefinition rather than two arities if
-    #   they did not (residue, P14.4)
-    @rules
+    #
+    # DEFECT, and the bundle below is the workaround. The perfect spelling is
+    # two clauses under one name,
+    #
+    #     @m.define(name="overloaded-curry")
+    #     def overloaded_curry(a):
+    #         return a
+    #
+    #     @m.define(name="overloaded-curry")
+    #     def overloaded_curry_3(a, b, c):
+    #         return a + (b + c)
+    #
+    # and the second decoration raises `IndexError: list assignment index out
+    # of range` in `_define_twins.replace_twin_clause`: two clauses that fix no
+    # literal head are located as a REDEFINITION of each other, arity is never
+    # consulted, and the replacement index is then used against a dispatcher
+    # keyed by the PYTHON name, which is a fresh empty one. Either key the twin
+    # dispatcher by the MeTTa name, or refuse the second clause with the
+    # sentence `_validate_clause_order` already writes
+    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+    @m.rules
     def overloaded(a, b, c):
         # (= (overloaded-curry $a) $a)
         yield equation(S["overloaded-curry"](a)).to(a)
         # (= (overloaded-curry $a $b $c) (+ $a (+ $b $c)))
         yield equation(S["overloaded-curry"](a, b, c)).to(a + (b + c))
 
-    m.add(*overloaded)
-
-    assert m.one(S.repr(S["overloaded-curry"](1, 2))) == (
+    assert m.fn.repr(S["overloaded-curry"](1, 2)) == [
         "(partial overloaded-curry (1 2))"
-    )
+    ]

@@ -1,36 +1,31 @@
 """examples/functions/multicall.metta in Python: one head, two answers.
 
 Both equations answer, so `mycalc(1, 2)` is `[3, -1]` rather than either of
-them. Stacked `@m.define` clauses will not say that: stacking reads as
-first-match, so a later clause is guarded against every earlier literal head,
-and two clauses fixing no literal are a REDEFINITION rather than an
-alternative. `@rules` is the other shape of the definitional door and says it
-directly: the generator's parameters ARE the equations' variables.
+them. That is what a generator says: a definition whose body is a flat
+sequence of independent yields stores ONE EQUATION PER YIELD, so the two
+alternatives are two atoms under one head, dispatch-visible to `match`,
+exactly as the original writes them.
 
-One wall here, filed as residue: `@m.rules` does not exist, so writing the
-rules and landing them in the space are two acts where the ledger's own
-examples spell one. Calling is fine: `m.fn(name)` is cardinality-aware, and
-`.all()` is the door for a function that answers more than once.
+Nothing else is needed. Calling the decorated function answers the lazy view
+of its answers, and comparing that view to a list states the multiplicity as
+well as the values.
 """
 
-from petta import S, equation, rules
-
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 2314 to 1441, -873 (-37.7%), by the twin contract
-#: change: `collapse` and the `test` wrapper left the engine for Python's own
-#: list comparison and `assert`, and the two equations plus the one call that
-#: runs over them are all that is left. Against the example's 4460 the ratio is
-#: 0.3231 [measured 2026-08-22 min-of-3].
-BUDGET = 1441
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+BUDGET = 1
 
 
 def twin(m):
     """Two alternatives for one head, and the answers both of them give."""
-    @rules
+    @m.define
     def mycalc(x, y):
-        yield equation(S.mycalc(x, y)).to(x + y)
-        yield equation(S.mycalc(x, y)).to(x - y)
+        # (= (mycalc $x $y) (+ $x $y))
+        yield x + y
+        # (= (mycalc $x $y) (- $x $y))
+        yield x - y
 
-    m.add(*mycalc)
-
-    assert m.fn("mycalc").all(1, 2) == [3, -1]
+    assert mycalc(1, 2) == [3, -1]
