@@ -41,6 +41,9 @@ Guarantees:
     while control-flow yields retain one superpose body [tested:
     test_flat_generator_emits_one_equation_per_yield,
     test_loop_yields_remain_one_superpose_equation; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - a host-bound sibling Defined resolves to its declared MeTTa name inside a
+    compiled body [tested: test_compiled_body_calls_renamed_defined_sibling;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -721,6 +724,8 @@ class _Compiler(
         """Apply the compiled body's exact-then-mapped callee rule."""
         if called in self.lifted or called in (self.pyname, self.name):
             return called
+        if defined_name := self._bound_defined_name(called):
+            return defined_name
         return (
             resolve_known_name(
                 called,
@@ -729,6 +734,11 @@ class _Compiler(
             )
             or called
         )
+
+    def _bound_defined_name(self, identifier: str) -> str | None:
+        """The MeTTa name carried by a lexically bound Defined, if any."""
+        value = self.host_value(identifier)
+        return value.name if isinstance(value, Defined) else None
 
     def _fork(self) -> _Compiler:
         """A compiler for one branch: its own scope, the shared minted set."""

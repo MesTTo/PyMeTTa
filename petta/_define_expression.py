@@ -15,6 +15,9 @@ Guarantees:
     callees ask for exact, hyphenated, then banged catalog spellings [tested:
     test_compiled_bodies_reach_all_four_mention_families,
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - a host-bound Defined mention lowers to the sibling's declared MeTTa name
+    [tested: test_compiled_body_calls_renamed_defined_sibling;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -151,10 +154,8 @@ class ExpressionCompilerMixin(CompilerContext):
         # ended func namespace. [source:
         # https://docs.python.org/3/reference/executionmodel.html#binding-of-names;
         # commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
-        resolved = resolve_known_name(
-            identifier,
-            self.known,
-            allow_mapped=not self.host(identifier),
+        resolved = self._bound_defined_name(identifier) or resolve_known_name(
+            identifier, self.known, allow_mapped=not self.host(identifier)
         )
         if resolved is None:
             return None

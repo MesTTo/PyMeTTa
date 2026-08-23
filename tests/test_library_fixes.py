@@ -21,6 +21,9 @@ Guarantees:
   - one defined MeTTa name may own independent Python clauses at different
     arities [tested: test_define_supports_one_name_at_multiple_arities;
     commit=WORKTREE]
+  - compiled bodies call a host-bound sibling Defined through that object's
+    own MeTTa name [tested: test_compiled_body_calls_renamed_defined_sibling;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -170,3 +173,19 @@ def test_define_supports_one_name_at_multiple_arities() -> None:
     assert binary_clause(3, 4).one() == 7
     assert unary_clause.py(3) == 4
     assert binary_clause.py(3, 4) == 7
+
+
+def test_compiled_body_calls_renamed_defined_sibling() -> None:
+    """A sibling's Python binding resolves to its declared MeTTa head."""
+    target = space()
+
+    @target.define(name="libfix-sibling-head")
+    def python_sibling(value):
+        return value + 1
+
+    @target.define(name="libfix-sibling-caller")
+    def sibling_caller(value):
+        return python_sibling(value)
+
+    assert sibling_caller(4).one() == 5
+    assert "(libfix-sibling-head $value)" in sibling_caller.source()

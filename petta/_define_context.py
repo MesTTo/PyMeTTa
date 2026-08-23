@@ -14,6 +14,8 @@ Guarantees:
   - namespace-builder roles are explicit compiler state and survive every
     nested compiler fork [tested:
     test_compiled_bodies_reach_all_four_mention_families; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - compiler bands can resolve a bound Defined through its MeTTa name [tested:
+    test_compiled_body_calls_renamed_defined_sibling; commit=WORKTREE]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -69,6 +71,9 @@ class CompilerContext:
         raise NotImplementedError
 
     def _resolved_call_name(self, called: str) -> str:
+        raise NotImplementedError
+
+    def _bound_defined_name(self, identifier: str) -> str | None:
         raise NotImplementedError
 
     def _fork(self) -> CompilerContext:
