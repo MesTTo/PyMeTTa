@@ -11,53 +11,63 @@ exists to protect: each of these values crosses into the engine and comes back
 as itself, which is the same round trip the original's `!(test "x" "x")` forms
 make.
 
-The last form is an ordinary definition, written at the container door one rung
-below `@m.define`: its body is the lowercase symbol `result`, and a compiled
-body reads a lowercase free name as a CALL, so the symbol has no decorator
-spelling (residue, P14.4).
-
-The file keeps its example-derived name, `string_comments.py`, because the
-lane derives a twin's path from its example's; the pytest collection it invites
-is the integrator's to configure, not this file's to rename around.
+The last form is an ordinary definition whose body is the lowercase symbol
+`result`, and `S.result` says that inside a compiled body: a factory mention is
+data there, where a bare `result` would be read as a call.
 """
 
-from metta import S, equation, fn, ground
+from metta import S, fn, ground
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Send nine awkward strings through the engine, then define a function."""
     # A lone paren is a string, not punctuation.
+    # !(test ")" ")")
+    # !(test "(" "(")
     close, open_ = ground(")"), ground("(")
     assert m.eval(close) == [close]
     assert m.eval(open_) == [open_]
+
     # A lone semicolon is a string, not the start of a comment.
+    # !(test ";" ";")
     semicolon = ground(";")
     assert m.eval(semicolon) == [semicolon]
 
     # `quote` holds its argument rather than reducing it, so the semicolon
     # survives one level in as well.
+    # !(test (quote ";") (quote ";"))
     quoted = fn.quote(semicolon)
     assert m.eval(quoted) == [quoted]
 
     # A semicolon in the middle, three of them, one at each end.
+    # !(test "foo;bar" "foo;bar")
+    # !(test ";;;" ";;;")
     middle, three = ground("foo;bar"), ground(";;;")
     assert m.eval(middle) == [middle]
     assert m.eval(three) == [three]
+    # !(test ";start" ";start")
+    # !(test "end;" "end;")
     first, last = ground(";start"), ground("end;")
     assert m.eval(first) == [first]
     assert m.eval(last) == [last]
 
     # An escaped quote, and a backslash.
+    # !(test "quote: \"" "quote: \"")
+    # !(test "path\\file" "path\\file")
     escaped, backslash = ground('quote: "'), ground("path\\file")
     assert m.eval(escaped) == [escaped]
     assert m.eval(backslash) == [backslash]
 
-    # (= (test-func) result)
-    m += equation(S["test-func"]()).to(S.result)
-    assert m.fn.test_func() == [S.result]
+    @m.define
+    def test_func():
+        """(= (test-func) result), whose body is one lowercase symbol."""
+        return S.result
+
+    # !(test (test-func) result)
+    assert test_func() == [S.result]

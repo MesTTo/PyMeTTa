@@ -1035,15 +1035,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/syntax/string_comments.metta",
-      "form": null,
-      "missing": "a lowercase symbol as data inside a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "`(= (test-func) result)` answers the lowercase symbol `result`, which a compiled body reads as a call it cannot resolve. The twin writes `m += equation(S['test-func']()).to(S.result)`."
-    },
-    {
-      "kind": "friction",
       "example": "examples/types/subtyping.metta",
       "form": null,
       "missing": "a builder for the subtype edge (:< Sub Super)",
@@ -1055,19 +1046,10 @@
       "kind": "friction",
       "example": "examples/types/dont_eval_type.metta",
       "form": null,
-      "missing": "the metatype accessor inside a compiled body, where Python's own type(a) is the named spelling",
+      "missing": "Python's own `type(a)` inside a compiled body",
       "row": "P14.4",
       "section": "§9d the concept map: the Python CLASS of an atom to its metatype",
-      "detail": "The design authority settles the metatype naming by deletion: \"Python's own builtin `type(a)` answers the METATYPE by construction (the four classes ARE the metatypes, P5.1)\". Inside a compiled body that mapping is absent: `_define_expression._PYBUILTIN_CALLS` bridges len, abs, min, max, sum, sorted, pow, str, repr, round and range, and not `type`, so `(= (inspect-opaque $written) (get-metatype $written))` has no compiled spelling and falls to the general hyphenated-name friction. Adding `type` to that table would close this one equation and give the concept map its compiled half."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/matchtypes.metta",
-      "form": null,
-      "missing": "a definitional-decorator spelling for a program's own equation over a name the engine already answers",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "`@m.define(name=\"match-types\")` refuses before it reads the body: \"'match-types' is already a function this space answers (an engine builtin, an operation, or an equation): defining it would stack a clause onto it\". The container door does the same thing silently, which is what the twin does and what the .metta original does. The refusal is a good default, so the gap is a spelling for the deliberate case rather than a bug: types/matchtypes extends `match-types` and types/types_dependent extends `get-type`, both of which are programs teaching the engine something new about a name it already answers. Measured 2026-08-22: `(match-types a a 1 2)` answers 1 on a fresh engine with no program equation at all. [tested: ai-tmp/probe2.py on the p14-twins-f worktree; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]"
+      "detail": "The body names the accessor through `fn.get_metatype`, which compiles. What has no lowering is Python's own `type()`, which is the spelling the same question takes on the Python side of the seam, so one question is two words depending on which side of the decorator it is asked on."
     },
     {
       "kind": "friction",
@@ -1221,15 +1203,6 @@
       "row": "P14.9",
       "section": "§9 risks: two sources of truth (the twins stay differential)",
       "detail": "The same defect as the typing_rules entry, seen from the output side and measured 2026-08-22 on this example's own program: with `(: f (-> Type1 Type1))` and `(: f (-> Type2 Type2))` declared and `T3in` a Type1 only, the engine's own form answers nothing (`m.run(\"!(f T3in)\")` is `[]`, and `m.load` of the file answers `[]` for that form, which is what `test-no-answer` asserts), while `m.eval(S.f(S.T3in))` and `m.fn(\"f\").all(S.T3in)` answer `Tdefault`. Wrapping the same call in `collapse` restores the engine's answer, `()`. A twin that used the calling door here would pin the WRONG behaviour as a passing claim, which is the failure mode the differential exists to catch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/parametric_types.metta",
-      "form": null,
-      "missing": "an answer template that can carry a variable from the PATTERN side, which is what instantiating a declared arrow needs",
-      "row": "P14.4",
-      "section": "§10b the expression-position rule (unify(a, b, then, els))",
-      "detail": "NARROWED 2026-08-23. R5 shipped `Space.solve(pattern, subject)`, the relational let, and it derives the answer template from the SUBJECT's variables: `(get-type apply)` has none, so solve refuses with `solve needs at least one variable in its subject` and cannot say the example's `(let (get-type apply) (-> (-> Bool Bool) Bool $result) $result)`, whose answer variable lives in the pattern. `petta.unify` still cannot say it either, for the reason this entry recorded: it is one-way, and the arrow it matches against is all variables. The twin asks the type of the APPLICATION instead, which is the example's own second form [measured 2026-08-23: ai-tmp/e-probe-doors.py neighbours]."
     },
     {
       "kind": "friction",
@@ -2283,6 +2256,24 @@
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
       "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `petta.space(name)`, which rides `petta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`petta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/inplace_annotations.metta",
+      "form": null,
+      "missing": "a compiled head pattern, so an in-place annotation can be a def's parameter",
+      "row": "P14.4",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "Every clause here selects on `(: $x Person)` in its HEAD. A compiled parameter list carries plain names and literal defaults, so all six are written as stored equations. A declared parameter type is the same acceptance said the other way round, but it cannot bind the type to a variable, which `type-of`, `same-kind` and `fmap` all do."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/types.metta",
+      "form": null,
+      "missing": "the Python-type table read on the RIGHT of an equality, so an answered type compares against Any",
+      "row": "P14.9",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "`typed(x, Any)` and `arrow(int, int)` read Python types through the conversion table, but the table is one-way: measured 2026-08-24, `m.type(S.c) == Any` is False where `m.type(S.c) == S['%Undefined%']` is True, so a twin comparing an ANSWER against a type writes the marked name out."
     }
   ],
   "retired": [
@@ -5112,6 +5103,36 @@
       "section": "§4 surface gaps",
       "detail": "AS FILED, superseded by the retirement line below. p14-r3-calling landed the door: calling a definition answers a lazy `Answers` view, slices stay `Answers`, and `list(count_up(0)[:4])` answers the right four numbers over a producer that never stops, where nothing could before. What it costs is the library's problem, not this twin's. Measured 2026-08-23 on `(= (from $n) (superpose ($n (from (+ $n 1)))))`: pulling 1, 2, 4 and 8 answers costs 1,500,147, 1,500,141, 1,500,141 and 1,500,141 inferences, a FLAT figure that does not move with k, against 700 for the engine-side `(take 4 (from 0))`. So the first pull drives a self-recursive superposition to a fixed internal bound whatever the slice asks for: the view is lazy in the answers it hands back and not in the producer behind them. The twin slices every producer anyway, the endless one included, because the slice is the ruled spelling for at-most-k of a stream and the cost belongs to the library: control/take.metta therefore carries a BAND finding, twin 1,510,583 against the example's 16,419 at ratio 92.00, which no re-pin can clear and which closes when the pull suspends the producer. The finite producers cost 5,077 through the same door against the engine's 434. This is a cost gap rather than a capability gap, which is a different fix.",
       "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 8, function handles and Defined calls use the held-engine incremental cursor while statistics are active, so a slice suspends the producer at the requested frontier; measured 157 inferences to pull 4 and 234 to pull 8, against 1,500,141 for each before"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/syntax/string_comments.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "`(= (test-func) result)` answers the lowercase symbol `result`, which a compiled body reads as a call it cannot resolve. The twin writes `m += equation(S['test-func']()).to(S.result)`.",
+      "retired": "2026-08-24: the compiled body reaches it. `@m.define def test_func(): return S.result` stores `(= (test-func) result)`, because a factory mention inside a lowered body is data where a bare name is a call."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/matchtypes.metta",
+      "form": null,
+      "missing": "a definitional-decorator spelling for a program's own equation over a name the engine already answers",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "`@m.define(name=\"match-types\")` refuses before it reads the body: \"'match-types' is already a function this space answers (an engine builtin, an operation, or an equation): defining it would stack a clause onto it\". The container door does the same thing silently, which is what the twin does and what the .metta original does. The refusal is a good default, so the gap is a spelling for the deliberate case rather than a bug: types/matchtypes extends `match-types` and types/types_dependent extends `get-type`, both of which are programs teaching the engine something new about a name it already answers. Measured 2026-08-22: `(match-types a a 1 2)` answers 1 on a fresh engine with no program equation at all. [tested: ai-tmp/probe2.py on the p14-twins-f worktree; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]",
+      "retired": "2026-08-24: `@m.rules` is that decorator. It lands bare coexisting equations deliberately, so both `match-types` and `match-type-or` are written as definitions even though this engine already answers both names."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/parametric_types.metta",
+      "form": null,
+      "missing": "an answer template that can carry a variable from the PATTERN side, which is what instantiating a declared arrow needs",
+      "row": "P14.4",
+      "section": "§10b the expression-position rule (unify(a, b, then, els))",
+      "detail": "NARROWED 2026-08-23. R5 shipped `Space.solve(pattern, subject)`, the relational let, and it derives the answer template from the SUBJECT's variables: `(get-type apply)` has none, so solve refuses with `solve needs at least one variable in its subject` and cannot say the example's `(let (get-type apply) (-> (-> Bool Bool) Bool $result) $result)`, whose answer variable lives in the pattern. `petta.unify` still cannot say it either, for the reason this entry recorded: it is one-way, and the arrow it matches against is all variables. The twin asks the type of the APPLICATION instead, which is the example's own second form [measured 2026-08-23: ai-tmp/e-probe-doors.py neighbours].",
+      "retired": "2026-08-24: `solve(pattern, subject)` answers the pattern's own variables, so the twin instantiates the declared arrow and reads `.result` off the answer."
     }
   ]
 }

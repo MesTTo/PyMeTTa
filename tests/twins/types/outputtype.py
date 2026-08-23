@@ -17,7 +17,7 @@ from metta import Atom, S
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -26,16 +26,22 @@ def twin(m):
 
     @m.define
     def f(x: int) -> Any:
+        """(: f (-> Number %Undefined%)), (= (f $x) (+ $x 42))."""
         return x + 42
 
     @m.define
     def g(x: int) -> Atom:
+        """(: g (-> Number Atom)), the same body under a lazy OUTPUT."""
         return x + 42
 
     @m.define
     def h(x: Atom) -> Atom:
+        """(: h (-> Atom Atom)), lazy on both sides."""
         return x + 42
 
-    assert f(S["+"](1, 1)) == [44]
-    assert g(S["+"](1, 1)) == [S["+"](2, 42)]
-    assert h(S["+"](1, 1)) == [S["+"](S["+"](1, 1), 42)]
+    # !(test (f (+ 1 1)) 44)
+    assert f(S.add(1, 1)) == [44]
+    # !(test (g (+ 1 1)) (noeval (+ 2 42)))
+    assert g(S.add(1, 1)) == [S.add(2, 42)]
+    # !(test (h (+ 1 1)) (noeval (+ (+ 1 1) 42)))
+    assert h(S.add(1, 1)) == [S.add(S.add(1, 1), 42)]

@@ -22,10 +22,6 @@ same wall syntax/parse.metta's first five forms meet.
 Guarantees:
   - expected printed output in this twin remains Python str text
     [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
 """
 
 from metta import S, ground
@@ -33,7 +29,7 @@ from metta import S, ground
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
 BUDGET = 1
 
 #: Every atom of the original, beside the text `repr` prints it as.
@@ -51,14 +47,20 @@ def twin(m):
     """Print six atoms, and check the engine prints them the same way."""
     number, text, nested, commas, underscores, unit = (atom for atom, _ in PRINTED)
 
+    # !(test (repr 42) "42")
     assert str(number) == "42"
     # A string atom prints WITH its quotes, which is what makes the text read
     # back as the same string rather than as a symbol.
+    # !(test (repr "42") "\"42\"")
     assert str(text) == '"42"'
+    # !(test (repr (A (B C))) "(A (B C))")
     assert str(nested) == "(A (B C))"
+    # !(test (repr (A (, B , C ,))) "(A (, B , C ,))")
     assert str(commas) == "(A (, B , C ,))"
     # A symbol that looks like a date is a symbol, and prints unchanged.
+    # !(test (repr 2025_12_12) "2025_12_12")
     assert str(underscores) == "2025_12_12"
+    # !(test (repr ()) "()")
     assert str(unit) == "()"
 
     # Python's `str` is the engine's `repr`: the same atom, the same text,

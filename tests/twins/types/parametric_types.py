@@ -20,7 +20,7 @@ from metta import FALSE, S, V, arrow, fn
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -29,12 +29,15 @@ def twin(m):
 
     @m.define
     def apply[X, Y](f: Callable[[X], Y], x: X) -> Y:
+        """(: apply (-> (-> $tx $ty) $tx $ty)), (= (apply $f $x) ($f $x))."""
         return f(x)
 
+    # !(apply not False)
     assert apply(S["not"], FALSE) == [True]
 
     # The example's last claim instantiates the arrow at `(-> Bool Bool)` and
     # `Bool` and reads the result type off it, a `let` whose PATTERN carries
     # the answer variable.
+    # !(test (let (get-type apply) (-> (-> Bool Bool) Bool $result) $result) Bool)
     assert m.solve(arrow(arrow(bool, bool), bool, V.result),
                    fn.get_type(S.apply)).result == S.Bool
