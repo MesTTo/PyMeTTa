@@ -122,6 +122,16 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
+# The library's own word table, one source of truth: importing the mapping
+# module is 17ms and boots no engine (the package root is lazy). It is what
+# makes S.eq inside a compiled body the head `==`, so the lane must resolve
+# the same word before its operator-head lookup or a new anti-pattern
+# (spelling `a == b` as `S.eq(a, b)`) goes unreported. Script mode puts
+# tools/ on sys.path rather than the package parent, so the parent is
+# inserted first.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from metta._name_mapping import operator_attribute_target  # noqa: I001  -- the path insert above is what makes the import resolve in script mode, so this line cannot join a sorted block
+
 import example_parity as parity
 
 REPO = parity.REPO
@@ -1001,7 +1011,18 @@ def idiom(twin: Path) -> list[str]:
                 )
             reached = _factory(node.func)
             called = reached[1] if reached is not None else None
-            operator = called if called in OPERATOR_HEADS else head
+            # An operator WORD written at a factory call resolves to its head
+            # before the operator rule, so `S.eq(a, b)` in a compiled body
+            # reports as the transliteration of `a == b` it now stores. The
+            # two composite words raise in the table; the compiler refuses
+            # them itself, so the lane treats a raise as no resolution.
+            spoken = called
+            if called is not None:
+                try:
+                    spoken = operator_attribute_target(called) or called
+                except AttributeError:
+                    spoken = called
+            operator = spoken if spoken in OPERATOR_HEADS else head
             dissolved = DISSOLVED.get(called or "") or DISSOLVED.get(head or "")
             if dissolved is not None:
                 findings.append((

@@ -322,3 +322,55 @@ def test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door():
         "pragma": "pragma!",
         "same_name": "same-name",
     }
+
+
+def test_operator_words_reach_compiled_bodies():
+    """S.eq and fn.eq inside a compiled body store the operator's own head.
+
+    The live factory consulted the word table and the body translator did
+    not, so the same spelling meant two different atoms by door: `S.eq(a, b)`
+    at the factory built `(== a b)` while a compiled body stored `(eq a b)`,
+    the guide's rule-D critical pair. The translator now consults the same
+    table after the V branch (V.eq stays the variable `$eq`), the bracket
+    door stays exact by construction, and the two composite words refuse as
+    CompileError naming their images.
+    """
+    import pytest
+
+    from metta import MeTTa, S, V, fn
+    from metta.errors import CompileError
+
+    m = MeTTa().space()
+
+    @m.define
+    def word_eq(a, b):
+        return S.eq(a, b)
+
+    @m.define
+    def word_add(a, b):
+        return S.add(a, b)
+
+    @m.define
+    def word_fn_eq(a, b):
+        return fn.eq(a, b)
+
+    @m.define
+    def word_exact(a, b):
+        return S["eq"](a, b)
+
+    stored = {
+        head: str(m.match(S["="](S[head](V.a, V.b), V.body)).one().body[0])
+        for head in ("word-eq", "word-add", "word-fn-eq", "word-exact")
+    }
+    assert stored == {
+        "word-eq": "==",
+        "word-add": "+",
+        "word-fn-eq": "==",
+        "word-exact": "eq",
+    }
+
+    with pytest.raises(CompileError, match="its image is"):
+
+        @m.define
+        def word_neg(a):
+            return S.neg(a)

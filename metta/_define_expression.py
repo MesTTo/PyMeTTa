@@ -48,7 +48,11 @@ from collections.abc import Callable
 
 from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext
-from ._name_mapping import attribute_name, resolve_known_name
+from ._name_mapping import (
+    attribute_name,
+    operator_attribute_target,
+    resolve_known_name,
+)
 from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError
 
@@ -173,6 +177,26 @@ class ExpressionCompilerMixin(CompilerContext):
             self.hazards.add(f"the engine function {resolved}")
         return Symbol(resolved)
 
+    @staticmethod
+    def _operator_word_target(node: ast.Attribute) -> str | None:
+        """Resolve one operator word at an S/fn attribute mention.
+
+        The word table first, exactly as _atom_namespace consults it, so
+        S.eq is == at the live factory AND inside a compiled body, and
+        fn.eq resolves through the catalog's own ==. The bracket door stays
+        exact by construction (only the attribute branch consults), V never
+        consults (V.eq is the variable $eq), and the two composite words
+        refuse here as a CompileError the way every other refusal does.
+        """
+        try:
+            return operator_attribute_target(node.attr)
+        except AttributeError as refusal:
+            raise CompileError(
+                str(refusal),
+                construct="operator word",
+                line=node.lineno,
+            ) from refusal
+
     def _mention(self, node: ast.expr) -> Atom | None:
         """Recognize one statically bound S, V, or fn mention from syntax.
 
@@ -206,7 +230,10 @@ class ExpressionCompilerMixin(CompilerContext):
         if root.id in self.scope or root.id not in self.builders:
             return None
         if root.id == "V":
+            # V never consults the word table: V.eq is the variable $eq.
             return Variable(target)
+        if isinstance(node, ast.Attribute):
+            target = self._operator_word_target(node) or target
         if root.id == "fn":
             resolved = resolve_known_name(
                 target,
