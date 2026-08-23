@@ -22,6 +22,8 @@ Guarantees:
   - ``MeTTa.space()`` creates named or anonymous handles through one door
     [tested: test_module_tier_is_sugar_over_one_default_engine;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - named space construction accepts a space-name Symbol as well as its text
+    spelling [tested: test_space_factory_accepts_a_name_symbol; commit=WORKTREE]
   - ``Space.query``, every ``declare_*`` verb, and the write door retain their
     established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
@@ -434,12 +436,14 @@ class Space(Handle):
 
     def __init__(
         self,
-        name: str = _DEFAULT_SPACE,
+        name: str | Symbol = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
         petta_path: str | None = None,
         _runtime: Runtime | None = None,
     ) -> None:
+        if isinstance(name, Symbol):
+            name = name.name
         if not isinstance(name, str):
             msg = (
                 f"a space name is a string starting with &, as in &self or "
@@ -1862,7 +1866,7 @@ class Space(Handle):
         self,
         fn: Callable | None = None,
         *,
-        name: str | None = None,
+        name: str | Symbol | None = None,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
         declarations: Iterable[Atom] = (),

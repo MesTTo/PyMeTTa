@@ -36,6 +36,8 @@ Guarantees:
   - eager Rows and lazy Answers share attribute and Variable projection
     spellings [tested: test_rows_share_the_answer_projection_contract;
     commit=WORKTREE]
+  - the public space factory accepts a space-name Symbol returned by the
+    engine [tested: test_space_factory_accepts_a_name_symbol; commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -271,3 +273,12 @@ def test_rows_share_the_answer_projection_contract() -> None:
     assert rows.value == rows[V.value] == [G(1), G(2)]
     with pytest.raises(TypeError):
         _ = rows["value"]
+
+
+def test_space_factory_accepts_a_name_symbol() -> None:
+    """A space name returned as an atom opens directly without str()."""
+    name = S["&libfix-symbol-space"]
+
+    opened = space(name)
+
+    assert opened.name == name.name
