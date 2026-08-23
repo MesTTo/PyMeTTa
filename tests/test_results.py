@@ -155,7 +155,7 @@ def test_rows_sequence_operations_preserve_columns():  # noqa: D103  -- pytest d
         assert isinstance(derived, Rows)
         assert derived.columns == rows.columns
         assert all(type(row)._columns == rows.columns for row in derived)
-    assert rows["score"] == [3, 5]
+    assert rows.score == [3, 5]
 
     with pytest.raises(ValueError, match="cannot combine Rows"):
         rows + Rows(("other",), [(1,)])
@@ -169,7 +169,7 @@ def test_rows_mutations_preserve_invariants():  # noqa: D103  -- pytest discover
     rows[0] = ("Eve", 21)
     rows[1:2] = [("Fox", 34)]
     rows += [("Gia", 55)]
-    assert rows["name"] == ["Eve", "Fox", "Bob", "Dee", "Gia"]
+    assert rows.name == ["Eve", "Fox", "Bob", "Dee", "Gia"]
     assert all(type(row)._columns == rows.columns for row in rows)
 
     with pytest.raises(ValueError, match="1 values for 2 columns"):

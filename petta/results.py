@@ -38,6 +38,8 @@ Guarantees:
   - an Answers view crossing into a term observes exact-one cardinality and
     encodes that answer as the operand [tested:
     test_answer_views_observe_when_used_as_operands; commit=WORKTREE]
+  - Rows and Answers project caller variables by attribute or Variable key
+    [tested: test_rows_share_the_answer_projection_contract; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -207,8 +209,9 @@ def _restore_rows(
 class Rows(UserList[Row]):
     """Every answer to a query, in the order the engine produced them.
 
-    Sequence operations retain this type and its columns. ``rows["name"]``
-    projects a column, while integer and slice indexing follow a normal list.
+    Sequence operations retain this type and its columns. ``rows.name`` and
+    ``rows[V.name]`` project a column, matching Answers, while integer and
+    slice indexing follow a normal list.
     """
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
@@ -247,16 +250,25 @@ class Rows(UserList[Row]):
     def __getitem__(self, i: slice[SupportsIndex | None]) -> Rows: ...
 
     @overload
-    def __getitem__(self, i: str) -> list[Any]: ...
+    def __getitem__(self, i: Variable) -> list[Any]: ...
 
     def __getitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        self, i: SupportsIndex | slice[SupportsIndex | None] | str
+        self, i: SupportsIndex | slice[SupportsIndex | None] | Variable
     ) -> Row | Rows | list[Any]:
-        if isinstance(i, str):
-            return self._column(i)
+        if isinstance(i, Variable):
+            return self._column(i.name)
         if isinstance(i, slice):
             return Rows(self.columns, self.data[i])
         return self.data[i]
+
+    def __getattr__(self, name: str) -> list[Any]:
+        try:
+            return self._column(name)
+        except KeyError as exc:
+            raise AttributeError(str(exc)) from None
+
+    def __dir__(self) -> list[str]:
+        return sorted(set(super().__dir__()) | set(self.columns))
 
     def __setitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self,
@@ -313,8 +325,8 @@ class Rows(UserList[Row]):
         return self * n
 
     def _column(self, name: str) -> list[Any]:
-        #rows[name] is the one public door; this is its implementation,
-        #shared with the cast route.
+        # Attribute and Variable-key projection share this implementation
+        # with the cast route.
         if name not in self.columns:
             # tuple.index would otherwise report this as
             # "tuple.index(x): x not in tuple", naming neither the column

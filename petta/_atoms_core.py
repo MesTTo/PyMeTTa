@@ -824,7 +824,7 @@ class Grounded(Atom):
     # through .value and through the numeric conversion methods below.
 
     # Grounded primitives order like their values, so answers sort and
-    # compare with plain numbers: max(rows["age"]) and Grounded(7) >= 5
+    # compare with plain numbers: max(rows.age) and Grounded(7) >= 5
     # both mean what they read as. Anything else refuses loudly.
 
     def _ordered(self, other: Any):

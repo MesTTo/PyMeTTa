@@ -33,6 +33,9 @@ Guarantees:
   - an Answers view used as a term operand is observed through exact-one
     cardinality, making deterministic calls nest and refusing ambiguity
     [tested: test_answer_views_observe_when_used_as_operands; commit=WORKTREE]
+  - eager Rows and lazy Answers share attribute and Variable projection
+    spellings [tested: test_rows_share_the_answer_projection_contract;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -255,3 +258,16 @@ def test_answer_views_observe_when_used_as_operands() -> None:
     assert nested.one() == 6
     with pytest.raises(EngineError, match="exactly one answer"):
         target.fn["libfix-outer"](target.fn["libfix-many"]())
+
+
+def test_rows_share_the_answer_projection_contract() -> None:
+    """Both answer containers project caller variables the same two ways."""
+    target = space()
+    target += S["libfix-projection"](1)
+    target += S["libfix-projection"](2)
+
+    rows = target.query(S["libfix-projection"](V.value))
+
+    assert rows.value == rows[V.value] == [G(1), G(2)]
+    with pytest.raises(TypeError):
+        _ = rows["value"]
