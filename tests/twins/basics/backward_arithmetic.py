@@ -32,7 +32,7 @@ Python list is data and is never evaluated a second time.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=WORKTREE]
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -45,7 +45,7 @@ from petta import TRUE, S, V, fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 

@@ -26,7 +26,7 @@ own `min` and `max` read it with no engine crossing at all.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
-    commit=WORKTREE]
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,7 +39,7 @@ from petta import Expression, S, fn, ground
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 #: The six numbers `min-atom` and `max-atom` are asked about.

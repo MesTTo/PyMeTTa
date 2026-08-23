@@ -20,7 +20,7 @@ from petta import S
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 
@@ -33,5 +33,5 @@ def twin(m):
     # space resolves a handle against the engine (~1,206 inferences) and the
     # first answer view sets up a held evaluation (~4,700), which is the whole
     # of this twin's 16,564 against the example's 12,672. The spelling is the
-    # right one [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    # right one [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     assert m.fn.fib(100) == [354224848179261915075]

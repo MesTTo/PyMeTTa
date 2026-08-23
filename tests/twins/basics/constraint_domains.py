@@ -24,14 +24,14 @@ CLP(Q) answer still carries its rational bindings, and the lazy view decodes
 them: `m.answers(...).one()` raises `ValueError: wire number payload must be
 numeric, got Fraction(1, 2)` where `m.eval` answers `[Grounded('1r2')]`
 [measured 2026-08-23 on this worktree; ai-report-twins2-d.md records it as a
-defect in the answer view's decoder; commit=WORKTREE].
+defect in the answer view's decoder; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=WORKTREE]
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
   - expected constraint reprs are plain Python text rather than grounded data
     [tested: test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=WORKTREE]
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +44,7 @@ from petta import TRUE, S, V, equation, fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 
@@ -83,7 +83,7 @@ def twin(m):
     # the lazy view decodes every binding, where `m.eval` decodes only the
     # answer template. Every claim in this file that leaves a rational standing
     # has to go through `m.eval` until the view's decoder learns Fraction
-    # [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     half = S.clpq(equation(2 * V.x).to(1))
     assert m.eval(where(half, fn.repr(V.x))) == ["1r2"]
     assert m.eval(where(half, 2 * V.x)) == [1]
@@ -136,7 +136,7 @@ def twin(m):
     # answers that variable's BINDINGS, which is right for `ancestor(V.who,
     # S.Jim).who` and wrong here, where `$t` is bound inside the formula and
     # the answer wanted is what the formula DECIDES. The two readings need
-    # separate doors [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    # separate doors [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     taut = S["clpb-taut"]
     assert m.eval(taut(V.t + S["~"](V.t))) == [True]
     assert m.eval(taut(V.u * S["~"](V.u))) == [False]

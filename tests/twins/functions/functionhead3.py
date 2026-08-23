@@ -31,7 +31,7 @@ from petta import TRUE, S, V, fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 
@@ -65,7 +65,7 @@ def twin(m):
     # right reading for `ancestor(V.who, S.Jim).who` and the wrong one here,
     # where the example asks what the relation REDUCES TO while a variable
     # stands in it, so the term is evaluated instead. Not a defect, a split
-    # with only one door named [measured 2026-08-23; commit=WORKTREE].
+    # with only one door named [measured 2026-08-23; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     assert m.eval(S.myplus(V.x, 3)) == [4, 5]
     # what can be reached when adding $X to $Y:
     assert m.eval(S.myplus(V.x, V.y)) == [3, 4, 4, 5, 5]

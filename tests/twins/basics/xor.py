@@ -21,7 +21,7 @@ from petta import fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 
@@ -35,7 +35,7 @@ def twin(m):
     # `check_xor(...)` inside another body resolves `check-xor` first). Only
     # the decorator does not, which is why a hyphenated head is spelled
     # `@m.define(name="...")` throughout this corpus
-    # [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     @m.define
     def check_xor(source, destination):
         # (= (check_xor $source $destination)

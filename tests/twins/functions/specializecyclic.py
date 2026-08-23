@@ -11,10 +11,10 @@ bundle lands.
 Assumes:
   - the four equations and two runnable claims mirror
     examples/functions/specializecyclic.metta in source order
-    [source: examples/functions/specializecyclic.metta lines 1-15; commit=WORKTREE]
+    [source: examples/functions/specializecyclic.metta lines 1-15; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
 Guarantees:
   - twin installs every equation and proves both runnable claims
-    [tested: test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
+    [tested: test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,7 +31,7 @@ from petta import Expression, S, equation
 #: minimum 26325, maximum 26409 over 28 observations under
 #: `full-lane/218/workers=32`, because its cost moves with the scheduler; the
 #: re-pin pass has to give it an envelope again rather than a point
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 RUNG = "two mutually recursive pairs, so neither body can name the other at decoration time"
 
@@ -58,7 +58,7 @@ def twin(m):
         # raises too, comparisons having no right-hand methods. The operator
         # table is asymmetric until one of the two meanings moves off `<`
         # [measured 2026-08-23 on this worktree; ai-report-twins2-d.md carries
-        # it; commit=WORKTREE].
+        # it; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
         yield equation(S.f1(f, a)).to(
             S["if"](
                 S["<"](a, 0),

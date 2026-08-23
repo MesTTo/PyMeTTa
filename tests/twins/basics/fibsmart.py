@@ -24,7 +24,7 @@ from petta import S
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 
@@ -47,7 +47,7 @@ def twin(m):
     # a body can never call a sibling whose MeTTa name differs from its Python
     # name by that name, only at rung 5. The resolver should consult a bound
     # `Defined`'s own MeTTa name before treating the binding as opaque host
-    # state [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    # state [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     @m.define
     def fib(n):
         # (= (fib $n) (fib-tr $n 0 1))

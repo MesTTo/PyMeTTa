@@ -23,7 +23,7 @@ from petta import V, fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 
@@ -35,7 +35,7 @@ def twin(m):
     # this file names fourteen. With the first answer view's own ~4,700 setup
     # that is most of the twin's 24,730 against the example's 19,446. Nothing
     # about the spelling changes; the resolution should be cached
-    # [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     plus, times, minus = m.fn["#+"], m.fn["#*"], m.fn["#-"]
     divide, modulo = m.fn["#div"], m.fn["#mod"]
     smallest, largest = m.fn["#min"], m.fn["#max"]

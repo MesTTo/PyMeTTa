@@ -47,10 +47,10 @@ takes no such path.
 Guarantees:
   - expected printed output in this twin remains Python str text
     [tested: test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=WORKTREE]
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
-    commit=WORKTREE]
+    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -63,7 +63,7 @@ from petta import Expression, S, equation, fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
 BUDGET = 1
 
 
@@ -132,7 +132,7 @@ def twin(m):
     # keyed by the PYTHON name, which is a fresh empty one. Either key the twin
     # dispatcher by the MeTTa name, or refuse the second clause with the
     # sentence `_validate_clause_order` already writes
-    # [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     @m.rules
     def overloaded(a, b, c):
         # (= (overloaded-curry $a) $a)
