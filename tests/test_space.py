@@ -724,7 +724,7 @@ def test_wrong_bound_types_name_the_argument(m):  # noqa: D103  -- pytest discov
         m.run("!(+ 1 2)", timeout="x")
     with pytest.raises(TypeError, match="inferences must be"):
         m.run("!(+ 1 2)", inferences="x")
-    with pytest.raises(TypeError, match="space name is a string"):
+    with pytest.raises(TypeError, match="& string, Symbol, or ground Expression"):
         MeTTa().space(123)
 
 

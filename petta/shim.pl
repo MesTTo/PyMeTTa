@@ -35,6 +35,9 @@
 %     declarations aligned with anonymous-name reuse [tested:
 %     test_a_recycled_child_name_may_choose_a_different_parent;
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+%   - petta_py_open_atom_space/2 decodes and declares a ground expression
+%     identity once for Python space handles [tested:
+%     test_python_space_factory_accepts_atom_valued_names; commit=WORKTREE]
 %   - petta_py_new_restricted_space/2 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]
@@ -1230,6 +1233,10 @@ petta_py_new_space(Parent0, Name) :-
     catch(metta_declare_space_parent(Name, Parent), Error,
           ( petta_py_pool_space(Name), throw(Error) )).
 
+petta_py_open_atom_space(NameWire, Space) :-
+    petta_py_decode_shared(NameWire, Space, _),
+    metta_declare_parametric_space(Space).
+
 petta_py_new_restricted_space(Grants0, Name) :-
     maplist(petta_py_space_capability, Grants0, Grants),
     petta_py_new_space(Name),
@@ -1257,15 +1264,19 @@ petta_py_pool_space(Name) :-
     ( petta_py_free_space(Name) -> true ; assertz(petta_py_free_space(Name)) ).
 
 petta_py_space_releasable(Name0) :-
-    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    ( atom(Name0) -> Name = Name0
+    ; string(Name0) -> atom_string(Name, Name0)
+    ; Name = Name0 ),
     metta_assert_space_releasable(Name).
 
 %Release a space: everything cleared, inheritance unlinked, the execution
 %base forgotten, and only then the name pooled for reuse.
 petta_py_release_space(Name0) :-
-    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    ( atom(Name0) -> Name = Name0
+    ; string(Name0) -> atom_string(Name, Name0)
+    ; Name = Name0 ),
     metta_release_space(Name),
-    petta_py_pool_space(Name).
+    ( atom(Name) -> petta_py_pool_space(Name) ; true ).
 
 %%%%%%%%%% Query %%%%%%%%%%
 %

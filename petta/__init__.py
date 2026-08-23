@@ -289,7 +289,7 @@ def engine():
 
 
 def space(
-    name: str | Symbol | None = None,
+    name: str | Atom | None = None,
     backing: _Any = None,
     *,
     journal: str | None = None,

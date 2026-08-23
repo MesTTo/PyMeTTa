@@ -22,6 +22,7 @@ Open Obligations:
 
 import pytest
 
+from petta import S, V, space
 from petta.errors import EngineError
 
 
@@ -31,6 +32,29 @@ def _answers(metta, source):
 
 def _release(metta, space_term):
     metta.runtime.must(f"metta_release_space({space_term})")
+
+
+def test_python_space_factory_accepts_atom_valued_names(metta):
+    """Symbols and ground expressions name source-visible stores."""
+    users = space(S.users)
+    cache = space(S.cache(S.base, 100))
+    try:
+        users += S.member(S.Ada)
+        cache += S.entry(S.key, S.value)
+
+        assert users.query(S.member(V.who)).one().who == S.Ada
+        assert cache.query(S.entry(V.key, V.value)).one().value == S.value
+        assert metta.run("!(match &users (member $who) $who)") == [[S.Ada]]
+        assert metta.run(
+            "!(match (cache base 100) (entry $key $value) $value)"
+        ) == [[S.value]]
+        assert space(S.cache(S.base, 100)).digest() == cache.digest()
+    finally:
+        users.drop()
+        cache.drop()
+
+    with pytest.raises(ValueError, match=r"free variable.*open"):
+        space(S.cache(V.base, 100))
 
 
 def test_two_instances_of_a_parametric_space_answer_independently(metta):

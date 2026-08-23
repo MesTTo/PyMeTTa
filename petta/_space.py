@@ -27,6 +27,9 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - a Symbol or ground Expression names a source-visible atomic or parametric
+    space, while a free variable refuses before engine state changes [tested:
+    test_python_space_factory_accepts_atom_valued_names; commit=WORKTREE]
   - a tuple headed by an atom is one subscript pattern, a tuple of complete
     patterns is a join, list writes stream their atoms, and del drains every
     match or raises KeyError [tested:
@@ -401,6 +404,18 @@ def _copies_after_its_base(atom: Any) -> bool:
         return False
 
 
+class _HashableSpaceTerm(list[Any]):
+    """A Janus list carrier that can also key Python's per-space registries."""
+
+    def __hash__(self) -> int:
+        def frozen(value: Any) -> Any:
+            if isinstance(value, list):
+                return tuple(frozen(item) for item in value)
+            return value
+
+        return hash(frozen(self))
+
+
 def _to_stored_atom(value: Any) -> Expression:
     """Accept exactly the non-empty expression shape spaces can store."""
     atom = _to_atom(value)
@@ -457,23 +472,40 @@ class Space(Handle):
 
     def __init__(
         self,
-        name: str | Symbol = _DEFAULT_SPACE,
+        name: str | Symbol | Expression = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
         petta_path: str | None = None,
         _runtime: Runtime | None = None,
     ) -> None:
+        self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
+        self._name_atom: Symbol | Expression | None = None
         if isinstance(name, Symbol):
-            name = name.name
-        if not isinstance(name, str):
+            self._name_atom = name
+            name = name.name if name.name.startswith("&") else f"&{name.name}"
+        elif isinstance(name, Expression):
+            if name.vars:
+                msg = (
+                    f"a parametric space name must be ground; {name!s} leaves "
+                    f"free variable(s) {list(name.vars)!r} open"
+                )
+                raise ValueError(msg)
+            if not name.children:
+                msg = "a parametric space name is a nonempty ground expression"
+                raise ValueError(msg)
+            self._name_atom = name
+            name = _HashableSpaceTerm(
+                self._rt.apply_must("petta_py_open_atom_space", name.to_wire())
+            )
+        if not isinstance(name, (str, list)):
             msg = (
-                f"a space name is a string starting with &, as in &self or "
-                f"&kb; got {name!r}"
+                f"a space name is an & string, Symbol, or ground Expression; "
+                f"got {name!r}"
             )
             raise TypeError(
                 msg
             )
-        if not name.startswith("&"):
+        if isinstance(name, str) and not name.startswith("&"):
             msg = (
                 f"a space name starts with &, as in &self or &kb; got {name!r}. "
                 f"The prefix is load-bearing: is-space recognises it, and a $ "
@@ -482,16 +514,16 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
         # The public parameter takes a plain str so a literal is writable;
         # the NewType is constructed once here and threads through inside.
-        self._name = _SpaceId(name)
+        self._name = _SpaceId(name)  # type: ignore[arg-type]
         self._dropped = False
         self._ephemeral = False
         self._backing: Any = None
         self._owns_backing = False
         self._context_tokens: list[Any] = []
-        _remember_space_name(self._name)
+        if isinstance(name, str):
+            _remember_space_name(self._name)
 
     @property
     def _space(self) -> _SpaceId:
@@ -620,14 +652,17 @@ class Space(Handle):
 
     def __repr__(self) -> str:
         state = ", dropped" if self._dropped else ""
-        return f"Space({self._name!r}{state})"
+        shown = self._name_atom if self._name_atom is not None else self._name
+        return f"Space({shown!r}{state})"
 
     def __str__(self) -> str:
-        return str(self._name)
+        return str(self._name_atom if self._name_atom is not None else self._name)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Symbol):
-            return self._name == other.name
+            return self._name_atom == other or self._name == other.name
+        if isinstance(other, Expression):
+            return self._name_atom == other
         return (
             isinstance(other, Space)
             and self._rt is other._rt
@@ -637,10 +672,14 @@ class Space(Handle):
     def __hash__(self) -> int:
         # The engine has one atom for this reference and the legacy Symbol
         # spelling, so equal Python operands must share its symbol hash.
+        if self._name_atom is not None:
+            return hash(self._name_atom)
         return hash(("sym", self._name))
 
     def to_wire(self) -> list:
         """Encode the live engine reference as a portable space operand."""
+        if isinstance(self._name_atom, Expression):
+            return self._name_atom.to_wire()
         return ["p", str(self._space)]
 
     @property
@@ -648,7 +687,9 @@ class Space(Handle):
         return "Grounded"
 
     def __reduce__(self):
-        return Space, (str(self._space),)
+        return Space, (
+            self._name_atom if self._name_atom is not None else str(self._space),
+        )
 
     def __deepcopy__(self, _memo: dict[int, Any]) -> Space:
         msg = (
