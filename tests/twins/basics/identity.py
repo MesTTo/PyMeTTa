@@ -44,6 +44,14 @@ is Python's own `assert`.
 #: 2258 with its two entries above; the merged tree's own min-of-3 reading
 #: is what the budget below pins [measured 2026-08-24 through
 #: tools/twin_coverage.run_twin on the merged tree].
+#: RE-PINNED 2026-08-24, 2258 to 2228, by dropping the second walk over an
+#: already-translated data head, which is 30 inferences this example no longer
+#: spends ON THAT BRANCH's pre-refactor layout.
+#: CORRECTED at the integration merge: on the post-refactor merged tree the
+#: reading stays 2258 (min-of-3, three identical), so this example's compile
+#: path here never paid the removed walk; the walk removal itself is proved
+#: by translator.plt's own depth-linearity unit, which passes on this tree.
+#: The pin is the merged tree's reading.
 BUDGET = 2258
 
 
