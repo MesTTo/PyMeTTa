@@ -82,10 +82,10 @@ class SpaceStateMachine(RuleBasedStateMachine):
         )
         assert actual == expected
 
-    @rule(format=st.sampled_from(("metta", "fast")))
-    def save_load_round_trip(self, format):  # noqa: A002, D102  -- pytest parameterization names the public save-format argument exercised here; the test double method is documented by its containing scenario and protocol
-        path = f"{self._temporary.name}/space.{format}"
-        assert self.space.save(path, format=format) == sum(self.model.values())
+    @rule(save_format=st.sampled_from(("metta", "fast")))
+    def save_load_round_trip(self, save_format):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
+        path = f"{self._temporary.name}/space.{save_format}"
+        assert self.space.save(path, format=save_format) == sum(self.model.values())
         with self._owner._new_space() as loaded:
             loaded.load(path)
             assert Counter(loaded.atoms()) == self.model
