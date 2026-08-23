@@ -23,7 +23,11 @@ is Python's own `assert`.
 #: 2026-08-23, min-of-3 per variant through tools/twin_coverage.run_twin,
 #: every variant's three runs identical].
 #: Prior: INTERIM PIN 2026-08-23, min-of-3 on the wave-merged tree (2208 against the example's 2626): this file gates the pytest lane, so it is priced ahead of the corpus-wide pass that follows the library fixes, the guide update, and the marked-site sweep, and it is re-priced there with everything else.
-BUDGET = 2230
+#: RE-PINNED 2026-08-23, 2230 to 2221, by the call-side precondition on
+#: specialization_plan/5, which stops this twin's call sites reading the callee's
+#: equations to find nothing. Inside the 2210..2250 band recorded above, and DOWN,
+#: which the point budget refuses in both directions.
+BUDGET = 2221
 
 
 def twin(m):
