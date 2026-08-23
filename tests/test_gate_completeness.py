@@ -113,7 +113,10 @@ RUFF_FAMILY_BURN_DOWN = {
     # example that defines thirteen functions in a source order its
     # interleaved claims depend on, so the twin is one function by fidelity
     # rather than by accretion, and says so at its own noqa.
-    "C90": 25,
+    # 25 -> 26 at the library-fixes merge: evaluate_answers hosts the count
+    # and stream closures over one decoded target and policy context, the
+    # shape fix 17's engine-side len and fix 8's suspended producer share.
+    "C90": 26,
     "TRY": 23,
     "EM": 0,
 }
