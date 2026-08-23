@@ -31,11 +31,13 @@ def twin(m):
     """Run each constraint forwards, then run three of them backwards."""
     # COST, recorded because the lane's band reports it and it is the
     # library's to fix, not this twin's: `m.fn[...]` resolves its handle
-    # against the engine on every access, about 1,206 inferences per name, and
-    # this file names fourteen. With the first answer view's own ~4,700 setup
-    # that is most of the twin's 24,730 against the example's 19,446. Nothing
-    # about the spelling changes; the resolution should be cached
-    # [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+    # against the engine on every access, about 1,200 inferences per name,
+    # and this file names fourteen. With the first answer view's own ~4,700
+    # setup that is most of the twin's 24,730 against the example's 19,446.
+    # Nothing about the spelling changes; the resolution should be cached
+    # [measured 2026-08-23: 1,206 for the first name and 1,178 for the second,
+    # with m.stats() around one m.fn["#<"] and one m.fn["#>"] access;
+    # commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     plus, times, minus = m.fn["#+"], m.fn["#*"], m.fn["#-"]
     divide, modulo = m.fn["#div"], m.fn["#mod"]
     smallest, largest = m.fn["#min"], m.fn["#max"]

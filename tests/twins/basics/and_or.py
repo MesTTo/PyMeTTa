@@ -42,13 +42,14 @@ def twin(m):
     # (or (and true false) true)
     #
     # COST, recorded because the lane's band reports it and it is the
-    # library's to fix, not this twin's: the first answer view a process
-    # creates costs about 4,700 inferences to set up its held evaluation, and
-    # every one after it about 90. This file asks exactly one question, so it
-    # pays the whole setup for it and lands at 5,446 against the example's
-    # 2,103. `m.eval` answers the same thing for 738, which is what the file
-    # used to do; the cardinality door is the better spelling and the setup is
-    # what should get cheaper [measured 2026-08-23 on this worktree;
+    # library's to fix, not this twin's: the FIRST answer view a process
+    # creates sets up a held evaluation, and a later view costs only what its
+    # own evaluation costs. This file asks exactly one question, so the whole
+    # setup lands on it and the twin reads 5,446 against the example's 2,103,
+    # where the same question through m.eval costs 738. The cardinality door
+    # is the better spelling and the setup is what should get cheaper
+    # [measured 2026-08-23 with m.stats() around each: m.eval 738, the first
+    # m.answers(...).one() 4,885, a second one 175;
     # commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
     holds = m.answers(S["and"](TRUE, FALSE) | TRUE).one()
     assert (1 if holds else 2) == 1
