@@ -39,6 +39,9 @@ Guarantees:
   - coordination functions are lazy satellite exports and Timeout remains
     catchable as builtin TimeoutError [tested:
     test_the_coordination_family_is_python_shaped; commit=WORKTREE]
+  - module define/cache/stats/limits/strict/trace verbs defer engine creation
+    until called and target the default self space [tested:
+    test_module_tier_exposes_the_mode_and_definition_family; commit=WORKTREE]
 Decides:
   - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
     stack policy [source: PeTTa-base/python/petta/__init__.py:8;
@@ -109,7 +112,6 @@ _SATELLITES = frozenset(
         "subscribe",
         "tables",
         "testing",
-        "trace",
         "vocabularies",
         "wire",
     }
@@ -141,6 +143,7 @@ _HIDDEN_IMPLEMENTATION_MODULES = {
     "errors",
     "ops",
     "results",
+    "trace",
 }
 
 # These four names are the retained upstream package state. Exact ``__dir__``
@@ -290,7 +293,13 @@ def __getattr__(name: str) -> _Any:
         msg = f"module {__name__!r} has no attribute {name!r}"
         raise AttributeError(msg)
     for implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
-        globals().pop(implementation_name, None)
+        replacement = globals().get("_ROOT_IMPLEMENTATION_VERBS", {}).get(
+            implementation_name
+        )
+        if replacement is None:
+            globals().pop(implementation_name, None)
+        else:
+            globals()[implementation_name] = replacement
     globals()[name] = value
     return value
 
@@ -415,6 +424,57 @@ def solve(pattern: _Any, subject: _Any):
     return engine().self.solve(pattern, subject)
 
 
+def define(*args: _Any, **kwargs: _Any):
+    """Define a function or record in the default self space."""
+    return engine().self.define(*args, **kwargs)
+
+
+def cache(*args: _Any, **kwargs: _Any):
+    """Define and memoize a function in the default self space."""
+    return engine().self.cache(*args, **kwargs)
+
+
+def stats():
+    """Measure engine counters across a default-context block."""
+    return engine().self.stats()
+
+
+def limits(
+    *,
+    timeout: float | None = None,
+    inferences: int | None = None,
+    stack: int | None = None,
+):
+    """Scope default time, inference, and stack-byte bounds."""
+    return engine().self.limits(
+        timeout=timeout,
+        inferences=inferences,
+        stack=stack,
+    )
+
+
+def strict():
+    """Refuse unreduced default-context directives within the block."""
+    return engine().self.strict()
+
+
+def trace(source: str, *, max_events: int = 10_000):
+    """Trace source in the default self space."""
+    root_trace = trace
+    try:
+        return engine().self.trace(source, max_events=max_events)
+    finally:
+        # Importing the implementation submodule writes it onto its package;
+        # the designed root name remains this verb after the lazy import.
+        globals()["trace"] = root_trace
+
+
+_ROOT_IMPLEMENTATION_VERBS = {
+    "define": define,
+    "trace": trace,
+}
+
+
 __all__ = [
     "FALSE",
     "HERE",
@@ -452,11 +512,13 @@ __all__ = [
     "arrow",
     "attach",
     "boot",
+    "cache",
     "casting",
     "channel",
     "config",
     "convert",
     "current_space",
+    "define",
     "derivation",
     "drop",
     "engine",
@@ -471,6 +533,7 @@ __all__ = [
     "if_",
     "in_",
     "integrate",
+    "limits",
     "lint",
     "manifest",
     "match",
@@ -492,6 +555,8 @@ __all__ = [
     "space",
     "spaces",
     "spawn",
+    "stats",
+    "strict",
     "structures",
     "subscribe",
     "superpose",
@@ -509,5 +574,10 @@ __all__ = [
 # modules remain explicitly importable, but they are implementation modules,
 # not root attributes.
 for _implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
-    globals().pop(_implementation_name, None)
+    if _implementation_name in _ROOT_IMPLEMENTATION_VERBS:
+        globals()[_implementation_name] = _ROOT_IMPLEMENTATION_VERBS[
+            _implementation_name
+        ]
+    else:
+        globals().pop(_implementation_name, None)
 del _implementation_name

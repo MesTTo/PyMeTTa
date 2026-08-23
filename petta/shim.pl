@@ -29,6 +29,9 @@
 %     not only their own [tested 2026-08-19:
 %     test_both_doors_replace_a_files_definitions,
 %     test_loading_the_same_file_twice_leaves_one_copy]
+%   - stack-bounded text and fast loads have explicit wrappable entries for
+%     petta_py_limited/6 [tested:
+%     test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
 %   - Engine atom hooks exist only while a Python space subscription exists
 %     [tested test_subscription_hooks_follow_the_active_space_set]
 %   - petta_py_new_space/2 and petta_py_release_space/1 keep inherited-space
@@ -671,6 +674,11 @@ petta_py_wrappable(petta_py_profiled).
 petta_py_wrappable(petta_py_cursor_next).
 petta_py_wrappable(petta_py_eval_count).
 petta_py_wrappable(petta_py_derivation).
+petta_py_wrappable(petta_py_load).
+petta_py_wrappable(petta_py_fast_load_unit).
+
+petta_py_fast_load_unit(File, Space, []) :-
+    petta_py_fast_load(File, Space).
 
 petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-
     ( atom(Pred0) -> Pred = Pred0 ; atom_string(Pred, Pred0) ),

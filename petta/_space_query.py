@@ -15,6 +15,9 @@ Guarantees:
   - query_count returns one integer from an engine-side aggregate rather than
     crossing answer rows [tested:
     test_query_answers_complete_the_lazy_projection_protocol; commit=WORKTREE]
+  - eager and prepared queries carry a scoped stack bound through the shared
+    limited-call selector [tested:
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,7 +30,7 @@ from typing import Any
 
 from ._engine import Runtime
 from ._name_mapping import resolve_known_name
-from ._space_objects import _column_names, _limits, guard_atom
+from ._space_objects import _apply_limited, _column_names, _limits, guard_atom
 from .atoms import Atom, Expression, _atom_from_wire, _to_atom
 from .results import Rows, _QueryContext
 
@@ -162,11 +165,11 @@ def _execute_query(
     rt: Runtime,
     predicate: str,
     inputs: list[Any],
-    limits: tuple[float, int] | None,
+    limits: tuple[float, int, int] | None,
 ) -> Any:
     if limits is None:
         return rt.apply_must(predicate, *inputs)
-    return rt.apply_must("petta_py_limited", *limits, predicate, inputs)
+    return _apply_limited(rt, limits, predicate, inputs)
 
 
 def _decode_rows(answered: Any) -> list[tuple[Atom, ...]]:

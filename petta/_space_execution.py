@@ -23,6 +23,9 @@ Guarantees:
   - the held-evaluation cursor ships in the boot-consulted bridge rather than
     being consulted on the first answer pull [tested:
     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - controlled run, eval, status, profile, and lazy-pull calls preserve the /5
+    limit seam unless a scoped stack byte count selects /6 [tested:
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -40,6 +43,7 @@ from ._engine import Runtime
 from ._space_objects import (
     EngineProfile,
     FunctionCost,
+    _apply_limited,
     _column_names,
     _limits,
     _record_engine_inferences,
@@ -151,7 +155,7 @@ def _controlled_run(
     rt: Runtime,
     predicate: str,
     inputs: list[Any],
-    limits: tuple[float, int] | None,
+    limits: tuple[float, int, int] | None,
     *,
     capture: bool,
     atomic: bool,
@@ -163,15 +167,12 @@ def _controlled_run(
         predicate, inputs = "petta_py_speculative", [predicate, inputs]
     if capture:
         predicate, inputs = "petta_py_captured", [predicate, inputs]
-    seconds, steps = limits if limits is not None else (-1.0, -1)
-    row = rt.must(
-        "petta_py_limited(T, I, P, Ins, Out)",
-        T=seconds,
-        I=steps,
-        P=predicate,
-        Ins=inputs,
+    return _apply_limited(
+        rt,
+        limits if limits is not None else (-1.0, -1, -1),
+        predicate,
+        inputs,
     )
-    return row.get("Out", [])
 
 
 def _decode_groups(wires: Any) -> list[list[Atom]]:
@@ -224,15 +225,12 @@ def profile_source(
     inferences: int | None,
 ) -> tuple[list[list[Atom]], EngineProfile]:
     predicate, inputs = _run_target(space, source, using)
-    seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
-    row = rt.must(
-        "petta_py_limited(T, I, P, Ins, Out)",
-        T=seconds,
-        I=steps,
-        P="petta_py_profiled",
-        Ins=[predicate, inputs],
+    output, samples, ticks, nodes = _apply_limited(
+        rt,
+        _limits(timeout, inferences) or (-1.0, -1, -1),
+        "petta_py_profiled",
+        [predicate, inputs],
     )
-    output, samples, ticks, nodes = row["Out"]
     return _decode_groups(output), EngineProfile(samples, ticks, nodes)
 
 
@@ -347,8 +345,12 @@ def evaluate(
     else:
         if captured is not None:
             predicate, inputs = "petta_py_captured", [predicate, inputs]
-        seconds, steps = limits if limits is not None else (-1.0, -1)
-        output = rt.apply_must("petta_py_limited", seconds, steps, predicate, inputs)
+        output = _apply_limited(
+            rt,
+            limits if limits is not None else (-1.0, -1, -1),
+            predicate,
+            inputs,
+        )
         if captured is not None:
             wires, text = output
             captured._append(str(text))
@@ -384,6 +386,7 @@ def evaluate_answers(  # noqa: C901  -- count and stream closures share one deco
     limits = _limits(timeout, inferences)
     seconds = None if limits is None or limits[0] < 0 else limits[0]
     steps = -1 if limits is None else limits[1]
+    stack = -1 if limits is None else limits[2]
 
     def count_answers() -> int:
         predicate = "petta_py_eval_count"
@@ -394,9 +397,7 @@ def evaluate_answers(  # noqa: C901  -- count and stream closures share one deco
         if limits is None:
             output = rt.apply_must(predicate, *inputs)
         else:
-            output = rt.apply_must(
-                "petta_py_limited", limits[0], limits[1], predicate, inputs
-            )
+            output = _apply_limited(rt, limits, predicate, inputs)
         if captured is not None:
             output, captured_text = output
             captured._append(str(captured_text))
@@ -415,11 +416,14 @@ def evaluate_answers(  # noqa: C901  -- count and stream closures share one deco
                 inputs: list[Any] = [handle]
                 if captured is not None:
                     predicate, inputs = "petta_py_captured", [predicate, inputs]
-                if seconds is None:
+                if seconds is None and stack < 0:
                     output = rt.apply_must(predicate, *inputs)
                 else:
-                    output = rt.apply_must(
-                        "petta_py_limited", seconds, -1, predicate, inputs
+                    output = _apply_limited(
+                        rt,
+                        (-1.0 if seconds is None else seconds, -1, stack),
+                        predicate,
+                        inputs,
                     )
                 if captured is not None:
                     output, text = output
@@ -483,11 +487,9 @@ def evaluate_status(
     inferences: int | None,
 ) -> list[tuple[str, Atom | Undefined | None]]:
     """Pair each answer with the evaluation path that produced it."""
-    seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
-    rows = rt.apply_must(
-        "petta_py_limited",
-        seconds,
-        steps,
+    rows = _apply_limited(
+        rt,
+        _limits(timeout, inferences) or (-1.0, -1, -1),
         "petta_py_eval_status_all",
         [space, _to_atom(target).to_wire()],
     )
@@ -505,9 +507,11 @@ def run_status(
     inferences: int | None,
 ) -> list[list[tuple[str, Atom | Undefined | None]]]:
     """One (status, answer) list per ! directive, in source order."""
-    seconds, steps = _limits(timeout, inferences) or (-1.0, -1)
-    groups = rt.apply_must(
-        "petta_py_limited", seconds, steps, "petta_py_run_status", [source, space]
+    groups = _apply_limited(
+        rt,
+        _limits(timeout, inferences) or (-1.0, -1, -1),
+        "petta_py_run_status",
+        [source, space],
     )
     return [
         [

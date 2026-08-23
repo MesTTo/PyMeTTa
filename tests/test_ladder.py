@@ -3,6 +3,12 @@ default engine (M1), scoped limits (M3), into= row shaping (M4), the batch
 block (M5), the shipped pytest fixtures (M6), and the exported strategies
 (L4). Every rung is tested as sugar for the rung below.
 Guarantees:
+  - module define/cache/stats/limits/strict/trace verbs defer to one lazy
+    default engine [tested: test_module_tier_exposes_the_mode_and_definition_family;
+    commit=WORKTREE]
+  - scoped stack bounds retain an explicit byte count for
+    ``petta_py_limited/6`` [tested:
+    test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
   - class declarations are context-relative through ``Space.define`` and the
     retired root ``record`` door is not used [tested:
     test_define_wires_the_declarative_dance and
@@ -20,6 +26,7 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import importlib.util
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -31,6 +38,7 @@ from hypothesis import given
 
 import petta
 from petta import PettaError, S, V
+from petta._space_objects import _apply_limited, _limits
 from petta.errors import InferenceLimitError
 
 
@@ -46,6 +54,84 @@ def test_module_tier_is_sugar_over_one_default_engine():  # noqa: D103  -- pytes
     assert petta.space("&ml-named").name == "&ml-named"
     assert importlib.util.find_spec("petta.space") is None
     assert callable(petta.space)
+
+
+def test_module_tier_exposes_the_mode_and_definition_family() -> None:
+    """The guide's root verbs are self-space methods with lazy engine creation."""
+
+    @petta.define
+    def module_tier_increment(n):
+        return n + 1
+
+    @petta.cache
+    def module_tier_square(n):
+        return n * n
+
+    assert module_tier_increment(4) == [5]
+    assert module_tier_square(3) == [9]
+    with petta.stats() as measured:
+        assert petta.eval(S.module_tier_increment(8)) == [9]
+    assert measured.inferences > 0
+    with petta.limits(inferences=100_000), petta.strict():
+        assert petta.eval(S.module_tier_square(4)) == [16]
+    events = petta.trace("!(module-tier-increment 1)")
+    assert events
+    assert callable(petta.trace)
+
+
+def test_module_tier_verbs_are_inert_until_called() -> None:
+    """Naming every PEP 562-era root verb does not start the default engine."""
+    root = Path(__file__).parents[3]
+    source = (
+        "from petta import _engine\n"
+        "import petta\n"
+        "assert not _engine.started()\n"
+        "assert all(callable(getattr(petta, name)) for name in "
+        "('define', 'cache', 'stats', 'limits', 'strict', 'trace'))\n"
+        "assert not _engine.started()\n"
+    )
+    subprocess.run(
+        [sys.executable, "-c", source],
+        cwd=root,
+        env=os.environ | {"PYTHONPATH": str(root / "bindings" / "python")},
+        check=True,
+    )
+
+
+def test_stack_limit_is_carried_to_the_limited_six_seam(metta) -> None:
+    """The scoped value reaches the contract even before the sibling seam lands."""
+
+    class RecordingRuntime:
+        def __init__(self) -> None:
+            self.call = ()
+
+        def apply_must(self, *args):
+            self.call = args
+            return "answered"
+
+    with metta.limits(stack=4_000_000):
+        bounded = _limits(None, None)
+        assert bounded == (-1.0, -1, 4_000_000)
+        runtime = RecordingRuntime()
+        assert _apply_limited(runtime, bounded, "petta_py_eval_all", ["&self", []]) == (
+            "answered"
+        )
+    assert runtime.call == (
+        "petta_py_limited",
+        -1.0,
+        -1,
+        4_000_000,
+        "petta_py_eval_all",
+        ["&self", []],
+    )
+
+
+def test_stack_limit_through_petta_py_limited_6(metta) -> None:
+    """Exercise the sibling engine seam when this worktree contains it."""
+    if not metta._rt.once("current_predicate(petta_py_limited/6)"):
+        pytest.skip("petta_py_limited/6 is supplied by the sibling engine job")
+    with metta.limits(stack=4_000_000):
+        assert metta.eval(S["+"](1, 2)) == [3]
 
 
 def test_scoped_limits_apply_and_per_call_overrides(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
