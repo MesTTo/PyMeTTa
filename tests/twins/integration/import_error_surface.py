@@ -2,9 +2,9 @@
 
 A file that does not parse and a file that does not exist both surface the same
 way: the import raises, `catch` turns the raise into an `(Error ...)` atom, and
-the example reads that atom with `if-error`. The twin keeps `catch`, because the
-error ALGEBRA is what the file is about, and reads the atom the way Python reads
-any expression, by its head.
+the example reads that atom with `if-error`. The twin keeps `catch`, because
+the error ALGEBRA is what the file is about, and reads the atom the way Python
+reads any expression, by its head.
 
 The paths stay relative and unresolvable, unlike the sibling import twins:
 these two claims are that the import FAILS, and a path that resolves against
@@ -19,16 +19,16 @@ from metta import S
 #: library the tree ships.
 LIB_HE = S["lib_he"]
 
-#: The two ways an import can fail: a file that will not parse, and one that
-#: is not there.
+#: The two ways an import can fail: a file that will not parse, and one that is
+#: not there.
 BROKEN = S["examples/integration/_fixtures/imports/import_error_broken"]
 MISSING = S["examples/integration/_fixtures/imports/definitely_missing_import"]
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -40,8 +40,12 @@ def twin(m):
     # reached by its own bang name, which performs it where it is written.
     m.fn["import!"](m, S.library(LIB_HE))
 
-    broken, = m.eval(S.catch(S["import!"](m, BROKEN)))
-    assert broken[0] == S.Error
+    def caught(target):
+        """The atom `catch` hands back when importing `target` raises."""
+        answer, = m.eval(S.catch(S["import!"](m, target)))   # (catch (import! &self ...))
+        return answer
 
-    missing, = m.eval(S.catch(S["import!"](m, MISSING)))
-    assert missing[0] == S.Error
+    # (if-error (catch (import! ...)) Error NoError) is the head of the atom,
+    # which Python reads off the expression it already holds.
+    assert caught(BROKEN)[0] == S.Error
+    assert caught(MISSING)[0] == S.Error

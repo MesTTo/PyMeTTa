@@ -4,8 +4,8 @@ The example is the language's own tutorial for holding Python objects in MeTTa
 [source: metta-lang.dev/docs/learn/tutorials/python_use/py_atom]. Every
 `!(bind! np-abs (py-atom numpy.absolute))` is a Python name binding here, which
 is what a token was for: `np_abs = ground(np.absolute)` names the object itself
-rather than parsing its dotted path, and applying it is an ordinary tuple, the
-head being the function.
+rather than parsing its dotted path, and applying it is an ordinary tuple whose
+head IS the function.
 
 Where Python has the concept it wins, and here that means most of the file:
 `(py-iter ...)` under a `collapse` is `.tolist()`, and asking what class an
@@ -16,11 +16,11 @@ back into Python, arriving as an ordinary `int`, so `np.absolute(-5)` staying
 survive, by reference, which is why the third claim is plain Python.
 
 `__class__` and `__name__` take the bracket door, which is what rung 5 is for:
-the attribute door of the S factory refuses every name beginning with `__`,
-because inside a class body Python's own compiler would mangle it.
+inside a class body Python's own compiler mangles a leading double underscore,
+so those names have no attribute spelling at any factory.
 
 `Kwargs` stays. It is the seam's own spelling for keyword arguments in a
-MeTTa-side call and the Python surface has no other, which is the residue this
+MeTTa-side call and the Python surface has no other, which is the friction this
 file carries beside the scalar crossing.
 """
 
@@ -36,8 +36,8 @@ np_random = np.random
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -49,7 +49,7 @@ def twin(m):
     # Known issue: the perfect claim is `isinstance(np.absolute(-5), np.int64)`
     # on the answer Python holds, and a numpy SCALAR does not survive the
     # crossing back: `m.eval` hands Python an ordinary `int` [measured
-    # 2026-08-23, Grounded(5) whose .value is an int]. An ndarray DOES survive,
+    # 2026-08-24, Grounded(5) whose .value is an int]. An ndarray DOES survive,
     # by reference, which is why the array claim below is plain `isinstance`.
     # So this one question can only be asked engine-side.
     scalar = (np_abs, -5)
@@ -70,7 +70,7 @@ def twin(m):
     # Known issue: the perfect spelling of the last two is Python's own
     # `np.arange(step=2, stop=8)`, and a keyword argument has no Python-authored
     # spelling that still crosses the seam, so `Kwargs` is the seam's own form
-    # written out as a term (§8c filed the design decision; nothing has landed).
+    # written out as a term (the design decision is filed; nothing has landed).
     assert m.answers((np_arange, 4)).one().tolist() == [0, 1, 2, 3]
     assert m.answers((np_arange, S.Kwargs(S.step(2), S.stop(8)))).one().tolist() == [0, 2, 4, 6]
     assert m.answers(

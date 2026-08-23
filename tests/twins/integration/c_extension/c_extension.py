@@ -4,7 +4,7 @@
 it with nothing in between. From Python the loading step is
 `m.register_prolog(path=, names=)`, which is what
 `import_prolog_functions_from_file` names in MeTTa, and the call is
-`m.fn.c_bump(41)`, rung 4's hyphen map applied at the function namespace.
+`m.fn.c_bump(41)`, rung 4's map applied at the function namespace.
 
 The example splits its import and its call into two runnables because a
 runnable is compiled just before it runs, so a call written beside its own
@@ -18,8 +18,8 @@ each import writes is the handle itself, a grounded operand in the built term.
 
 The skip stays, because a C compiler is not one of the engine's requirements
 and `check.sh` builds this artefact before any tier runs. What a twin cannot do
-is SAY it skipped: the lane admits a string constant only as an atom's name or
-as `ground()` data, so the example's `println!` has no image here.
+is SAY it skipped: a string constant reaches the engine only as an atom's name
+or as `ground()` data, so the example's `println!` has no image here.
 """
 
 from pathlib import Path
@@ -38,8 +38,8 @@ LOADER_PL = Path("examples/integration/c_extension/loader.pl")
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -49,12 +49,12 @@ def twin(m):
     # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
     # library (appendix stamp 1), and neither exists yet, so the directive is
     # reached by its own bang name, which performs it where it is written.
-    m.fn["import!"](m, S.library(LIB_IMPORT))
-    m.fn["import!"](m, S.library(LIB_FILE))
+    for library in (LIB_IMPORT, LIB_FILE):
+        m.fn["import!"](m, S.library(library))
 
     if not CBUMP_SO.exists():
         # The example prints its skip here. A twin has no door for prose.
         return
 
     m.register_prolog(path=LOADER_PL, names=["c-bump"])
-    assert m.fn.c_bump(41).one() == 42
+    assert m.fn.c_bump(41).one() == 42     # (test (eval (c-bump 41)) 42)

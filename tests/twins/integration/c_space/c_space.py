@@ -1,12 +1,13 @@
 """examples/integration/c_space/c_space.metta in Python: a space whose atoms live in C.
 
-`cstore.c` holds the atoms and `cstore.pl` puts four clauses on the foreign-space
-seam, so `&cstore` is a space like any other and nothing above it knows there is
-a C backend. That is exactly why this twin reads like the spaces twins: the
-store is a handle, `store += atom` writes, `store[pattern]` matches, and
-`store -= atom` takes one unifying occurrence away, which is what `remove-atom`
-means everywhere. `check-space-provider` takes that handle too, as a grounded
-operand, so nothing here names a space as a symbol.
+`cstore.c` holds the atoms and `cstore.pl` puts four clauses on the
+foreign-space seam, so `&cstore` is a space like any other and nothing above it
+knows there is a C backend. That is exactly why this twin reads like the spaces
+twins: the store is a handle named by an ATOM rather than by text, `store +=
+atom` writes, `store[pattern]` matches, and `store -= atom` takes one unifying
+occurrence away, which is what `remove-atom` means everywhere.
+`check-space-provider` takes that handle too, as a grounded operand, so nothing
+here names a space as a symbol.
 
 The provider file is consulted through `m.register_prolog(path=)`, the Python
 door for what the example spells `(let "cstore.pl" (consult_global) provider)`.
@@ -33,7 +34,7 @@ LIBRARIES = (S["lib_import"], S["lib_file"], S["lib_conformance"])
 CSTORE_SO = Path("examples/integration/c_space/cstore.so")
 CSTORE_PL = Path("examples/integration/c_space/cstore.pl")
 
-#: What a healthy provider reports about itself.
+#: What a healthy provider reports about itself, in the engine's own prose.
 REPORT = [
     ground("enumerate: declared, seam:foreign_atoms/2 has clauses"),
     ground("add: declared, seam:foreign_add/2 has clauses"),
@@ -47,8 +48,8 @@ REPORT = [
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -69,13 +70,11 @@ def twin(m):
     # Known issue: `metta.space(name)` rides the process-DEFAULT context, not
     # the one holding `m`; the two reach the same store only because the SWI
     # runtime is process-wide. A creation door on the handle's own context is
-    # the perfect spelling [measured 2026-08-23].
-    store = metta.space("&cstore")
+    # the perfect spelling [measured 2026-08-24].
+    store = metta.space(S.cstore)
 
     # Writes and reads cross into C; the engine keeps unification for itself.
-    store += S.edge(S.a, S.b)
-    store += S.edge(S.a, S.c)
-    store += S.edge(S.b, S.c)
+    store += [(S.edge, S.a, S.b), (S.edge, S.a, S.c), (S.edge, S.b, S.c)]
     assert [row.x for row in store[S.edge(S.a, V.x)]] == [S.b, S.c]
 
     # Removal is multiset subtraction: two atoms match `(edge a $any)`, so
@@ -85,10 +84,9 @@ def twin(m):
     store -= S.edge(S.a, V.other)
     assert [(row.x, row.y) for row in store[S.edge(V.x, V.y)]] == [(S.b, S.c)]
 
-    # Identical copies are where the reading matters most: the count walks
-    # down one at a time rather than clearing to nothing.
-    for _ in range(3):
-        store += S.dup(1)
+    # Identical copies are where the reading matters most: the count walks down
+    # one at a time rather than clearing to nothing.
+    store += [(S.dup, 1)] * 3
     store -= S.dup(1)
     assert len(store[S.dup(V.n)]) == 2
     store -= S.dup(1)
