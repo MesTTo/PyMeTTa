@@ -26,7 +26,7 @@ DEMO = (
 def test_the_sqlite_demo_declares_exact_on_the_diagonal():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     text = DEMO.read_text(encoding="utf-8")
     diagonal = re.search(
-        r'declare_handles\(name,\s*"\(edge \$x \$x\)",\s*"(\w+)"\)', text
+        r'target\.handles\("\(edge \$x \$x\)",\s*"(\w+)"\)', text
     )
     assert diagonal, "the diagonal declaration is gone from the sqlite demo"
     assert diagonal.group(1) == "Exact", (

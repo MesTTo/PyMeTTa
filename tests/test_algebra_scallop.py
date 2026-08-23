@@ -20,7 +20,7 @@ def test_the_scallop_readme_examples_answer_identically_through_the_seams(
     example = repo_root / "examples" / "reasoning" / "scallop_readme.metta"
     mapping = example.with_suffix(".md")
     with metta._new_space() as program:
-        program.declare_annotations(program.name, "set")
+        program.annotations(program.name, "set")
         results = program.load(example)
     assert [[str(answer) for answer in group] for group in results] == [
         ["True"],
@@ -31,7 +31,7 @@ def test_the_scallop_readme_examples_answer_identically_through_the_seams(
     ]
     table = mapping.read_text(encoding="utf-8")
     for seam in (
-        "MeTTa.declare_algebra",
+        "Space.algebra",
         "DLPack",
         "foldall",
         "not-provable",

@@ -386,7 +386,7 @@ def require(metta: Space, name: str) -> DeclaredAlgebra:
         presets = ", ".join(_PRESETS)
         msg = (
             f"algebra_not_declared({name}); shipped presets are {presets}, "
-            "or declare_algebra() may add another"
+            "or algebra() may add another"
         )
         raise AlgebraDeclarationError(msg)
     return declaration
@@ -395,7 +395,7 @@ def require(metta: Space, name: str) -> DeclaredAlgebra:
 def _context_capabilities(metta: Space, algebra: str) -> frozenset[str]:
     context = Symbol(str(metta.name))
     for atom in Space("&petta", _runtime=metta.runtime).atoms():
-        # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=bindings/python/petta/_space.py:declare_annotations
+        # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=bindings/python/petta/_space.py:annotations
         if not isinstance(atom, Expression) or len(atom.children) not in {3, 4}:
             continue
         if atom.children[:3] != (Symbol("annotations"), context, Symbol(algebra)):

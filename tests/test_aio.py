@@ -287,9 +287,12 @@ def test_aio_covers_the_whole_synchronous_surface():
         # Answers is a synchronous replayable iterator. AsyncMeTTa's stream
         # is the awaitable pull protocol rather than a cross-thread iterator.
         "answers",
-        # A decorator cannot await the worker-side landing; async callers add
-        # a bare rules bundle through the existing await m.add(*bundle) door.
-        "rules",
+            # A decorator cannot await the worker-side landing; async callers add
+            # a bare rules bundle through the existing await m.add(*bundle) door.
+            "rules",
+            # Like rules, the pre-add door is a decorator over a synchronous
+            # compiled definition and cannot await between decorator layers.
+            "pre_add",
         # These are Space's Atom/Handle operand protocol, not engine calls.
         "metatype",
         "to_wire",
@@ -734,7 +737,8 @@ def test_aio_declare_and_register_delegations_land():  # noqa: D103  -- pytest d
     async def go():
         async with aio.AsyncMeTTa() as am:
             m = await am.space()
-            declared = await m.declare_source("aio-src", "linear")
+            source = await m.space("&aio-src")
+            declared = await source.source("linear")
             assert "aio-src" in str(declared)
 
             def double(x: int) -> int:

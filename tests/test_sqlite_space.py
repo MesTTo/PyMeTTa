@@ -179,7 +179,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
     assert rows.to_dicts() == [{"byte": 17}]
 
     m._unregister_space(name)
-    transparent_image = m.declare_image(name, "Blob", "transparent")
+    transparent_image = m._at(name).image("Blob", "transparent")
     assert image not in m._at("&petta")
     assert transparent_image in m._at("&petta")
     transparent_provider = petta.tables.TableBridge.from_context(

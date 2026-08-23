@@ -78,11 +78,11 @@ def sql(metta, request):  # noqa: D103  -- pytest discovers or injects this call
     name = f"&sql-{request.node.name[-18:].replace('_', '')}"
     provider = SqlEdges()
     metta._register_space(provider, name)
-    metta.declare_context(name, "closed-world")
-    metta.declare_annotations(name, "bag")
-    metta.declare_handles(name, "(edge $x $y)", "Exact")
-    metta.declare_handles(name, "(edge $x $x)", "Sound")
-    metta.declare_writes(name, "transactional")
+    metta._at(name).context("closed-world")
+    metta.annotations(name, "bag")
+    metta._at(name).handles("(edge $x $y)", "Exact")
+    metta._at(name).handles("(edge $x $x)", "Sound")
+    metta._at(name).writes("transactional")
     yield name, provider
     metta._unregister_space(name)
 
@@ -177,13 +177,13 @@ class CosineIndex(SpaceProvider):
 def _vec_context(metta, name, *, best_first=True):
     provider = CosineIndex(emit_in_order=best_first)
     metta._register_space(provider, name)
-    metta.declare_context(name, "open-world")
-    metta.declare_annotations(name, "ranked")
-    metta.declare_source(name, "repeated")
-    metta.declare_handles(name, "(near (in $q) $hit)", "Exact", det="semidet")
-    metta.declare_handles(name, "(near $q $hit)", "Refuse")
+    metta._at(name).context("open-world")
+    metta.annotations(name, "ranked")
+    metta._at(name).source("repeated")
+    metta._at(name).handles("(near (in $q) $hit)", "Exact", det="semidet")
+    metta._at(name).handles("(near $q $hit)", "Refuse")
     if best_first:
-        metta.declare_emits(name, "best-first")
+        metta._at(name).emits("best-first")
     return provider
 
 

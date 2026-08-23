@@ -585,7 +585,7 @@ def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
     parsed = m.parse(declaration) if isinstance(declaration, str) else declaration
     if not isinstance(parsed, Expression):
         raise _declaration_error(parsed)
-    _Shape(parsed)  # validated before it is stored, the declare_* discipline
+    _Shape(parsed)  # validated before it is stored, the declaration discipline
     _, atom_shape, row_shape = parsed.children
     stored = m.parse(f"(bridge {name} {atom_shape} {row_shape})")
     with m.bind(decl=stored):

@@ -255,7 +255,7 @@ def test_a_conditional_answer_under_a_pushed_bound_is_loud(metta):  # noqa: D103
         yield Answer({y: 5}, residue=Expression([Symbol(">"), y, Grounded(3)]))
 
     metta._register_space(_AnswerProvider(answer), "&ap-bound")
-    metta.declare_handles("&ap-bound", "(edge a $y)", "Exact")
+    metta._at("&ap-bound").handles("(edge a $y)", "Exact")
     with pytest.raises(EngineError, match="Sound"):
         metta.run("!(collapse (take 2 (match &ap-bound (edge a $y) $y)))")
     # Without the bound the same conditional answer is fine.
@@ -344,7 +344,7 @@ def test_top_over_an_annotated_op_answers_the_k_best_in_order(metta):  # noqa: D
             yield Answer(value=word, k=degree)
 
     metta.op(ap_lex, name="ap-lex")
-    metta.declare_annotations("ap-lex", "ranked")
+    metta.annotations("ap-lex", "ranked")
     out = metta.run('!(collapse (top 2 (ap-lex "q" $c)))')
     assert str(out[0][0]) == '("beta" "delta")'
     # The differential: brute force over every answer paired with its own
@@ -368,7 +368,7 @@ def test_top_orders_mixed_integer_and_float_annotations_by_value(metta):  # noqa
         yield Answer(value=Symbol("floathigh"), k=2.5)
 
     metta.op(mixed, name="ap-mixed-k")
-    metta.declare_annotations("ap-mixed-k", "ranked")
+    metta.annotations("ap-mixed-k", "ranked")
     (best,) = metta.run("!(collapse (top 1 (ap-mixed-k q)))")[0]
     assert [str(a) for a in best.children] == ["floathigh"]
 
@@ -405,14 +405,14 @@ def test_top_pushes_the_bound_under_three_declarations(metta):  # noqa: D103  --
 
     provider = _Ranked()
     metta._register_space(provider, "&ap-vec")
-    metta.declare_annotations("&ap-vec", "ranked")
+    metta.annotations("&ap-vec", "ranked")
     # Two of the three declarations: the bound stays here.
-    metta.declare_handles("&ap-vec", "(scored $x)", "Exact")
+    metta._at("&ap-vec").handles("(scored $x)", "Exact")
     out = metta.run("!(collapse (top 2 (match &ap-vec (scored $x) $x)))")
     assert provider.limits == [None]
     assert str(out[0][0]) == "(b c)"
     # The third lands and the provider is handed the bound.
-    metta.declare_emits("&ap-vec", "best-first")
+    metta._at("&ap-vec").emits("best-first")
     provider.limits.clear()
     out = metta.run("!(collapse (top 2 (match &ap-vec (scored $x) $x)))")
     assert provider.limits == [2]
@@ -434,17 +434,17 @@ def test_an_undeclared_annotation_names_the_declaration(metta):  # noqa: D103  -
 
 def test_declare_annotations_validates_and_replaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="ranked"):
-        metta.declare_annotations("&ap-v", "sorta")
-    metta.declare_annotations("&ap-v", "ranked")
-    metta.declare_annotations("&ap-v", "prob")
+        metta.annotations("&ap-v", "sorta")
+    metta.annotations("&ap-v", "ranked")
+    metta.annotations("&ap-v", "prob")
     rows = metta._at("&petta").query(parse("(annotations &ap-v $s)"))
     assert [str(row.s) for row in rows] == ["prob"]
 
 
 def test_declare_emits_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="best-first"):
-        metta.declare_emits("&ap-v", "fastest")
-    metta.declare_emits("&ap-v", "best-first")
+        metta._at("&ap-v").emits("fastest")
+    metta._at("&ap-v").emits("best-first")
     rows = metta._at("&petta").query(parse("(emits &ap-v $p)"))
     assert [str(row.p) for row in rows] == ["best-first"]
 
@@ -509,7 +509,7 @@ def test_the_undeclared_floor_aborts(metta):  # noqa: D103  -- pytest discovers 
 
 def test_keep_delivers_the_failure_as_an_answer(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_FlakyProvider(ValueError("fell over")), "&oe-keep")
-    metta.declare_on_error("&oe-keep", "(edge $x $y)", "keep")
+    metta._at("&oe-keep").on_error("(edge $x $y)", "keep")
     out = metta.run("!(collapse (match &oe-keep (edge $x $y) $y))")
     answers = out[0][0].children
     # The streamed answer survives, and the failure is one more answer in
@@ -521,15 +521,15 @@ def test_keep_delivers_the_failure_as_an_answer(metta):  # noqa: D103  -- pytest
 
 def test_empty_ends_the_stream_by_declaration(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_FlakyProvider(ValueError("fell over")), "&oe-empty")
-    metta.declare_on_error("&oe-empty", "(edge $x $y)", "empty")
+    metta._at("&oe-empty").on_error("(edge $x $y)", "empty")
     out = metta.run("!(collapse (match &oe-empty (edge $x $y) $y))")
     assert str(out[0][0]) == "(b)"
 
 
 def test_the_mode_routes_by_shape_most_specific_first(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_FlakyProvider(ValueError("fell over")), "&oe-shape")
-    metta.declare_on_error("&oe-shape", "(edge $x $y)", "keep")
-    metta.declare_on_error("&oe-shape", "(edge a $y)", "empty")
+    metta._at("&oe-shape").on_error("(edge $x $y)", "keep")
+    metta._at("&oe-shape").on_error("(edge a $y)", "empty")
     # The narrower shape empties; the general one keeps.
     out = metta.run("!(collapse (match &oe-shape (edge a $y) $y))")
     assert str(out[0][0]) == "(b)"
@@ -539,7 +539,7 @@ def test_the_mode_routes_by_shape_most_specific_first(metta):  # noqa: D103  -- 
 
 def test_a_transport_failure_always_aborts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_FlakyProvider(OSError("router gone")), "&oe-transport")
-    metta.declare_on_error("&oe-transport", "(edge $x $y)", "keep")
+    metta._at("&oe-transport").on_error("(edge $x $y)", "keep")
     # The original TransportFailure re-arrives as itself, so the
     # trichotomy is testable by class rather than by transcript text.
     with pytest.raises(TransportFailure, match="router gone"):
@@ -554,7 +554,7 @@ def test_an_op_keeps_its_failure_as_the_error_atom(metta):  # noqa: D103  -- pyt
         return x // 2
 
     metta.op(half, name="oe-half")
-    metta.declare_on_error("oe-half", "(oe-half $x)", "keep")
+    metta.on_error("oe-half", "(oe-half $x)", "keep")
     out = metta.run("!(collapse (oe-half 8))")
     assert str(out[0][0]) == "(4)"
     out = metta.run("!(collapse (oe-half 7))")
@@ -569,14 +569,14 @@ def test_an_op_empty_answers_nothing(metta):  # noqa: D103  -- pytest discovers 
         raise RuntimeError(msg)
 
     metta.op(quarter, name="oe-quarter")
-    metta.declare_on_error("oe-quarter", "(oe-quarter $x)", "empty")
+    metta.on_error("oe-quarter", "(oe-quarter $x)", "empty")
     out = metta.run("!(collapse (oe-quarter 8))")
     assert str(out[0][0]) == "()"
 
 
 def test_declare_on_error_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="keep, empty, abort"):
-        metta.declare_on_error("&oe-v", "(edge $x $y)", "retry")
+        metta._at("&oe-v").on_error("(edge $x $y)", "retry")
 
 
 def test_a_generator_op_keeps_its_mid_stream_failure(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -587,7 +587,7 @@ def test_a_generator_op_keeps_its_mid_stream_failure(metta):  # noqa: D103  -- p
         raise ValueError(msg)
 
     metta.op(counting, name="oe-gen")
-    metta.declare_on_error("oe-gen", "(oe-gen $x)", "keep")
+    metta.on_error("oe-gen", "(oe-gen $x)", "keep")
     out = metta.run("!(collapse (oe-gen 0))")
     answers = out[0][0].children
     assert [str(a) for a in answers[:2]] == ["1", "2"]
@@ -637,7 +637,7 @@ def test_an_undeclared_foreign_write_in_a_transaction_is_loud(metta):  # noqa: D
 def test_best_effort_is_the_declared_acceptance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-be")
-    metta.declare_writes("&tx-be", "best-effort")
+    metta._at("&tx-be").writes("best-effort")
     metta.run(
         "!(transaction (let $t (add-atom &tx-be (edge a b))"
         " (match &self (tx-no-such $q) $q)))"
@@ -650,7 +650,7 @@ def test_best_effort_is_the_declared_acceptance(metta):  # noqa: D103  -- pytest
 def test_a_transactional_provider_commits_with_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-ok")
-    metta.declare_writes("&tx-ok", "transactional")
+    metta._at("&tx-ok").writes("transactional")
     metta.run("!(add-atom &self (tx-native base))")
     metta.run(
         "!(transaction (let $t1 (add-atom &tx-ok (edge a b))"
@@ -665,7 +665,7 @@ def test_a_transactional_provider_commits_with_the_engine(metta):  # noqa: D103 
 def test_a_failed_transaction_rolls_both_stores_back(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-rb")
-    metta.declare_writes("&tx-rb", "transactional")
+    metta._at("&tx-rb").writes("transactional")
     metta.run(
         "!(transaction (let $t1 (add-atom &tx-rb (edge a b))"
         " (let $t2 (add-atom &self (tx-native aborted))"
@@ -680,7 +680,7 @@ def test_a_failed_transaction_rolls_both_stores_back(metta):  # noqa: D103  -- p
 def test_a_throwing_transaction_rolls_back_and_rethrows(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-throw")
-    metta.declare_writes("&tx-throw", "transactional")
+    metta._at("&tx-throw").writes("transactional")
     with pytest.raises(EngineError):
         metta.run(
             "!(transaction (let $t1 (add-atom &tx-throw (edge a b))"
@@ -693,7 +693,7 @@ def test_a_throwing_transaction_rolls_back_and_rethrows(metta):  # noqa: D103  -
 def test_atomic_single_refuses_transactional_writes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-as")
-    metta.declare_writes("&tx-as", "atomic-single")
+    metta._at("&tx-as").writes("atomic-single")
     with pytest.raises(EngineError, match="atomic-single"):
         metta.run("!(transaction (add-atom &tx-as (edge a b)))")
     # Outside a transaction the single write is untouched, the floor.
@@ -713,14 +713,14 @@ def test_a_transactional_declaration_without_the_methods_is_loud(metta):  # noqa
             self.rows.append(atom)
 
     metta._register_space(_Plain(), "&tx-nm")
-    metta.declare_writes("&tx-nm", "transactional")
+    metta._at("&tx-nm").writes("transactional")
     with pytest.raises(PettaError, match="Transactional"):
         metta.run("!(transaction (add-atom &tx-nm (edge a b)))")
 
 
 def test_declare_writes_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="transactional, atomic-single"):
-        metta.declare_writes("&tx-v", "eventually")
+        metta._at("&tx-v").writes("eventually")
 
 
 # ------------------------------------------------------- merge policy (G4)
@@ -747,7 +747,7 @@ def test_the_undeclared_multi_context_merge_is_depth(metta):  # noqa: D103  -- p
 def test_a_declared_fair_merge_interleaves(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_NamedRows(["(frow a1)", "(frow a2)", "(frow a3)"]), "&mg-fa")
     metta._register_space(_NamedRows(["(frow b1)", "(frow b2)"]), "&mg-fb")
-    metta.declare_merge("(frow $x)", "fair")
+    metta.merge("(frow $x)", "fair")
     out = metta.run("!(collapse (match (superpose (&mg-fa &mg-fb)) (frow $x) $x))")
     assert str(out[0][0]) == "(a1 b1 a2 b2 a3)"
 
@@ -766,14 +766,14 @@ def test_a_best_first_merge_orders_across_contexts(metta):  # noqa: D103  -- pyt
 
     metta._register_space(_Scored([("a1", 0.9), ("a2", 0.4)]), "&mg-sa")
     metta._register_space(_Scored([("b1", 0.7), ("b2", 0.1)]), "&mg-sb")
-    metta.declare_annotations("&mg-sa", "ranked")
-    metta.declare_annotations("&mg-sb", "ranked")
-    metta.declare_merge("(srow $x)", "best-first")
+    metta.annotations("&mg-sa", "ranked")
+    metta.annotations("&mg-sb", "ranked")
+    metta.merge("(srow $x)", "best-first")
     # Without both emission promises the merge is refused loudly.
     with pytest.raises(EngineError, match="emits"):
         metta.run("!(collapse (match (superpose (&mg-sa &mg-sb)) (srow $x) $x))")
-    metta.declare_emits("&mg-sa", "best-first")
-    metta.declare_emits("&mg-sb", "best-first")
+    metta._at("&mg-sa").emits("best-first")
+    metta._at("&mg-sb").emits("best-first")
     out = metta.run("!(collapse (match (superpose (&mg-sa &mg-sb)) (srow $x) $x))")
     assert str(out[0][0]) == "(a1 b1 a2 b2)"
 
@@ -781,8 +781,8 @@ def test_a_best_first_merge_orders_across_contexts(metta):  # noqa: D103  -- pyt
 def test_the_merge_routes_by_shape(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_NamedRows(["(rrow a1)", "(rrow a2)"]), "&mg-ra")
     metta._register_space(_NamedRows(["(rrow b1)", "(rrow b2)"]), "&mg-rb")
-    metta.declare_merge("(rrow $x)", "fair")
-    metta.declare_merge("(rrow a1)", "depth")
+    metta.merge("(rrow $x)", "fair")
+    metta.merge("(rrow a1)", "depth")
     # The narrower shape keeps depth; the general one interleaves.
     out = metta.run("!(collapse (match (superpose (&mg-ra &mg-rb)) (rrow $x) $x))")
     assert str(out[0][0]) == "(a1 b1 a2 b2)"
@@ -790,14 +790,14 @@ def test_the_merge_routes_by_shape(metta):  # noqa: D103  -- pytest discovers or
 
 def test_declare_merge_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="depth, fair, best-first"):
-        metta.declare_merge("(x $y)", "roundrobin")
+        metta.merge("(x $y)", "roundrobin")
 
 
 # ---------------------------------------------- bridges and admission (G5)
 
 
 def test_a_bridge_inserts_under_the_matched_bindings(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.declare_reaction("&br-src", "(fact $x $y)", "(insert &br-mirror (mirrored $y $x))")
+    metta._at("&br-src").reaction("(fact $x $y)", "(insert &br-mirror (mirrored $y $x))")
     metta.run("!(add-atom &br-src (fact one two))")
     out = metta.run("!(collapse (match &br-mirror (mirrored $a $b) ($a $b)))")
     assert str(out[0][0]) == "((two one))"
@@ -805,8 +805,7 @@ def test_a_bridge_inserts_under_the_matched_bindings(metta):  # noqa: D103  -- p
 
 def test_a_revise_bridge_replaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(add-atom &br-state (mode old))")
-    metta.declare_reaction(
-        "&br-cmd", "(set-mode $m)", "(revise &br-state (mode $_) (mode $m))"
+    metta._at("&br-cmd").reaction("(set-mode $m)", "(revise &br-state (mode $_) (mode $m))"
     )
     metta.run("!(add-atom &br-cmd (set-mode new))")
     out = metta.run("!(collapse (match &br-state (mode $m) $m))")
@@ -814,19 +813,19 @@ def test_a_revise_bridge_replaces(metta):  # noqa: D103  -- pytest discovers or 
 
 
 def test_a_bridge_cascade_is_bounded(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.declare_reaction("&br-loop", "(tick $n)", "(insert &br-loop (tick $n))")
+    metta._at("&br-loop").reaction("(tick $n)", "(insert &br-loop (tick $n))")
     with pytest.raises(EngineError, match="cascade"):
         metta.run("!(add-atom &br-loop (tick 1))")
 
 
 def test_an_unknown_bridge_head_is_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.declare_reaction("&br-bad", "(x $y)", "(teleport &elsewhere $y)")
+    metta._at("&br-bad").reaction("(x $y)", "(teleport &elsewhere $y)")
     with pytest.raises(EngineError, match="managed head"):
         metta.run("!(add-atom &br-bad (x 1))")
 
 
 def test_admission_types_the_pool(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.declare_admits("&pool", "Space")
+    metta._at("&pool").admits("Space")
     metta.run("!(add-atom &self (: &worker-a Space))")
     metta.run("!(add-atom &pool &worker-a)")
     with pytest.raises(EngineError, match="does-not-carry"):
@@ -836,8 +835,8 @@ def test_admission_types_the_pool(metta):  # noqa: D103  -- pytest discovers or 
 
 
 def test_capacity_bounds_the_pool(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta.declare_admits("&pool2", "Space")
-    metta.declare_capacity("&pool2", 2)
+    metta._at("&pool2").admits("Space")
+    metta._at("&pool2").capacity(2)
     for name in ("&w1", "&w2"):
         metta.run(f"!(add-atom &self (: {name} Space))")
         metta.run(f"!(add-atom &pool2 {name})")
@@ -851,7 +850,7 @@ def test_capacity_bounds_the_pool(metta):  # noqa: D103  -- pytest discovers or 
 
 def test_declare_capacity_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="positive integer"):
-        metta.declare_capacity("&pool3", 0)
+        metta._at("&pool3").capacity(0)
 
 
 def test_admission_is_sugar_over_the_pre_add_hook(metta):
@@ -861,7 +860,7 @@ def test_admission_is_sugar_over_the_pre_add_hook(metta):
     claim leaves, and a second claimant meets the one-claimant rule, not a
     bespoke wrapper.
     """
-    metta.declare_admits("&pool4", "Space")
+    metta._at("&pool4").admits("Space")
     out = metta.run("!(match &petta (pre-add &pool4 $h) $h)")
     assert str(out[0][0]) == "space-admission-guard-&pool4"
     with pytest.raises(EngineError, match="claims"):
@@ -946,7 +945,7 @@ def test_negation_refuses_an_undeclared_foreign_world(metta):  # noqa: D103  -- 
 
 def test_negation_runs_over_a_declared_closed_world(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_NamedRows(["(fact a)"]), "&cw-closed")
-    metta.declare_context("&cw-closed", "closed-world")
+    metta._at("&cw-closed").context("closed-world")
     metta.run("(= (cw-chas $x) (match &cw-closed (fact $x) True))")
     absent = metta.run("!(not-provable (cw-chas b))")
     present = metta.run("!(not-provable (cw-chas a))")
@@ -963,7 +962,7 @@ def test_negation_over_native_spaces_is_untouched(metta):  # noqa: D103  -- pyte
 
 def test_declare_context_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="closed-world, open-world"):
-        metta.declare_context("&cw-v", "half-open")
+        metta._at("&cw-v").context("half-open")
 
 
 # ----------------------------------------------------------- explain (H3)
@@ -984,9 +983,9 @@ def test_explain_answers_the_route_and_the_route_is_honest(metta):  # noqa: D103
 
     provider = _Rec()
     metta._register_space(provider, "&ex-s")
-    metta.declare_handles("&ex-s", "(erow $x)", "Exact")
-    metta.declare_source("&ex-s", "repeated")
-    metta.declare_context("&ex-s", "closed-world")
+    metta._at("&ex-s").handles("(erow $x)", "Exact")
+    metta._at("&ex-s").source("repeated")
+    metta._at("&ex-s").context("closed-world")
     out = metta.run("!(explain (match &ex-s (erow $x) $x))")
     explained = {str(item.children[0]): item for item in out[0][0].children}
     assert str(explained["handles"].children[2]) == "Exact"
@@ -1014,7 +1013,7 @@ def test_explain_covers_operations(metta):  # noqa: D103  -- pytest discovers or
         yield Answer(value="x", k=1.0)
 
     metta.op(ex_lex, name="ex-lex")
-    metta.declare_annotations("ex-lex", "ranked")
+    metta.annotations("ex-lex", "ranked")
     out = metta.run('!(explain (ex-lex "q" $c))')
     explained = {str(item.children[0]): item for item in out[0][0].children}
     assert str(explained["annotations"].children[1]) == "ranked"
@@ -1039,7 +1038,7 @@ def test_prov_annotations_carry_source_terms(metta):  # noqa: D103  -- pytest di
             yield Answer(value=parse("(fact wet)"), k=parse("(src rules)"))
 
     metta._register_space(_Sourced(), "&pv-s")
-    metta.declare_annotations("&pv-s", "prov")
+    metta.annotations("&pv-s", "prov")
     out = metta.run(
         "!(collapse (let $r (match &pv-s (fact $x) $x) (pair $r (annotation))))"
     )
@@ -1067,7 +1066,7 @@ def test_a_join_multiplies_provenance(metta):  # noqa: D103  -- pytest discovers
                 yield Answer(value=parse("(link b c)"), k=parse("(src l1)"))
 
     metta._register_space(_Twice(), "&pv-j")
-    metta.declare_annotations("&pv-j", "prov")
+    metta.annotations("&pv-j", "prov")
     out = metta.run(
         "!(collapse (let $p (match &pv-j (, (edge $x $y) (link $y $z)) (path $x $z))"
         " (pair $p (annotation))))"
@@ -1080,7 +1079,7 @@ def test_ranked_scores_read_through_the_annotation(metta):  # noqa: D103  -- pyt
         yield Answer(value="hit", k=0.75)
 
     metta.op(pv_lex, name="pv-lex")
-    metta.declare_annotations("pv-lex", "ranked")
+    metta.annotations("pv-lex", "ranked")
     out = metta.run(
         '!(collapse (let $r (pv-lex "q" $c) (pair $r (annotation))))'
     )
@@ -1089,7 +1088,7 @@ def test_ranked_scores_read_through_the_annotation(metta):  # noqa: D103  -- pyt
 
 def test_top_still_refuses_the_unordered_prov(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta._register_space(_NamedRows(["(prow a)"]), "&pv-t")
-    metta.declare_annotations("&pv-t", "prov")
+    metta.annotations("&pv-t", "prov")
     with pytest.raises(EngineError, match="no order"):
         metta.run("!(collapse (top 1 (match &pv-t (prow $x) $x)))")
 

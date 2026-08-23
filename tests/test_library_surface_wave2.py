@@ -17,6 +17,10 @@ Guarantees:
   - ``Space.pre_add`` installs one compiled judge whose package verdict
     builders preserve, transform, refuse, or silently drop each offered atom
     [tested: test_pre_add_compiles_the_four_verdict_judge; commit=WORKTREE]
+  - all fifteen declaration verbs use their atom heads on Space and
+    AsyncMeTTa, inject a space subject, and leave every ``declare_*`` spelling
+    absent [tested: test_declarations_use_their_atom_heads_on_the_receiver;
+    commit=WORKTREE]
 """
 
 import copy
@@ -181,3 +185,56 @@ def test_pre_add_compiles_the_four_verdict_judge() -> None:
 
     target.eval(S["undeclare-pre-add!"](target))
     target.drop()
+
+
+def test_declarations_use_their_atom_heads_on_the_receiver() -> None:
+    """Declaration data reads like its head and carries the receiver once."""
+    target = space("&libfix-declarations")
+    old_names = {
+        "declare_admits",
+        "declare_agenda",
+        "declare_algebra",
+        "declare_annotations",
+        "declare_capacity",
+        "declare_context",
+        "declare_emits",
+        "declare_events",
+        "declare_handles",
+        "declare_image",
+        "declare_merge",
+        "declare_on_error",
+        "declare_reaction",
+        "declare_source",
+        "declare_writes",
+    }
+    assert old_names.isdisjoint(dir(target))
+
+    assert str(target.handles("(row $x)", "Exact")) == (
+        "(handles &libfix-declarations (row $x) Exact)"
+    )
+    assert str(target.annotations("bag")) == (
+        "(annotations &libfix-declarations bag)"
+    )
+    assert str(target.image("_", "opaque")) == (
+        "(image &libfix-declarations _ opaque)"
+    )
+    assert str(target.source("repeated")) == (
+        "(source &libfix-declarations repeated)"
+    )
+    assert str(target.on_error("(row $x)", "keep")) == (
+        "(on-error &libfix-declarations (row $x) keep)"
+    )
+    assert str(target.context("closed-world")) == (
+        "(context &libfix-declarations closed-world)"
+    )
+    assert str(target.writes("atomic-single")) == (
+        "(writes &libfix-declarations atomic-single)"
+    )
+    assert str(target.emits("depth")) == "(emits &libfix-declarations depth)"
+    assert str(target.events("at-most-once")) == (
+        "(events &libfix-declarations at-most-once unordered)"
+    )
+    assert str(target.admits("Atom")) == "(admits &libfix-declarations Atom)"
+    assert str(target.capacity(2)) == "(capacity &libfix-declarations 2)"
+
+    target.eval(S["undeclare-pre-add!"](target))

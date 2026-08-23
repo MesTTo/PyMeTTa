@@ -850,8 +850,8 @@ def test_explain_reflects_the_plan(metta):  # noqa: D103  -- pytest discovers or
 
         # A declared (handles ...) entry outranks the provider's method,
         # exact brings the bound line, and Refuse reports as a refusal.
-        sp.declare_handles("&xplan", "(pe $f $t)", "Exact", det="nondet")
-        sp.declare_handles("&xplan", "(xsecret $x)", "Refuse")
+        sp._at("&xplan").handles("(pe $f $t)", "Exact", det="nondet")
+        sp._at("&xplan").handles("(xsecret $x)", "Refuse")
         declared = sp.prepare(parse("(pe $a $b)")).explain()
         assert "exact" in declared
         assert "declared: (handles" in declared and "Exact nondet" in declared

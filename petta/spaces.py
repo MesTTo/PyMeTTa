@@ -257,7 +257,7 @@ def union(*spaces: Any) -> _Union:
 class _ReadOnly(SpaceProvider):
     """The inner space with every write capability stripped: reads
     forward, and the absence of write methods makes the engine refuse
-    add-atom with its standing capability error. declare_writes carries
+    add-atom with its standing capability error. ``writes`` carries
     the policy vocabulary; this is the one-line spelling for handing a
     space to code that must not mutate it.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

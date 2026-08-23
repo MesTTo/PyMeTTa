@@ -19,7 +19,7 @@ from petta.algebra import RateDeclarationError
 
 def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
     """Match a declared 1:3 ratio reproducibly over one thousand draws."""
-    metta.declare_algebra(
+    metta.algebra(
         "p4-rates",
         combine="+",
         extend="*",

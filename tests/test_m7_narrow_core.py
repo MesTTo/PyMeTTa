@@ -7,6 +7,9 @@ Guarantees:
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every retired root, context, and atom name is absent rather than aliased
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - all fifteen ``declare_*`` spellings are absent from both synchronous and
+    asynchronous space handles [tested: test_m7_narrow_core_surface;
+    commit=WORKTREE]
   - plain import and ``dir(petta)`` load no satellite, while either explicit
     import order preserves real module identity [tested:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -37,7 +40,7 @@ from pathlib import Path
 import pytest
 
 import petta
-from petta import MeTTa
+from petta import MeTTa, Space
 from petta import atoms as atom_module
 
 BASELINE_METTA_METHODS = 90
@@ -47,7 +50,7 @@ FINAL_METTA_METHODS = 20
 # atoms TRUE, FALSE, UNIT and HERE to root values the twins can name; +1 when
 # R1 exported the static fn namespace at the root; +8 when R5 landed its
 # ruled doors (typed, arrow, the keyword builders, State and solve's kin).
-FINAL_PETTA_EXPORTS = 74
+FINAL_PETTA_EXPORTS = 79
 
 SATELLITES = {
     "aio",
@@ -289,6 +292,24 @@ REMOVED_FROM_ASYNC = {
     "unregister_space",
 }
 
+REMOVED_DECLARATION_CEREMONY = {
+    "declare_admits",
+    "declare_agenda",
+    "declare_algebra",
+    "declare_annotations",
+    "declare_capacity",
+    "declare_context",
+    "declare_emits",
+    "declare_events",
+    "declare_handles",
+    "declare_image",
+    "declare_merge",
+    "declare_on_error",
+    "declare_reaction",
+    "declare_source",
+    "declare_writes",
+}
+
 
 def _public_names(value) -> set[str]:
     return {name for name in dir(value) if not name.startswith("_")}
@@ -320,6 +341,8 @@ def test_m7_narrow_core_surface():
     assert "janus" in vars(petta)  # retained only for upstream python.petta
     _assert_absent(atom_module, REMOVED_FROM_ATOMS)
     _assert_absent(AsyncMeTTa, REMOVED_FROM_ASYNC)
+    _assert_absent(Space, REMOVED_DECLARATION_CEREMONY)
+    _assert_absent(AsyncMeTTa, REMOVED_DECLARATION_CEREMONY)
 
 
 def test_m7_satellites_are_lazy_and_identity_stable():
