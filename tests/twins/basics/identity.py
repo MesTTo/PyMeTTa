@@ -27,7 +27,13 @@ is Python's own `assert`.
 #: specialization_plan/5, which stops this twin's call sites reading the callee's
 #: equations to find nothing. Inside the 2210..2250 band recorded above, and DOWN,
 #: which the point budget refuses in both directions.
-BUDGET = 2221
+#: RE-PINNED 2026-08-23, 2221 to 2258, by keying each support edge on a hash of
+#: its endpoints. Eight above the band's top, and the reason is that the keys are
+#: inferences the counter SEES while what they buy, a scan of every edge sharing
+#: a node functor, is a C-level clause walk it cannot see: this example's graph
+#: is far too small to collect any of that, where loading 8,000 definitions fell
+#: from 3.25 seconds to 0.73.
+BUDGET = 2258
 
 
 def twin(m):
