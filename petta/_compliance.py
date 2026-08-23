@@ -119,17 +119,35 @@ def open_pattern(atom: Any, ground_prefix: int = 0) -> Any:
 
 
 def shaped_atom(stored: list) -> Any:
-    """An atom the shape-dependent tests can be written against, or None.
+    """The widest atom the shape-dependent tests can be written against, or None.
 
     An expression with a symbol head and at least one argument. A provider
     holding only scalars or bare symbols has nothing with a shape to ask about,
     and those tests skip rather than inventing data the backend could not
     answer.
+
+    The widest one rather than the first one enumerated, because a provider
+    answers its atoms in no particular order: "Result order within one
+    directive's list is unspecified; result multiplicity is specified"
+    (LeaTTa wiki/Specification.md). Taking the first meant that a provider
+    holding both a one-argument and a two-argument atom either exercised
+    test_a_repeated_variable_selects_equal_positions or skipped it depending on
+    which one came out first, and adding a single never-called predicate to
+    engine/metta.pl is enough to flip that: a native space enumerates through
+    current_predicate/1 and SWI iterates its predicate table in an order that
+    moves when a name is interned [measured 2026-08-23 with an inert control
+    clause, which reordered TestNativeInheritedSpaceComplies on its own]. So
+    the check was one unrelated engine edit away from silently becoming a skip.
+    Ties break on the printed form, so the choice is the same on every run.
     """
-    for atom in stored:
-        if isinstance(atom, Expression) and isinstance(atom.head, Symbol) and atom.args:
-            return atom
-    return None
+    shaped = [
+        atom
+        for atom in stored
+        if isinstance(atom, Expression) and isinstance(atom.head, Symbol) and atom.args
+    ]
+    if not shaped:
+        return None
+    return min(shaped, key=lambda atom: (-len(atom.args), str(atom)))
 
 
 class SpaceComplianceSuite:

@@ -255,3 +255,21 @@ def test_a_collectible_subclass_without_its_fixture_refuses_at_definition():  # 
     # a non-Test intermediate may leave the fixture to its leaves
     middle = type("SharedBase", (SpaceComplianceSuite,), {})
     assert middle.__name__ == "SharedBase"
+
+
+def test_the_shape_the_suite_picks_does_not_depend_on_enumeration_order():
+    """A provider answers its atoms in no particular order, so the atom the
+    shape-dependent checks are written against must not be whichever one came
+    out first. It is the widest, which is what those checks need: picking the
+    first meant `test_a_repeated_variable_selects_equal_positions` ran or
+    skipped depending on order, and one never-called predicate added to
+    engine/metta.pl was enough to flip it.
+    """  # noqa: D205  -- the invariant is one continuous statement, not summary-and-body prose
+    from itertools import permutations
+
+    from petta._compliance import shaped_atom
+
+    picked = {str(shaped_atom(list(order))) for order in permutations(ROWS)}
+    assert picked == {"(edge a b)"}
+    assert shaped_atom([S.a, S.other(S.a)]) is not None
+    assert shaped_atom([S.a, S.b]) is None
