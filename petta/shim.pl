@@ -115,7 +115,7 @@
 %   - native comparison classifies a decoded expression by its outer cell and
 %     never walks the whole operand before comparing it [tested:
 %     comparing_against_the_empty_expression_does_not_walk_the_other_operand;
-%     commit=WORKTREE]
+%     commit=fddb28afcb066271d1f0c78fad8b578b2ab65ccd]
 %   - petta_py_limited/6 adds a negative-sentinel stack byte ceiling to the
 %     existing time and inference bounds and restores it on every exit path
 %     [tested: test_janus_stack_scope_restores_on_all_exits; commit=81c50d3ae4c03ddfd70ed3f1ff70e085cfee3978]
