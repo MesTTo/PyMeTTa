@@ -53,6 +53,9 @@ Guarantees:
     inject the receiver where it is the subject, and expose no ``declare_*``
     aliases [tested: test_declarations_use_their_atom_heads_on_the_receiver,
     test_m7_narrow_core_surface; commit=WORKTREE]
+  - Expression recognizes Space as the one iterable Handle whose listing is
+    collected as an assembly-order snapshot [tested:
+    test_expression_of_a_space_is_an_assembly_order_snapshot; commit=WORKTREE]
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -470,6 +473,8 @@ class Space(Handle):
         m.add(S.Parent(S.Tom, S.Bob))
         m.query(S.Parent(V.x, S.Bob))
     """
+
+    _expression_listing_snapshot = True
 
     def __setattr__(self, name: str, value: Any, /) -> None:
         object.__setattr__(self, name, value)

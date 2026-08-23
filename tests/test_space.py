@@ -33,6 +33,9 @@ Guarantees:
   - strict and raw execution choices use scopes and named transport rather
     than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
     test_eval_using_carries_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``Expression(space)`` snapshots the space's assembly-order listing
+    [tested: test_expression_of_a_space_is_an_assembly_order_snapshot;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -303,6 +306,15 @@ def test_empty_space_is_still_true(m):  # noqa: D103  -- pytest discovers or inj
     assert len(m) == 0
     assert bool(m) is True
     assert m
+
+
+def test_expression_of_a_space_is_an_assembly_order_snapshot(m) -> None:
+    """Later writes do not change the expression collected from a space."""
+    m.add(S.edge(S.a, S.b), S.edge(S.b, S.c))
+    snapshot = Expression(m)
+    m.add(S.edge(S.c, S.d))
+
+    assert snapshot == Expression(S.edge(S.a, S.b), S.edge(S.b, S.c))
 
 
 def test_getitem_queries_and_a_tuple_joins(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
