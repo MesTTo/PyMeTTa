@@ -467,6 +467,7 @@ def compile_function(
     pure: Callable[[str], bool] | None = None,
     metta_name: str | None = None,
     *,
+    returns_bool: Callable[[str], bool] | None = None,
     defined_name: Callable[[object], str | None] | None = None,
 ) -> Compiled:
     """Read a function's source into a Compiled clause.
@@ -546,6 +547,7 @@ def compile_function(
         scope,
         known,
         nondet=nondet,
+        returns_bool=returns_bool,
         pyname=fn.__name__,
         host=host,
         builders=builders,
@@ -656,6 +658,7 @@ class _Compiler(
         *,
         used: set[str] | None = None,
         nondet: Callable[[str], bool] | None = None,
+        returns_bool: Callable[[str], bool] | None = None,
         aux: list | None = None,
         lifted: dict | None = None,
         closer: Callable[[_Compiler], Atom] | None = None,
@@ -691,6 +694,7 @@ class _Compiler(
         # generator or a generator operation): iterating one binds the call
         # directly, since the call itself is the fork.
         self._given_nondet = _provided(nondet, _never)
+        self.returns_bool = _provided(returns_bool, _never)
         # Every variable name any compiler of this definition has minted;
         # shared across forks so two branches never mint the same fresh name.
         self.used: set[str] = _provided(used, set(self.scope.values()))
@@ -761,6 +765,7 @@ class _Compiler(
             self.known,
             used=self.used,
             nondet=self._given_nondet,
+            returns_bool=self.returns_bool,
             aux=self.aux,
             lifted=self.lifted,
             closer=self.closer,
@@ -794,6 +799,7 @@ class _Compiler(
             self.known,
             used=None,
             nondet=self._given_nondet,
+            returns_bool=self.returns_bool,
             aux=self.aux,
             lifted=self.lifted,
             closer=closer,

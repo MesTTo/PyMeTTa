@@ -60,6 +60,9 @@ Guarantees:
     an explicit name is not mechanically related to the Python spelling
     [tested: test_compiled_calls_share_the_installed_name_resolver;
     commit=WORKTREE]
+  - compiled conditions whose declared result is Bool run directly rather
+    than through py-truthy [tested:
+    test_compiled_boolean_call_is_a_direct_condition; commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -67,7 +70,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import TRUE, UNIT, Expression, G, S, V, space
+from petta import TRUE, UNIT, Expression, G, S, V, fn, space
 from petta.atoms import order_key
 from petta.errors import EngineError
 
@@ -404,3 +407,16 @@ def test_compiled_calls_share_the_installed_name_resolver() -> None:
 
     assert target.fn["libfixNamedStep"](3).one() == 3
     assert libfix_named_caller(4).one() == 4
+
+
+def test_compiled_boolean_call_is_a_direct_condition() -> None:
+    """A declared Bool result is already a condition, not a truthy payload."""
+    target = space()
+
+    @target.define
+    def libfix_boolean_condition(value):
+        return 1 if fn["=="](value, 0) else 2
+
+    assert "py-truthy" not in str(libfix_boolean_condition.body)
+    assert libfix_boolean_condition(0).one() == 1
+    assert libfix_boolean_condition(3).one() == 2

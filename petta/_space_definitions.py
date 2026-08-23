@@ -14,6 +14,9 @@ Guarantees:
   - a previously installed Python callable carries its exact MeTTa name into
     later compiled definitions [tested:
     test_compiled_calls_share_the_installed_name_resolver; commit=WORKTREE]
+  - the compiler sees declared Bool result types, so condition positions do
+    not add a redundant host-truthiness operation [tested:
+    test_compiled_boolean_call_is_a_direct_condition; commit=WORKTREE]
   - clear_definitions removes process bookkeeping with the equations it
     describes [tested test_reflection_facts_follow_a_dropped_space]
   - a definition is exposed only after its first twin clause exists, and its
@@ -185,6 +188,17 @@ def _is_nondeterministic(space: Any, called: str) -> bool:
 def _is_pure(space: Any, called: str) -> bool:
     """Whether the engine's declaration set says this callee is immutable."""
     return bool(space.runtime.once("seam:pure_operation(Name)", Name=called))
+
+
+def _returns_bool(space: Any, called: str) -> bool:
+    """Whether get-type declares a named function's result as Bool."""
+    declared = space.type(Symbol(called))
+    return (
+        isinstance(declared, Expression)
+        and len(declared.children) >= 2
+        and declared.children[0] == Symbol("->")
+        and declared.children[-1] == Symbol("Bool")
+    )
 
 
 def _remember_defined_callable(space: Any, fn: types.FunctionType, name: str) -> None:
@@ -522,6 +536,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         known=space.is_function,
         nondet=partial(_is_nondeterministic, space),
         pure=partial(_is_pure, space),
+        returns_bool=partial(_returns_bool, space),
         metta_name=name,
         defined_name=partial(_installed_callable_name, space),
     )

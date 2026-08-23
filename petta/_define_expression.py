@@ -21,6 +21,9 @@ Guarantees:
   - host-bound and parameter-carried space handles remain operands of compiled
     match calls [tested: test_compiled_match_accepts_space_handles;
     commit=WORKTREE]
+  - calls whose declared output is Bool remain direct conditions rather than
+    acquiring py-truthy [tested:
+    test_compiled_boolean_call_is_a_direct_condition; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -316,14 +319,22 @@ class ExpressionCompilerMixin(CompilerContext):
         already boolean-valued by its syntax wraps in py-truthy, whose
         answer IS bool() of the value. A comparison or a `not` stays bare.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        term = self.expression(node)
         if isinstance(node, ast.Compare):
-            return self.expression(node)
+            return term
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            return self.expression(node)
+            return term
         if isinstance(node, ast.Constant) and isinstance(node.value, bool):
-            return Grounded(node.value)
+            return term
+        if (
+            isinstance(term, Expression)
+            and term.children
+            and isinstance(term.children[0], Symbol)
+            and self.returns_bool(term.children[0].name)
+        ):
+            return term
         self.runtime_ops.add("py-truthy")
-        return Expression([Symbol("py-truthy"), self.expression(node)])
+        return Expression([Symbol("py-truthy"), term])
 
     def _compare_link(self, op_node: ast.cmpop, left: Atom, right: Atom, line) -> Atom:
         """One comparison: order through the engine's numeric functions,
