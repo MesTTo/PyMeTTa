@@ -66,6 +66,9 @@ Guarantees:
   - pathlib paths and typed space capabilities cross function calls as
     symbols [tested: test_path_and_capability_options_cross_as_symbols;
     commit=WORKTREE]
+  - if_ builds both the engine's one-armed filtering form and its three-armed
+    conditional form [tested: test_if_builder_accepts_the_one_armed_form;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -73,7 +76,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import TRUE, UNIT, Expression, G, S, V, fn, space
+from petta import FALSE, TRUE, UNIT, Expression, G, S, V, fn, if_, space
 from petta.atoms import order_key
 from petta.errors import EngineError
 from petta.vocabularies import SpaceCapability
@@ -434,3 +437,12 @@ def test_path_and_capability_options_cross_as_symbols(tmp_path: Path) -> None:
 
     assert S.file == SpaceCapability.file.__metta__()
     assert target.fn["exists_file"](source).one() is True
+
+
+def test_if_builder_accepts_the_one_armed_form() -> None:
+    """The keyword builder preserves the engine's omitted-else arity."""
+    target = space()
+
+    assert if_(TRUE, S.yes) == S["if"](TRUE, S.yes)
+    assert target.eval(if_(TRUE, S.yes)) == [S.yes]
+    assert target.eval(if_(FALSE, S.yes)) == []
