@@ -18,6 +18,9 @@ Guarantees:
   - a host-bound Defined mention lowers to the sibling's declared MeTTa name
     [tested: test_compiled_body_calls_renamed_defined_sibling;
     commit=WORKTREE]
+  - host-bound and parameter-carried space handles remain operands of compiled
+    match calls [tested: test_compiled_match_accepts_space_handles;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,7 +39,7 @@ from collections.abc import Callable
 from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext
 from ._name_mapping import attribute_name, resolve_known_name
-from .atoms import Atom, Expression, Grounded, Symbol, Variable
+from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError
 
 # Python operator to the MeTTa function the engine registers for it. Every
@@ -125,6 +128,9 @@ class ExpressionCompilerMixin(CompilerContext):
             return Symbol(self.name)
         if node.id in _MAGIC:
             return Symbol(node.id)
+        host_value = self.host_value(node.id)
+        if isinstance(host_value, Handle):
+            return host_value
         known = self._known_symbol(node.id)
         if known is not None:
             return known
@@ -707,27 +713,33 @@ class ExpressionCompilerMixin(CompilerContext):
 
     def _match_call(self, node: ast.Call) -> Atom:
         """match(Pattern(...), template) runs against the running space;
-        match("&name", pattern, template) names one. Pattern variables are
-        the names not otherwise bound, exactly as in source MeTTa.
+        match(space, pattern, template) accepts a name or handle operand.
+        Pattern variables are the names not otherwise bound, exactly as in
+        source MeTTa.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         args = node.args
         if len(args) == 3:
             space_node, pattern_node, template_node = args
-            if not (
+            if (
                 isinstance(space_node, ast.Constant)
                 and isinstance(space_node.value, str)
                 and space_node.value.startswith("&")
             ):
+                space: Atom = Symbol(space_node.value)
+            else:
+                space = self.expression(space_node)
+            if not isinstance(space, (Handle, Variable)) and not (
+                isinstance(space, Symbol) and space.name.startswith("&")
+            ):
                 msg = (
-                    "match with three arguments names its space first, as a "
-                    'string: match("&kb", pattern, template)'
+                    "match with three arguments takes a space handle, a space "
+                    'parameter, or a name such as "&kb" first'
                 )
                 raise CompileError(
                     msg,
                     construct="match",
                     line=node.lineno,
                 )
-            space: Atom = Symbol(space_node.value)
         elif len(args) == 2:
             pattern_node, template_node = args
             space = Expression([Symbol("context-space")])

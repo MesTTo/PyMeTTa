@@ -44,6 +44,9 @@ Guarantees:
   - waiting on a space loads Linda support in the caller context without
     adding library definitions to the waited-on space [tested:
     test_peek_does_not_import_linda_into_the_waited_space; commit=WORKTREE]
+  - compiled match accepts a captured or parameter-carried Space handle as
+    its space operand [tested: test_compiled_match_accepts_space_handles;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -307,3 +310,26 @@ def test_peek_does_not_import_linda_into_the_waited_space() -> None:
 
     assert mailbox.peek(S["libfix-mail"](V.value), deadline=0.1) == message
     assert mailbox.atoms() == [message]
+
+
+def test_compiled_match_accepts_space_handles() -> None:
+    """A handle remains an operand in both captured and parameter positions."""
+    definitions = space()
+    facts = space()
+    facts += S["libfix_handle_fact"](42)
+
+    @definitions.define(name="libfix-captured-handle-match")
+    def captured_handle_match():
+        return match(facts, libfix_handle_fact(value), value)  # noqa: F821
+
+    @definitions.define(name="libfix-parameter-handle-match")
+    def parameter_handle_match(source):
+        return match(source, libfix_handle_fact(value), value)  # noqa: F821
+
+    @definitions.define(name="libfix-carry-handle")
+    def carry_handle():
+        return facts
+
+    assert captured_handle_match().one() == 42
+    assert parameter_handle_match(facts).one() == 42
+    assert carry_handle().one() == facts
