@@ -56,6 +56,10 @@ Guarantees:
   - define applies the mechanical underscore-to-hyphen map to an implicit
     MeTTa name while name= remains exact [tested:
     test_define_maps_its_implicit_python_name; commit=WORKTREE]
+  - compiled self and sibling calls use the installed MeTTa name even when
+    an explicit name is not mechanically related to the Python spelling
+    [tested: test_compiled_calls_share_the_installed_name_resolver;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -383,3 +387,20 @@ def test_define_maps_its_implicit_python_name() -> None:
 
     assert libfix_default_name.name == "libfix-default-name"
     assert target.fn.libfix_default_name(2).one() == 3
+
+
+def test_compiled_calls_share_the_installed_name_resolver() -> None:
+    """Self and sibling calls both follow a definition's installed name."""
+    target = space()
+
+    def libfix_named_step(value):
+        return 0 if value == 0 else libfix_named_step(value - 1) + 1
+
+    target.define(libfix_named_step, name="libfixNamedStep")
+
+    @target.define
+    def libfix_named_caller(value):
+        return libfix_named_step(value)
+
+    assert target.fn["libfixNamedStep"](3).one() == 3
+    assert libfix_named_caller(4).one() == 4

@@ -466,6 +466,8 @@ def compile_function(
     nondet: Callable[[str], bool] | None = None,
     pure: Callable[[str], bool] | None = None,
     metta_name: str | None = None,
+    *,
+    defined_name: Callable[[object], str | None] | None = None,
 ) -> Compiled:
     """Read a function's source into a Compiled clause.
 
@@ -548,6 +550,7 @@ def compile_function(
         host=host,
         builders=builders,
         host_value=host_value,
+        defined_name=defined_name,
         annotation_resolver=_annotation_resolver(fn),
     )
     generator = _is_generator(definition)
@@ -660,6 +663,7 @@ class _Compiler(
         host: Callable[[str], bool] | None = None,
         builders: frozenset[str] = frozenset(),
         host_value: Callable[[str], Any] | None = None,
+        defined_name: Callable[[object], str | None] | None = None,
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
@@ -675,6 +679,7 @@ class _Compiler(
         self.host = _provided(host, _never)
         self.builders = builders
         self.host_value = _provided(host_value, lambda _name: _MISSING_HOST)
+        self.defined_name = _provided(defined_name, lambda _value: None)
         # The prelude operations this definition leans on, and the reasons
         # its Python twin cannot run (a match, a constructor); both shared
         # across every compiler of the definition, like aux.
@@ -724,23 +729,26 @@ class _Compiler(
 
     def _resolved_call_name(self, called: str) -> str:
         """Apply the compiled body's exact-then-mapped callee rule."""
-        if called in self.lifted or called in (self.pyname, self.name):
-            return called
-        if defined_name := self._bound_defined_name(called):
+        return self._resolved_name(called) or called
+
+    def _resolved_name(self, identifier: str) -> str | None:
+        """Use one resolver for recursive, sibling, and catalog names."""
+        if identifier in self.lifted:
+            return identifier
+        if identifier in (self.pyname, self.name):
+            return self.name
+        if defined_name := self._bound_defined_name(identifier):
             return defined_name
-        return (
-            resolve_known_name(
-                called,
-                self.known,
-                allow_mapped=not self.host(called),
-            )
-            or called
+        return resolve_known_name(
+            identifier,
+            self.known,
+            allow_mapped=not self.host(identifier),
         )
 
     def _bound_defined_name(self, identifier: str) -> str | None:
         """The MeTTa name carried by a lexically bound Defined, if any."""
         value = self.host_value(identifier)
-        return value.name if isinstance(value, Defined) else None
+        return value.name if isinstance(value, Defined) else self.defined_name(value)
 
     def _fork(self) -> _Compiler:
         """A compiler for one branch: its own scope, the shared minted set."""
@@ -760,6 +768,7 @@ class _Compiler(
             host=self.host,
             builders=self.builders,
             host_value=self.host_value,
+            defined_name=self.defined_name,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
@@ -792,6 +801,7 @@ class _Compiler(
             host=self.host,
             builders=self.builders,
             host_value=self.host_value,
+            defined_name=self.defined_name,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,

@@ -11,6 +11,9 @@ Guarantees:
   - implicit definition names apply the total underscore-to-hyphen map while
     explicit name= remains exact [tested: test_define_maps_its_implicit_python_name;
     commit=WORKTREE]
+  - a previously installed Python callable carries its exact MeTTa name into
+    later compiled definitions [tested:
+    test_compiled_calls_share_the_installed_name_resolver; commit=WORKTREE]
   - clear_definitions removes process bookkeeping with the equations it
     describes [tested test_reflection_facts_follow_a_dropped_space]
   - a definition is exposed only after its first twin clause exists, and its
@@ -86,6 +89,7 @@ _DEFINED_GENERATORS: set[tuple[str, str]] = set()
 _DEFINE_DOCUMENTATION: dict[tuple[str, str], Expression] = {}
 _DEFINE_REFLECTION: dict[tuple[str, str], tuple[Expression, ...]] = {}
 _DEFINE_FACT_REFS: dict[str, int] = {}
+_DEFINED_FUNCTION_NAMES: dict[tuple[str, types.FunctionType], set[str]] = {}
 _DEFINE_LOCK = threading.RLock()
 
 
@@ -107,6 +111,8 @@ def clear_definitions(space: Any) -> None:
         _DEFINED_GENERATORS.difference_update(
             {key for key in _DEFINED_GENERATORS if key[0] == space.name}
         )
+        for key in [key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name]:
+            del _DEFINED_FUNCTION_NAMES[key]
 
 
 def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):
@@ -142,6 +148,7 @@ def install_prolog_define(
         )
     params = list(_inspect.signature(fn).parameters)
     _refuse_mismatched_twin_arity(space, name, params, origin)
+    _remember_defined_callable(space, fn, name)
     return PrologBacked(name, params, fn, space, origin)
 
 
@@ -178,6 +185,26 @@ def _is_nondeterministic(space: Any, called: str) -> bool:
 def _is_pure(space: Any, called: str) -> bool:
     """Whether the engine's declaration set says this callee is immutable."""
     return bool(space.runtime.once("seam:pure_operation(Name)", Name=called))
+
+
+def _remember_defined_callable(space: Any, fn: types.FunctionType, name: str) -> None:
+    """Record the exact installed name carried by one source function."""
+    _DEFINED_FUNCTION_NAMES.setdefault((space.name, fn), set()).add(name)
+
+
+def _installed_callable_name(space: Any, value: object) -> str | None:
+    """Resolve a bound source function only when its installed name is unique."""
+    if not isinstance(value, types.FunctionType):
+        return None
+    names = _DEFINED_FUNCTION_NAMES.get((space.name, value), set())
+    live = sorted(name for name in names if space.is_function(name))
+    if len(live) <= 1:
+        return live[0] if live else None
+    msg = (
+        f"{value.__name__!r} is installed as {', '.join(map(repr, live))}; "
+        "use fn[...] to choose the exact MeTTa name"
+    )
+    raise CompileError(msg, construct="ambiguous defined call")
 
 
 def _validate_clause_order(
@@ -496,6 +523,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         nondet=partial(_is_nondeterministic, space),
         pure=partial(_is_pure, space),
         metta_name=name,
+        defined_name=partial(_installed_callable_name, space),
     )
     params, patterns = compiled.params, compiled.patterns
     # Clause stacking is per (space, name), process-wide: equations live
@@ -541,6 +569,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         earlier[replaced]["facts"] = compiled.facts
         replace_twin_clause(dispatcher, replaced, clause_twin)
         _document_definition(space, name, dispatcher)
+        _remember_defined_callable(space, fn, name)
         return _defined_result(space, name, compiled, bodies, dispatcher)
     prospective = earlier.copy()
     record = _clause_record(patterns, equations, compiled)
@@ -573,6 +602,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     _document_definition(space, name, dispatcher)
     if compiled.generator:
         _DEFINED_GENERATORS.add((space.name, name))
+    _remember_defined_callable(space, fn, name)
     return defined
 
 

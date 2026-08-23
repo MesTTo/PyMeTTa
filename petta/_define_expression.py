@@ -122,10 +122,6 @@ class ExpressionCompilerMixin(CompilerContext):
     def _x_Name(self, node: ast.Name) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if node.id in self.scope:
             return Variable(self.scope[node.id])
-        if node.id in (self.pyname, self.name):
-            # Recursion, in either spelling; the equation carries the MeTTa
-            # name.
-            return Symbol(self.name)
         if node.id in _MAGIC:
             return Symbol(node.id)
         host_value = self.host_value(node.id)
@@ -160,9 +156,7 @@ class ExpressionCompilerMixin(CompilerContext):
         # ended func namespace. [source:
         # https://docs.python.org/3/reference/executionmodel.html#binding-of-names;
         # commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
-        resolved = self._bound_defined_name(identifier) or resolve_known_name(
-            identifier, self.known, allow_mapped=not self.host(identifier)
-        )
+        resolved = self._resolved_name(identifier)
         if resolved is None:
             return None
         if not self._python_resolvable(identifier):
