@@ -23,11 +23,21 @@ Guarantees:
     test_printing_text_is_not_forced_through_the_value_carrier;
     commit=8c057bb8055459cc13127d89b418deb634b90ae4]
   - every door the surface tracks landed reads clean, and every name they
-    retired is a finding that says what replaced it [tested:
-    test_the_landed_doors_read_clean,
+    retired is a finding that says what replaced it, the deleted module
+    included [tested: test_the_landed_doors_read_clean,
     test_a_retired_name_is_a_finding_naming_its_replacement,
+    test_a_retired_module_import_is_a_finding,
     test_an_exact_bracket_spelling_is_not_the_attribute_one;
-    commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4]
+    commit=WORKTREE]
+  - a declaration takes its vocabulary word and nothing else, so the doors
+    that replaced the `declare_*` family are writable without opening a
+    source door on their `str | Atom` pattern parameters [tested:
+    test_a_declaration_takes_a_word_and_refuses_a_program,
+    test_the_declaration_vocabulary_is_the_librarys_own; commit=WORKTREE]
+  - the operator heads the lane refuses inside a compiled body are the ones
+    the TRANSLATOR emits, so `pow-math` and `py-eq` report while `floor-math`,
+    which no operator reaches, does not [tested:
+    test_the_operator_heads_are_the_ones_the_translator_emits; commit=WORKTREE]
   - the 159 entries superseded by empirical budgets are retired exactly once
     [tested: test_the_distribution_budget_retirement_is_exact;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -41,12 +51,15 @@ Open Obligations:
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
 REPO = Path(__file__).resolve().parents[3]
+TOOL = REPO / "bindings" / "python" / "tools" / "twin_coverage.py"
 sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402
@@ -268,13 +281,97 @@ def test_a_host_operation_body_holds_python_text(tmp_path):
     assert coverage.definitions(planted) == 0
 
 
+def test_a_declaration_takes_a_word_and_refuses_a_program(tmp_path):
+    """The head-named declaration methods take a vocabulary WORD.
+
+    The guide rules option values as enum members, but the shipped vocabulary
+    is `typing.Literal` aliases, so a bare word is the only spelling those
+    doors take and refusing it would refuse the door. A word is all they take:
+    a `str | Atom` pattern parameter would otherwise be a sixth source door.
+    """
+    words = tmp_path / "words.py"
+    words.write_text(
+        '"""Words."""\n'
+        "from metta import S, V\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        '    m.emits("best-first")\n'
+        '    m.writes("transactional")\n'
+        '    m.context("closed-world")\n'
+        '    m.events("at-least-once", "ordered")\n'
+        '    m.handles(S.user(V.n), "Exact", det="semidet")\n'
+        '    m.image(S.Tensor.name, "opaque")\n',
+        encoding="utf-8",
+    )
+    assert coverage.scan(words) == []
+
+    program = tmp_path / "program.py"
+    program.write_text(
+        '"""Program."""\n'
+        "from metta import S\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        '    m.reaction("(Job $n)", S.run)\n'
+        '    m.merge("(user $n $a)", "fair")\n',
+        encoding="utf-8",
+    )
+    findings = coverage.scan(program)
+    assert len(findings) == 2, findings
+    assert "'(Job $n)' is neither a name nor ground() data" in findings[0]
+    assert "'(user $n $a)' is neither a name nor ground() data" in findings[1]
+
+
+def test_the_declaration_vocabulary_is_the_librarys_own():
+    """Every word those doors accept is a word the library declares.
+
+    The lane admits a bare word rather than a copied list, so this holds the
+    admission to the shipped vocabulary: a word that stopped being one, or a
+    new alias whose members are not bare words, breaks the rule's premise.
+    """
+    import typing
+
+    from metta import vocabularies
+
+    declared = {
+        member
+        for name in dir(vocabularies)
+        if not name.startswith("_")
+        and typing.get_origin(getattr(vocabularies, name)) is typing.Literal
+        for member in typing.get_args(getattr(vocabularies, name))
+    }
+    assert declared, "the vocabulary satellite declares no option words"
+    assert all(isinstance(word, str) for word in declared), declared
+    assert all(coverage.VOCABULARY_WORD.match(word) for word in declared), sorted(
+        word for word in declared if not coverage.VOCABULARY_WORD.match(word)
+    )
+    # And the fifteen doors that take them are the fifteen the rewrite map
+    # names, every one of them a live method on the handle.
+    from metta import Space
+
+    assert len(coverage.DECLARATION_CALLS) == 15
+    assert all(hasattr(Space, name) for name in coverage.DECLARATION_CALLS)
+    assert all(
+        f"declare_{name}" in coverage.RETIRED_HANDLE
+        for name in coverage.DECLARATION_CALLS
+    )
+
+
 # ----------------------------------------------------------- the finished surface
 
 
 #: Every door the surface tracks landed, written the way a twin writes it. This
 #: is the lane's own acceptance for the vocabulary: a door that reads as a
 #: string, a transliteration or a retired name here would report a correct twin
-#: [source: ai-briefs/twins-wave.md, Stage L's door list; commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4].
+#: [source: ai-briefs/twins-wave.md, Stage L's door list; commit=WORKTREE].
+#:
+#: The file is READ and never run, because `take` and `watch` PARK by design
+#: and `every` starts a timer, so each door's existence and signature is
+#: probed instead [measured 2026-08-24: every name imported here resolves on
+#: the merged surface, `metta.space(S.roster)` answers a handle named
+#: `&roster`, `view({"port": 80})` answers a Space whose subscript reads
+#: `[Row(v=Grounded(80))]`, `limits(stack=...)` answers a ScopedLimits, and
+#: `Answers.one`/`Answers.first` take their default as a KEYWORD;
+#: commit=WORKTREE].
 LANDED_DOORS = (
     '"""Purpose: every landed door, once."""\n'
     "import math\n"
@@ -282,11 +379,14 @@ LANDED_DOORS = (
     "import metta\n"
     "from metta import (\n"
     "    FALSE, TRUE, UNIT, Expression, G, S, State, V,\n"
-    "    and_, arrow, equation, ground, if_, in_, not_, or_, solve, typed,\n"
+    "    accept, and_, arrow, channel, drop, equation, every, ground, if_,\n"
+    "    in_, limits, match, not_, or_, par_map, race, refuse, solve, spawn,\n"
+    "    superpose, typed, view,\n"
     ")\n"
     "BUDGET = 1\n"
     "def twin(m):\n"
     '    kb = metta.space("&doors")\n'
+    "    roster = metta.space(S.roster)\n"
     "    kb += (S.Parent, S.Tom, S.Bob)\n"
     '    kb += ground({"port": 80})\n'
     "    kb += G(1) + 2\n"
@@ -297,6 +397,27 @@ LANDED_DOORS = (
     "    def rooted(x):\n"
     "        return math.sqrt(operator.abs(x))\n"
     "    @m.define\n"
+    "    def rated(x):\n"
+    "        match x:\n"
+    "            case 0:\n"
+    "                return S.Free\n"
+    "            case _:\n"
+    "                return x % 2 == 0\n"
+    "    @m.cache\n"
+    "    def looked_up(key):\n"
+    "        return match(kb, S.entry(key, V.value), V.value)\n"
+    "    @kb.pre_add\n"
+    "    def intake(atom):\n"
+    "        match atom:\n"
+    "            case (S.Raw, x):\n"
+    "                return accept((S.Order, x))\n"
+    "            case (S.Bad, x):\n"
+    "                return refuse(S.negative(x))\n"
+    "            case (S.Noise, _):\n"
+    "                return drop()\n"
+    "            case _:\n"
+    "                return accept()\n"
+    "    @m.define\n"
     "    class Account:\n"
     "        owner: str\n"
     "        balance: int\n"
@@ -305,20 +426,48 @@ LANDED_DOORS = (
     "        yield equation(S.transpose(S.transpose(x))).to(x)\n"
     "        yield equation(S.t_mul(x, y)).to(S.t_mul(y, x))\n"
     "    linalg.lower(S.topdown, requires=S.blas)\n"
+    "    @kb.rules\n"
+    "    def bounds(x):\n"
+    '        yield equation(S.clamped(x)).to(S["<"](x, 0))\n'
+    "    kb.emits('best-first')\n"
+    "    kb.writes('transactional')\n"
+    "    kb.source('linear')\n"
+    "    kb.context('closed-world')\n"
+    "    kb.agenda('specificity')\n"
+    "    kb.events('at-least-once', 'ordered')\n"
+    "    kb.capacity(8)\n"
+    "    kb.handles(S.user(V.n, V.a), 'Exact')\n"
+    "    kb.on_error(S.user(V.n, V.a), 'keep')\n"
+    "    kb.merge(S.user(V.n, V.a), 'fair')\n"
+    "    kb.image(S.Tensor.name, 'opaque')\n"
     "    answers = m.answers(square(3))\n"
     "    assert answers.one() == 9\n"
+    "    assert answers.one(default=UNIT) == 9\n"
     "    assert answers.first(default=UNIT) == 9\n"
     "    assert m.fn.xor(TRUE, FALSE) == [True]\n"
     '    assert m.fn["=="](1, 1) == [True]\n'
     "    assert str(m.fn.repr(S.a)) is not None\n"
     "    assert m.type(S.Tom) is not None\n"
-    "    assert m.solve(S.Parent(S.Tom, V.child), S['context-space']()) is not None\n"
+    "    assert m.solve(S.Parent(S.Tom, V.child), S.context_space()) is not None\n"
     "    assert solve(4, V.x - 1) is not None\n"
     "    assert typed(S.f, arrow(int, int)) is not None\n"
     "    assert if_(V.n > 0, S.yes, S.no) is not None\n"
     "    assert not_(and_(or_(TRUE, FALSE), in_(S.a, S.b))) is not None\n"
     "    assert State[int](0, space=m) is not None\n"
     "    assert operator.add is not None\n"
+    "    assert list(match((S.Parent, V.who, S.Bob))) is not None\n"
+    "    assert list(superpose(S.a, S.b)) is not None\n"
+    '    assert view({"port": 80})[(S.kv, S.port, V.v)] is not None\n'
+    "    assert roster[(S.Parent, V.p, V.c)] is not None\n"
+    "    assert kb.match((S.Parent, V.p, V.c), (S.Female, V.p)) is not None\n"
+    "    assert par_map(square, [1, 2]) is not None\n"
+    "    assert race(square(1), square(2)) is not None\n"
+    "    assert every(300.0, square(1)) is not None\n"
+    "    assert channel(max=64) is not None\n"
+    "    for _answer in spawn(square(4)):\n"
+    "        break\n"
+    "    with limits(stack=1_000_000):\n"
+    "        assert looked_up(S.k) is not None\n"
     "    for _event in m.watch((S.Alert, V.message)):\n"
     "        break\n"
     "    assert m.peek((S.Job, V.n)) is not None\n"
@@ -328,7 +477,7 @@ LANDED_DOORS = (
 
 
 def test_the_landed_doors_read_clean(tmp_path):
-    """Every door R1, R2, R3, R5 and R6 landed passes all three checks.
+    """Every door the P14 waves landed passes all three checks.
 
     A class body's bare `balance: int` is an annotation with NO value, and
     reading it as a subtree raised `AttributeError: 'NoneType' object has no
@@ -340,9 +489,10 @@ def test_the_landed_doors_read_clean(tmp_path):
     assert coverage.scan(doors) == []
     assert coverage.idiom(doors) == []
     assert coverage.retired(doors) == []
-    # The two functions, the class and the rules bundle all author equations,
-    # so the band's authoring allowance counts every compiling door.
-    assert coverage.definitions(doors) == 4
+    # Three defined functions, a cached one, a raw judge, the class and two
+    # rules bundles all author equations, so the band's authoring allowance
+    # counts every compiling door.
+    assert coverage.definitions(doors) == 8
 
 
 def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
@@ -357,6 +507,7 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
         '"""Doc."""\n'
         "import metta\n"
         "from metta import Expr, S, alpha_eq, sym, val, var\n"
+        "from metta.atoms import _HERE as HERE\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
         '    kb = m.new_space("&kb")\n'
@@ -365,6 +516,10 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
         '    assert m.fn("xor")(True, False) == [True]\n'
         "    assert m.one(S.f(1)) == 1\n"
         "    assert m.count() == 1\n"
+        "    assert m.query(S.f(V.x)) is not None\n"
+        "    kb.declare_capacity(8)\n"
+        '    kb.declare_emits("best-first")\n'
+        "    assert HERE is not None\n"
         '    assert val("data") == val("data")\n'
         '    assert sym("f") == var("f")\n'
         "    assert alpha_eq(S.a, S.a)\n"
@@ -386,11 +541,142 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
         ("fn", 'write the fn namespace: fn.name, or fn["name"]'),
         ("one", "write answers.one()"),
         ("count", "write len(space)"),
+        # The P14 rename's own casualties: the ask changed name, the fifteen
+        # declaration verbs became the heads they write, and the root lost the
+        # context-space atom.
+        ("query", "write space.match(pattern)"),
+        ("declare_capacity", "write space.capacity(...)"),
+        ("declare_emits", "write space.emits(...)"),
+        ("_HERE", "write the space handle itself"),
     ):
         assert f"{retired_name} is retired" in findings or (
             f"{retired_name}(...) is retired" in findings
         ), retired_name
         assert current in findings, current
+
+
+def test_a_retired_module_import_is_a_finding(tmp_path):
+    """The rename left no module behind, so the import itself is the finding.
+
+    `ModuleNotFoundError: No module named 'petta'` says something is missing
+    and nothing about the rename that removed it, and a twin carried over from
+    the old surface writes that line before it writes anything else.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "import petta\n"
+        "import pymetta\n"
+        "from petta import S, V\n"
+        "from petta.atoms import Expression\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert petta.space() is not None\n",
+        encoding="utf-8",
+    )
+    findings = coverage.retired(planted)
+    assert "line 2: petta is retired; write import metta" in findings
+    assert "line 3: pymetta is retired; write import metta" in findings
+    assert "line 4: petta is retired; import from metta" in findings
+    assert "line 5: petta.atoms is retired; import from metta" in findings
+
+    # And the live module is not reported for sharing four of its letters,
+    # satellites included.
+    live = tmp_path / "live.py"
+    live.write_text(
+        '"""Doc."""\n'
+        "import metta\n"
+        "from metta import S, V\n"
+        "from metta.testing import laws\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert metta.space() is not None\n",
+        encoding="utf-8",
+    )
+    assert coverage.retired(live) == []
+
+
+#: The retired names a recommendation may still contain, because only the ROOT
+#: spelling died and the name itself moved house: `atom_from_wire` is written
+#: `metta.wire.atom_from_wire(x)` and `alpha_eq` is the atom's own method
+#: [measured 2026-08-24: `metta.alpha_eq` and `metta.atom_from_wire` are gone
+#: while `Atom.alpha_eq` and `metta.wire.atom_from_wire` are live; source:
+#: ai-narrow-core-renames.md, the wire-functions and alpha_eq rows;
+#: commit=WORKTREE].
+RELOCATED = frozenset({"alpha_eq", "atom_from_wire"})
+
+
+def test_no_retired_spelling_is_ever_recommended():
+    """The lane's answer must be writable, so it may never name a dead door.
+
+    A finding QUOTES the retired name the twin wrote, which is the point; what
+    it must never do is answer with another one. This reads every table the
+    lane recommends from, and the packaged help text, against every name the
+    lane itself calls retired.
+    """
+    dead = (
+        set(coverage.RETIRED_ROOT)
+        | set(coverage.RETIRED_HANDLE)
+        | set(coverage.RETIRED_MODULES)
+    ) - RELOCATED
+    # The call-shape names are deliberately absent: `one`, `first`, `count`,
+    # `fn` and `stream` all survive on another object, so their own
+    # replacements name them and only the arity tells the doors apart.
+    assert dead.isdisjoint(coverage.RETIRED_CALL_SHAPES)
+
+    help_text = subprocess.run(
+        [sys.executable, str(TOOL), "--help"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    recommended = [
+        *coverage.DISSOLVED.values(),
+        *coverage.RETIRED_ROOT.values(),
+        *coverage.RETIRED_HANDLE.values(),
+        *(f"import {current}" for current in coverage.RETIRED_MODULES.values()),
+        *(shape[1] for shape in coverage.RETIRED_CALL_SHAPES.values()),
+        help_text,
+    ]
+    for text in recommended:
+        named = {name for name in dead if re.search(rf"\b{re.escape(name)}\b", text)}
+        assert not named, f"{text!r} recommends {sorted(named)}"
+
+
+def test_a_retired_door_is_not_a_retired_name(tmp_path):
+    """The tables are read at DOORS, and a factory access is a name.
+
+    `V.query` is the variable `$query` and `fn.first` is the engine's own
+    `first`, so reading the tables at every attribute reported two correct
+    lines in `reasoning/nilbc.py` alone.
+    """
+    names = tmp_path / "names.py"
+    names.write_text(
+        '"""Doc."""\n'
+        "from metta import S, V, fn\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    m += S.bc(V.kb, V.query)\n"
+        "    assert fn.first(S.xs) is not None\n"
+        "    assert S.one(V.x) is not None\n",
+        encoding="utf-8",
+    )
+    assert coverage.retired(names) == []
+
+    doors = tmp_path / "doors.py"
+    doors.write_text(
+        '"""Doc."""\n'
+        "from metta import S, V\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        "    assert m.query(S.f(V.x)) is not None\n"
+        "    assert m.one(S.f(V.x)) is not None\n",
+        encoding="utf-8",
+    )
+    findings = coverage.retired(doors)
+    assert len(findings) == 2, findings
+    assert "query is retired" in findings[0]
+    assert "one(...) is retired" in findings[1]
 
 
 def test_an_exact_bracket_spelling_is_not_the_attribute_one(tmp_path):
@@ -839,6 +1125,37 @@ def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_pa
     operators = [f for f in coverage.idiom(inside) if "operator" in f]
     assert len(operators) == 1, operators
     assert "'+'" in operators[0]
+
+
+def test_the_operator_heads_are_the_ones_the_translator_emits(tmp_path):
+    """The heads a Python operator writes are the TRANSLATOR's, not the
+    dunders'. Measured 2026-08-24, one file per spelling under `@m.define`:
+    `a ** b` emits `(pow-math a b)` and `a == b` emits `(py-eq a b)`, so both
+    heads are transliterations inside a body; `a // b` REFUSES there, naming
+    `floor_math(a / b)`, so `floor-math` is the twin's only spelling and
+    demanding an operator for it would demand one the translator rejects.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    planted = tmp_path / "heads.py"
+    planted.write_text(
+        '"""Doc."""\n'
+        "from metta import S, fn\n"
+        "def twin(m):\n"
+        "    @m.define\n"
+        "    def raised(a, b):\n"
+        '        return S["pow-math"](a, b)\n'
+        "    @m.define\n"
+        "    def same(a, b):\n"
+        '        return fn["py-eq"](a, b)\n'
+        "    @m.define\n"
+        "    def divided(a, b):\n"
+        "        return fn.floor_math(a / b)\n",
+        encoding="utf-8",
+    )
+    operators = [f for f in coverage.idiom(planted) if "operator" in f]
+    assert len(operators) == 2, operators
+    assert "'pow-math'" in operators[0]
+    assert "'py-eq'" in operators[1]
+    assert "compiled body" in operators[0]
 
 
 def test_a_rules_body_carries_literals_but_lowers_no_operator(tmp_path):

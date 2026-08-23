@@ -44,13 +44,21 @@ Guarantees:
     the five source doors and any string that is not a name or ground()-marked
     data [tested: test_the_source_scan_catches_a_planted_string]
   - a twin naming something the narrow core deleted is a finding that names the
-    current spelling, so `val`, `sym`, `var`, `m.new_space` and `m.fn("name")`
-    cannot pass as vocabulary [tested:
-    test_a_retired_name_is_a_finding_naming_its_replacement; commit=8c057bb8055459cc13127d89b418deb634b90ae4]
+    current spelling, so `val`, `sym`, `var`, `m.new_space`, `m.fn("name")`,
+    `HERE`, `m.query(...)` and every `declare_*` method cannot pass as
+    vocabulary [tested:
+    test_a_retired_name_is_a_finding_naming_its_replacement; commit=WORKTREE]
+  - a twin importing the module the rename deleted is a finding, whichever
+    spelling it reaches for: the distribution is `pymetta` and the module it
+    installs is `metta`, so neither `petta` nor `pymetta` imports
+    [tested: test_a_retired_module_import_is_a_finding; commit=WORKTREE]
   - every door the surface tracks landed reads clean: the naming factories,
-    the answer view, the keyword builders, the coordination verbs, the class
-    door and the standard-module mentions inside a compiled body
-    [tested: test_the_landed_doors_read_clean; commit=f0686267e8ecb2817758fb8a58cb9b1bef6dd6d4]
+    the answer view with its defaulted cells, the keyword builders, the
+    coordination verbs, the class door, the verdict builders under
+    `@space.pre_add`, the head-named declaration methods, package `match`
+    and `superpose`, `view()`, `@space.cache`, `limits(stack=)` and the
+    standard-module mentions inside a compiled body
+    [tested: test_the_landed_doors_read_clean; commit=WORKTREE]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the
@@ -178,20 +186,62 @@ SOURCE_DOORS = frozenset({"run", "load", "parse", "save", "forms"})
 
 #: Calls whose string argument is a NAME or a marked datum rather than a
 #: program: `space` and `attach` name a space, and `ground`/`G` carry a Python
-#: value whole. The retired carriers `val`, `sym`, `var` and `new_space` are
-#: NOT here; RETIRED_ROOT and RETIRED_HANDLE name them and their replacements.
+#: value whole. `space` takes an ATOM name too, and the ampersand belongs to
+#: the STRING spelling alone: the door adds it to a symbol, which is why the
+#: idiom check still reports `S["&kb"]` as a space named as a symbol
+#: [measured 2026-08-24: `metta.space(S.users)` answers a handle whose `.name`
+#: is '&users', and `metta.space("and-string")` refuses, naming the prefix;
+#: commit=WORKTREE]. The retired carriers `val`, `sym`, `var` and `new_space`
+#: are NOT here; RETIRED_ROOT and RETIRED_HANDLE name them and their
+#: replacements.
 NAMING_CALLS = frozenset({
     "ground", "G", "space", "attach",
     # TypeVar("X") names a type variable exactly as S["x"] names an atom, and
     # a twin declaring a parametric type needs it [found 2026-08-22 by the
     # types agent, which worked around it with the name= keyword].
     "TypeVar",
+    # `view(obj)` carries a Python container whole exactly as ground() carries
+    # a Python value whole: it makes a LIVE provider over the object, so the
+    # keys of `view({"port": 80})` are Python text and never a program
+    # [source: ai-python-conventions.md 3.12, the three routes for Python data;
+    # commit=WORKTREE].
+    "view",
 })
 
 #: Calls whose string arguments are HOST text rather than a program: a message
 #: a twin prints, a filesystem path it opens. `println!` dissolves into
 #: `print()` by the table below, so the scan has to let a twin print.
 HOST_TEXT_CALLS = frozenset({"print", "Path", "open", "warning", "info", "debug"})
+
+#: The head-named receiver methods that replaced the `declare_*` family: each
+#: writes one declaration atom and its head IS the method name, so
+#: `(capacity &pool 8)` is written `pool.capacity(8)` [source:
+#: ai-narrow-core-renames.md rows 71-89, the fifteen replacements;
+#: commit=WORKTREE].
+DECLARATION_CALLS = frozenset({
+    "admits", "agenda", "algebra", "annotations", "capacity", "context",
+    "emits", "events", "handles", "image", "merge", "on_error", "reaction",
+    "source", "writes",
+})
+
+#: What a declaration takes for its VALUE: one word from a closed vocabulary,
+#: `emits("best-first")` or `handles(pattern, "Exact")`. The guide rules these
+#: option values as enum members ("StrEnum members that ARE their wire
+#: string"), which would make them names rather than text, but the shipped
+#: vocabulary is `typing.Literal` aliases, so a bare word is the only spelling
+#: the door takes and refusing it would refuse the door
+#: [measured 2026-08-24: every member of every Literal alias in
+#: metta.vocabularies is a bare word, 77 of them, and `Space.image`'s
+#: 'opaque'/'transparent'/'auto' is declared inline rather than exported;
+#: ai-python-conventions.md "Strings are text" lists option values under
+#: never-strings; commit=WORKTREE].
+#:
+#: A word, and nothing else: `reaction("(Job $n)", op)` still reports, because
+#: a program carries a parenthesis, a space or a dollar and a vocabulary word
+#: carries none of them. That is what keeps a `str | Atom` pattern parameter
+#: from being a sixth source door
+#: [tested: test_a_declaration_takes_a_word_and_refuses_a_program; commit=WORKTREE].
+VOCABULARY_WORD = re.compile(r"[\w.-]+\Z")
 
 #: The factories whose attribute or subscript spells a NAME rather than calling
 #: a library door: `S.f` and `S["+"]` name an atom, `V.x` a variable, and
@@ -242,7 +292,12 @@ DISSOLVED = {
     "add-atom": "space += atom",
     "add-reduct": "space += the evaluated atom",
     "remove-atom": "space -= atom",
-    "match": "space[pattern], the subscript door",
+    # One word at three positions, all three shipped: the subscript takes ONE
+    # pattern, the receiver method takes a conjunction, and bare `match(...)`
+    # is the expression-position function over the ambient context space
+    # [source: ai-python-conventions.md Part 2, "match is one word at three
+    # positions"; commit=WORKTREE].
+    "match": "space[pattern], space.match(...), or bare match(...) in expression position",
     "collapse": "list()",
     "car-atom": "e[0]",
     "cdr-atom": "e[1:]",
@@ -256,9 +311,14 @@ DISSOLVED = {
     "max-atom": "max()",
     "min-atom": "min()",
     "sort-strings": "sorted()",
-    "if": "Python's own if, or its conditional expression",
-    "let": "assignment",
-    "let*": "assignment",
+    # `if_` earns its place beside Python's own two spellings because it has
+    # the arity the engine's `if` has: a one-armed `if_(c, t)` is a filter
+    # Python's conditional expression cannot spell, and stored code is where
+    # it is written [source: ai-python-conventions.md 3.8, the keyword family;
+    # commit=WORKTREE].
+    "if": "Python's own if, its conditional expression, or if_(c, t, e) for stored code",
+    "let": "assignment, or solve(pattern, subject) when the pattern must win what the subject produces",
+    "let*": "a statement sequence",
     "case": "Python's match statement",
     "switch": "Python's match statement",
     "println!": "print()",
@@ -273,8 +333,9 @@ DISSOLVED = {
     # a door that does not exist. `get-type` left this note when R5 shipped
     # `Space.type(atom)` as the accessor and moved the class declaration onto
     # `Space.define` [source: ai-report-p14-r5.md, built surface item 5;
-    # commit=8c057bb8055459cc13127d89b418deb634b90ae4] [measured 2026-08-23: `Space.doc` does not exist, so
-    # P14.25 is still the row that closes it; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+    # commit=8c057bb8055459cc13127d89b418deb634b90ae4] [measured 2026-08-24: neither `Space.doc` nor
+    # `metta.doc` exists on the merged P14 surface, so P14.25 is still the row
+    # that closes it; commit=WORKTREE].
 }
 
 
@@ -293,8 +354,17 @@ RETIRED_ROOT = {
     "Var": "Variable",
     "MettaName": "Symbol",
     "SpaceName": "Handle",
+    "PeTTa": "MeTTa, the runtime context",
     "DECLINE": "NotReducible",
     "Decline": "NotReducible",
+    # The rename removed the root's own name for the context space. `_HERE` is
+    # keyed beside it because that is how the name survived a mechanical sweep:
+    # two twins reach past the root for the private atom rather than write the
+    # receiver [measured 2026-08-24: `from metta.atoms import _HERE as HERE` in
+    # tests/twins/reasoning/peano.py and tests/twins/reasoning/scallop_readme.py,
+    # and nowhere else in the corpus; commit=WORKTREE].
+    "HERE": "the space handle itself; match(...) reads the ambient space",
+    "_HERE": "the space handle itself; match(...) reads the ambient space",
     "REFLECTION_SPACE": "metta.reflection",
     "alpha_eq": "a.alpha_eq(b)",
     "atom_from_wire": "metta.wire.atom_from_wire(x)",
@@ -332,11 +402,38 @@ RETIRED_HANDLE = {
     "add_table": "metta.tables.add(space, head, data)",
     "disassemble": "no public door; diagnostics are internal",
     "new_space": "metta.space(name) or ctx.space(name)",
+    # The rename renamed the ask itself, with no alias behind it: `Space.match`
+    # is the door and `metta.match` is its ambient face
+    # [measured 2026-08-24: neither `Space.query` nor `metta.query` exists;
+    # source: CHANGELOG.md "Rename `Space.query` and `AsyncMeTTa.query` to
+    # `match`"; commit=WORKTREE].
+    "query": "space.match(pattern), or space[pattern] for one pattern",
     "register_op": "space.op(...), or @space.op",
     "register_space": "metta.attach(name, provider)",
     "space_name": "space.name",
     "unregister": "space.unregister_op(...)",
     "unregister_space": "space.drop()",
+    # The fifteen `declare_*` methods, each replaced by the head its atom
+    # already had: the method IS the head, so `(capacity &pool 8)` is written
+    # `pool.capacity(8)` and the ceremony is gone. Every entry is one row of
+    # the rewrite map [source: ai-narrow-core-renames.md rows 71-89;
+    # CHANGELOG.md "Remove all 15 synchronous `declare_*` methods";
+    # commit=WORKTREE].
+    "declare_admits": "space.admits(...)",
+    "declare_agenda": "space.agenda(...)",
+    "declare_algebra": "space.algebra(...)",
+    "declare_annotations": "space.annotations(...)",
+    "declare_capacity": "space.capacity(...)",
+    "declare_context": "space.context(...)",
+    "declare_emits": "space.emits(...)",
+    "declare_events": "space.events(...)",
+    "declare_handles": "space.handles(...)",
+    "declare_image": "space.image(...)",
+    "declare_merge": "space.merge(...)",
+    "declare_on_error": "space.on_error(...)",
+    "declare_reaction": "space.reaction(...)",
+    "declare_source": "space.source(...)",
+    "declare_writes": "space.writes(...)",
 }
 
 #: Retired CALL SHAPES rather than retired names: each name survives on
@@ -348,14 +445,30 @@ RETIRED_HANDLE = {
 #: 366 times in the old corpus. Only a call through a RECEIVER is read, so a
 #: twin's own local helper named `one` is nobody's business but its own
 #: [source: bindings/python/metta/results.py Answers.one, Answers.first and
-#: Answers.count; ai-report-p14-r3.md corpus counts; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+#: Answers.count; ai-report-p14-r3.md corpus counts; commit=8c057bb8055459cc13127d89b418deb634b90ae4]
+#: [measured 2026-08-24: `Answers.one` and `Answers.first` are
+#: `(self, *, default=...)`, so both defaults are KEYWORD-only and neither
+#: live call has a positional argument to be confused with the deleted one;
+#: commit=WORKTREE].
 RETIRED_CALL_SHAPES = {
     #  name: (positional arguments that mark the retired call, current spelling)
     "count": (0, "len(space)"),
-    "first": (1, "answers.first(default=...)"),
+    "first": (1, "answers.first(), or answers.first(default=...)"),
     "fn": (1, 'the fn namespace: fn.name, or fn["name"] for an exact spelling'),
-    "one": (1, "answers.one()"),
+    "one": (1, "answers.one(), or answers.one(default=...)"),
     "stream": (1, "iterating the answers"),
+}
+
+#: Import roots the rename deleted. The distribution is `pymetta` and the
+#: module it installs is `metta`, so a twin that imports either of the old
+#: names imports nothing at all; the finding says which name to write, where
+#: `ModuleNotFoundError` says only that something is missing
+#: [source: CHANGELOG.md "Rename the Python distribution to `pymetta` and its
+#: import module to `metta` ... Neither `petta` nor `pymetta` remains an
+#: importable module"; commit=WORKTREE].
+RETIRED_MODULES = {
+    "petta": "metta",
+    "pymetta": "metta",
 }
 
 
@@ -491,13 +604,26 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 #: `(= (math-string) "s")` writes one, and not source text; the source doors
 #: are still refused there, because a door is a call and the call rule does not
 #: care where the call sits. `cache` compiles a body exactly as `define` does,
-#: and a cached definition's match() must name its space as a string constant,
-#: because the two-argument form lowers to (context-space) which caching
-#: refuses as impure [found 2026-08-22 by the libraries agent, which lost the
-#: @m.cache spelling and fn.cache_info() to this]. `rules` joined them when R3
+#: and `pre_add` compiles a RAW judge into the space before claiming the write
+#: door, so a judge written without a `@define` beneath it is lowered too
+#: [source: bindings/python/metta/_space.py Space.pre_add, "A raw function is
+#: compiled into this space before claiming the hook"]
+#: [measured 2026-08-24: a bare `@space.pre_add` judge stores
+#: `(= (intake $a) (case ...))`, its match statement lowered to the case tower
+#: and its `accept`/`refuse` verdicts intact; commit=WORKTREE].
+#: `rules` joined them when R3
 #: landed the bundle door [source: ai-report-p14-r3.md, rules and per-yield
 #: equation emission; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
-COMPILING_DECORATORS = frozenset({"define", "cache", "rules"})
+#:
+#: A cached body still names the space its match reads, because the ambient
+#: one-pattern form lowers to `(context-space)` and caching refuses that as
+#: impure; the space is named by HANDLE, so the refusal costs no string
+#: [measured 2026-08-24: `match(kb, S.entry(k, V.v), V.v)` under
+#: `@space.cache` stores `(match &self (entry $k $v) $v)` where the
+#: one-pattern form raises "caching refuses context-space/1: nothing declares
+#: it pure"; found 2026-08-22 by the libraries agent, which lost the @m.cache
+#: spelling and fn.cache_info() to this; commit=WORKTREE].
+COMPILING_DECORATORS = frozenset({"define", "cache", "pre_add", "rules"})
 
 #: The subset whose body is LOWERED from Python syntax, where `a + b` emits
 #: `(+ $a $b)`. A `@rules` body is EXECUTED instead, so its `a == b` is
@@ -505,7 +631,7 @@ COMPILING_DECORATORS = frozenset({"define", "cache", "rules"})
 #: there; the operator rule below would report a correct bundle
 #: [source: bindings/python/metta/_rules.py rules, which calls the generator
 #: with Variable arguments; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
-LOWERING_DECORATORS = frozenset({"define", "cache"})
+LOWERING_DECORATORS = frozenset({"define", "cache", "pre_add"})
 
 #: Decorators whose body is HOST PYTHON rather than knowledge. An operation
 #: RUNS in Python, so the `" "` in `title.replace(" ", "-")` is an argument to
@@ -660,11 +786,22 @@ def _call_strings(node: ast.Call) -> set[int]:
     print(); and a naming call takes names and marked data wherever they sit,
     keywords and nested containers included, so `space(grants=["file"])` names
     capabilities [found 2026-08-22 by the spaces agent, which had to write
-    `S.file.name` to get past this].
+    `S.file.name` to get past this]. A declaration takes its vocabulary WORD,
+    and only a word: the value words are the door's whole argument and a
+    program is not one of them.
     """
     permitted = _text_ids(word.value for word in node.keywords)
-    if _callee(node) in HOST_TEXT_CALLS | NAMING_CALLS:
+    called = _callee(node)
+    if called in HOST_TEXT_CALLS | NAMING_CALLS:
         permitted |= _text_ids([node])
+    elif called in DECLARATION_CALLS:
+        permitted.update(
+            id(argument)
+            for argument in node.args
+            if isinstance(argument, ast.Constant)
+            and isinstance(argument.value, str)
+            and VOCABULARY_WORD.match(argument.value)
+        )
     permitted.update(id(word.value) for word in node.keywords if word.arg == "name")
     return permitted
 
@@ -692,17 +829,33 @@ def _named_strings(tree: ast.Module) -> set[int]:
     return permitted
 
 
-#: Heads Python's own syntax already builds, so writing them as a call or
-#: through Expression() spells with a function what the language spells with a
-#: character. The lowering table in metta._operator_lowerings is the
-#: authority for which these are; this is the subset a twin can reach.
 #: A line-level rung declaration, in the shape of the tree's noqa grammar.
 RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
 
 
+#: Heads Python's own syntax already builds INSIDE A LOWERED BODY, so writing
+#: them as a call or through Expression() there spells with a function what the
+#: language spells with a character. The translator is the authority, not the
+#: live dunder table, and the two disagree in three places
+#: [measured 2026-08-24: one file per spelling under `@m.define`, read back
+#: with `m.match(S['='](V.head, V.body))`. `a ** b` emits `(pow-math a b)`,
+#: `a == b` emits `(py-eq a b)`, `a != b` emits `(not (py-eq a b))`, `a in b`
+#: emits `(py-in a b)`, `not a` emits `(not (py-truthy a))`, and `a and b`
+#: emits a `let*` over `py-truthy`; `a // b` and `a & b` REFUSE, naming
+#: `floor_math(a / b)` and "MeTTa has no bitwise operators";
+#: source: bindings/python/metta/_define_expression.py _BINOPS, _COMPARE,
+#: _INSTEAD and _compare_link; commit=WORKTREE].
+#:
+#: So `**` and `//` are NOT here: neither is an engine head, and demanding an
+#: operator for `floor-math` would demand the one spelling the translator
+#: refuses. `pow-math`, `py-eq` and `py-in` ARE, because they are exactly what
+#: `**`, `==` and `in` emit. `and`, `or` and `not` stay because `&`, `|` and
+#: `~` refuse inside a body, which leaves Python's own keywords as the only
+#: operator spelling there; a twin that needs the bare `(and a b)` term rather
+#: than Python's truthiness chain declares its rung on the line.
 OPERATOR_HEADS = frozenset({
-    "+", "-", "*", "/", "//", "%", "**", "==", "!=", "<", ">", "<=", ">=",
-    "and", "or", "not",
+    "+", "-", "*", "/", "%", "pow-math", "==", "!=", "py-eq", "py-in",
+    "<", ">", "<=", ">=", "and", "or", "not",
 })
 
 
@@ -863,9 +1016,11 @@ def idiom(twin: Path) -> list[str]:
                 and id(node) in lowered
                 and arity == (1 if operator == "not" else 2)
             ):
-                findings.append(
-                    (node.lineno, f"the head {operator!r} is what a Python operator builds")
-                )
+                findings.append((
+                    node.lineno,
+                    f"the head {operator!r} is what a Python operator writes "
+                    f"inside a compiled body",
+                ))
     return [
         f"line {line}: {what}"
         for line, what in sorted(set(findings))
@@ -956,20 +1111,43 @@ def retired(twin: Path) -> list[str]:
     the two places this reads. Every finding names the current spelling, which
     is the whole value of the check: an `ImportError` three seconds later says
     the name is gone and nothing about what replaced it.
+
+    The MODULE is read the same way and for the same reason. A twin written
+    against the old package imports a name that no longer exists at all, and
+    `ModuleNotFoundError: No module named 'petta'` says nothing about the
+    rename that caused it.
+
+    A FACTORY access is never either one, whatever it spells: `V.query` is the
+    variable `$query` and `fn.first` is the engine's own `first`, so the tables
+    are read at doors and not at names [measured 2026-08-24: reading them at
+    every attribute reported both, `V.query` twice in
+    tests/twins/reasoning/nilbc.py and `fn.first` wherever the catalog's own
+    `first` is mentioned; commit=WORKTREE].
     """
     tree = _parse(twin)
     if tree is None:
         return []
     findings: list[tuple[int, str]] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
+        if isinstance(node, ast.Import):
+            findings.extend(
+                (node.lineno, f"{alias.name} is retired; write import {current}")
+                for alias in node.names
+                if (current := RETIRED_MODULES.get(alias.name.split(".")[0]))
+            )
+        elif isinstance(node, ast.ImportFrom):
             root = (node.module or "").split(".")[0]
+            current = RETIRED_MODULES.get(root)
+            if current is not None:
+                findings.append(
+                    (node.lineno, f"{node.module} is retired; import from {current}")
+                )
             findings.extend(
                 (node.lineno, f"{alias.name} is retired; write {RETIRED_ROOT[alias.name]}")
                 for alias in node.names
                 if root == "metta" and alias.name in RETIRED_ROOT
             )
-        elif isinstance(node, ast.Attribute):
+        elif isinstance(node, ast.Attribute) and _factory(node) is None:
             package = isinstance(node.value, ast.Name) and node.value.id == "metta"
             current = RETIRED_HANDLE.get(node.attr) or (
                 RETIRED_ROOT.get(node.attr) if package else None
@@ -978,7 +1156,11 @@ def retired(twin: Path) -> list[str]:
                 findings.append(
                     (node.lineno, f"{node.attr} is retired; write {current}")
                 )
-        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and _factory(node.func) is None
+        ):
             shape = RETIRED_CALL_SHAPES.get(node.func.attr)
             if shape is not None and len(node.args) == shape[0]:
                 findings.append(
@@ -1456,13 +1638,13 @@ def definitions(twin: Path) -> int:
     """How many compiled definitions the twin AUTHORS.
 
     Counted from source, so the allowance cannot be inflated without adding a
-    decorator a reader sees in the diff. A decorated CLASS and a `@rules`
-    bundle author equations the same way a decorated function does, so the
-    count reads every door in COMPILING_DECORATORS
-    [assumed 2026-08-23: the per-definition figure below was measured on
-    `@define` functions and is applied to the class and bundle doors without a
-    second measurement; the band is loosened, never tightened, by the
-    extension; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
+    decorator a reader sees in the diff. A decorated CLASS, a `@rules` bundle
+    and a raw `@space.pre_add` judge author equations the same way a decorated
+    function does, so the count reads every door in COMPILING_DECORATORS
+    [assumed 2026-08-24: the per-definition figure below was measured on
+    `@define` functions and is applied to the class, bundle and judge doors
+    without a second measurement; the band is loosened, never tightened, by the
+    extension; commit=WORKTREE].
     """
     tree = _parse(twin)
     return sum(
