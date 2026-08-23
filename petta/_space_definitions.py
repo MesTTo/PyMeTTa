@@ -5,6 +5,9 @@ Guarantees:
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - install_define keeps stacked clauses in Python first-match order [tested
     test_literal_defaults_are_head_patterns_and_clauses_stack]
+  - clauses at different arities under one MeTTa name stack instead of
+    replacing one another [tested:
+    test_define_supports_one_name_at_multiple_arities; commit=WORKTREE]
   - clear_definitions removes process bookkeeping with the equations it
     describes [tested test_reflection_facts_follow_a_dropped_space]
   - a definition is exposed only after its first twin clause exists, and its
@@ -177,6 +180,7 @@ def _validate_clause_order(
     space: Any,
     name: str,
     patterns: dict[str, Atom],
+    arity: int,
     earlier: list[dict[str, Any]],
 ) -> None:
     """Refuse collisions and clauses hidden by an earlier Python head."""
@@ -192,7 +196,8 @@ def _validate_clause_order(
             msg,
             construct="name collision",
         )
-    if patterns and any(not clause["patterns"] for clause in earlier):
+    same_arity = [clause for clause in earlier if clause["arity"] == arity]
+    if patterns and any(not clause["patterns"] for clause in same_arity):
         msg = (
             f"a clause of {name} with a literal head comes after the "
             f"general clause, which already matches everything; define "
@@ -202,7 +207,7 @@ def _validate_clause_order(
             msg,
             construct="clause order",
         )
-    for clause in earlier:
+    for clause in same_arity:
         earlier_patterns = clause["patterns"]
         if len(earlier_patterns) < len(patterns) and all(
             patterns.get(param) == value for param, value in earlier_patterns.items()
@@ -230,6 +235,7 @@ def _same_clause(clause: dict[str, Any], canonical: tuple[Expression, ...], name
 def _locate_clause(
     earlier: list[dict[str, Any]],
     patterns: dict[str, Atom],
+    arity: int,
     canonical: tuple[Expression, ...],
     name: str,
 ) -> tuple[bool, int | None]:
@@ -238,7 +244,7 @@ def _locate_clause(
     for position, clause in enumerate(earlier):
         if _same_clause(clause, canonical, name):
             return True, position
-        if clause["patterns"] == patterns:
+        if clause["arity"] == arity and clause["patterns"] == patterns:
             replaced = position
     return False, replaced
 
@@ -305,6 +311,7 @@ def _clause_record(
     patterns: dict[str, Atom], equations: tuple[Expression, ...], compiled: Compiled
 ) -> dict[str, Any]:
     return {
+        "arity": len(compiled.params),
         "patterns": patterns.copy(),
         "equations": equations,
         "aux": tuple(compiled.aux),
@@ -491,7 +498,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     # Clause stacking is per (space, name), process-wide: equations live
     # in the space, not in whichever MeTTa instance happened to add them.
     earlier = _DEFINE_CLAUSES.setdefault((space.name, name), [])
-    _validate_clause_order(space, name, patterns, earlier)
+    _validate_clause_order(space, name, patterns, len(params), earlier)
     # MeTTa equations are alternatives, and a Python author stacking
     # clauses means first-match, so each clause is guarded against every
     # earlier literal head it would otherwise also answer for. The guard
@@ -515,7 +522,9 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         params,
     )
     clause_twin.__doc__ = compiled.facts.doc
-    duplicate, replaced = _locate_clause(earlier, patterns, canonical, name)
+    duplicate, replaced = _locate_clause(
+        earlier, patterns, len(params), canonical, name
+    )
     if duplicate:
         # A re-run cell or module reload must not duplicate answers.
         if replaced is None:

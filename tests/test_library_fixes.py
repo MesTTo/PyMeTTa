@@ -18,6 +18,9 @@ Guarantees:
   - rational number payloads cross lazy values and binding rows exactly as
     ``Fraction`` [tested: test_rational_payloads_cross_the_scalar_door;
     commit=WORKTREE]
+  - one defined MeTTa name may own independent Python clauses at different
+    arities [tested: test_define_supports_one_name_at_multiple_arities;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -149,3 +152,21 @@ def test_rational_payloads_cross_the_scalar_door() -> None:
     assert target.answers(represented).one() == "1r2"
     assert target.answers(value).one() == rational
     assert target.answers(G(rational)).one() == rational
+
+
+def test_define_supports_one_name_at_multiple_arities() -> None:
+    """Different arities stack and dispatch independently in engine and twin."""
+    target = space()
+
+    @target.define(name="libfix-multi-arity")
+    def unary_clause(value):
+        return value + 1
+
+    @target.define(name="libfix-multi-arity")
+    def binary_clause(left, right):
+        return left + right
+
+    assert unary_clause(3).one() == 4
+    assert binary_clause(3, 4).one() == 7
+    assert unary_clause.py(3) == 4
+    assert binary_clause.py(3, 4) == 7
