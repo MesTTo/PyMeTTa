@@ -38,7 +38,8 @@ Guarantees:
   - an Answers view crossing into a term observes exact-one cardinality and
     encodes that answer as the operand [tested:
     test_answer_views_observe_when_used_as_operands; commit=WORKTREE]
-  - Rows and Answers project caller variables by attribute or Variable key
+  - Rows and Answers project caller variables by attribute, Variable key, or
+    exact string key
     [tested: test_rows_share_the_answer_projection_contract; commit=WORKTREE]
   - len on an untouched engine-backed Answers view uses its engine count door
     without populating the Python cache [tested:
@@ -212,9 +213,9 @@ def _restore_rows(
 class Rows(UserList[Row]):
     """Every answer to a query, in the order the engine produced them.
 
-    Sequence operations retain this type and its columns. ``rows.name`` and
-    ``rows[V.name]`` project a column, matching Answers, while integer and
-    slice indexing follow a normal list.
+    Sequence operations retain this type and its columns. ``rows.name``,
+    ``rows[V.name]``, and ``rows["name"]`` project a column, matching Answers,
+    while integer and slice indexing follow a normal list.
     """
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
@@ -255,22 +256,25 @@ class Rows(UserList[Row]):
     @overload
     def __getitem__(self, i: Variable) -> list[Any]: ...
 
+    @overload
+    def __getitem__(self, i: str) -> list[Any]: ...
+
     def __getitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
-        self, i: SupportsIndex | slice[SupportsIndex | None] | Variable
+        self, i: SupportsIndex | slice[SupportsIndex | None] | Variable | str
     ) -> Row | Rows | list[Any]:
-        if isinstance(i, Variable):
-            return self._column(i.name)
+        if isinstance(i, (Variable, str)):
+            return self._column(i.name if isinstance(i, Variable) else i)
         if isinstance(i, slice):
             return Rows(self.columns, self.data[i])
         return self.data[i]
 
-    def __getattr__(self, name: str) -> list[Any]:
+    def __getattr__(self, name: str) -> list[Any]:  # noqa: D105  -- projection is the documented data-model extension
         try:
             return self._column(name)
         except KeyError as exc:
             raise AttributeError(str(exc)) from None
 
-    def __dir__(self) -> list[str]:
+    def __dir__(self) -> list[str]:  # noqa: D105  -- completion exposes the documented projection columns
         return sorted(set(super().__dir__()) | set(self.columns))
 
     def __setitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
@@ -691,12 +695,12 @@ class Answers[T](Sequence[T]):
         "_count_source",
         "_done",
         "_error",
+        "_known_length",
         "_lock",
         "_row_cache",
         "_source",
         "_space",
         "_target",
-        "_known_length",
     )
 
     def __init__(  # noqa: D107 -- the enclosing type documents construction
@@ -793,15 +797,21 @@ class Answers[T](Sequence[T]):
     @overload
     def __getitem__(self, key: Variable) -> Answers[Any]: ...
 
+    @overload
+    def __getitem__(self, key: str) -> Answers[Any]: ...
+
     def __getitem__(  # noqa: D105 -- Python's sequence protocol names the contract
-        self, key: int | slice | Variable
+        self, key: int | slice | Variable | str
     ) -> T | Answers[T] | Answers[Any]:
-        if isinstance(key, Variable):
-            return self._project(key.name)
+        if isinstance(key, (Variable, str)):
+            return self._project(key.name if isinstance(key, Variable) else key)
         if isinstance(key, slice):
             return self._slice(key)
         if not isinstance(key, int):
-            msg = f"Answers indices are integers, slices, or Variables, not {type(key).__name__}"
+            msg = (
+                "Answers indices are integers, slices, Variables, or exact "
+                f"column strings, not {type(key).__name__}"
+            )
             raise TypeError(msg)
         return self._at(key)
 

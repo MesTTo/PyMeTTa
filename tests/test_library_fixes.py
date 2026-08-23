@@ -301,16 +301,17 @@ def test_answer_views_observe_when_used_as_operands() -> None:
 
 
 def test_rows_share_the_answer_projection_contract() -> None:
-    """Both answer containers project caller variables the same two ways."""
+    """Both answer containers share attribute, Variable, and exact projection."""
     target = space()
     target += S["libfix-projection"](1)
     target += S["libfix-projection"](2)
 
     rows = target.query(S["libfix-projection"](V.value))
 
-    assert rows.value == rows[V.value] == [G(1), G(2)]
-    with pytest.raises(TypeError):
-        _ = rows["value"]
+    assert rows.value == rows[V.value] == rows["value"] == [G(1), G(2)]
+
+    answers = target.answers(S["libfix-projection"](V.value))
+    assert list(answers.value) == list(answers[V.value]) == list(answers["value"])
 
 
 def test_space_factory_accepts_a_name_symbol() -> None:
