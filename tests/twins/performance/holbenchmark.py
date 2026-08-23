@@ -14,7 +14,7 @@ empty-expression base case is Python's `()`.
 subset still has: each is two clauses that destructure in the HEAD, `()` and
 `(cons $x $xs)`, and a compiled head pattern may only be a LITERAL default, so
 a structural default is refused with "a default here is a head pattern, so it
-must be a literal" [measured 2026-08-23; commit=WORKTREE]. PERFECT: two
+must be a literal" [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: two
 `@m.define`s whose parameters carry the patterns, the way the equations do.
 Residue P14.4.
 
@@ -32,7 +32,7 @@ from petta import S, V, equation, fn
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 #: `(+ 1)`, the partially applied increment all four kernels are driven with. A
@@ -56,7 +56,7 @@ def twin(m):
     # DEFECT: the descent ladder documents rung 4 as TOTAL in both
     # directions, "def not_provable lands as not-provable", and the define
     # door does not apply it: `def find_divisor` lands as `find_divisor`
-    # [measured 2026-08-23; commit=WORKTREE]. So every hyphenated MeTTa name
+    # [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. So every hyphenated MeTTa name
     # below states itself through `name=`. PERFECT: the map applies at the
     # define door the way it applies at the S, V and fn factories, and only
     # a name Python cannot spell at all needs `name=` -- here `range`, which

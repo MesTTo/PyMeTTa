@@ -31,7 +31,7 @@ from petta import fn
 #: ships. Form 0 runs on real threads besides, so its count is not identical
 #: across fresh processes and the re-pin pass owns that decision too
 #: [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 

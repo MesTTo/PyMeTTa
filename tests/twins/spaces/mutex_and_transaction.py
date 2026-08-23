@@ -35,7 +35,7 @@ from petta import S, V, equation
 #: ships. This file is also the one in its folder whose counter is not
 #: point-deterministic, because hyperpose schedules five OS threads; the
 #: re-pin pass owns that decision too [assumed 2026-08-23: the number is a
-#: placeholder, not a measurement; commit=WORKTREE].
+#: placeholder, not a measurement; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 

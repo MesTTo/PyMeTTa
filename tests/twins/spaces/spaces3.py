@@ -12,7 +12,7 @@ order, so the two claims the original sorts read the same way here.
 
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,7 +26,7 @@ from petta import Expression, S, V
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 
@@ -54,7 +54,7 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
     # attribute. PERFECT: `one.x == [S.wu]`, the same projection at both
     # doors. `Rows` is a mutable list besides, where answers are immutable
     # [measured 2026-08-23: Rows has append/clear/pop/sort and no attribute
-    # projection; commit=WORKTREE].
+    # projection; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
     assert [row.x for row in one] == [S.wu]
     assert [Expression((row.x,)) for row in one] == [S.wu()]
     assert [S.hu(row.x) for row in one] == [S.hu(S.wu)]

@@ -2,13 +2,13 @@
 
 Assumes:
   - the custom judge, pool setup, and seven claims mirror the source example
-    [source: examples/spaces/admission_pools.metta lines 9-72; commit=WORKTREE]
+    [source: examples/spaces/admission_pools.metta lines 9-72; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
 Guarantees:
   - the custom and builtin judges agree before, at, and after the declared
     capacity boundary [measured 2026-08-23: the twin runs to completion under
     the lane, which is what proves every assert it states;
     command=python bindings/python/tools/twin_coverage.py
-    examples/spaces/admission_pools.metta; commit=WORKTREE]
+    examples/spaces/admission_pools.metta; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,7 +29,7 @@ from petta import Expression, S, V, equation
 #: point, because its judge runs engine-time matching whose count moves with
 #: the lane's own scheduling; the re-pin pass owns that decision too
 #: [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 RUNG = "the custom judge embeds engine-time matching, branching, and sequence traversal"
 
@@ -119,7 +119,7 @@ def twin(m):
                 # rather than loud, and it read as the constant False here
                 # until the head was named [measured 2026-08-23;
                 # source: bindings/python/petta/_atoms_core.py:1353-1365;
-                # commit=WORKTREE]. PERFECT: `S["space-atom-count"](V.pool) <
+                # commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: `S["space-atom-count"](V.pool) <
                 # S["car-atom"](V.limits)`, the way every other comparison in
                 # this file's judge is written.
                 S["<"](

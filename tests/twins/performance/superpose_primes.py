@@ -17,7 +17,7 @@ does not help, because the `if` then wraps THAT in `py-truthy`. Measured
 2026-08-23 on this tree, min of one fresh process each: the term door spends
 531,461 inferences on these four searches, `fn["=="]` under a compiled `if`
 spends 943,162, +77.5%, and the two stored bodies differ only by that wrapper
-[commit=WORKTREE]. PERFECT: a compiled `if` that leaves an engine-Bool
+[commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: a compiled `if` that leaves an engine-Bool
 condition alone.
 
 `with-pragma!` stays a term for the second gap: the four searches overflow the
@@ -28,7 +28,7 @@ vocabulary the way it carries the other two bounds.
 
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,7 +41,7 @@ from petta import TRUE, Expression, S, fn
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 #: The branch allowance these searches state above the evaluator's 100000

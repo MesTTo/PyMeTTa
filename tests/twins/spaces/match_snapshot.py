@@ -31,7 +31,7 @@ from petta import S, V, equation
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 #: Upstream's own example, verbatim: three links form a loop, the fourth does

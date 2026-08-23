@@ -14,7 +14,7 @@ rather than either half of it. Python's attribute assignment is a statement
 that answers nothing, and the walrus does not rescue it: PEP 572 excludes
 attribute and subscript targets, and CPython says so in as many words,
 `state.value := S.active` refusing with "cannot use assignment expressions with
-attribute" [measured 2026-08-23: ast.parse on this interpreter; commit=WORKTREE].
+attribute" [measured 2026-08-23: ast.parse on this interpreter; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 So the perfect spelling is a setter that answers its subject, the way
 `change-state!` does:
 
@@ -28,7 +28,7 @@ engine with its own globals, and a `change-state!` performed there is invisible
 afterwards. `m.answers(...).one()` answers `active` and leaves the cell reading
 `rest`, and the bound `m.fn["change-state!"]` loses it the same way; space
 writes DO persist through both, because the clause store is shared [measured
-2026-08-23; commit=WORKTREE]. PERFECT: the two evaluation doors agree, or the
+2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: the two evaluation doors agree, or the
 answer view refuses a term whose effects it cannot commit.
 
 Where the walrus DOES reach is the closing claim, which is about a cell needing
@@ -45,7 +45,7 @@ from petta import S, State, ground
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 

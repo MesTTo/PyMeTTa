@@ -25,7 +25,7 @@ the way the guide's `G(1) + 2` does.
 
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -40,7 +40,7 @@ from petta.errors import MettaOperationError
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 

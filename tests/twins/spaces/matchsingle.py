@@ -12,7 +12,7 @@ registry, so a `@m.define`d body names them like any other callee. What is no
 longer a blocker is the space:
 a compiled `match` takes its space through a PARAMETER now that a handle is an
 ordinary term operand [measured 2026-08-23: a `@m.define`d body whose first
-parameter is the space compiles and answers; commit=WORKTREE].
+parameter is the space compiles and answers; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 
 The facts above them are ordinary tuples, and the two calls are terms the
 engine evaluates, with the handle itself in the space position.
@@ -24,7 +24,7 @@ from petta import S, V, equation
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 

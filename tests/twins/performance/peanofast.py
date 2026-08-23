@@ -30,7 +30,7 @@ from petta import S, V, fn
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 
@@ -41,7 +41,7 @@ def twin(m):
     # every MeTTa name that is not a Python identifier states itself through
     # `name=`; the Python side stays snake_case, which is what PEP 8 and the
     # linter both want [measured 2026-08-23: `def find_divisor` lands as
-    # `find_divisor`, not `find-divisor`; commit=WORKTREE].
+    # `find_divisor`, not `find-divisor`; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
     @m.define(name="expandK")
     def expand_k(expression, n):
         if n == 0:
@@ -57,7 +57,7 @@ def twin(m):
         # the Python name against the engine instead, so it has to say the
         # MeTTa name through the mention door: a bare `expand_k(...)` here is
         # refused with "'expand_k' is not a parameter of demo-peano, not a
-        # function the engine knows" [measured 2026-08-23; commit=WORKTREE].
+        # function the engine knows" [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
         # PERFECT: one rule at both call sites, the way `name=` already binds
         # the two names together.
         return fn.expandK(S.Z, k)

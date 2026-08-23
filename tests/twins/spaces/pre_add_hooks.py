@@ -26,7 +26,7 @@ the pool goes into both calls as the handle it is.
 
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,14 +41,14 @@ from petta.errors import EngineError
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 #: The three sentences this file's refusals print. Each is the Python door's
 #: own wording rather than the Error atom the original reads with `repr`, and
 #: each prints the offered atom in the wire's list form, `[secret,1]` where
 #: engine-exact text would say `(secret 1)` [measured 2026-08-23: unchanged
-#: under the handle operand; commit=WORKTREE].
+#: under the handle operand; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 NO_SECRETS = "&pool refused [secret,1]: no secrets in this pool"
 UNCOVERED = (
     "the pre-add hook on &pool is claimed by guard, whose equations do not "

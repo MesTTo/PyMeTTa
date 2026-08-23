@@ -15,7 +15,7 @@ The five queries are `(collapse (match ...))`, and a compiled body has no
 spelling for `collapse` at all: `list(...)` and `fn.collapse` are both refused,
 and a comprehension over a match lowers to `map-atom`, a different operation,
 `(map-atom (match ...) (|-> ($x) $x))`, answering once per solution where
-collapse answers once [measured 2026-08-23; commit=WORKTREE]. PERFECT:
+collapse answers once [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT:
 `list(space[pattern])` inside a body. Residue P14.4.
 
 `addK` compiles and then cannot run. A compiled `if` wraps its condition in
@@ -23,7 +23,7 @@ collapse answers once [measured 2026-08-23; commit=WORKTREE]. PERFECT:
 recursion spends reductions the original does not, and the evaluator's default
 100,000 stack bound is reached at K=100,000: the compiled `addK` answers
 `(Error 75002 StackOverflow)` where the term door completes a million
-[measured 2026-08-23; commit=WORKTREE]. `m.limits` bounds inferences and time
+[measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. `m.limits` bounds inferences and time
 and not stack depth, so there is no scope to raise it in and the example states
 no pragma to copy. PERFECT: a compiled `if` that leaves an engine-Bool
 condition alone, or a stack-depth mode block. Residue P14.4 and P14.14.
@@ -35,7 +35,7 @@ from petta import S, V, equation, fn
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 BUDGET = 1
 
 #: What a million atoms answer to the five shapes, in the driver's own order.
