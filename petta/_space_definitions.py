@@ -39,6 +39,10 @@ Guarantees:
   - every flat-yield equation is stored and replaced as one atomic clause
     unit [tested: test_same_head_redefinition_replaces_the_whole_yield_unit;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - install_type equips a plain annotated class with data construction,
+    __match_args__, and __replace__ before registering its full-arity term
+    image [tested: test_define_accepts_a_plain_annotated_data_class;
+    commit=WORKTREE]
 Guarded by:
   - _DEFINE_LOCK serializes equation installation, reflection, and process
     bookkeeping for every space [tested test_define_from_two_threads_is_serialized]
@@ -56,6 +60,7 @@ import inspect as _inspect
 import os
 import threading
 import types
+import typing as _typing
 from collections.abc import Callable
 from functools import partial
 from typing import Any
@@ -88,6 +93,7 @@ from .ops import (
 
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
 _DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
+_MISSING_FIELD = object()
 _DEFINED_GENERATORS: set[tuple[str, str]] = set()
 _DEFINE_DOCUMENTATION: dict[tuple[str, str], Expression] = {}
 _DEFINE_REFLECTION: dict[tuple[str, str], tuple[Expression, ...]] = {}
@@ -623,6 +629,92 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     return defined
 
 
+def _plain_initializer(
+    target: _builtins.type,
+    fields: tuple[str, ...],
+    defaults: dict[str, Any],
+) -> Callable[..., None]:
+    def initialize(self: Any, *args: Any, **kwargs: Any) -> None:
+        if len(args) > len(fields):
+            msg = (
+                f"{target.__name__}() takes at most {len(fields)} positional "
+                f"arguments, got {len(args)}"
+            )
+            raise TypeError(msg)
+        values: dict[str, Any] = {}
+        for position, name in enumerate(fields):
+            if position < len(args):
+                if name in kwargs:
+                    msg = f"{target.__name__}() got multiple values for {name!r}"
+                    raise TypeError(msg)
+                values[name] = args[position]
+            elif name in kwargs:
+                values[name] = kwargs.pop(name)
+            elif defaults[name] is not _MISSING_FIELD:
+                values[name] = defaults[name]
+            else:
+                msg = f"{target.__name__}() missing required argument {name!r}"
+                raise TypeError(msg)
+        if kwargs:
+            unexpected = next(iter(kwargs))
+            msg = f"{target.__name__}() got an unexpected argument {unexpected!r}"
+            raise TypeError(msg)
+        for name, value in values.items():
+            setattr(self, name, value)
+
+    return initialize
+
+
+def _plain_replacer(
+    target: _builtins.type, fields: tuple[str, ...]
+) -> Callable[..., Any]:
+    def replace(self: Any, /, **changes: Any) -> Any:
+        unknown = changes.keys() - fields
+        if unknown:
+            name = next(iter(unknown))
+            msg = f"{target.__name__}.__replace__ got unknown field {name!r}"
+            raise TypeError(msg)
+        return target(*(changes.get(name, getattr(self, name)) for name in fields))
+
+    return replace
+
+
+def _prepare_plain_data_class(target: _builtins.type, convert: Any) -> None:
+    """Register one otherwise-unmapped annotated class as constructor data."""
+    try:
+        convert.ensure_registered(target)
+    except TypeError:
+        pass
+    else:
+        return
+    hints = _typing.get_type_hints(target)
+    fields = tuple(
+        name
+        for name, annotation in hints.items()
+        if _typing.get_origin(annotation) is not _typing.ClassVar
+    )
+    if not fields:
+        return
+    defaults = {name: target.__dict__.get(name, _MISSING_FIELD) for name in fields}
+    target.__match_args__ = fields
+    if target.__dict__.get("__init__") is None:
+        target.__init__ = _plain_initializer(target, fields, defaults)
+    if "__replace__" not in target.__dict__:
+        target.__replace__ = _plain_replacer(target, fields)
+    if "__metta__" not in target.__dict__:
+        target.__metta__ = lambda value: convert.project(value).atom
+
+    def parts(value: Any) -> tuple[Any, ...]:
+        return tuple(getattr(value, name) for name in fields)
+
+    convert.register_type(
+        target,
+        to_atom=parts,
+        from_atom=target,
+        fields=fields,
+    )
+
+
 def install_type(
     space: Any,
     cls: _builtins.type | None = None,
@@ -659,6 +751,7 @@ def install_type(
 
     def apply(target: _builtins.type) -> _builtins.type:
         convert = _convert_api()
+        _prepare_plain_data_class(target, convert)
         registration = convert.ensure_registered(target)
         for declaration in convert.declarations(target):
             space.add(declaration)

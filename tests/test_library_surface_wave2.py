@@ -11,11 +11,12 @@ Guarantees:
     test_query_single_unpack_pulls_at_most_two_answers; commit=WORKTREE]
 """
 
+import copy
 from collections import Counter
 
 import pytest
 
-from petta import S, V, space
+from petta import MeTTa, S, V, space
 from petta.errors import EngineError
 from petta.results import Answers
 
@@ -93,3 +94,27 @@ def test_query_single_unpack_pulls_at_most_two_answers() -> None:
         list(facts.query(S.item(V.value)))
 
     assert bounded.inferences * 5 < drained.inferences
+
+
+def test_define_accepts_a_plain_annotated_data_class() -> None:
+    """A plain annotated class gets constructor, fields, and replacement."""
+    target = MeTTa().space()
+
+    @target.define
+    class InventoryLine:
+        sku: str
+        quantity: int = 1
+
+    one = InventoryLine("bolts")
+    two = one.__replace__(quantity=2)
+
+    assert InventoryLine.__match_args__ == ("sku", "quantity")
+    assert (one.sku, one.quantity) == ("bolts", 1)
+    assert (two.sku, two.quantity) == ("bolts", 2)
+    assert str(one.__metta__()) == '(InventoryLine "bolts" 1)'
+    assert str(target.eval(S.InventoryLine(one.sku, one.quantity))[0]) == (
+        '(InventoryLine "bolts" 1)'
+    )
+    assert target.eval(S["InventoryLine-quantity"](two))[0] == 2
+    if hasattr(copy, "replace"):
+        assert copy.replace(two, quantity=3).quantity == 3
