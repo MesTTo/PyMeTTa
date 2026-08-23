@@ -5,7 +5,7 @@ answers "which entries apply to this atom", MatchIndex answers "which of
 many registered patterns match it" sublinearly, and AlphaSet holds atoms
 modulo variable renaming.
 Assumes:
-  - petta.atoms.unify is one-way, pattern side binding, which is the
+  - metta.atoms.unify is one-way, pattern side binding, which is the
     reading every lookup here wants: stored patterns are the pattern side
     and probes are the atom side [source: atoms.py unify docstring]
 Guarantees:
@@ -78,9 +78,9 @@ def _as_atom(value: Any) -> Atom:
         return value
     if isinstance(value, str):
         msg = (
-            f"petta.structures never parses source text ({value!r}), because "
+            f"metta.structures never parses source text ({value!r}), because "
             f"parsing needs the engine and this module runs without one; "
-            f"petta.parse() it first, or build the atom with S/V/Expression"
+            f"metta.parse() it first, or build the atom with S/V/Expression"
         )
         raise TypeError(
             msg
@@ -585,7 +585,7 @@ class LiveView:
         answer to a removal the event cannot resolve are the same
         computation, so they are one.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        rows = self._space.query(self._pattern)
+        rows = self._space.match(self._pattern)
         names = rows.columns
         held: Counter[Atom] = Counter()
         for row in rows:

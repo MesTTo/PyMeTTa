@@ -1,7 +1,7 @@
 """Purpose: the MORK space through the python surface. &mork is
 trueagi-io/MORK behind mork_ffi, hooked into the engine's own space
 predicates, so adds, removes, queries, joins, subscriptions, count,
-digest, and MM2 exec all run the ordinary petta surface with MORK as
+digest, and MM2 exec all run the ordinary metta surface with MORK as
 the store. Writes queue inside MORK and every read flushes first, so
 read-your-writes holds without an explicit flush. Skips whole when the
 native library is not built.
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from petta import S, V, ground, parse
-from petta.errors import EngineError
+from metta import S, V, ground, parse
+from metta.errors import EngineError
 
 _MORKLIB = (
     Path(__file__).resolve().parents[3]
@@ -43,14 +43,14 @@ def mork(metta):  # noqa: D103  -- pytest discovers or injects this callable; it
 
 def test_writes_queue_and_reads_see_them(mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     mork.add(S.friend(S.sam, S.tim), S.friend(S.sam, S.joe))
-    rows = mork.query(S.friend(S.sam, V.x))
+    rows = mork.match(S.friend(S.sam, V.x))
     assert sorted(str(row.x) for row in rows) == ["joe", "tim"]
     assert len(mork) == 2
 
 
 def test_joins_are_the_engines_joins_over_mork_conjuncts(mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     mork.add(S.friend(S.sam, S.tim), S.friend(S.sam, S.joe), S.age(S.tim, 30))
-    join = mork.query(S.friend(S.sam, V.x), S.age(V.x, V.n))
+    join = mork.match(S.friend(S.sam, V.x), S.age(V.x, V.n))
     assert [(row.x, row.n) for row in join] == [(S.tim, 30)]
 
 
@@ -89,7 +89,7 @@ def test_mork_holds_rules_not_only_facts(mork):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     mork.add(parse("(= (mork-doubled $x) (* 2 $x))"), S.seed(21))
     assert mork.eval("(mork-doubled 21)") == [ground(42)]
-    assert [row.n for row in mork.query(S.seed(V.n))] == [21]
+    assert [row.n for row in mork.match(S.seed(V.n))] == [21]
 
 
 def test_mork_answers_the_whole_rule_set(mork):
@@ -126,8 +126,8 @@ def test_mork_answers_a_whole_conjunction_with_its_own_join(mork, metta):
     with metta._new_space() as native:
         native.add(*atoms)
         for query in queries:
-            claimed = sorted(str(row) for row in mork.query(*query))
-            split = sorted(str(row) for row in native.query(*query))
+            claimed = sorted(str(row) for row in mork.match(*query))
+            split = sorted(str(row) for row in native.match(*query))
             assert claimed == split, f"{query} diverged"
 
 
@@ -135,7 +135,7 @@ def test_a_named_mork_space_claims_its_own_joins(metta):  # noqa: D103  -- pytes
     space = metta._at("&mork:joins")
     try:
         space.add(S.friend(S.sam, S.tim), S.age(S.tim, 30))
-        rows = space.query(S.friend(S.sam, V.x), S.age(V.x, V.n))
+        rows = space.match(S.friend(S.sam, V.x), S.age(V.x, V.n))
         assert [(row.x, row.n) for row in rows] == [(S.tim, 30)]
     finally:
         for atom in space.atoms():
@@ -148,9 +148,9 @@ def test_mm2_exec_transforms_inside_mork(mork, metta):  # noqa: D103  -- pytest 
     metta.run(
         "!(~> (, (friend sam $x)) (O (- (friend sam $x)) (+ (enemy sam $x))))"
     )
-    rows = mork.query(S.enemy(S.sam, V.x))
+    rows = mork.match(S.enemy(S.sam, V.x))
     assert [row.x for row in rows] == [S.tim]
-    assert not mork.query(S.friend(S.sam, V.x))
+    assert not mork.match(S.friend(S.sam, V.x))
 
 
 @pytest.fixture()
@@ -169,7 +169,7 @@ def test_named_mork_spaces_are_isolated(named_pair, mork):  # noqa: D103  -- pyt
     beta.add(S.only(S.beta))
     assert [str(a) for a in alpha.atoms()] == ["(only alpha)"]
     assert [str(a) for a in beta.atoms()] == ["(only beta)"]
-    assert not mork.query(S.only(V.x))  # the default space saw nothing
+    assert not mork.match(S.only(V.x))  # the default space saw nothing
 
 
 def test_bulk_add_lands_in_one_crossing(metta, named_pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -181,7 +181,7 @@ def test_bulk_add_lands_in_one_crossing(metta, named_pair):  # noqa: D103  -- py
         "   ('get-atoms'('&mork:iso-alpha', _P), _P = [bulked, _]), N)"
     )["N"]
     assert stored == 500
-    assert len(alpha.query(S.bulked(V.i))) == 500
+    assert len(alpha.match(S.bulked(V.i))) == 500
 
 
 def test_hostile_strings_round_trip_or_refuse(metta):
@@ -209,7 +209,7 @@ def test_symbols_without_round_trip_text_refuse_at_every_mork_write(metta, name)
     with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
         space.remove(atom)
     with pytest.raises(EngineError, match=r"symbol names.*MORK text boundary"):
-        list(space.query(S.holds(S[name])))
+        list(space.match(S.holds(S[name])))
 
 
 def test_mork_bulk_add_refuses_an_unsafe_symbol_before_any_write(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -224,7 +224,7 @@ try:
 except ModuleNotFoundError:
     pass
 else:
-    from petta.testing import expressions
+    from metta.testing import expressions
 
     @settings(
         max_examples=25,

@@ -14,11 +14,11 @@ Open Obligations:
 
 import pytest
 
-import petta
-from petta import _engine
-from petta._config import Config
-from petta._type_annotations import _bounded_product
-from petta.results import Rows
+import metta
+from metta import _engine
+from metta._config import Config
+from metta._type_annotations import _bounded_product
+from metta.results import Rows
 
 
 def test_configuration_reads_and_validates_environment():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -77,9 +77,9 @@ def test_runtime_settings_freeze_after_startup():  # noqa: D103  -- pytest disco
 
 
 def test_live_limits_control_declarations_and_rows():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    original = petta.config.as_dict()
+    original = metta.config.as_dict()
     try:
-        petta.config.configure(declaration_limit=3, display_rows=2)
+        metta.config.configure(declaration_limit=3, display_rows=2)
         with pytest.raises(TypeError, match="over 3 superposed combinations"):
             list(_bounded_product([[1, 2], [3, 4]], "test declaration"))
 
@@ -87,7 +87,7 @@ def test_live_limits_control_declarations_and_rows():  # noqa: D103  -- pytest d
         assert "1 more rows" in repr(rows)
         assert rows._repr_html_().count("<tr>") == 4
     finally:
-        petta.config.configure(
+        metta.config.configure(
             declaration_limit=original["declaration_limit"],
             display_rows=original["display_rows"],
         )

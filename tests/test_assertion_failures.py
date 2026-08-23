@@ -15,8 +15,8 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa, PettaError
-from petta.errors import AssertionFailure, EngineError
+from metta import MeTTa, PettaError
+from metta.errors import AssertionFailure, EngineError
 
 
 def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():

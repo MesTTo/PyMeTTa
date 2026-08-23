@@ -1,4 +1,4 @@
-"""Purpose: the python -m petta subcommands, each driven as a real
+"""Purpose: the python -m metta subcommands, each driven as a real
 subprocess: run prints answer groups, the repl reads multi-line forms
 and exits cleanly, lint gates on findings, doc answers or refuses, and
 serve and boot expose spaces until interrupted.
@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from petta.__main__ import _scan_line
+from metta.__main__ import _scan_line
 
 _PACKAGE_ROOT = str(Path(__file__).resolve().parents[1])
 
@@ -33,9 +33,9 @@ def _environment():
     return environment
 
 
-def _petta(*arguments, stdin=None):
+def _metta(*arguments, stdin=None):
     return subprocess.run(
-        [sys.executable, "-m", "petta", *arguments],
+        [sys.executable, "-m", "metta", *arguments],
         capture_output=True,
         text=True,
         timeout=240,
@@ -46,13 +46,13 @@ def _petta(*arguments, stdin=None):
 
 def test_run_prints_answer_groups(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "prog.metta").write_text("(= (m-double $x) (* $x 2))\n!(m-double 21)\n")
-    finished = _petta("run", str(tmp_path / "prog.metta"))
+    finished = _metta("run", str(tmp_path / "prog.metta"))
     assert finished.returncode == 0, finished.stderr
     assert finished.stdout.strip() == "42"
 
 
 def test_repl_reads_multi_line_forms_and_exits():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    finished = _petta("repl", stdin="(= (m-inc $x)\n   (+ $x 1))\n!(m-inc 41)\nexit\n")
+    finished = _metta("repl", stdin="(= (m-inc $x)\n   (+ $x 1))\n!(m-inc 41)\nexit\n")
     assert finished.returncode == 0, finished.stderr
     assert "42" in finished.stdout
 
@@ -60,7 +60,7 @@ def test_repl_reads_multi_line_forms_and_exits():  # noqa: D103  -- pytest disco
 def test_repl_reports_an_error_and_keeps_going():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # A stray closer is a complete-but-broken form: the error prints to
     # stderr and the loop keeps answering.
-    finished = _petta("repl", stdin=")\n!(+ 1 2)\nexit\n")
+    finished = _metta("repl", stdin=")\n!(+ 1 2)\nexit\n")
     assert finished.returncode == 0, finished.stderr
     assert "error:" in finished.stderr
     assert "3" in finished.stdout
@@ -122,18 +122,18 @@ _READER_CORPUS = [
 ]
 
 
-def test_the_cli_reader_agrees_with_the_engine_on_when_to_stop(petta_module):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    runtime = petta_module.MeTTa().runtime
+def test_the_cli_reader_agrees_with_the_engine_on_when_to_stop(metta_module):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    runtime = metta_module.MeTTa().runtime
     for text in _READER_CORPUS:
         assert _complete_form(text) is _engine_stops_reading(runtime, text), repr(text)
 
 
-def test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus(petta_module):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus(metta_module):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Seeded rather than generated afresh, so a disagreement reproduces from the
     # failure message alone.
     generator = random.Random(20260823)
     alphabet = ["(", ")", '"', ";", "\\", "a", " ", "\n"]
-    runtime = petta_module.MeTTa().runtime
+    runtime = metta_module.MeTTa().runtime
     for _ in range(200):
         text = "".join(generator.choice(alphabet) for _ in range(generator.randrange(12)))
         assert _complete_form(text) is _engine_stops_reading(runtime, text), repr(text)
@@ -141,32 +141,32 @@ def test_the_cli_reader_agrees_with_the_engine_over_a_random_corpus(petta_module
 
 def test_lint_gates_on_findings(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "bad.metta").write_text("(: m-ghost (-> Number Number))\n")
-    failing = _petta("lint", str(tmp_path / "bad.metta"))
+    failing = _metta("lint", str(tmp_path / "bad.metta"))
     assert failing.returncode == 1
     assert "declared-but-undefined" in failing.stdout
     # findings anchor to their source line, path:line fashion
     assert f"{tmp_path / 'bad.metta'}:1:" in failing.stdout
     (tmp_path / "good.metta").write_text("(= (m-fine $x) $x)\n")
-    passing = _petta("lint", str(tmp_path / "good.metta"))
+    passing = _metta("lint", str(tmp_path / "good.metta"))
     assert passing.returncode == 0, passing.stderr
     assert "no findings" in passing.stdout
 
 
 def test_doc_answers_and_refuses(tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
-    found = _petta("doc", "car-atom")
+    found = _metta("doc", "car-atom")
     assert found.returncode == 0, found.stderr
     assert "car-atom" in found.stdout
-    missing = _petta("doc", "m-no-such-name")
+    missing = _metta("doc", "m-no-such-name")
     assert missing.returncode == 1
     assert "no documentation" in missing.stderr
 
 
 def test_the_parser_requires_a_subcommand_and_answers_version():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    bare = _petta()
+    bare = _metta()
     assert bare.returncode == 2
-    version = _petta("--version")
+    version = _metta("--version")
     assert version.returncode == 0
-    assert version.stdout.startswith("petta ")
+    assert version.stdout.startswith("metta ")
 
 
 @pytest.mark.parametrize(
@@ -184,7 +184,7 @@ def test_serve_and_boot_expose_spaces_until_interrupted(tmp_path, arguments):  #
         for a in arguments
     ]
     process = subprocess.Popen(
-        [sys.executable, "-m", "petta", *filled],
+        [sys.executable, "-m", "metta", *filled],
         stdout=subprocess.PIPE,
         text=True,
         env=_environment(),

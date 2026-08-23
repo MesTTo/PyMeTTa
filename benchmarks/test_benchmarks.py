@@ -50,8 +50,8 @@ from benchmarks.workloads import (
     wire_atom,
     wire_codec,
 )
-from petta import Answer, MeTTa, S, V, Expression, tables
-from petta.testing import benchmark_case, benchmark_counter_slope, count_atoms
+from metta import Answer, MeTTa, S, V, Expression, tables
+from metta.testing import benchmark_case, benchmark_counter_slope, count_atoms
 
 _ROWS = 2_000
 
@@ -208,7 +208,7 @@ def test_query_rows(benchmark, inference_baseline):
     repeats = 20
 
     def operation(space):
-        return sum(len(space.query(S.edge(V.a, V.b))) for _ in range(repeats))
+        return sum(len(space.match(S.edge(V.a, V.b))) for _ in range(repeats))
 
     benchmark_case(
         benchmark,
@@ -466,7 +466,7 @@ def test_query_where(benchmark, inference_baseline):
     guard = S[">="](V.age, 18) & S["<="](V.age, 40)
 
     def operation(space):
-        return sum(len(space.query(S.person(V.name, V.age), where=guard)) for _ in range(repeats))
+        return sum(len(space.match(S.person(V.name, V.age), where=guard)) for _ in range(repeats))
 
     benchmark_case(
         benchmark,
@@ -525,7 +525,7 @@ def test_prepared_join(benchmark, inference_baseline):
 
 
 def _direct_join(space, repeats):
-    return sum(len(space.query(S.edge(V.a, V.b), S.edge(V.b, V.c))) for _ in range(repeats))
+    return sum(len(space.match(S.edge(V.a, V.b), S.edge(V.b, V.c))) for _ in range(repeats))
 
 
 def test_direct_join(benchmark, inference_baseline):
@@ -559,7 +559,7 @@ def test_direct_join(benchmark, inference_baseline):
 
 def _limited_query(space, *, guarded):
     kwargs = {"timeout": 30.0, "inferences": 50_000_000} if guarded else {}
-    return len(space.query(S.edge(V.a, V.b), limit=50, **kwargs))
+    return len(space.match(S.edge(V.a, V.b), limit=50, **kwargs))
 
 
 def _query_limit_case(benchmark, baseline, *, name, guarded):
@@ -887,7 +887,7 @@ def test_save_load_fast(benchmark, inference_baseline):
 def _provider_space():
     """A minimal in-process provider, so the case prices the seam's own
     dispatch and nothing else: no SQL, no wire, no subprocess."""
-    from petta.foreign import SpaceProvider
+    from metta.foreign import SpaceProvider
 
     class Rows(SpaceProvider):
         def __init__(self):
@@ -942,7 +942,7 @@ def _bridge_space():
     declaration, so the case prices the whole derivation live."""
     import sqlite3
 
-    from petta.tables import TableBridge
+    from metta.tables import TableBridge
 
     space = _empty_space()
     connection = sqlite3.connect(":memory:")

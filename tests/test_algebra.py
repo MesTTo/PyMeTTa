@@ -17,15 +17,15 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from petta import (
+from metta import (
     Answer,
     Expression,
     S,
     V,
     parse,
 )
-from petta.algebra import AlgebraLawError
-from petta.foreign import SpaceProvider
+from metta.algebra import AlgebraLawError
+from metta.foreign import SpaceProvider
 
 
 class _WeightedFacts(SpaceProvider):

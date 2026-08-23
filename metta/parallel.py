@@ -8,11 +8,11 @@ This is the Python-side fan-out. Space.parallel() is the in-engine fan-out
 through hyperpose, below a single janus call. They compose: a pool worker may
 itself evaluate a hyperpose.
 
-    with petta.parallel.pool(workers=8) as p:
+    with metta.parallel.pool(workers=8) as p:
         answers = p.map(lambda n: m.eval(S.solve(n))[0], range(64))
 
 Assumes:
-  - petta._engine.engine_thread attaches an engine to a bare foreign thread
+  - metta._engine.engine_thread attaches an engine to a bare foreign thread
     and detaches exactly the engine it attached [tested
     test_engine_thread_owns_only_its_attachment]
   - PeTTa's shared Prolog structures carry their own mutexes, so concurrent
@@ -134,7 +134,7 @@ class EnginePool:
         for index in range(self._workers):
             thread = threading.Thread(
                 target=self._worker,
-                name=f"petta-pool-{index}",
+                name=f"metta-pool-{index}",
                 daemon=True,
             )
             thread.start()
@@ -173,7 +173,7 @@ class EnginePool:
                 if self._start_error is None:
                     self._start_error = exc
             self._ready.abort()
-            logger.exception("a petta pool worker stopped")
+            logger.exception("a metta pool worker stopped")
 
     def _serve(self) -> None:
         while True:
@@ -200,7 +200,7 @@ class EnginePool:
             if self._closed:
                 msg = (
                     "this pool is closed and cannot take new work; "
-                    "build another with petta.parallel.pool()"
+                    "build another with metta.parallel.pool()"
                 )
                 raise PettaError(
                     msg
@@ -307,7 +307,7 @@ def pool(workers: int | None = None) -> EnginePool:
 
     Use it as a context manager so the engines are released:
 
-        with petta.parallel.pool(workers=4) as p:
+        with metta.parallel.pool(workers=4) as p:
             answers = p.map(lambda n: m.eval(S.fib(n))[0], range(20))
 
     workers defaults to os.cpu_count().

@@ -10,7 +10,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, V
+from metta import MeTTa, S, V
 
 m = MeTTa().space()
 

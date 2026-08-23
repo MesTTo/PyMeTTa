@@ -36,7 +36,7 @@ written and read on two lines instead of three.
 calls rather than named heads.
 """
 
-from petta import S, State, ground
+from metta import S, State, ground
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

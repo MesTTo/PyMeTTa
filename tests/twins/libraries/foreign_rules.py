@@ -21,8 +21,8 @@ really has underscores and the attribute door maps every underscore to a
 hyphen.
 """
 
-import petta
-from petta import G, S, V, equation, rules
+import metta
+from metta import G, S, V, equation, rules
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -41,7 +41,7 @@ def twin(m):
     m.fn["import!"](m, S.library(S["lib_import"]))
     m.eval(S["import_prolog_functions_from_file"](PROVIDER, ()))
 
-    demo = petta.space("&rule_demo")
+    demo = metta.space("&rule_demo")
 
     # A rule, added to the foreign space, evaluating.
     @demo.define
@@ -85,4 +85,4 @@ def twin(m):
     # And the space is still a data source. Holding rules is an addition, not a
     # replacement, which is the whole of what "both" means.
     demo += S.edge(S.a, S.b)
-    assert [(row.x, row.y) for row in demo.query(S.edge(V.x, V.y))] == [(S.a, S.b)]
+    assert [(row.x, row.y) for row in demo.match(S.edge(V.x, V.y))] == [(S.a, S.b)]

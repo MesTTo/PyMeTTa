@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import pytest
 
-from petta import S, V
-from petta._atom_namespace import NAMESPACE_CACHE_MAX
-from petta.errors import InferenceLimitError, SubscriberError, TimeLimitError
-from petta.subscribe import SUBSCRIPTION_QUEUE_MAX
+from metta import S, V
+from metta._atom_namespace import NAMESPACE_CACHE_MAX
+from metta.errors import InferenceLimitError, SubscriberError, TimeLimitError
+from metta.subscribe import SUBSCRIPTION_QUEUE_MAX
 
 
 def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_path):
@@ -66,7 +66,7 @@ def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_pa
             assert "3" in str(full.value)
             # The write that overflowed it still landed, and the queue kept
             # exactly its limit rather than the overflowing event.
-            assert len(space.query(S.ev(V.q))) == 7
+            assert len(space.match(S.ev(V.q))) == 7
             held = queued.drain()
             assert len(held) == 3
             assert [event.atom for event in held] == [S.ev(0), S.ev(1), S.ev(2)]

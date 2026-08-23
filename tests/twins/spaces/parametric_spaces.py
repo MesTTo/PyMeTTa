@@ -7,10 +7,10 @@ destructuring is the parameter surface, which is why no parameter builtin
 exists.
 
 This is the one example in the folder where the container doors cannot be used
-at all: `petta.space(name)` takes a `&`-prefixed string and refuses a
+at all: `metta.space(name)` takes a `&`-prefixed string and refuses a
 parenthesised one, so a space named by an expression has no handle and every
 door here goes through the engine's own functions with the naming TERM in the
-space position (residue, P14.10). PERFECT: `petta.space(S.cache(PRIMARY, 100))`,
+space position (residue, P14.10). PERFECT: `metta.space(S.cache(PRIMARY, 100))`,
 the creation door taking an ATOM as the name, after which every container door
 works here as it does everywhere else. The two base names are symbols for the
 same reason.
@@ -25,7 +25,7 @@ Python spells structure-over-a-value-in-hand with.
 is the accessor, so the closing claim is an ordinary method call.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -35,7 +35,7 @@ from petta import S, V, equation
 BUDGET = 1
 
 #: The two base names. A space named by a ground EXPRESSION has no handle door,
-#: so its base name is a symbol here rather than a `petta.space(...)` handle.
+#: so its base name is a symbol here rather than a `metta.space(...)` handle.
 PRIMARY, SECONDARY = S["&primary-kb"], S["&secondary-kb"]  # rung: no handle door for a parameterised space name
 
 

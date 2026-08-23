@@ -19,7 +19,7 @@ each one into hyphens and reach a library that does not exist.
 
 from pathlib import Path
 
-from petta import S
+from metta import S
 
 #: The directory `git-import!` clones into, and the fixture's own Prolog file.
 #: Both are paths, so both are `pathlib.Path`: a path is never text, at the

@@ -3,7 +3,7 @@
 Assumes:
   - the six extracted ``_space_*`` modules own query, definition, execution,
     persistence, eager decoding, and diagnostic implementation [source:
-    bindings/python/petta/_space_query.py, _space_definitions.py,
+    bindings/python/metta/_space_query.py, _space_definitions.py,
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
@@ -34,7 +34,7 @@ Guarantees:
     patterns is a join, list writes stream their atoms, and del drains every
     match or raises KeyError [tested:
     test_subscript_one_pattern_and_bulk_delete_laws; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - ``Space.query`` returns a lazy Answers view; truth and single unpack pull
+  - ``Space.match`` returns a lazy Answers view; truth and single unpack pull
     only their demanded prefix, while len counts inside the engine [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
     test_query_single_unpack_pulls_at_most_two_answers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -44,7 +44,7 @@ Guarantees:
   - handle-level Linda waits load their support into the default caller space,
     never into a distinct waited-on space [tested:
     test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - ``Space.query``, every head-named declaration verb, and the write door
+  - ``Space.match``, every head-named declaration verb, and the write door
     retain their established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
@@ -505,12 +505,12 @@ class Space(Handle):
     one where it exists. Registrations are the thing that really is
     process-wide, which the anonymous ``space()`` factory says.
 
-        from petta import MeTTa, S, V
+        from metta import MeTTa, S, V
 
         m = MeTTa().self
         m.run("(= (foo) boo) !(foo)")     # [[Symbol('boo')]]
         m.add(S.Parent(S.Tom, S.Bob))
-        m.query(S.Parent(V.x, S.Bob))
+        m.match(S.Parent(V.x, S.Bob))
     """
 
     _expression_listing_snapshot = True
@@ -1018,7 +1018,7 @@ class Space(Handle):
         """Register a full-token regex and its Atom constructor.
 
         The constructor receives the complete matched lexeme. It may return an
-        Atom or any value accepted by :func:`petta.ground`. A later registration
+        Atom or any value accepted by :func:`metta.ground`. A later registration
         of the same pattern replaces the constructor. Only future parses read
         the new mapping; atoms already returned are immutable values.
         """
@@ -1167,7 +1167,7 @@ class Space(Handle):
         space's type discipline admits it as type_: the same acceptance
         a typed call compiles, ':' declarations in this space and &self
         in scope, protocol types included. A refused cast raises
-        petta.CastError naming the value's actual types, the loud
+        metta.CastError naming the value's actual types, the loud
         spelling of what a typed call does silently.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("casting").cast(self, value, type_)
@@ -1187,7 +1187,7 @@ class Space(Handle):
         """Diagnose this space for the silently-wrong class: declared
         types nothing defines, arity mismatches, unbound body variables,
         duplicate equations, and references no function or fact carries.
-        Answers petta.lint.Finding records, empty when nothing looks
+        Answers metta.lint.Finding records, empty when nothing looks
         wrong.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _satellite("lint").lint(self)
@@ -1262,7 +1262,7 @@ class Space(Handle):
         empty space is falsy, so `if space:` skips a perfectly good empty
         space, the bug class that made datetime stop treating midnight as
         false in 3.5. Existence is an ask: use
-        ``bool(space.query(V.x))`` rather than ``bool(space)``.
+        ``bool(space.match(V.x))`` rather than ``bool(space)``.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return True
 
@@ -1376,15 +1376,15 @@ class Space(Handle):
         raises and names the one-pattern and join spellings instead of
         silently asking an impossible bare-atom conjunct.
 
-        A str key parses first, matching query()'s tolerance. A slice is
+        A str key parses first, matching match()'s tolerance. A slice is
         refused: a slice of a space has no one meaning, and the bounded
-        readings have their own doors, query(limit=) for a bounded answer
+        readings have their own doors, match(limit=) for a bounded answer
         set and stream() for rows pulled until you have seen enough.
         """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
         pattern = i
         if isinstance(pattern, slice):
             msg = (
-                "a space cannot be sliced; query(limit=n) bounds the "
+                "a space cannot be sliced; match(limit=n) bounds the "
                 "answer set, stream() pulls rows until you stop"
             )
             raise TypeError(
@@ -1393,7 +1393,7 @@ class Space(Handle):
         if isinstance(pattern, tuple):
             complete = (Expression, tuple)
             if not pattern or not isinstance(pattern[0], complete):
-                return self.query(pattern)
+                return self.match(pattern)
             if not all(isinstance(part, complete) for part in pattern):
                 msg = (
                     "a subscript is one pattern as space[(head, ...)] or a "
@@ -1401,8 +1401,8 @@ class Space(Handle):
                     "space.match(p1, p2)); a bare atom cannot be a join conjunct"
                 )
                 raise TypeError(msg)
-            return self.query(*pattern)
-        return self.query(pattern)
+            return self.match(*pattern)
+        return self.match(pattern)
 
     def __delitem__(self, pattern: Any) -> None:
         """Del m[pattern] removes every unifying occurrence, the bulk
@@ -1422,7 +1422,7 @@ class Space(Handle):
 
     # ----------------------------------------------------------------- queries
 
-    def query(
+    def match(
         self,
         *patterns: Any,
         where: Any | None = None,
@@ -1439,7 +1439,7 @@ class Space(Handle):
         evaluated per join and required true, so restrictions a pattern
         cannot spell (an inequality) compose onto the match:
 
-            m.query(S.person(V.name, V.age), where=V.age >= 18)
+            m.match(S.person(V.name, V.age), where=V.age >= 18)
 
         `limit` bounds the answers, the engine stopping at the count
         rather than trimming afterwards. `timeout` (seconds) and
@@ -1455,12 +1455,12 @@ class Space(Handle):
         `into=Rows` explicitly chooses the eager Rows face. Other `into=`
         values shape each row into a dataclass, NamedTuple, or
         TypedDict matched by field name, sqlite3's row_factory reading:
-        `m.query(S.edge(V.a, V.b), into=Edge)` answers `list[Edge]`,
+        `m.match(S.edge(V.a, V.b), into=Edge)` answers `list[Edge]`,
         and Rows stays the default so nothing is lost. A one-variable query
         whose column holds complete constructor expressions rebuilds those
-        expressions instead: `m.query(V.edge, into=Edge)`.
+        expressions instead: `m.match(V.edge, into=Edge)`.
 
-            m.query(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
+            m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """
         _validate_limit(limit)
         cursor = Cursor(self, patterns, where, timeout, inferences, limit=limit)
@@ -1517,7 +1517,7 @@ class Space(Handle):
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Cursor:
-        """query(), pulled: the same conjunction and guard, answered one
+        """match(), pulled: the same conjunction and guard, answered one
         row at a time through a cursor the engine holds open.
 
             with m.stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
@@ -1528,7 +1528,7 @@ class Space(Handle):
         The join's state lives inside an SWI engine between pulls, each
         pull is one ordinary call, and unrelated calls interleave freely,
         so a huge join costs one row of work per row actually taken where
-        query() computes and decodes every answer up front. `timeout`
+        match() computes and decodes every answer up front. `timeout`
         bounds each pull's wall time; `inferences` is one budget for the
         cursor's whole engine work, spent across pulls, because an
         engine's inferences are its own. The cursor enumerates under the
@@ -1543,7 +1543,7 @@ class Space(Handle):
         included.
 
             with m.assuming(S.closed(S.bridge)):
-                detour = m.query(S.route(V.r), where=...)
+                detour = m.match(S.route(V.r), where=...)
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _Assuming(self, [_to_atom(f) for f in facts])
 
@@ -1661,7 +1661,7 @@ class Space(Handle):
         """Scoped default bounds for every call in the with-block:
 
             with m.limits(inferences=1_000_000, timeout=2.0):
-                m.query(...)      # bounded without saying so again
+                m.match(...)      # bounded without saying so again
 
         decimal.localcontext's shape, contextvars underneath, so the
         scope is async-correct and per-task. A per-call timeout= or
@@ -2026,7 +2026,7 @@ class Space(Handle):
         """The engine's own counters over a with-block, as deltas.
 
             with m.stats() as s:
-                m.query(S.edge(V.x, V.y), S.edge(V.y, V.z))
+                m.match(S.edge(V.x, V.y), S.edge(V.y, V.z))
             s.inferences        # engine steps the block spent
             s.cputime           # engine CPU seconds
             s.walltime          # wall seconds, Python's clock
@@ -2056,7 +2056,7 @@ class Space(Handle):
         /,
         *,
         name: str | None = ...,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = ...,
         declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
@@ -2068,7 +2068,7 @@ class Space(Handle):
         self,
         *,
         name: str | None = ...,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = ...,
         declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
@@ -2080,7 +2080,7 @@ class Space(Handle):
         fn: Callable | None = None,
         *,
         name: str | None = None,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
         declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,
@@ -2166,7 +2166,7 @@ class Space(Handle):
         are not ground and the result is, so a forward call never reaches it,
         and an operation without one compiles exactly what it did before.
 
-        A parameter annotated `petta.MeTTa` is the framework's to fill,
+        A parameter annotated `metta.MeTTa` is the framework's to fill,
         FastAPI's Depends read with the house convention that the
         annotation is the request. The engine injects itself bound to the
         CALLING context's space, so an operation invoked from a program
@@ -2175,8 +2175,8 @@ class Space(Handle):
         the weaving:
 
             @m.op
-            def related(term, engine: petta.MeTTa):
-                for row in engine.query(Expression(S.link, term, V.x)):
+            def related(term, engine: metta.MeTTa):
+                for row in engine.match(Expression(S.link, term, V.x)):
                     yield row[0]
 
         Purity is a seam declaration rather than a Python boolean. Supply the
@@ -2657,7 +2657,7 @@ class Space(Handle):
         for a pattern one: removal is multiset subtraction, so
         `remove(S.alert(V.q))` takes one of the alerts and the event
         cannot say which. Re-read the space when you need to know;
-        `petta.structures.LiveView` is the worked instance.
+        `metta.structures.LiveView` is the worked instance.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         subscriptions = _satellite("subscribe")
         return subscriptions.subscribe(
@@ -2797,7 +2797,7 @@ class Space(Handle):
 
         Rewriting a defined function in Prolog for speed used to mean
         deleting the Python and the differential oracle with it. Here both
-        are declared together and `petta.testing.check_twin` proves they
+        are declared together and `metta.testing.check_twin` proves they
         agree on ground inputs. The file must register the function's own
         MeTTa name and at the twin's arity, inputs then one output, and
         says so if it does not; its `metta_export` declaration owns the
@@ -2993,13 +2993,13 @@ class Space(Handle):
     # ---------------------------------------------------------- integrations
 
     def integrate(self, target: Any) -> str:
-        """Install a library integration; see petta.integrate."""
+        """Install a library integration; see metta.integrate."""
         return _satellite("integrate").integrate(self, target)
 
     def _register_space(self, provider: Any, name: str) -> Any:
         """A space answered by Python: matches, adds and removals route to
         the provider, so a table, a dataframe or a service is matchable the
-        way stored atoms are. See petta.foreign.SpaceProvider.
+        way stored atoms are. See metta.foreign.SpaceProvider.
 
         Subject first, as every register_* call: the thing being
         registered, then where it lives. The two calls that named the
@@ -3181,7 +3181,7 @@ class Space(Handle):
     def image(
         self,
         type_name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=opaque transparent and auto are the three ways this door can carry one Python type across one context boundary, checked again in its body; evidence=bindings/python/petta/_space.py:image
+        # policy-inventory-exempt: mechanism-internal; reason=opaque transparent and auto are the three ways this door can carry one Python type across one context boundary, checked again in its body; evidence=bindings/python/metta/_space.py:image
         setting: Literal["opaque", "transparent", "auto"],
     ) -> Atom:
         """Choose how one Python type crosses one context boundary.
@@ -3504,7 +3504,7 @@ class Space(Handle):
     ) -> Atom:
         """Declare what a space's writes promise inside a transaction.
 
-        transactional providers implement petta.foreign.Transactional and
+        transactional providers implement metta.foreign.Transactional and
         are committed or rolled back WITH the engine's transaction;
         best-effort is the author's declared acceptance of a write that
         survives a rollback; atomic-single refuses transactional writes.
@@ -3657,7 +3657,7 @@ class MeTTa:
             raise EngineError(msg)
         swi_version_num = version_row["SwiVersion"]
         return {
-            "petta": __version__,
+            "metta": __version__,
             "janus": janus_bridge.version_str(),
             "swi_prolog": janus_bridge.version_str(swi_version_num),
             "python": (

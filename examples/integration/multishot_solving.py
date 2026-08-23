@@ -20,7 +20,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, V, tables
+from metta import MeTTa, S, V, tables
 
 
 class External:
@@ -42,7 +42,7 @@ class External:
         also clingo's own arrangement, where a #external's assignment lives
         in the solver and not in the caller.
         """
-        return bool(self._m.query(self._atom))
+        return bool(self._m.match(self._atom))
 
     def assign(self, value: bool) -> None:
         if self.released:
@@ -117,11 +117,11 @@ blocked = External(m, S.blocked(S.c))
 blocked.assign(True)
 check(
     "the external is a fact while assigned",
-    [str(r.x) for r in m.query(S.blocked(V.x))],
+    [str(r.x) for r in m.match(S.blocked(V.x))],
     ["c"],
 )
 blocked.assign(False)
-check("and gone when withdrawn", m.query(S.blocked(V.x)), [])
+check("and gone when withdrawn", m.match(S.blocked(V.x)), [])
 
 # The truth is the space's, not the handle's. A MeTTa program adding the same
 # fact is visible to the handle, and release() takes it back out; a handle
@@ -130,7 +130,7 @@ check("and gone when withdrawn", m.query(S.blocked(V.x)), [])
 m.run("!(add-atom (context-space) (blocked c))")
 check("the handle reads the space", blocked.value, True)
 blocked.release()
-check("release takes back out what it finds", m.query(S.blocked(V.x)), [])
+check("release takes back out what it finds", m.match(S.blocked(V.x)), [])
 
 # Grounding is all or nothing. A template that writes and then raises leaves
 # nothing behind, so the retry the caller is invited to make cannot duplicate
@@ -142,7 +142,7 @@ try:
     broken.ground()
     check("a failed grounding raises", "did not raise", "raised")
 except Exception:  # noqa: BLE001 - any failure inside the template
-    check("a failed grounding leaves nothing", m.query(S.kept(V.x)), [])
+    check("a failed grounding leaves nothing", m.match(S.kept(V.x)), [])
     check("and is not recorded as grounded", broken.grounded, set())
 
 done("multishot_solving")

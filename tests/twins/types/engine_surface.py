@@ -17,7 +17,7 @@ the builtin still answers, and `get-type` answers both.
 
 from typing import Any
 
-from petta import Atom, Expression, S, V, Variable, arrow, fn, ground, typed
+from metta import Atom, Expression, S, V, Variable, arrow, fn, ground, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

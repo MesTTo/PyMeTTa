@@ -68,7 +68,7 @@ def path(*segments: str | int | Attr | Key, to: Any) -> Expression:
     Strings name attributes. Integers name subscription keys. Use ``Key``
     for a string or other explicit subscription key.
 
-        m.query(S.manager(S.ada, path("profile", "age", to=V.age)))
+        m.match(S.manager(S.ada, path("profile", "age", to=V.age)))
     """
     return Path(tuple(_normalize_segment(segment) for segment in segments)).to(to)
 

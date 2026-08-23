@@ -9,8 +9,8 @@ Open Obligations:
 
 from __future__ import annotations
 
-from petta import S, V, ground
-from petta.atoms import unify
+from metta import S, V, ground
+from metta.atoms import unify
 
 
 def _scan(registered, space, atom, action="add"):

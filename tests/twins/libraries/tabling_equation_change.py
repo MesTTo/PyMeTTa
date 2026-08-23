@@ -18,7 +18,7 @@ depends on the trie's layout, so it moves when anything unrelated moves. The
 answer SET is what tabling preserves; that is what this asserts.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

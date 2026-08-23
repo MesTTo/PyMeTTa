@@ -23,8 +23,8 @@ a path crosses the call door as the atom its codec makes of it.
 
 from pathlib import Path
 
-import petta
-from petta import G, S, V
+import metta
+from metta import G, S, V
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -128,7 +128,7 @@ def twin(m):
     # (line Number Text) atoms in a space, so the file is QUERYABLE rather than
     # one long string you then have to take apart. The line number is kept
     # because a space is unordered.
-    log = petta.space(m.fn.file_space(SCRATCH).one())
+    log = metta.space(m.fn.file_space(SCRATCH).one())
     assert [(row.n, row.t) for row in log[S.line(V.n, V.t)]] == [
         (1, G("one")), (2, G("two")), (3, G("three")), (4, G("four")),
     ]

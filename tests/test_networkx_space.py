@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-import petta
+import metta
 
 nx = pytest.importorskip("networkx")
 
@@ -49,11 +49,11 @@ def test_to_graph_reads_links_as_edges_of_atom_nodes(scratch):  # noqa: D103  --
     scratch.run("(nxe a b) (nxe b c)")
     graph = module.to_graph(scratch, "(nxe $x $y)")
     assert graph.number_of_edges() == 2
-    assert petta.parse("a") in graph  # nodes ARE atoms, not strings
-    assert nx.shortest_path(graph, petta.parse("a"), petta.parse("c")) == [
-        petta.parse("a"),
-        petta.parse("b"),
-        petta.parse("c"),
+    assert metta.parse("a") in graph  # nodes ARE atoms, not strings
+    assert nx.shortest_path(graph, metta.parse("a"), metta.parse("c")) == [
+        metta.parse("a"),
+        metta.parse("b"),
+        metta.parse("c"),
     ]
 
 
@@ -66,7 +66,7 @@ def test_an_nary_shape_refuses_to_guess_and_takes_either_reading(scratch):  # no
     assert chain.number_of_edges() == 2
     stars = module.to_graph(scratch, "(nxt $s $v $o)", projection="bipartite")
     # the link itself is a node, the hypergraph-faithful reading
-    assert petta.parse("(nxt s v o)") in stars
+    assert metta.parse("(nxt s v o)") in stars
     assert stars.number_of_edges() == 3
     with pytest.raises(ValueError, match=r"at least two argument"):
         module.to_graph(scratch, "(solo $x)")

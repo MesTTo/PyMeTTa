@@ -9,15 +9,15 @@ checker guards it.
 Which is why this file has no special introspection door in it. The reflection
 space is a space, so reading it is `space[pattern]` and extending it is
 `space += row`, exactly as for any other knowledge, and that IS the example's
-point made in Python. `petta.reflection` is the handle itself, not a name.
+point made in Python. `metta.reflection` is the handle itself, not a name.
 
 `&rows` appears inside a declaration as the context the freshness claim is
 about, and it appears there as the HANDLE: a space is an ordinary term operand,
-so `petta.space("&rows")` goes straight into the row it is the subject of.
+so `metta.space("&rows")` goes straight into the row it is the subject of.
 """
 
-import petta
-from petta import S, V
+import metta
+from metta import S, V
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -29,7 +29,7 @@ BUDGET = 1
 
 def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the default handle stays untouched
     """Read four shipped catalog rows, then declare a kind of your own."""
-    reflection = petta.reflection
+    reflection = metta.reflection
 
     # The fidelity vocabulary is the four words the handles router acts on.
     assert [
@@ -48,7 +48,7 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 
     # A third-party kind is the same machinery: declare its vocabulary and its
     # shape, and the same checker guards it.
-    rows = petta.space("&rows")
+    rows = metta.space("&rows")
     reflection += (S.vocabulary, S["freshness-level"], S.live, S.cached, S.stale)
     reflection += (
         S.kind,

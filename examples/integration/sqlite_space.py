@@ -1,5 +1,5 @@
 """Purpose: the standard-library SQL instance of the bridge: MeTTa
-declarations relate edge and document atoms to SQLite tables, petta.tables
+declarations relate edge and document atoms to SQLite tables, metta.tables
 derives every provider operation from them, and the contract in &petta says
 how far to trust each one and how a binary column crosses.
 
@@ -7,7 +7,7 @@ how far to trust each one and how a binary column crosses.
 
 The declaration is the converter, both directions, the way a MeTTa
 equation is: a query becomes WHERE, an add becomes INSERT, a row becomes
-the atom. petta/tables.py holds the derivation and its guarantees; this
+the atom. metta/tables.py holds the derivation and its guarantees; this
 file is only the SQLite glue and the contract:
 
   (context <name> closed-world)          negation may consult the table
@@ -44,10 +44,10 @@ from typing import Literal
 
 from _common import check, done
 
-import petta
-from petta.paths import path
-from petta import tables
-from petta.tables import TableBridge
+import metta
+from metta.paths import path
+from metta import tables
+from metta.tables import TableBridge
 
 
 class Blob:
@@ -60,8 +60,8 @@ class Blob:
 
     def __metta__(self):
         """The transparent image; opaque contexts never call this method."""
-        return petta.Expression(
-            [petta.S.Blob, *(petta.ground(byte) for byte in self.data)]
+        return metta.Expression(
+            [metta.S.Blob, *(metta.ground(byte) for byte in self.data)]
         )
 
 
@@ -94,7 +94,7 @@ def attach_sqlite(
         "(bridge (document $id $blob)"
         " (row documents (id $id) (payload $blob)))",
     )
-    target = petta.space(name)
+    target = metta.space(name)
     target.image("Blob", blob_image)
     provider = TableBridge.from_context(m, name, connection)
     m._register_space(provider, name)
@@ -110,7 +110,7 @@ def attach_sqlite(
 def demo() -> None:
     """Rows answer MeTTa, SQL receives the bound, and one field is reached
     inside an opaque BLOB without projecting its complete byte sequence."""
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     provider = attach_sqlite(m, "&crm")
     m.run("!(add-atom &crm (edge a b))")
     m.run("!(add-atom &crm (edge b b))")
@@ -128,10 +128,10 @@ def demo() -> None:
         "INSERT INTO documents VALUES (?, ?)",
         ("manual", sqlite3.Binary(payload)),
     )
-    rows = m._at("&crm").query(
-        petta.S.document(
-            petta.S.manual,
-            path("data", 0, to=petta.V["first_byte"]),
+    rows = m._at("&crm").match(
+        metta.S.document(
+            metta.S.manual,
+            path("data", 0, to=metta.V["first_byte"]),
         )
     )
     check("a lazy path reads one byte from the opaque BLOB",

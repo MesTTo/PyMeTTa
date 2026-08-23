@@ -10,7 +10,7 @@ arguments, and a decorated Python function's parameters are always variables,
 so `@m.define` would store `(= (add $x $y) 3)`, a different equation.
 """
 
-from petta import G, S, V, equation
+from metta import G, S, V, equation
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

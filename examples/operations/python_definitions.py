@@ -9,8 +9,8 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, equation, rules
-from petta.errors import CompileError
+from metta import MeTTa, S, equation, rules
+from metta.errors import CompileError
 
 m = MeTTa().space()
 

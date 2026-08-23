@@ -43,7 +43,7 @@ _SYMBOL_OPERATOR_MENTIONS: Final[dict[Any, str]] = {
     _OPERATOR_CALLABLES[entry.dunder]: entry.form
     for entry in OPERATOR_LOWERINGS
     if entry.dunder in _OPERATOR_CALLABLES
-    # policy-inventory-exempt: mechanism-internal; reason=only table rows whose form is one callable head can be mentioned as one Symbol; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
+    # policy-inventory-exempt: mechanism-internal; reason=only table rows whose form is one callable head can be mentioned as one Symbol; evidence=bindings/python/metta/_operator_lowerings.py:OperatorLowering
     and entry.kind in {"symbol", "provided"}
     and isinstance(entry.form, str)
 }
@@ -74,14 +74,14 @@ _CALLABLE_MENTIONS_BY_ID: Final[dict[int, tuple[Any, str]]] = {
 }
 
 _CALLABLE_ARITIES_BY_ID: Final[dict[int, tuple[Any, tuple[int, ...]]]] = {
-    # policy-inventory-exempt: mechanism-internal; reason=abs and invert are the two unary callables in the closed operator mention table and every other mentioned operator is binary; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
+    # policy-inventory-exempt: mechanism-internal; reason=abs and invert are the two unary callables in the closed operator mention table and every other mentioned operator is binary; evidence=bindings/python/metta/_operator_lowerings.py:OperatorLowering
     id(value): (value, (1,) if dunder in {"__abs__", "__invert__"} else (2,))
     for dunder, value in _OPERATOR_CALLABLES.items()
     if value in CALLABLE_MENTIONS
 }
 _CALLABLE_ARITIES_BY_ID.update(
     {
-        # policy-inventory-exempt: mechanism-internal; reason=log and round are the two mentioned standard callables with both one- and two-argument Python forms; evidence=bindings/python/petta/_define_expression.py:_adapt_mentioned_call
+        # policy-inventory-exempt: mechanism-internal; reason=log and round are the two mentioned standard callables with both one- and two-argument Python forms; evidence=bindings/python/metta/_define_expression.py:_adapt_mentioned_call
         id(value): (value, (1, 2) if value in {math.log, builtins.round} else (2,)
                     if value is math.pow else (1,))
         for value in MATH_CALLABLE_MENTIONS

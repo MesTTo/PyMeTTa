@@ -12,7 +12,7 @@ bool, int, float or str, never a symbol. The residue table records that
 against P14.4.
 """
 
-from petta import S, equation
+from metta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

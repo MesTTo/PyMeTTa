@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-import petta
-from petta import S, V, testing
+import metta
+from metta import S, V, testing
 
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "examples" / "integration" / "cetta_space.py"
 
@@ -52,7 +52,7 @@ def cetta_space():  # noqa: D103  -- pytest discovers or injects this callable; 
 
 
 def test_metta_reaches_atoms_matched_by_cetta(cetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     try:
         m._register_space(cetta_space, "&cetta")
         m.run("!(add-atom &cetta (edge a b))")
@@ -105,10 +105,10 @@ def test_cetta_answers_bind_inside_petta_unification():  # noqa: D103  -- pytest
     binary = _cetta_binary()
     if binary is None:
         pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")
-    from petta import Expression
-    from petta.atoms import Grounded
+    from metta import Expression
+    from metta.atoms import Grounded
 
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     try:
         module = _cetta_space_module()
         matcher = module.CettaMatch(

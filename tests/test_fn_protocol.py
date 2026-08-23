@@ -18,7 +18,7 @@ import pydoc
 
 import pytest
 
-from petta import PettaError
+from metta import PettaError
 
 
 @pytest.fixture()

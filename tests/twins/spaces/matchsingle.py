@@ -18,7 +18,7 @@ The facts above them are ordinary tuples, and the two calls are terms the
 engine evaluates, with the handle itself in the space position.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

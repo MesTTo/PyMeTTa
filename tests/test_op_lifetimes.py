@@ -18,8 +18,8 @@ import uuid
 
 import pytest
 
-from petta import S, Symbol
-from petta._ops import dispatch_many
+from metta import S, Symbol
+from metta._ops import dispatch_many
 
 
 def unique(prefix: str) -> str:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

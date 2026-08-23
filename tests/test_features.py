@@ -40,7 +40,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import (
+from metta import (
     Bindings,
     Expression,
     PettaError,
@@ -51,22 +51,22 @@ from petta import (
     remote,
     tables,
 )
-from petta.arrays import EmbeddingStore
-from petta.atoms import Grounded, Symbol, Variable
-from petta.errors import (
+from metta.arrays import EmbeddingStore
+from metta.atoms import Grounded, Symbol, Variable
+from metta.errors import (
     EngineError,
     InferenceLimitError,
     MettaOperationError,
     ResourceLimitError,
     TimeLimitError,
 )
-from petta.events import Event, atom_added
-from petta.integrate import install_reflection_ops
-from petta.subscribe import bridge
+from metta.events import Event, atom_added
+from metta.integrate import install_reflection_ops
+from metta.subscribe import bridge
 
 hypothesis = pytest.importorskip("hypothesis")
-subscribe_module = importlib.import_module("petta.subscribe")
-events_module = importlib.import_module("petta.events")
+subscribe_module = importlib.import_module("metta.subscribe")
+events_module = importlib.import_module("metta.events")
 
 
 @pytest.fixture()
@@ -215,11 +215,11 @@ def test_identical_subscriptions_share_one_reflection_fact(m):  # noqa: D103  --
     second = m.subscribe(S.identical(V.value))
     descriptor = S.subscription(S[m.name], V.pattern, V.on)
     try:
-        assert len(reflection.query(descriptor)) == 1
+        assert len(reflection.match(descriptor)) == 1
         second.cancel()
-        assert len(reflection.query(descriptor)) == 1
+        assert len(reflection.match(descriptor)) == 1
         first.cancel()
-        assert not reflection.query(descriptor)
+        assert not reflection.match(descriptor)
     finally:
         first.cancel()
         second.cancel()
@@ -439,7 +439,7 @@ def test_define_declares_class_with_accessors(m):  # noqa: D103  -- pytest disco
     assert m.run("!(match (context-space) (Song $t $y) $t)") == [["Hallelujah"]]
     assert m.run('!(Song-year (Song "Hallelujah" 1984))') == [[1984]]
     # And back into Python, typed rows in one call.
-    rows = m.query(V.s)
+    rows = m.match(V.s)
     songs = [s for s in rows.build("s", Song) if isinstance(s, Song)]
     assert songs == [Song("Hallelujah", 1984)]
 
@@ -472,7 +472,7 @@ def test_run_using_carries_identity(m):  # noqa: D103  -- pytest discovers or in
     thing = object()
     with m.bind(it=thing):
         m.run("!(add-atom (context-space) (held it))")
-    rows = m.query(S.held(V.x))
+    rows = m.match(S.held(V.x))
     assert rows[0].x.value is thing
 
 
@@ -487,7 +487,7 @@ def test_save_and_load_round_trip(metta, tmp_path):  # noqa: D103  -- pytest dis
         assert count == 3
     with metta._new_space() as reborn:
         reborn.load(str(path))
-        assert len(reborn.query(S.fact(V.x))) == 2
+        assert len(reborn.match(S.fact(V.x))) == 2
         assert reborn.run("!(greet world)") == [[Expression(S.hello, S.world)]]
 
 
@@ -508,7 +508,7 @@ def test_the_measure_library_runs_in_language(m):  # noqa: D103  -- pytest disco
 
 def test_rows_table_is_the_dataframe_shape(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.Age(S.Tom, 62), S.Age(S.Bob, 40))
-    rows = m.query(S.Age(V.who, V.n))
+    rows = m.match(S.Age(V.who, V.n))
     table = rows.table()
     assert table in ({"who": ["Tom", "Bob"], "n": [62, 40]}, {"who": ["Bob", "Tom"], "n": [40, 62]})
 
@@ -516,12 +516,12 @@ def test_rows_table_is_the_dataframe_shape(m):  # noqa: D103  -- pytest discover
 def test_add_table_reads_any_tabular_source(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     added = tables.add(m, "edge", {"src": [S.a, S.b], "dst": [S.b, S.c]})
     assert added == 2
-    assert len(m.query(S.edge(V.x, V.y))) == 2
+    assert len(m.match(S.edge(V.x, V.y))) == 2
 
     polars = pytest.importorskip("polars")
     frame = polars.DataFrame({"name": ["ada", "bob"], "age": [36, 41]})
     assert tables.add(m, "person", frame) == 2
-    rows = m.query(S.person(V.name, V.age))
+    rows = m.match(S.person(V.name, V.age))
     assert {(r["name"], r.age) for r in rows} == {("ada", 36), ("bob", 41)}
     with pytest.raises(TypeError):
         tables.add(m, "bad", 7)
@@ -530,7 +530,7 @@ def test_add_table_reads_any_tabular_source(m):  # noqa: D103  -- pytest discove
 def test_add_table_refuses_ragged_columns(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError):
         tables.add(m, "edge", {"src": [S.a, S.b, S.c], "dst": [S.b]})
-    assert m.query(S.edge(V.x, V.y)) == []
+    assert m.match(S.edge(V.x, V.y)) == []
 
 
 def test_value_answers_the_one_answer(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -548,13 +548,13 @@ def test_rows_first_and_one(m):  # noqa: D103  -- pytest discovers or injects th
     m.add(S.city(S.perth), S.city(S.sydney))
     marker = object()
     with pytest.raises(EngineError, match="pass default"):
-        m.query(S.town(V.x)).first()
-    assert m.query(S.town(V.x)).first(default=marker) is marker
-    assert m.query(S.city(V.x)).first() is not None
+        m.match(S.town(V.x)).first()
+    assert m.match(S.town(V.x)).first(default=marker) is marker
+    assert m.match(S.city(V.x)).first() is not None
     with pytest.raises(EngineError):
-        m.query(S.city(V.x)).one()  # two rows
+        m.match(S.city(V.x)).one()  # two rows
     m.remove(S.city(S.perth))
-    assert str(m.query(S.city(V.x)).one().x) == "sydney"
+    assert str(m.match(S.city(V.x)).one().x) == "sydney"
 
 
 def test_space_iterates_and_subtracts(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -566,7 +566,7 @@ def test_space_iterates_and_subtracts(m):  # noqa: D103  -- pytest discovers or 
 
 def test_atoms_destructure_with_match_statements(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.likes(S.cat, 9))
-    (atom,) = m.query(V.a).a
+    (atom,) = m.match(V.a).a
     match atom:
         case Expression([Symbol("likes"), Symbol(who), Grounded(count)]):
             assert who == "cat" and count == 9
@@ -592,9 +592,9 @@ def test_bridge_rules_connect_spaces(metta):  # noqa: D103  -- pytest discovers 
     rule = bridge(src, S.alarm(V.zone), dst, S.notify(V.zone), on="both")
     try:
         src.add(S.alarm(S.kitchen))
-        assert dst.query(S.notify(V.z)).one().z == S.kitchen
+        assert dst.match(S.notify(V.z)).one().z == S.kitchen
         src.remove(S.alarm(S.kitchen))
-        assert dst.query(S.notify(V.z)) == []
+        assert dst.match(S.notify(V.z)) == []
     finally:
         rule.cancel()
         src.drop()
@@ -804,11 +804,11 @@ def test_limits_leave_finished_work_standing(m):  # noqa: D103  -- pytest discov
 
 def test_limits_on_query_eval_value_and_prepared(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(200)])
-    rows = m.query(S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0, inferences=50_000_000)
+    rows = m.match(S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0, inferences=50_000_000)
     assert len(rows) == 199  # a generous bound changes nothing
     with pytest.raises(InferenceLimitError):
         list(
-            m.query(
+            m.match(
                 S.edge(V.a, V.b),
                 S.edge(V.b, V.c),
                 S.edge(V.c, V.d),
@@ -830,7 +830,7 @@ def test_limit_validation_refuses_nonsense(m):  # noqa: D103  -- pytest discover
     with pytest.raises(ValueError):
         m.run("!(+ 1 1)", timeout=0)
     with pytest.raises(ValueError):
-        m.query(S.x(V.a), inferences=-3)
+        m.match(S.x(V.a), inferences=-3)
 
 
 def test_run_capture_collects_printed_output(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -866,7 +866,7 @@ def test_eval_capture(m):  # noqa: D103  -- pytest discovers or injects this cal
 def test_stats_block_counts_the_work(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(50)])
     with m.stats() as s:
-        list(m.query(S.edge(V.a, V.b), S.edge(V.b, V.c)))
+        list(m.match(S.edge(V.a, V.b), S.edge(V.b, V.c)))
     assert s.inferences > 100
     assert s.walltime > 0 and s.cputime >= 0
     assert s.gc_count >= 0 and s.gc_freed >= 0 and s.gc_time >= 0.0
@@ -911,7 +911,7 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):  # noqa: D103  -- pytest d
 def test_stream_agrees_with_query_and_closes_on_exhaustion(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(50)])
     cursor = m._stream(S.edge(V.a, V.b))
-    assert [tuple(r) for r in cursor] == [tuple(r) for r in m.query(S.edge(V.a, V.b))]
+    assert [tuple(r) for r in cursor] == [tuple(r) for r in m.match(S.edge(V.a, V.b))]
     with pytest.raises(StopIteration):
         next(cursor)
     assert list(cursor) == []
@@ -921,7 +921,7 @@ def test_stream_agrees_with_query_and_closes_on_exhaustion(m):  # noqa: D103  --
 
 
 # The cheapest route was the only one that could not be spelled naturally.
-# Over 2,000 stored atoms, wanting the first three: query(pat)[:3] costs 26,055
+# Over 2,000 stored atoms, wanting the first three: match(pat)[:3] costs 26,055
 # inferences because slicing trims after computing everything, and pulling
 # three from a cursor costs 20. Convenience is free when it changes the
 # spelling and not the plan.
@@ -931,7 +931,7 @@ def test_a_cursor_slice_pulls_only_what_it_takes(m):  # noqa: D103  -- pytest di
     with space.stats() as lazy, space._stream(S.fact(V.k, V.n)) as cursor:
         first_three = cursor[:3]
     with space.stats() as answers_cost:
-        trimmed = list(space.query(S.fact(V.k, V.n))[:3])
+        trimmed = list(space.match(S.fact(V.k, V.n))[:3])
     assert len(first_three) == len(trimmed) == 3
     # The public query view now shares the cursor's demand-driven cost.
     assert answers_cost.inferences < lazy.inferences * 3
@@ -940,7 +940,7 @@ def test_a_cursor_slice_pulls_only_what_it_takes(m):  # noqa: D103  -- pytest di
         assert cursor[0].k == first_three[0].k
     with space._stream(S.fact(V.k, V.n)) as cursor:
         assert [row.k for row in cursor[1:4]] == [row.k for row in first_three[1:]] + [
-            trimmed[3].k if len(trimmed) > 3 else space.query(S.fact(V.k, V.n))[3].k
+            trimmed[3].k if len(trimmed) > 3 else space.match(S.fact(V.k, V.n))[3].k
         ]
 
 
@@ -986,7 +986,7 @@ def test_a_cursor_refuses_what_would_need_the_whole_stream(m):
 def test_abandoned_stream_warns_before_reaping(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.edge(1, 2))
     cursor = m._stream(S.edge(V.a, V.b))
-    with pytest.warns(ResourceWarning, match="open petta Cursor"):
+    with pytest.warns(ResourceWarning, match="open metta Cursor"):
         del cursor
         gc.collect()
 

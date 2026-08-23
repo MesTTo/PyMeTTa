@@ -11,7 +11,7 @@ this file carries; the space itself is the handle, which crosses into the built
 term as a grounded operand.
 """
 
-from petta import S
+from metta import S
 
 #: The same file twice: once by module name and once with its suffix. Written
 #: from the repository root, where the lane runs.

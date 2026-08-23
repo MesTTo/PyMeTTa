@@ -32,7 +32,7 @@ from typing import Any
 
 from _common import check, done, skip
 
-from petta.foreign import SpaceProvider
+from metta.foreign import SpaceProvider
 
 _PROBE = "petta-cetta-probe"
 
@@ -176,11 +176,11 @@ def demo() -> None:
     cetta = os.environ.get("PETTA_CETTA") or shutil.which("cetta")
     if cetta is None:
         skip("cetta is not on PATH and PETTA_CETTA does not name it")
-    import petta
-    from petta import S, V, Expression
-    from petta.atoms import Grounded
+    import metta
+    from metta import S, V, Expression
+    from metta.atoms import Grounded
 
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     space = CettaSpace(cetta=cetta)
     m._register_space(space, "&cetta")
     m.run("!(add-atom &cetta (edge a b))")

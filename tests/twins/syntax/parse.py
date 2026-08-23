@@ -14,7 +14,7 @@ string with backslashes, one with embedded quotes, and one whose backslash-n is
 two characters rather than a newline.
 """
 
-from petta import ground
+from metta import ground
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

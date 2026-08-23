@@ -1,7 +1,7 @@
 """Purpose: prove R6's canonical atom vocabulary and ordered assembly door.
 
 Guarantees:
-  - TRUE, FALSE, UNIT, and HERE are immutable canonical atoms exported from
+  - TRUE, FALSE, and UNIT are immutable canonical atoms exported from
     the package [tested: test_the_canonical_atoms_are_public_values;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - Expression consumes one iterable in order, so answer assembly preserves
@@ -18,8 +18,8 @@ Open Obligations:
 
 from __future__ import annotations
 
-import petta
-from petta import FALSE, HERE, TRUE, UNIT, Expression, Grounded, S, Symbol
+import metta
+from metta import FALSE, TRUE, UNIT, Expression, Grounded, S
 
 
 def test_the_canonical_atoms_are_public_values():
@@ -27,12 +27,12 @@ def test_the_canonical_atoms_are_public_values():
     assert TRUE == Grounded(value=True)
     assert FALSE == Grounded(value=False)
     assert UNIT == Expression(())
-    assert HERE == Expression((Symbol("context-space"),))
     assert str(TRUE) == "True"
     assert str(FALSE) == "False"
     assert str(UNIT) == "()"
-    assert str(HERE) == "(context-space)"
-    assert {"TRUE", "FALSE", "UNIT", "HERE"} <= set(petta.__all__)
+    assert {"TRUE", "FALSE", "UNIT"} <= set(metta.__all__)
+    assert "HERE" not in metta.__all__
+    assert not hasattr(metta, "HERE")
 
 
 def test_expression_assembles_one_ordered_atom_from_an_iterable():
@@ -47,5 +47,5 @@ def test_expression_assembles_one_ordered_atom_from_an_iterable():
 def test_expr_is_not_a_second_public_door():
     """The settled name replaces the provisional builder, in both spellings."""
     for retired in ("expr", "Expr", "sym", "Sym", "var", "Var", "val", "Gnd"):
-        assert retired not in petta.__all__
-        assert not hasattr(petta, retired)
+        assert retired not in metta.__all__
+        assert not hasattr(metta, retired)

@@ -16,7 +16,7 @@ is a Python keyword no body can name. The answers agree for the booleans this
 equation compares, and the residue table records the hole against P14.4.
 """
 
-from petta import fn
+from metta import fn
 
 #: e, to the precision the original writes it at.
 E = 2.718281828459045

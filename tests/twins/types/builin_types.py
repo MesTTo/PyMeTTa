@@ -18,7 +18,7 @@ appears. There is still no Python verb for importing a library (residue,
 P14.13).
 """
 
-from petta import S, V, arrow
+from metta import S, V, arrow
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

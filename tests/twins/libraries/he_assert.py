@@ -20,7 +20,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, G, S, V, equation
+from metta import Expression, G, S, V, equation
 
 #: Why this twin sits below the top rung: every claim here is about a member of
 #: the assert family, so naming them is the file's subject rather than MeTTa

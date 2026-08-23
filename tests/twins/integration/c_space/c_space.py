@@ -11,7 +11,7 @@ operand, so nothing here names a space as a symbol.
 The provider file is consulted through `m.register_prolog(path=)`, the Python
 door for what the example spells `(let "cstore.pl" (consult_global) provider)`.
 
-Two things do not dissolve. The Python compliance kit, `petta.testing`, reaches
+Two things do not dissolve. The Python compliance kit, `metta.testing`, reaches
 only Python providers, so a provider whose clauses live in Prolog and whose
 store lives in C is checkable only through the engine's own
 `check-space-provider`. And the concurrent-writer form is DECLINED: `hyperpose`
@@ -21,8 +21,8 @@ inference count, which the residue records against P14.14.
 
 from pathlib import Path
 
-import petta
-from petta import S, V, ground
+import metta
+from metta import S, V, ground
 
 #: The three engine libraries the example opens, spelled with their real
 #: underscores: `S.lib_file` would name `lib-file`, which the tree does not ship.
@@ -66,11 +66,11 @@ def twin(m):
         return
 
     m.register_prolog(path=CSTORE_PL)
-    # Known issue: `petta.space(name)` rides the process-DEFAULT context, not
+    # Known issue: `metta.space(name)` rides the process-DEFAULT context, not
     # the one holding `m`; the two reach the same store only because the SWI
     # runtime is process-wide. A creation door on the handle's own context is
     # the perfect spelling [measured 2026-08-23].
-    store = petta.space("&cstore")
+    store = metta.space("&cstore")
 
     # Writes and reads cross into C; the engine keeps unification for itself.
     store += S.edge(S.a, S.b)
@@ -99,7 +99,7 @@ def twin(m):
     # and no pushdown claim overreaches. It raises on a violation.
     #
     # Known issue: the perfect spelling is the Python compliance kit,
-    # `petta.testing.check_space_provider(provider)`, and it takes a Python
+    # `metta.testing.check_space_provider(provider)`, and it takes a Python
     # `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and
     # whose store lives in C cannot reach it. The engine's own function is the
     # only route, and it does take the handle.

@@ -1,7 +1,6 @@
-"""Purpose: pin the petta import surface, which loads lazily and preserves the
-upstream python.petta package identity.
+"""Purpose: pin the metta import surface and its lazy module identities.
 Guarantees:
-  - importing petta alone leaves optional integrations unloaded [tested
+  - importing metta alone leaves optional integrations unloaded [tested
     test_optional_surfaces_load_only_when_requested]
   - the petta_ops callback facade re-exports without owning state [tested
     test_callback_facade_owns_no_state_and_delegates; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -24,17 +23,17 @@ def test_optional_surfaces_load_only_when_requested():  # noqa: D103  -- pytest 
 import importlib
 import sys
 
-import petta
+import metta
 
 lazy = {'aio', 'algebra', 'arrays', 'remote', 'testing', 'wire'}
-assert all(f'petta.{name}' not in sys.modules for name in lazy)
+assert all(f'metta.{name}' not in sys.modules for name in lazy)
 assert 'asyncio' not in sys.modules
 assert 'urllib.request' not in sys.modules
 
 for name in lazy:
-    exposed = getattr(petta, name)
-    assert exposed is importlib.import_module(f'petta.{name}')
-assert lazy <= set(dir(petta))
+    exposed = getattr(metta, name)
+    assert exposed is importlib.import_module(f'metta.{name}')
+assert lazy <= set(dir(metta))
 """
     environment = os.environ | {"PYTHONPATH": str(root / "bindings" / "python")}
     subprocess.run(
@@ -46,10 +45,10 @@ assert lazy <= set(dir(petta))
 
 
 def test_callback_facade_owns_no_state_and_delegates():
-    """The petta_ops facade re-exports; it must not hold a registry itself."""
-    facade = importlib.import_module("petta._callbacks")
+    """The callback facade re-exports; it must not hold a registry itself."""
+    facade = importlib.import_module("metta._callbacks")
     owners = {
-        name: importlib.import_module(f"petta.{module}")
+        name: importlib.import_module(f"metta.{module}")
         for name, module in {
             "dispatch": "_ops",
             "dispatch_inverse": "_ops",

@@ -19,8 +19,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import Expression, S, V
+import metta
+from metta import Expression, S, V
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -39,7 +39,7 @@ BUDGET = 234
 
 def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the default handle stays untouched
     """Write two atoms, then ask four questions about them."""
-    wuspace = petta.space("&wuspace")
+    wuspace = metta.space("&wuspace")
     wuspace += S.wu()
     wuspace += (S.wu, 42)
 
@@ -50,11 +50,11 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
     # `space[(a, b)]` from `space[a, b]`, so the subscript reads every tuple as
     # a CONJUNCTION while query reads the same tuple as an expression:
     # `m[(V.x,)]` answers two rows binding x to whole atoms and
-    # `m.query((V.x,))` answers one row binding x to the single child
+    # `m.match((V.x,))` answers one row binding x to the single child
     # [measured 2026-08-22]. PERFECT: `wuspace[(V.x,)]`. Residue P14.4; until
     # it lands the one-element expression is spelled at the ( ) door and asked
     # through query, which agree.
-    one = wuspace.query(Expression((V.x,)))
+    one = wuspace.match(Expression((V.x,)))
     # Both answer containers project the same way, so the whole column comes
     # off the ask door by attribute just as it does off a call.
     assert one.x == [S.wu]
@@ -62,6 +62,6 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
     assert [S.hu(row.x) for row in one] == [S.hu(S.wu)]
 
     # A bare variable matches every atom, which is what iterating a space is.
-    every = [row.x for row in wuspace.query(V.x)]
+    every = [row.x for row in wuspace.match(V.x)]
     assert sorted(every) == sorted(wuspace)
     assert sorted(S.wu(child) for child in every) == [S.wu(S.wu()), S.wu(S.wu(42))]

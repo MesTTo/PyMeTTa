@@ -17,7 +17,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import S, V
+from metta import S, V
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `let` whose pattern and value both carry variables has no assignment spelling"

@@ -5,7 +5,7 @@ registers a remote engine's space here as a foreign space, so
 (match &remote (users $id $n) ...) crosses the network exactly as it
 crosses into DuckDB. The shape is SingularityNET's DAS gateway (a single
 transport method carrying {space, pattern} and answering atoms) and
-metta-wam's metta_server, translated onto petta's own SpaceProvider
+metta-wam's metta_server, translated onto metta's own SpaceProvider
 protocol; the engine keeps unification for itself, so a remote answer is
 speed and reach, never trust.
 Guarantees:
@@ -90,7 +90,7 @@ from .errors import PettaError
 from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
-logging.getLogger("petta").addHandler(logging.NullHandler())
+logging.getLogger("metta").addHandler(logging.NullHandler())
 
 __all__ = [
     "Gateway",
@@ -358,7 +358,7 @@ class RemoteCursor:
             # for a network round trip, and the server's own idle deadline
             # is what releases a cursor whose client walked away.
             warnings.warn(
-                "an open petta RemoteCursor was discarded; use a with-block "
+                "an open metta RemoteCursor was discarded; use a with-block "
                 "or close(), or the server holds it until its idle deadline",
                 ResourceWarning,
                 source=self,
@@ -387,7 +387,7 @@ class RemoteSpace(SpaceProvider):
     time, not soundness.
 
     `batch` chooses which door match() uses, and the choice is the one
-    query() and stream() make in-process. Left None, match() is the eager
+    match() and stream() make in-process. Left None, match() is the eager
     /match: one crossing carrying the whole answer set, which is what a
     space whose answers fit in an HTTP body wants. Set to a count, match()
     rides the ask/next/stop lifecycle in chunks of that size, so a caller
@@ -475,7 +475,7 @@ class RemoteSpace(SpaceProvider):
         of a large enumeration costs the server two answers' work instead
         of the whole join's.
 
-        match() is the eager door and stays it, the split query() and
+        match() is the eager door and stays it, the split match() and
         stream() already make in-process. Reach for this to take answers
         until you have seen enough, or when the answer set is larger than
         one HTTP body.
@@ -505,7 +505,7 @@ class RemoteSpace(SpaceProvider):
         if health is None:
             msg = (
                 "this transport cannot ask the server for /health; build it "
-                "with petta.remote.connect(), or give the callable a "
+                "with metta.remote.connect(), or give the callable a "
                 "`health` attribute answering the health body"
             )
             raise PettaError(
@@ -667,13 +667,13 @@ def attach(
 ) -> RemoteSpace:
     """Register a remote engine's space here under a local name.
 
-    petta.remote.attach(m, "&hq", "http://127.0.0.1:8700")
+    metta.remote.attach(m, "&hq", "http://127.0.0.1:8700")
     m.run('!(match &hq (users $id $n) $n)')
 
     `batch` puts the attached space's matching on the lazy door, so a
     MeTTa query that stops early stops the serving engine with it:
 
-        petta.remote.attach(m, "&hq", url, batch=1)
+        metta.remote.attach(m, "&hq", url, batch=1)
         m.run('!(once (match &hq (users $id $n) $n))')  # one answer computed
     """
     transport = url_or_transport if callable(url_or_transport) else connect(url_or_transport)
@@ -943,7 +943,7 @@ class Gateway:
     def _match(self, payload: dict) -> dict:
         """The eager door: one reply carrying the whole answer set.
 
-        query()'s reading on the wire, and it costs what query() costs, the
+        match()'s reading on the wire, and it costs what match() costs, the
         join computed to the end before anything crosses. /ask is the other
         door.
         """
@@ -955,7 +955,7 @@ class Gateway:
                 # Zero answers wanted: the engine's query refuses a zero
                 # limit, and no work is the exact honoring.
                 return {"atoms": []}
-            rows = space.query(pattern, limit=bound)
+            rows = space.match(pattern, limit=bound)
             atoms = [
                 substitute(pattern, dict(zip(rows.columns, row, strict=True)))
                 for row in rows
@@ -1077,7 +1077,7 @@ class _RemoteWorker:
         self._work: queue.Queue[tuple[str, dict, queue.SimpleQueue] | None] = queue.Queue()
         self.thread = threading.Thread(
             target=self._run,
-            name="petta-remote-engine",
+            name="metta-remote-engine",
             daemon=True,
         )
 
@@ -1503,7 +1503,7 @@ def serve(  # noqa: C901  -- serve keeps the HTTP negotiation and resource lifec
     httpd.daemon_threads = True
     thread = threading.Thread(
         target=httpd.serve_forever,
-        name="petta-remote-http",
+        name="metta-remote-http",
         daemon=True,
     )
     try:

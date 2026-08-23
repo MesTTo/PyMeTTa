@@ -53,7 +53,7 @@ from .remote import RemoteSpace
 
 pytest = require_module(
     "pytest",
-    "petta.testing.GatewayComplianceSuite is a pytest suite; install pytest "
+    "metta.testing.GatewayComplianceSuite is a pytest suite; install pytest "
     "to run it against a gateway URL",
 )
 

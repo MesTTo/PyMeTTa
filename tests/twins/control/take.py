@@ -23,8 +23,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import S, V
-from petta.errors import EngineError
+from metta import S, V
+from metta.errors import EngineError
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
@@ -76,12 +76,12 @@ def twin(m):
 
     # !(test (collapse (take 2 (match &self (edge $x $y) (edge $x $y))))
     #        ((edge a b) (edge b c)))
-    edges = m.query(S.edge(V.x, V.y), limit=2)
+    edges = m.match(S.edge(V.x, V.y), limit=2)
     assert [S.edge(row.x, row.y) for row in edges] == [S.edge(S.a, S.b), S.edge(S.b, S.c)]
 
     # Across a join the bound belongs to the JOINED rows, and an outer match
     # truncated at k would lose the rows its later candidates join to.
     # !(test (collapse (take 2 (match &self (, (edge $x $y) (edge $y $z)) ($x $z))))
     #        ((a c) (b d)))
-    paths = m.query(S.edge(V.x, V.y), S.edge(V.y, V.z), limit=2)
+    paths = m.match(S.edge(V.x, V.y), S.edge(V.y, V.z), limit=2)
     assert [(row.x, row.z) for row in paths] == [(S.a, S.c), (S.b, S.d)]

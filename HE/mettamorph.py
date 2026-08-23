@@ -4,8 +4,8 @@ import sys, os
 orig_cwd = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(orig_cwd, '..')))
 os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from petta import PeTTa
-peTTa = PeTTa()
+from metta import MeTTa
+metta_space = MeTTa().self
 os.chdir(orig_cwd)
 
 
@@ -23,19 +23,23 @@ def wrapnpop(func):
         return [res]
     return wrapper
 
-def call_petta(*a):
+def call_metta(*a):
     tokenizer = globalmetta.tokenizer()
     EXPRESSION = str(*a)
     if EXPRESSION.startswith("\""): #unstring
         EXPRESSION = EXPRESSION[1:-1]
     if EXPRESSION.endswith(".metta"):
-        peTTa.load_metta_file(file_path=orig_cwd + "/" + EXPRESSION)
+        metta_space.load(orig_cwd + "/" + EXPRESSION)
         parser = SExprParser("True")
         return parser.parse(tokenizer)
     else:
         if not EXPRESSION.startswith("(="):
             EXPRESSION = "!" + EXPRESSION
-        resultslist = peTTa.process_metta_string(EXPRESSION)
+        resultslist = [
+            atom
+            for group in metta_space.run(EXPRESSION)
+            for atom in group
+        ]
         if EXPRESSION.startswith("(="):
             parser = SExprParser("True")
             return parser.parse(tokenizer)
@@ -45,8 +49,8 @@ def call_petta(*a):
 
 globalmetta = None
 @register_atoms(pass_metta=True)
-def petta_atoms(metta):
+def metta_atoms(metta):
     global globalmetta
     globalmetta = metta
-    call_petta_atom = G(PatternOperation('petta', wrapnpop(call_petta), unwrap=False))
-    return { r"petta": call_petta_atom }
+    call_metta_atom = G(PatternOperation('metta', wrapnpop(call_metta), unwrap=False))
+    return {r"metta": call_metta_atom}

@@ -20,7 +20,7 @@ and this head carries two, so no annotation says it. The residue table records
 that against P14.9.
 """
 
-from petta import S, fn
+from metta import S, fn
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

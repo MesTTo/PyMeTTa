@@ -20,7 +20,7 @@ engine's order, so the ordinary spelling is the correct one again
 `((foo 42 42) (foo (42 42)))` for this file's own atoms; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
 """
 
-from petta import S, V
+from metta import S, V
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

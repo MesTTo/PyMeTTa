@@ -1,9 +1,9 @@
 """Purpose: expose PeTTa's narrow Python core and lazily load satellites.
 
 Assumes:
-  - ``petta._space.MeTTa`` owns runtime context and ``petta._space.Space``
+  - ``metta._space.MeTTa`` owns runtime context and ``metta._space.Space``
     owns storage and query verbs [source:
-    bindings/python/petta/_space.py:306 and :3090; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    bindings/python/metta/_space.py:306 and :3090; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - the R5 root exports the term builders, relational solve, and lazy State
     handle while ``record`` and atom-specialist ``order_key`` stay absent
@@ -11,7 +11,7 @@ Guarantees:
     test_solve_retires_the_five_relational_let_workarounds,
     test_keyword_builders_retire_53_raw_if_mentions, and
     test_state_retires_three_state_function_strings; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
-  - ``dir(petta)`` is exactly the curated public surface and loads no
+  - ``dir(metta)`` is exactly the curated public surface and loads no
     satellites [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - satellite modules are imported only by attribute access, following PEP
     562 with their real module identity intact [tested:
@@ -21,18 +21,13 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``space()`` accepts both text and a space-name Symbol returned by the
     engine [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - ``PeTTa`` retains the upstream source-string wrapper for a legacy
-    ``src/main.pl`` tree without widening the curated root [tested:
-    test_upstream_python_package_path_is_canonical and
-    test_upstream_source_wrapper_binds_verbose_atom; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``fn`` is an inert, generated, statically typed mention namespace and
     importing it never starts the engine [tested:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
-  - package ``superpose`` and ``match`` evaluate their expression forms in
-    the ambient space and compile as those same forms inside definitions
-    [tested:
-    test_expression_position_superpose_and_match_share_the_ambient_space;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - package ``match`` reads the default space while ``superpose`` evaluates
+    its expression form; compiled definitions lower their syntactic match
+    calls before either Python function executes [tested:
+    test_module_tier_exposes_the_mode_and_definition_family; commit=WORKTREE]
   - ``view`` lazily opens a live provider space over Python mappings, sets,
     and sequences [tested: test_view_is_a_live_queryable_space;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -42,10 +37,6 @@ Guarantees:
   - module define/cache/stats/limits/strict/trace verbs defer engine creation
     until called and target the default self space [tested:
     test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-Decides:
-  - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
-    stack policy [source: PeTTa-base/python/petta/__init__.py:8;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -54,7 +45,6 @@ Open Obligations:
 
 from __future__ import annotations
 
-import _thread
 import functools as _functools
 import importlib as _importlib
 import os as _os
@@ -65,7 +55,6 @@ from ._fn import fn
 from ._version import __version__
 from .atoms import (
     FALSE,
-    HERE,
     TRUE,
     UNIT,
     Atom,
@@ -145,19 +134,12 @@ _HIDDEN_IMPLEMENTATION_MODULES = {
     "results",
 }
 
-# These four names are the retained upstream package state. Exact ``__dir__``
-# keeps them out of the designed PeTTa-library surface, but the original
-# ``python.petta`` wrapper and its tests access them directly.
-CONSULTED = False
-CONSULT_LOCK = _thread.allocate_lock()
-janus: _Any = None
-DEFAULT_STACK_LIMIT = 8_000_000_000
 _OMITTED = object()
 
 
 def _path_exists(path: str) -> bool:
     """Check a runtime path without importing pathlib into the narrow root."""
-    return _os.path.exists(path)  # noqa: FURB141 -- pathlib adds eager imports to plain ``import petta``
+    return _os.path.exists(path)  # noqa: FURB141 -- pathlib adds eager imports to plain ``import metta``
 
 
 def _resolve_petta_path() -> str:
@@ -174,108 +156,6 @@ def _resolve_petta_path() -> str:
         return bundled
 
     return _os.path.abspath(_os.path.join(here, _os.pardir, _os.pardir, _os.pardir))
-
-
-def _is_upstream_runtime(petta_path: str | None) -> bool:
-    """Recognize the retained upstream layout without consulting either engine."""
-    if petta_path is None:
-        if CONSULTED:
-            return True
-        petta_path = _resolve_petta_path()
-    return _os.path.isfile(_os.path.join(petta_path, "src", "main.pl"))
-
-
-def _consult_upstream(petta_path: str | None) -> None:
-    """Consult the original ``src/main.pl`` and ``python/helper.pl`` pair once."""
-    global CONSULTED, janus  # pylint: disable=global-statement
-
-    if CONSULTED:
-        return
-    with CONSULT_LOCK:
-        if CONSULTED:
-            return
-        if petta_path is None:
-            petta_path = _resolve_petta_path()
-        mork_library = _os.path.join(
-            petta_path,
-            "mork_ffi",
-            "target",
-            "release",
-            "libmork_ffi.so",
-        )
-        if _path_exists(mork_library):
-            original_dir = _os.getcwd()  # noqa: FURB104 -- pathlib stays outside the narrow import graph
-            try:
-                _os.chdir(petta_path)
-                janus = _importlib.import_module("janus_swi")
-                janus.query_once(
-                    f"set_prolog_flag(stack_limit, {DEFAULT_STACK_LIMIT})"
-                )
-            finally:
-                _os.chdir(original_dir)
-            janus.query_once("set_prolog_flag(argv, ['mork'])")
-        else:
-            janus = _importlib.import_module("janus_swi")
-            janus.query_once(f"set_prolog_flag(stack_limit, {DEFAULT_STACK_LIMIT})")
-        main_file = _os.path.join(petta_path, "src", "main.pl")
-        helper_file = _os.path.join(petta_path, "python", "helper.pl")
-        if not _path_exists(main_file):
-            msg = (
-                f"PeTTa runtime not found under {petta_path!r} "
-                f"(expected {main_file!r}). Set the PETTA_PATH environment "
-                "variable or pass petta_path to point at a PeTTa checkout."
-            )
-            raise FileNotFoundError(msg)
-        janus.consult(main_file)
-        janus.consult(helper_file)
-        CONSULTED = True
-
-
-class PeTTa:
-    """The upstream-compatible thin wrapper: source strings in and out."""
-
-    def __init__(self, verbose=False, petta_path=None):  # noqa: FBT002 -- upstream constructor signature is the retained compatibility boundary
-        """Open the upstream-compatible source-string runner."""
-        self.verbose = bool(verbose)
-        self._upstream = _is_upstream_runtime(petta_path)
-        if self._upstream:
-            _consult_upstream(petta_path)
-            self._runtime = None
-        else:
-            _engine = _importlib.import_module(f"{__name__}._engine")
-            self._runtime = _engine.runtime(
-                petta_path=petta_path,
-                verbose=self.verbose,
-            )
-
-    def _run_helper(self, helper_name, argument):
-        if self._upstream:
-            bridge = janus
-        else:
-            runtime = self._runtime
-            if runtime is None:
-                msg = "current runtime was not initialized"
-                raise RuntimeError(msg)
-            bridge = runtime._janus
-        result = bridge.query_once(
-            "run_metta_helper(Verbose, HelperName, Argument, Results)",
-            {
-                "Verbose": "true" if self.verbose else "false",
-                "HelperName": helper_name,
-                "Argument": argument,
-            },
-        )
-        if result is None:
-            return []
-        return result.get("Results", [])
-
-    def load_metta_file(self, file_path) -> str:
-        """Compile a MeTTa file to Prolog and return the run results."""
-        return self._run_helper("load_metta_file", file_path)
-
-    def process_metta_string(self, metta_code) -> str:
-        """Compile MeTTa source and return the run results."""
-        return self._run_helper("process_metta_string", metta_code)
 
 
 def __getattr__(name: str) -> _Any:
@@ -300,11 +180,11 @@ def _rehide_implementation_modules() -> None:
     """Restore each root verb an implementation-module import shadowed.
 
     Importing a submodule writes it onto its parent package, so any import
-    that pulls in ``petta.define`` and its siblings replaces the root VERB
+    that pulls in ``metta.define`` and its siblings replaces the root VERB
     with the module object. This puts the verb back. A name with no verb is
     removed. During partial package initialization the verbs table is not
     bound yet; popping then would delete the verb with nothing to restore
-    it, which is how ``petta.define`` once vanished for the life of the
+    it, which is how ``metta.define`` once vanished for the life of the
     process, so the pass defers to the end-of-init sweep instead.
     """
     verbs = globals().get("_ROOT_IMPLEMENTATION_VERBS")
@@ -364,9 +244,9 @@ def run(source: str, **kwargs: _Any):
     return engine().self.run(source, **kwargs)
 
 
-def query(*patterns: _Any, **kwargs: _Any):
-    """Query the default context's self space."""
-    return engine().self.query(*patterns, **kwargs)
+def match(*patterns: _Any, **kwargs: _Any):
+    """Match patterns against the default context's self space."""
+    return engine().self.match(*patterns, **kwargs)
 
 
 def _ambient_space():
@@ -383,23 +263,6 @@ def superpose(*alternatives: _Any):
     """
     target = S.empty() if not alternatives else S.superpose(Expression(alternatives))
     return _ambient_space().answers(target)
-
-
-def match(*args: _Any):
-    """Evaluate a match expression against the ambient or named space.
-
-    ``match(pattern, template)`` supplies the ambient space. The three-argument
-    form keeps an explicit space first, matching the compiled-body form.
-    """
-    if len(args) == 2:
-        ambient = _ambient_space()
-        pattern, template = args
-        return ambient.answers(S.match(ambient, pattern, template))
-    if len(args) == 3:
-        source, pattern, template = args
-        return _ambient_space().answers(S.match(source, pattern, template))
-    msg = "match takes (pattern, template) or (space, pattern, template)"
-    raise TypeError(msg)
 
 
 def accept(atom: _Any = _OMITTED) -> Expression:
@@ -484,7 +347,6 @@ _ROOT_IMPLEMENTATION_VERBS = {
 
 __all__ = [
     "FALSE",
-    "HERE",
     "TRUE",
     "UNIT",
     "Answer",
@@ -498,7 +360,6 @@ __all__ = [
     "Handle",
     "MeTTa",
     "NotReducible",
-    "PeTTa",
     "PettaError",
     "S",
     "Space",
@@ -550,7 +411,6 @@ __all__ = [
     "parallel",
     "parse",
     "paths",
-    "query",
     "race",
     "reflection",
     "refuse",

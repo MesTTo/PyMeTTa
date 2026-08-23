@@ -22,10 +22,10 @@ instrument the twins lane and `example_parity` use one level up
 contract; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 
 The five buckets, and what each CLAIMS:
-  - `dissolves`: Python already has the concept, so there is no petta name at
+  - `dissolves`: Python already has the concept, so there is no metta name at
     all and the spelling is Python's own syntax, protocol or standard library
     (`e[0]`, `list()`, `assert`, `max`). Section 9e's first bucket.
-  - `method`: the concept is MeTTa's, so it wears a petta name
+  - `method`: the concept is MeTTa's, so it wears a metta name
     (`m.eval`, `space.query`, `atom.alpha_eq`). Section 9e's second bucket.
   - `instruction`: deep control that stays instruction-tier and is reached by
     building the term at the `S.` door and reducing it. Section 9e's third
@@ -78,7 +78,7 @@ Fails when:
 Decides:
   - the rendering rule, stated once so no row has to explain it: a value is
     rendered as the engine prints it, `str(atom)` for an atom and
-    `str(petta.ground(x))` for an opaque value. A Python LIST is a multiset of
+    `str(metta.ground(x))` for an opaque value. A Python LIST is a multiset of
     answers, one string per element, because `list()` is collapse; a Python
     TUPLE is one Expression atom, because a tuple encodes to `( )`
     [source: ai-python-first-revamp-discussion.md sections 9e and 9k]
@@ -161,13 +161,13 @@ def render(value: Any) -> tuple[str, ...]:
 
 
 def _one(value: Any) -> str:
-    import petta  # noqa: PLC0415  -- deferred so the lane imports without an engine
+    import metta  # noqa: PLC0415  -- deferred so the lane imports without an engine
 
-    if isinstance(value, petta.Atom):
+    if isinstance(value, metta.Atom):
         return alpha.canonical(str(value))
     if isinstance(value, tuple):
-        return alpha.canonical(str(petta.Expression(value)))
-    return alpha.canonical(str(petta.ground(value)))
+        return alpha.canonical(str(metta.Expression(value)))
+    return alpha.canonical(str(metta.ground(value)))
 
 
 #: What a row may spend before the lane calls it a runaway. No stdlib row is
@@ -176,7 +176,7 @@ FUEL = 2_000_000
 SECONDS = 10.0
 
 
-def petta_answers(engine: Any, entry: Entry, index: int, space: Any = None) -> tuple[str, ...]:
+def metta_answers(engine: Any, entry: Entry, index: int, space: Any = None) -> tuple[str, ...]:
     """The answers of the last `!` form of a row's MeTTa side, on this engine."""
     space = engine._new_space() if space is None else space
     source = entry.metta.replace(SPACE, f"{SPACE}{index}")
@@ -237,17 +237,17 @@ def python_value(engine: Any, source: str, space: Any = None) -> Any:
     doctest's own reading of a block: statements, and the last one's value is
     what the reader sees. `ast` decides which case it is rather than a regex.
     """
-    import petta  # noqa: PLC0415  -- deferred so the lane imports without an engine
+    import metta  # noqa: PLC0415  -- deferred so the lane imports without an engine
 
     tree = ast.parse(source)
     if not tree.body:
         message = "empty python spelling"
         raise ValueError(message)
     namespace: dict[str, Any] = {
-        "petta": petta,
+        "metta": metta,
         "m": engine,
-        "S": petta.S,
-        "V": petta.V,
+        "S": metta.S,
+        "V": metta.V,
         "space": engine._new_space() if space is None else space,
     }
     tail = tree.body[-1]
@@ -286,13 +286,13 @@ def quiet() -> Any:
 
 def measure(engine: Any, entry: Entry, index: int) -> dict[str, list[str] | None]:
     """What the two local sides answer now. Raises nothing: an error is text."""
-    seen: dict[str, list[str] | None] = {"petta": None, "python": None}
+    seen: dict[str, list[str] | None] = {"metta": None, "python": None}
     with quiet():
         if entry.metta is not None and entry.unrun is None:
             try:
-                seen["petta"] = list(petta_answers(engine, entry, index))
+                seen["metta"] = list(metta_answers(engine, entry, index))
             except Exception as error:  # noqa: BLE001
-                seen["petta"] = [f"RAISED {type(error).__name__}: {error}"]
+                seen["metta"] = [f"RAISED {type(error).__name__}: {error}"]
         if entry.python is not None:
             try:
                 seen["python"] = list(render(python_value(engine, entry.python)))
@@ -304,7 +304,7 @@ def measure(engine: Any, entry: Entry, index: int) -> dict[str, list[str] | None
 def compare(entry: Entry, frozen: dict[str, Any], seen: dict[str, Any]) -> list[str]:
     """Everything wrong with one row, named."""
     findings = []
-    for side in ("petta", "python"):
+    for side in ("metta", "python"):
         if seen[side] is None:
             continue
         if any(item.startswith("RAISED ") for item in seen[side]):
@@ -316,7 +316,7 @@ def compare(entry: Entry, frozen: dict[str, Any], seen: dict[str, Any]) -> list[
                 f"{frozen.get(side)}"
             )
     if entry.differs is None:
-        pair = [seen[side] for side in ("petta", "python") if seen[side] is not None]
+        pair = [seen[side] for side in ("metta", "python") if seen[side] is not None]
         if len(pair) == 2 and pair[0] != pair[1] and not any(
             item.startswith("RAISED ") for group in pair for item in group
         ):
@@ -338,7 +338,7 @@ def divergences(entries: list[Entry], answers: dict[str, Any]) -> list[str]:
     out = []
     for entry in entries:
         frozen = answers.get(entry.name, {})
-        oracle, here = frozen.get("leatta"), frozen.get("petta")
+        oracle, here = frozen.get("leatta"), frozen.get("metta")
         if oracle is None or here is None or oracle == here:
             continue
         out.append(f"{entry.name}: LeaTTa {oracle}, PeTTa {here}")
@@ -627,7 +627,7 @@ def _answer(frozen: dict[str, Any]) -> str:
     A phrasebook row is only interesting when they disagree, so the column
     labels the sides exactly then and stays quiet otherwise.
     """
-    sides = [(name, frozen.get(name)) for name in ("leatta", "petta", "python")]
+    sides = [(name, frozen.get(name)) for name in ("leatta", "metta", "python")]
     present = [(name, value) for name, value in sides if value is not None]
     if not present:
         return ""
@@ -681,7 +681,7 @@ def cost(engine: Any, entries: list[Entry]) -> list[tuple[str, int, int]]:
         # what reports the raise.
         with quiet():
             with engine.stats() as engine_side, contextlib.suppress(Exception):
-                petta_answers(engine, entry, index, metta_space)
+                metta_answers(engine, entry, index, metta_space)
             with engine.stats() as python_side, contextlib.suppress(Exception):
                 python_value(engine, entry.python, python_space)
         out.append(
@@ -779,9 +779,9 @@ def main(argv: list[str]) -> int:
     if drifted:
         findings["LeaTTa drift"] = drifted
 
-    import petta  # noqa: PLC0415  -- deferred so the lane imports without an engine
+    import metta  # noqa: PLC0415  -- deferred so the lane imports without an engine
 
-    engine = petta.MeTTa(petta_path=str(REPO)).self
+    engine = metta.MeTTa(petta_path=str(REPO)).self
     answers = json.loads(ANSWERS.read_text(encoding="utf-8")) if ANSWERS.is_file() else {}
 
     if arguments.cost:

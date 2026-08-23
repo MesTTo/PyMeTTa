@@ -90,7 +90,7 @@ def __getattr__(name: str):
     """SpaceComplianceSuite on demand.
 
     It is a pytest class, so importing it needs pytest at class-definition
-    time, and `import petta.testing` for the hypothesis strategies must not.
+    time, and `import metta.testing` for the hypothesis strategies must not.
     PEP 562 is what keeps both true: the name is in __all__ and resolves on
     first use, raising the installation guidance if pytest is not there.
     """
@@ -109,8 +109,8 @@ def __getattr__(name: str):
 def _st():
     hypothesis = require_module(
         "hypothesis",
-        "petta.testing generates atoms with hypothesis, which is not installed; "
-        "install petta[test]",
+        "metta.testing generates atoms with hypothesis, which is not installed; "
+        "install pymetta[test]",
     )
     return hypothesis.strategies
 
@@ -160,13 +160,13 @@ def numbers():
 def numpy_scalars():
     """NumPy integer and real scalar values accepted by PeTTa's Number type.
 
-    NumPy is optional. Install ``petta[arrays,test]`` before requesting this
+    NumPy is optional. Install ``pymetta[arrays,test]`` before requesting this
     strategy.
     """
     st = _st()
     np = require_module(
         "numpy",
-        "petta.testing.numpy_scalars requires numpy; install petta[arrays,test]",
+        "metta.testing.numpy_scalars requires numpy; install pymetta[arrays,test]",
     )
     return st.one_of(
         st.integers(-(2**31), 2**31 - 1).map(np.int32),
@@ -201,7 +201,7 @@ def atoms(max_leaves: int = 8, *, ground: bool = False):
     hypothesis's own size knob for the recursion.
 
         from hypothesis import given
-        from petta import testing
+        from metta import testing
 
         @given(testing.atoms())
         def test_my_translator_round_trips(atom):
@@ -260,7 +260,7 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
     `pytester`. Without it a downstream library learns its provider is wrong
     from a bug report.
 
-        from petta import testing
+        from metta import testing
 
         def test_my_provider_conforms():
             testing.check_space_provider(MyProvider(rows))
@@ -770,13 +770,13 @@ def check_twin(defined, cases) -> list[str]:
     Prolog instead. Either way the pair is a differential oracle, and this
     runs it:
 
-        from petta import testing
+        from metta import testing
 
         def test_the_fast_one_still_agrees():
             testing.check_twin(vec_dot, [((1, 2), (3, 4)), ((0,), (9,))])
 
     `cases` is an iterable of argument tuples. Drive it with hypothesis for
-    a real sweep; `petta.testing` exports the strategies the library fuzzes
+    a real sweep; `metta.testing` exports the strategies the library fuzzes
     itself with.
 
     A generator twin is compared answer by answer in order, since a

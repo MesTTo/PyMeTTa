@@ -385,7 +385,7 @@ def check_codec(driver: CodecDriver, *, corpus: dict | None = None) -> list[str]
     than the core profile is refused here rather than passing on a small one.
 
         def test_my_codec_conforms():
-            assert petta.testing.check_codec(MyDriver()) == []
+            assert metta.testing.check_codec(MyDriver()) == []
     """
     corpus = corpus or codec_corpus()
     core = set(corpus["profiles"]["core"]["tags"])

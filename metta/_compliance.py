@@ -87,7 +87,7 @@ from .foreign import Enumerable
 
 pytest = require_module(
     "pytest",
-    "petta.testing.SpaceComplianceSuite is a pytest suite; install pytest to "
+    "metta.testing.SpaceComplianceSuite is a pytest suite; install pytest to "
     "run it, or use check_space_provider(), which needs nothing",
 )
 
@@ -160,7 +160,7 @@ class SpaceComplianceSuite:
 
     Subclass it in your own test file and supply the provider:
 
-        from petta.testing import SpaceComplianceSuite
+        from metta.testing import SpaceComplianceSuite
 
         class TestDuckDBSpace(SpaceComplianceSuite):
             @pytest.fixture()
@@ -341,7 +341,7 @@ class SpaceComplianceSuite:
             pytest.skip("the provider holds no atoms to match")
         self.requires(provider, exercised, "match")
         for atom in stored[:8]:
-            assert space.query(atom), (
+            assert space.match(atom), (
                 f"the provider holds {atom!r} and matching it answered nothing"
             )
 
@@ -351,7 +351,7 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         same_shape = _same_shape(stored, atom)
-        assert len(space.query(open_pattern(atom))) >= len(same_shape)
+        assert len(space.match(open_pattern(atom))) >= len(same_shape)
 
     def test_a_bound_position_selects_whatever_the_provider_yielded(
         self, provider, exercised, space, stored
@@ -367,7 +367,7 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         pattern = open_pattern(atom, ground_prefix=1)
-        rows = space.query(pattern)
+        rows = space.match(pattern)
         wanted = [
             other
             for other in _same_shape(stored, atom)
@@ -402,7 +402,7 @@ class SpaceComplianceSuite:
         fold = Variable("pcfold")
         tail = open_pattern(atom).args[2:]
         pattern = Expression([atom.head, fold, fold, *tail])
-        rows = space.query(pattern)
+        rows = space.match(pattern)
         wanted = [
             other
             for other in _same_shape(stored, atom)
@@ -431,7 +431,7 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         left = open_pattern(atom)
-        assert space.query(left, Expression([atom.head, *left.args]))
+        assert space.match(left, Expression([atom.head, *left.args]))
 
     def test_a_claimed_join_answers_what_the_split_answers(
         self, provider, exercised, space, stored
@@ -451,10 +451,10 @@ class SpaceComplianceSuite:
         atom = self.shape_or_skip(stored)
         left = open_pattern(atom)
         right = Expression([atom.head, *left.args])
-        claimed = sorted(str(row) for row in space.query(left, right))
+        claimed = sorted(str(row) for row in space.match(left, right))
         with space._new_space() as native:
             native.add(*stored)
-            split = sorted(str(row) for row in native.query(left, right))
+            split = sorted(str(row) for row in native.match(left, right))
         assert claimed == split, (
             f"{type(provider).__name__} declares the plan capability and its "
             f"claim answered {claimed}, where the engine's own split over the "
@@ -480,9 +480,9 @@ class SpaceComplianceSuite:
         atom = self.restorable_or_skip(stored)[0]
         before = len(space.atoms()) if provider.can_run("enumerate") else None
         space.remove(atom)
-        assert not space.query(atom), "a removed atom still matched"
+        assert not space.match(atom), "a removed atom still matched"
         space.add(atom)
-        assert space.query(atom), "an added atom did not match"
+        assert space.match(atom), "an added atom did not match"
         if before is not None:
             assert len(space.atoms()) == before
 
@@ -502,10 +502,10 @@ class SpaceComplianceSuite:
         before = len(space.atoms()) if provider.can_run("enumerate") else None
         for atom in batch:
             space.remove(atom)
-            assert not space.query(atom), f"{atom!r} still matched after removal"
+            assert not space.match(atom), f"{atom!r} still matched after removal"
         space.add(*batch)
         for atom in batch:
-            assert space.query(atom), (
+            assert space.match(atom), (
                 f"{atom!r} went in as part of a batch and did not match"
             )
         if before is not None:
@@ -542,7 +542,7 @@ class SpaceComplianceSuite:
                 # way out, so `(= (m $x) ...)` comes back as
                 # `(= (m $_17586) ...)` and string equality would fail on a
                 # provider that kept it perfectly.
-                assert space.query(rule), (
+                assert space.match(rule), (
                     f"the space declares rules and did not keep {rule!r}; "
                     f"an equation it drops is one no later reader can find"
                 )
@@ -599,7 +599,7 @@ class SpaceComplianceSuite:
         about the provider, which is where a space that half implements the
         seam stops working.
 
-        Written as MeTTa source rather than through query(), because query()
+        Written as MeTTa source rather than through match(), because match()
         matches every pattern against ONE space and a cross-space join names
         the other space per conjunct.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -624,4 +624,4 @@ class SpaceComplianceSuite:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
-        assert len(space.query(open_pattern(atom), limit=1)) <= 1
+        assert len(space.match(open_pattern(atom), limit=1)) <= 1

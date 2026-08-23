@@ -55,7 +55,7 @@ _FAST_ERRORS = (
 )
 
 
-# policy-inventory-exempt: mechanism-internal; reason=rb and wt are the binary-read and UTF-8 text-write modes required by the gzip adapter; evidence=bindings/python/petta/_space_persistence.py:_open_maybe_gz
+# policy-inventory-exempt: mechanism-internal; reason=rb and wt are the binary-read and UTF-8 text-write modes required by the gzip adapter; evidence=bindings/python/metta/_space_persistence.py:_open_maybe_gz
 def _open_maybe_gz(path: str | os.PathLike[str], mode: Literal["rb", "wt"]):
     """Open gzip paths through gzip and all other paths through open()."""
     file = os.fspath(path)

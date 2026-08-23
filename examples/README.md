@@ -72,4 +72,4 @@ search, and retrieval are nondeterminism. Schemas are constructors with
 declarations. Structure is facts that rules match over. Subscriptions are
 standing queries. Closeness of any kind is matching logic a grounded value
 owns, its degrees riding as answer annotations. An integration maps a library onto those forms, and the toolkit in
-`petta.integrate` supports that mapping.
+`metta.integrate` supports that mapping.

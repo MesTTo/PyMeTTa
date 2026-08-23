@@ -124,7 +124,7 @@ def _encodable(value: str) -> str:
         msg = (
             f"this string cannot cross to the engine: it contains an unpaired "
             f"surrogate at position {exc.start}, which has no UTF-8 encoding. "
-            f"Repair the text, or carry it whole with petta.ground(text)."
+            f"Repair the text, or carry it whole with metta.ground(text)."
         )
         raise ValueError(
             msg
@@ -246,7 +246,7 @@ class Box:
 
     def __reduce__(self):
         msg = (
-            "a petta Box carries process-local object identity and cannot be "
+            "a metta Box carries process-local object identity and cannot be "
             "pickled; serialize the underlying value explicitly if identity "
             "is not part of its meaning"
         )
@@ -287,7 +287,7 @@ def boxed(value: Any) -> Box:
 # so a stored tensor prints its shape and dtype rather than an address.
 _OBJECT_REPRS: dict[type, Callable[[Any], str]] = {}
 
-# Private protocol dispatch supports the short petta.integrate.repr surface.
+# Private protocol dispatch supports the short metta.integrate.repr surface.
 _PROTOCOL_REPRS: list[tuple[Callable[[Any], bool], Callable[[Any], str]]] = []
 
 def register_object_repr(kind: type, fn: Callable[[Any], str]) -> None:
@@ -312,7 +312,7 @@ def unregister_object_repr(kind: type) -> None:
 def _register_protocol_repr(
     predicate: Callable[[Any], bool], fn: Callable[[Any], str]
 ) -> None:
-    """Register the implementation behind petta.integrate.register_repr."""
+    """Register the implementation behind metta.integrate.register_repr."""
     with _STATE_LOCK:
         _PROTOCOL_REPRS.append((predicate, fn))
 
@@ -1209,7 +1209,7 @@ def _apply_operator_lowering(
         operands = {"$left": left, "$right": right}
     form: Any = (
         (entry.form, *operands.values())
-        # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
+        # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=bindings/python/metta/_operator_lowerings.py:OperatorLowering
         if entry.kind in {"symbol", "provided"}
         else entry.form
     )
@@ -1228,7 +1228,7 @@ def _operator_method(  # noqa: C901  -- _operator_method keeps every specializat
     if name is None:
         msg = f"operator lowering {entry.dunder} has no reflected spelling"
         raise RuntimeError(msg)
-    # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=bindings/python/petta/_operator_lowerings.py:OperatorLowering
+    # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=bindings/python/metta/_operator_lowerings.py:OperatorLowering
     if entry.kind in {"symbol", "provided"}:
         if not isinstance(entry.form, str):
             msg = f"operator lowering {entry.dunder} has no symbol"
@@ -1418,7 +1418,7 @@ def _(value: Any) -> Atom:
 @_encode_value.register(list)
 def _(value: Any) -> Atom:
     # A Python sequence reads as an expression, which is what (1 2 3) is.
-    # To carry a list whole as one opaque value, wrap it: petta.ground([1, 2, 3]).
+    # To carry a list whole as one opaque value, wrap it: metta.ground([1, 2, 3]).
     return _expression_atoms(encode(v) for v in value)
 
 

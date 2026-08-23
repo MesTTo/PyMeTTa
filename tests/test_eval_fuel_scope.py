@@ -1,5 +1,5 @@
 """Purpose: prove m.eval honours the same evaluation bounds `!` honours.
-Assumes: a subprocess can import petta from the repository checkout; the probe
+Assumes: a subprocess can import metta from the repository checkout; the probe
   runs there rather than in-process because the defect this pins ABORTS the
   interpreter, and an aborted pytest worker is a worse diagnostic than a
   failed assertion.
@@ -34,7 +34,7 @@ _SETUP = (
 _PROBE = f"""
 import sys
 sys.path.insert(0, {str(REPO / "bindings" / "python")!r})
-from petta import MeTTa, S
+from metta import MeTTa, S
 
 metta = MeTTa().self
 metta.run({_SETUP!r})

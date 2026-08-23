@@ -25,7 +25,7 @@ Open Obligations:
 
 import pytest
 
-from petta import PettaError, S, V
+from metta import PettaError, S, V
 
 
 @pytest.fixture()
@@ -220,16 +220,16 @@ def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
                 S.copy(S.same),
                 S.layer(S.parent),
             ]))
-            assert [row.x for row in child.query(S.layer(V.x))] == [
+            assert [row.x for row in child.match(S.layer(V.x))] == [
                 S.child,
                 S.parent,
             ]
-            assert [(row.x, row.z) for row in child.query(
+            assert [(row.x, row.z) for row in child.match(
                 S.edge(V.x, V.y), S.edge(V.y, V.z)
             )] == [(S.a, S.c)]
             assert len(child) == 8
             assert child.run("!(space-atom-count (context-space))") == [[4]]
-            assert not parent.query(S.child_only(V.x))
+            assert not parent.match(S.child_only(V.x))
 
             parent.run("(= (layer-answer) parent)")
             assert child.run("!(layer-answer)") == [[S.parent]]
@@ -238,19 +238,19 @@ def test_a_child_space_reads_through_its_parent_and_writes_locally(metta):
             assert parent.run("!(layer-answer)") == [[S.parent]]
 
             assert child.remove(S.parent_only(1)) is False
-            assert parent.query(S.parent_only(1))
+            assert parent.match(S.parent_only(1))
             assert child.remove(V.any) is True
             assert child.run("!(space-atom-count (context-space))") == [[0]]
             assert child.remove(V.any) is False
-            assert child.query(S.parent_only(1))
+            assert child.match(S.parent_only(1))
             assert child.run("!(layer-answer)") == [[S.parent]]
             child.clear()
             assert len(child) == 5
             assert child.run("!(space-atom-count (context-space))") == [[0]]
-            assert child.query(S.parent_only(1))
-            assert parent.query(S.parent_only(1))
+            assert child.match(S.parent_only(1))
+            assert parent.match(S.parent_only(1))
 
-        assert parent.query(S.parent_only(1))
+        assert parent.match(S.parent_only(1))
 
 
 def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
@@ -261,7 +261,7 @@ def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
         with pytest.raises(PettaError, match="live child"):
             parent.drop()
         parent.add(S.still_live(1))
-        assert child.query(S.still_live(1))
+        assert child.match(S.still_live(1))
     finally:
         child.drop()
         parent.drop()
@@ -283,8 +283,8 @@ def test_a_recycled_child_name_may_choose_a_different_parent(drained):
     second_child = drained._new_space(inherits=second_parent)
     try:
         assert second_child.name == name
-        assert not second_child.query(S.from_parent(S.first))
-        assert second_child.query(S.from_parent(S.second))
+        assert not second_child.match(S.from_parent(S.first))
+        assert second_child.match(S.from_parent(S.second))
         assert second_child.run("!(parent-answer)") == [[S.second]]
     finally:
         second_child.drop()

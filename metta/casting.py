@@ -4,7 +4,7 @@ spelling, when the engine admits it as that type: the exact
 ('get-type' then 'get-metatype') acceptance the translator compiles
 for a typed argument position, run in the space's scope so its ':'
 declarations and &self's both answer. Protocol types registered
-through petta.integrate.register_object_type participate, which makes
+through metta.integrate.register_object_type participate, which makes
 this duck typing through the type system: an object satisfying the
 predicate casts to the protocol's name. A refused cast raises
 CastError naming the value's actual type candidates, the loud spelling

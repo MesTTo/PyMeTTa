@@ -22,7 +22,7 @@ Open Obligations:
 
 import pytest
 
-from petta.errors import EngineError
+from metta.errors import EngineError
 
 
 @pytest.fixture()

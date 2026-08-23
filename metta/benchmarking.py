@@ -1,4 +1,4 @@
-"""Purpose: reusable benchmark plumbing for petta and sibling packages.
+"""Purpose: reusable benchmark plumbing for metta and sibling packages.
 Guarantees:
   - benchmark_case uses fresh untimed setup for every counter sample,
     warmup, and timed round [tested test_benchmark_case_uses_fresh_state]

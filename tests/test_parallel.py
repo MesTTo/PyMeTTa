@@ -21,9 +21,9 @@ import threading
 
 import pytest
 
-from petta import S
-from petta.atoms import Expression
-from petta.errors import EngineError, TimeLimitError
+from metta import S
+from metta.atoms import Expression
+from metta.errors import EngineError, TimeLimitError
 
 SQUARE = "(= (par-sq $x) (* $x $x))"
 SPIN = "(= (par-spin $n) (if (> $n 0) (par-spin (- $n 1)) done))"

@@ -25,7 +25,7 @@ import threading
 
 import pytest
 
-from petta import (
+from metta import (
     Expression,
     S,
     V,
@@ -33,7 +33,7 @@ from petta import (
     ground,
     wire,
 )
-from petta.ops import registered
+from metta.ops import registered
 
 numpy = pytest.importorskip("numpy")
 pytest.importorskip("array_api_compat")
@@ -103,7 +103,7 @@ def test_ndarray_identity_through_space(am):  # noqa: D103  -- pytest discovers 
     array = numpy.arange(4.0)
     space = am._new_space()
     space.add(S.holds(ground(array)))
-    assert wire.decode(space.query(S.holds(V.a))[0].a) is array
+    assert wire.decode(space.match(S.holds(V.a))[0].a) is array
 
 
 def test_dltensor_is_a_protocol_type_the_engine_checks(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -242,7 +242,7 @@ def test_embedding_store_replaces_duplicate_keys_and_owns_vectors(metta):  # noq
         assert len(store) == 1
         assert store.keys() == [S.same]
         assert store.vector_for(S.same).tolist() == [0.0, 1.0]
-        assert len(space.query(S.embedding(S.same, V.vector))) == 1
+        assert len(space.match(S.embedding(S.same, V.vector))) == 1
 
 
 @pytest.mark.parametrize(

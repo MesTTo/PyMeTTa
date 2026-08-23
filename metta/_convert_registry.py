@@ -98,7 +98,7 @@ def register_type(
 ) -> type:
     """Teach the translator one type, pytree-style.
 
-        petta.convert.register_type(
+        metta.convert.register_type(
             Person,
             image="expression",
             to_atom=lambda p: (p.name, p.age),

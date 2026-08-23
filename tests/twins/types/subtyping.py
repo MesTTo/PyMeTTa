@@ -14,7 +14,7 @@ The edge itself still has to be written as an atom, because a Python subclass
 declares no `:<` (filed as friction, and it is the natural door).
 """
 
-from petta import S, V, arrow, ground, typed
+from metta import S, V, arrow, ground, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

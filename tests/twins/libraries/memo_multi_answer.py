@@ -11,7 +11,7 @@ reverses the order the clauses answer in, and answer order is unspecified while
 multiplicity is not, so the set is what the claim can be about.
 """
 
-from petta import S, equation, rules
+from metta import S, equation, rules
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

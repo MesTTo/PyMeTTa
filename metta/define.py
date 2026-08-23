@@ -160,7 +160,7 @@ def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]: 
         if isinstance(node, ast.Subscript):
             target = resolve(node.value)
             target_module = getattr(target, "__module__", "")
-            # policy-inventory-exempt: mechanism-internal; reason=only these three modules define the subscripts that are typing constructors, so subscripting anything else would run user code while resolving an annotation; evidence=bindings/python/petta/define.py:_annotation_resolver
+            # policy-inventory-exempt: mechanism-internal; reason=only these three modules define the subscripts that are typing constructors, so subscripting anything else would run user code while resolving an annotation; evidence=bindings/python/metta/define.py:_annotation_resolver
             if target_module not in {"builtins", "typing", "collections.abc"}:
                 msg = (
                     f"the local annotation {ast.unparse(node)!r} would execute "

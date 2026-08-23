@@ -14,7 +14,7 @@ claim below is that reading, so the divergence is checked rather than
 described, and the residue table records it against P14.4.
 """
 
-from petta import S, V
+from metta import S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
@@ -41,5 +41,5 @@ def twin(m):
 
     assert fac_f(10) == [3628800]
 
-    condition = m.query(S["="](S.facF(V.n), V.body)).one().body[1]
+    condition = m.match(S["="](S.facF(V.n), V.body)).one().body[1]
     assert condition[0] == S["py-eq"]

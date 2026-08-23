@@ -17,7 +17,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from benchmarks.pure import _CASES
-from petta.testing import BenchmarkBaseline, measure_instructions
+from metta.testing import BenchmarkBaseline, measure_instructions
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -236,8 +236,8 @@ def _project_registered(value: Any, cls: type, registration: _Registration) -> P
         msg = (
             f"{cls.__name__} is registered with the operations image: its "
             f"behaviour crosses as registered operations, not as data. Use "
-            f"petta.integrate.wrap_object to register its methods, and carry "
-            f"the instance with petta.ground."
+            f"metta.integrate.wrap_object to register its methods, and carry "
+            f"the instance with metta.ground."
         )
         raise TypeError(
             msg

@@ -33,7 +33,7 @@ from fractions import Fraction
 
 import pytest
 
-from petta import (
+from metta import (
     Expression,
     Grounded,
     S,
@@ -47,8 +47,8 @@ from petta import (
     unify,
     wire,
 )
-from petta import _atoms_core as _core
-from petta.atoms import (
+from metta import _atoms_core as _core
+from metta.atoms import (
     _NAMESPACE_CACHE_MAX,
     _WIRE_CACHE_MAX,
     _WIRE_SYMS,

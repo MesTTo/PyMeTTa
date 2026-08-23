@@ -117,7 +117,7 @@ def test_the_source_scan_catches_a_planted_string(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""A docstring mentioning (f a) is not a finding."""\n'
-        "from petta import S\n"
+        "from metta import S\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
         '    m.run("(= (f) 42) !(f)")\n'
@@ -154,11 +154,11 @@ def test_a_name_and_marked_data_are_not_programs(tmp_path):
     allowed = tmp_path / "allowed.py"
     allowed.write_text(
         '"""Allowed."""\n'
-        "import petta\n"
-        "from petta import S, ground\n"
+        "import metta\n"
+        "from metta import S, ground\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
-        '    kb = petta.space("&kb")\n'
+        '    kb = metta.space("&kb")\n'
         '    assert kb.eval(S["sread-command"](ground("(f a)"))) == []\n'
         '    assert kb.eval(S["#>="](1, 2)) == [True]\n'
         '    assert kb.eval(m.fn["xor"](True, False)) == [True]\n'
@@ -176,7 +176,7 @@ def test_printing_text_is_not_forced_through_the_value_carrier(tmp_path):
     printing = tmp_path / "printing.py"
     printing.write_text(
         '"""Printing."""\n'
-        "from petta import S, ground\n"
+        "from metta import S, ground\n"
         "BUDGET = 1\n"
         'PRINTED = ((S.a, "a"), (S.b, "b"))\n'
         "def twin(m):\n"
@@ -279,14 +279,14 @@ LANDED_DOORS = (
     '"""Purpose: every landed door, once."""\n'
     "import math\n"
     "import operator\n"
-    "import petta\n"
-    "from petta import (\n"
-    "    FALSE, HERE, TRUE, UNIT, Expression, G, S, State, V,\n"
+    "import metta\n"
+    "from metta import (\n"
+    "    FALSE, TRUE, UNIT, Expression, G, S, State, V,\n"
     "    and_, arrow, equation, ground, if_, in_, not_, or_, solve, typed,\n"
     ")\n"
     "BUDGET = 1\n"
     "def twin(m):\n"
-    '    kb = petta.space("&doors")\n'
+    '    kb = metta.space("&doors")\n'
     "    kb += (S.Parent, S.Tom, S.Bob)\n"
     '    kb += ground({"port": 80})\n'
     "    kb += G(1) + 2\n"
@@ -312,7 +312,7 @@ LANDED_DOORS = (
     '    assert m.fn["=="](1, 1) == [True]\n'
     "    assert str(m.fn.repr(S.a)) is not None\n"
     "    assert m.type(S.Tom) is not None\n"
-    "    assert m.solve(S.Parent(S.Tom, V.child), HERE) is not None\n"
+    "    assert m.solve(S.Parent(S.Tom, V.child), S['context-space']()) is not None\n"
     "    assert solve(4, V.x - 1) is not None\n"
     "    assert typed(S.f, arrow(int, int)) is not None\n"
     "    assert if_(V.n > 0, S.yes, S.no) is not None\n"
@@ -355,8 +355,8 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "import petta\n"
-        "from petta import Expr, S, alpha_eq, sym, val, var\n"
+        "import metta\n"
+        "from metta import Expr, S, alpha_eq, sym, val, var\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
         '    kb = m.new_space("&kb")\n'
@@ -369,7 +369,7 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
         '    assert sym("f") == var("f")\n'
         "    assert alpha_eq(S.a, S.a)\n"
         "    assert Expr is not None\n"
-        "    assert petta.record is not None\n",
+        "    assert metta.record is not None\n",
         encoding="utf-8",
     )
     findings = "\n".join(coverage.retired(planted))
@@ -379,7 +379,7 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
         ("sym", "write S[...] or S.name"),
         ("val", "write ground(...) or G(...)"),
         ("var", "write V[...] or V.name"),
-        ("new_space", "write petta.space(name)"),
+        ("new_space", "write metta.space(name)"),
         ("register_op", "write space.op(...)"),
         ("space_name", "write space.name"),
         ("record", "write @space.define on the class"),
@@ -403,7 +403,7 @@ def test_an_exact_bracket_spelling_is_not_the_attribute_one(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, V\n"
+        "from metta import S, V\n"
         "def twin(m):\n"
         '    m += S["my_var"]\n'
         '    m += V["_"]\n'
@@ -794,7 +794,7 @@ def test_the_idiom_check_catches_a_planted_transliteration(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import Expression, S, V\n"
+        "from metta import Expression, S, V\n"
         "def twin(m):\n"
         '    m += Expression((S["="], Expression((S["f"], V["x"])), 1))\n',
         encoding="utf-8",
@@ -816,7 +816,7 @@ def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_pa
     outside = tmp_path / "outside.py"
     outside.write_text(
         '"""Doc."""\n'
-        "from petta import S, V\n"
+        "from metta import S, V\n"
         "def twin(m):\n"
         '    m += S["+"](V.a, V.b)\n',
         encoding="utf-8",
@@ -826,7 +826,7 @@ def test_an_operator_head_is_a_finding_only_where_an_operator_would_build(tmp_pa
     inside = tmp_path / "inside.py"
     inside.write_text(
         '"""Doc."""\n'
-        "from petta import S, V\n"
+        "from metta import S, V\n"
         "def twin(m):\n"
         "    @m.define\n"
         "    def add(a, b):\n"
@@ -852,7 +852,7 @@ def test_a_rules_body_carries_literals_but_lowers_no_operator(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, equation\n"
+        "from metta import S, equation\n"
         "def twin(m):\n"
         "    @m.rules\n"
         "    def laws(x, y):\n"
@@ -873,7 +873,7 @@ def test_a_term_may_name_a_head_that_shares_a_source_doors_name(tmp_path):
     planted = tmp_path / "head.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, ground\n"
+        "from metta import S, ground\n"
         "def twin(m):\n"
         "    assert m.eval(S.parse(ground('(f a)'))) == []\n"
         "    assert m.eval(m.fn.parse(ground('(f a)'))) == []\n",
@@ -899,7 +899,7 @@ def test_a_declared_rung_is_a_documented_drop_rather_than_a_finding(tmp_path):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     body = (
         '"""Doc."""\n'
-        "from petta import Expression, S, V\n"
+        "from metta import Expression, S, V\n"
         "%s"
         "def twin(m):\n"
         '    m += Expression((S["="], Expression((S["f"], V["x"])), 1))\n'
@@ -928,7 +928,7 @@ def test_a_line_may_state_its_own_rung(tmp_path):
     planted = tmp_path / "line.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S\n"
+        "from metta import S\n"
         "def twin(m):\n"
         '    m += S["f"](1)  # rung: the head is built by a caller that needs the string\n'
         '    m += S["g"](2)\n',
@@ -949,7 +949,7 @@ def test_a_dissolved_head_names_the_python_spelling_it_replaces(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S, V\n"
+        "from metta import S, V\n"
         "def twin(m):\n"
         "    m += S['add-atom'](S['&self'], S.fact(1))\n"
         "    assert m.eval(S.test(S.f(1), 1)) == []\n",
@@ -971,7 +971,7 @@ def test_an_engine_function_may_be_named_with_an_ampersand(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S\n"
+        "from metta import S\n"
         "def twin(m):\n"
         '    assert list(m.fn["&&&"](S["+"](2), S["*"](2), 1)) == [3, 2]\n'
         '    m += S["&self"]\n',
@@ -991,7 +991,7 @@ def test_a_yielding_twin_is_a_finding(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S\n"
+        "from metta import S\n"
         "def twin(m):\n"
         "    @m.define\n"
         "    def colour():\n"
@@ -1003,7 +1003,7 @@ def test_a_yielding_twin_is_a_finding(tmp_path):
 
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import S\n"
+        "from metta import S\n"
         "def twin(m):\n"
         "    yield m.eval(S.f(1))\n",
         encoding="utf-8",
@@ -1020,10 +1020,10 @@ def test_a_variable_headed_expression_keeps_its_only_spelling(tmp_path):
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "from petta import Expression, S, V\n"
+        "from metta import Expression, S, V\n"
         "def twin(m):\n"
-        "    assert list(m.query(Expression((V.x,)))) == []\n"
-        "    assert list(m.query(V.x)['x']) == []\n",
+        "    assert list(m.match(Expression((V.x,)))) == []\n"
+        "    assert list(m.match(V.x)['x']) == []\n",
         encoding="utf-8",
     )
     assert coverage.scan(planted) == []

@@ -2,7 +2,7 @@
 space the same way, by answering a MeTTa `(Error ...)` atom that names itself
 and the call, rather than raising an engine exception.
 Assumes:
-  - `petta.MeTTa.run` answers an `(Error ...)` atom as data, so a refusal is
+  - `metta.MeTTa.run` answers an `(Error ...)` atom as data, so a refusal is
     readable without a `pytest.raises` [tested
     test_get_atoms_on_an_unbound_space_names_the_operation]
 Guarantees:
@@ -22,7 +22,7 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa, S
+from metta import MeTTa, S
 
 
 @pytest.fixture()

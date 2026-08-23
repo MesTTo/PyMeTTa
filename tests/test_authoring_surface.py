@@ -23,7 +23,7 @@ Open Obligations:
 
 import pytest
 
-from petta import (
+from metta import (
     Atom,
     Expression,
     S,
@@ -31,7 +31,7 @@ from petta import (
     equation,
     rules,
 )
-from petta.errors import CompileError, EngineError
+from metta.errors import CompileError, EngineError
 
 
 def test_calling_a_defined_object_evaluates_and_an_unmatched_call_answers_itself(

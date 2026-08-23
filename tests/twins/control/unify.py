@@ -6,7 +6,7 @@ operands cross unevaluated, all four arguments are typed Atom, and only the
 selected branch runs.
 
 `unify` keeps MeTTa's name because Python has no expression that matches two
-terms and chooses a branch: `petta.unify(pattern, atom)` answers bindings on
+terms and chooses a branch: `metta.unify(pattern, atom)` answers bindings on
 atoms Python already holds, which is a different act, and the four-argument
 form the ledger designs is not built yet. What does move into Python is
 everything around it: a stored marker is asked for with `in`, which IS match
@@ -28,7 +28,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, ground
+from metta import Expression, S, V, ground
 
 #: The two strings the ground decisions compare, carried whole.
 STRING_X, STRING_Y = ground("x"), ground("y")

@@ -1,7 +1,7 @@
-"""Purpose: `python -m petta` subcommands, the stdlib "Command-line
+"""Purpose: `python -m metta` subcommands, the stdlib "Command-line
 usage" chapter for the installed wheel: run a program, talk to a repl,
 serve spaces, boot a manifest, lint a file, and read documentation, all
-without a checkout. The bare `petta` console script keeps upstream's
+without a checkout. The bare `metta` console script keeps upstream's
 swipl-launcher contract exactly; the subcommands live here, on the
 library engine.
 Guarantees:
@@ -86,7 +86,7 @@ def _forms(interactive: bool):  # noqa: FBT001  -- the boolean is established AP
     in_string = False
     has_content = False
     while True:
-        prompt = ("petta> " if not lines else "  ...> ") if interactive else ""
+        prompt = ("metta> " if not lines else "  ...> ") if interactive else ""
         try:
             line = input(prompt)
         except EOFError:
@@ -211,10 +211,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
 
     parser = argparse.ArgumentParser(
-        prog="python -m petta",
+        prog="python -m metta",
         description="PeTTa's command-line surface on the library engine.",
     )
-    parser.add_argument("--version", action="version", version=f"petta {__version__}")
+    parser.add_argument("--version", action="version", version=f"metta {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
 
     run = commands.add_parser("run", help="run MeTTa files and print each ! answer group")

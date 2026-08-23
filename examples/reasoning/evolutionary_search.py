@@ -12,7 +12,7 @@ import random
 
 from _common import check, done
 
-from petta import MeTTa, S, V, Expression, wire
+from metta import MeTTa, S, V, Expression, wire
 
 random.seed(11)
 TARGET = [1, 0, 1, 1, 0, 1, 0, 1]
@@ -43,7 +43,7 @@ def breed(a, b):
 
 @m.op(name="next-generation")
 def next_generation() -> bool:
-    rows = m.query(S.member(V.i, V.g))
+    rows = m.match(S.member(V.i, V.g))
     scored = sorted(rows, key=lambda r: -fitness(r.g))
     parents = [r.g for r in scored[: len(scored) // 2]]
     m.run("!(match (context-space) (member $i $g) (remove-atom (context-space) (member $i $g)))")
@@ -66,7 +66,7 @@ m.run(
 (group,) = m.run("!(evolve! 0)")
 (outcome,) = group
 check("outcome", outcome[0] in (S.Perfect, S.Stopped))
-check("population intact", len(m.query(S.member(V.i, V.g))), 16)
+check("population intact", len(m.match(S.member(V.i, V.g))), 16)
 best = m.run("!(best)")
 check("evolution improved the best genome", best[0][0] >= 7)
 done("evolutionary_search")

@@ -21,7 +21,8 @@ that has no compiled spelling:
 stored body: the space the equation runs in, resolved when it runs.
 """
 
-from petta import HERE, UNIT, S, V, equation, fn, if_
+from metta import UNIT, S, V, equation, fn, if_
+from metta.atoms import _HERE as HERE
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

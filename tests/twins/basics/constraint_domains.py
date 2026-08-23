@@ -38,7 +38,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import TRUE, S, V, equation, fn, if_
+from metta import TRUE, S, V, equation, fn, if_
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

@@ -4,7 +4,7 @@
    "2"
   ],
   "metta_inferences": 821,
-  "petta": [
+  "metta": [
    "2"
   ],
   "python": [
@@ -17,7 +17,7 @@
    "(f 1)"
   ],
   "metta_inferences": 1217,
-  "petta": [
+  "metta": [
    "(f 1)"
   ],
   "python": [
@@ -30,7 +30,7 @@
    "12"
   ],
   "metta_inferences": 814,
-  "petta": [
+  "metta": [
    "12"
   ],
   "python": [
@@ -43,7 +43,7 @@
    "3"
   ],
   "metta_inferences": 814,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -56,7 +56,7 @@
    "3"
   ],
   "metta_inferences": 814,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -69,7 +69,7 @@
    "(-> Number Number)"
   ],
   "metta_inferences": 2609,
-  "petta": [
+  "metta": [
    "(-> Number Number)"
   ],
   "python": [
@@ -82,7 +82,7 @@
    "3"
   ],
   "metta_inferences": 815,
-  "petta": [
+  "metta": [
    "3.5"
   ],
   "python": [
@@ -100,7 +100,7 @@
    "True"
   ],
   "metta_inferences": 814,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -113,7 +113,7 @@
    "True"
   ],
   "metta_inferences": 822,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -126,7 +126,7 @@
    "2"
   ],
   "metta_inferences": 2318,
-  "petta": [
+  "metta": [
    "2"
   ],
   "python": [
@@ -138,7 +138,7 @@
   "leatta": [
    "(-> $t#0 $t#0 %Undefined%)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "==": {
@@ -146,7 +146,7 @@
    "True"
   ],
   "metta_inferences": 980,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -159,7 +159,7 @@
    "True"
   ],
   "metta_inferences": 982,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -172,7 +172,7 @@
    "True"
   ],
   "metta_inferences": 814,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -185,7 +185,7 @@
    "False"
   ],
   "metta_inferences": 823,
-  "petta": [
+  "metta": [
    "False"
   ],
   "python": [
@@ -198,7 +198,7 @@
    "(@desc \"adds one\")"
   ],
   "metta_inferences": 649,
-  "petta": [
+  "metta": [
    "(@desc \"adds one\")"
   ],
   "python": [
@@ -211,7 +211,7 @@
    "(@doc pbf (@desc \"adds one\"))"
   ],
   "metta_inferences": 864,
-  "petta": [
+  "metta": [
    "(@doc pbf (@desc \"adds one\"))"
   ],
   "python": [
@@ -224,7 +224,7 @@
    "(@doc-formal (@item pbf) (@kind function) (@type (-> Number Number)) (@desc \"adds one\"))"
   ],
   "metta_inferences": 1808,
-  "petta": [
+  "metta": [
    "(@doc-formal (@item pbf) (@kind function) (@type (-> Number Number)) (@desc \"adds one\"))"
   ],
   "python": [
@@ -237,7 +237,7 @@
    "(@item pbf)"
   ],
   "metta_inferences": 612,
-  "petta": [
+  "metta": [
    "(@item pbf)"
   ],
   "python": [
@@ -250,7 +250,7 @@
    "(@param \"the addend\")"
   ],
   "metta_inferences": 673,
-  "petta": [
+  "metta": [
    "(@param \"the addend\")"
   ],
   "python": [
@@ -263,7 +263,7 @@
    "(@params ((@param \"the addend\")))"
   ],
   "metta_inferences": 913,
-  "petta": [
+  "metta": [
    "(@params ((@param \"the addend\")))"
   ],
   "python": [
@@ -276,7 +276,7 @@
    "(@return \"the sum\")"
   ],
   "metta_inferences": 657,
-  "petta": [
+  "metta": [
    "(@return \"the sum\")"
   ],
   "python": [
@@ -289,7 +289,7 @@
    "(@type Number)"
   ],
   "metta_inferences": 636,
-  "petta": [
+  "metta": [
    "(@type Number)"
   ],
   "python": [
@@ -301,14 +301,14 @@
   "leatta": [
    "(-> Number Type Type ErrorDescription)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "BadType": {
   "leatta": [
    "(-> Type Type ErrorDescription)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "Error": {
@@ -316,7 +316,7 @@
    "(Error a b)"
   ],
   "metta_inferences": 670,
-  "petta": [
+  "metta": [
    "(Error a b)"
   ],
   "python": [
@@ -329,7 +329,7 @@
    "ErrorType"
   ],
   "metta_inferences": 1182,
-  "petta": [
+  "metta": [
    "ErrorType"
   ],
   "python": [
@@ -341,42 +341,42 @@
   "leatta": [
    "ErrorDescription"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "Pair": {
   "leatta": [
    "%Undefined%"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "PairType": {
   "leatta": [
    "%Undefined%"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "SpaceType": {
   "leatta": [
    "SpaceType"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "TP": {
   "leatta": [
    "Type"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "TU": {
   "leatta": [
    "(-> Type Type)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "abs-math": {
@@ -384,7 +384,7 @@
    "3"
   ],
   "metta_inferences": 766,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -397,7 +397,7 @@
    "0.0"
   ],
   "metta_inferences": 777,
-  "petta": [
+  "metta": [
    "0.0"
   ],
   "python": [
@@ -410,7 +410,7 @@
    "(f 1)"
   ],
   "metta_inferences": 1986,
-  "petta": [
+  "metta": [
    "(f 1)"
   ],
   "python": [
@@ -424,7 +424,7 @@
    "(f 2)"
   ],
   "metta_inferences": 2245,
-  "petta": [
+  "metta": [
    "(f 1)",
    "(f 2)"
   ],
@@ -439,7 +439,7 @@
    "(total 3)"
   ],
   "metta_inferences": 2218,
-  "petta": [
+  "metta": [
    "(total (+ 1 2))"
   ],
   "python": [
@@ -453,7 +453,7 @@
    "(total 4)"
   ],
   "metta_inferences": 2694,
-  "petta": [
+  "metta": [
    "(total (+ 1 2))",
    "(total (+ 2 2))"
   ],
@@ -468,7 +468,7 @@
    "False"
   ],
   "metta_inferences": 867,
-  "petta": [
+  "metta": [
    "False"
   ],
   "python": [
@@ -481,7 +481,7 @@
    "0.0"
   ],
   "metta_inferences": 775,
-  "petta": [
+  "metta": [
    "0.0"
   ],
   "python": [
@@ -494,7 +494,7 @@
    "()"
   ],
   "metta_inferences": 1073,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -507,7 +507,7 @@
    "()"
   ],
   "metta_inferences": 1496,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -520,7 +520,7 @@
    "()"
   ],
   "metta_inferences": 1671,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -533,7 +533,7 @@
    "()"
   ],
   "metta_inferences": 1539,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -546,7 +546,7 @@
    "()"
   ],
   "metta_inferences": 1717,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -559,7 +559,7 @@
    "()"
   ],
   "metta_inferences": 1615,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -572,7 +572,7 @@
    "()"
   ],
   "metta_inferences": 1760,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -585,7 +585,7 @@
    "()"
   ],
   "metta_inferences": 1647,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -598,7 +598,7 @@
    "()"
   ],
   "metta_inferences": 1793,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -611,7 +611,7 @@
    "()"
   ],
   "metta_inferences": 1561,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -624,7 +624,7 @@
    "0.0"
   ],
   "metta_inferences": 775,
-  "petta": [
+  "metta": [
    "0.0"
   ],
   "python": [
@@ -636,7 +636,7 @@
   "leatta": [
    "(f a)"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "(f a)"
   ]
@@ -646,7 +646,7 @@
    "(f 1)"
   ],
   "metta_inferences": 2010,
-  "petta": [
+  "metta": [
    "(f 1)"
   ],
   "python": [
@@ -658,14 +658,14 @@
   "leatta": [
    "strategy-bottomup-root"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "capture": {
   "leatta": [
    "3"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "car-atom": {
@@ -673,7 +673,7 @@
    "a"
   ],
   "metta_inferences": 882,
-  "petta": [
+  "metta": [
    "a"
   ],
   "python": [
@@ -686,7 +686,7 @@
    "two"
   ],
   "metta_inferences": 1140,
-  "petta": [
+  "metta": [
    "two"
   ],
   "python": [
@@ -698,7 +698,7 @@
   "leatta": [
    "two"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "cdr-atom": {
@@ -706,7 +706,7 @@
    "(b c)"
   ],
   "metta_inferences": 891,
-  "petta": [
+  "metta": [
    "(b c)"
   ],
   "python": [
@@ -719,7 +719,7 @@
    "3.0"
   ],
   "metta_inferences": 789,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -732,7 +732,7 @@
    "(foo 3)"
   ],
   "metta_inferences": 1159,
-  "petta": [
+  "metta": [
    "(foo 3)"
   ],
   "python": [
@@ -745,7 +745,7 @@
    "2"
   ],
   "metta_inferences": 1613,
-  "petta": [
+  "metta": [
    "2"
   ],
   "python": [
@@ -758,7 +758,7 @@
    "(a b)"
   ],
   "metta_inferences": 903,
-  "petta": [
+  "metta": [
    "(a b)"
   ],
   "python": [
@@ -770,7 +770,7 @@
   "leatta": [
    "((a (bindings)) (b (bindings)))"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "cons-atom": {
@@ -778,7 +778,7 @@
    "(f a b)"
   ],
   "metta_inferences": 905,
-  "petta": [
+  "metta": [
    "(f a b)"
   ],
   "python": [
@@ -791,7 +791,7 @@
    "(f 1)"
   ],
   "metta_inferences": 1695,
-  "petta": [
+  "metta": [
    "(f 1)"
   ],
   "python": [
@@ -804,7 +804,7 @@
    "1.0"
   ],
   "metta_inferences": 767,
-  "petta": [
+  "metta": [
    "1.0"
   ],
   "python": [
@@ -817,7 +817,7 @@
    "(f (a b))"
   ],
   "metta_inferences": 926,
-  "petta": [
+  "metta": [
    "(f (a b))"
   ],
   "python": [
@@ -829,7 +829,7 @@
   "leatta": [
    "-4"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "-4"
   ]
@@ -838,7 +838,7 @@
   "leatta": [
    "-4"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "-4"
   ]
@@ -847,7 +847,7 @@
   "leatta": [
    "-3"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "-3"
   ]
@@ -857,7 +857,7 @@
    "3"
   ],
   "metta_inferences": 943,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -869,14 +869,14 @@
   "leatta": [
    "3"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "eval-via-unify": {
   "leatta": [
    "3"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "evalc": {
@@ -884,7 +884,7 @@
    "3"
   ],
   "metta_inferences": 1072,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -897,7 +897,7 @@
    "(2 3)"
   ],
   "metta_inferences": 1485,
-  "petta": [
+  "metta": [
    "(2 3)"
   ],
   "python": [
@@ -910,7 +910,7 @@
    "2.0"
   ],
   "metta_inferences": 797,
-  "petta": [
+  "metta": [
    "2"
   ],
   "python": [
@@ -923,7 +923,7 @@
    "6"
   ],
   "metta_inferences": 1560,
-  "petta": [
+  "metta": [
    "6"
   ],
   "python": [
@@ -936,7 +936,7 @@
    "()"
   ],
   "metta_inferences": 2190,
-  "petta": [
+  "metta": [
    "(() ())"
   ],
   "python": [
@@ -948,7 +948,7 @@
   "leatta": [
    "(f 1)"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "(f 1)"
   ]
@@ -958,7 +958,7 @@
    "\"a and b\""
   ],
   "metta_inferences": 1167,
-  "petta": [
+  "metta": [
    "\"a and b\""
   ],
   "python": [
@@ -970,7 +970,7 @@
   "leatta": [
    "5"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "fuzzy-match": {
@@ -978,21 +978,21 @@
    "(fuzzy-result (cost 0) (f a))",
    "(fuzzy-result (cost 1) (f b))"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "fuzzy-match-context": {
   "leatta": [
    "(fuzzy-result (cost 0 0 0 0) (f a))"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "fuzzy-match-space": {
   "leatta": [
    "(fuzzy-result (cost 0 0 0) (f a))"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "get-atoms": {
@@ -1000,7 +1000,7 @@
    "(f 1)"
   ],
   "metta_inferences": 1986,
-  "petta": [
+  "metta": [
    "(f 1)"
   ],
   "python": [
@@ -1013,7 +1013,7 @@
    "(@doc-formal (@item +) (@kind function) (@type (-> Number Number Number)) (@desc \"Sums two numbers\") (@params ((@param (@type Number) (@desc \"Addend\")) (@param (@type Number) (@desc \"Augend\")))) (@return (@type Number) (@desc \"Sum\")))"
   ],
   "metta_inferences": 1473,
-  "petta": [],
+  "metta": [],
   "python": [
    "\"Make a title into a slug.\""
   ],
@@ -1024,7 +1024,7 @@
    "Expression"
   ],
   "metta_inferences": 716,
-  "petta": [
+  "metta": [
    "Expression"
   ],
   "python": [
@@ -1037,7 +1037,7 @@
    "5"
   ],
   "metta_inferences": 1228,
-  "petta": [
+  "metta": [
    "5"
   ],
   "python": [
@@ -1050,7 +1050,7 @@
    "Number"
   ],
   "metta_inferences": 874,
-  "petta": [
+  "metta": [
    "Number"
   ],
   "python": [
@@ -1063,7 +1063,7 @@
    "Number"
   ],
   "metta_inferences": 1234,
-  "petta": [
+  "metta": [
    "Number"
   ],
   "python": [
@@ -1076,7 +1076,7 @@
    "Grounded"
   ],
   "metta_inferences": 713,
-  "petta": [
+  "metta": [
    "Grounded"
   ],
   "python": [
@@ -1088,21 +1088,21 @@
   "leatta": [
    "Grounded"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "gtry": {
   "leatta": [
    "a"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "help!": {
   "leatta": [
    "()"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "\"adds one\""
   ]
@@ -1112,7 +1112,7 @@
    "5"
   ],
   "metta_inferences": 682,
-  "petta": [
+  "metta": [
    "5"
   ],
   "python": [
@@ -1125,7 +1125,7 @@
    "a"
   ],
   "metta_inferences": 659,
-  "petta": [
+  "metta": [
    "a"
   ],
   "python": [
@@ -1137,7 +1137,7 @@
   "leatta": [
    "(yes a (b))"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "(yes a (b))"
   ]
@@ -1147,7 +1147,7 @@
    "yes"
   ],
   "metta_inferences": 1217,
-  "petta": [
+  "metta": [
    "yes"
   ],
   "python": [
@@ -1160,7 +1160,7 @@
    "yes"
   ],
   "metta_inferences": 1362,
-  "petta": [
+  "metta": [
    "yes"
   ],
   "python": [
@@ -1173,7 +1173,7 @@
    "a"
   ],
   "metta_inferences": 8367,
-  "petta": [
+  "metta": [
    "a"
   ],
   "python": [
@@ -1185,14 +1185,14 @@
   "leatta": [
    "(Error (import-into! &space-#0 (library lib_he)) import-into!: module must be a symbol)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "import-item!": {
   "leatta": [
    "(Error (import-item! &self (library lib_he) unify) import-item! expects (import-item! <dest> <module> <item>))"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "include": {
@@ -1200,7 +1200,7 @@
    "Grounded"
   ],
   "metta_inferences": 681,
-  "petta": [
+  "metta": [
    "Grounded"
   ],
   "python": [
@@ -1213,7 +1213,7 @@
    "b"
   ],
   "metta_inferences": 958,
-  "petta": [
+  "metta": [
    "b"
   ],
   "python": [
@@ -1225,7 +1225,7 @@
   "leatta": [
    "strategy-innermost-root"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "intersection": {
@@ -1234,7 +1234,7 @@
    "c"
   ],
   "metta_inferences": 2093,
-  "petta": [
+  "metta": [
    "b",
    "c"
   ],
@@ -1249,7 +1249,7 @@
    "(b c)"
   ],
   "metta_inferences": 1283,
-  "petta": [
+  "metta": [
    "(b c)"
   ],
   "python": [
@@ -1262,7 +1262,7 @@
    "True"
   ],
   "metta_inferences": 1377,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -1275,7 +1275,7 @@
    "False"
   ],
   "metta_inferences": 782,
-  "petta": [
+  "metta": [
    "False"
   ],
   "python": [
@@ -1288,7 +1288,7 @@
    "False"
   ],
   "metta_inferences": 779,
-  "petta": [
+  "metta": [
    "False"
   ],
   "python": [
@@ -1301,7 +1301,7 @@
    "2"
   ],
   "metta_inferences": 975,
-  "petta": [
+  "metta": [
    "2"
   ],
   "python": [
@@ -1313,7 +1313,7 @@
   "leatta": [
    "2"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "let*": {
@@ -1321,7 +1321,7 @@
    "3"
   ],
   "metta_inferences": 1188,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -1333,14 +1333,14 @@
   "leatta": [
    "1"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "loaded-mods!": {
   "leatta": [
    "(corelib builtin:skel)"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "json"
   ]
@@ -1350,7 +1350,7 @@
    "3.0"
   ],
   "metta_inferences": 877,
-  "petta": [
+  "metta": [
    "3.0"
   ],
   "python": [
@@ -1363,7 +1363,7 @@
    "(2 3 4)"
   ],
   "metta_inferences": 1460,
-  "petta": [
+  "metta": [
    "(2 3 4)"
   ],
   "python": [
@@ -1376,7 +1376,7 @@
    "1"
   ],
   "metta_inferences": 2113,
-  "petta": [
+  "metta": [
    "1"
   ],
   "python": [
@@ -1386,7 +1386,7 @@
  },
  "match%": {
   "leatta": [],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "max-atom": {
@@ -1394,7 +1394,7 @@
    "3.0"
   ],
   "metta_inferences": 893,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -1407,7 +1407,7 @@
    "3"
   ],
   "metta_inferences": 1332,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -1420,7 +1420,7 @@
    "1.0"
   ],
   "metta_inferences": 893,
-  "petta": [
+  "metta": [
    "1"
   ],
   "python": [
@@ -1432,7 +1432,7 @@
   "leatta": [
    "1"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "1"
   ]
@@ -1441,7 +1441,7 @@
   "leatta": [
    "1"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "1"
   ]
@@ -1450,21 +1450,21 @@
   "leatta": [
    "&mod:corelib"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "module-space-no-deps": {
   "leatta": [
    "&space-#0"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "module-tree!": {
   "leatta": [
    "(top corelib stdlib skel)"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "requires"
   ]
@@ -1473,13 +1473,13 @@
   "leatta": [
    "(near-match (f a) ((f a) (f b)) 1)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "new-space": {
   "leatta": [],
   "metta_inferences": 879,
-  "petta": [],
+  "metta": [],
   "python": [],
   "python_inferences": 69
  },
@@ -1488,7 +1488,7 @@
    "1"
   ],
   "metta_inferences": 1043,
-  "petta": [
+  "metta": [
    "1"
   ],
   "python": [
@@ -1501,7 +1501,7 @@
    "(+ 1 2)"
   ],
   "metta_inferences": 730,
-  "petta": [
+  "metta": [
    "(+ 1 2)"
   ],
   "python": [
@@ -1514,7 +1514,7 @@
    "()"
   ],
   "metta_inferences": 607,
-  "petta": [
+  "metta": [
    "()"
   ],
   "python": [
@@ -1527,7 +1527,7 @@
    "True"
   ],
   "metta_inferences": 1464,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -1540,7 +1540,7 @@
    "False"
   ],
   "metta_inferences": 734,
-  "petta": [
+  "metta": [
    "False"
   ],
   "python": [
@@ -1553,7 +1553,7 @@
    "True"
   ],
   "metta_inferences": 859,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -1566,7 +1566,7 @@
    "8.0"
   ],
   "metta_inferences": 897,
-  "petta": [
+  "metta": [
    "8.0"
   ],
   "python": [
@@ -1578,7 +1578,7 @@
   "leatta": [
    "()"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "()"
   ]
@@ -1587,7 +1587,7 @@
   "leatta": [
    "()"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "()"
   ]
@@ -1597,7 +1597,7 @@
    "()"
   ],
   "metta_inferences": 773,
-  "petta": [
+  "metta": [
    "()"
   ],
   "python": [
@@ -1610,7 +1610,7 @@
    "(quote (+ 1 2))"
   ],
   "metta_inferences": 724,
-  "petta": [
+  "metta": [
    "(quote (+ 1 2))"
   ],
   "python": [
@@ -1622,21 +1622,21 @@
   "leatta": [
    "(reduce-via-match (+ 1 2) x)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "register-module!": {
   "leatta": [
    "Grounded"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "rem-trunc": {
   "leatta": [
    "-1"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "-1"
   ]
@@ -1644,7 +1644,7 @@
  "remove-atom": {
   "leatta": [],
   "metta_inferences": 2479,
-  "petta": [],
+  "metta": [],
   "python": [],
   "python_inferences": 122
  },
@@ -1652,14 +1652,14 @@
   "leatta": [
    "strategy-c"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "return": {
   "leatta": [
    "(+ 2 3)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "return-on-error": {
@@ -1667,7 +1667,7 @@
    "b"
   ],
   "metta_inferences": 1129,
-  "petta": [
+  "metta": [
    "b"
   ],
   "python": [
@@ -1680,7 +1680,7 @@
    "3.0"
   ],
   "metta_inferences": 797,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -1693,7 +1693,7 @@
    "($x $y#0)"
   ],
   "metta_inferences": 761,
-  "petta": [
+  "metta": [
    "($x $y#0)"
   ],
   "python": [
@@ -1705,7 +1705,7 @@
   "leatta": [
    "(Error a b)"
   ],
-  "petta": null,
+  "metta": null,
   "python": [
    "(Error a b)"
   ]
@@ -1715,7 +1715,7 @@
    "0.0"
   ],
   "metta_inferences": 767,
-  "petta": [
+  "metta": [
    "0.0"
   ],
   "python": [
@@ -1728,7 +1728,7 @@
    "3"
   ],
   "metta_inferences": 893,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -1740,14 +1740,14 @@
   "leatta": [
    "(skel-swap-pair (Pair 1 2))"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "skel-swap-pair-native": {
   "leatta": [
    "(skel-swap-pair-native (Pair 1 2))"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "sort-strings": {
@@ -1755,7 +1755,7 @@
    "(\"a\" \"b\" \"c\")"
   ],
   "metta_inferences": 912,
-  "petta": [
+  "metta": [
    "(\"a\" \"b\" \"c\")"
   ],
   "python": [
@@ -1768,7 +1768,7 @@
    "2.0"
   ],
   "metta_inferences": 775,
-  "petta": [
+  "metta": [
    "2.0"
   ],
   "python": [
@@ -1780,7 +1780,7 @@
   "leatta": [
    "(f a b)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "stratego-one": {
@@ -1789,7 +1789,7 @@
    "(f a b)",
    "(f a b)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "subtraction": {
@@ -1798,7 +1798,7 @@
    "b"
   ],
   "metta_inferences": 1925,
-  "petta": [
+  "metta": [
    "a",
    "b"
   ],
@@ -1813,7 +1813,7 @@
    "(a b)"
   ],
   "metta_inferences": 1219,
-  "petta": [
+  "metta": [
    "(a b)"
   ],
   "python": [
@@ -1827,7 +1827,7 @@
    "b"
   ],
   "metta_inferences": 710,
-  "petta": [
+  "metta": [
    "a",
    "b"
   ],
@@ -1841,7 +1841,7 @@
   "leatta": [
    "a"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "switch": {
@@ -1849,7 +1849,7 @@
    "two"
   ],
   "metta_inferences": 1338,
-  "petta": [
+  "metta": [
    "two"
   ],
   "python": [
@@ -1862,7 +1862,7 @@
    "0.0"
   ],
   "metta_inferences": 767,
-  "petta": [
+  "metta": [
    "0.0"
   ],
   "python": [
@@ -1874,7 +1874,7 @@
   "leatta": [
    "(strategy-node strategy-b)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "trace!": {
@@ -1882,7 +1882,7 @@
    "3"
   ],
   "metta_inferences": 1241,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -1895,7 +1895,7 @@
    "2.0"
   ],
   "metta_inferences": 797,
-  "petta": [
+  "metta": [
    "2"
   ],
   "python": [
@@ -1907,7 +1907,7 @@
   "leatta": [
    "strategy-b"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "unify": {
@@ -1915,7 +1915,7 @@
    "a"
   ],
   "metta_inferences": 891,
-  "petta": [
+  "metta": [
    "a"
   ],
   "python": [
@@ -1927,7 +1927,7 @@
   "leatta": [
    "a"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  },
  "union": {
@@ -1939,7 +1939,7 @@
    "c"
   ],
   "metta_inferences": 2098,
-  "petta": [
+  "metta": [
    "a",
    "b",
    "b",
@@ -1960,7 +1960,7 @@
    "(a b b b c)"
   ],
   "metta_inferences": 1093,
-  "petta": [
+  "metta": [
    "(a b b b c)"
   ],
   "python": [
@@ -1975,7 +1975,7 @@
    "c"
   ],
   "metta_inferences": 1346,
-  "petta": [
+  "metta": [
    "a",
    "b",
    "c"
@@ -1992,7 +1992,7 @@
    "(a b c)"
   ],
   "metta_inferences": 987,
-  "petta": [
+  "metta": [
    "(a b c)"
   ],
   "python": [
@@ -2005,7 +2005,7 @@
    "3"
   ],
   "metta_inferences": 1606,
-  "petta": [
+  "metta": [
    "3"
   ],
   "python": [
@@ -2018,7 +2018,7 @@
    "True"
   ],
   "metta_inferences": 867,
-  "petta": [
+  "metta": [
    "True"
   ],
   "python": [
@@ -2030,7 +2030,7 @@
   "leatta": [
    "(-> Atom Type Atom Atom)"
   ],
-  "petta": null,
+  "metta": null,
   "python": null
  }
 }

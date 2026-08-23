@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-import petta
+import metta
 
 _PROVIDER = (
     Path(__file__).resolve().parents[3]
@@ -29,7 +29,7 @@ _ARTEFACT = _PROVIDER.with_name("cstore.so")
 def cstore():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if not _ARTEFACT.is_file():
         pytest.skip("cstore.so is not built; see examples/integration/c_space/README.md")
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     m.register_prolog(path=_PROVIDER)
     try:
         m.run("!(remove-atom &cstore $any)")

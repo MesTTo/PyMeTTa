@@ -24,7 +24,7 @@ as `ground()` data, so the example's `println!` has no image here.
 
 from pathlib import Path
 
-from petta import S
+from metta import S
 
 #: The two engine libraries the example opens, spelled with their real
 #: underscores.

@@ -104,7 +104,7 @@ def _validated_scheme(
     parsed: SplitResult, subject: str, error_type: type[Exception]
 ) -> str:
     scheme = parsed.scheme.lower()
-    # policy-inventory-exempt: mechanism-internal; reason=http and https are the two transports implemented by HTTPEndpoint; evidence=bindings/python/petta/_network.py:_validated_scheme
+    # policy-inventory-exempt: mechanism-internal; reason=http and https are the two transports implemented by HTTPEndpoint; evidence=bindings/python/metta/_network.py:_validated_scheme
     if scheme not in {"http", "https"}:
         shown = scheme or "<missing>"
         msg = f"{subject} URL scheme {shown!r} is not allowed; use http or https"

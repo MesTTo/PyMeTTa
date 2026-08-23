@@ -19,7 +19,7 @@ call, because solve must receive the call unevaluated; `S.f` and `S.g` name
 the two definitions and `fn.cons` names the constructor.
 """
 
-from petta import Expression, S, V, fn
+from metta import Expression, S, V, fn
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

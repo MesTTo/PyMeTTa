@@ -10,7 +10,7 @@ import math
 
 import pytest
 
-from petta import _json
+from metta import _json
 
 
 def test_json_codec_shares_bytes_round_trip():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

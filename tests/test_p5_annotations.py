@@ -33,10 +33,10 @@ from typing import (
 
 import pytest
 
-from petta import Atom, Expression, Grounded, MeTTa, S, Symbol, Variable, ground, wire
-from petta import integrate as pi
-from petta.convert import build, project, register_type, unregister_type
-from petta.ops import annotation_atom_for, type_atoms_for
+from metta import Atom, Expression, Grounded, MeTTa, S, Symbol, Variable, ground, wire
+from metta import integrate as pi
+from metta.convert import build, project, register_type, unregister_type
+from metta.ops import annotation_atom_for, type_atoms_for
 
 
 def test_the_four_metatypes_stay_distinct_across_the_seam():

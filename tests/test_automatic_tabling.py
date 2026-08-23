@@ -21,7 +21,7 @@ Fails when: read as coverage of explicit SWI tabling, whose set semantics are
 
 from collections import Counter
 
-from petta import MeTTa
+from metta import MeTTa
 
 
 def _cache_item(metta: MeTTa, call: str):

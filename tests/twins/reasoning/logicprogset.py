@@ -17,7 +17,7 @@ back as bindings. That is what carries `$M` out, where an evaluation would
 answer values.
 """
 
-from petta import TRUE, S, V, equation, fn
+from metta import TRUE, S, V, equation, fn
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

@@ -19,8 +19,8 @@ the factory attribute door maps every underscore to a hyphen, so all of them
 take the bracket: `S.bfs_loop` would be the DIFFERENT head `bfs-loop`.
 """
 
-import petta
-from petta import S, V, equation, fn, if_
+import metta
+from metta import S, V, equation, fn, if_
 
 #: The blank, and one variable per board position.
 BLANK = S["___"]
@@ -77,7 +77,7 @@ def twin(m):
     # The duplicate store is an ordinary space, and the Python variable IS its
     # binding, so it needs no name: the handle crosses a term position as
     # itself, which is what `add-unique-or-fail` receives.
-    duplicates = petta.space()
+    duplicates = metta.space()
 
     # `empty-queue` is a function, so the base case tests the queue against
     # what it produces rather than writing the call in the head, which would

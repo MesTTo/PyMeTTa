@@ -20,7 +20,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression
+from metta import Expression
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
@@ -31,7 +31,7 @@ BUDGET = 1
 def twin(m):
     """Stack lets and superpositions four ways, then collapse the lot."""
     # The top rung imports the two names, so Python's own linter sees them:
-    #     from petta import collapse, superpose
+    #     from metta import collapse, superpose
     # The package exports neither, so each call carries an F821 suppression, and
     # `list()`, the dissolution table's spelling for `collapse`, does not
     # lower inside a compiled body. Residue: P14.4.

@@ -32,7 +32,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import TRUE, Expression, S, fn
+from metta import TRUE, Expression, S, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

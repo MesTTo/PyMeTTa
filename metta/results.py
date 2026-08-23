@@ -17,7 +17,7 @@ Guarantees:
   - Rows.build preserves its requested class as the list element type [tested
     test_target_type_overloads_preserve_the_requested_class]
   - a one-column Rows rebuilds constructor expressions through build(cls),
-    and rows_into selects that path for query(into=cls) [tested:
+    and rows_into selects that path for match(into=cls) [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Rows.to_dicts returns one Python-native mapping per row, including empty
@@ -380,7 +380,7 @@ class Rows(UserList[Row]):
         """Raise when any cell carries an `(Error ...)` atom; answer self
         otherwise, so the call chains.
 
-            m.query(pattern).raise_for_errors()
+            m.match(pattern).raise_for_errors()
 
         Query rows are BINDINGS, not evaluation answers, so a stored
         error record stays data through every Rows door, one() and
@@ -410,7 +410,7 @@ class Rows(UserList[Row]):
         has nothing to explain, and a manually constructed or transformed
         Rows has no query to inspect, so both uses fail loudly.
 
-        One of nine observability doors: petta.derivation answers HOW a
+        One of nine observability doors: metta.derivation answers HOW a
         result was derived, and prepare(...).explain() answers what a
         query will do before it runs; the guide's observability page maps
         the family.
@@ -422,7 +422,7 @@ class Rows(UserList[Row]):
             )
         if self._query is None:
             msg = (
-                "why() needs the query() result that retained its patterns; "
+                "why() needs the match() result that retained its patterns; "
                 "this Rows was constructed or transformed independently"
             )
             raise TypeError(
@@ -526,7 +526,7 @@ class Rows(UserList[Row]):
         """fn(self, *args, **kwargs), pandas' chaining shape, so a
         pipeline reads left to right instead of inside out:
 
-            m.query(pattern).pipe(clean).pipe(score, weight=2)
+            m.match(pattern).pipe(clean).pipe(score, weight=2)
         """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
         return fn(self, *args, **kwargs)
 

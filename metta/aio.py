@@ -310,7 +310,7 @@ class _EngineThread:
                     logger.debug("AsyncMeTTa worker detached its Prolog engine")
                 _forget_worker(self)
 
-        self.thread = threading.Thread(target=worker, name="petta-aio", daemon=True)
+        self.thread = threading.Thread(target=worker, name="metta-aio", daemon=True)
         logger.debug("starting AsyncMeTTa worker thread")
         _remember_worker(self)
         try:
@@ -541,9 +541,9 @@ def _deliver(request: _Request, payload, *, failed: bool) -> None:
 class AsyncMeTTa:
     """A space whose calls are awaited instead of blocking.
 
-        async with petta.aio.connect() as am:
+        async with metta.aio.connect() as am:
             await am.add(S.edge(1, 2))
-            rows = await am.query(S.edge(V.a, V.b))
+            rows = await am.match(S.edge(V.a, V.b))
 
     The exact rule should be: every finite request-response method forwards through the worker. Context managers, cursors, decorators, callback registrations, returned synchronous helper objects, and interactive entry points remain call() or synchronous-surface operations.
 
@@ -624,7 +624,7 @@ class AsyncMeTTa:
     def interrupt(self) -> bool:
         """Stop the evaluation the worker is running right now; answers
         whether anything was running (idle is a no-op, sqlite3's own
-        reading). The stopped call raises petta.Interrupted; whatever it
+        reading). The stopped call raises metta.Interrupted; whatever it
         completed before the stop, writes included, stands. Callable from
         any thread or task.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -688,7 +688,7 @@ class AsyncMeTTa:
         """Wait for and remove one matching atom without blocking the loop."""
         return await self.call(lambda m: m.take(pattern, deadline=deadline))
 
-    async def query(
+    async def match(
         self,
         *patterns: Any,
         where: Any | None = None,
@@ -697,11 +697,11 @@ class AsyncMeTTa:
         inferences: int | None = None,
         into: _builtins.type | None = None,
     ) -> Any:
-        """Query patterns with the synchronous surface's bounds, guard,
+        """Match patterns with the synchronous surface's bounds, guard,
         and into= row shaping.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return await self.call(
-            lambda m: m.query(
+            lambda m: m.match(
                 *patterns,
                 where=where,
                 limit=limit,
@@ -922,7 +922,7 @@ class AsyncMeTTa:
         return await self.call(lambda m: m.hyperpose(*targets, timeout=timeout))
 
     async def integrate(self, target: Any) -> str:
-        """Install a library integration; see petta.integrate."""
+        """Install a library integration; see metta.integrate."""
         return await self.call(lambda m: m.integrate(target))
 
     async def profile_extension(
@@ -1101,7 +1101,7 @@ class AsyncMeTTa:
     async def image(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         type_name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=the three modes by which one Python type crosses one context boundary, forwarded unchanged to the synchronous declaration door that owns them; evidence=bindings/python/petta/_space.py:image
+        # policy-inventory-exempt: mechanism-internal; reason=the three modes by which one Python type crosses one context boundary, forwarded unchanged to the synchronous declaration door that owns them; evidence=bindings/python/metta/_space.py:image
         setting: Literal["opaque", "transparent", "auto"],
     ) -> Atom:
         return await self.call(
@@ -1156,7 +1156,7 @@ class AsyncMeTTa:
         /,
         *,
         name: str | None = None,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
         declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,
@@ -1325,7 +1325,7 @@ class AsyncMeTTa:
         """The engine's counters over an async with-block, as deltas.
 
         async with am.stats() as s:
-            await am.query(...)
+            await am.match(...)
         s.inferences
         """
         return _AsyncStats(self)
@@ -1350,7 +1350,7 @@ class AsyncMeTTa:
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> _AsyncCursor:
-        """query(), pulled asynchronously: one row per worker round trip.
+        """match(), pulled asynchronously: one row per worker round trip.
 
             async with am.stream(S.edge(V.a, V.b)) as rows:
                 async for row in rows:

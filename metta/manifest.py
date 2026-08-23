@@ -1,4 +1,4 @@
-"""Purpose: deployment as knowledge. `petta.boot(path)` assembles an app
+"""Purpose: deployment as knowledge. `metta.boot(path)` assembles an app
 from a MeTTa manifest of `(boot ...)` forms, each a thin declaration over
 one existing imperative call, and records every performed form in the
 booted space, so the deployment is queryable knowledge rather than dead
@@ -204,15 +204,15 @@ def boot(
     order against `m` (a fresh engine when none is given):
 
         (boot (load "rules.metta"))                 m.load, manifest-relative
-        (boot (attach &crm "http://crm:8700"))      petta.remote.attach
-        (boot (bridge &db (edge $a $b) (row ...)))  petta.tables declare + bridge
-        (boot (serve (&self &crm) 8700))            petta.remote.serve
+        (boot (attach &crm "http://crm:8700"))      metta.remote.attach
+        (boot (bridge &db (edge $a $b) (row ...)))  metta.tables declare + bridge
+        (boot (serve (&self &crm) 8700))            metta.remote.serve
 
     The vocabulary is closed and validated whole before anything runs.
     Bridges name live database connections, which MeTTa source cannot
     carry, so every bridged name must appear in `connections`, and every
     connection must be claimed by a bridge. The remaining keywords are
-    the serve policy petta.remote.serve documents: host, token,
+    the serve policy metta.remote.serve documents: host, token,
     authorize, ssl_context apply to every server the manifest starts.
 
     Each performed form is stored as its own `(boot ...)` atom, so the

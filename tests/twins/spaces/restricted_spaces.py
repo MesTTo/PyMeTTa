@@ -4,7 +4,7 @@ A restricted space keeps ordinary computation and its own equations, refuses
 anything its base does not publish, and gains a capability only when the
 capability is granted at creation.
 
-`petta.space(restricted=True)` and `petta.space(restricted=True, grants=...)`
+`metta.space(restricted=True)` and `metta.space(restricted=True, grants=...)`
 are those two spaces, and neither has a name: the creation options apply only
 to an anonymous space, and every door the example uses hangs off the handle
 they answer.
@@ -16,10 +16,10 @@ it bites: the named restricted space the original writes has no Python door.
 
 from pathlib import Path
 
-import petta
-from petta import S
-from petta.errors import SpaceCapabilityError
-from petta.vocabularies import SpaceCapability
+import metta
+from metta import S
+from metta.errors import SpaceCapabilityError
+from metta.vocabularies import SpaceCapability
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -35,11 +35,11 @@ SOURCE = Path("examples/spaces/restricted_spaces.metta")
 def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handle stays untouched
     """Lock a space, watch it refuse a file read, then grant the capability."""
     # GAP: the original NAMES its spaces, `!(new-space &locked (restricted))`,
-    # and the answer of that form IS the name it created. petta.space refuses
+    # and the answer of that form IS the name it created. metta.space refuses
     # the pair: "inherits, restricted, and grants apply only to anonymous
-    # space()". PERFECT: `locked = petta.space("&locked", restricted=True)`.
+    # space()". PERFECT: `locked = metta.space("&locked", restricted=True)`.
     # Residue P14.10; until it lands the handle carries every door instead.
-    locked = petta.space(restricted=True)
+    locked = metta.space(restricted=True)
 
     @locked.define
     def double(x):
@@ -62,5 +62,5 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 
     # A capability is granted explicitly when the space is created, as the
     # vocabulary's own value rather than as the word for it.
-    reader = petta.space(restricted=True, grants=[SpaceCapability.file])
+    reader = metta.space(restricted=True, grants=[SpaceCapability.file])
     assert reader.eval(asked) == [True]

@@ -15,7 +15,7 @@ CARRIES a variable without the answer depending on it, and the call answers
 in the variable's name.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

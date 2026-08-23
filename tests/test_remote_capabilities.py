@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from petta import S, V, remote, wire
-from petta.errors import PettaError
-from petta.subscribe import bridge
+from metta import S, V, remote, wire
+from metta.errors import PettaError
+from metta.subscribe import bridge
 
 
 def _store_transport(store: list):

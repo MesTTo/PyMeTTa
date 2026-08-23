@@ -11,7 +11,7 @@ space is the handle itself, which crosses into the built term as a grounded
 operand.
 """
 
-from petta import S
+from metta import S
 
 #: The fixture the import reads, from the repository root: the lane runs there.
 ROOT = S["examples/integration/_fixtures/imports/relative/root"]

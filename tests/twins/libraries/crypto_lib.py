@@ -8,7 +8,7 @@ EXACTLY as written and `crypto-hash` is not a name Python can spell, which the
 residue table records against P14.4.
 """
 
-from petta import G, S, V, equation
+from metta import G, S, V, equation
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

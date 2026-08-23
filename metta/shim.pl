@@ -1,4 +1,4 @@
-% Purpose: Prolog side of the petta Python library. Adds tagged term encoding,
+% Purpose: Prolog side of the metta Python library. Adds tagged term encoding,
 %   per-directive structured runs, space operations, Python-backed MeTTa
 %   functions (deterministic and nondeterministic), evaluation, and proof-tree
 %   derivations on top of an unmodified PeTTa engine. Consulted after
@@ -342,7 +342,7 @@ petta_py_decode_(h, [Id|_], Blob) :-
 %something instead: ["s",1] to the symbol '1', ["g",1] to "1", ["n","1/3"]
 %to a string wearing the number tag, ["v",1] to a fresh variable, and
 %["b",<anything>] to FALSE, which is the one that answers rather than fails
-%[measured 2026-08-20, both spellings, against bindings/python/petta/_atom_wire.py,
+%[measured 2026-08-20, both spellings, against bindings/python/metta/_atom_wire.py,
 %which refuses all six]. A wire term is written by an encoder, so nothing
 %conforming loses a shape here; what changes is that a boundary bug now
 %reports as one [tested: shim_wire_decoding:a_payload_outside_its_tags_class_fails].
@@ -569,7 +569,7 @@ petta_py_raise(Kind, Detail) :-
 
 metta_control_signal_info(
     error(metta_control_signal(Kind, Detail), context(petta, _)), Kind, Detail) :-
-    % policy-inventory-exempt: mechanism-internal; reason=these are the reserved control-envelope classifier tags shared with the Python exception bridge; evidence=bindings/python/petta/shim.pl:metta_control_signal_info/3
+    % policy-inventory-exempt: mechanism-internal; reason=these are the reserved control-envelope classifier tags shared with the Python exception bridge; evidence=bindings/python/metta/shim.pl:metta_control_signal_info/3
     memberchk(Kind, [syntax, time_limit, inference_limit, interrupted,
                      value, type]).
 
@@ -1119,7 +1119,7 @@ petta_py_swrite(Tagged, String) :-
 petta_py_wire_boolean_symbol([Tag, Name], Bad) :-
     petta_py_wire_tag(Tag, s),
     (   atom(Name) -> Bad = Name ; string(Name), atom_string(Bad, Name) ),
-    % policy-inventory-exempt: codec-version-identity; reason=these four spellings are how the wire encodes a boolean, so a symbol carrying one would print as text that reads back as a boolean rather than as itself; evidence=bindings/python/petta/shim.pl:petta_py_wire_boolean_symbol/2
+    % policy-inventory-exempt: codec-version-identity; reason=these four spellings are how the wire encodes a boolean, so a symbol carrying one would print as text that reads back as a boolean rather than as itself; evidence=bindings/python/metta/shim.pl:petta_py_wire_boolean_symbol/2
     memberchk(Bad, [true, false, 'True', 'False']).
 petta_py_wire_boolean_symbol([Tag, Items], Bad) :-
     petta_py_wire_tag(Tag, e),
@@ -2784,7 +2784,7 @@ seam:foreign_capability(Space, Capability) :-
     petta_py_capability(Space, Capability).
 
 %The refusal, handed back to the side that has the words. This raises; see
-%petta.foreign.foreign_refuse for why it may not return.
+%metta.foreign.foreign_refuse for why it may not return.
 seam:foreign_refuse(Space, Capability) :-
     petta_py_foreign(Space),
     atom_string(Space, SpaceStr),

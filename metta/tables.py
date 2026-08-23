@@ -1,8 +1,8 @@
 """Purpose: derive a whole table-backed space provider from MeTTa bridge
 declarations, so the contract is rewrite rules and both directions of
-the boundary fall out of matching them. The module is petta.tables
+the boundary fall out of matching them. The module is metta.tables
 because a subscription bridge is already the standing bridge RULE between two
-spaces (petta.subscribe.bridge); the two are the same idea at two
+spaces (metta.subscribe.bridge); the two are the same idea at two
 boundaries, a declared correspondence the engine keeps live.
 
     (bridge (edge $a $b) (row edges (a $a) (b $b)))

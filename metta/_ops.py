@@ -329,7 +329,7 @@ def _refuse_raw_answer(value: Any) -> Any:
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, Answer):
         msg = (
-            "a raw operation answered petta.Answer; raw results skip the "
+            "a raw operation answered metta.Answer; raw results skip the "
             "wire the bindings cross on, so register the operation with "
             'transport="encoded" to answer bindings'
         )

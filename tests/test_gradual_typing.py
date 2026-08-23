@@ -16,7 +16,7 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa
+from metta import MeTTa
 
 
 @pytest.fixture()

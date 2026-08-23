@@ -17,7 +17,7 @@ Running one backwards is `m.solve(pattern, subject)`: the known value on
 projected by the variable's own name.
 """
 
-from petta import V, fn
+from metta import V, fn
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

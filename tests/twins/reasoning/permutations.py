@@ -17,7 +17,7 @@ answers. The conjuncts keep the original's triangular layout, which is this
 file's documentation of the constraint graph.
 """
 
-from petta import S, V
+from metta import S, V
 
 #: The inequality head, the hole, and the eight placeholder variables every
 #: fact and the query share.

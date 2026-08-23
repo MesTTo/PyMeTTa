@@ -13,7 +13,7 @@ distinction the example makes twice. A row projects by attribute, `row.desc`,
 which is the naming convention re-applied.
 """
 
-from petta import G, S, V
+from metta import G, S, V
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

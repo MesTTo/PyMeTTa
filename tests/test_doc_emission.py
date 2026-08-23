@@ -21,7 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from petta import MeTTa, S
+from metta import MeTTa, S
 
 
 def _documentation(metta: MeTTa, name: str) -> str:
@@ -142,7 +142,7 @@ def test_generated_fn_help_is_offline() -> None:
     """Generated mentions and stubs carry inert catalog documentation."""
     source = (
         "import json\n"
-        "from petta import _engine, fn\n"
+        "from metta import _engine, fn\n"
         "print(json.dumps([_engine.started(), fn.car_atom.__doc__, "
         "_engine.started()]))\n"
     )
@@ -159,7 +159,7 @@ def test_generated_fn_help_is_offline() -> None:
     assert "head" in completed.stdout.lower()
     assert completed.stdout.rstrip().endswith("false]")
 
-    stub = Path(__file__).parents[1] / "petta" / "_fn.pyi"
+    stub = Path(__file__).parents[1] / "metta" / "_fn.pyi"
     text = stub.read_text(encoding="utf-8")
     marker = "    car_atom: Symbol\n"
     assert marker in text

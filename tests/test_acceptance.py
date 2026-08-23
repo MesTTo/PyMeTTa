@@ -16,11 +16,11 @@ import sqlite3
 
 import pytest
 
-from petta import Answer, Expression, S
-from petta.atoms import Variable, parse
-from petta.errors import EngineError
-from petta.foreign import SpaceProvider
-from petta.testing import check_space_provider
+from metta import Answer, Expression, S
+from metta.atoms import Variable, parse
+from metta.errors import EngineError
+from metta.foreign import SpaceProvider
+from metta.testing import check_space_provider
 
 
 class SqlEdges(SpaceProvider):

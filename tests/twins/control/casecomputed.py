@@ -23,8 +23,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import S, V, equation
-from petta.errors import MettaOperationError
+from metta import S, V, equation
+from metta.errors import MettaOperationError
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `case` whose branches arrive as a VALUE has no Python spelling: match's arms are syntax"

@@ -26,8 +26,8 @@ from pathlib import Path
 
 import pytest
 
-import petta.atoms as petta_atoms
-from petta import __version__
+import metta.atoms as metta_atoms
+from metta import __version__
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -39,7 +39,7 @@ def _manifest() -> dict:
 def test_package_and_tools_share_one_manifest():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert (ROOT / "bindings" / "python" / "pyproject.toml").samefile(ROOT / "pyproject.toml")
     project = _manifest()["project"]
-    assert project["name"] == "petta"
+    assert project["name"] == "pymetta"
     assert project["dynamic"] == ["version"]
     # 3.12 is the floor the style guide sets, because that is where the class
     # shape's own syntax arrives (PEP 695 generics), which the guide's worked
@@ -123,7 +123,7 @@ def _build_ext(destination: Path, environment: dict[str, str]) -> subprocess.Com
 
 
 def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
-    """The wire codec compiles when PETTA_USE_MYPYC=1 asks it to, and the
+    """The wire codec compiles when PYMETTA_USE_MYPYC=1 asks it to, and the
     build everyone else runs is untouched.
 
     Measured 2026-08-19, minimum of three instructions:u runs of the
@@ -138,17 +138,17 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
         pytest.skip("no C compiler")
 
     # The default: nothing compiled, and the import answers Python source.
-    assert petta_atoms.__file__.endswith(".py")
-    plain = _build_ext(tmp_path / "plain", {"PETTA_USE_MYPYC": ""})
+    assert metta_atoms.__file__.endswith(".py")
+    plain = _build_ext(tmp_path / "plain", {"PYMETTA_USE_MYPYC": ""})
     assert plain.returncode == 0, plain.stderr
     assert not list((tmp_path / "plain").rglob("*.so"))
 
-    # Asked for, and delivered: exactly the codec, nothing else of petta's.
-    compiled = _build_ext(tmp_path / "compiled", {"PETTA_USE_MYPYC": "1"})
+    # Asked for, and delivered: exactly the codec, nothing else of metta's.
+    compiled = _build_ext(tmp_path / "compiled", {"PYMETTA_USE_MYPYC": "1"})
     assert compiled.returncode == 0, compiled.stderr
     built = sorted(
         path.name.split(".")[0]
-        for path in (tmp_path / "compiled" / "lib" / "petta").rglob("*.so")
+        for path in (tmp_path / "compiled" / "lib" / "metta").rglob("*.so")
     )
     assert built == ["_atom_wire", "atoms"]
 
@@ -161,7 +161,7 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
     (shadow / "mypyc.py").write_text("", encoding="utf-8")
     refused = _build_ext(
         tmp_path / "refused",
-        {"PETTA_USE_MYPYC": "1", "PYTHONPATH": str(shadow)},
+        {"PYMETTA_USE_MYPYC": "1", "PYTHONPATH": str(shadow)},
     )
     assert refused.returncode != 0
     assert "pip install mypy" in refused.stdout + refused.stderr
@@ -189,11 +189,11 @@ def test_doc_gate_measures_the_public_surface_at_eighty_percent():  # noqa: D103
 def test_integrations_group_is_left_to_third_parties():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The library ships no built-in integration: anything measure-like is
     # built on top, in its own package, publishing into the
-    # petta.integrations entry-point group from its own manifest.
+    # metta.integrations entry-point group from its own manifest.
     manifest = _manifest()
-    assert "petta.integrations" not in manifest["project"].get("entry-points", {})
+    assert "metta.integrations" not in manifest["project"].get("entry-points", {})
     assert manifest["tool"]["setuptools"]["dynamic"]["version"] == {
-        "attr": "petta._version.__version__"
+        "attr": "metta._version.__version__"
     }
     assert __version__ == "0.2.0"
 
@@ -233,8 +233,8 @@ def test_every_runtime_resource_reaches_the_source_archive(repo_root):
 
     def covered(resource: str) -> bool:
         # setuptools also ships a package's own declared package-data, which is
-        # why petta/shim.pl needs no directive of its own.
-        if resource.startswith("bindings/python/petta/"):
+        # why metta/shim.pl needs no directive of its own.
+        if resource.startswith("bindings/python/metta/"):
             return True
         for directive in directives:
             verb = directive[0]

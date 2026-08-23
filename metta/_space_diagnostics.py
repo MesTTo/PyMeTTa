@@ -113,7 +113,7 @@ def explain_no_match(space: Any, pattern: Any) -> str:
 
 def _first_unmatched_pattern(space: Any, patterns: tuple[Atom, ...]) -> tuple[int, Atom] | None:
     for index, pattern in enumerate(patterns, start=1):
-        if not space.query(pattern, limit=1):
+        if not space.match(pattern, limit=1):
             return index, pattern
     return None
 
@@ -126,7 +126,7 @@ def explain_empty_query(
     """Explain which stage removed every answer from one eager query."""
     if len(patterns) == 1 and where is None:
         return explain_no_match(space, patterns[0])
-    if where is not None and space.query(*patterns, limit=1):
+    if where is not None and space.match(*patterns, limit=1):
         return (
             f"the patterns match together, but the where guard {where} "
             "rejects every joined row"

@@ -20,7 +20,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
 
-from petta import MeTTa
+from metta import MeTTa
 
 #: Big enough that the untabled twin cannot finish inside the default
 #: evaluation fuel, which is the point being made, and small enough that the

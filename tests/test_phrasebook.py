@@ -82,16 +82,16 @@ def test_a_dishonest_row_is_a_structural_finding(overrides, expected):
 def test_a_broken_python_spelling_is_a_finding():
     """A spelling that stops answering what the record says is caught."""
     entry = _entry()
-    frozen = {"leatta": ["3"], "petta": ["3"], "python": ["3"]}
-    seen = {"petta": ["3"], "python": ["4"]}
+    frozen = {"leatta": ["3"], "metta": ["3"], "python": ["3"]}
+    seen = {"metta": ["3"], "python": ["4"]}
     findings = book.compare(entry, frozen, seen)
     assert any("the python side now answers" in finding for finding in findings), findings
 
 
 def test_a_silent_divergence_is_a_finding():
     """Two sides that disagree without saying why is a finding; saying why is not."""
-    seen = {"petta": ["3"], "python": ["4"]}
-    frozen = {"leatta": ["3"], "petta": ["3"], "python": ["4"]}
+    seen = {"metta": ["3"], "python": ["4"]}
+    frozen = {"leatta": ["3"], "metta": ["3"], "python": ["4"]}
     quiet = book.compare(_entry(), frozen, seen)
     assert any("the two sides disagree" in finding for finding in quiet), quiet
     spoken = book.compare(_entry(differs="the engines round differently"), frozen, seen)
@@ -100,15 +100,15 @@ def test_a_silent_divergence_is_a_finding():
 
 def test_a_spelling_that_leaves_the_oracle_behind_is_a_finding():
     """Agreeing with this engine is not enough when the oracle says otherwise."""
-    frozen = {"leatta": ["3"], "petta": ["4"], "python": ["4"]}
-    findings = book.compare(_entry(), frozen, {"petta": ["4"], "python": ["4"]})
+    frozen = {"leatta": ["3"], "metta": ["4"], "python": ["4"]}
+    findings = book.compare(_entry(), frozen, {"metta": ["4"], "python": ["4"]})
     assert any("where LeaTTa answers" in finding for finding in findings), findings
 
 
 def test_a_raising_spelling_is_a_finding():
     """A spelling that raises is reported as raising, not as a wrong answer."""
-    seen = {"petta": ["3"], "python": ["RAISED TypeError: planted"]}
-    findings = book.compare(_entry(), {"petta": ["3"], "python": ["3"]}, seen)
+    seen = {"metta": ["3"], "python": ["RAISED TypeError: planted"]}
+    findings = book.compare(_entry(), {"metta": ["3"], "python": ["3"]}, seen)
     assert any("raised typeerror" in finding for finding in findings), findings
 
 
@@ -134,12 +134,12 @@ def test_every_answered_row_has_a_recorded_answer():
 
 def test_a_list_is_answers_and_a_tuple_is_one_expression():
     """The rendering rule, which every row's answer column depends on."""
-    import petta
+    import metta
 
-    assert book.render([petta.S.a, petta.S.b]) == ("a", "b")
-    assert book.render((petta.S.a, petta.S.b)) == ("(a b)",)
+    assert book.render([metta.S.a, metta.S.b]) == ("a", "b")
+    assert book.render((metta.S.a, metta.S.b)) == ("(a b)",)
     assert book.render(3) == ("3",)
-    assert book.render(petta.S.f(1)) == ("(f 1)",)
+    assert book.render(metta.S.f(1)) == ("(f 1)",)
 
 
 def test_an_answer_line_splits_on_top_level_commas_only():

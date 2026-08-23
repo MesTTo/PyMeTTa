@@ -22,7 +22,7 @@ from ._config import config
 
 #: The two flags the launcher answers itself. Everything else is forwarded,
 #: because this command keeps UPSTREAM'S LAUNCHER CONTRACT: it runs a file
-#: through swipl directly, and the subcommand surface is `python -m petta`
+#: through swipl directly, and the subcommand surface is `python -m metta`
 #: (website/guide/getting-started.md states the split deliberately). These two
 #: are answered here only because forwarding them produced
 #: `source_sink '--version' does not exist`, an engine error about a missing
@@ -32,16 +32,16 @@ from ._config import config
 #: [tested: test_the_launcher_answers_version_and_help_without_booting].
 SELF_ANSWERED = ("--version", "-V", "--help", "-h")
 
-USAGE = """usage: petta [FILE ...]
+USAGE = """usage: metta [FILE ...]
 
 Run a MeTTa program on the bundled PeTTa engine, through swipl.
 Every other argument is passed to the program.
 
-  petta program.metta     run a program
-  petta --version         print the version
+  metta program.metta     run a program
+  metta --version         print the version
 
-The subcommand surface is `python -m petta` (run, repl, serve, boot, lint,
-doc). The Python surface is `import petta`."""
+The subcommand surface is `python -m metta` (run, repl, serve, boot, lint,
+doc). The Python surface is `import metta`."""
 
 
 def main(argv=None):
@@ -53,7 +53,7 @@ def main(argv=None):
         # Deferred, so answering a flag boots nothing.
         from ._version import __version__  # noqa: PLC0415
 
-        print(f"petta {__version__}" if argv[0] in ("--version", "-V") else USAGE)
+        print(f"metta {__version__}" if argv[0] in ("--version", "-V") else USAGE)
         return 0
 
     runtime_root = Path(_resolve_petta_path())

@@ -1,7 +1,7 @@
 """Purpose: the interface any Python library implements to work deeply with
 PeTTa, and the toolkit that makes implementing it a page of code rather than
-a project. An integration is a module with install_petta(m), an object with
-name and install(m), or an entry point in the petta.integrations group; the
+a project. An integration is a module with install_metta(m), an object with
+name and install(m), or an entry point in the metta.integrations group; the
 toolkit covers the capabilities an integration is made of: bulk operations
 from a module, an instance's methods as operations, protocol-based typing
 and printing, two-way value translation, structure reflected into facts,
@@ -99,17 +99,17 @@ __all__ = [
     "wrap_object",
 ]
 
-ENTRY_POINT_GROUP = "petta.integrations"
+ENTRY_POINT_GROUP = "metta.integrations"
 
 #: The provider ecosystem's groups, pytest11's and SQLAlchemy dialects'
 #: precedent: a third-party package advertises a provider factory under
-#: petta.spaces, or the directory of MeTTa/Prolog sources it ships under
-#: petta.libraries, and the app loads by NAME. Nothing auto-registers on
+#: metta.spaces, or the directory of MeTTa/Prolog sources it ships under
+#: metta.libraries, and the app loads by NAME. Nothing auto-registers on
 #: import; discovery answers names, and registration stays the app's
 #: explicit call, which is the control the engine's backends/*.pl door
 #: keeps on its side of the seam.
-SPACES_GROUP = "petta.spaces"
-LIBRARIES_GROUP = "petta.libraries"
+SPACES_GROUP = "metta.spaces"
+LIBRARIES_GROUP = "metta.libraries"
 
 
 @runtime_checkable
@@ -128,9 +128,9 @@ _INSTALLED_LOCK = threading.RLock()
 def integrate(m, target: Any) -> str:
     """Install an integration on a space, idempotently per (space, name).
 
-    target may be: a module (or dotted module name) defining install_petta(m),
+    target may be: a module (or dotted module name) defining install_metta(m),
     an Integration object, or the name of an installed package's entry point
-    in the petta.integrations group. Returns the integration's name.
+    in the metta.integrations group. Returns the integration's name.
 
     Idempotence is per SPACE, because equations and facts an installer
     writes land in the space it was handed: installing into a second space
@@ -141,16 +141,16 @@ def integrate(m, target: Any) -> str:
         target = _resolve(target)
     if isinstance(target, Integration):
         name, installer = target.name, target.install
-    elif hasattr(target, "install_petta"):
+    elif hasattr(target, "install_metta"):
         name = getattr(target, "__name__", type(target).__name__)
-        installer = target.install_petta
-    elif hasattr(target, "PETTA_PROLOG"):
+        installer = target.install_metta
+    elif hasattr(target, "METTA_PROLOG"):
         name = getattr(target, "__name__", type(target).__name__)
         installer = _prolog_installer(target)
     else:
         msg = (
-            f"{target!r} is not an integration: define install_petta(m), or "
-            f"PETTA_PROLOG naming the .pl files your package ships, or "
+            f"{target!r} is not an integration: define install_metta(m), or "
+            f"METTA_PROLOG naming the .pl files your package ships, or "
             f"provide an object with .name and .install(m)"
         )
         raise PettaError(
@@ -172,17 +172,17 @@ def _prolog_installer(target: Any) -> Callable:
     does, so the standard plugin mechanism carried no Prolog at all. Name the
     files instead:
 
-        PETTA_PROLOG = ["fast.pl"]        # beside the module
+        METTA_PROLOG = ["fast.pl"]        # beside the module
 
     Each file declares its own exports with :- metta_export, so there is no
     name list here either: the package says which files, the files say which
     names, and `pip install` is the whole of the wiring.
     """
     package = Path(inspect.getfile(target)).resolve().parent
-    files = [package / name for name in target.PETTA_PROLOG]
+    files = [package / name for name in target.METTA_PROLOG]
 
     def install(m) -> None:
-        alias = getattr(target, "__name__", "petta_integration").rsplit(".", 1)[-1]
+        alias = getattr(target, "__name__", "metta_integration").rsplit(".", 1)[-1]
         m.register_library_path(package, alias)
         for path in files:
             m.register_prolog(path=path)
@@ -228,8 +228,8 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
             "nars",
         )
 
-    A petta.spaces target is a provider class or factory; a
-    petta.libraries target answers the directory of sources the package
+    A metta.spaces target is a provider class or factory; a
+    metta.libraries target answers the directory of sources the package
     ships. A non-callable target answers as-is, the module-level-instance
     form, and refuses arguments it cannot take. An unknown name refuses,
     listing what IS installed, so a typo reads as one.
@@ -344,7 +344,7 @@ def _register_module_callable(
     target: Callable,
     name: str,
     *,
-    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"],
 ) -> None:
     if _spreads_positional_calls(target):
@@ -365,12 +365,12 @@ def module_ops(
     *,
     prefix: str | None = None,
     rename: dict[str, str] | None = None,
-    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"] = "raw",
 ) -> list[str]:
     """Selected callables of any module as MeTTa functions, in one call.
 
-        petta.integrate.module_ops(m, math, ["sqrt", "floor", "gcd"])
+        metta.integrate.module_ops(m, math, ["sqrt", "floor", "gcd"])
         m.run("!(sqrt 16.0)")
 
     Underscores read as hyphens, a prefix namespaces the lot, and rename
@@ -457,7 +457,7 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
 def wrap_object(m, name: str, obj: Any, methods: dict[str, str] | Iterable[str]) -> Any:
     """An instance's methods as operations: (name-method args...).
 
-        petta.integrate.wrap_object(m, "db", connection,
+        metta.integrate.wrap_object(m, "db", connection,
                                     {"execute": "db-query!", "close": "db-close!"})
 
     methods maps Python method names to MeTTa spellings, or lists names to
@@ -557,7 +557,7 @@ def reflect(m, name: str, obj: Any) -> int:
             return fn(m, name, obj)
     msg = (
         f"no reflector claims {type(obj).__name__}; register one with "
-        f"petta.integrate.register_reflector"
+        f"metta.integrate.register_reflector"
     )
     raise PettaError(
         msg

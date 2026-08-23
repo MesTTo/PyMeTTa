@@ -22,7 +22,7 @@ from hypothesis import settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 from hypothesis.stateful import RuleBasedStateMachine, invariant, rule  # noqa: E402
 
-from petta import Expression, MeTTa, Variable, testing, unify  # noqa: E402
+from metta import Expression, MeTTa, Variable, testing, unify  # noqa: E402
 
 
 def _substitute(atom, bindings):
@@ -76,7 +76,7 @@ class SpaceStateMachine(RuleBasedStateMachine):
             if unify(pattern, atom) is not None:
                 expected[atom] += copies
 
-        rows = self.space.query(pattern)
+        rows = self.space.match(pattern)
         actual = Counter(
             _substitute(pattern, dict(zip(rows.columns, row, strict=True))) for row in rows
         )

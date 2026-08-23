@@ -20,7 +20,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, arrow, equation, fn, if_, typed
+from metta import Expression, S, V, arrow, equation, fn, if_, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

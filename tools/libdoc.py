@@ -29,8 +29,8 @@ import sys
 _REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO / "bindings" / "python"))
 
-from petta import Expression, Grounded, Symbol, parse  # noqa: E402
-from petta._source_forms import positioned_forms  # noqa: E402
+from metta import Expression, Grounded, Symbol, parse  # noqa: E402
+from metta._source_forms import positioned_forms  # noqa: E402
 
 _PAGE = _REPO / "website" / "reference" / "metta-libraries.md"
 

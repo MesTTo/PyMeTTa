@@ -13,8 +13,8 @@ Open Obligations:
 
 import pytest
 
-from petta import S
-from petta.algebra import LinearEvidenceError
+from metta import S
+from metta.algebra import LinearEvidenceError
 
 
 def test_a_linear_algebra_refuses_the_second_spend_of_one_premise(metta):

@@ -12,7 +12,7 @@ file record one of each. The claims here hold either way, because 81 is 81; the
 divergence is in the residue table with its reproduction.
 """
 
-from petta import S
+from metta import S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

@@ -18,7 +18,7 @@ kind the language has no atom for, needs the catch; and integer division by
 zero already is error data.
 """
 
-from petta import G, S, V, typed
+from metta import G, S, V, typed
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

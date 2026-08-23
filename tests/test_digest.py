@@ -15,7 +15,7 @@ import sys
 
 import pytest
 
-from petta import S, ground
+from metta import S, ground
 
 
 def test_digest_ignores_order_and_variable_names(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -42,7 +42,7 @@ def test_digest_matches_across_processes(metta):  # noqa: D103  -- pytest discov
     with metta._new_space() as here:
         here.run("(dgx alpha) (dgx beta) (= (dgx-f $v) (* $v 2))")
         program = (
-            "from petta import MeTTa\n"
+            "from metta import MeTTa\n"
             "m = MeTTa().space()\n"
             'm.run("(= (dgx-f $other) (* $other 2)) (dgx beta) (dgx alpha)")\n'
             "print(m.digest())\n"

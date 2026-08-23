@@ -17,7 +17,7 @@ Guarantees:
     status, and issue forms GitHub can parse
     [tested 2026-08-19: test_the_repository_ships_its_governance_documents]
   - reference generation follows the public Space handle even though its
-    implementation lives in the private petta._space module, and neither
+    implementation lives in the private metta._space module, and neither
     reference generator can restore the deleted DAS or persistent module doors
     [tested: test_an_overloaded_method_is_documented_once,
     test_the_legacy_reference_generator_tracks_the_narrow_public_modules;
@@ -41,7 +41,7 @@ _REPO = Path(__file__).resolve().parents[3]
 
 def _load_reference():
     """The generator is a tool, not a package member, so it is loaded by path
-    rather than imported: putting it under petta/ would ship a build-time
+    rather than imported: putting it under metta/ would ship a build-time
     script in the wheel.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     spec = importlib.util.spec_from_file_location(
@@ -112,7 +112,7 @@ def test_every_reference_page_names_its_source():
         assert (_ROOT / module_path).exists(), (
             f"{page.name} names {module_path}, which is not there"
         )
-        assert title.startswith("petta"), page.name
+        assert title.startswith("metta"), page.name
 
 
 def test_the_reference_pages_are_up_to_date():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -146,19 +146,19 @@ def test_an_overloaded_method_is_documented_once():
     """@overload declares a type, not a definition. All four gave Space.run
     four identical reference entries.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    page = _reference.page_for("bindings/python/petta/_space.py", "petta.Space")
+    page = _reference.page_for("bindings/python/metta/_space.py", "metta.Space")
     assert page.count("### `Space.run`") == 1
 
 
 def test_the_legacy_reference_generator_tracks_the_narrow_public_modules():
     """Both checked-in generators must agree on deleted and private doors."""
     modules = {spec.name: spec.source for spec in _site_reference_generator.MODULES}
-    assert modules["petta.Space"] == "bindings/python/petta/_space.py"
-    assert "petta.space" not in modules
-    assert "petta.das" not in modules
-    assert "petta.persistent" not in modules
-    assert "petta.matching" not in modules
-    assert "petta.measure" not in modules
+    assert modules["metta.Space"] == "bindings/python/metta/_space.py"
+    assert "metta.space" not in modules
+    assert "metta.das" not in modules
+    assert "metta.persistent" not in modules
+    assert "metta.matching" not in modules
+    assert "metta.measure" not in modules
     assert not (_REPO / "website" / "reference" / "petta-das.md").exists()
     assert not (_REPO / "website" / "reference" / "petta-persistent.md").exists()
     assert not (_REPO / "website" / "live" / "das.md").exists()
@@ -217,14 +217,14 @@ def test_the_metta_library_page_is_up_to_date():  # noqa: D103  -- pytest discov
 
 
 def _lint_kinds() -> set[str]:
-    """Every kind petta.lint can emit, read out of the analysis module.
+    """Every kind metta.lint can emit, read out of the analysis module.
 
     Derived rather than listed, because a hand-kept list is the thing that
     drifts: the kinds reach a Finding two ways, directly as its first
     argument and through a simplifier's (kind, detail, replacement) triple,
     and both shapes are matched here.
     """
-    tree = ast.parse((_REPO / "bindings" / "python" / "petta" / "_lint_analysis.py").read_text())
+    tree = ast.parse((_REPO / "bindings" / "python" / "metta" / "_lint_analysis.py").read_text())
     kinds: set[str] = set()
     for node in ast.walk(tree):
         first = None
@@ -244,8 +244,8 @@ def test_every_lint_kind_is_named_on_the_page_its_findings_link_to():
     signatures and docstrings and named none of the seventeen kinds; a
     reader following the link from a finding learned nothing about it.
     """
-    from petta import S
-    from petta.lint import Finding
+    from metta import S
+    from metta.lint import Finding
 
     link = Finding("kind", "subject", "detail", S.evidence).docs_link
     page, _, anchor = link.partition("#")

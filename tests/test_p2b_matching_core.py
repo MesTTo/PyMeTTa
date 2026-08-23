@@ -5,7 +5,7 @@ in a body position holds, and a rule's guard decides whether the rule applies
 without rewriting the call it was asked about.
 
 Assumes:
-  - a MeTTa program can be evaluated in-process through ``petta.MeTTa``, and
+  - a MeTTa program can be evaluated in-process through ``metta.MeTTa``, and
     one query group's atoms come back in their stable textual form.
 Guarantees:
   - `quote` scopes a pattern exactly as it scopes a body, so a head written to
@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import pytest
 
-from petta import MeTTa
+from metta import MeTTa
 
 # Terms whose meaning changes if a pattern's quote is walked instead of held.
 # `cons` is rewritten into an improper list by the pattern walk, `:` into a

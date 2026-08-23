@@ -13,16 +13,16 @@ Open Obligations:
 
 import pytest
 
-from petta import (
+from metta import (
     Answer,
     Bindings,
     Expression,
     S,
     V,
 )
-from petta.atoms import Grounded
-from petta.errors import EngineError
-from petta.foreign import CustomMatch
+from metta.atoms import Grounded
+from metta.errors import EngineError
+from metta.foreign import CustomMatch
 
 
 @pytest.fixture

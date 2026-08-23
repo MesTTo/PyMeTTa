@@ -9,7 +9,7 @@ exactly, because its own underscore map would reach a different head.
 it builds `(+ (+ $x $y) $z)` without a word about it.
 """
 
-from petta import S
+from metta import S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

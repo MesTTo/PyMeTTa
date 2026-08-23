@@ -12,7 +12,7 @@ the bracket: `lib_roman` really has an underscore, and the attribute door maps
 every underscore to a hyphen.
 """
 
-from petta import Expression, S
+from metta import Expression, S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

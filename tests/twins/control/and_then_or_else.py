@@ -36,8 +36,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import FALSE, TRUE, Atom, S, V
+import metta
+from metta import FALSE, TRUE, Atom, S, V
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
@@ -47,7 +47,7 @@ BUDGET = 1
 
 def twin(m):
     """Skip a branch, take a branch, and prove which one ran."""
-    ran = petta.space("&ran")
+    ran = metta.space("&ran")
 
     # The top rung writes from inside the equation, with no operation at all:
     #
@@ -134,7 +134,7 @@ def twin(m):
     # runs even though the first is False. Both forms are written the same way
     # so the pair stays comparable.
     # The original opens `&ran2` to keep this experiment apart. The top rung
-    # would open a second space here too, `petta.space("&ran2")`, and `note2`
+    # would open a second space here too, `metta.space("&ran2")`, and `note2`
     # would write into it; a compiled body cannot name either, so both
     # equations route through the one operation and the experiments are kept
     # apart by a slice of the same space instead. Residue: P14.4, the same

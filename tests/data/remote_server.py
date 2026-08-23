@@ -10,7 +10,7 @@ Open Obligations:
 import json
 import time
 
-from petta import MeTTa, S, remote
+from metta import MeTTa, S, remote
 
 m = MeTTa().space()
 m.add(S.users(1, "Ada"), S.users(2, "Bob"))

@@ -20,7 +20,7 @@ The refusal is an Error ATOM, and iterating the answer view keeps it as data
 where the scalar doors take the loud reading and raise.
 """
 
-from petta import G, S, V, typed
+from metta import G, S, V, typed
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

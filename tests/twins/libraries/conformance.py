@@ -1,6 +1,6 @@
 """examples/libraries/conformance.metta in Python: proving a Prolog provider.
 
-`petta.testing.check_space_provider` takes a Python OBJECT, so the seam's
+`metta.testing.check_space_provider` takes a Python OBJECT, so the seam's
 faster tier had no way to prove itself: a Prolog provider is a set of multifile
 clauses and there is nothing to pass. `check-space-provider` asks the same
 three checks of a space, and this file is that function's own example, so the
@@ -16,8 +16,8 @@ attribute door maps every underscore to a hyphen, so `S.lib_conformance` is the
 library `lib-conformance`, which does not exist.
 """
 
-import petta
-from petta import G, S, V
+import metta
+from metta import G, S, V
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -37,7 +37,7 @@ def twin(m):
     m.fn["import!"](m, S.library(S["lib_conformance"]))
     m.eval(S["import_prolog_functions_from_file"](PROVIDER, ()))
 
-    demo = petta.space("&demo_provider")
+    demo = metta.space("&demo_provider")
 
     # The checks that ran, in order: one per declared capability, then the
     # over-approximation contract, then the pushdown claim.
@@ -51,4 +51,4 @@ def twin(m):
     ]
 
     # And it answers through the seam, which is the point of proving it.
-    assert sorted((row.y for row in demo.query(S.edge(S.a, V.y))), key=str) == [S.b]
+    assert sorted((row.y for row in demo.match(S.edge(S.a, V.y))), key=str) == [S.b]

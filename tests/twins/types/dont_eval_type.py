@@ -10,7 +10,7 @@ is the metatype accessor out here, where the atom is already in hand, and the
 last line says so by asking both sides about the same term.
 """
 
-from petta import Expression, S, V, arrow, equation, fn, typed
+from metta import Expression, S, V, arrow, equation, fn, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

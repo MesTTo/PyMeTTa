@@ -17,10 +17,10 @@ Open Obligations:
 
 import pytest
 
-from petta import PettaError
-from petta._engine import bridge
-from petta.atoms import Undefined
-from petta.errors import EngineError
+from metta import PettaError
+from metta._engine import bridge
+from metta.atoms import Undefined
+from metta.errors import EngineError
 
 
 @pytest.fixture()

@@ -25,7 +25,7 @@ Open Obligations:
 
 import pytest
 
-from petta import Expression, S, V
+from metta import Expression, S, V
 
 
 @pytest.fixture()
@@ -218,7 +218,7 @@ def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
     """The law is the space's, not the store's, so a provider-backed
     conjunction gets the same guarantee through the same door.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from petta.foreign import SpaceProvider
+    from metta.foreign import SpaceProvider
 
     class ListSpace(SpaceProvider):
         def __init__(self, atoms):
@@ -264,4 +264,4 @@ def test_the_snapshot_does_not_hide_a_write_from_the_next_match(m):
     m.run("!(collapse (match &self (, (seen $a) (seen $b)) (add-atom &self (pair $a $b))))")
     (pairs,) = m.run("!(collapse (match &self (pair $a $b) ($a $b)))")
     assert len(pairs[0]) == 4
-    assert m.query(S.pair(V.a, V.b))
+    assert m.match(S.pair(V.a, V.b))

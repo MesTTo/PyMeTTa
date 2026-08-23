@@ -22,8 +22,8 @@ Open Obligations:
 
 import pytest
 
-from petta import S, V, space
-from petta.errors import EngineError
+from metta import S, V, space
+from metta.errors import EngineError
 
 
 def _answers(metta, source):
@@ -42,8 +42,8 @@ def test_python_space_factory_accepts_atom_valued_names(metta):
         users += S.member(S.Ada)
         cache += S.entry(S.key, S.value)
 
-        assert users.query(S.member(V.who)).one().who == S.Ada
-        assert cache.query(S.entry(V.key, V.value)).one().value == S.value
+        assert users.match(S.member(V.who)).one().who == S.Ada
+        assert cache.match(S.entry(V.key, V.value)).one().value == S.value
         assert metta.run("!(match &users (member $who) $who)") == [[S.Ada]]
         assert metta.run(
             "!(match (cache base 100) (entry $key $value) $value)"

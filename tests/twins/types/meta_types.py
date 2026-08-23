@@ -11,7 +11,7 @@ that name to a builtin operation. The class is what the atom IS; the metatype
 is what the engine MAKES of it.
 """
 
-from petta import Expression, Grounded, S, Symbol, V, Variable, ground
+from metta import Expression, Grounded, S, Symbol, V, Variable, ground
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

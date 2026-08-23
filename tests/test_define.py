@@ -38,8 +38,8 @@ from pathlib import Path
 
 import pytest
 
-from petta import Expression, S, parse
-from petta.errors import CompileError, EngineError
+from metta import Expression, S, parse
+from metta.errors import CompileError, EngineError
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given
@@ -196,7 +196,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     assert "pure" not in inspect.signature(m.define).parameters
 
     reflection = m._at("&petta")
-    source_rows = reflection.query(
+    source_rows = reflection.match(
         parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
     )
     assert len(source_rows) == 1
@@ -239,7 +239,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     assert replacement.pure is False
     assert effect_fact not in reflection
     assert len(
-        reflection.query(
+        reflection.match(
             parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
         )
     ) == 1
@@ -248,7 +248,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     )
 
     old_source = list(
-        reflection.query(
+        reflection.match(
             parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
         )
     )
@@ -278,7 +278,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
         m.define(ast_observed)
     monkeypatch.setattr(runtime_type, "must", real_must)
     assert list(
-        reflection.query(
+        reflection.match(
             parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
         )
     ) == old_source
@@ -287,7 +287,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     )
 
     m.clear()
-    assert not reflection.query(
+    assert not reflection.match(
         parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
     )
     assert free_fact not in reflection
@@ -929,7 +929,7 @@ def test_a_definition_may_be_written_in_prolog_with_the_python_as_reference(m, f
 
 
 def test_the_prolog_twin_is_checked_against_its_reference(m, fast_file):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import testing
+    from metta import testing
 
     @m.define(prolog=fast_file, name="dt-dot")
     def dt_dot(a, b):
@@ -940,7 +940,7 @@ def test_the_prolog_twin_is_checked_against_its_reference(m, fast_file):  # noqa
 
 
 def test_a_prolog_twin_that_disagrees_is_caught(m, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import testing
+    from metta import testing
 
     source = tmp_path / "dt_wrong.pl"
     source.write_text(

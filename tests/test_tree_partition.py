@@ -52,8 +52,6 @@ def test_the_tree_partitions_by_seam():
     )
     assert "bindings/python/decider.pl" in deciders
 
-    # Upstream's conftest imports python.petta, so this package-identity shim
-    # is the one retained compatibility boundary.
-    assert (REPO / "python" / "__init__.py").exists(), (
-        "the upstream python.petta entry point is missing"
+    assert not (REPO / "python" / "__init__.py").exists(), (
+        "the retired python.petta package alias still exists"
     )

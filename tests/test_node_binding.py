@@ -43,8 +43,8 @@ from typing import Any
 
 import pytest
 
-import petta
-from petta import wire
+import metta
+from metta import wire
 
 _BINDING = Path(__file__).resolve().parents[3] / "bindings" / "node"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
@@ -318,10 +318,10 @@ def test_a_second_language_binding_passes_the_same_conformance_kit(node_driver) 
     came back as (f $x $y).
     """
     pytest.importorskip(
-        "petta._codec_kit",
+        "metta._codec_kit",
         reason="the codec kit is not in this tree yet; this runs once it merges",
     )
-    from petta.testing import check_codec
+    from metta.testing import check_codec
 
     assert check_codec(node_driver) == []
 
@@ -336,10 +336,10 @@ def test_the_binding_runs_every_leg_and_says_which_cases_it_does_not(node_driver
     given up would be.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     pytest.importorskip(
-        "petta._codec_kit",
+        "metta._codec_kit",
         reason="the codec kit is not in this tree yet; this runs once it merges",
     )
-    from petta.testing import codec_plan
+    from metta.testing import codec_plan
 
     plan = codec_plan(node_driver)
     assert plan["legs"] == ["read", "render", "roundtrip", "transport"]
@@ -365,7 +365,7 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
     host against a written-down grammar. A codec can satisfy the grammar and
     still disagree with the engine that ships beside it.
     """
-    engine = petta.MeTTa().self
+    engine = metta.MeTTa().self
 
     reported = [(entry["file"], entry["missing"]) for entry in node_report["refusals"]]
     assert reported == _EXPECTED_REFUSALS

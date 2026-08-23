@@ -3,7 +3,7 @@
 Six successor facts and a transitive closure over them, asked backwards: which
 letters come before `d`. The two dispatch policies go into the reflection space
 through the ordinary write door, `space += atom`, because that is what
-`add-atom` is; `petta.reflection` IS that space, so the `&petta` symbol is
+`add-atom` is; `metta.reflection` IS that space, so the `&petta` symbol is
 never written.
 
 `successor`'s six clauses are ground facts, so they are a Python loop over
@@ -22,8 +22,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import TRUE, Expression, S, V, equation
+import metta
+from metta import TRUE, Expression, S, V, equation
 
 #: Six letters, each with the one before it.
 SUCCESSORS = ((S.b, S.a), (S.c, S.b), (S.d, S.c), (S.e, S.d), (S.f, S.e), (S.g, S.f))
@@ -39,7 +39,7 @@ def twin(m):
     """State six facts, close them transitively, and search backwards."""
     # Reaching either relation's unmatched boundary must FAIL the search rather
     # than answering the P3 residual-call dispatch value.
-    reflection = petta.reflection
+    reflection = metta.reflection
     reflection += S["dispatch-policy"](S.successor, S.NoMatchEnum, S.NoMatchFail)
     reflection += S["dispatch-policy"](S["later-in-alphabet"], S.NoMatchEnum, S.NoMatchFail)
 

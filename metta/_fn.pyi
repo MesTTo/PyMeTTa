@@ -28,7 +28,7 @@ class _FunctionNamespace:
     add_atoms: Symbol
     "add-atoms: (-> SpaceType Expression (->))\n\nThe same `+=` door, once per fact: anything that yields tuples is a fact stream. One friction, measured: a LIST on the `+=` door writes one atom holding the list rather than one atom per element, so the row loops [measured 2026-08-22: `space += [(S.f, 1), (S.f, 2)]` stores `((f 1) (f 2))`; `space.add(a, b)` is the varargs door that does write both]."
     add_reduct: Symbol
-    "add-reduct: (-> SpaceType %Undefined% (->))\n\nThere is no second door: `+=` adds what you give it, so adding a REDUCT is explicit composition, `space += m.eval(term)[0]`. The row wraps the sum because PeTTa's write door REFUSES a bare grounded atom that its own MeTTa door accepts [measured 2026-08-22: `space += petta.ground(3)` raises `a stored atom is a non-empty expression`, while `!(add-reduct &pb (+ 1 2))` stores `3`]."
+    "add-reduct: (-> SpaceType %Undefined% (->))\n\nThere is no second door: `+=` adds what you give it, so adding a REDUCT is explicit composition, `space += m.eval(term)[0]`. The row wraps the sum because PeTTa's write door REFUSES a bare grounded atom that its own MeTTa door accepts [measured 2026-08-22: `space += metta.ground(3)` raises `a stored atom is a non-empty expression`, while `!(add-reduct &pb (+ 1 2))` stores `3`]."
     add_reducts: Symbol
     "add-reducts: (-> SpaceType %Undefined% (->))\n\nThe plural of the same composition: evaluate, then write the answers."
     add_translator_rule: Symbol
@@ -45,7 +45,7 @@ class _FunctionNamespace:
     "atan-math: (-> Number Number)\n\n`math.atan`."
     atomically: Symbol
     bind: Symbol
-    "bind!: (-> Symbol %Undefined% (->))\n\nA Python name binding. `space = petta.space(...)` is exactly what a token binding was for, and Python's own scoping rules then apply."
+    "bind!: (-> Symbol %Undefined% (->))\n\nA Python name binding. `space = metta.space(...)` is exactly what a token binding was for, and Python's own scoping rules then apply."
     call: Symbol
     car_atom: Symbol
     "car-atom: (-> Expression %Undefined%)\n\nIndexing. An expression is a sequence in Python, so its head is `e[0]`."
@@ -66,7 +66,7 @@ class _FunctionNamespace:
     cons_atom: Symbol
     "cons-atom: (-> Atom Expression Atom)\n\nConstruction: call the head, or rebuild from head and tail with `*`."
     context_space: Symbol
-    "context-space: (-> SpaceType)\n\nThe space a program is currently in, which in Python is the handle it holds; `petta.current_space()` is the door for code that did not receive one, and it follows Python's own `current_thread` and `current_task` convention, so the Python word wins over the instruction's name. The row asks both sides for the current space's atoms."
+    "context-space: (-> SpaceType)\n\nThe space a program is currently in, which in Python is the handle it holds; `metta.current_space()` is the door for code that did not receive one, and it follows Python's own `current_thread` and `current_task` convention, so the Python word wins over the instruction's name. The row asks both sides for the current space's atoms."
     cos_math: Symbol
     "cos-math: (-> Number Number)\n\n`math.cos`."
     current_time: Symbol
@@ -103,7 +103,7 @@ class _FunctionNamespace:
     foldl_atom: Symbol
     "foldl-atom: (-> Expression Atom Variable Variable Atom %Undefined%)\nfoldl-atom: (-> Expression Atom Expression %Undefined%)\n\n`functools.reduce` with an initial value, which is the same left fold."
     for_each_in_atom: Symbol
-    "for-each-in-atom: (-> Expression Atom (->))\n\nA `for` statement. It is called for its effect, so the row prints and answers the unit. Python's `for` has no value at all, and the concept map says `None` IS the unit, but `petta.ground(None)` renders `<NoneType>` rather than `()` today, so a row that wants the unit writes it [measured 2026-08-22]."
+    "for-each-in-atom: (-> Expression Atom (->))\n\nA `for` statement. It is called for its effect, so the row prints and answers the unit. Python's `for` has no value at all, and the concept map says `None` IS the unit, but `metta.ground(None)` renders `<NoneType>` rather than `()` today, so a row that wants the unit writes it [measured 2026-08-22]."
     forall: Symbol
     format_args: Symbol
     "format-args: (-> String Expression String)\n\nAn f-string. MeTTa's `{}` holes are Python's own interpolation."
@@ -183,7 +183,7 @@ class _FunctionNamespace:
     "map-atom: (-> Expression Variable Atom Expression)\nmap-atom: (-> Expression Expression Expression)\n\nA comprehension, or `map`. The variable and the template are the comprehension's own binder and body."
     maplist: Symbol
     match: Symbol
-    "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript door and `space.query(pattern)` the named one; the TEMPLATE is built in Python from the answer's bindings."
+    "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript door and `space.match(pattern)` the named one; the TEMPLATE is built in Python from the answer's bindings."
     match_type_or: Symbol
     match_types: Symbol
     max: Symbol
@@ -205,9 +205,9 @@ class _FunctionNamespace:
     "*: (-> Number Number Number)\n\nPython's own operator."
     ne: Symbol
     new_space: Symbol
-    "new-space: (-> SpaceType)\n\n`petta.space()`. A constructor call is Python's own spelling for `make me a fresh one`, and the row asks the fresh space for its atoms because the NAME a space gets differs per engine."
+    "new-space: (-> SpaceType)\n\n`metta.space()`. A constructor call is Python's own spelling for `make me a fresh one`, and the row asks the fresh space for its atoms because the NAME a space gets differs per engine."
     new_state: Symbol
-    "new-state: (-> $t (StateMonad $t))\n\n`petta.State[T](value, space=space)` creates the typed Python handle. The row reads `.value` because the engine cell itself is deliberately hidden behind that handle."
+    "new-state: (-> $t (StateMonad $t))\n\n`metta.State[T](value, space=space)` creates the typed Python handle. The row reads `.value` because the engine cell itself is deliberately hidden behind that handle."
     noeval: Symbol
     "noeval: (-> Atom Atom)\n\nThe same point as `quote`: a built term is already unevaluated."
     nop: Symbol
@@ -319,7 +319,7 @@ class _FunctionNamespace:
     undocumented: Symbol
     undocumented_space: Symbol
     unify: Symbol
-    "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural matching. `petta.unify(pattern, subject)` answers the bindings or `None`, so the four-argument form is that call with a conditional; in a compiled body Python's `match` statement lowers to this instruction. One friction: MeTTa's `unify` is symmetric while `petta.unify` is DIRECTIONAL, pattern first, so swapping the arguments answers `None` [measured 2026-08-22: `petta.unify(S.f(S.a), S.f(V.x))` is None]."
+    "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural matching. `metta.unify(pattern, subject)` answers the bindings or `None`, so the four-argument form is that call with a conditional; in a compiled body Python's `match` statement lowers to this instruction. One friction: MeTTa's `unify` is symmetric while `metta.unify` is DIRECTIONAL, pattern first, so swapping the arguments answers `None` [measured 2026-08-22: `metta.unify(S.f(S.a), S.f(V.x))` is None]."
     union: Symbol
     "union: (-> Atom Atom %Undefined%)\n\nMultiset union over nondeterministic answers, which is concatenation: answers are iterables and `+` joins them."
     union_atom: Symbol

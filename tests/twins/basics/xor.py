@@ -15,7 +15,7 @@ so `(if (xor (== $s $d) (> $s $d)) 42 0)` is stored as
 residue table records the divergence against P14.4.
 """
 
-from petta import fn
+from metta import fn
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

@@ -32,7 +32,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, G, S, fn, ground
+from metta import Expression, G, S, fn, ground
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

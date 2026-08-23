@@ -16,7 +16,7 @@ named, and the claim is an ordinary comparison.
 raises has no block of its own.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

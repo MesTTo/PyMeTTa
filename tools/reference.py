@@ -1,11 +1,11 @@
-"""Purpose: generate website/reference/petta-*.md from the modules they
+"""Purpose: generate website/reference/metta-*.md from the modules they
 document, so the page's own promise, "The entries below reproduce the source
 signatures and docstrings", is true by construction rather than by hand.
 
 Assumes:
   - every reference page names its module in a `Source: \\`path\\`.` line
     [tested test_every_reference_page_names_its_source]
-  - petta.atoms and friends parse as ordinary Python, since this reads the AST
+  - metta.atoms and friends parse as ordinary Python, since this reads the AST
     and never imports: a page can be regenerated without a working janus
     [assumed 2026-08-16]
 Guarantees:
@@ -198,7 +198,9 @@ def page_for(module_path: str, title: str) -> str:
 def sources() -> list[tuple[pathlib.Path, str, str]]:
     """Every reference page, with the module it names and the title it uses."""
     found = []
-    for page in sorted(PAGES.glob("petta-*.md")):
+    for page in sorted(PAGES.glob("metta-*.md")):
+        if page.name == "metta-libraries.md":
+            continue
         text = page.read_text(encoding="utf-8")
         match = SOURCE.search(text)
         title = text.splitlines()[0].strip("# `")

@@ -19,8 +19,8 @@ well as at the call sites: a space is an ordinary term operand, so nothing has
 to read a name back out of a handle to put it in a term.
 """
 
-import petta
-from petta import Expression, S, V, equation
+import metta
+from metta import Expression, S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -36,8 +36,8 @@ RUNG = "the custom judge embeds engine-time matching, branching, and sequence tr
 
 def twin(m):
     """Install the MeTTa-bodied judge, claim one pool, and compare verdicts."""
-    reflection = petta.reflection
-    pool = petta.space("&metta-pool")
+    reflection = metta.reflection
+    pool = metta.space("&metta-pool")
 
     admission_verdict = S["metta-admission-verdict"]
     admission_typed = S["metta-admission-typed"]
@@ -116,7 +116,7 @@ def twin(m):
                 # engine's total atom ORDER, so none of the four builds a
                 # term and a guard a stored definition holds is written at
                 # the naming door
-                # [source: bindings/python/petta/_atoms_core.py:1353-1365].
+                # [source: bindings/python/metta/_atoms_core.py:1353-1365].
                 S["<"](
                     S["space-atom-count"](V.pool),
                     S["car-atom"](V.limits),  # rung: the value is an engine-time variable

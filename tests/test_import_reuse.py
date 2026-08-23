@@ -8,8 +8,8 @@ Open Obligations:
 
 import pytest
 
-from petta import Expression, S
-from petta.errors import EngineError
+from metta import Expression, S
+from metta.errors import EngineError
 
 DATETIME_IMPORT = "!(import! (context-space) (library lib_datetime))"
 FORMAT_DATE_CALL = '!(format-date 1735689600 "%B")'

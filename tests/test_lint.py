@@ -4,7 +4,7 @@ with the wrong argument count, body variables the head never bound,
 alpha-equivalent duplicate equations, and heads no function or fact
 carries. A healthy space answers no findings.
 Guarantees:
-  - public finding records survive pickle through petta.lint [tested
+  - public finding records survive pickle through metta.lint [tested
     test_finding_retains_public_pickle_identity]
 Open Obligations:
   To Do: None
@@ -17,8 +17,8 @@ import pickle
 
 import pytest
 
-from petta import Expression, PettaError, S
-from petta.lint import Finding, lint
+from metta import Expression, PettaError, S
+from metta.lint import Finding, lint
 
 
 @pytest.fixture()
@@ -34,7 +34,7 @@ def _kinds(findings):
 def test_finding_retains_public_pickle_identity():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     finding = Finding("kind", "subject", "detail", S.evidence)
     assert pickle.loads(pickle.dumps(finding)) == finding
-    assert Finding.__module__ == "petta.lint"
+    assert Finding.__module__ == "metta.lint"
 
 
 def test_a_healthy_space_answers_no_findings(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -165,7 +165,7 @@ def test_calling_a_special_form_is_not_an_undefined_reference(m, body):  # noqa:
 
 
 def test_a_special_form_is_a_known_head(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta._lint_model import EngineRegistry
+    from metta._lint_model import EngineRegistry
 
     registry = EngineRegistry(m.runtime)
     assert registry.is_function("if") is False
@@ -360,7 +360,7 @@ def test_type_mismatch_uses_the_engines_total_get_type(m):  # noqa: D103  -- pyt
 
 
 def test_positioned_forms_recover_exact_lines():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta._source_forms import positioned_forms
+    from metta._source_forms import positioned_forms
 
     source = "; a comment quoting (f 1)\n(f 1)\n\n!(+ 1 2)\n(= (g $x)\n   $x)\n"
     forms = positioned_forms(source)
@@ -374,7 +374,7 @@ def test_positioned_forms_recover_exact_lines():  # noqa: D103  -- pytest discov
 
 
 def test_a_locator_mismatch_refuses(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import _source_forms
+    from metta import _source_forms
 
     real = _source_forms.runtime
 
@@ -397,7 +397,7 @@ def test_lint_file_anchors_findings_to_lines(metta, tmp_path):  # noqa: D103  --
         "(= (q2-fine $x) $x)\n"
         "(= (q2-loose $x) (if True $x 0))\n"
     )
-    from petta.lint import lint_file
+    from metta.lint import lint_file
 
     findings = {f.kind: f for f in lint_file(target, m=metta)}
     ghost = findings["declared-but-undefined"]

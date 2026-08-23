@@ -31,7 +31,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import TRUE, S, V, equation, rules
+from metta import TRUE, S, V, equation, rules
 
 #: `(|-> ($x) (g $x))`, the generator lambda the original writes inline.
 GENERATOR = S["|->"]((V.x,), S.g(V.x))
@@ -80,7 +80,7 @@ def twin(m):
     # rebinding one Python name under one MeTTa name stores only the LAST
     # equation, and two different Python functions carrying one `name=` raise
     # `IndexError: list assignment index out of range` from
-    # `petta/_define_twins.py` `replace_twin_clause`. The crash is a defect on
+    # `metta/_define_twins.py` `replace_twin_clause`. The crash is a defect on
     # its own. `@rules` is the door that writes a clause set without deriving a
     # first-match guard; what it cannot do is take Python SYNTAX for its
     # bodies. Residue: P14.4.

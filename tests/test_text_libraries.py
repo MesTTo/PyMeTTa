@@ -20,8 +20,8 @@ Open Obligations:
 
 import pytest
 
-from petta import S
-from petta.atoms import Expression
+from metta import S
+from metta.atoms import Expression
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given

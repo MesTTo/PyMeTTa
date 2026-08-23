@@ -21,7 +21,7 @@ declared `(-> $t $t Bool)` and a compiled `if` emits it bare.
 superpose_primes.py beside this file carries the measurement.
 """
 
-from petta import fn
+from metta import fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

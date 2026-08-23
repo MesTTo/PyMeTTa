@@ -13,9 +13,9 @@ Open Obligations:
 
 from _common import check, done
 
-import petta
-from petta import MeTTa, S, V, tables
-from petta.errors import InferenceLimitError, TimeLimitError
+import metta
+from metta import MeTTa, S, V, tables
+from metta.errors import InferenceLimitError, TimeLimitError
 
 m = MeTTa().space("&bounds-demo")
 
@@ -41,11 +41,11 @@ except InferenceLimitError:
     check("an inference bound is the deterministic twin", True)
 
 tables.add(m, "edge", [(i, i + 1) for i in range(200)])
-rows = m.query(S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0)
+rows = m.match(S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0)
 check("a generous bound changes nothing", len(rows), 199)
 
 with m.stats() as s:
-    list(m.query(S.edge(V.a, V.b), S.edge(V.b, V.c)))
+    list(m.match(S.edge(V.a, V.b), S.edge(V.b, V.c)))
 check("the stats block counts the engine steps spent", s.inferences > 100)
 
 with m.capture() as output:

@@ -7,7 +7,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-from petta import Expression, S, V
+from metta import Expression, S, V
 
 
 def test_two_spaces_can_define_the_same_head(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -17,8 +17,8 @@ import asyncio
 
 import pytest
 
-from petta import S, aio
-from petta.errors import SpaceCapabilityError
+from metta import S, aio
+from metta.errors import SpaceCapabilityError
 
 
 def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
@@ -81,7 +81,7 @@ def test_a_restricted_space_cannot_evalc_or_write_into_self(metta):
             with pytest.raises(SpaceCapabilityError) as write_error:
                 locked.run(f"!(add-atom {victim.name} (escaped write))")
             assert write_error.value.operation == "add-atom"
-            assert not victim.query(S.escaped(S.write))
+            assert not victim.match(S.escaped(S.write))
 
 
 def test_a_recycled_name_retains_no_restriction(metta):

@@ -152,22 +152,22 @@ def is_array(x: Any) -> bool:
 def _compat():
     return require_module(
         "array_api_compat",
-        "petta.arrays needs array-api-compat, the standard's compatibility "
-        "layer over NumPy, PyTorch, CuPy, JAX and Dask; install petta[arrays]",
+        "metta.arrays needs array-api-compat, the standard's compatibility "
+        "layer over NumPy, PyTorch, CuPy, JAX and Dask; install pymetta[arrays]",
     )
 
 
 def _numpy():
     return require_module(
         "numpy",
-        "petta.arrays needs NumPy for default arrays and embedding storage; install petta[arrays]",
+        "metta.arrays needs NumPy for default arrays and embedding storage; install pymetta[arrays]",
     )
 
 
 def _faiss():
     return require_module(
         "faiss",
-        "the faiss embedding backend needs faiss-cpu; install petta[arrays]",
+        "the faiss embedding backend needs faiss-cpu; install pymetta[arrays]",
     )
 
 
@@ -255,7 +255,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         fn,
         *,
         name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "raw",
         **kw,
     ):
@@ -280,7 +280,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         *,
         name: str,
         arities: list[int] | None = None,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "raw",
         **kw,
     ):
@@ -588,7 +588,7 @@ class EmbeddingStore:
     """Vectors by key, searchable from MeTTa, in whichever library the
     vectors arrive from.
 
-        store = petta.arrays.EmbeddingStore(m, name="emb")
+        store = metta.arrays.EmbeddingStore(m, name="emb")
         store.add(S.dog, numpy.array([1.0, 0.0]))
         m.run("!(collapse (emb-knn (tensor (1.0 0.0)) 1))")
 

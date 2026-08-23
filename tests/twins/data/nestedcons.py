@@ -6,7 +6,7 @@ cannot spell, so the clause is written as the equation it is; the call then
 reads `(a b c d)` as head `a`, then `(b c d)` as head `b`, and answers `b`.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

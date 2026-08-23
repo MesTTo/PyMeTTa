@@ -19,7 +19,7 @@ longer part of that: a handle is an ordinary term operand, so `m` itself sits
 in every space position below.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Why this twin sits below the top rung, stated once for the whole file.
 RUNG = (

@@ -229,7 +229,7 @@ class Planner(Protocol):
         self, patterns: list[Atom]
     ) -> tuple[list[Atom], list[Atom], Iterator[Any]] | None: ...
     # A row is a list of instantiated atoms, one per claimed pattern, or a
-    # petta.Answer whose theta binds the claimed patterns' own variables
+    # metta.Answer whose theta binds the claimed patterns' own variables
     # directly, which deletes the per-row re-unification atom rows force.
 
 
@@ -514,7 +514,7 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:  # n
     if missing:
         msg = (
             f"a provider answers {' and '.join(missing)}; "
-            f"{type(provider).__name__} does not. Subclass petta.foreign."
+            f"{type(provider).__name__} does not. Subclass metta.foreign."
             f"SpaceProvider, which implements both from the narrow protocols "
             f"the class does provide."
         )
@@ -823,7 +823,7 @@ def foreign_transaction(space: str, step: str) -> bool:
         msg = (
             f"{space} is declared (writes {space} transactional) and its "
             f"provider {type(provider).__name__} does not implement "
-            f"begin/commit/rollback; implement petta.foreign.Transactional "
+            f"begin/commit/rollback; implement metta.foreign.Transactional "
             f"or declare best-effort"
         )
         raise PettaError(

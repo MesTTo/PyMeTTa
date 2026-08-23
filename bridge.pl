@@ -7,8 +7,8 @@
 %   - janus is present. Every predicate here calls Python on its first use and
 %     none of them runs at load time, so a program that never touches Python
 %     pays only this file's load [tested: a_name_resolves_to_an_object].
-%   - petta_py.py sits beside this file and imports nothing from the
-%     `petta` package, because the engine runs with janus alone.
+%   - metta_py.py sits beside this file and imports nothing from the
+%     `metta` package, because the engine runs with janus alone.
 % Guarantees:
 %   - values crossing this surface stay OBJECTS. Nothing is flattened, drained
 %     or stringified on the way back, so a generator keeps its laziness and a
@@ -79,7 +79,7 @@ petta_py_opts([py_object(true), py_string_as(string)]).
 petta_py(Call, Goal, Result) :-
     petta_py_bridge,
     petta_py_opts(Opts),
-    petta_py_guard(Call, py_call(petta_py:Goal, Raw, Opts)),
+    petta_py_guard(Call, py_call(metta_py:Goal, Raw, Opts)),
     petta_py_result(Raw, Result).
 
 %%%% Failure %%%%
@@ -235,7 +235,7 @@ seam:grounded_structure(Tuple, Elements) :-
 
 %And a Python object that IS a sequence, which costs a crossing because the
 %elements live on the other side. PEP 634's rule decides which objects qualify;
-%engine/petta_py.py carries it.
+%engine/metta_py.py carries it.
 %
 %The length is asked first and separately. A pattern of fixed shape is rejected
 %by its length without pulling a single element, so matching `($x $y)` against
@@ -244,7 +244,7 @@ seam:grounded_structure(Obj, Elements) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
-    py_call(petta_py:sequence_length(Obj), Length),
+    py_call(metta_py:sequence_length(Obj), Length),
     Length >= 0,
     (   is_list(Elements)
     ->  length(Elements, Length)
@@ -288,7 +288,7 @@ seam:grounded_text(Obj, Text) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
-    py_call(petta_py:render(Obj), Text).
+    py_call(metta_py:render(Obj), Text).
 
 %%%% Resolution %%%%
 
@@ -402,7 +402,7 @@ seam:grounded_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
 :- multifile seam:grounded_class_type/2.
 seam:grounded_class_type(X, T) :-
     petta_py_bridge,
-    py_call(petta_py:class_names(X), Names, [py_string_as(string)]),
+    py_call(metta_py:class_names(X), Names, [py_string_as(string)]),
     member(Name, Names),
     ( atom(Name) -> T = Name ; atom_string(T, Name) ).
 
@@ -481,12 +481,12 @@ seam:grounded_apply(Obj, Args, Result) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
-    py_call(petta_py:is_callable(Obj), @true),
+    py_call(metta_py:is_callable(Obj), @true),
     petta_py_split_kwargs(Args, Positional0, Kwargs),
     maplist(py_arg_norm, Positional0, Positional),
     petta_py_opts(Opts),
     petta_py_guard([Obj|Args],
-                   py_call(petta_py:apply(Obj, Positional, Kwargs), Raw, Opts)),
+                   py_call(metta_py:apply(Obj, Positional, Kwargs), Raw, Opts)),
     petta_py_result(Raw, Result).
 
 :- multifile seam:grounded_applicable/1.
@@ -509,7 +509,7 @@ seam:grounded_applicable(Obj) :-
     python_object_blob(Obj),
     py_is_object(Obj),
     petta_py_bridge,
-    py_call(petta_py:is_callable(Obj), @true).
+    py_call(metta_py:is_callable(Obj), @true).
 
 %(Kwargs (start 2) (stop 10)) in the argument list, which is the language's own
 %spelling. Anything before it is positional.
@@ -546,7 +546,7 @@ petta_py_kwarg(Other, _) :-
 'py-iter'(Obj, Element) :-
     petta_py_bridge,
     petta_py_opts(Opts),
-    petta_py_guard(['py-iter', Obj], py_iter(petta_py:iterate(Obj), Raw, Opts)),
+    petta_py_guard(['py-iter', Obj], py_iter(metta_py:iterate(Obj), Raw, Opts)),
     petta_py_result(Raw, Element).
 
 

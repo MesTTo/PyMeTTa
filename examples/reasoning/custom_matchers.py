@@ -23,9 +23,9 @@ try:
 except ImportError:
     skip("numpy is not installed")
 
-from petta import Answer, Bindings, MeTTa, S, V, Expression
-from petta.arrays import EmbeddingStore
-from petta.atoms import Grounded
+from metta import Answer, Bindings, MeTTa, S, V, Expression
+from metta.arrays import EmbeddingStore
+from metta.atoms import Grounded
 
 m = MeTTa().space()
 

@@ -9,7 +9,7 @@ Guarantees:
     test_typed_and_arrow_retire_49_raw_type_symbols,
     test_keyword_builders_retire_53_raw_if_mentions, and
     test_plain_sorted_uses_the_engines_elementwise_order; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
-  - public atom classes retain the petta.atoms pickle path after internal
+  - public atom classes retain the metta.atoms pickle path after internal
     module cuts [tested test_atoms_pickle_by_value,
     test_atoms_cross_a_spawned_process_boundary]
   - Atom.map transforms trees iteratively and validates replacements [tested
@@ -28,7 +28,7 @@ Guarantees:
     test_grounded_atoms_lift_python_operators_to_terms; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - if_ preserves both the engine's one-armed and three-armed forms [tested:
     test_if_builder_accepts_the_one_armed_form; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - the canonical truth, unit, and context atoms are public values [tested:
+  - the canonical truth and unit atoms are public values [tested:
     test_the_canonical_atoms_are_public_values;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Open Obligations:
@@ -83,12 +83,11 @@ _unregister_protocol_repr = _core._unregister_protocol_repr
 TRUE = Grounded(value=True)
 FALSE = Grounded(value=False)
 UNIT = Expression(())
-HERE = Expression((Symbol("context-space"),))
+_HERE = Expression((Symbol("context-space"),))
 _OMITTED = object()
 
 __all__ = [
     "FALSE",
-    "HERE",
     "OPERATOR_LOWERINGS",
     "TRUE",
     "UNIT",
@@ -130,7 +129,7 @@ def ground(value: Any) -> Grounded:
     """Carry a Python value whole, whatever it is.
 
     This is the FFI boxing door. Structural wire conversion lives in
-    :mod:`petta.wire`; ``ground([1, 2, 3])`` therefore carries one list by
+    :mod:`metta.wire`; ``ground([1, 2, 3])`` therefore carries one list by
     identity instead of turning it into an expression.
     """
     return Grounded(value)

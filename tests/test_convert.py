@@ -17,8 +17,8 @@ from typing import NamedTuple
 
 import pytest
 
-from petta import Expression, Grounded, S, Symbol, V, ground
-from petta.convert import (
+from metta import Expression, Grounded, S, Symbol, V, ground
+from metta.convert import (
     _is_plain_class,
     build,
     declarations,
@@ -185,7 +185,7 @@ def test_projected_facts_reason_in_the_engine(metta):  # noqa: D103  -- pytest d
     projected = project(Person("Ada", 36))
     space.add(*projected.declarations, projected.atom)
     space.add(project(Person("Bob", 41)).atom)
-    rows = space.query(S.Person(V.name, V.age))
+    rows = space.match(S.Person(V.name, V.age))
     assert {(str(r.name), int(r.age)) for r in rows} == {('"Ada"', 36), ('"Bob"', 41)}
     people = [build(a) for a in space.atoms() if str(a).startswith("(Person")]
     assert Person("Ada", 36) in people and Person("Bob", 41) in people

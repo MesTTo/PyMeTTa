@@ -293,14 +293,14 @@ class _Member:
                 msg
             )
         self.target = target
-        self._is_space = hasattr(target, "space_name") and hasattr(target, "query")
+        self._is_space = hasattr(target, "_rt") and hasattr(target, "_space")
 
     def atoms(self) -> Iterator[Atom]:
         return iter(self.target.atoms())
 
     def match(self, pattern: Atom) -> Iterator[Atom]:
         if self._is_space:
-            rows = self.target.query(pattern)
+            rows = self.target.match(pattern)
             names = rows.columns
             for row in rows:
                 yield substitute(pattern, dict(zip(names, row, strict=True)))
@@ -357,7 +357,7 @@ class _Union(SpaceProvider):
 def union(*spaces: Any) -> _Union:
     """A set of spaces read as one, writes refused by capability.
 
-        m._register_space(petta.spaces.union(kb, rules), "&all")
+        m._register_space(metta.spaces.union(kb, rules), "&all")
         m.run("!(match &all (edge $a $b) $b)")
 
     Every member's candidates answer; duplicates across members are
@@ -397,7 +397,7 @@ def readonly(inner: Any) -> _ReadOnly:
 
 class _Mapped(SpaceProvider):
     """A view of the inner space through one (bridge outer inner) pair:
-    petta.tables' derivation with unification where tables emits WHERE.
+    metta.tables' derivation with unification where tables emits WHERE.
     The outer shape is what this space presents; the inner shape is how
     the same fact is spelled underneath; the shared variables carry the
     values both ways.
@@ -468,7 +468,7 @@ class _Mapped(SpaceProvider):
 def mapped(inner: Any, declaration: Any) -> _Mapped:
     """A shape view over ANY space, from one declaration:
 
-        view = petta.spaces.mapped(kb, "(bridge (edge $a $b) (triple $a linked-to $b))")
+        view = metta.spaces.mapped(kb, "(bridge (edge $a $b) (triple $a linked-to $b))")
 
     presents the inner space's (triple ...) atoms as (edge ...) atoms,
     both directions derived from the pattern pair by unification, the

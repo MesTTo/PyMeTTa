@@ -25,8 +25,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import S, V, equation
-from petta.errors import MettaOperationError
+from metta import S, V, equation
+from metta.errors import MettaOperationError
 
 #: What the unapplied form prints as: expected printing is Python text.
 UNAPPLIED = "(partial let* (foo ok))"

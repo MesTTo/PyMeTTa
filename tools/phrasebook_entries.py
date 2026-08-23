@@ -41,10 +41,10 @@ LEATTA_ENTRY_COUNT = 379
 
 BUCKETS = {
     "dissolves": (
-        "Python already has the concept, so there is no petta name at all and the "
+        "Python already has the concept, so there is no metta name at all and the "
         "spelling is Python's own syntax, protocol or standard library"
     ),
-    "method": "the concept is MeTTa's own, so it wears a petta name",
+    "method": "the concept is MeTTa's own, so it wears a metta name",
     "instruction": (
         "deep control that stays instruction-tier, reached by building the term at "
         "the `S.` door and reducing it"
@@ -319,7 +319,7 @@ ENTRIES: list[Entry] = [
         "car-atom", ("(-> Expression %Undefined%)",), "Symbol", "atoms", "dissolves",
         "Indexing. An expression is a sequence in Python, so its head is `e[0]`.",
         metta="!(car-atom (a b c))",
-        python="e = petta.Expression(S.a, S.b, S.c)\ne[0]",
+        python="e = metta.Expression(S.a, S.b, S.c)\ne[0]",
     ),
     Entry(
         "cdr-atom", ("(-> Expression Expression)",), "Symbol", "atoms", "dissolves",
@@ -327,7 +327,7 @@ ENTRIES: list[Entry] = [
         "which prints the same and is the T6 friction section 9e names as this "
         "bucket's one prerequisite.",
         metta="!(cdr-atom (a b c))",
-        python="e = petta.Expression(S.a, S.b, S.c)\ne[1:]",
+        python="e = metta.Expression(S.a, S.b, S.c)\ne[1:]",
     ),
     Entry(
         "cons-atom", ("(-> Atom Expression Atom)",), "Symbol", "atoms", "dissolves",
@@ -339,19 +339,19 @@ ENTRIES: list[Entry] = [
         "decons-atom", ("(-> Expression Atom)",), "Symbol", "atoms", "dissolves",
         "Starred unpacking, which is the same act in one line: `head, *tail = e`.",
         metta="!(decons-atom (f a b))",
-        python="e = petta.Expression(S.f, S.a, S.b)\nhead, *tail = e\n(head, tuple(tail))",
+        python="e = metta.Expression(S.f, S.a, S.b)\nhead, *tail = e\n(head, tuple(tail))",
     ),
     Entry(
         "size-atom", ("(-> Expression Number)",), "Grounded", "atoms", "dissolves",
         "`len`. Both count CHILDREN, so `(f a b)` is 3 either way.",
         metta="!(size-atom (a b c))",
-        python="e = petta.Expression(S.a, S.b, S.c)\nlen(e)",
+        python="e = metta.Expression(S.a, S.b, S.c)\nlen(e)",
     ),
     Entry(
         "index-atom", ("(-> Expression Number Atom)",), "Grounded", "atoms", "dissolves",
         "Indexing again, with the index you want.",
         metta="!(index-atom (a b c) 1)",
-        python="e = petta.Expression(S.a, S.b, S.c)\ne[1]",
+        python="e = metta.Expression(S.a, S.b, S.c)\ne[1]",
     ),
     Entry(
         "max-atom", ("(-> %Undefined% Number)",), "Grounded", "atoms", "dissolves",
@@ -403,18 +403,18 @@ ENTRIES: list[Entry] = [
         "for-each-in-atom", ("(-> Expression Atom (->))",), "Symbol", "atoms", "dissolves",
         "A `for` statement. It is called for its effect, so the row prints and "
         "answers the unit. Python's `for` has no value at all, and the concept map "
-        "says `None` IS the unit, but `petta.ground(None)` renders `<NoneType>` "
+        "says `None` IS the unit, but `metta.ground(None)` renders `<NoneType>` "
         "rather than `()` today, so a row that wants the unit writes it "
         "[measured 2026-08-22].",
         metta="!(for-each-in-atom (1 2) println!)",
-        python="for value in [1, 2]:\n    print(value)\npetta.Expression()",
+        python="for value in [1, 2]:\n    print(value)\nmetta.Expression()",
         differs="PeTTa answers one unit per element where LeaTTa answers one",
     ),
     Entry(
         "atom-subst", ("(-> Atom Variable Atom Atom)",), "Symbol", "atoms", "method",
         "Applying a substitution to a template, which `Atom.map` does over "
         "the whole term. Section 9e wants the bindings object to carry it, "
-        "`b.apply(template)`; `petta.Bindings` has no such method yet, so the "
+        "`b.apply(template)`; `metta.Bindings` has no such method yet, so the "
         "walker is the spelling.",
         metta="!(atom-subst a $x (f $x))",
         python="S.f(V.x).map(lambda a: S.a if a == V.x else a)",
@@ -427,7 +427,7 @@ ENTRIES: list[Entry] = [
         "Starred unpacking inside an `if`: the empty case is the `else` branch.",
         metta="!(if-decons-expr (a b) $h $t (yes $h $t) no)",
         python=(
-            "e = petta.Expression(S.a, S.b)\n"
+            "e = metta.Expression(S.a, S.b)\n"
             "S.yes(e[0], e[1:]) if len(e) else S.no"
         ),
         unrun="PeTTa leaves the call unreduced",
@@ -548,15 +548,15 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "unify", ("(-> Atom Atom Atom Atom %Undefined%)",), "Symbol", "control", "method",
-        "Structural matching. `petta.unify(pattern, subject)` answers the bindings "
+        "Structural matching. `metta.unify(pattern, subject)` answers the bindings "
         "or `None`, so the four-argument form is that call with a conditional; in a "
         "compiled body Python's `match` statement lowers to this instruction. One "
-        "friction: MeTTa's `unify` is symmetric while `petta.unify` is DIRECTIONAL, "
+        "friction: MeTTa's `unify` is symmetric while `metta.unify` is DIRECTIONAL, "
         "pattern first, so swapping the arguments answers `None` "
-        "[measured 2026-08-22: `petta.unify(S.f(S.a), S.f(V.x))` is None].",
+        "[measured 2026-08-22: `metta.unify(S.f(S.a), S.f(V.x))` is None].",
         metta="!(unify (f $x) (f a) $x nope)",
         python=(
-            "b = petta.unify(S.f(V.x), S.f(S.a))\n"
+            "b = metta.unify(S.f(V.x), S.f(S.a))\n"
             "b['x'] if b is not None else S.nope"
         ),
     ),
@@ -582,7 +582,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "nop", ("(-> (%Rest% %Undefined%) (->))",), "Grounded", "control", "dissolves",
         "Python's `pass`, or simply not writing the call. It answers the unit.",
-        metta="!(nop 1 2)", python="petta.Expression()",
+        metta="!(nop 1 2)", python="metta.Expression()",
     ),
     Entry(
         "if-equal", ("(-> Atom Atom Atom Atom %Undefined%)",), "Grounded", "control",
@@ -691,7 +691,7 @@ ENTRIES: list[Entry] = [
         "There is no second door: `+=` adds what you give it, so adding a REDUCT is "
         "explicit composition, `space += m.eval(term)[0]`. The row wraps the sum "
         "because PeTTa's write door REFUSES a bare grounded atom that its own "
-        "MeTTa door accepts [measured 2026-08-22: `space += petta.ground(3)` "
+        "MeTTa door accepts [measured 2026-08-22: `space += metta.ground(3)` "
         "raises `a stored atom is a non-empty expression`, while "
         "`!(add-reduct &pb (+ 1 2))` stores `3`].",
         metta="!(bind! &pb (new-space))\n!(add-reduct &pb (total (+ 1 2)))\n!(get-atoms &pb)",
@@ -733,7 +733,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "match", ("(-> SpaceType Atom Atom %Undefined%)",), "Grounded", "spaces", "method",
-        "`space[pattern]` is the subscript door and `space.query(pattern)` the named "
+        "`space[pattern]` is the subscript door and `space.match(pattern)` the named "
         "one; the TEMPLATE is built in Python from the answer's bindings.",
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(match &pb (f $x) $x)",
         python="space += S.f(1)\n[row['x'] for row in space[S.f(V.x)]]",
@@ -746,10 +746,10 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "new-space", ("(-> SpaceType)",), "Grounded", "spaces", "method",
-        "`petta.space()`. A constructor call is Python's own spelling for `make me "
+        "`metta.space()`. A constructor call is Python's own spelling for `make me "
         "a fresh one`, and the row asks the fresh space for its atoms because the "
         "NAME a space gets differs per engine.",
-        metta="!(get-atoms (new-space))", python="list(petta.space())",
+        metta="!(get-atoms (new-space))", python="list(metta.space())",
     ),
     Entry(
         "fork-space", ("(-> SpaceType SpaceType)",), "Grounded", "spaces", "method",
@@ -770,7 +770,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "context-space", ("(-> SpaceType)",), "Symbol", "spaces", "method",
         "The space a program is currently in, which in Python is the handle it "
-        "holds; `petta.current_space()` is the door for code that did not receive "
+        "holds; `metta.current_space()` is the door for code that did not receive "
         "one, and it follows Python's own `current_thread` and `current_task` "
         "convention, so the Python word wins over the instruction's name. The row "
         "asks both sides for the current space's atoms.",
@@ -808,7 +808,7 @@ ENTRIES: list[Entry] = [
         "Python's own builtin `type`: the four atom classes ARE the four metatypes, "
         "so `type(a).__name__` is the metatype by construction.",
         metta="!(get-metatype (a b))",
-        python="e = petta.Expression(S.a, S.b)\nS[e.metatype]",
+        python="e = metta.Expression(S.a, S.b)\nS[e.metatype]",
     ),
     Entry(
         "is-function", ("(-> Type Bool)",), "Symbol", "types", "dissolves",
@@ -828,11 +828,11 @@ ENTRIES: list[Entry] = [
     Entry(
         "=", ("(-> $t $t %Undefined%)",), "Symbol", "types", "method",
         "The definitional decorator. `@m.define` compiles a function into "
-        "equations, `petta.equation(lhs).to(rhs)` builds one by hand, and both land "
+        "equations, `metta.equation(lhs).to(rhs)` builds one by hand, and both land "
         "as ordinary `(= ...)` atoms a program can match.",
         metta="(= (pbf $x) (+ $x 1))\n!(pbf 1)",
         python=(
-            "space += petta.equation(S.pbf(V.x)).to(V.x + 1)\n"
+            "space += metta.equation(S.pbf(V.x)).to(V.x + 1)\n"
             "space.eval(S.pbf(1))[0]"
         ),
     ),
@@ -889,17 +889,17 @@ ENTRIES: list[Entry] = [
     # ---------------------------------------------------------------- state
     Entry(
         "new-state", ("(-> $t (StateMonad $t))",), "Symbol", "state", "method",
-        "`petta.State[T](value, space=space)` creates the typed Python handle. "
+        "`metta.State[T](value, space=space)` creates the typed Python handle. "
         "The row reads `.value` because the engine cell itself is deliberately "
         "hidden behind that handle.",
         metta="!(get-state (new-state 1))",
-        python="state = petta.State[int](1, space=m)\nstate.value",
+        python="state = metta.State[int](1, space=m)\nstate.value",
     ),
     Entry(
         "get-state", ("(-> (StateMonad $tgso) $tgso)",), "Grounded", "state", "method",
         "Reading the cell is the typed handle's `state.value` property.",
         metta="!(let $c (new-state 5) (get-state $c))",
-        python="state = petta.State[int](5, space=m)\nstate.value",
+        python="state = metta.State[int](5, space=m)\nstate.value",
     ),
     Entry(
         "change-state!", ("(-> (StateMonad $tcso) $tcso (StateMonad $tcso))",), "Grounded",
@@ -908,7 +908,7 @@ ENTRIES: list[Entry] = [
         "back returns the replacement.",
         metta="!(let $c (new-state 1) (get-state (change-state! $c 2)))",
         python=(
-            "state = petta.State[int](1, space=m)\n"
+            "state = metta.State[int](1, space=m)\n"
             "state.value = 2\n"
             "state.value"
         ),
@@ -921,7 +921,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "println!", ("(-> %Undefined% (->))",), "Grounded", "text", "dissolves",
         "Python's `print`.",
-        metta="!(println! hello)", python="print('hello')\npetta.Expression()",
+        metta="!(println! hello)", python="print('hello')\nmetta.Expression()",
     ),
     Entry(
         "trace!", ("(-> %Undefined% Atom %Undefined%)",), "Grounded", "text", "dissolves",
@@ -941,7 +941,7 @@ ENTRIES: list[Entry] = [
         "Python's `print` over the answers, which is what LeaTTa's assert family "
         "uses it for: showing what a form actually answered.",
         metta="!(print-alternatives! subject (a b))",
-        python="print(S.subject, [S.a, S.b])\npetta.Expression()",
+        python="print(S.subject, [S.a, S.b])\nmetta.Expression()",
         unrun="PeTTa leaves the MeTTa call unreduced",
     ),
     Entry(
@@ -988,14 +988,14 @@ ENTRIES: list[Entry] = [
         "The right-hand side is a LIST of expected answers rather than one, which "
         "is `assert list(answers) == [...]`.",
         metta="!(assertEqualToResult (superpose (1 2)) (1 2))",
-        python="assert m.eval(S.superpose(petta.Expression(1, 2))) == [1, 2]\nTrue",
+        python="assert m.eval(S.superpose(metta.Expression(1, 2))) == [1, 2]\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
         "assertEqualToResultMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The same with Python's assertion message.",
         metta='!(assertEqualToResultMsg (superpose (1 2)) (1 2) "both")',
-        python="assert m.eval(S.superpose(petta.Expression(1, 2))) == [1, 2], 'both'\nTrue",
+        python="assert m.eval(S.superpose(metta.Expression(1, 2))) == [1, 2], 'both'\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
@@ -1016,7 +1016,7 @@ ENTRIES: list[Entry] = [
         "assertIncludes", ("(-> Atom Expression (->))",), "Symbol", "assert", "dissolves",
         "Python's own `in`.",
         metta="!(assertIncludes (superpose (a b)) (a))",
-        python="assert S.a in m.eval(S.superpose(petta.Expression(S.a, S.b)))\nTrue",
+        python="assert S.a in m.eval(S.superpose(metta.Expression(S.a, S.b)))\nTrue",
         differs="LeaTTa answers the unit `()` where PeTTa answers True",
     ),
     Entry(
@@ -1253,7 +1253,7 @@ ENTRIES: list[Entry] = [
         "`print(sorted(sys.modules))`. Under the ruling that the module catalog IS "
         "Python packaging, the loaded-module question is Python's own.",
         metta="!(print-mods!)",
-        python="import sys\nprint(len(sys.modules), 'modules')\npetta.Expression()",
+        python="import sys\nprint(len(sys.modules), 'modules')\nmetta.Expression()",
         differs=(
             "MeTTa modules there, Python modules here, which is what the ruling "
             "makes them"
@@ -1283,7 +1283,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "bind!", ("(-> Symbol %Undefined% (->))",), "Grounded", "modules", "dissolves",
-        "A Python name binding. `space = petta.space(...)` is exactly what a token "
+        "A Python name binding. `space = metta.space(...)` is exactly what a token "
         "binding was for, and Python's own scoping rules then apply.",
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(get-atoms &pb)",
         python="space += S.f(1)\nspace.atoms()",
@@ -1334,7 +1334,7 @@ ENTRIES: list[Entry] = [
         metta="!(return-on-error a b)",
         python=(
             "value = S.a\n"
-            "value if isinstance(value, petta.Expression) and value[0] == S.Error else S.b"
+            "value if isinstance(value, metta.Expression) and value[0] == S.Error else S.b"
         ),
     ),
     Entry(
@@ -1345,7 +1345,7 @@ ENTRIES: list[Entry] = [
         metta="!(separate-errors ((Error a b) c) ())",
         python=(
             "answers = [S.Error(S.a, S.b), S.c]\n"
-            "[a for a in answers if isinstance(a, petta.Expression) and a[0] == S.Error]"
+            "[a for a in answers if isinstance(a, metta.Expression) and a[0] == S.Error]"
         ),
         unrun="PeTTa leaves the call unreduced",
     ),
@@ -1422,7 +1422,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "fuzzy-match", ("(-> Atom Expression Number Atom)",), "Grounded", "matching", "absent",
         "LeaTTa's cost-bounded approximate matcher, answering each candidate with "
-        "its cost. PeTTa has `petta.structures` for many-to-one matching and no "
+        "its cost. PeTTa has `metta.structures` for many-to-one matching and no "
         "approximate matcher.",
         metta="!(fuzzy-match (f a) ((f a) (f b)) 1)",
         unrun="PeTTa leaves the call unreduced",
@@ -1453,7 +1453,7 @@ ENTRIES: list[Entry] = [
         "construction, because a parameter-scoped rule is fresh per rule, so the "
         "row shows the law spelling.",
         metta="!(sealed ($x) ($x $y))",
-        python="m.eval(S.sealed(petta.Expression(V.x), petta.Expression(V.x, V.y)))[0]",
+        python="m.eval(S.sealed(metta.Expression(V.x), metta.Expression(V.x, V.y)))[0]",
         differs=(
             "both freshen the second variable and keep the first, but the names "
             "differ: a variable built in Python comes back from the engine as "

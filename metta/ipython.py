@@ -10,7 +10,7 @@ Open Obligations:
   Hacks: None
   Future Enhancements: None.
 
-    %load_ext petta.ipython
+    %load_ext metta.ipython
 
     %%metta
     (= (foo) boo)

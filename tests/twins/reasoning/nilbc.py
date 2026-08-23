@@ -39,8 +39,8 @@ proof term the chainer built, because a call answers its value whether or not
 its arguments carry variables.
 """
 
-import petta
-from petta import S, V, equation, fn, if_, typed
+import metta
+from metta import S, V, equation, fn, if_, typed
 
 #: Metamath's vocabulary, as this example spells it.
 TERM, WFF, ZERO, TT = S["⟨term⟩"], S["⟨wff⟩"], S["⟨0⟩"], S["⟨t⟩"]
@@ -133,7 +133,7 @@ def twin(m):
 
     # EASY: term and wff are ignored, and Metamath implication is replaced by
     # the arrow type. Equality is right Euclidean, and zero is a right identity.
-    kbe = petta.space()
+    kbe = metta.space()
     kbe += typed(S.a1, S["->"](typed(V.ter, eq(V.t, V.r)),
                                typed(V.tes, eq(V.t, V.s)),
                                eq(V.r, V.s)))
@@ -145,7 +145,7 @@ def twin(m):
     assert reflexive.alpha_eq(typed(S.a1(S.a2, S.a2), eq(V.t, V.t)))
 
     # MEDIUM: the same, with the term and wff types used.
-    kbm = petta.space()
+    kbm = metta.space()
     kbm += typed(ZERO, TERM)
     kbm += typed(S["⟨+⟩"], S["->"](typed(V.t, TERM), typed(V.r, TERM), TERM))
     kbm += typed(S["⟨=⟩"], S["->"](typed(V.t, TERM), typed(V.r, TERM), WFF))
@@ -161,7 +161,7 @@ def twin(m):
 
     # HARD: Metamath's own implication, and modus ponens with the major premise
     # first to speed the search up.
-    kbh = petta.space()
+    kbh = metta.space()
     kbh += typed(ZERO, TERM)
     kbh += typed(S["⟨+⟩"], S["->"](typed(V.t, TERM), typed(V.r, TERM), TERM))
     kbh += typed(S["⟨=⟩"], S["->"](typed(V.t, TERM), typed(V.r, TERM), WFF))

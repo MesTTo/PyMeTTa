@@ -19,7 +19,7 @@ with both clauses gone the call is not reducible, and `m.eval` drops that
 answer where a runnable form keeps it.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

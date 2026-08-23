@@ -190,7 +190,7 @@ class ExpressionCompilerMixin(CompilerContext):
         elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name):
             root = node.value
             if not (isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str)):
-                # policy-inventory-exempt: mechanism-internal; reason=S V and fn are the three fixed quotation-tier builders recognized by compiled-body syntax rather than selectable runtime policy; evidence=bindings/python/petta/_define_expression.py:_mention
+                # policy-inventory-exempt: mechanism-internal; reason=S V and fn are the three fixed quotation-tier builders recognized by compiled-body syntax rather than selectable runtime policy; evidence=bindings/python/metta/_define_expression.py:_mention
                 if root.id in {"S", "V", "fn"}:
                     msg = f"{root.id}[...] takes a literal exact target name"
                     raise CompileError(
@@ -853,7 +853,7 @@ class ExpressionCompilerMixin(CompilerContext):
     def _x_Dict(self, node: ast.Dict) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         msg = (
             "a dict literal has no MeTTa form; carry one whole with "
-            "petta.ground(...) through an operation, or spell the pairs as an "
+            "metta.ground(...) through an operation, or spell the pairs as an "
             "expression of (key value) pairs"
         )
         raise CompileError(

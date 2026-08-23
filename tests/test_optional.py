@@ -7,7 +7,7 @@ Open Obligations:
 
 import pytest
 
-from petta import _optional
+from metta import _optional
 
 
 def test_optional_import_names_an_absent_requested_package(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -15,7 +15,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
 
-from petta import MeTTa
+from metta import MeTTa
 
 # The arbiter for switch is LeaTTa tests/semantics/control-stdlib/03_case_switch.metta,
 # whose STATUS records switch as conforming against the pinned Hyperon 0.2.10

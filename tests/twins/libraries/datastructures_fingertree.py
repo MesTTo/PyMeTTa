@@ -18,7 +18,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S
+from metta import Expression, S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree. This one

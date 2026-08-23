@@ -29,14 +29,14 @@ from pathlib import Path
 
 import pytest
 
-from petta import (
+from metta import (
     Atom,
     Grounded,
     MeTTa,
     S,
     V,
 )
-from petta.atoms import OPERATOR_LOWERINGS, order_key
+from metta.atoms import OPERATOR_LOWERINGS, order_key
 
 DOC = Path(__file__).resolve().parents[3] / "website" / "guide" / "atoms-terms.md"
 

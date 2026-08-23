@@ -1,6 +1,6 @@
 """Purpose: generate the closed runtime fn namespace and its typed stub.
 Assumes:
-  - the project interpreter can import the local petta package and start the
+  - the project interpreter can import the local metta package and start the
     provisioned engine [tested: test_the_fn_namespace_is_generated;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 Guarantees:
@@ -32,15 +32,15 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-RUNTIME = ROOT / "bindings" / "python" / "petta" / "_fn.py"
-STUB = ROOT / "bindings" / "python" / "petta" / "_fn.pyi"
+RUNTIME = ROOT / "bindings" / "python" / "metta" / "_fn.py"
+STUB = ROOT / "bindings" / "python" / "metta" / "_fn.pyi"
 
 sys.path.insert(0, str(ROOT / "bindings" / "python"))
 from phrasebook_entries import (  # noqa: E402  -- sibling generator rows are the documentation authority
     ENTRIES,
 )
 
-from petta._name_mapping import (  # noqa: E402  -- derive the source root before importing it
+from metta._name_mapping import (  # noqa: E402  -- derive the source root before importing it
     generated_aliases,
 )
 
@@ -59,7 +59,7 @@ def catalog_documentation(names: list[str]) -> dict[str, str]:
 
 def catalog_names() -> list[str]:
     """Read a fresh runtime's complete function and special-form catalog."""
-    source = "import json\nfrom petta import MeTTa\nprint(json.dumps(MeTTa().self.builtins()))\n"
+    source = "import json\nfrom metta import MeTTa\nprint(json.dumps(MeTTa().self.builtins()))\n"
     environment = os.environ | {"PYTHONPATH": str(ROOT / "bindings" / "python")}
     completed = subprocess.run(  # noqa: S603  -- fixed interpreter and source, no untrusted input
         [sys.executable, "-c", source],
@@ -203,7 +203,7 @@ def main(argv: list[str]) -> int:
             print(f"rewrote {path.name}")
         return 0
     print(
-        "petta's fn runtime/stub no longer match the running catalog: "
+        "metta's fn runtime/stub no longer match the running catalog: "
         "run `python bindings/python/tools/fngen.py --write`"
     )
     return 1

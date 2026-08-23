@@ -8,8 +8,8 @@ Open Obligations:
 
 import pytest
 
-from petta import Grounded, S
-from petta.errors import EngineError
+from metta import Grounded, S
+from metta.errors import EngineError
 
 
 def test_a_registered_token_class_parses_like_a_shipped_one(metta):

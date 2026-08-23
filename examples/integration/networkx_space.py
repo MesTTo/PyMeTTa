@@ -28,7 +28,7 @@ from itertools import pairwise
 import networkx as nx
 from _common import check, done
 
-from petta import Expression, MeTTa, Variable, parse, tables, ground
+from metta import Expression, MeTTa, Variable, parse, tables, ground
 
 _PROJECTIONS = ("pairwise", "bipartite")
 
@@ -57,7 +57,7 @@ def to_graph(space, shape, *, projection: str | None = None) -> nx.DiGraph:
         )
     graph = nx.DiGraph()
     columns = [c.name for c in pattern.children[1:] if isinstance(c, Variable)]
-    for row in space.query(pattern):
+    for row in space.match(pattern):
         arguments = [row[name] for name in columns]
         if projection == "pairwise":
             graph.add_edges_from(pairwise(arguments))

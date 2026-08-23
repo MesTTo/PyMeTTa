@@ -18,7 +18,12 @@ from pathlib import Path
 
 import pytest
 
-from petta._engine import bridge
+from metta._engine import bridge
+
+
+def _texts(groups):
+    """Flatten grouped runtime answers into their stable textual spelling."""
+    return [str(atom) for group in groups for atom in group]
 
 
 def write_increment_dependency(tmp_path):
@@ -29,7 +34,7 @@ def write_increment_dependency(tmp_path):
     return fn, tmp_path / "root.metta"
 
 
-def test_failed_import_can_be_retried(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_failed_import_can_be_retried(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     module_name = f"petta_retry_{uuid.uuid4().hex}"
     root_file = tmp_path / "root.metta"
     dependency_file = tmp_path / "dependency.metta"
@@ -43,18 +48,18 @@ def test_failed_import_can_be_retried(petta_instance, tmp_path):  # noqa: D103  
     previous_path = list(sys.path)
 
     with pytest.raises(Exception, match="first import fails"):
-        petta_instance.load_metta_file(str(root_file))
+        metta.load(str(root_file))
 
     assert sys.path == previous_path
     assert module_name not in sys.modules
 
     python_file.write_text("RETRY_SUCCEEDED = True\n")
-    results = petta_instance.load_metta_file(str(root_file))
+    results = metta.load(str(root_file))
 
-    assert "retry-ok" in results
+    assert "retry-ok" in _texts(results)
 
 
-def test_failed_import_rolls_back_partial_definitions(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_failed_import_rolls_back_partial_definitions(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     module_name = f"petta_partial_{uuid.uuid4().hex}"
     function_name = f"partial_definition_{uuid.uuid4().hex}"
     dependency_file = tmp_path / "dependency.metta"
@@ -65,10 +70,10 @@ def test_failed_import_rolls_back_partial_definitions(petta_instance, tmp_path):
     python_file.write_text('raise RuntimeError("partial import fails")\n')
 
     with pytest.raises(Exception, match="partial import fails"):
-        petta_instance.load_metta_file(str(dependency_file))
+        metta.load(str(dependency_file))
 
     python_file.write_text("RETRY_SUCCEEDED = True\n")
-    petta_instance.load_metta_file(str(dependency_file))
+    metta.load(str(dependency_file))
     # &self compiles into a module of its own, so the clause is not in `user`,
     # which is where janus resolves a goal by default. space_module/2 answers
     # which module it IS, so the test follows the engine instead of naming one.
@@ -79,14 +84,14 @@ def test_failed_import_rolls_back_partial_definitions(petta_instance, tmp_path):
     assert result["Count"] == 1
 
 
-def test_entry_file_breaks_direct_import_cycle(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_entry_file_breaks_direct_import_cycle(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     function_name = f"entry_cycle_{uuid.uuid4().hex}"
     entry_file = tmp_path / "a.metta"
     sibling_file = tmp_path / "b.metta"
     entry_file.write_text(f"!(import! &self b)\n(= ({function_name}) a)\n")
     sibling_file.write_text("!(import! &self a)\n")
 
-    petta_instance.load_metta_file(str(entry_file))
+    metta.load(str(entry_file))
     result = bridge().query_once(
         f"space_module('&self', M), aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
     )
@@ -94,22 +99,22 @@ def test_entry_file_breaks_direct_import_cycle(petta_instance, tmp_path):  # noq
     assert result["Count"] == 1
 
 
-def test_definition_before_import_resolves(petta_instance, tmp_path, capfd):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_definition_before_import_resolves(metta, tmp_path, capfd):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     fn, root_file = write_increment_dependency(tmp_path)
     root_file.write_text(
         f"(= (uses-{fn} $x) ({fn} $x))\n!(import! &self dependency)\n!(uses-{fn} 41)\n"
     )
 
-    results = petta_instance.load_metta_file(str(root_file))
+    results = metta.load(str(root_file))
     stderr = capfd.readouterr().err
 
     # The definition compiled before the import is recompiled when the import
     # registers the function, so the cross-file call reduces regardless of order.
-    assert "42" in results
+    assert "42" in _texts(results)
     assert "Move the import or definition above the first use" not in stderr
 
 
-def test_definition_before_dynamic_import_resolves(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_definition_before_dynamic_import_resolves(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The import target is computed at runtime, so no scan could know it upfront;
     # the definition still heals when the loaded file registers the function.
     fn, root_file = write_increment_dependency(tmp_path)
@@ -120,28 +125,28 @@ def test_definition_before_dynamic_import_resolves(petta_instance, tmp_path):  #
         f"!(uses-{fn} 41)\n"
     )
 
-    results = petta_instance.load_metta_file(str(root_file))
+    results = metta.load(str(root_file))
 
-    assert "42" in results
+    assert "42" in _texts(results)
 
 
-def test_execution_before_import_warns(petta_instance, tmp_path, capfd):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_execution_before_import_warns(metta, tmp_path, capfd):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     fn, root_file = write_increment_dependency(tmp_path)
     root_file.write_text(f"!({fn} 41)\n!(import! &self dependency)\n!({fn} 41)\n")
 
-    results = petta_instance.load_metta_file(str(root_file))
+    results = metta.load(str(root_file))
     stderr = capfd.readouterr().err
 
     # The call that ran before the import treated the name as a plain symbol...
-    assert f"({fn} 41)" in results
+    assert f"({fn} 41)" in _texts(results)
     # ...the same call after the import reduces...
-    assert "42" in results
+    assert "42" in _texts(results)
     # ...and the unrepairable early execution is called out.
     assert fn in stderr
     assert "Move the import or definition above the first use" in stderr
 
 
-def test_python_import_uses_canonical_path(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_python_import_uses_canonical_path(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     module_name = f"same_name_{uuid.uuid4().hex}"
     event_name = f"PETTA_IMPORT_EVENTS_{uuid.uuid4().hex}"
     left = tmp_path / "left"
@@ -163,12 +168,12 @@ def test_python_import_uses_canonical_path(petta_instance, tmp_path):  # noqa: D
                 f'!(import! &self "{module_name}.py")\n!(py-call ({module_name}.origin))\n'
             )
 
-        left_results = petta_instance.load_metta_file(str(left / "root.metta"))
-        assert "left" in left_results
+        left_results = metta.load(str(left / "root.metta"))
+        assert "left" in _texts(left_results)
         assert sys.modules[module_name] is previous_module
 
-        right_results = petta_instance.load_metta_file(str(right / "root.metta"))
-        assert "right" in right_results
+        right_results = metta.load(str(right / "root.metta"))
+        assert "right" in _texts(right_results)
 
         assert getattr(builtins, event_name) == ["left", "right"]
         assert sys.modules[module_name] is previous_module
@@ -177,7 +182,7 @@ def test_python_import_uses_canonical_path(petta_instance, tmp_path):  # noqa: D
         delattr(builtins, event_name)
 
 
-def test_python_calls_remain_bound_to_canonical_module(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_python_calls_remain_bound_to_canonical_module(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     module_name = f"bound_module_{uuid.uuid4().hex}"
     left_function = f"left_call_{uuid.uuid4().hex}"
     right_function = f"right_call_{uuid.uuid4().hex}"
@@ -196,14 +201,14 @@ def test_python_calls_remain_bound_to_canonical_module(petta_instance, tmp_path)
             f"(= ({function_name}) (py-call ({module_name}.origin)))\n"
         )
 
-    petta_instance.load_metta_file(str(left / "root.metta"))
-    petta_instance.load_metta_file(str(right / "root.metta"))
+    metta.load(str(left / "root.metta"))
+    metta.load(str(right / "root.metta"))
 
-    assert "left" in petta_instance.process_metta_string(f"!({left_function})")
-    assert "right" in petta_instance.process_metta_string(f"!({right_function})")
+    assert "left" in _texts(metta.run(f"!({left_function})"))
+    assert "right" in _texts(metta.run(f"!({right_function})"))
 
 
-def test_python_import_can_load_sibling_module(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_python_import_can_load_sibling_module(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     module_name = f"python_sibling_{uuid.uuid4().hex}"
     helper_name = f"python_helper_{uuid.uuid4().hex}"
     module_file = tmp_path / f"{module_name}.py"
@@ -219,9 +224,9 @@ def test_python_import_can_load_sibling_module(petta_instance, tmp_path):  # noq
     previous_path = list(sys.path)
 
     try:
-        results = petta_instance.load_metta_file(str(root_file))
+        results = metta.load(str(root_file))
 
-        assert "sibling-import-ok" in results
+        assert "sibling-import-ok" in _texts(results)
         assert sys.path == previous_path
         assert module_name not in sys.modules
     finally:
@@ -229,7 +234,7 @@ def test_python_import_can_load_sibling_module(petta_instance, tmp_path):  # noq
         sys.modules.pop(helper_name, None)
 
 
-def test_python_sibling_modules_do_not_collide(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_python_sibling_modules_do_not_collide(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     helper_name = f"shared_helper_{uuid.uuid4().hex}"
     left_module = f"left_module_{uuid.uuid4().hex}"
     right_module = f"right_module_{uuid.uuid4().hex}"
@@ -251,8 +256,8 @@ def test_python_sibling_modules_do_not_collide(petta_instance, tmp_path):  # noq
         )
 
     try:
-        assert "left" in petta_instance.load_metta_file(str(left / "root.metta"))
-        assert "right" in petta_instance.load_metta_file(str(right / "root.metta"))
+        assert "left" in _texts(metta.load(str(left / "root.metta")))
+        assert "right" in _texts(metta.load(str(right / "root.metta")))
         assert helper_name not in sys.modules
     finally:
         sys.modules.pop(helper_name, None)
@@ -260,7 +265,7 @@ def test_python_sibling_modules_do_not_collide(petta_instance, tmp_path):  # noq
         sys.modules.pop(right_module, None)
 
 
-def test_all_overloads_are_registered_before_repair(petta_instance, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_all_overloads_are_registered_before_repair(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     function_name = f"overloaded_{uuid.uuid4().hex}"
     caller_name = f"caller_{uuid.uuid4().hex}"
     (tmp_path / "dependency.metta").write_text(
@@ -273,12 +278,12 @@ def test_all_overloads_are_registered_before_repair(petta_instance, tmp_path):  
         f"!({caller_name} 3)\n"
     )
 
-    results = petta_instance.load_metta_file(str(root))
+    results = metta.load(str(root))
 
-    assert "three" in results
+    assert "three" in _texts(results)
 
 
-def test_missing_relative_import_does_not_fall_back_to_cwd(petta_instance, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_missing_relative_import_does_not_fall_back_to_cwd(metta, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     fallback_name = f"cwd_fallback_{uuid.uuid4().hex}"
     (tmp_path / "dependency.metta").write_text(f"(= ({fallback_name}) wrong-cwd)\n")
     child = tmp_path / "sub"
@@ -288,7 +293,7 @@ def test_missing_relative_import_does_not_fall_back_to_cwd(petta_instance, tmp_p
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(Exception, match="source_sink"):
-        petta_instance.load_metta_file(str(root))
+        metta.load(str(root))
 
 
 def test_minimal_lib_install_is_idempotent_after_cross_file_traffic(metta):

@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from petta.testing import SpaceComplianceSuite
+from metta.testing import SpaceComplianceSuite
 
 duckdb = pytest.importorskip("duckdb")
 

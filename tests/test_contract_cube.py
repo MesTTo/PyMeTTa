@@ -17,7 +17,7 @@ import itertools
 
 import pytest
 
-from petta import parse
+from metta import parse
 
 CHECKER = """
 cube_check(Name0, Arity, Kind0, Verdict) :-

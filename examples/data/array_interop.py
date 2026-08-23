@@ -15,7 +15,7 @@ try:
 except ImportError:
     skip("numpy and array-api-compat are needed")
 
-from petta import MeTTa, S, V, arrays, Expression, ground, wire
+from metta import MeTTa, S, V, arrays, Expression, ground, wire
 
 m = MeTTa().space()
 arrays.install(m, default=numpy)
@@ -32,7 +32,7 @@ check("protocol typing", S.DLTensor in list(types[0]))
 
 array = numpy.arange(4.0)
 m.add(S.holds(ground(array)))
-check("identity through the space", wire.decode(m.query(S.holds(V.a))[0].a) is array)
+check("identity through the space", wire.decode(m.match(S.holds(V.a))[0].a) is array)
 
 try:
     import torch

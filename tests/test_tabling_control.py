@@ -16,8 +16,8 @@ Open Obligations:
 
 import pytest
 
-from petta import S, V, reflection
-from petta.errors import EngineError
+from metta import S, V, reflection
+from metta.errors import EngineError
 
 
 @pytest.fixture()
@@ -125,11 +125,11 @@ def test_declarations_reflect_into_petta(m):
     m.run("(= (reflected-fn $n) (+ $n 1))")
     assert m.run("!(tabled (reflected-fn $n))") == [[True]]
     pattern = S.tabled(S[m.name], S["reflected-fn"], V.a)
-    assert [row.a for row in reflection.query(pattern)] == [1]
+    assert [row.a for row in reflection.match(pattern)] == [1]
     assert m.run("!(tabled (reflected-fn $n))") == [[True]]
-    assert len(reflection.query(pattern)) == 1
+    assert len(reflection.match(pattern)) == 1
     assert m.run("!(untabled (reflected-fn $n))") == [[True]]
-    assert not reflection.query(pattern)
+    assert not reflection.match(pattern)
 
 
 def _module_table_count(runtime, space_name):
@@ -161,7 +161,7 @@ def test_pool_reuse_starts_tabling_clean(metta):
         with metta._new_space() as second_life:
             assert second_life.name == name
             assert _module_table_count(metta.runtime, name) == 0
-            assert not reflection.query(
+            assert not reflection.match(
                 S.tabled(S[name], S["leak-fn"], V.a)
             )
             second_life.run("(= (leak-fn $n) (* $n 10))")
@@ -185,7 +185,7 @@ def test_dropped_space_leaves_shared_tabling_alone(metta):
             assert scratch.run("!(tabled (scratch-fn $n))") == [[True]]
         assert _tabled_property(metta, "shared-keeper", 2)
         assert len(
-            reflection.query(S.tabled(S["&self"], S["shared-keeper"], V.a))
+            reflection.match(S.tabled(S["&self"], S["shared-keeper"], V.a))
         ) == 1
     finally:
         assert metta.run("!(untabled (shared-keeper $n))") == [[True]]

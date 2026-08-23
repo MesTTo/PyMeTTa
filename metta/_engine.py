@@ -7,7 +7,7 @@ Assumes:
     [source 2026-08-14:
     https://www.swi-prolog.org/pldoc/man?section=janus-thread-call-prolog]
 Guarantees:
-  - importing petta does not import janus_swi until an engine-backed API is
+  - importing metta does not import janus_swi until an engine-backed API is
     used [tested test_package_import_does_not_require_janus]
   - Runtime classifies only the shim's exact reserved exception term shape
     [tested test_exception_names_nested_in_other_terms_stay_engine_errors,
@@ -236,13 +236,13 @@ def _resolve_petta_path() -> str:
     bundled = _bundled_runtime()
     if bundled is not None:
         return bundled
-    # petta/_engine.py -> petta -> python -> bindings -> the checkout root.
+    # metta/_engine.py -> metta -> python -> bindings -> the checkout root.
     return str(Path(__file__).resolve().parents[3])
 
 
 def _bundled_runtime() -> str | None:
     """The wheel's own copy of engine/ and lib/, if this is an installed wheel."""
-    package = __package__ or "petta"
+    package = __package__ or "metta"
     try:
         root = resources.files(package) / "_runtime"
     except (ModuleNotFoundError, TypeError):

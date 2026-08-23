@@ -28,7 +28,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import HERE, TRUE, Expression, G, S, V, equation, fn, if_
+from metta import TRUE, Expression, G, S, V, equation, fn, if_
+from metta.atoms import _HERE as HERE
 
 #: The colours, the grades and the taxonomy the last three programs work over.
 COLOURS = ((0, G("blue")), (1, G("green")), (2, G("blue")))

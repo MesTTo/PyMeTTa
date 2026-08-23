@@ -48,7 +48,7 @@ def test_the_snippet_auditor_runs_from_the_gate(repo_root):  # noqa: D103  -- py
     log = run.stdout + run.stderr
     assert run.returncode == 0, log
     assert "=== snippets [REPORT] ===" in log
-    assert "snippet provenance backlog: 35 of 72 remain" in log
+    assert "snippet provenance backlog: 28 of 72 remain" in log
     assert "tracked in website/scripts/snippet_backlog.tsv" in log
     assert "guide/contract.md fence 1:" in log
     assert "REPORT snippets     findings" in log

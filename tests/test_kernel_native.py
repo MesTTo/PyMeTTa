@@ -22,7 +22,7 @@ import math
 from hypothesis import given
 from hypothesis import strategies as st
 
-from petta import Expression, S, Symbol, ground
+from metta import Expression, S, Symbol, ground
 
 SCALARS = st.one_of(
     st.none(),

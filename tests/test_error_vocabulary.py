@@ -18,7 +18,7 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa
+from metta import MeTTa
 
 # The arbiter, file by file. Each pin below names the LeaTTa program whose
 # MEASURED block carries the transcript this test asserts, all of them STATUS

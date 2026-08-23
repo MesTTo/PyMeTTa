@@ -12,7 +12,7 @@ units rather than six trues, and Python says the same thing with `print`, whose
 return is None, the unit's Python spelling.
 """
 
-from petta import S
+from metta import S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

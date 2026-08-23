@@ -1,4 +1,4 @@
-"""Purpose: make petta importable from a repository checkout regardless of
+"""Purpose: make metta importable from a repository checkout regardless of
 the example's folder depth, point PETTA_PATH at that checkout, and provide
 small helpers that make each example self-verifying rather than a printout
 to trust.

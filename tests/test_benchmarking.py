@@ -35,9 +35,9 @@ from benchmarks.subscription import (
     subscription_dispatch_case,
 )
 from benchmarks.workloads import json_payload, json_wire, term_operators, wire_atom, wire_codec
-from petta import S
-from petta.benchmarking import _run_perf
-from petta.testing import (
+from metta import S
+from metta.benchmarking import _run_perf
+from metta.testing import (
     BenchmarkBaseline,
     benchmark_case,
     benchmark_counter_slope,
@@ -274,7 +274,7 @@ def test_measure_instructions_parses_perf_csv(monkeypatch):  # noqa: D103  -- py
         calls.append((executable, command, environment, controlled, timeout))
         return 0, "", "12345,,instructions:u,1000,100.00,,\n"
 
-    monkeypatch.setattr("petta.benchmarking._run_perf", run)
+    monkeypatch.setattr("metta.benchmarking._run_perf", run)
     assert measure_instructions(["python", "work.py"]) == (12345, 12345, 12345)
     assert all(
         call[1] == ["python", "work.py"] and not call[3] and call[4] == 60.0 for call in calls
@@ -285,16 +285,16 @@ def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):  # noqa: D103 
     waits = []
     killed = []
 
-    monkeypatch.setattr("petta.benchmarking.os.posix_spawn", lambda *_args, **_kwargs: 42)
+    monkeypatch.setattr("metta.benchmarking.os.posix_spawn", lambda *_args, **_kwargs: 42)
 
     def waitpid(process, options):
         waits.append((process, options))
         return (0, 0) if options == os.WNOHANG else (process, signal.SIGKILL)
 
     ticks = iter([0.0, 2.0])
-    monkeypatch.setattr("petta.benchmarking.os.waitpid", waitpid)
-    monkeypatch.setattr("petta.benchmarking.os.killpg", lambda *args: killed.append(args))
-    monkeypatch.setattr("petta.benchmarking.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("metta.benchmarking.os.waitpid", waitpid)
+    monkeypatch.setattr("metta.benchmarking.os.killpg", lambda *args: killed.append(args))
+    monkeypatch.setattr("metta.benchmarking.time.monotonic", lambda: next(ticks))
 
     with pytest.raises(TimeoutError, match="1 second limit"):
         _run_perf("/usr/bin/perf", ["python"], {}, controlled=False, timeout=1.0)

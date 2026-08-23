@@ -440,8 +440,8 @@ def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
 
 _CURSOR_LENGTH_REFUSAL = (
     "a cursor has no len(): counting its rows means pulling all of them, "
-    "which is what it exists to avoid. Use len(space.query(pattern)) for the "
-    "count, or query() if you want the rows"
+    "which is what it exists to avoid. Use len(space.match(pattern)) for the "
+    "count, or match() if you want the rows"
 )
 
 
@@ -451,7 +451,7 @@ class Cursor:
     the engine and remains ordinary iterator exhaustion; explicit close is a
     separate state that refuses further pulls. A cursor dropped unclosed is
     reaped by its finalizer. Rows carry the query's variable names as columns,
-    exactly as query()'s rows do.
+    exactly as match()'s rows do.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = (
@@ -558,8 +558,8 @@ class Cursor:
 
         This is the one convenience worth adding here, because it changes the
         SPELLING and not the plan. Measured over 2,000 stored atoms, wanting
-        the first three: `query(pat)[:3]` costs 26,049 inferences because
-        slicing trims after computing everything, `query(pat, limit=3)` costs
+        the first three: `match(pat)[:3]` costs 26,049 inferences because
+        slicing trims after computing everything, `match(pat, limit=3)` costs
         94, and pulling three from a cursor costs 13. The cheapest route was
         the only one that could not be spelled naturally.
 
@@ -581,7 +581,7 @@ class Cursor:
             msg = (
                 "a cursor cannot be indexed from the end: it does not know "
                 "where the end is without pulling every row, which is what "
-                "the cursor exists to avoid. Use query() if you want them all"
+                "the cursor exists to avoid. Use match() if you want them all"
             )
             raise IndexError(
                 msg
@@ -629,7 +629,7 @@ class Cursor:
     def __del__(self) -> None:
         if not getattr(self, "_closed", True) and not getattr(self, "_exhausted", True):
             warnings.warn(
-                "an open petta Cursor was discarded; use a with-block or close()",
+                "an open metta Cursor was discarded; use a with-block or close()",
                 ResourceWarning,
                 source=self,
                 stacklevel=2,
@@ -763,7 +763,7 @@ class Prepared:
     ) -> Rows:
         """Answers now, with `given` facts present for this call alone.
         `timeout` and `inferences` bound this solve exactly as they bound
-        MeTTa.query().
+        MeTTa.match().
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if not given:
             return self._run(limit, timeout, inferences)

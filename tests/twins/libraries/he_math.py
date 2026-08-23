@@ -15,7 +15,7 @@ is bound once for reading. The two special float symbols are what the engine
 names them, `inf` and `nan`.
 """
 
-from petta import S
+from metta import S
 
 #: Why this twin sits below the top rung: `min-atom` and `max-atom` dissolve
 #: into Python's `min` and `max` everywhere else in the corpus, and here they

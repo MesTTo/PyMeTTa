@@ -22,7 +22,7 @@ pre-pass and `memoize` on an unknown name is a domain error. The residue
 records the missing batch door against P14.4.
 """
 
-from petta import S
+from metta import S
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

@@ -17,9 +17,9 @@ Open Obligations:
 
 import pytest
 
-from petta import PettaError, S, V, wire
-from petta.errors import EngineError, MettaOperationError, MettaResultError
-from petta.foreign import SpaceProvider
+from metta import PettaError, S, V, wire
+from metta.errors import EngineError, MettaOperationError, MettaResultError
+from metta.foreign import SpaceProvider
 
 SAFE_DIV = (
     '(= (err-div $x $y) (if (== $y 0) '
@@ -102,7 +102,7 @@ def test_rows_keep_stored_errors_and_offer_the_bridge(m):  # noqa: D103  -- pyte
         '(log e2 (Error (job 2) "bust"))',
         "(log ok fine)",
     )
-    rows = m.query(S.log(V.id, V.what))
+    rows = m.match(S.log(V.id, V.what))
     assert len(rows) == 3  # bindings stay data, stored errors included
     with pytest.raises(ExceptionGroup) as failure:
         rows.raise_for_errors()
@@ -118,10 +118,10 @@ def test_rows_keep_stored_errors_and_offer_the_bridge(m):  # noqa: D103  -- pyte
 
 def test_raise_for_errors_chains_when_clean_and_raises_one_plainly(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add('(log e1 (Error (job 1) "boom"))', "(log ok fine)")
-    clean = m.query(S.log(S.ok, V.what))
+    clean = m.match(S.log(S.ok, V.what))
     assert clean.raise_for_errors() is clean
     with pytest.raises(MettaResultError) as failure:
-        m.query(S.log(S.e1, V.what)).raise_for_errors()
+        m.match(S.log(S.e1, V.what)).raise_for_errors()
     assert str(failure.value.culprit) == "(job 1)"
 
 
@@ -129,7 +129,7 @@ def test_rows_one_and_first_stay_content_neutral(m):  # noqa: D103  -- pytest di
     # A row is a binding, not an evaluation answer: a stored error record
     # flows through the scalar Rows doors; raise_for_errors is the bridge.
     m.add('(log e1 (Error (job 1) "boom"))')
-    row = m.query(S.log(S.e1, V.what)).one()
+    row = m.match(S.log(S.e1, V.what)).one()
     assert str(row.what).startswith("(Error ")
 
 

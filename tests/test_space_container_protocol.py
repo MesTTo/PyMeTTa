@@ -17,8 +17,8 @@ from typing import Any
 
 import pytest
 
-from petta import S, V
-from petta.foreign import SpaceProvider
+from metta import S, V
+from metta.foreign import SpaceProvider
 
 
 class _SizedFacts(SpaceProvider):
@@ -75,7 +75,7 @@ def test_space_truth_does_not_ask_for_emptiness(metta):  # noqa: D103 -- the tes
         space = metta._at("&empty-container")
         assert bool(space) is True
         assert provider.count_reads == 0
-        assert bool(space.query(V.x)) is False
+        assert bool(space.match(V.x)) is False
         assert provider.count_reads == 0
     finally:
         metta._unregister_space("&empty-container")
@@ -93,4 +93,4 @@ def test_native_iteration_snapshots_before_mutation(metta):  # noqa: D103 -- the
     assert list(snapshot) == [first, second]
     assert list(space) == [second, later]
     assert "snapshot" in type(space).__iter__.__doc__.lower()
-    assert "query" in type(space).__bool__.__doc__.lower()
+    assert "match" in type(space).__bool__.__doc__.lower()
