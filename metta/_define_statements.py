@@ -11,7 +11,7 @@ Guarantees:
   - a star pattern lowers to the engine's segment variable, named through
     (:seg $x) and anonymous through ... [tested:
     test_match_star_lowers_to_a_segment_variable,
-    test_a_case_star_pattern_binds_the_rest; commit=WORKTREE]
+    test_a_case_star_pattern_binds_the_rest; commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
   - a final ``with space.limits(stack=N)`` block compiles to the scoped
     ``stack-limit`` pragma contract [tested:
     test_compiled_stack_limit_uses_the_scoped_pragma_contract;

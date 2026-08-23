@@ -7,7 +7,7 @@ Guarantees:
     engine's ``stack-limit`` scoped pragma spelling [tested:
     test_compiled_stack_limit_uses_the_scoped_pragma_contract; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - star patterns lower to the engine's segment variables, named and anonymous
-    [tested: test_match_star_lowers_to_a_segment_variable; commit=WORKTREE]
+    [tested: test_match_star_lowers_to_a_segment_variable; commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
   - overlapping decorator clauses share one exclusive case equation while
     disjoint heads remain separate equations [tested:
     test_overlapping_clauses_materialize_as_one_case_equation; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

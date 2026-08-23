@@ -33,7 +33,7 @@ Guarantees:
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - seg() builds the named segment and refuses anything but a Variable, since
     a non-variable second position is ordinary data to the engine [tested:
-    test_seg_builds_a_named_segment; commit=WORKTREE]
+    test_seg_builds_a_named_segment; commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
 Open Obligations:
   To Do: None
   Hacks: None

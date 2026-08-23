@@ -20,7 +20,7 @@
 %     and handed to match/4 wrapped, from the same walk that lifts its
 %     modifiers, so a gap-free query builds the goal it always built
 %     [tested: test_ellipsis_is_an_anonymous_segment,
-%     test_a_segment_binding_projects_as_an_expression_slice; commit=WORKTREE]
+%     test_a_segment_binding_projects_as_an_expression_slice; commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
 %   - petta_py_add_strict_declaration/2 refuses a declaration already owned by
 %     source code before Python publishes an operation
 %     [tested: test_a_duplicate_declaration_names_the_first_one;
