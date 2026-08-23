@@ -564,3 +564,55 @@ def test_the_benchmark_suite_prices_a_file_load():
     )
     entry = data["benchmarks"]["file-load"]
     assert isinstance(entry["inferences"], int) and entry["inferences"] > 0
+
+
+def test_check_instructions_reports_every_failing_case(tmp_path):
+    """A regression in one case never hides another.
+
+    The runner's old loop let ``observe_instructions`` raise on the first
+    regressing case, so four stale pins and one real overrun sat hidden
+    behind whichever red came first, on every tree, for days. This drives
+    ``observe_all`` with a fake sampler over one passing and two failing
+    cases and requires all three to have been measured, both failures
+    reported, and the passing case's observation unharmed.
+    """
+    import json
+    from pathlib import Path
+
+    from benchmarks.check_instructions import observe_all
+    from metta.testing import BenchmarkBaseline
+
+    real = json.loads(
+        (Path(__file__).resolve().parents[1] / "benchmarks" / "baseline.json")
+        .read_text()
+    )
+    document = {
+        key: value for key, value in real.items() if key != "benchmarks"
+    }
+    document["benchmarks"] = {
+        name: {
+            "inferences": 1,
+            "instructions": 1_000,
+            "instruction_noise_percent": 1.0,
+            "operations": 1,
+            "unit": "calls",
+            "wall_seconds_per_operation": 1.0,
+        }
+        for name in ("alpha", "beta", "gamma")
+    }
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps(document))
+
+    baseline = BenchmarkBaseline(path, update=False)
+    measured: list[str] = []
+
+    def sampler(name: str) -> list[int]:
+        measured.append(name)
+        return [5_000, 5_001, 5_002] if name != "beta" else [1_000, 1_001, 1_002]
+
+    failures = observe_all(baseline, ["alpha", "beta", "gamma"], sampler)
+
+    assert measured == ["alpha", "beta", "gamma"]
+    assert len(failures) == 2
+    assert "alpha" in failures[0]
+    assert "gamma" in failures[1]

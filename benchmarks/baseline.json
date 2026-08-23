@@ -353,5 +353,9 @@
             "unit": "atom round-trips",
             "wall_seconds_per_operation": 3.075987162504582e-07
         }
-    }
+    },
+    "counter_policy": "stats().inferences minimum of three and fixed two-point growth slopes decide; wall time advises",
+    "instruction_policy": "perf instructions:u minimum of three, one percent noise allowance, measured under a deterministic harness since 2026-08-17: the child environment is a fixed allowlist, PYTHONHASHSEED is 0, and setarch -R disables address-space randomization, because environment-block size, hash seeds and ASLR each selected alignment modes that moved counts up to 1.5% with the inference counter flat. All floors re-measured under that harness on 2026-08-17.",
+    "p2_io_roundtrip_comment": "RE-PINNED 2026-08-21 after P2.5 strict serialization and P2.22 reader-token dispatch. The shipped reader selects its specialized grammar once per source, adding a fixed 8 inferences to loop-1m and 7 per one-form run-source call. Strict export validation adds 5 inferences per file-load atom, 8 per fast save/load atom and 9 per MeTTa save/load atom. The remaining source and registration lanes measure both checks: annotated-relation 489021 to 493021, handle-round-trip 2062065 to 2084077, and register-op 44334 to 46307. These are linear boundary-validation costs; no measured loop body or asymptotic class changed. [measured: selected min-of-three inference floors; command=python bindings/python/bench.py --counter-only --update-baseline annotated-relation file-load handle-round-trip loop-1m register-op run-source save-load-fast save-load-metta; fixture=deterministic benchmark harness; commit=c1eaa36c7a2089801fe9da3cbec3fc02833d66fe]",
+    "schema": 1
 }
