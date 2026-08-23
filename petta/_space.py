@@ -16,6 +16,9 @@ Guarantees:
     test_define_absorbs_class_declaration_and_frees_space_type,
     test_fn_strips_one_bang_only_when_the_exact_name_is_absent, and
     test_transaction_term_uses_empty_answer_rollback_law; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+  - relational solve exposes variables from its pattern before variables from
+    its subject [tested: test_solve_projects_variables_from_the_winning_pattern;
+    commit=WORKTREE]
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
     test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -1420,13 +1423,16 @@ class Space(Handle):
 
         ``solve(4, V.x - 1).x`` places the known value on let's pattern side,
         lets the arithmetic relation solve backwards, and projects ``x``.
-        The answer template is derived from the subject's variables, so the
-        third hand-written ``let`` argument disappears.
+        The answer template is derived from the pattern's variables followed
+        by any new subject variables, so either relational direction can
+        introduce the bindings and the third hand-written ``let`` argument
+        disappears.
         """
+        pattern_atom = _to_atom(pattern)
         subject_atom = _to_atom(subject)
-        columns = tuple(_column_names([subject_atom]))
+        columns = tuple(_column_names([pattern_atom, subject_atom]))
         if not columns:
-            msg = "solve needs at least one variable in its subject"
+            msg = "solve needs at least one variable in its pattern or subject"
             raise ValueError(msg)
         template: Atom = (
             Variable(columns[0])
@@ -1434,7 +1440,7 @@ class Space(Handle):
             else Expression([Variable(name) for name in columns])
         )
         answers = self.eval(
-            Expression([Symbol("let"), _to_atom(pattern), subject_atom, template])
+            Expression([Symbol("let"), pattern_atom, subject_atom, template])
         )
         return solve_rows(columns, cast(list[Atom], answers))
 

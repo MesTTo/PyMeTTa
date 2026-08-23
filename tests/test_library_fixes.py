@@ -38,6 +38,9 @@ Guarantees:
     commit=WORKTREE]
   - the public space factory accepts a space-name Symbol returned by the
     engine [tested: test_space_factory_accepts_a_name_symbol; commit=WORKTREE]
+  - relational solve returns variables introduced by either its winning
+    pattern or its producing subject [tested:
+    test_solve_projects_variables_from_the_winning_pattern; commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -282,3 +285,12 @@ def test_space_factory_accepts_a_name_symbol() -> None:
     opened = space(name)
 
     assert opened.name == name.name
+
+
+def test_solve_projects_variables_from_the_winning_pattern() -> None:
+    """A pattern-only variable is a result column, as relational let requires."""
+    target = space()
+
+    solved = target.solve(S["libfix-solved"](V.value), S["libfix-solved"](42))
+
+    assert solved.value == G(42)
