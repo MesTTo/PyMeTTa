@@ -167,7 +167,7 @@ from .atoms import (
     parse,
 )
 from .define import Defined, PrologBacked
-from .errors import EngineError, PettaError, SourceNotFound, StrictError
+from .errors import EngineError, PettaError, SourceNotFound, StrictError, Timeout
 from .results import (
     Answers,
     Rows,
@@ -266,11 +266,12 @@ class _BoundValues:
 class _WatchIterator:
     """Own one eager subscription and cancel it whenever the iterator closes."""
 
-    __slots__ = ("_events", "_subscription")
+    __slots__ = ("_deadline", "_events", "_subscription")
 
-    def __init__(self, subscription: Any) -> None:
+    def __init__(self, subscription: Any, deadline: float | None = None) -> None:
         self._subscription = subscription
-        self._events: Iterator[Any] = subscription.events()
+        self._deadline = deadline
+        self._events: Iterator[Any] = subscription.events(deadline)
 
     def __iter__(self) -> Self:
         return self
@@ -280,6 +281,9 @@ class _WatchIterator:
             return next(self._events)
         except StopIteration:
             self.close()
+            if self._deadline is not None:
+                msg = f"no matching change arrived within {self._deadline} seconds"
+                raise Timeout(msg) from None
             raise
 
     def close(self) -> None:
@@ -1576,9 +1580,22 @@ class Space(Handle):
         )
         return solve_rows(columns, cast(list[Atom], answers))
 
-    def watch(self, pattern: Any, *, on: str = "add"):
-        """Yield matching change events until the iterator closes."""
-        return _WatchIterator(self.subscribe(pattern, on=on))
+    def watch(
+        self,
+        pattern: Any,
+        *,
+        on: str = "add",
+        deadline: float | None = None,
+    ):
+        """Yield matching changes, raising Timeout after each quiet deadline."""
+        if deadline is not None and (
+            isinstance(deadline, bool)
+            or not isinstance(deadline, (int, float))
+            or deadline < 0
+        ):
+            msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
+            raise ValueError(msg)
+        return _WatchIterator(self.subscribe(pattern, on=on), deadline)
 
     def limits(
         self,

@@ -1,6 +1,9 @@
 """Purpose: define PeTTa errors and the operation non-reduction signal.
 
 Guarantees:
+  - Timeout is both the PeTTa coordination miss and a builtin TimeoutError,
+    so callers may catch at either abstraction [tested:
+    test_the_coordination_family_is_python_shaped; commit=WORKTREE]
   - every PettaError carries atom, space, operation and capability
     attributes, None by default, the message unchanged for their presence
     [tested test_base_fields_default_to_none]
@@ -38,6 +41,7 @@ __all__ = [
     "StrictError",
     "SubscriberError",
     "TimeLimitError",
+    "Timeout",
     "TransportFailure",
     "is_transport_failure",
 ]
@@ -68,6 +72,10 @@ class PettaError(Exception):
         self.space = space
         self.operation = operation
         self.capability = capability
+
+
+class Timeout(PettaError, TimeoutError):  # noqa: N818 -- a timeout is the public outcome, not an implementation error suffix
+    """A bounded coordination wait ended before anything arrived."""
 
 
 class MettaSyntaxError(PettaError):

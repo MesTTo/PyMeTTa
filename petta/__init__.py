@@ -36,6 +36,9 @@ Guarantees:
   - ``view`` lazily opens a live provider space over Python mappings, sets,
     and sequences [tested: test_view_is_a_live_queryable_space;
     commit=WORKTREE]
+  - coordination functions are lazy satellite exports and Timeout remains
+    catchable as builtin TimeoutError [tested:
+    test_the_coordination_family_is_python_shaped; commit=WORKTREE]
 Decides:
   - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
     stack policy [source: PeTTa-base/python/petta/__init__.py:8;
@@ -83,7 +86,7 @@ from .atoms import (
     typed,
     unify,
 )
-from .errors import NotReducible, PettaError
+from .errors import NotReducible, PettaError, Timeout
 
 _SATELLITES = frozenset(
     {
@@ -123,6 +126,11 @@ _LAZY_ATTRIBUTES = {
     "boot": ("manifest", "boot"),
     "equation": ("_rules", "equation"),
     "rules": ("_rules", "rules"),
+    "channel": ("parallel", "channel"),
+    "every": ("parallel", "every"),
+    "par_map": ("parallel", "par_map"),
+    "race": ("parallel", "race"),
+    "spawn": ("parallel", "spawn"),
     "view": ("spaces", "view"),
 }
 
@@ -430,6 +438,7 @@ __all__ = [
     "SpaceProvider",
     "State",
     "Symbol",
+    "Timeout",
     "Undefined",
     "V",
     "Variable",
@@ -444,6 +453,7 @@ __all__ = [
     "attach",
     "boot",
     "casting",
+    "channel",
     "config",
     "convert",
     "current_space",
@@ -453,6 +463,7 @@ __all__ = [
     "equation",
     "eval",
     "events",
+    "every",
     "fn",
     "foreign",
     "forms",
@@ -465,10 +476,12 @@ __all__ = [
     "match",
     "not_",
     "or_",
+    "par_map",
     "parallel",
     "parse",
     "paths",
     "query",
+    "race",
     "reflection",
     "refuse",
     "remote",
@@ -478,6 +491,7 @@ __all__ = [
     "solve",
     "space",
     "spaces",
+    "spawn",
     "structures",
     "subscribe",
     "superpose",

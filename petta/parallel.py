@@ -21,6 +21,10 @@ Assumes:
     process_metta_string in filereader.pl, and a per-function mutex in
     lib_memo.pl [source 2026-08-15]
 Guarantees:
+  - package coordination functions evaluate lib_thread in the ambient space;
+    spawned and repeating computations stay Space handles whose answers may
+    be iterated as they arrive [tested:
+    test_the_coordination_family_is_python_shaped; commit=WORKTREE]
   - a worker engine answers exactly what the home engine answers
     [tested test_pool_agrees_with_the_home_engine]
   - map answers in input order however the workers finish
@@ -67,12 +71,24 @@ from concurrent.futures import Future, as_completed
 from typing import Any, Self
 
 from ._engine import engine_thread, runtime
-from .errors import PettaError
+from ._space import Space
+from .atoms import Atom, Expression, Symbol, Variable, _to_atom
+from .errors import PettaError, Timeout
 
 logger = logging.getLogger(__name__)
 
 
-__all__ = ["EnginePool", "pool"]
+__all__ = [
+    "Channel",
+    "EnginePool",
+    "FutureSpace",
+    "channel",
+    "every",
+    "par_map",
+    "pool",
+    "race",
+    "spawn",
+]
 
 # What a worker takes off the queue: the future to settle, and the call.
 _Job = tuple["Future[Any]", Callable[..., Any], tuple[Any, ...], dict[str, Any]]
@@ -311,3 +327,157 @@ def imap_unordered[T, R](
     futures = [engine_pool.submit(fn, item) for item in items]
     for future in as_completed(futures):
         yield future.result()
+
+
+def _ambient_space() -> Space:
+    from . import current_space, engine  # noqa: PLC0415 -- root owns the lazy default context
+
+    return engine().space(current_space())
+
+
+def _ensure_thread_library(owner: Space) -> None:
+    owner.answers(
+        Expression(
+            [
+                Symbol("import!"),
+                owner,
+                Expression([Symbol("library"), Symbol("lib_thread")]),
+            ]
+        )
+    ).one()
+
+
+def _call(owner: Space, head: str, *arguments: Any):
+    _ensure_thread_library(owner)
+    return owner.answers(Expression([Symbol(head), *(_to_atom(arg) for arg in arguments)]))
+
+
+class FutureSpace(Space):
+    """A spawned computation's ordinary answer space with lifecycle verbs."""
+
+    def __init__(self, space: Space, owner: Space) -> None:  # noqa: D107 -- the enclosing type defines the future-space construction boundary
+        super().__init__(space.name, _runtime=space.runtime)
+        self._owner = owner
+
+    def wait(self):
+        """Wait until evaluation settles, then lazily expose every stored answer."""
+        return _call(self._owner, "await", self)
+
+    def settled(self) -> bool:
+        """Whether the computation has finished, without waiting."""
+        return bool(_call(self._owner, "settled?", self).one())
+
+    def cancel(self) -> bool:
+        """Stop a pending computation, answering whether it was stopped."""
+        return bool(_call(self._owner, "cancel", self).one())
+
+    def __iter__(self) -> Iterator[Atom]:
+        """Yield each answer occurrence after it lands, until settlement."""
+        subscription = self.subscribe(Variable("_future_answer"), on="add")
+        seen: list[Atom] = []
+        try:
+            while True:
+                current = self.atoms()
+                unmatched = list(seen)
+                for atom in current:
+                    try:
+                        unmatched.remove(atom)
+                    except ValueError:
+                        yield atom
+                seen = current
+                if self.settled():
+                    return
+                subscription.wait(0.05)
+        finally:
+            subscription.cancel()
+
+
+def _future(owner: Space, head: str, *arguments: Any) -> FutureSpace:
+    result = _call(owner, head, *arguments).one()
+    if not isinstance(result, Space):
+        msg = f"{head} returned {result!r}, not its promised future space"
+        raise PettaError(msg)
+    return FutureSpace(result, owner)
+
+
+def spawn(expression: Any) -> FutureSpace:
+    """Start one expression now and return the space its answers fill."""
+    owner = _ambient_space()
+    return _future(owner, "spawn", expression)
+
+
+def every(seconds: float, expression: Any) -> FutureSpace:
+    """Repeat one expression at each interval until its future is cancelled."""
+    owner = _ambient_space()
+    return _future(owner, "every", seconds, expression)
+
+
+def race(*expressions: Any) -> Any:
+    """Return the first successful answer and cancel the remaining branches."""
+    if not expressions:
+        msg = "race needs at least one expression"
+        raise ValueError(msg)
+    return _call(_ambient_space(), "par-race", Expression(expressions)).one()
+
+
+def par_map(function: Any, items: Iterable[Any]) -> Expression:
+    """Evaluate a unary MeTTa function concurrently, preserving input order."""
+    result = _call(_ambient_space(), "par-map", function, Expression(items)).one()
+    if not isinstance(result, Expression):
+        msg = f"par-map returned {result!r}, not its promised result expression"
+        raise PettaError(msg)
+    return result
+
+
+class Channel:
+    """A bounded or unbounded lib_thread mailbox in Python dress."""
+
+    def __init__(self, owner: Space, handle: Any) -> None:  # noqa: D107 -- channel() is the public constructor and documents this state
+        self._owner = owner
+        self._handle = handle
+        self._closed = False
+
+    def send(self, term: Any) -> bool:
+        """Block until capacity admits one copied term."""
+        return bool(_call(self._owner, "send", self._handle, term).one())
+
+    def recv(self, *, deadline: float | None = None) -> Any:
+        """Take one term, raising Timeout when a finite wait is quiet."""
+        arguments = (self._handle,) if deadline is None else (self._handle, deadline)
+        answers = _call(self._owner, "recv", *arguments)
+        sentinel = object()
+        result = answers.first(default=sentinel)
+        if result is sentinel:
+            if deadline is None:
+                msg = "channel receive ended without an answer"
+                raise PettaError(msg)
+            msg = f"no channel message arrived within {deadline} seconds"
+            raise Timeout(msg)
+        return result
+
+    def try_recv(self) -> Any | None:
+        """Take one waiting term or return None without blocking."""
+        return _call(self._owner, "try-recv", self._handle).first(default=None)
+
+    def __len__(self) -> int:  # noqa: D105 -- the enclosing channel contract supplies the size meaning
+        return int(_call(self._owner, "channel-size", self._handle).one())
+
+    def close(self) -> None:
+        """Destroy this mailbox. Closing twice is a no-op."""
+        if self._closed:
+            return
+        _call(self._owner, "channel-close", self._handle).one()
+        self._closed = True
+
+    def __enter__(self) -> Self:  # noqa: D105 -- context entry returns the live mailbox
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:  # noqa: D105 -- context exit closes the mailbox
+        self.close()
+
+
+def channel(*, max: int | None = None) -> Channel:  # noqa: A002 -- max is the ruled public keyword
+    """Create a mailbox; max bounds queued terms and blocks full senders."""
+    owner = _ambient_space()
+    arguments = () if max is None else (max,)
+    return Channel(owner, _call(owner, "channel", *arguments).one())
