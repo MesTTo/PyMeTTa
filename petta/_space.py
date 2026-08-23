@@ -73,9 +73,12 @@ Guarantees:
     test_bound_function_namespace_validates_at_access,
     test_function_calls_pull_engine_answers_only_as_demanded;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
-  - builtin discovery is cached per logical space and invalidated by every
-    catalogue mutation [tested: test_builtin_discovery_is_cached,
-    test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - builtin discovery is cached per logical space, with namespace reads
+    comparing the engine's function generation and explicit Python mutation
+    doors retaining eager invalidation [tested:
+    test_cache_reads_compare_the_function_generation,
+    test_builtin_discovery_is_cached,
+    test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
   - ``Space`` is a grounded ``Handle`` that crosses as a term operand, and
     ``peek`` and ``take`` expose the engine's event-driven Linda operations
     [tested: test_space_handles_are_term_operands_and_round_trip,
@@ -194,29 +197,66 @@ _P = ParamSpec("_P")
 
 _BUILTINS_CACHE_LOCK = threading.RLock()
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
-    Runtime, tuple[int, dict[str, tuple[str, ...]]]
+    Runtime, tuple[int, int | None, dict[str, tuple[str, ...]]]
+] = weakref.WeakKeyDictionary()
+_FUNCTION_GENERATION_AVAILABLE: weakref.WeakKeyDictionary[
+    Runtime, bool
 ] = weakref.WeakKeyDictionary()
 
 
 def _invalidate_builtins_cache(rt: Runtime) -> None:
-    """Advance one runtime's catalogue generation and discard every space view."""
+    """Advance the Python-door epoch and discard every cached space view."""
     with _BUILTINS_CACHE_LOCK:
-        generation, _ = _BUILTINS_CACHE.get(rt, (0, {}))
-        _BUILTINS_CACHE[rt] = (generation + 1, {})
+        epoch, function_generation, _ = _BUILTINS_CACHE.get(rt, (0, None, {}))
+        _BUILTINS_CACHE[rt] = (epoch + 1, function_generation, {})
+
+
+def _function_generation(rt: Runtime) -> int | None:
+    """Read the engine's fun/1 generation, or None before its sibling lands.
+
+    The service is SWI's ``last_modified_generation`` for exactly the dynamic
+    ``fun/1`` set read by ``petta_py_builtins/1``; translator rules are static
+    catalogue-neutral metadata [source:
+    engine/metta.pl:metta_host_function_generation/1;
+    commit=4c9a794750103e0a3a2e9d883adde337ffb501f0].
+    """
+    with _BUILTINS_CACHE_LOCK:
+        known = rt in _FUNCTION_GENERATION_AVAILABLE
+        available = _FUNCTION_GENERATION_AVAILABLE.get(rt, False)
+    if not known:
+        available = bool(
+            rt.once("current_predicate(petta_py_function_generation/1)")
+        )
+        with _BUILTINS_CACHE_LOCK:
+            _FUNCTION_GENERATION_AVAILABLE[rt] = available
+    if not available:
+        return None
+    return int(rt.apply_must("petta_py_function_generation"))
 
 
 def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
-    """Read one generation-stamped per-space builtin catalogue."""
+    """Read one engine-generation-stamped per-space builtin catalogue."""
     while True:
+        observed_generation = _function_generation(rt)
         with _BUILTINS_CACHE_LOCK:
-            generation, catalogues = _BUILTINS_CACHE.setdefault(rt, (0, {}))
+            epoch, cached_generation, catalogues = _BUILTINS_CACHE.setdefault(
+                rt, (0, observed_generation, {})
+            )
+            if cached_generation != observed_generation:
+                catalogues = {}
+                _BUILTINS_CACHE[rt] = (epoch, observed_generation, catalogues)
             cached = catalogues.get(space_name)
             if cached is not None:
                 return list(cached)
         discovered = tuple(rt.builtins())
+        confirmed_generation = _function_generation(rt)
+        if confirmed_generation != observed_generation:
+            continue
         with _BUILTINS_CACHE_LOCK:
-            current_generation, current = _BUILTINS_CACHE.get(rt, (0, {}))
-            if current_generation != generation:
+            current_epoch, current_generation, current = _BUILTINS_CACHE.get(
+                rt, (0, None, {})
+            )
+            if current_epoch != epoch or current_generation != confirmed_generation:
                 continue
             current[space_name] = discovered
             return list(discovered)
@@ -1759,34 +1799,8 @@ class Space(Handle):
         In a `strict()` scope an unreduced term raises StrictError while a
         genuinely empty branch still returns no answers.
         """
-        changes_catalogue = isinstance(target, str) or (
-            isinstance(target, Expression)
-            # policy-inventory-exempt: mechanism-internal; reason=the defining heads whose evaluation can grow the definition catalogue, so the per-space builtins cache invalidates exactly when one runs; evidence=bindings/python/petta/_space.py:_invalidate_builtins_cache
-            and target.head
-            in {
-                Symbol("="),
-                Symbol("import!"),
-                Symbol("add-translator-rule!"),
-                Symbol("remove-translator-rule!"),
-            }
-        )
-        try:
-            if strict_enabled():
-                statuses = evaluate_status(
-                    self._rt,
-                    self._space,
-                    target,
-                    timeout,
-                    inferences,
-                    using=using,
-                )
-                self._refuse_unreduced([statuses], grouped=False)
-                return [
-                    answer
-                    for status, answer in statuses
-                    if status != "empty" and answer is not None
-                ]
-            return evaluate(
+        if strict_enabled():
+            statuses = evaluate_status(
                 self._rt,
                 self._space,
                 target,
@@ -1794,9 +1808,20 @@ class Space(Handle):
                 inferences,
                 using=using,
             )
-        finally:
-            if changes_catalogue:
-                _invalidate_builtins_cache(self._rt)
+            self._refuse_unreduced([statuses], grouped=False)
+            return [
+                answer
+                for status, answer in statuses
+                if status != "empty" and answer is not None
+            ]
+        return evaluate(
+            self._rt,
+            self._space,
+            target,
+            timeout,
+            inferences,
+            using=using,
+        )
 
     def answers(
         self,
