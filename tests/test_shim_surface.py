@@ -1,5 +1,5 @@
 """Purpose: the published host_service list is a ratchet toward the
-transport floor. P4.23 published the 49 engine predicates the Python shim
+transport floor. P4.23 published the engine predicates the Python shim
 calls; the shrink item moves the host-agnostic orchestration engine-side
 under host-neutral names so every next binding stops re-paying it, and
 each move deletes rows here. This pin makes the direction enforceable:
@@ -17,7 +17,8 @@ Guarantees:
     commit=c1eaa36c7a2089801fe9da3cbec3fc02833d66fe]
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
-    [tested: test_the_shim_surface_shrank_to_the_transport_floor]
+    [tested: test_the_shim_surface_shrank_to_the_transport_floor;
+    commit=4c9a794750103e0a3a2e9d883adde337ffb501f0]
   - the host query door uses the engine's published pattern-modifier walk
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]
@@ -45,6 +46,10 @@ HOST_SERVICES = {
     "metta_host_register_reader_token/2",
     "metta_host_run_source/4",
     "metta_host_run_source_status/3",
+    # The host scopes SWI's thread-local byte ceiling through one engine door.
+    "metta_host_with_stack_limit/2",
+    # Cache validation reads the function registry's engine-owned generation.
+    "metta_host_function_generation/1",
     "metta_host_save_fast/3",
     "metta_host_load_fast/2",
     "metta_host_open_function/3",
@@ -148,6 +153,8 @@ FLOOR_REASONS = {
     "metta_host_remove_reported/3": "host-orchestration",
     "metta_host_run_source/4": "host-orchestration",
     "metta_host_run_source_status/3": "host-orchestration",
+    "metta_host_with_stack_limit/2": "door",
+    "metta_host_function_generation/1": "host-orchestration",
     "metta_host_save_fast/3": "host-orchestration",
     "metta_host_stored/2": "host-orchestration",
     "metta_host_substitute/3": "host-orchestration",
@@ -184,10 +191,9 @@ def test_the_shim_surface_shrank_to_the_transport_floor():
     is not a door the engine owns, a codec need of the transport, the
     engine-side host surface the shrink built, the failure contract, or a
     genuinely host-made choice, is orchestration a next binding would
-    re-pay, and it fails here until it moves engine-side. The six design
-    moves (run/load, registration lifecycle, remove-with-report, the
-    explain mirror, exception shaping, the bulk clears) took the list
-    from 49 published rows to this classified floor.
+    re-pay, and it fails here until it moves engine-side. The design moves
+    keep run/load, registration lifecycle, remove-with-report, explanation,
+    exception shaping, and bulk clearing at this classified floor.
     """
     unclassified = sorted(HOST_SERVICES - set(FLOOR_REASONS))
     over_classified = sorted(set(FLOOR_REASONS) - HOST_SERVICES)
