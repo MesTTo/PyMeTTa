@@ -22,7 +22,7 @@ from petta import S, V, equation
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=WORKTREE].
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
 BUDGET = 1
 
 #: The 70,000-step interpreter exercise states a budget above the engine default.

@@ -30,7 +30,7 @@ from petta import Expression, S
 #: 264 inferences over the concurrent lane's own observations, because
 #: the shared engine's scheduling changes what a concurrent round costs
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=WORKTREE].
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
 #: Until it is measured again, this file's own distribution-budget residue
 #: entry, retired 2026-08-22 because the twin declared an envelope, is
 #: unbacked: a point budget is not the envelope that retired it.
