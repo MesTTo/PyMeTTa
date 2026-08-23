@@ -1,4 +1,4 @@
-"""examples/spaces/catalog.metta in Python: the catalog describes its own kinds.
+"""Purpose: examples/spaces/catalog.metta in Python: the catalog describes its own kinds.
 
 Every declaration the engine acts on is an atom in the reflection space, and
 the SHAPES of those declarations are atoms there too, so one generic checker
@@ -9,30 +9,27 @@ checker guards it.
 Which is why this file has no special introspection door in it. The reflection
 space is a space, so reading it is `space[pattern]` and extending it is
 `space += row`, exactly as for any other knowledge, and that IS the example's
-point made in Python.
+point made in Python. `petta.reflection` is the handle itself, not a name.
 
 `&rows` appears inside a declaration as the context the freshness claim is
-about, so it is written as the name of a handle rather than as a bare symbol:
-`m.space("&rows")` is where that name comes from.
+about, and it appears there as the HANDLE: a space is an ordinary term operand,
+so `petta.space("&rows")` goes straight into the row it is the subject of.
 """
 
-from petta import REFLECTION_SPACE, S, V
+import petta
+from petta import S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 3576 to 1198, -2378 (-66.5%), by the twin contract
-#: change: five `(test (match &petta ...) ...)` terms became five Python
-#: `assert`s over the subscript door, so `test` left the engine five times
-#: while the five matches it wrapped stayed in it, along with the four
-#: declaration writes. Against the example's 13408 the ratio is 0.0893.
-#: Prior: 3576, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 1198
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+BUDGET = 1
 
 
-def twin(m):
+def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the default handle stays untouched
     """Read four shipped catalog rows, then declare a kind of your own."""
-    reflection = m.space(REFLECTION_SPACE)
+    reflection = petta.reflection
 
     # The fidelity vocabulary is the four words the handles router acts on.
     assert [
@@ -51,7 +48,7 @@ def twin(m):
 
     # A third-party kind is the same machinery: declare its vocabulary and its
     # shape, and the same checker guards it.
-    rows = m.space("&rows")
+    rows = petta.space("&rows")
     reflection += (S.vocabulary, S["freshness-level"], S.live, S.cached, S.stale)
     reflection += (
         S.kind,
@@ -60,11 +57,10 @@ def twin(m):
         S.pattern,
         S["one-of"](S["freshness-level"]),
     )
-    reflection += (S.freshness, S[rows.space_name], S.edge(V.a, V.b), S.cached)
+    reflection += (S.freshness, rows, S.edge(V.a, V.b), S.cached)
 
     assert [
-        row.level
-        for row in reflection[S.freshness(S[rows.space_name], V.shape, V.level)]
+        row.level for row in reflection[S.freshness(rows, V.shape, V.level)]
     ] == [S.cached]
 
     # (routed-by-shape head) gives the kind the SAME router the shipped

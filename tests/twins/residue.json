@@ -108,24 +108,6 @@
     },
     {
       "kind": "declined",
-      "example": "examples/performance/hyperpose_primes.metta",
-      "form": 1,
-      "missing": "a point budget for parallel primality branches whose completion schedule changes the inference count",
-      "row": "P14.14",
-      "section": "§5 inference budgets at crossings",
-      "detail": "The full source cost 256,499,809-263,270,075 and the full twin 264,278,475-270,022,219 in fresh processes. Keeping only form 0 and declining forms 1-2 costs 13,588-13,592 over ten runs, within the four-inference allowance."
-    },
-    {
-      "kind": "declined",
-      "example": "examples/performance/hyperpose_primes.metta",
-      "form": 2,
-      "missing": "a point budget for once over racing primality branches",
-      "row": "P14.14",
-      "section": "§5 inference budgets at crossings",
-      "detail": "The expensive race alone spread by 3,059,587 inferences over four fresh processes. The form answers correctly but cannot carry the lane's required point budget."
-    },
-    {
-      "kind": "declined",
       "example": "examples/integration/prologimport.metta",
       "form": 0,
       "missing": "a zero-source structured door for process_metta_string, plus a distribution budget for its generated clauses",
@@ -1107,195 +1089,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/spaces/spaces.metta",
-      "form": null,
-      "missing": "a compiled body naming a hyphenated engine function",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "matchtrickery's body calls add-atom twice inside a let*. A compiled body resolves a free name EXACTLY as written against the engine's function registry, and Python cannot spell a hyphen, so add-atom has no spelling there: `add_atom` raises \"'add_atom' is not a parameter of ..., not a function the engine knows, and not a capitalized data constructor\". The twin writes the equation at the container door, equation(S.matchtrickery()).to(...). Same family as the basics/fibsmart entry."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/add_atom_fun_space.metta",
-      "form": null,
-      "missing": "a compiled body answering an &-prefixed space name",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "(= (space) &my_space_name) answers a bare space-name symbol. A compiled body reads a capitalised free name as a data constructor and resolves a lowercase one as a function, and `&my_space_name` is not a Python identifier at all, so no body can answer it. The twin writes the equation at the container door, equation(S.space()).to(S[\"&my_space_name\"])."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/add_atom_fun_space.metta",
-      "form": null,
-      "missing": "a space handle for a target the program COMPUTES",
-      "row": "P14.10",
-      "section": "§9c primitive 2, the space wearing Python's container protocols",
-      "detail": "The example's whole subject is that `(add-atom (space) ...)` evaluates its space argument, so the write lands wherever the function answered. `space += atom` needs a HANDLE, and building one would mean evaluating `(space)` on the Python side first, which stops demonstrating the behaviour under test. Both writes therefore stay terms. A handle door that accepts a term to be resolved at the write would close this."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/matchsingle.metta",
-      "form": null,
-      "missing": "a compiled body naming a translator form, and a compiled match over a space PARAMETER",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "Two independent blockers on the same two equations. First, `cut` and `once` are translator forms rather than registry functions, so is_function answers False for both and a body naming either is refused with \"not a function the engine knows\". Second, both equations take the space as a PARAMETER, and the compiled `match(space, pattern, template)` form requires a literal string first argument: \"match with three arguments names its space first, as a string\". The twin writes both equations at the container door."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/selfprog.metta",
-      "form": null,
-      "missing": "a data constructor in a compiled body that is also a valid Python name",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "(= (function1) OK) compiles, because a capitalised free name in a body IS a data constructor. What it costs is a lint suppression: the name has no Python value by design ('data has no Python value, so the twin cannot run a body that mints it'), so ruff's F821 fires and the twin carries `# noqa: F821` with the reason. Binding it does not help, since a module binding is refused with \"is a module binding, not a data constructor\". Every twin with a constructor-valued body pays the same suppression."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_find.metta",
-      "form": null,
-      "missing": "a Python door for the import! directive",
-      "row": "P14.13",
-      "section": "§4 surface gaps: directives",
-      "detail": "import! is a directive rather than a value door, and there is no Python spelling for it; the term builder covers it, m.eval(S[\"import!\"](here, S.library(S.lib_spaces))), which resolves correctly here because a (library ...) name resolves against the library path rather than against an importing file. Same family as the basics/fibsmartimport entry, without its resolution problem."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_succeedspredicate.metta",
-      "form": null,
-      "missing": "a Python door for the import! directive",
-      "row": "P14.13",
-      "section": "§4 surface gaps: directives",
-      "detail": "Same as spaces_find: the lib_spaces import stays a term because import! has no Python door."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_removeallatoms.metta",
-      "form": null,
-      "missing": "a Python door for the import! directive",
-      "row": "P14.13",
-      "section": "§4 surface gaps: directives",
-      "detail": "Same as spaces_find: the lib_spaces import stays a term because import! has no Python door. It is also where this file's cost lives, on both sides."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_removeallatoms.metta",
-      "form": null,
-      "missing": "a clear() that answers remove-all-atoms' per-atom units",
-      "row": "P14.10",
-      "section": "§9c primitive 2, the space wearing Python's container protocols",
-      "detail": "MEASURED DIVERGENCE, not a missing door. m.clear() empties the same space through the same funnel and is Python's own spelling for emptying a container, but it answers NOTHING, where (remove-all-atoms &self) answers ONE UNIT PER REMOVED ATOM: eleven of them here, so the example's group is ((() () () () () () () () () () ())) and a protocol-door twin answers (()). The form therefore stays a term. Either the protocol spelling gains a cardinality-preserving reading or the docs teach the pair, the way -= and del kb[pattern] are taught side by side."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/mutex_and_transaction.metta",
-      "form": null,
-      "missing": "a compiled body naming with_mutex, transaction, add-atom or remove-atom",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "All three equations are blocked twice over: with_mutex and transaction are not in the engine's function registry, so is_function answers False and a body naming either is refused; add-atom and remove-atom are hyphenated, which a compiled body cannot spell. The twin writes all three at the container door and names the shared read-modify-write body once so the three equations compose it rather than copy it."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/evalc.metta",
-      "form": null,
-      "missing": "a term builder for an operator head over GROUND operands",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "Three of this file's terms are arithmetic over two ground operands, (+ 5 5) twice and (+ 1 1) once. On a grounded number Python's operators are that number's own arithmetic, so val(5) + 5 is 10 rather than the term (+ 5 5), and only INSIDE a compiled body does + build one. The head therefore has to be named at the S[\"+\"] door, which basics/math.py records the same way for the same reason. The lane agrees this is the deliberate spelling rather than a drop: since 598ffea its operator rule fires only inside a compiled body and only at the operator's own arity. What is still missing is any way to BUILD such a term with the operator, which is what a reader coming from the compiled subset will reach for."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/evalc.metta",
-      "form": null,
-      "missing": "a compiled body answering an &-prefixed space name",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "(= (preferred-space) &metric) answers a bare space-name symbol, which no compiled body can spell; the twin writes it at the container door. Same blocker as add_atom_fun_space's (= (space) &my_space_name). The file's two real definitions do go through @<space>.define."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/super.metta",
-      "form": null,
-      "missing": "a compiled body carrying lowercase symbols as data, and naming super or car-atom",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "All three equations carry lowercase symbols as DATA (stored, bad, refused, wrapped). A compiled body reads a capitalised free name as a data constructor and resolves a lowercase one as a function, so `stored` is refused with \"not a function the engine knows\" and `Stored` would store the wrong atom. Two of the three also name `super`, which is not in the function registry, and one heads on the hyphenated car-atom. The twin writes all three at the container door."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/restricted_spaces.metta",
-      "form": null,
-      "missing": "a NAMED restricted space",
-      "row": "P14.10",
-      "section": "§9d, the one space-creation door",
-      "detail": "new_space(restricted=True) and new_space(restricted=True, grants=[...]) create the right space but over a name the engine picks (&pyspace_1). The example NAMES its spaces, and the answer of a `!(new-space &locked (restricted))` form IS that name: the group is (&locked). A symbol is not a variable, so the two answers are not alpha-equal and no handle-door spelling can carry these forms; both creations stay terms and the twin takes its handles from m.space(\"&locked\") afterwards. petta.space(name, restricted=, grants=) would close it."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/inherited_spaces.metta",
-      "form": null,
-      "missing": "a NAMED inheriting space",
-      "row": "P14.10",
-      "section": "§9d, the one space-creation door",
-      "detail": "Same shape as restricted_spaces: new_space(inherits=parent) creates the right space over an engine-picked name, while the form's answer is the name it created, (&family-child). The creation stays a term; every one of the six writes around it does go through `space += fact`. petta.space(name, inherits=) would close it."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/parametric_spaces.metta",
-      "form": null,
-      "missing": "a space handle for a space named by a ground EXPRESSION",
-      "row": "P14.10",
-      "section": "§9c primitive 2, the space wearing Python's container protocols",
-      "detail": "This is the one file in the folder where every form stays a term, and one gap causes it. A ground expression is a legal space name, `(cache &primary-kb 100)`, and petta.space() refuses anything that does not begin with & : \"a space name starts with &, as in &self or &kb; got '(cache &primary-kb 100)'\". With no handle there is no +=, no .eval and no [pattern], so all eleven forms are terms. A space door that accepts an ATOM as the name would close it, and would also give evalc's parametric spaces a Python face."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/pre_add_hooks.metta",
-      "form": null,
-      "missing": "a compiled body with a nested literal head pattern, and verdict symbols as data",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "The four guard clauses head on a nested literal PATTERN, (guard (secret $x)), and the compiled subset spells a head pattern only as a literal default: a symbol default is refused with \"a default here is a head pattern, so it must be a literal\", and a string default stores a String rather than the symbol. Their bodies also answer the verdicts refuse, accept, drop and cooked, lowercase symbols a body resolves as functions. The twin writes all five equations at the container door, in first-match order."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/pre_add_hooks.metta",
-      "form": null,
-      "missing": "a Python door for the pre-add hook claim",
-      "row": "P14.10",
-      "section": "§9j, the general pre/post hook",
-      "detail": "declare-pre-add! and undeclare-pre-add! have no Python spelling, so the claim and its release stay terms. §9j designs the door as `@space.pre_add` over an @m.define-compiled handler, with `with m.ops(...)`-shaped scoping for the release. The four ordinary writes in this file DO go through `pool += atom`, which is what proves the hook fires on the write door rather than on a particular spelling of it: the transform, the drop and the plain accept all behave identically under +=."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/match_snapshot.metta",
-      "form": null,
-      "missing": "a compiled body with a literal head argument and remove-atom in its body",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "The two visit equations head on a literal argument, (visit alpha), which the compiled subset spells only as a literal default, and a string default would store a String where the symbol is meant. Their bodies also call the hyphenated remove-atom and answer bare lowercase symbols. The twin writes both at the container door; the four link facts and both snapshot items do go through the container protocol."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/matespace.metta",
-      "form": null,
-      "missing": "a compiled body naming case, once or add-atom",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "All five equations are blocked. `case` and `once` are translator forms rather than registry functions, so is_function answers False and a body naming either is refused; add-atom is hyphenated; and add-atom-no-duplicate takes the space as a PARAMETER, which the compiled match form cannot carry. The twin writes all five at the container door and holds its budget at 26,324,213 across the rewrite, which is the evidence that the spelling change is not a semantic one."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/matespace2.metta",
-      "form": null,
-      "missing": "a compiled body naming case, once or add-atom",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "Same five blockers as matespace, over the interleaved expand-and-mate variant. The twin writes all five equations at the container door and holds its budget at 39,336,332 across the rewrite."
-    },
-    {
-      "kind": "friction",
       "example": "examples/functions/program_order.metta",
       "form": null,
       "missing": "a SYMBOL as a stacked-clause head pattern",
@@ -1746,60 +1539,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/performance/superpose_primes.metta",
-      "form": null,
-      "missing": "MeTTa's own `==` inside a compiled body, where Python's `==` lowers to the prelude's py-eq",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "a == b in a compiled body always compiles to (py-eq $a $b), never to MeTTa's ==, because Python's equality answers what Python answers across mixed numeric types and containers. That sits in the inner loop of this example's divisor search: the same program through @m.define costs 920726 inferences against the term door's 536577, +71.6%, past the lane's 10% band and a regression in the benchmark the example exists to run [measured 2026-08-22, min of three fresh processes]. prime? is separately blocked because a compiled body names find-divisor by exactly that spelling, which is not a Python identifier. examples/basics/factorial.metta already stores py-eq where its own comment claims ==, so the divergence is corpus-wide and unrecorded until now."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/hyperpose_primes.metta",
-      "form": null,
-      "missing": "MeTTa's own `==` inside a compiled body, where Python's `==` lowers to the prelude's py-eq",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "Same find-divisor and prime? as superpose_primes, and the same measured +71.6% for the compiled spelling. The two definitions stay at the term door."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/peanofast.metta",
-      "form": null,
-      "missing": "a compiled body naming `add-atom`, and a lowercase symbol as data inside one",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "expandK WRITES with (add-atom &self ...) and answers the symbol `done` in its base case. A compiled body names a function by exactly its MeTTa spelling, which add-atom is not a Python identifier for, and a lowercase free name is not read as data. demo-peano DOES lift: its body calls expandK, which the engine knows under that exact name, and Z is a capitalised constructor."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/matespacefast.metta",
-      "form": null,
-      "missing": "a compiled body naming `add-atom`",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "rewriteK and mate-space-demo both WRITE with (add-atom &self ...) inside a let*, and a compiled body names a function by exactly its MeTTa spelling, which add-atom is not a Python identifier for."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/scale.metta",
-      "form": null,
-      "missing": "a compiled body naming `add-atom` and its own hyphenated siblings",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "addK WRITES with add-atom; q-all, q-first, q-second, q-both and q-rel each collapse a match; and indexing-demo calls all five by hyphenated name. A compiled body names a function by exactly its MeTTa spelling and reaches nothing else."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/holbenchmark.metta",
-      "form": null,
-      "missing": "a compiled body APPLYING a parameter, plus structural head patterns and MeTTa's own `==`",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "map-flat, fold-nested, apply-many and poly all apply a parameter, ($f $x), and a compiled body calls a plain NAME, never a variable; the tutorial's own (apply) shape has no spelling yet. map-flat and fold-nested additionally destructure (cons $x $xs) in the HEAD, fold-nested names is-expr, and the four kernels test (== $n 0) in their inner loop, where Python's == becomes py-eq."
-    },
-    {
-      "kind": "friction",
       "example": "examples/integration/python.metta",
       "form": null,
       "missing": "a compiled body naming `py-call`",
@@ -1869,24 +1608,6 @@
       "row": "P14.4",
       "section": "§9b: the ledger's own examples write `@m.rules`",
       "detail": "The shipped door is the free `@rules` decorator plus a separate `m.add(*obj)`. Every worked example in the ledger writes `@m.rules`, one act against the space, the way `@m.define` already reads. Measured 2026-08-22: MeTTa has no `rules` attribute, so the two-step spelling is the only one."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces3.metta",
-      "form": null,
-      "missing": "a one-element expression pattern at the SUBSCRIPT door: `space[(V.x,)]` reads the tuple as a conjunction",
-      "row": "P14.4",
-      "section": "§9b: `kb[p1, p2]` is the conjunction join door, and a tuple is also an expression",
-      "detail": "Python cannot tell `space[(a, b)]` from `space[a, b]`, so the subscript reads every tuple as a conjunction while `space.query(...)` reads the same tuple as an expression. Measured 2026-08-22: `m[(V.x,)]` answers two rows binding x to whole atoms, `m.query((V.x,))` answers one row binding x to the single child, and neither raises. The twin uses `query` plus `expr(V.x)` because they agree."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces3.metta",
-      "form": null,
-      "missing": "`==` between a Python tuple and the Expression it encodes to",
-      "row": "P14.4",
-      "section": "§9j: a plain Python tuple ENCODES to the same expression through the conversion table",
-      "detail": "A tuple is an expression at every door that takes one, `+=`, patterns and nesting included, but not at the comparison door: measured 2026-08-22, `(S.wu,) == S.wu()` is False in both directions and the hashes disagree, because Expr.__eq__ answers NotImplemented for anything that is not an Expr and the hash carries an 'expr' tag. So an assertion about an expression cannot be written as a tuple. The hazard to respect when closing it: Gnd((1, 2)) is an OPAQUE grounded tuple and must not become equal to the transparent Expr((1, 2))."
     },
     {
       "kind": "friction",
@@ -2025,102 +1746,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/spaces/spaces2.metta",
-      "form": null,
-      "missing": "a Python sort key that agrees with MeTTa's `msort`",
-      "row": "P14.10",
-      "section": "§9e: max-atom, min-atom and sort-strings dissolve into Python's max, min and sorted",
-      "detail": "petta.order_key and the engine's msort order expressions differently whenever one expression is a longer version of another, because order_key compares LENGTH first (its docstring's 'compounds by arity') while the engine compares element by element, the standard order of the LIST an expression actually is. Measured 2026-08-22: msort answers ((foo 42 42) (foo (42 42))) and sorted(key=order_key) answers ((foo (42 42)) (foo 42 42)); likewise ((a b c) (a (b))) against ((a (b)) (a b c)), and ((w w) (x)) against ((x) (w w)). Pairs of equal length agree, which is why the divergence has stayed hidden. The twin compares as a multiset with Counter, which needs no order at all."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/inherited_spaces.metta",
-      "form": null,
-      "missing": "a front-store count at the Python door",
-      "row": "P14.10",
-      "section": "§9c primitive 2: len(kb) counts where the provider declares countability",
-      "detail": "On an inheriting space `len(space)` and iterating it both answer the whole READ CHAIN while `(space-atom-count ...)` answers the writable FRONT STORE: measured 2026-08-22, 6 against 3 for this example's child. The Python container protocol is self-consistent, len and list agreeing, so neither number is wrong; what is missing is a door for the question the example is about, which is the capacity and admission boundary. The twin asks the engine's own function for that one claim."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/state.metta",
-      "form": null,
-      "missing": "`space.type(atom)`, the get-type accessor",
-      "row": "P14.10",
-      "section": "§9e: becomes methods, kb.type(a) for get-type-space",
-      "detail": "The ledger's spelling for get-type is `space.type(atom)`, and the lane's dissolution table names it, but the shipped `MeTTa.type` is the class-declaration decorator: m.type(S.foo) raises AttributeError: 'Sym' object has no attribute '__mro__' [measured 2026-08-22]. `m.fn(name).type` exists for a FUNCTION's declared type, and nothing exists for an arbitrary atom, so the twin asks m.fn('get-type'). Three files in this folder need it: state, parametric_spaces and any twin that reads a type."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/evalc.metta",
-      "form": null,
-      "missing": "a space handle that encodes as its own name atom",
-      "row": "P14.10",
-      "section": "§9b: the space handle carries every context-relative door",
-      "detail": "encode(space_handle) answers an opaque Gnd, so S.evalc(term, metric) builds '(evalc (foo) <MeTTa>)' and m.fn('evalc')(term, metric) raises 'cannot write <py_Box> as MeTTa text' [measured 2026-08-22]. Every engine call that takes a space ARGUMENT therefore needs S[space.space_name], which is the handle's name read back out by hand. Encoding a Space-typed handle to Sym(space_name) would make the handle usable in term position everywhere, which is what the walked surface assumes."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_find.metta",
-      "form": null,
-      "missing": "a Python call door that surfaces the bindings a grounded call MADE",
-      "row": "P14.10",
-      "section": "§10 decision 11: the relational op yields bindings, and answers surface them",
-      "detail": "lib_spaces' `find` binds the caller's variables and answers True per solution. m.fn('find').all(space, pattern) answers [True, True] and the bindings are gone [measured 2026-08-22], so the branch that USES them has to run in the engine. The twin reads its rows through the subscript door instead, where a row IS the bindings, and keeps `find` as the condition it can still state. Same shape as examples/spaces/spaces_succeedspredicate.metta, whose second claim is a built `(if ...)` term for exactly this reason."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_succeedspredicate.metta",
-      "form": null,
-      "missing": "a Python call door that surfaces the bindings a grounded call MADE",
-      "row": "P14.10",
-      "section": "§10 decision 11: the relational op yields bindings, and answers surface them",
-      "detail": "succeedsPredicate((space friend $a $b)) binds $a and $b and answers True; at the Python door only the boolean survives, so `(if (succeedsPredicate ...) ($a $b) NotFound)` is written as a term and evaluated once. The ground question above it IS an ordinary Python call, which is the whole of the difference: a predicate that only decides crosses whole, a predicate that also binds does not."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/pre_add_hooks.metta",
-      "form": null,
-      "missing": "engine-exact atom text inside a refusal sentence",
-      "row": "P14.10",
-      "section": "§9e: repr is the engine's own text for an atom",
-      "detail": "A refused write raises with the handler's words and prints the offered atom in the wire's LIST form: '&pool refused [secret,1]: no secrets in this pool', and 'whose equations do not cover [uncovered,9]' [measured 2026-08-22]. Engine-exact text would say (secret 1) and (uncovered 9), which is what the original's Error atom carries and what every other printed atom in the library says. The twin pins the sentences as they are."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/restricted_spaces.metta",
-      "form": null,
-      "missing": "a lane-visible way to pass a NAME as a Python keyword argument",
-      "row": "P14.1",
-      "section": "§7 the examples-twin coverage lane",
-      "detail": "The source scan reads every string constant as possible MeTTa text, and NAMING_CALLS excuses only the POSITIONAL arguments of sym/var/val/fn/space/new_space, so m.new_space(restricted=True, grants=['file']) is a finding. The twin writes grants=[S.file.name], the capability's own symbol read back as a name, which is honest but is a spelling the surface should not have needed. Widening the scan to a call's keyword arguments where the callee is a naming call would close it."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/matespace.metta",
-      "form": null,
-      "missing": "a size-aware statement of the collapse-is-list() row",
-      "row": "P14.10",
-      "section": "§5 the performance model: cross per collection, never per element",
-      "detail": "`(collapse X)` dissolves into list(), and at a million answers that dissolution is the wrong side of the seam: len(m.fn('mate-space-demo').all(390)) cost 111,707,981 inferences and 34.8 seconds against the engine's own (length (collapse ...)) at 26,313,301 and 5.9 seconds, 4.25x on the counter and 5.9x on the clock [measured 2026-08-22 on this tree]. The atoms cross one at a time to be counted and thrown away. The dissolution table's row is right for answer sets a program reads and wrong for answer sets a program only measures, and the docs should say where the line is."
-    },
-    {
-      "kind": "friction",
       "example": "examples/translation/translatorrule.metta",
       "form": null,
       "missing": "a Python declaration door for the rewrite seam",
       "row": "P14.10",
       "section": "§9i: the rewrite seam's one door, a lowering is a declaration",
       "detail": "Registering a translator rule is `m.fn('add-translator-rule!')(S.name)` in all six twins of this folder that use one. The design's own spelling is a declaration on the rule object, rule.lower(...), emitting the (lowering <rule> <strategy> (requires ...)) atom the seam reads, so registration is queryable knowledge rather than an evaluated call. Nothing is unreachable; the door is the engine function under its MeTTa name."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/fibadd.metta",
-      "form": null,
-      "missing": "a with-block spelling for a pragma bound",
-      "row": "P14.10",
-      "section": "§9b: control and modes, modes are with-blocks",
-      "detail": "m.limits() is the modes door and carries inferences= and timeout= only, so `(with-pragma! ((max-stack-depth 100000000)) (fib 30))` is built as a term. The mode family is the natural home for the pragma vocabulary, and this example is the one that needs it: fib(30) exceeds the default stack bound."
     },
     {
       "kind": "declined",
@@ -2457,15 +2088,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/performance/peanofast.metta",
-      "form": null,
-      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
-      "row": "P14.7",
-      "section": "§9e the performance note; §5 the three lanes",
-      "detail": "The dissolution table makes `(length (collapse (match ...)))` into `len(space[pattern])`, and on deep answers that is asymptotically wrong. Counting 2500 Peano terms of depth up to K: the Python query door costs 251,831 inferences at K=250, 1,003,611 at 500, 4,007,233 at 1000 and 16,014,711 at 2000, quadrupling per doubling (Θ(K²)), against the engine's own collapse-and-length at 1,308 / 2,058 / 3,558 / 6,558, which is linear; at K=2000 that is 2,442x [measured 2026-08-22, ai-tmp/probe/f_query_scaling.py]. Pushing a small TEMPLATE down restores linearity, 5,802 / 11,304 / 22,302, which is what MeTTa's own `match` template does and the Python door has no spelling for; even that costs +15.6% over the whole example here [ai-tmp/probe/f_peanofast_routes.py]. So four twins keep the engine's own count."
-    },
-    {
-      "kind": "friction",
       "example": "examples/reasoning/peano.metta",
       "form": null,
       "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
@@ -2481,33 +2103,6 @@
       "row": "P14.7",
       "section": "§9e the performance note; §5 the three lanes",
       "detail": "Python's own conjunction door exists and is correct: `m[p1, p2, ...]` answers the 362,880-row join. Counting through it costs 41,213,543 inferences against the engine's 17,626,820, +134%, because every row's ten bindings become Python atoms [measured 2026-08-22, ai-tmp/probe/f_perm_routes.py]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/matespacefast.metta",
-      "form": null,
-      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
-      "row": "P14.7",
-      "section": "§9e the performance note; §5 the three lanes",
-      "detail": "The extreme of the same wall: `len(m.eval(S['mate-space-demo'](19)))` tries to build 1,572,862 Python atoms and OVERFLOWS the Prolog stack before it can count them, where the engine's own `(length (collapse ...))` never materialises one [measured 2026-08-22: the twin failed to run with `set_prolog_flag(stack_limit, 16_000_000_000)` in the message]."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/superpose_primes.metta",
-      "form": null,
-      "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
-      "row": "P14.14",
-      "section": "§9b control and modes are with-blocks",
-      "detail": "`m.limits(timeout=, inferences=)` is the shipped mode block and it does not carry the branch allowance, so `(with-pragma! ((max-stack-depth 1000000)) ...)` stays a term. It is not decorative: without it these four divisor searches answer `(Error (find-divisor 54734431 2988) StackOverflow)` at 451,784 inferences [measured 2026-08-22]. holbenchmark.metta needs the same allowance four times."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/holbenchmark.metta",
-      "form": null,
-      "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
-      "row": "P14.14",
-      "section": "§9b control and modes are with-blocks",
-      "detail": "Same wall as superpose_primes.metta: all four million-step kernels state the allowance above the evaluator's 100000 default and `m.limits` cannot."
     },
     {
       "kind": "friction",
@@ -2868,6 +2463,375 @@
       "row": "P14.4",
       "section": "§4 surface gaps: the expression-position functions",
       "detail": "The guide's expression-position rule names `unify` as one of the four operations that get a surface FUNCTION because Python's syntax cannot spell the concept in that position, and it prints the exemplar twice: `return unify(x, S.Person(V.n), S.Greeting(V.n), S.Unknown)` inside a body, and `unify(b, 0, superpose(), a / b)` beside it. Neither runs. Measured 2026-08-23: the root `unify` is the two-argument matcher over two atoms Python already holds and raises `unify() takes 2 positional arguments but 4 were given`; and a bare `unify(...)` inside a compiled body raises `CompileError: 'unify' is not a parameter of describe, not a function the engine knows, and not a capitalized data constructor`, because it is not one of the four magic names a body reads. `S.unify(x, pattern, then, els)` in a body does work and answers `[(Greeting Ann)]`, so the gap is the FUNCTION, not the instruction. Every one of this file's fifteen claims builds the four-argument form and evaluates it for want of the door."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/performance/hyperpose_primes.metta",
+      "form": 1,
+      "missing": "a point budget for parallel primality branches whose completion schedule changes the inference count",
+      "row": "P14.14",
+      "section": "§5 inference budgets at crossings",
+      "detail": "The full source cost 256,499,809-263,270,075 and the full twin 264,278,475-270,022,219 in fresh processes. Keeping only form 0 and declining forms 1-2 costs 13,588-13,592 over ten runs, within the four-inference allowance."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/performance/hyperpose_primes.metta",
+      "form": 2,
+      "missing": "a point budget for once over racing primality branches",
+      "row": "P14.14",
+      "section": "§5 inference budgets at crossings",
+      "detail": "The expensive race alone spread by 3,059,587 inferences over four fresh processes. The form answers correctly but cannot carry the lane's required point budget."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/add_atom_fun_space.metta",
+      "form": null,
+      "missing": "a space handle for a target the program COMPUTES",
+      "row": "P14.10",
+      "section": "§9c primitive 2, the space wearing Python's container protocols",
+      "detail": "The example's whole subject is that `(add-atom (space) ...)` evaluates its space argument, so the write lands wherever the function answered. `space += atom` needs a HANDLE, and building one would mean evaluating `(space)` on the Python side first, which stops demonstrating the behaviour under test. Both writes therefore stay terms. A handle door that accepts a term to be resolved at the write would close this."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matchsingle.metta",
+      "form": null,
+      "missing": "a compiled body naming a translator form",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "HALF CLOSED, re-anchored 2026-08-23. The compiled `match` over a space PARAMETER now works: a handle is an ordinary term operand (R2) and a @m.define'd body whose first parameter is the space compiles and answers [measured 2026-08-23]. What is left is `cut` and `once`: both are translator forms rather than registry functions, `is_function` answers False for each, and `fn.once` in a body is refused with \"names no target function in this space's catalog\". Both equations stay at the container door for that one reason."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_find.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "import! is a directive rather than a value door, and there is no Python spelling for it; the term builder covers it, m.eval(S[\"import!\"](here, S.library(S.lib_spaces))), which resolves correctly here because a (library ...) name resolves against the library path rather than against an importing file. Same family as the basics/fibsmartimport entry, without its resolution problem."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_succeedspredicate.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "Same as spaces_find: the lib_spaces import stays a term because import! has no Python door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_removeallatoms.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "Same as spaces_find: the lib_spaces import stays a term because import! has no Python door. It is also where this file's cost lives, on both sides."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_removeallatoms.metta",
+      "form": null,
+      "missing": "a clear() that answers remove-all-atoms' per-atom units",
+      "row": "P14.10",
+      "section": "§9c primitive 2, the space wearing Python's container protocols",
+      "detail": "MEASURED DIVERGENCE, not a missing door. m.clear() empties the same space through the same funnel and is Python's own spelling for emptying a container, but it answers NOTHING, where (remove-all-atoms &self) answers ONE UNIT PER REMOVED ATOM: eleven of them here, so the example's group is ((() () () () () () () () () () ())) and a protocol-door twin answers (()). The form therefore stays a term. Either the protocol spelling gains a cardinality-preserving reading or the docs teach the pair, the way -= and del kb[pattern] are taught side by side."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": null,
+      "missing": "a compiled body naming with_mutex or transaction",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "HALF CLOSED, re-anchored 2026-08-23. `add-atom` and `remove-atom` are spellable in a compiled body now, through the mention door, and the sloppyinc equation compiles on its own [measured 2026-08-23]. `with_mutex` and `transaction` are still translator forms rather than registry functions, so `is_function` answers False and a body naming either is refused. All three equations stay at the container door together, which is also what keeps the space a HANDLE in all three: see the separate entry for a compiled body's lack of any spelling for a non-ambient space."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/evalc.metta",
+      "form": null,
+      "missing": "a term builder for an operator head over GROUND operands",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "WIDENED, re-anchored 2026-08-23. Three of this file's terms are arithmetic over two ground operands, (+ 5 5) twice and (+ 1 1) once, and on a grounded number Python's operators are that number's own arithmetic, so `ground(5) + 5` is 10 rather than the term (+ 5 5); only INSIDE a compiled body does + build one. The head therefore has to be named at the S[\"+\"] door. R5 widened the hole rather than closing it: `Atom.__lt__` is now the engine's sort order, so `V.a < 2` raises TypeError and `2 > V.a` raises too, where every other comparison still builds and mirrors [measured 2026-08-23; see the admission_pools entry]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/super.metta",
+      "form": null,
+      "missing": "a compiled body naming `super`",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "HALF CLOSED, re-anchored 2026-08-23. Carrying a lowercase symbol as data is the mention door's job now, so `(= (store $atom) (stored $atom))` compiles through @m.define, and `car-atom` is nameable through `fn` as well [measured 2026-08-23]. `super` is still a translator form rather than a registry function, so `is_function` answers False and the two overriding equations stay at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/restricted_spaces.metta",
+      "form": null,
+      "missing": "a NAMED restricted space",
+      "row": "P14.10",
+      "section": "§9d, the one space-creation door",
+      "detail": "new_space(restricted=True) and new_space(restricted=True, grants=[...]) create the right space but over a name the engine picks (&pyspace_1). The example NAMES its spaces, and the answer of a `!(new-space &locked (restricted))` form IS that name: the group is (&locked). A symbol is not a variable, so the two answers are not alpha-equal and no handle-door spelling can carry these forms; both creations stay terms and the twin takes its handles from m.space(\"&locked\") afterwards. petta.space(name, restricted=, grants=) would close it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/inherited_spaces.metta",
+      "form": null,
+      "missing": "a NAMED inheriting space",
+      "row": "P14.10",
+      "section": "§9d, the one space-creation door",
+      "detail": "Same shape as restricted_spaces: new_space(inherits=parent) creates the right space over an engine-picked name, while the form's answer is the name it created, (&family-child). The creation stays a term; every one of the six writes around it does go through `space += fact`. petta.space(name, inherits=) would close it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/parametric_spaces.metta",
+      "form": null,
+      "missing": "a space handle for a space named by a ground EXPRESSION",
+      "row": "P14.10",
+      "section": "§9c primitive 2, the space wearing Python's container protocols",
+      "detail": "This is the one file in the folder where every form stays a term, and one gap causes it. A ground expression is a legal space name, `(cache &primary-kb 100)`, and petta.space() refuses anything that does not begin with & : \"a space name starts with &, as in &self or &kb; got '(cache &primary-kb 100)'\". With no handle there is no +=, no .eval and no [pattern], so all eleven forms are terms. A space door that accepts an ATOM as the name would close it, and would also give evalc's parametric spaces a Python face."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/pre_add_hooks.metta",
+      "form": null,
+      "missing": "a compiled body with a nested literal head pattern",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "HALF CLOSED, re-anchored 2026-08-23. The verdict symbols are the mention door's job now, `S.refuse(...)` and `S.accept()` reading as the data they are. The heads are what is left: each matches a nested literal PATTERN, (guard (secret $x)), and the compiled subset spells a head pattern only as a literal DEFAULT, refusing a symbol default with \"a default here is a head pattern, so it must be a literal\" [measured 2026-08-23]. All five equations stay at the container door, in first-match order."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/pre_add_hooks.metta",
+      "form": null,
+      "missing": "a Python door for the pre-add hook claim",
+      "row": "P14.10",
+      "section": "§9j, the general pre/post hook",
+      "detail": "declare-pre-add! and undeclare-pre-add! have no Python spelling, so the claim and its release stay terms. §9j designs the door as `@space.pre_add` over an @m.define-compiled handler, with `with m.ops(...)`-shaped scoping for the release. The four ordinary writes in this file DO go through `pool += atom`, which is what proves the hook fires on the write door rather than on a particular spelling of it: the transform, the drop and the plain accept all behave identically under +=."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/match_snapshot.metta",
+      "form": null,
+      "missing": "a compiled body with a literal head argument",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "HALF CLOSED, re-anchored 2026-08-23. `remove-atom` and the bare lowercase answers are the mention door's job now. The heads are what is left: the two visit equations head on a literal argument, (visit alpha), which the compiled subset spells only as a literal default, and a symbol default is refused [measured 2026-08-23]. The twin writes both at the container door; the four link facts and both snapshot items go through the container protocol."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matespace.metta",
+      "form": null,
+      "missing": "a compiled body naming case or once",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "HALF CLOSED, re-anchored 2026-08-23, over the 390-doubling variant. `add-atom` is spellable in a compiled body now and a handle is an ordinary term operand, so add-atom-no-duplicate's space PARAMETER is no longer a blocker either. `case` and `once` are still translator forms rather than registry functions, so `is_function` answers False for both and every definition here stays at the container door [measured 2026-08-23]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matespace2.metta",
+      "form": null,
+      "missing": "a compiled body naming case or once",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "HALF CLOSED, re-anchored 2026-08-23, over the interleaved expand-and-mate variant. `add-atom` is spellable in a compiled body now and a handle is an ordinary term operand, so add-atom-no-duplicate's space PARAMETER is no longer a blocker either. `case` and `once` are still translator forms rather than registry functions, so `is_function` answers False for both and every definition here stays at the container door [measured 2026-08-23]."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/superpose_primes.metta",
+      "form": null,
+      "missing": "a compiled `if` that leaves an engine-Bool condition alone",
+      "row": "P14.24",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "RE-ANCHORED 2026-08-23, and the twin now COMPILES both equations. MeTTa's own `==` IS reachable in a compiled body, `fn[\"==\"](0, n % d)`, which is what this entry asked for; it does not help, because a compiled `if` wraps any condition that is not already a comparison in `py-truthy`, so the crossing moves rather than leaving. Measured 2026-08-23 on the four searches, one fresh process each: the term door spends 531,461 inferences, `fn[\"==\"]` under a compiled `if` spends 943,162, +77.5%, and the two stored bodies differ only by that wrapper. Python's own `n % d == 0` lowers to `py-eq` inside the same `py-truthy`. The twin writes the liked Python spelling and the cost is the library's; P14.24 is the row."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/hyperpose_primes.metta",
+      "form": null,
+      "missing": "a compiled `if` that leaves an engine-Bool condition alone",
+      "row": "P14.24",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "RE-ANCHORED 2026-08-23, and the twin now COMPILES both equations. MeTTa's own `==` IS reachable in a compiled body, `fn[\"==\"](0, n % d)`, which is what this entry asked for; it does not help, because a compiled `if` wraps any condition that is not already a comparison in `py-truthy`, so the crossing moves rather than leaving. Measured 2026-08-23 on the four searches, one fresh process each: the term door spends 531,461 inferences, `fn[\"==\"]` under a compiled `if` spends 943,162, +77.5%, and the two stored bodies differ only by that wrapper. Python's own `n % d == 0` lowers to `py-eq` inside the same `py-truthy`. The twin writes the liked Python spelling and the cost is the library's; P14.24 is the row."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/matespacefast.metta",
+      "form": null,
+      "missing": "a compiled `if` that leaves an engine-Bool condition alone, so a compiled recursion reaches the depth the built one does",
+      "row": "P14.24",
+      "section": "§4 surface gaps",
+      "detail": "RE-ANCHORED 2026-08-23. `add-atom` is spellable in a compiled body now and both equations COMPILE. They then cannot run: a compiled `if` wraps its condition in `py-truthy` and `==` lowers to `py-eq`, so every level spends reductions the original does not, and the evaluator's default 100,000 stack bound is reached long before nineteen levels. The compiled pair answers (Error (rewriteK (M (W ...)) 2) StackOverflow) at K=14 where the built pair completes K=19 [measured 2026-08-23]. `m.limits` bounds inferences and time and not stack depth, and the example states no pragma to copy, so the twin builds both equations as terms."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/scale.metta",
+      "form": null,
+      "missing": "a compiled body spelling for `collapse`, and a compiled `if` that leaves an engine-Bool condition alone",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "RE-ANCHORED 2026-08-23. The hyphenated siblings are nameable now, through the mention door, so `indexing-demo` compiles and calls all six by name. Two blockers are left. The five queries are `(collapse (match ...))` and a compiled body has no spelling for collapse at all: `list(...)` and `fn.collapse` are both refused, and a comprehension over a match lowers to `map-atom`, a different operation, answering once per solution where collapse answers once [measured 2026-08-23]. And `addK` compiles and then cannot run: the compiled `if`'s `py-truthy` plus `py-eq` push a million-deep recursion past the default 100,000 stack bound, answering (Error 75002 StackOverflow) at K=100,000 where the term door completes a million [measured 2026-08-23]. Both stay at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/holbenchmark.metta",
+      "form": null,
+      "missing": "a compiled head pattern that destructures",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "MOSTLY CLOSED, re-anchored 2026-08-23. Applying a parameter is Python's own call syntax now: `f(x)` in a compiled body lowers to ($f $x), so `apply-many` and `poly` are ordinary decorated functions, and so are the two list builders whose base case is Python's `()` [measured 2026-08-23]. MeTTa's own `==` is reachable as `fn[\"==\"]` and is re-anchored to P14.24 under superpose_primes. What is left is the head: `map-flat` and `fold-nested` each destructure in the HEAD, `()` and `(cons $x $xs)`, and a compiled head pattern may only be a literal DEFAULT, so a structural default is refused with \"a default here is a head pattern, so it must be a literal\". Those two stay at the container door."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces3.metta",
+      "form": null,
+      "missing": "a one-element expression pattern at the SUBSCRIPT door: `space[(V.x,)]` reads the tuple as a conjunction",
+      "row": "P14.29",
+      "section": "§9b: `kb[p1, p2]` is the conjunction join door, and a tuple is also an expression",
+      "detail": "Python cannot tell `space[(a, b)]` from `space[a, b]`, so the subscript reads every tuple as a conjunction while `space.query(...)` reads the same tuple as an expression. Measured 2026-08-22: `m[(V.x,)]` answers two rows binding x to whole atoms, `m.query((V.x,))` answers one row binding x to the single child, and neither raises. The twin uses `query` plus `expr(V.x)` because they agree."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces3.metta",
+      "form": null,
+      "missing": "`==` between a Python tuple and the Expression it encodes to",
+      "row": "P14.28",
+      "section": "§9j: a plain Python tuple ENCODES to the same expression through the conversion table",
+      "detail": "A tuple is an expression at every door that takes one, `+=`, patterns and nesting included, but not at the comparison door: measured 2026-08-22, `(S.wu,) == S.wu()` is False in both directions and the hashes disagree, because Expr.__eq__ answers NotImplemented for anything that is not an Expr and the hash carries an 'expr' tag. So an assertion about an expression cannot be written as a tuple. The hazard to respect when closing it: Gnd((1, 2)) is an OPAQUE grounded tuple and must not become equal to the transparent Expr((1, 2))."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/inherited_spaces.metta",
+      "form": null,
+      "missing": "a front-store count at the Python door",
+      "row": "P14.10",
+      "section": "§9c primitive 2: len(kb) counts where the provider declares countability",
+      "detail": "On an inheriting space `len(space)` and iterating it both answer the whole READ CHAIN while `(space-atom-count ...)` answers the writable FRONT STORE: measured 2026-08-22, 6 against 3 for this example's child. The Python container protocol is self-consistent, len and list agreeing, so neither number is wrong; what is missing is a door for the question the example is about, which is the capacity and admission boundary. The twin asks the engine's own function for that one claim."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/pre_add_hooks.metta",
+      "form": null,
+      "missing": "engine-exact atom text inside a refusal sentence",
+      "row": "P14.10",
+      "section": "§9e: repr is the engine's own text for an atom",
+      "detail": "A refused write raises with the handler's words and prints the offered atom in the wire's LIST form: '&pool refused [secret,1]: no secrets in this pool', and 'whose equations do not cover [uncovered,9]' [measured 2026-08-22]. Engine-exact text would say (secret 1) and (uncovered 9), which is what the original's Error atom carries and what every other printed atom in the library says. The twin pins the sentences as they are."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matespace.metta",
+      "form": null,
+      "missing": "a size-aware statement of the collapse-is-list() row",
+      "row": "P14.21",
+      "section": "§5 the performance model: cross per collection, never per element",
+      "detail": "RE-ANCHORED 2026-08-23, and the twin now TAKES the dissolved spelling. `(collapse X)` dissolves into `list()`, and at a million answers that dissolution costs 114,470,667 inferences, 23.5 seconds and 1.2 GB of resident memory in one process against the engine's own (length (collapse ...)) at 26,313,301 and 5.9 seconds [measured 2026-08-23]. The atoms cross one at a time to be counted and thrown away. The row is right for answer sets a program READS and expensive for answer sets a program only MEASURES, and the docs should say where the line is; peanofast's entry names the door that would close it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/fibadd.metta",
+      "form": null,
+      "missing": "a with-block spelling for a pragma bound",
+      "row": "P14.10",
+      "section": "§9b: control and modes, modes are with-blocks",
+      "detail": "m.limits() is the modes door and carries inferences= and timeout= only, so `(with-pragma! ((max-stack-depth 100000000)) (fib 30))` is built as a term. The mode family is the natural home for the pragma vocabulary, and this example is the one that needs it: fib(30) exceeds the default stack bound."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/peanofast.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "§9e the performance note; §5 the three lanes",
+      "detail": "STILL OPEN, re-anchored 2026-08-23, and the twin now TAKES the Python door rather than working around it. The dissolution table makes `(length (collapse (match ...)))` into `len(space[pattern])`, and on deep answers that is asymptotically wrong. Counting 2500 Peano terms of depth up to K: the Python query door costs 251,831 inferences at K=250, 1,003,611 at 500, 4,007,233 at 1000 and 16,014,711 at 2000, quadrupling per doubling, against the engine's own collapse-and-length at 1,308 / 2,058 / 3,558 / 6,558, which is linear; at K=2000 that is 2,442x [measured 2026-08-22, ai-tmp/probe/f_query_scaling.py]. This twin's own count costs 25,127,999 inferences against the example's 76,961 [measured 2026-08-23]. Pushing a small TEMPLATE down restores linearity, which is what MeTTa's own `match` template does and the Python door has no spelling for."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/matespacefast.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "§9e the performance note; §5 the three lanes",
+      "detail": "STILL OPEN, re-anchored 2026-08-23, and the recorded FAILURE is gone. `len(m.fn[\"mate-space-demo\"](19))` used to overflow the Prolog stack before it could count 1,572,862 answers; the R3 answer view streams where the old door built one Prolog list, so the same count now completes at 295,442,370 inferences, 66 seconds and 5.3 GB of resident memory in one process [measured 2026-08-23]. The wall moved from \"cannot run\" to \"expensive\", and this is the largest memory figure in the corpus, so the re-pin pass should know it exists. The missing door is the one peanofast names."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/superpose_primes.metta",
+      "form": null,
+      "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
+      "row": "P14.14",
+      "section": "§9b control and modes are with-blocks",
+      "detail": "`m.limits(timeout=, inferences=)` is the shipped mode block and it does not carry the branch allowance, so `(with-pragma! ((max-stack-depth 1000000)) ...)` stays a term. It is not decorative: without it these four divisor searches answer `(Error (find-divisor 54734431 2988) StackOverflow)` at 451,784 inferences [measured 2026-08-22]. holbenchmark.metta needs the same allowance four times."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/holbenchmark.metta",
+      "form": null,
+      "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
+      "row": "P14.14",
+      "section": "§9b control and modes are with-blocks",
+      "detail": "Same wall as superpose_primes.metta: all four million-step kernels state the allowance above the evaluator's 100000 default and `m.limits` cannot."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": null,
+      "missing": "an operator door for `<`, which the atom sort order took",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "R5's appendix-6 stamp put the engine's standard atom order on `Atom.__lt__` so that plain `sorted(atoms)` is `msort`, and that took the term-building `<` with it. Measured 2026-08-23: `V.x < V.y` answers Python's bool True, `V.a < 2` raises TypeError, and its mirror `2 > V.a` raises too, while `>`, `<=`, `>=` and their mirrors all still build. The guide's own fence, \"a ground LEFT operand builds the MIRRORED term: 2 > V.a builds (< $a 2)\", is therefore false for one direction only. The code says the trade is deliberate (_atoms_core.py:1362-1365, \"quoted code spells the relation explicitly as S['<'](left, right)\"), which makes this a documentation and critical-pair item rather than a bug, but it is silent: this twin's capacity guard read `(< (space-atom-count $pool) (car-atom $limits))` as the constant False and refused every write until the head was named. PERFECT: sorting and building do not share one dunder, or the guide records the split where it teaches the fence."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces3.metta",
+      "form": null,
+      "missing": "one answer shape at both doors: the ask door answers Rows, which projects only through a string key and is mutable",
+      "row": "P14.7",
+      "section": "§9e: projection is the naming convention re-applied",
+      "detail": "`space.query(...)` and `space[...]` answer `Rows`; `space.fn.name(...)` answers `Answers`. Only the second projects by attribute, `answers.x`; `Rows` offers `rows[\"x\"]`, the string-key spelling the surface's own anti-pattern table retires, and `rows[V.x]` raises \"cannot read $x as a Python int\". `Rows` also carries the mutable list protocol, append/clear/insert/pop/remove/sort, where answers are immutable and slices stay Answers [measured 2026-08-23]. The twin reads `[row.x for row in rows]`, which is honest and one step longer than the ruled `rows.x`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_find.metta",
+      "form": null,
+      "missing": "a call door that keeps a predicate's own answer beside the bindings it made",
+      "row": "P14.7",
+      "section": "§10 decision 11: the relational op yields bindings, and answers surface them",
+      "detail": "R3 made a call carrying caller variables answer Row answers, which is what this file's older entry asked for. The answer VALUE is what the row then drops: lib_spaces' `find` answers True per solution and False when nothing matches, and at the Python door a failing find is one row whose variable is still FREE rather than no rows at all, `Row(c=$_94)` [measured 2026-08-23]. So the twin tells the two readings apart with `row.c.vars`, which is the honest test and not the one the fallback wants. PERFECT: no solution is no rows, or the answer travels beside the bindings."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": null,
+      "missing": "a compiled body spelling for a space handle that is not the ambient one",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "A compiled body refuses a host value, \"closing over a host value would pin it to this process\", so the only space spellings inside one are `fn.context_space()` for the ambient space, a PARAMETER, and `S[\"&name\"]` as a symbol. A nullary definition that writes into a named space therefore has to name that space as a symbol, which is the one thing the space family rules out: the container door takes the handle itself [measured 2026-08-23]. It is why sloppyinc, which is otherwise compilable, stays beside its two blocked siblings at the container door. PERFECT: a compiled body carries a handle the way a term does, since a handle is already a grounded atom."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/peanofast.metta",
+      "form": null,
+      "missing": "the define door applying rung 4's underscore-to-hyphen map to the def name",
+      "row": "P14.4",
+      "section": "§9o.2 the descent ladder, rung 4",
+      "detail": "The ladder documents rung 4 as total in both directions and gives the define door as its own example, \"def not_provable lands as not-provable\". It does not: `def find_divisor` under @m.define lands as the atom `find_divisor` [measured 2026-08-23]. Every hyphenated MeTTa name in this corpus therefore states itself twice, once as a snake_case Python name the linter wants and once as `name=\"...\"`. PERFECT: the map applies at the define door as it does at S, V and fn, and `name=` is left for names Python cannot spell at all, such as `prime?` and `range`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/state.metta",
+      "form": null,
+      "missing": "one evaluation door, so a state-cell write performed through the answer view is visible to the caller",
+      "row": "P14.10",
+      "section": "§9b: control and modes",
+      "detail": "A state cell lives in the THREAD's global store, `nb_setval`, and the lazy answer view evaluates on a held SWI engine with its own globals. So the same term performs differently at the two doors: `m.eval(S[\"get-state\"](S[\"change-state!\"](cell, active)))` answers active and leaves the cell reading active, while `m.answers(...).one()` answers active and leaves the cell reading `rest`; the bound `m.fn[\"change-state!\"]` loses it the same way [measured 2026-08-23]. Space writes DO persist through both, because the clause store is shared, so the divergence is specific to thread-local state. PERFECT: the two doors agree, or the answer view refuses a term whose effects it cannot commit."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/restricted_spaces.metta",
+      "form": null,
+      "missing": "a capability ENUM, and a Path codec",
+      "row": "P14.37",
+      "section": "§9n: minimise strings",
+      "detail": "Two option values cross this file as text where the string law rules objects. A capability is granted as `grants=[\"file\"]`: petta.vocabularies.SpaceCapability is a `Literal['file','process','network']` TYPE, so mypy checks the word and nothing autocompletes it, renames with it or greps for it; PERFECT is `grants=[SpaceCapability.FILE]`, the enum the option-value rule names. And a path crosses as `ground(str(SOURCE))`, because `ground(Path(...))` reaches the engine as an opaque box that `exists_file` refuses, \"cannot write <py_Box> as MeTTa text\" [measured 2026-08-23]; PERFECT is `S[\"exists_file\"](SOURCE)` with a Path codec doing the conversion the str() does by hand."
     }
   ],
   "retired": [
@@ -2888,66 +2852,6 @@
       "row": "P14.9",
       "retired": "2026-08-22",
       "detail": "CLOSED by P14.9. _install_define_locked publishes annotation-derived declarations immediately before _store_clause and removes newly published declarations if equation publication fails. test_a_declared_output_type_takes_effect_through_the_decorator_door proves that `def g(x: int) -> Atom: return x + 42` answers the unreduced `(+ 2 42)`. The outputtype twin now uses annotations for f, g and h; the dynamic refinement types in subtyping and types_dependent remain explicit MeTTa declarations because they are not sound Python annotations."
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/mutex_and_transaction.metta",
-      "form": 1,
-      "missing": "a point budget for five mutex-protected branches scheduled by hyperpose",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "The faithful five-form twin cost 16,501-16,507 over three fresh processes. Keeping only the deterministic initial write and rollback form costs exactly 5,311 over twelve fresh processes, so the hyperpose form is declined rather than loosening the allowance.",
-      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/mutex_and_transaction.metta",
-      "form": 2,
-      "missing": "the state established by the declined hyperpose form under a point-budget law",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "This assertion observes the count produced by form 1. It is declined with that nondeterministic producer because evaluating the assertion without the producer would test a different program.",
-      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/mutex_and_transaction.metta",
-      "form": 4,
-      "missing": "the post-transaction state established by the declined hyperpose form under a point-budget law",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "The final assertion depends on the count produced by form 1. The rollback operation itself remains covered as form 3; only the assertion whose premise was declined is residue.",
-      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/state.metta",
-      "form": null,
-      "missing": "cross-form bind! state names through repeated m.eval calls",
-      "row": "P14.10",
-      "section": "§1b.1 data-shaped knowledge",
-      "detail": "bind! state is local to the file-reader program. The twin must retain the returned state cell in a Python variable and pass the object directly to later terms.",
-      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/matchnested.metta",
-      "form": null,
-      "missing": "a data constructor in a compiled body that is also a valid Python name",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "(= (hide $1) (empty)) compiles, because `empty` is one of the compiled subset's magic names and `empty()` lowers to the atom (empty) exactly. It costs the same F821 suppression selfprog pays: the magic names have no Python value. The nearby spelling does NOT work as a substitute: a generator with no yields stores (superpose ()), a different atom.",
-      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/matchnested2.metta",
-      "form": null,
-      "missing": "a data constructor in a compiled body that is also a valid Python name",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "Same as matchnested: (= (hide $1) (empty)) compiles through the magic name `empty` and pays an F821 suppression for it.",
-      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
     },
     {
       "kind": "friction",
@@ -3067,16 +2971,6 @@
       "row": "P14.14",
       "section": "correction to the lane's determinism assumption",
       "detail": "After spelling the dunder placeholder with sym(), the source still cost 55,267,004-55,267,060 and the faithful twin 55,047,408-55,047,432. The answers agree but no point budget fits.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 0,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
       "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
     },
     {
@@ -4231,126 +4125,6 @@
     },
     {
       "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 1,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 1 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 2,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 2 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 3,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 3 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 4,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 4 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 5,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 5 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 6,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 6 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 7,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 7 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 8,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 8 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 9,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 9 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 10,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 10 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 11,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 11 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
-      "example": "examples/spaces/admission_pools.metta",
-      "form": 12,
-      "missing": "a distribution budget for admission-pool definition installation",
-      "row": "P14.14",
-      "section": "correction to the lane's determinism assumption",
-      "detail": "Form 12 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
-      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
-    },
-    {
-      "kind": "declined",
       "example": "examples/translation/callquoteevalreduce.metta",
       "form": 1,
       "missing": "a distribution budget for runtime quote/eval/reduce translation",
@@ -4847,6 +4621,306 @@
       "section": "§4 surface gaps: the compiled subset",
       "detail": "superpose(x) in a compiled body is (superpose ($x)), a superposition over ONE alternative that happens to be $x, because _define_expression._x_Call wraps the argument list. (superpose $x), the superposition OF $x, is reachable only in yield position (`yield from x`) or as a for-loop source. So (= (program2 $Y) (let $list ... (superpose $list))) and (= (TupleConcat $Ev1 $Ev2) (collapse (superpose ((superpose $Ev1) (superpose $Ev2))))) are written at the container door. P14.4's expression-position rule names superpose(...) as one of the two forms to surface; this is the argument shape it has to admit.",
       "retired": "2026-08-23: MOVED, not fixed. control/tests.metta no longer shows the friction because `yield from xs` is the ruled statement-position spelling for fanning a collection and `program2` uses it. The expression-position half is unchanged and is refiled against control/supercollapse.metta, which still pays an extra definition for it."
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": 1,
+      "missing": "a point budget for five mutex-protected branches scheduled by hyperpose",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The faithful five-form twin cost 16,501-16,507 over three fresh processes. Keeping only the deterministic initial write and rollback form costs exactly 5,311 over twelve fresh processes, so the hyperpose form is declined rather than loosening the allowance.",
+      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": 2,
+      "missing": "the state established by the declined hyperpose form under a point-budget law",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "This assertion observes the count produced by form 1. It is declined with that nondeterministic producer because evaluating the assertion without the producer would test a different program.",
+      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": 4,
+      "missing": "the post-transaction state established by the declined hyperpose form under a point-budget law",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The final assertion depends on the count produced by form 1. The rollback operation itself remains covered as form 3; only the assertion whose premise was declined is residue.",
+      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/state.metta",
+      "form": null,
+      "missing": "cross-form bind! state names through repeated m.eval calls",
+      "row": "P14.10",
+      "section": "§1b.1 data-shaped knowledge",
+      "detail": "bind! state is local to the file-reader program. The twin must retain the returned state cell in a Python variable and pass the object directly to later terms.",
+      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matchnested.metta",
+      "form": null,
+      "missing": "a data constructor in a compiled body that is also a valid Python name",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "(= (hide $1) (empty)) compiles, because `empty` is one of the compiled subset's magic names and `empty()` lowers to the atom (empty) exactly. It costs the same F821 suppression selfprog pays: the magic names have no Python value. The nearby spelling does NOT work as a substitute: a generator with no yields stores (superpose ()), a different atom.",
+      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matchnested2.metta",
+      "form": null,
+      "missing": "a data constructor in a compiled body that is also a valid Python name",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "Same as matchnested: (= (hide $1) (empty)) compiles through the magic name `empty` and pays an F821 suppression for it.",
+      "retired": "2026-08-22: the idiomatic rewrite reaches the form; see ai-twins-idiom-c-handoff.md"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 0,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 1,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 1 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 2,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 2 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 3,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 3 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 4,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 4 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 5,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 5 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 6,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 6 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 7,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 7 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 8,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 8 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 9,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 9 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 10,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 10 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 11,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 11 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "declined",
+      "example": "examples/spaces/admission_pools.metta",
+      "form": 12,
+      "missing": "a distribution budget for admission-pool definition installation",
+      "row": "P14.14",
+      "section": "correction to the lane's determinism assumption",
+      "detail": "Form 12 shares the same file-level blocker. The source cost 60,097-60,109 and the faithful twin 63,612-63,660. Even with all thirteen runnable forms declined, installing the definitions costs 50,610-50,670, so no partial twin can carry a point budget.",
+      "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated engine function",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "CLOSED by the R1 mention doors. A compiled body reads the module-level `fn` namespace as syntax, so `fn.add_atom` and `fn.match` name hyphenated engine functions there, and a statement sequence is `let*`, which is what sequences the two writes before the match reads them. The whole matchtrickery equation now goes through @m.define and answers [(bar a), (bar b)] [measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/add_atom_fun_space.metta",
+      "form": null,
+      "missing": "a compiled body answering an &-prefixed space name",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "CLOSED by the R1 mention doors. `S[\"&my_space_name\"]` inside a compiled body is the bracket spelling of a name Python's grammar cannot say, and the engine hands the answer back as a handle: `(= (space) &my_space_name)` compiles through @m.define(name=\"space\") and the write that follows lands where it points [measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/evalc.metta",
+      "form": null,
+      "missing": "a compiled body answering an &-prefixed space name",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "CLOSED by the R1 mention doors, the same way add_atom_fun_space's is: `(= (preferred-space) &metric)` compiles with `S[\"&metric\"]` as its body [measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/selfprog.metta",
+      "form": null,
+      "missing": "a data constructor in a compiled body that is also a valid Python name",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "CLOSED by the R1 mention doors. `return S.OK` is a compiled body naming a data constructor through the factory, so the bare `OK` and its `# noqa: F821` are both gone from the twin [measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces2.metta",
+      "form": null,
+      "missing": "a Python sort key that agrees with MeTTa's `msort`",
+      "row": "P14.10",
+      "section": "§9e: max-atom, min-atom and sort-strings dissolve into Python's max, min and sorted",
+      "detail": "CLOSED by R5. `Atom.__lt__` and `petta.atoms.order_key` now use the engine's elementwise order, so plain `sorted(atoms)` IS msort: both answer ((foo 42 42) (foo (42 42))) for this file's own atoms, where the length-first key answered them the other way round. The twin sorts instead of counting [measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/state.metta",
+      "form": null,
+      "missing": "`space.type(atom)`, the get-type accessor",
+      "row": "P14.10",
+      "section": "§9e: becomes methods, kb.type(a) for get-type-space",
+      "detail": "CLOSED by R5. `Space.type(atom)` is the get-type accessor and the class declaration moved onto `Space.define`, so `m.type(State(5))` answers (StateMonad Number) [measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/evalc.metta",
+      "form": null,
+      "missing": "a space handle that encodes as its own name atom",
+      "row": "P14.10",
+      "section": "§9b: the space handle carries every context-relative door",
+      "detail": "CLOSED by R2. `Space` is an Atom and the concrete public `Handle` species, so a handle crosses term positions: `m.fn[\"evalc\"](term, metric)` answers 2000 and `m.fn[\"context-space\"]().one() == m` is True, where encoding used to answer an opaque box [measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/restricted_spaces.metta",
+      "form": null,
+      "missing": "a lane-visible way to pass a NAME as a Python keyword argument",
+      "row": "P14.1",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "CLOSED by the lane. `_call_strings` permits every keyword argument's text, so `petta.space(restricted=True, grants=[\"file\"])` reads clean and the twin no longer writes `S.file.name` [source: bindings/python/tools/twin_coverage.py _call_strings; measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_find.metta",
+      "form": null,
+      "missing": "a Python call door that surfaces the bindings a grounded call MADE",
+      "row": "P14.10",
+      "section": "§10 decision 11: the relational op yields bindings, and answers surface them",
+      "detail": "CLOSED by R3. A call carrying the caller's own variables answers Row answers with attribute projection, so `m.fn[\"find\"](m, S.friend(V.a, V.b))` answers [Row(a=a, b=b), Row(a=b, b=c)] where it used to answer [True, True]. The twin walks the chain through `find` itself [measured 2026-08-23]. What the row does NOT carry is the predicate's own True/False answer; that is filed separately.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_succeedspredicate.metta",
+      "form": null,
+      "missing": "a Python call door that surfaces the bindings a grounded call MADE",
+      "row": "P14.10",
+      "section": "§10 decision 11: the relational op yields bindings, and answers surface them",
+      "detail": "CLOSED by R3, the same way spaces_find's is: `succeedsPredicate((m, S.friend, V.a, V.b))` answers one Row per solution, so the second claim is an ordinary Python call and the built `(if ...)` term is gone [measured 2026-08-23].",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/peanofast.metta",
+      "form": null,
+      "missing": "a compiled body naming `add-atom`, and a lowercase symbol as data inside one",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "CLOSED by the R1 mention doors. `fn.add_atom(fn.context_space(), ...)` names the hyphenated write and `S.done` carries the lowercase symbol as data, so expandK compiles and the twin's two equations are both Python functions [measured 2026-08-23].",
+      "retired": "2026-08-23"
     }
   ]
 }

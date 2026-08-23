@@ -1,50 +1,43 @@
-"""examples/spaces/spaces_succeedspredicate.metta in Python: a predicate that binds.
+"""Purpose: examples/spaces/spaces_succeedspredicate.metta in Python: a predicate that binds.
 
 lib_spaces' `succeedsPredicate` takes a space, a relation and its arguments as
 one tuple, and answers whether the relation holds. Ground arguments make it a
 membership test, which is the first claim; variable arguments make it a
 generator, and the second claim USES what it bound.
 
-Those two claims sit on different rungs, and the reason is one gap. The
-membership test is an ordinary Python call, because a boolean crosses whole.
-The generating form is a term the engine evaluates, because the bindings the
-predicate makes are not handed back at the call door, so the `if` that consumes
-them has to run where they exist (residue, P14.10). Python's own `if` is the
-door everywhere the bindings are already in hand, which is what makes this one
-line the exception rather than the rule.
+Both claims are ordinary Python calls now. A ground question answers the
+boolean, and a question carrying the caller's own variables answers one ROW per
+solution, so what the predicate bound is what comes back and the `if` that
+consumes it is Python's own.
 
 `import!` is a directive with no Python door yet, so the library arrives
-through `m.fn` (residue, P14.13).
+through the engine's own function, with the handle in the space position
+(residue, P14.13). PERFECT: `m += lib.lib_spaces`, a library landing through
+the one write door because a library IS knowledge. Its name keeps the underscore MeTTa gives it: `S.lib_spaces`
+would be the atom `lib-spaces` and no such library exists.
 """
 
 from petta import S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 19938 to 19590, -348 (-1.7%), by the twin contract
-#: change: two `(test ...)` terms became two Python `assert`s, so the `test`
-#: wrapper left the engine twice while both predicate questions stayed in it,
-#: one as a call and one as the `if` term that consumes its bindings. The
-#: library import is the bulk of both sides. Against the example's 22365 the
-#: ratio is 0.8759.
-#: Prior: 19938, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 19590
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+BUDGET = 1
 
 
 def twin(m):
     """Ask a predicate a ground question, then a binding one."""
-    here = S[m.space_name]
-    m.fn("import!")(here, S.library(S.lib_spaces))
-    succeeds = m.fn("succeedsPredicate")
+    m.fn["import!"](m, S.library(S["lib_spaces"])).one()
+    succeeds = m.fn["succeedsPredicate"]
 
     # Nothing matches, so the ground question is False.
-    assert succeeds((here, S.friend, S.tim, S.tom)) is False
+    assert succeeds((m, S.friend, S.tim, S.tom)).one() is False
 
     m += (S.friend, S.a, S.b)
 
-    # The binding question answers what it bound, in the engine, where the
-    # bindings are.
-    holds = S.succeedsPredicate((here, S.friend, V.a, V.b))
-    asked = S["if"](holds, (V.a, V.b), S.NotFound)  # rung: the call door drops the bindings, so the branch runs where they still exist
-    assert m.one(asked) == S.a(S.b)
+    # The binding question answers what it bound, one row per solution.
+    assert [(row.a, row.b) for row in succeeds((m, S.friend, V.a, V.b))] == [
+        (S.a, S.b)
+    ]

@@ -1,46 +1,44 @@
-"""examples/spaces/spaces.metta in Python: writes a later match can see.
+"""Purpose: examples/spaces/spaces.metta in Python: writes a later match can see.
 
 `matchtrickery` adds two atoms and matches them in one expression, and the
 example's point is the ordering: `let*` binds both writes before the match
 reads the space, so the match sees them.
 
-The equation is written at the container door, one rung below `@m.define`, and
-both halves of its body are why. No compiled body can spell the hyphen in
-`add-atom`, because a free name there is resolved against the engine's registry
-exactly as written. And the compiled `match(...)` reads its TEMPLATE with the
-ordinary expression compiler, where the lowercase `bar` is a call to a function
-that does not exist rather than the relation it is here (residue, P14.4).
-Calling the definition, and collecting its answers, are ordinary Python.
+The whole equation compiles. A statement sequence inside a compiled body IS
+`let*`, so the two writes bind and the match reads afterwards, in the source
+order the example depends on; `fn.add_atom` and `fn.match` name the engine's
+own functions through the mention door, which spells the hyphen the Python
+grammar cannot; and `fn.context_space()` is `&self`, the space the equation is
+being written into, without naming a space as a symbol. Calling the definition
+and reading its answers are ordinary Python.
+
+One line names a head Python already spells. `match` dissolves into
+`space[pattern]`, and the subscript is a Python-side query a compiled body
+cannot perform, so the body names the engine's own head. PERFECT: the subscript
+lowers inside a compiled body the way the other structure operations do.
 """
 
-from petta import S, V, equation
+from petta import S, V, fn
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 2220 to 1373, -847 (-38.2%), by the twin contract
-#: change: `(test (collapse (matchtrickery)) ...)` became one `assert` over
-#: `m.fn("matchtrickery").all()`, so the `test` and `collapse` wrappers left
-#: the engine while the equation and the call it makes stayed exactly where
-#: the example puts them. Against the example's 5261 the ratio is 0.2610.
-#: Prior: 2220, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 1373
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+BUDGET = 1
 
 
 def twin(m):
     """Store one self-writing definition, then read what calling it answers."""
-    here = S[m.space_name]
 
     # (= (matchtrickery)
     #    (let* (($t1 (add-atom &self (foo a)))
     #           ($t2 (add-atom &self (foo b))))
     #          (match &self (foo $1) (bar $1))))
-    writes = (
-        (V.first, S["add-atom"](here, S.foo(S.a))),  # rung: no compiled body spells a hyphen
-        (V.second, S["add-atom"](here, S.foo(S.b))),  # rung: as above
-    )
-    m += equation(S.matchtrickery()).to(
-        S["let*"](writes, S.match(here, S.foo(V.x), S.bar(V.x)))  # rung: the stored body of an equation the decorator cannot compile
-    )
+    @m.define
+    def matchtrickery():
+        _first = fn.add_atom(fn.context_space(), S.foo(S.a))
+        _second = fn.add_atom(fn.context_space(), S.foo(S.b))
+        return fn.match(fn.context_space(), S.foo(V.x), S.bar(V.x))  # rung: inside a compiled body the space door is the engine's own match; the subscript is a Python-side query
 
-    assert m.fn("matchtrickery").all() == [S.bar(S.a), S.bar(S.b)]
+    assert matchtrickery() == [S.bar(S.a), S.bar(S.b)]

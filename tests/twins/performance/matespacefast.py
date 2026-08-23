@@ -1,62 +1,58 @@
-"""examples/performance/matespacefast.metta in Python: a million and a half atoms.
+"""Purpose: examples/performance/matespacefast.metta in Python: a million and a half atoms.
 
 `rewriteK` writes three atoms per level and recurses down two branches, so
 nineteen levels leave 1,572,862 atoms in the space; `mate-space-demo` runs that
 and then matches everything back out. The claim is how many came back.
 
-Both equations stay in the engine, and both ARE the benchmark. Neither can be
-compiled: their bodies write with `add-atom` and match `&self`, and a compiled
-body names a function by exactly its MeTTa spelling, which `add-atom` is not a
-Python identifier for (residue, P14.4).
+Both equations compile and then cannot run, which is why they are built here. A
+compiled `if` wraps its condition in `py-truthy` and `==` lowers to `py-eq`, so
+every level spends reductions the original does not, and the evaluator's
+default 100,000 stack bound is reached long before nineteen levels: the
+compiled pair answers `(Error (rewriteK (M (W ...)) 2) StackOverflow)` at K=14
+where the built pair completes K=19 [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+`m.limits` bounds inferences and time and not stack depth, and the example
+states no pragma to copy. PERFECT: a compiled `if` that leaves an engine-Bool
+condition alone. Residue P14.4 and P14.14.
 
-The `collapse` stays too, and that is the measured half. The dissolution table
-makes `(collapse X)` into `list(...)`, and everywhere else in this corpus that
-is free, because the answers are small. Here it is not: `len(m.eval(...))`
-builds 1,572,862 Python atoms and OVERFLOWS the Prolog stack before it can
-count them, where the engine's own `(length (collapse ...))` never materialises
-one. The general shape is measured beside this file in peanofast.py: bringing
-matches across to count them is quadratic in the term depth where the engine's
-route is linear. So the count stays engine-side, and the missing door, a query
-that projects or aggregates before it crosses, is filed as friction.
+The count IS Python's, and it is the most expensive line in this folder.
+`len(answers)` is what `(length (collapse X))` dissolves into, and here the
+answers are 1,572,862 atoms: 295,442,370 inferences, 66 seconds and 5.3 GB of
+resident memory in one process, against the engine's own count which never
+materialises one [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. It no longer FAILS,
+which it did when this twin was first written: the answer view streams where
+the old door built one Prolog list, so the wall moved from "cannot run" to
+"expensive". The missing door is the one peanofast.py names, a query that
+projects or aggregates before it crosses (residue, P14.7); the cost of not
+having it is the library's.
+
+The space every equation writes into and matches is the HANDLE, because a space
+is an ordinary term operand.
 """
 
 from petta import S, V, equation
 
-#: Why this file sits below the top rung: both equations are the benchmark and
-#: neither compiles, and the count cannot cross into Python at this size.
-RUNG = "both equations write with add-atom and match &self, and 1.5M answers cannot cross into a Python list"
-
-#: The space these equations write into and match, named as a symbol because a
-#: term carries no handle.
-SELF = S["&self"]
-
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 34349629 to 34349474, -155 (-0.00045%), by the twin
-#: contract change: the `test` wrapper left the engine for Python's own
-#: `assert`. Nothing else could move: the 1.5 million writes, the match over
-#: them and the count of that match are the benchmark, and the count is the one
-#: place in this folder where the Python spelling does not fit in memory.
-#: Against the example's 37501826 the ratio is 0.9159 [measured 2026-08-22
-#: min-of-3: `twin_coverage.py --measure
-#: examples/performance/matespacefast.metta`]. Prior: ADDED 2026-08-22 at
-#: 34349629 by the wave-3 twin baseline.
-BUDGET = 34349474
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+BUDGET = 1
 
 
 def twin(m):
     """Rewrite nineteen levels deep, then count what landed."""
     m += equation(S.rewriteK(V.t, V.n)).to(
-        S["if"](V.n.eq(0),
+        S["if"](V.n.eq(0),  # rung: the compiled body answers StackOverflow at this depth
                 S.done,
-                S["let*"](((V._1, S["add-atom"](SELF, S.num(S.M(V.t)))),
-                           (V._2, S["add-atom"](SELF, S.num(S.W(V.t)))),
-                           (V._3, S["add-atom"](SELF, S.num(S.C(V.t))))),
+                S["let*"](((V["_1"], S["add-atom"](m, S.num(S.M(V.t)))),  # rung: as above
+                           (V["_2"], S["add-atom"](m, S.num(S.W(V.t)))),  # rung: as above
+                           (V["_3"], S["add-atom"](m, S.num(S.C(V.t))))),  # rung: as above
                           (S.rewriteK(S.M(V.t), V.n - 1),
                            S.rewriteK(S.W(V.t), V.n - 1)))))
 
     m += equation(S["mate-space-demo"](V.K)).to(
-        S["let*"](((V.s, S["add-atom"](SELF, S.num(S.Z))),
+        S["let*"](((V.s, S["add-atom"](m, S.num(S.Z))),  # rung: as above
                    (V.g, S.rewriteK(S.Z, V.K))),
-                  S.match(SELF, S.num(V.stored), S.num(V.stored))))
+                  S.match(m, S.num(V.stored), S.num(V.stored))))  # rung: as above
 
-    assert m.eval(S.length(S.collapse(S["mate-space-demo"](19)))) == [1572862]
+    assert len(m.fn["mate-space-demo"](19)) == 1572862

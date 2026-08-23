@@ -1,31 +1,39 @@
-"""examples/performance/holbenchmark.metta in Python: four million-step kernels.
+"""Purpose: examples/performance/holbenchmark.metta in Python: four million-step kernels.
 
 A map over a million-long cons list, a fold over a nested one, a hundred
 thousand applications of one function, and a polynomial sum. All four are
 higher-order: the function being applied arrives as an argument and is called
 through a variable.
 
-Every definition stays in the engine, and the four walls are the ones this
-corpus keeps meeting:
+Applying a parameter is Python's own call syntax now, `f(x)` lowering to
+`($f $x)`, so `apply-many` and `poly` are ordinary functions under the
+decorator, and so are the two list builders `range` and `deep-nest`, whose
+empty-expression base case is Python's `()`.
 
-- `map-flat` and `fold-nested` destructure in the HEAD, `(cons $x $xs)` and
-  `()`, and a compiled clause's head pattern must be a literal;
-- all four kernels APPLY a parameter, `($f $x)`, and a compiled body calls a
-  plain name, never a variable;
-- `range`, `deep-nest`, `apply-many` and `poly` test `(== $n 0)` in the inner
-  loop, and Python's `==` in a compiled body lowers to the prelude's `py-eq`,
-  re-measured at +71.96% on a search of exactly this shape (superpose_primes.py);
-- `fold-nested` names `is-expr`, which is not a Python identifier either.
+`map-flat` and `fold-nested` stay at the container door for a blocker the
+subset still has: each is two clauses that destructure in the HEAD, `()` and
+`(cons $x $xs)`, and a compiled head pattern may only be a LITERAL default, so
+a structural default is refused with "a default here is a head pattern, so it
+must be a literal" [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: two
+`@m.define`s whose parameters carry the patterns, the way the equations do.
+Residue P14.4.
 
-Each is a residue entry against P14.4. What is left for Python is the four
-claims, which are `assert`.
+Each claim states its own branch allowance above the evaluator's 100000
+default, which is a term because `m.limits` bounds inferences and time and not
+stack depth (residue, P14.14). It is load-bearing for the compiled kernels
+twice over: a compiled `if` wraps its condition in `py-truthy` and `==` lowers
+to `py-eq`, so every level of these million-step recursions spends reductions
+the original does not.
 """
 
-from petta import S, V, equation
+from petta import S, V, equation, fn
 
-#: Why this file sits below the top rung: all four kernels are the benchmark and
-#: none of them compiles, for the four reasons the docstring lists.
-RUNG = "all four kernels destructure in the head, apply a parameter, test (== $n 0), or name is-expr, and a compiled body can do none of those"
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+BUDGET = 1
 
 #: `(+ 1)`, the partially applied increment all four kernels are driven with. A
 #: one-argument application has no operator spelling, so it is the tuple MeTTa
@@ -36,54 +44,64 @@ INC = (S["+"], 1)
 #: 100000 default. `m.limits` bounds inferences and time, not stack depth.
 DEEP = (S["max-stack-depth"](100_000_000),)
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 139184129 to 139183402, -727 (-0.00052%), by the twin
-#: contract change: four `test` wrappers left the engine for Python's own
-#: `assert`, which is all that could move. The four kernels are the benchmark.
-#: Against the example's 139197665 the ratio is 0.9999 [measured 2026-08-22
-#: min-of-3: `twin_coverage.py --measure
-#: examples/performance/holbenchmark.metta`]. Prior: ADDED 2026-08-22 at
-#: 139184129 by the wave-3 twin baseline.
-BUDGET = 139183402
-
 
 def twin(m):
     """Four higher-order kernels, each run to a million steps."""
     # A map that flattens as it goes, over a cons list built by counting down.
-    m += equation(S["map-flat"](V.f, ())).to(())
-    m += equation(S["map-flat"](V.f, S.cons(V.x, V.xs))).to(
+    m += equation(S["map-flat"](V.f, ())).to(())  # rung: a compiled head pattern may only be a literal default
+    m += equation(S["map-flat"](V.f, S.cons(V.x, V.xs))).to(  # rung: as above
         S.cons((V.f, V.x), S["map-flat"](V.f, V.xs))
     )
-    m += equation(S.range(V.n)).to(
-        S["if"](V.n.eq(0), (), S.cons(V.n, S.range(V.n - 1))))
+
+    # DEFECT: the descent ladder documents rung 4 as TOTAL in both
+    # directions, "def not_provable lands as not-provable", and the define
+    # door does not apply it: `def find_divisor` lands as `find_divisor`
+    # [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. So every hyphenated MeTTa name
+    # below states itself through `name=`. PERFECT: the map applies at the
+    # define door the way it applies at the S, V and fn factories, and only
+    # a name Python cannot spell at all needs `name=` -- here `range`, which
+    # is a Python builtin, so the def takes rung 2's trailing underscore.
+    @m.define(name="range")
+    def range_(n):
+        if n == 0:
+            return ()
+        return S.cons(n, range_(n - 1))
 
     assert m.eval(
         S["with-pragma!"](DEEP, S.length(S["map-flat"](INC, S.range(1_000_000))))
     ) == [1_000_000]
 
     # A fold that recurses into nested expressions rather than over them.
-    m += equation(S["fold-nested"](V.f, V.init, ())).to(V.init)
-    m += equation(S["fold-nested"](V.f, V.init, S.cons(V.x, V.xs))).to(
-        S["if"](S["is-expr"](V.x),
+    m += equation(S["fold-nested"](V.f, V.init, ())).to(V.init)  # rung: as above
+    m += equation(S["fold-nested"](V.f, V.init, S.cons(V.x, V.xs))).to(  # rung: as above
+        S["if"](S["is-expr"](V.x),  # rung: the stored body of an equation the decorator cannot compile
                 S["fold-nested"](V.f, S["fold-nested"](V.f, V.init, V.x), V.xs),
                 S["fold-nested"](V.f, (V.f, V.init, V.x), V.xs)))
-    m += equation(S["deep-nest"](V.n)).to(
-        S["if"](V.n.eq(0), (), S.cons(S.range(50), S["deep-nest"](V.n - 1))))
+
+    @m.define(name="deep-nest")
+    def deep_nest(n):
+        if n == 0:
+            return ()
+        return S.cons(fn.range(50), deep_nest(n - 1))
 
     assert m.eval(
         S["with-pragma!"](DEEP, S["fold-nested"](S["+"], 0, S["deep-nest"](20_000)))
     ) == [25_500_000]
 
     # A hundred thousand applications of one function to one value.
-    m += equation(S["apply-many"](V.f, V.n, V.x)).to(
-        S["if"](V.n.eq(0), V.x, S["apply-many"](V.f, V.n - 1, (V.f, V.x))))
+    @m.define(name="apply-many")
+    def apply_many(f, n, x):
+        if n == 0:
+            return x
+        return apply_many(f, n - 1, f(x))
 
     assert m.eval(S["with-pragma!"](DEEP, S["apply-many"](INC, 100_000, 0))) == [100_000]
 
     # And a polynomial sum, which applies the parameter inside an addition.
-    m += equation(S.poly(V.f, V.n)).to(
-        S["if"](V.n.eq(0),
-                0,
-                (V.f, V.n) + S.poly(V.f, V.n - 1)))  # noqa: RUF005  -- not tuple concatenation: the right operand is an Expr, so this is Expr.__radd__ building (+ ($f $n) (poly ...))
+    @m.define
+    def poly(f, n):
+        if n == 0:
+            return 0
+        return f(n) + poly(f, n - 1)
 
     assert m.eval(S["with-pragma!"](DEEP, S.poly(INC, 1_000_000))) == [500_001_500_000]
