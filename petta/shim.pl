@@ -50,10 +50,12 @@
 %     commit=3c7bcde6a0670ec5c563584b26977b41cc727580]
 %   - metta_control_signal_info/3 returns the tagged reader detail without
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
-%   - petta_py_eval_status_all/3 and petta_py_run_status/3 report which of
+%   - petta_py_eval_status_all/3, petta_py_eval_status_using_all/4, and
+%     petta_py_run_status/3 report which of
 %     PeTTa's evaluation paths produced each answer, leaving the ordinary
-%     entry points' output unchanged [tested
-%     test_eval_status_reports_the_four_outcomes]
+%     entry points' output unchanged [tested:
+%     test_eval_status_reports_the_four_outcomes,
+%     test_strict_eval_refuses_only_not_reducible; commit=WORKTREE]
 %   - the held evaluation cursor is present at bridge boot, so the first lazy
 %     answer pull performs no late consult [tested:
 %     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -666,6 +668,7 @@ petta_py_wrappable(petta_py_query_count).
 petta_py_wrappable(petta_py_eval_all).
 petta_py_wrappable(petta_py_eval_using_all).
 petta_py_wrappable(petta_py_eval_status_all).
+petta_py_wrappable(petta_py_eval_status_using_all).
 petta_py_wrappable(petta_py_run_status).
 petta_py_wrappable(petta_py_captured).
 petta_py_wrappable(petta_py_atomic).
@@ -1774,10 +1777,19 @@ petta_py_eval_term(Space, Term, Encoded) :-
 %so this reports the branch the engine actually took rather than guessing
 %from the answer [tested test_eval_status_reports_the_four_outcomes].
 petta_py_eval_status_all(Space, Tagged, Results) :-
-    petta_py_decode_shared(Tagged, Term, _),
+    petta_py_target_term(Space, Tagged, Term),
+    petta_py_eval_status_term(Space, Term, Results).
+
+petta_py_eval_status_using_all(Space, Tagged, Pairs, Results) :-
+    petta_py_target_term(Space, Tagged, Term0),
+    maplist(petta_py_using_pair, Pairs, Bindings),
+    metta_host_substitute(Bindings, Term0, Term),
+    petta_py_eval_status_term(Space, Term, Results).
+
+petta_py_eval_status_term(Space, Term, Results) :-
     petta_py_module(Space, Module),
     petta_py_eval_status(Module, Term, Status),
-    findall([Status, E], petta_py_eval_bounded(Space, Tagged, E), Answers),
+    findall([Status, E], petta_py_eval_term_bounded(Space, Term, E), Answers),
     ( Answers == []
       -> ( Status == 'not-reducible',
            petta_py_preserve_unmatched(Space, Term, Original)

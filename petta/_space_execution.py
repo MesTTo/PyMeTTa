@@ -26,6 +26,9 @@ Guarantees:
   - controlled run, eval, status, profile, and lazy-pull calls preserve the /5
     limit seam unless a scoped stack byte count selects /6 [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
+  - status evaluation accepts the eager eval door's named host substitutions
+    and capture scope without evaluating the target twice [tested:
+    test_strict_eval_refuses_only_not_reducible; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -485,14 +488,34 @@ def evaluate_status(
     target: Any,
     timeout: float | None,
     inferences: int | None,
+    *,
+    using: dict[str, Any] | None = None,
 ) -> list[tuple[str, Atom | Undefined | None]]:
     """Pair each answer with the evaluation path that produced it."""
-    rows = _apply_limited(
+    predicate = "petta_py_eval_status_all"
+    inputs: list[Any] = [
+        space,
+        target if isinstance(target, str) else _to_atom(target).to_wire(),
+    ]
+    if using:
+        predicate = "petta_py_eval_status_using_all"
+        inputs.append(
+            [[name, _encode(value).to_wire()] for name, value in using.items()]
+        )
+    captured = _CAPTURED_OUTPUT.get()
+    if captured is not None:
+        predicate, inputs = "petta_py_captured", [predicate, inputs]
+    output = _apply_limited(
         rt,
         _limits(timeout, inferences) or (-1.0, -1, -1),
-        "petta_py_eval_status_all",
-        [space, _to_atom(target).to_wire()],
+        predicate,
+        inputs,
     )
+    if captured is not None:
+        rows, captured_text = output
+        captured._append(str(captured_text))
+    else:
+        rows = output
     return [
         (str(status), None if status == "empty" else _from_wire(wire))
         for status, wire in rows

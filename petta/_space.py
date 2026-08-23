@@ -798,7 +798,10 @@ class Space(Handle):
             _invalidate_builtins_cache(self._rt)
 
     def _refuse_unreduced(
-        self, groups: list[list[tuple[str, Any]]]
+        self,
+        groups: list[list[tuple[str, Any]]],
+        *,
+        grouped: bool = True,
     ) -> None:
         """Refuse any directive the engine handed back unevaluated."""
         for position, group in enumerate(groups, start=1):
@@ -811,7 +814,7 @@ class Space(Handle):
                     raise StrictError(
                         msg,
                         term=answer,
-                        directive=position,
+                        directive=position if grouped else None,
                     )
 
     def profile(
@@ -1735,6 +1738,8 @@ class Space(Handle):
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
         raising TimeLimitError or InferenceLimitError when hit. A surrounding
         `capture()` scope collects printed text without changing the list.
+        In a `strict()` scope an unreduced term raises StrictError while a
+        genuinely empty branch still returns no answers.
         """
         changes_catalogue = isinstance(target, str) or (
             isinstance(target, Expression)
@@ -1748,6 +1753,21 @@ class Space(Handle):
             }
         )
         try:
+            if strict_enabled():
+                statuses = evaluate_status(
+                    self._rt,
+                    self._space,
+                    target,
+                    timeout,
+                    inferences,
+                    using=using,
+                )
+                self._refuse_unreduced([statuses], grouped=False)
+                return [
+                    answer
+                    for status, answer in statuses
+                    if status != "empty" and answer is not None
+                ]
             return evaluate(
                 self._rt,
                 self._space,
