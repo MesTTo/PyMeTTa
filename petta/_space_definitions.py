@@ -72,7 +72,7 @@ from ._define_twins import (
     select_clause_twin,
     twin_dispatcher,
 )
-from ._documentation import documentation_atom
+from ._documentation import attribute_docstrings, documentation_atom
 from ._name_mapping import attribute_name
 from ._ops import REGISTRY
 from .atoms import Atom, Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode, _expr
@@ -465,7 +465,7 @@ def _document_definition(space: Any, name: str, dispatcher: Any) -> None:
     """Publish the dispatcher's canonical first-clause documentation."""
     key = (space.name, name)
     previous = _DEFINE_DOCUMENTATION.get(key)
-    current = documentation_atom(name, dispatcher)
+    current = documentation_atom(name, dispatcher, kind="function")
     if current == previous:
         return
     if current is not None:
@@ -769,6 +769,16 @@ def install_type(
                 space.add(Expression([Symbol("="), head, _variables[position]]))
         if methods:
             _register_methods(space, target, registration.type_name)
+        documentation = documentation_atom(
+            registration.type_name,
+            target,
+            kind="record",
+            parameters=registration.fields,
+            annotations=_typing.get_type_hints(target),
+            parameter_descriptions=attribute_docstrings(target),
+        )
+        if documentation is not None and documentation not in space:
+            space.add(documentation)
         return target
 
     return apply(cls) if cls is not None else apply

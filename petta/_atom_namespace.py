@@ -24,6 +24,9 @@ Guarantees:
   - hot attribute spellings reuse a separate bounded cache, so the name map
     stays within the established term-building budget [measured: 659673847
     instructions; date=2026-08-23; command=cd bindings/python && ../../../../.venv-pypetta/bin/python -m benchmarks.check_instructions term-operators; fixture=20000 term-operators terms; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - generated Symbol mentions can carry inert per-instance documentation while
+    retaining Symbol equality and hashing [tested: test_generated_fn_help_is_offline;
+    commit=WORKTREE]
 Guarded by:
   - each namespace lock protects its target and attribute cache tiers; each
     fast-tier hit path reads one dict and takes no lock [tested
@@ -49,6 +52,15 @@ NAMESPACE_CACHE_MAX: Final[int] = 512
 NAMESPACE_FAST_MAX: Final[int] = 256
 
 
+class _DocumentedSymbol(Symbol):
+    # An inert generated mention; its instance doc powers offline help().
+    __slots__ = ("__doc__",)
+
+    def __init__(self, name: str, documentation: str) -> None:
+        super().__init__(name)
+        object.__setattr__(self, "__doc__", documentation)
+
+
 class _Namespace:
     """Mint atoms by attribute access: S.likes is the symbol likes, V.x is $x.
 
@@ -61,6 +73,7 @@ class _Namespace:
         "_allowed",
         "_attrs",
         "_cache",
+        "_documentation",
         "_fast",
         "_kind",
         "_label",
@@ -73,6 +86,7 @@ class _Namespace:
         *,
         allowed: frozenset[str] | None = None,
         aliases: dict[str, str] | None = None,
+        documentation: dict[str, str] | None = None,
         label: str = "name",
     ) -> None:
         object.__setattr__(self, "_kind", kind)
@@ -83,6 +97,7 @@ class _Namespace:
             aliases if aliases is not None else generated_aliases(allowed or ()),
         )
         object.__setattr__(self, "_label", label)
+        object.__setattr__(self, "_documentation", documentation or {})
         object.__setattr__(self, "_cache", {})
         object.__setattr__(self, "_fast", {})
         object.__setattr__(self, "_attrs", {})
@@ -168,7 +183,13 @@ class _Namespace:
                 return hit
             hit = cache.pop(name, None)
             if hit is None:
-                hit = object.__getattribute__(self, "_kind")(name)
+                kind = object.__getattribute__(self, "_kind")
+                documentation = object.__getattribute__(self, "_documentation")
+                hit = (
+                    _DocumentedSymbol(name, documentation[name])
+                    if kind is Symbol and name in documentation
+                    else kind(name)
+                )
                 if len(cache) >= NAMESPACE_CACHE_MAX:
                     del cache[next(iter(cache))]
             cache[name] = hit

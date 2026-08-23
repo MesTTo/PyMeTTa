@@ -189,6 +189,7 @@ def _python_twin(
         fn.__code__, globals_, name=name, argdefs=fn.__defaults__, closure=closure
     )
     twin.__doc__ = fn.__doc__
+    twin.__annotations__ = fn.__annotations__
     order = list(inspect.signature(fn).parameters)
     return _guard_twin(twin, name, order, patterns)
 
@@ -219,6 +220,7 @@ def _guard_twin(
 
     guarded.__name__ = name
     guarded.__doc__ = twin.__doc__
+    guarded.__annotations__ = getattr(twin, "__annotations__", {})
     guarded.__signature__ = signature  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
     return guarded
 

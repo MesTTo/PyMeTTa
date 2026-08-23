@@ -462,7 +462,7 @@ def _operation_declarations(
     for declaration in supplied:
         if declaration not in declarations:
             declarations.append(declaration)
-    documentation = documentation_atom(name, fn)
+    documentation = documentation_atom(name, fn, kind="operation")
     if documentation is not None:
         declarations.append(documentation)
     return tuple(declarations)

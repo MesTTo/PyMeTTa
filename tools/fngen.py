@@ -14,6 +14,9 @@ Guarantees:
   - operator word aliases are generated from the same fixed vocabulary as
     both runtime fn doors [tested:
     test_operator_words_precede_the_mechanical_name_map; commit=WORKTREE]
+  - executable phrasebook rows supply inert runtime and stub documentation
+    without starting the engine [tested: test_generated_fn_help_is_offline;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,9 +36,25 @@ RUNTIME = ROOT / "bindings" / "python" / "petta" / "_fn.py"
 STUB = ROOT / "bindings" / "python" / "petta" / "_fn.pyi"
 
 sys.path.insert(0, str(ROOT / "bindings" / "python"))
+from phrasebook_entries import (  # noqa: E402  -- sibling generator rows are the documentation authority
+    ENTRIES,
+)
+
 from petta._name_mapping import (  # noqa: E402  -- derive the source root before importing it
     generated_aliases,
 )
+
+
+def catalog_documentation(names: list[str]) -> dict[str, str]:
+    """Format the phrasebook's executable catalog rows as offline help."""
+    allowed = set(names)
+    documented: dict[str, str] = {}
+    for entry in ENTRIES:
+        if entry.name not in allowed or entry.name in documented:
+            continue
+        signature = "\n".join(f"{entry.name}: {type_}" for type_ in entry.types)
+        documented[entry.name] = f"{signature}\n\n{entry.note}"
+    return documented
 
 
 def catalog_names() -> list[str]:
@@ -57,12 +76,16 @@ def catalog_names() -> list[str]:
     return sorted(set(names))
 
 
-def runtime_text(names: list[str]) -> str:
+def runtime_text(names: list[str], documentation: dict[str, str] | None = None) -> str:
     """Render the inert runtime namespace from one catalog snapshot."""
     rendered = "\n".join(f"        {json.dumps(name)}," for name in names)
     aliases = generated_aliases(names)
     rendered_aliases = "\n".join(
         f"        ({json.dumps(alias)}, {json.dumps(target)})," for alias, target in aliases.items()
+    )
+    rendered_docs = "\n".join(
+        f"    {json.dumps(name)}: {json.dumps(text)},"
+        for name, text in sorted((documentation or {}).items())
     )
     return f'''"""Purpose: expose the generated static function-mention namespace.
 
@@ -77,6 +100,8 @@ Guarantees:
   - generated operator word attributes resolve through the shared fixed table
     [tested: test_operator_words_precede_the_mechanical_name_map;
     commit=WORKTREE]
+  - documented catalog rows remain available to help() before an engine starts
+    [tested: test_generated_fn_help_is_offline; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -99,16 +124,21 @@ _ALIASES.update(
     )
 )
 
+_DOCUMENTATION = {{
+{rendered_docs}
+}}
+
 fn = _Namespace(
     Symbol,
     allowed=_NAMES,
     aliases=_ALIASES,
+    documentation=_DOCUMENTATION,
     label="target function",
 )
 '''
 
 
-def stub_text(names: list[str]) -> str:
+def stub_text(names: list[str], documentation: dict[str, str] | None = None) -> str:
     """Render explicit members; no catch-all may erase typo checking.
 
     PEP 484 makes the colocated .pyi authoritative to type checkers, so the
@@ -116,11 +146,16 @@ def stub_text(names: list[str]) -> str:
     [source: https://peps.python.org/pep-0484/#stub-files; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
     """
     aliases = generated_aliases(names)
-    members = "\n".join(
-        f"    {alias}: Symbol"
-        + ("  # noqa: N815" if alias[:1].islower() and alias != alias.lower() else "")
-        for alias in aliases
-    )
+    documentation = documentation or {}
+    rows = []
+    for alias, target in aliases.items():
+        row = f"    {alias}: Symbol"
+        if alias[:1].islower() and alias != alias.lower():
+            row += "  # noqa: N815"
+        if target in documentation:
+            row += f"\n    {json.dumps(documentation[target])}"
+        rows.append(row)
+    members = "\n".join(rows)
     return f"""# Purpose: declare every generated fn attribute to static type checkers.
 # Guarantees:
 #   - every safe runtime alias is explicit and no dynamic Any fallback exists
@@ -128,6 +163,8 @@ def stub_text(names: list[str]) -> str:
 #   - operator word aliases are explicit members generated from the runtime
 #     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
 #     commit=WORKTREE]
+#   - catalog-row documentation is attached to explicit members for static
+#     help [tested: test_generated_fn_help_is_offline; commit=WORKTREE]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
@@ -148,7 +185,11 @@ fn: Final[_FunctionNamespace]
 def main(argv: list[str]) -> int:
     """Check generated outputs, or replace both together from one snapshot."""
     names = catalog_names()
-    wanted = {RUNTIME: runtime_text(names), STUB: stub_text(names)}
+    documentation = catalog_documentation(names)
+    wanted = {
+        RUNTIME: runtime_text(names, documentation),
+        STUB: stub_text(names, documentation),
+    }
     stale = [
         path
         for path, content in wanted.items()

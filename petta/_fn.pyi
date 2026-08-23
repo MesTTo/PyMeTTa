@@ -5,6 +5,8 @@
 #   - operator word aliases are explicit members generated from the runtime
 #     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
 #     commit=WORKTREE]
+#   - catalog-row documentation is attached to explicit members for static
+#     help [tested: test_generated_fn_help_is_offline; commit=WORKTREE]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
@@ -16,12 +18,19 @@ from .atoms import Symbol
 
 class _FunctionNamespace:
     abs_math: Symbol
+    "abs-math: (-> Number Number)\n\nPython's builtin `abs`."
     acos_math: Symbol
+    "acos-math: (-> Number Number)\n\n`math.acos`."
     add: Symbol
+    "+: (-> Number Number Number)\n\nPython's own operator. On atoms the same operator builds `(+ ...)` instead of computing, which is how a compiled body reaches the MeTTa function."
     add_atom: Symbol
+    "add-atom: (-> SpaceType Atom (->))\n\n`space += atom`, the container protocol. A plain Python tuple encodes to an expression on the way in, so a fact needs no builder ceremony."
     add_atoms: Symbol
+    "add-atoms: (-> SpaceType Expression (->))\n\nThe same `+=` door, once per fact: anything that yields tuples is a fact stream. One friction, measured: a LIST on the `+=` door writes one atom holding the list rather than one atom per element, so the row loops [measured 2026-08-22: `space += [(S.f, 1), (S.f, 2)]` stores `((f 1) (f 2))`; `space.add(a, b)` is the varargs door that does write both]."
     add_reduct: Symbol
+    "add-reduct: (-> SpaceType %Undefined% (->))\n\nThere is no second door: `+=` adds what you give it, so adding a REDUCT is explicit composition, `space += m.eval(term)[0]`. The row wraps the sum because PeTTa's write door REFUSES a bare grounded atom that its own MeTTa door accepts [measured 2026-08-22: `space += petta.ground(3)` raises `a stored atom is a non-empty expression`, while `!(add-reduct &pb (+ 1 2))` stores `3`]."
     add_reducts: Symbol
+    "add-reducts: (-> SpaceType %Undefined% (->))\n\nThe plural of the same composition: evaluate, then write the answers."
     add_translator_rule: Symbol
     add_typing_rule: Symbol
     alpha_unique: Symbol
@@ -31,28 +40,42 @@ class _FunctionNamespace:
     append: Symbol
     argv: Symbol
     asin_math: Symbol
+    "asin-math: (-> Number Number)\n\n`math.asin`."
     atan_math: Symbol
+    "atan-math: (-> Number Number)\n\n`math.atan`."
     atomically: Symbol
     bind: Symbol
+    "bind!: (-> Symbol %Undefined% (->))\n\nA Python name binding. `space = petta.space(...)` is exactly what a token binding was for, and Python's own scoping rules then apply."
     call: Symbol
     car_atom: Symbol
+    "car-atom: (-> Expression %Undefined%)\n\nIndexing. An expression is a sequence in Python, so its head is `e[0]`."
     case: Symbol
+    "case: (-> Atom Expression %Undefined%)\n\nPython's `match` statement. A bare variable arm is `case _`."
     catch: Symbol
     cdr_atom: Symbol
+    "cdr-atom: (-> Expression Expression)\n\nSlicing. `e[1:]` answers a Python tuple today rather than an Expression, which prints the same and is the T6 friction section 9e names as this bucket's one prerequisite."
     ceil_math: Symbol
+    "ceil-math: (-> Number Number)\n\n`math.ceil`, which answers an integer in Python 3 where LeaTTa keeps the float."
     chain: Symbol
+    "chain: (-> Atom Variable Atom %Undefined%)\n\nPython assignment. Chain executes one instruction, binds, substitutes and continues, which is exactly `x = m.eval(t)[0]` followed by use of `x`."
     change_state: Symbol
+    "change-state!: (-> (StateMonad $tcso) $tcso (StateMonad $tcso))\n\nAssigning `state.value` writes the same typed engine cell and reading it back returns the replacement."
     collapse: Symbol
+    "collapse: (-> Atom Atom)\n\n`list()` is the everyday spelling, materialising the answers; `tuple()` is the same act when you want MeTTa's own `( )` atom back, which is what collapse answers."
     cons: Symbol
     cons_atom: Symbol
+    "cons-atom: (-> Atom Expression Atom)\n\nConstruction: call the head, or rebuild from head and tail with `*`."
     context_space: Symbol
+    "context-space: (-> SpaceType)\n\nThe space a program is currently in, which in Python is the handle it holds; `petta.current_space()` is the door for code that did not receive one, and it follows Python's own `current_thread` and `current_task` convention, so the Python word wins over the instruction's name. The row asks both sides for the current space's atoms."
     cos_math: Symbol
+    "cos-math: (-> Number Number)\n\n`math.cos`."
     current_time: Symbol
     cut: Symbol
     declare_post_add: Symbol
     declare_pre_add: Symbol
     decons: Symbol
     decons_atom: Symbol
+    "decons-atom: (-> Expression Atom)\n\nStarred unpacking, which is the same act in one line: `head, *tail = e`."
     defined_name: Symbol
     dif: Symbol
     documented: Symbol
@@ -60,98 +83,149 @@ class _FunctionNamespace:
     elapsed: Symbol
     empty: Symbol
     eq: Symbol
+    "==: (-> $t $t Bool)\n\nPython's own operator, and atoms compare structurally under it."
     eval: Symbol
+    "eval: (-> Atom Atom)\n\nONE step. `m.eval(term)` is the same one step and answers every result, and `space.eval(term)` is `evalc`, the same step in a named space."
     evalc: Symbol
+    "evalc: (-> Atom SpaceType Atom)\n\nOne step WITH an explicit context space, which is `space.eval(term)`: the signature IS term plus space."
     exclude_item: Symbol
     exp: Symbol
     exp_math: Symbol
     explain: Symbol
     filter_atom: Symbol
+    "filter-atom: (-> Expression Variable Atom Expression)\nfilter-atom: (-> Expression Expression Expression)\n\nA comprehension with an `if`, or `filter`."
     first: Symbol
     first_from_pair: Symbol
     floor_math: Symbol
+    "floor-math: (-> Number Number)\n\n`math.floor`, the same integer-against-float difference as `ceil-math`."
     foldall: Symbol
     foldl: Symbol
     foldl_atom: Symbol
+    "foldl-atom: (-> Expression Atom Variable Variable Atom %Undefined%)\nfoldl-atom: (-> Expression Atom Expression %Undefined%)\n\n`functools.reduce` with an initial value, which is the same left fold."
     for_each_in_atom: Symbol
+    "for-each-in-atom: (-> Expression Atom (->))\n\nA `for` statement. It is called for its effect, so the row prints and answers the unit. Python's `for` has no value at all, and the concept map says `None` IS the unit, but `petta.ground(None)` renders `<NoneType>` rather than `()` today, so a row that wants the unit writes it [measured 2026-08-22]."
     forall: Symbol
     format_args: Symbol
+    "format-args: (-> String Expression String)\n\nAn f-string. MeTTa's `{}` holes are Python's own interpolation."
     format_time: Symbol
     ge: Symbol
+    ">=: (-> Number Number Bool)\n\nPython's own operator."
     get_atoms: Symbol
+    "get-atoms: (-> SpaceType Atom)\n\n`space.atoms()`, or `for atom in space` when you want to walk them."
     get_doc: Symbol
+    "get-doc: (-> SpaceType Atom %Undefined%)\n\nPython's builtin `help`, over the docstring a decorated function already carries. PeTTa answers nothing here because no documentation atoms are written yet, which is the doc-vocabulary gap."
     get_doc_atom: Symbol
+    "get-doc-atom: (-> SpaceType Atom %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`."
     get_doc_function: Symbol
+    "get-doc-function: (-> SpaceType Atom Type %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`."
     get_doc_params: Symbol
+    "get-doc-params: (-> Expression Atom Expression (Expression Atom))\n\nLeaTTa's internal dispatch behind `get-doc`."
     get_doc_single_atom: Symbol
+    "get-doc-single-atom: (-> SpaceType Atom %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`."
     get_doc_space: Symbol
     get_metatype: Symbol
+    "get-metatype: (-> Atom Atom)\n\nPython's own builtin `type`: the four atom classes ARE the four metatypes, so `type(a).__name__` is the metatype by construction."
     get_state: Symbol
+    "get-state: (-> (StateMonad $tgso) $tgso)\n\nReading the cell is the typed handle's `state.value` property."
     get_type: Symbol
+    "get-type: (-> Atom %Undefined%)\n\nDeclared types are space-relative, so `space.type(atom)` asks the space. Class declarations use the consolidated `@space.define` decorator."
     get_type_space: Symbol
+    "get-type-space: (-> SpaceType Atom Atom)\n\nThe same question asked of a named space through that handle's `space.type(atom)` method."
     git_import: Symbol
+    "git-import!: (-> String String Atom)\n\npip and `importlib`. Fetching a dependency is packaging's job, the module catalog IS Python packaging, and a boot manifest names the distribution."
     gt: Symbol
+    ">: (-> Number Number Bool)\n\nPython's own operator."
     has_declared_type: Symbol
     help: Symbol
+    "help!: (-> Atom (->))\nhelp!: (-> (->))\n\nPython's builtin `help`, which is the same act on the same docstring."
     hyperpose: Symbol
     id: Symbol
+    "id: (-> $t $t)\n\nThe identity function, which Python writes as the value itself."
     if_equal: Symbol
+    "if-equal: (-> Atom Atom Atom Atom %Undefined%)\n\nA conditional expression over `==`."
     if_equal2: Symbol
     if_error: Symbol
+    "if-error: (-> Atom Atom Atom %Undefined%)\n\n`try`/`except`, or a conditional over the value. It is the railway combinator over Error atoms."
     implies: Symbol
     include: Symbol
+    "include: (-> Atom %Undefined%)\n\n`space.load(path)` reads a file into that space, which is what include does; Python's own `import` is the spelling for a Python module."
     index_atom: Symbol
+    "index-atom: (-> Expression Number Atom)\n\nIndexing again, with the index you want."
     inferences: Symbol
     intersection: Symbol
+    "intersection: (-> Atom Atom %Undefined%)\n\n`collections.Counter` IS the multiset algebra, and `&` is its intersection."
     intersection_atom: Symbol
+    "intersection-atom: (-> Expression Expression Atom)\n\n`Counter` over children, answering an expression."
     is_alpha_member: Symbol
     is_expr: Symbol
     is_function: Symbol
+    "is-function: (-> Type Bool)\n\nAsking whether a type is an arrow. In Python the same question is asked of the annotation, and `m.is_function(name)` asks it of a defined name."
     is_ground: Symbol
     is_member: Symbol
     is_space: Symbol
     is_var: Symbol
     isinf_math: Symbol
+    "isinf-math: (-> Number Bool)\n\n`math.isinf`."
     isnan_math: Symbol
+    "isnan-math: (-> Number Bool)\n\n`math.isnan`."
     last: Symbol
     le: Symbol
+    "<=: (-> Number Number Bool)\n\nPython's own operator."
     length: Symbol
     let: Symbol
+    "let: (-> Atom %Undefined% Atom %Undefined%)\n\nAssignment. It reads in MeTTa's own order, bind then use, which is why plain assignment and not the walrus is the taught spelling."
     library: Symbol
     log_math: Symbol
+    "log-math: (-> Number Number Number)\n\n`math.log(x, base)`, with the arguments the other way round: MeTTa takes the base first."
     lt: Symbol
+    "<: (-> Number Number Bool)\n\nPython's own operator."
     map_atom: Symbol
+    "map-atom: (-> Expression Variable Atom Expression)\nmap-atom: (-> Expression Expression Expression)\n\nA comprehension, or `map`. The variable and the template are the comprehension's own binder and body."
     maplist: Symbol
     match: Symbol
+    "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript door and `space.query(pattern)` the named one; the TEMPLATE is built in Python from the answer's bindings."
     match_type_or: Symbol
     match_types: Symbol
     max: Symbol
     max_atom: Symbol
+    "max-atom: (-> %Undefined% Number)\n\nPython's builtin `max` over the children."
     member: Symbol
     metta: Symbol
+    "metta: (-> Atom Type SpaceType Atom)\n\nThe full interpreter, which is what CALLING does: a defined object called from Python evaluates, and `m.eval` on a built term is the same act."
     min: Symbol
     min_atom: Symbol
+    "min-atom: (-> %Undefined% Number)\n\nPython's builtin `min` over the children."
     mm2_exec: Symbol
     mod: Symbol
+    "%: (-> Number Number Number)\n\nPython's own operator. Both take the sign of the divisor for a positive divisor; LeaTTa's is Euclidean, so a NEGATIVE divisor parts them and `mod-floor` is the name for Python's convention."
     mork_add_atoms: Symbol
     mork_flush: Symbol
     msort: Symbol
     mul: Symbol
+    "*: (-> Number Number Number)\n\nPython's own operator."
     ne: Symbol
     new_space: Symbol
+    "new-space: (-> SpaceType)\n\n`petta.space()`. A constructor call is Python's own spelling for `make me a fresh one`, and the row asks the fresh space for its atoms because the NAME a space gets differs per engine."
     new_state: Symbol
+    "new-state: (-> $t (StateMonad $t))\n\n`petta.State[T](value, space=space)` creates the typed Python handle. The row reads `.value` because the engine cell itself is deliberately hidden behind that handle."
     noeval: Symbol
+    "noeval: (-> Atom Atom)\n\nThe same point as `quote`: a built term is already unevaluated."
     nop: Symbol
+    "nop: (-> (%Rest% %Undefined%) (->))\n\nPython's `pass`, or simply not writing the call. It answers the unit."
     noreduce_eq: Symbol
+    "noreduce-eq: (-> Atom Atom Bool)\n\nComparing two atoms WITHOUT reducing them is what Python's `==` on atoms already does: building a term never evaluates it."
     not_provable: Symbol
     once: Symbol
     or_else: Symbol
     parse: Symbol
     pow: Symbol
+    "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float."
     pow_math: Symbol
+    "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float."
     pragma: Symbol
     pretty_atom: Symbol
     println: Symbol
+    "println!: (-> %Undefined% (->))\n\nPython's `print`."
     prog1: Symbol
     progn: Symbol
     py_at: Symbol
@@ -174,6 +248,7 @@ class _FunctionNamespace:
     py_truthy: Symbol
     py_tuple: Symbol
     quote: Symbol
+    "quote: (-> Atom Atom)\n\nThere is nothing to quote: building a term at the `S.` door never evaluates it, so the quoting question does not arise. `S.quote(x)` builds the term itself where a program needs the constructor."
     random_float: Symbol
     random_int: Symbol
     read_form: Symbol
@@ -181,45 +256,62 @@ class _FunctionNamespace:
     reduce: Symbol
     register_token: Symbol
     remove_atom: Symbol
+    "remove-atom: (-> SpaceType Atom (->))\n\n`space -= atom` removes THAT atom and never pattern-matches; `del space[pattern]` is the pattern form, and the pair is taught together."
     remove_translator_rule: Symbol
     remove_typing_rule: Symbol
     repr: Symbol
     repra: Symbol
     residual_goals: Symbol
     return_on_error: Symbol
+    "return-on-error: (-> Atom Atom %Undefined%)\n\nEarly return, which is Python's own `return` inside an `if`. Indexing needs the guard because a leaf atom is not indexable here."
     reverse: Symbol
     round_math: Symbol
+    "round-math: (-> Number Number)\n\nNOT Python's `round`: `round` breaks a tie to the EVEN neighbour, so `round(2.5)` is 2 where MeTTa answers 3. Half away from zero is `math.floor(x + 0.5)` for a positive number."
     sealed: Symbol
+    "sealed: (-> Expression Atom Atom)\n\nFreshening every variable except a named few, the hygiene primitive under rule emission. The Python surface makes most uses unnecessary by construction, because a parameter-scoped rule is fresh per rule, so the row shows the law spelling."
     second_from_pair: Symbol
     sin_math: Symbol
+    "sin-math: (-> Number Number)\n\n`math.sin`."
     size_atom: Symbol
+    "size-atom: (-> Expression Number)\n\n`len`. Both count CHILDREN, so `(f a b)` is 3 either way."
     sleep: Symbol
     sort: Symbol
     sort_atom: Symbol
     sort_strings: Symbol
+    "sort-strings: (-> Expression Expression)\n\nPython's builtin `sorted`. A tuple goes back in as one expression."
     space_admission_verdict: Symbol
     space_atom_count: Symbol
     space_contains: Symbol
     sqrt_math: Symbol
+    "sqrt-math: (-> Number Number)\n\n`math.sqrt`."
     sread: Symbol
     sread_command: Symbol
     sub: Symbol
+    "-: (-> Number Number Number)\n\nPython's own operator."
     subtraction: Symbol
+    "subtraction: (-> Atom Atom %Undefined%)\n\n`Counter` again, with `-`."
     subtraction_atom: Symbol
+    "subtraction-atom: (-> Expression Expression Atom)\n\n`Counter` over children, answering an expression."
     super: Symbol
     superpose: Symbol
+    "superpose: (-> Expression %Undefined%)\n\nNondeterminism has no primitive of its own because Python's iteration IS it: a list of values is a multiset of answers, and `yield` is the same act inside a compiled body."
     switch: Symbol
+    "switch: (-> %Undefined% Expression %Undefined%)\n\nPython's `match` statement again. `switch` differs from `case` only in evaluating its subject first, which a Python expression does anyway."
     take: Symbol
     tan_math: Symbol
+    "tan-math: (-> Number Number)\n\n`math.tan`."
     test: Symbol
     test_no_answer: Symbol
     throw: Symbol
     timeout: Symbol
     top: Symbol
     trace: Symbol
+    "trace!: (-> %Undefined% Atom %Undefined%)\n\n`print` or `logging` beside the value; `m.trace()` is the engine's own reduction trace, a different and deeper thing."
     transaction: Symbol
     truediv: Symbol
+    "/: (-> Number Number Number)\n\nPython's `/` is true division, and so is PeTTa's. LeaTTa's integer `/` is EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on floats all three agree."
     trunc_math: Symbol
+    "trunc-math: (-> Number Number)\n\n`math.trunc`, or `int` on a float."
     type_cast: Symbol
     type_cast_holds: Symbol
     undeclare_post_add: Symbol
@@ -227,15 +319,22 @@ class _FunctionNamespace:
     undocumented: Symbol
     undocumented_space: Symbol
     unify: Symbol
+    "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural matching. `petta.unify(pattern, subject)` answers the bindings or `None`, so the four-argument form is that call with a conditional; in a compiled body Python's `match` statement lowers to this instruction. One friction: MeTTa's `unify` is symmetric while `petta.unify` is DIRECTIONAL, pattern first, so swapping the arguments answers `None` [measured 2026-08-22: `petta.unify(S.f(S.a), S.f(V.x))` is None]."
     union: Symbol
+    "union: (-> Atom Atom %Undefined%)\n\nMultiset union over nondeterministic answers, which is concatenation: answers are iterables and `+` joins them."
     union_atom: Symbol
+    "union-atom: (-> Expression Expression Atom)\n\nThe same act over an expression's children; a tuple goes back in as one expression."
     unique: Symbol
+    "unique: (-> Atom %Undefined%)\n\n`dict.fromkeys` is Python's order-preserving dedupe."
     unique_atom: Symbol
+    "unique-atom: (-> Expression Atom)\n\n`dict.fromkeys` over children."
     unquote: Symbol
+    "unquote: (-> %Undefined% %Undefined%)\n\nReducing a quoted term is `m.eval`, primitive 4."
     unregister_token: Symbol
     with_pragma: Symbol
     with_seed: Symbol
     xor: Symbol
+    "xor: (-> Bool Bool Bool)\n\nPython's `^` on booleans."
     def __getitem__(self, name: str, /) -> Symbol: ...
 
 fn: Final[_FunctionNamespace]
