@@ -114,8 +114,10 @@ def clear_definitions(space: Any) -> None:
         _DEFINED_GENERATORS.difference_update(
             {key for key in _DEFINED_GENERATORS if key[0] == space.name}
         )
-        for key in [key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name]:
-            del _DEFINED_FUNCTION_NAMES[key]
+        for defined_key in [
+            key for key in _DEFINED_FUNCTION_NAMES if key[0] == space.name
+        ]:
+            del _DEFINED_FUNCTION_NAMES[defined_key]
 
 
 def install_define(space: Any, fn: Callable[..., Any], name: str | None = None):

@@ -58,6 +58,7 @@ class CompilerContext:
     hazards: set[str]
     scope: dict[str, str]
     known: Callable[[str], bool]
+    returns_bool: Callable[[str], bool]
     used: set[str]
     aux: list[Expression]
     lifted: dict[str, tuple[str, list[str], bool]]
@@ -71,6 +72,9 @@ class CompilerContext:
         raise NotImplementedError
 
     def _resolved_call_name(self, called: str) -> str:
+        raise NotImplementedError
+
+    def _resolved_name(self, identifier: str) -> str | None:
         raise NotImplementedError
 
     def _bound_defined_name(self, identifier: str) -> str | None:

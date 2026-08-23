@@ -247,17 +247,17 @@ class Rows(UserList[Row]):
             )
         return _row_class(self.columns)(values)
 
+    @overload  # type: ignore[override]
+    def __getitem__(self, i: Variable) -> list[Any]: ...  # type: ignore[overload-overlap]
+
+    @overload
+    def __getitem__(self, i: str) -> list[Any]: ...
+
     @overload
     def __getitem__(self, i: SupportsIndex) -> Row: ...
 
     @overload
     def __getitem__(self, i: slice[SupportsIndex | None]) -> Rows: ...
-
-    @overload
-    def __getitem__(self, i: Variable) -> list[Any]: ...
-
-    @overload
-    def __getitem__(self, i: str) -> list[Any]: ...
 
     def __getitem__(  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         self, i: SupportsIndex | slice[SupportsIndex | None] | Variable | str
@@ -705,7 +705,7 @@ class Answers[T](Sequence[T]):
 
     def __init__(  # noqa: D107 -- the enclosing type documents construction
         self,
-        source: Iterable[T],
+        source: Iterable[T | _AnswerItem],
         *,
         columns: Iterable[str] = (),
         space: str | None = None,
@@ -820,7 +820,7 @@ class Answers[T](Sequence[T]):
             msg = "slice step cannot be zero"
             raise ValueError(msg)
 
-        def selected() -> Iterator[T]:
+        def selected() -> Iterator[T | _AnswerItem]:
             if any(
                 value is not None and value < 0
                 for value in (window.start, window.stop, window.step)
