@@ -1,32 +1,31 @@
 """examples/basics/fibsmart.metta in Python: the accumulator fib.
 
-Two equations by two doors, and the second door is a real wall rather than a
-preference. `fib-tr` is a decorated Python function, because a compiled body
-may name ITSELF under either spelling. `fib` cannot be one: its body calls
-`fib-tr`, a compiled body resolves a free name EXACTLY, and no Python
-identifier is spelled `fib-tr`. So `fib` is written as the alias equation it
-is, which is the remedy the compiler's own refusal names.
+Two equations by two doors of the SAME decorator, and the second one shows
+how a compiled body reaches a name Python's grammar will not spell.
+`fib-tr` is a decorated Python function under `name="fib-tr"`, because no
+Python identifier carries a hyphen. `fib`'s body has to CALL it, and a
+compiled body resolves a free name through the descent ladder: rung 4 asks
+for the exact spelling and then for its underscore-to-hyphen image, so a bare
+`fib_tr(...)` would reach `fib-tr`. It does not here, because this file binds
+the Python name `fib_tr` to the decorated function, and a host binding of
+that spelling deliberately blocks the mapped fallback rather than crossing
+the quotation boundary by surprise. So the call descends one more rung, to
+the quoted-name escape `S["fib-tr"]`, which is exactly what rung 5 is for and
+which stores the original's own equation.
 
 `fib-tr`'s stored body differs from the original's in one place: a compiled
 body's `==` lowers to the prelude's `py-eq` where the original writes MeTTa's
 `(== $n 0)`. The residue table records that against P14.4.
 """
 
-from petta import S, V, equation
+from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 8050 to 9103, +1053, by the p14-tabling merge, the
-#: sole change between the two readings: admission analysis on a definition
-#: that was already linear, so the analysis is pure overhead here. Ratio
-#: 9103/9210 = 0.9884 [measured 2026-08-23 min-of-3 via tools/twin_coverage.py
-#: --measure]. Prior:
-#: RE-PINNED 2026-08-22, 8679 to 8050, -629 (-7.2%), by the twin contract
-#: change: the `test` wrapper left the engine for `assert`, and the call
-#: goes through `m.fn("fib")` rather than a built `(test ...)` term.
-#: Against the example's 8505 the ratio is 0.9465 [measured 2026-08-22
-#: min-of-3, `twin_coverage.py --measure`]. The old figure priced a
-#: different program.
-BUDGET = 9103
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -36,7 +35,22 @@ def twin(m):
         # (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
         return a if n == 0 else fib_tr(n - 1, b, a + b)
 
-    # (= (fib $n) (fib-tr $n 0 1))
-    m += equation(S.fib(V.n)).to(S["fib-tr"](V.n, 0, 1))
+    # DEFECT, and the line below is the workaround. The perfect spelling of a
+    # body calling the definition above it is the ordinary call,
+    #
+    #     return fib_tr(n, 0, 1)
+    #
+    # and it raises `CompileError: 'fib_tr' is not a parameter of fib, not a
+    # function the engine knows`. Rung 4's underscore-to-hyphen map would reach
+    # `fib-tr`, but a HOST BINDING of the same spelling blocks the mapped
+    # fallback, and `fib_tr` is bound here to the decorated function itself. So
+    # a body can never call a sibling whose MeTTa name differs from its Python
+    # name by that name, only at rung 5. The resolver should consult a bound
+    # `Defined`'s own MeTTa name before treating the binding as opaque host
+    # state [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    @m.define
+    def fib(n):
+        # (= (fib $n) (fib-tr $n 0 1))
+        return S["fib-tr"](n, 0, 1)
 
-    assert m.fn("fib")(100) == 354224848179261915075
+    assert fib(100) == [354224848179261915075]

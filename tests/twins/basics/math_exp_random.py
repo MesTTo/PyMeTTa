@@ -3,7 +3,9 @@
 The engine computes `exp` and `log`; the subtraction, the absolute value and
 the comparison that check them are Python's own, so the float-tolerance lines
 read as ordinary Python and pay no crossing for the arithmetic around the
-call.
+call. A nested call is BUILT with the static `fn` namespace and evaluated
+once, so `(log-math e (exp-math 3.0))` is one term rather than two crossings,
+which is the crossing rule as well as the spelling.
 
 The one thing that does not translate literally is `and`. The original writes
 `(and (<= $lo $x) (<= $x $hi))`, MeTTa's own connective. Python's `and` in a
@@ -14,34 +16,28 @@ is a Python keyword no body can name. The answers agree for the booleans this
 equation compares, and the residue table records the hole against P14.4.
 """
 
+from petta import fn
+
 #: e, to the precision the original writes it at.
 E = 2.718281828459045
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 4065 to 4261, +196, by the p14-tabling merge, the
-#: sole change between the two readings: admission analysis on its
-#: definitions. Ratio 4261/14622 = 0.2914 [measured 2026-08-23 min-of-3 via
-#: tools/twin_coverage.py --measure]. Prior:
-#: RE-PINNED 2026-08-22, 10704 to 4065, -6639 (-62.0%), by the twin
-#: contract change: seven `test` wrappers left the engine for `assert`, and
-#: the two float-tolerance claims moved their subtraction, absolute value
-#: and comparison into Python, which leaves only `exp-math` and `log-math`
-#: themselves crossing. Against the example's 14535 the ratio is 0.2797
-#: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
-#: figure priced a different program.
-BUDGET = 4261
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Check exp against its own inverse, then check the dice stay in range."""
-    exp, log = m.fn("exp-math"), m.fn("log-math")
-    randint, randfloat = m.fn("random-int"), m.fn("random-float")
+    exp, log = m.fn.exp_math, m.fn.log_math
 
-    assert exp(0) == 1.0
-    assert exp(1.0) == E
-    assert abs(exp(2.0) - E * E) < 1.0e-12
+    assert exp(0) == [1.0]
+    assert exp(1.0) == [E]
+    assert abs(exp(2.0).one() - E * E) < 1.0e-12
     # log-math is the inverse: log base e of e^x is x, within float error.
-    assert abs(log(E, exp(3.0)) - 3.0) < 1.0e-12
+    assert abs(log(E, fn.exp_math(3.0)).one() - 3.0) < 1.0e-12
 
     @m.define(name="in-range")
     def in_range(lo, hi, x):
@@ -49,6 +45,6 @@ def twin(m):
         return lo <= x <= hi
 
     # The random generators answer inside their bounds, every draw.
-    assert in_range(1, 6, randint(1, 6)) == [True]
-    assert in_range(0.0, 1.0, randfloat(0.0, 1.0)) == [True]
-    assert in_range(5, 5, randint(5, 5)) == [True]
+    assert in_range(1, 6, fn.random_int(1, 6)) == [True]
+    assert in_range(0.0, 1.0, fn.random_float(0.0, 1.0)) == [True]
+    assert in_range(5, 5, fn.random_int(5, 5)) == [True]

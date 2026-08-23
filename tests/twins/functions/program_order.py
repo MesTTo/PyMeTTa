@@ -15,13 +15,11 @@ against P14.4.
 from petta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 1223 to 656, -567 (-46.4%), by the twin contract
-#: change: the `test` wrapper left the engine for `assert`, and the
-#: unreduced call before the definition became a claim of its own rather
-#: than a printed answer. Against the example's 3534 the ratio is 0.1856
-#: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
-#: figure priced a different program.
-BUDGET = 656
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):

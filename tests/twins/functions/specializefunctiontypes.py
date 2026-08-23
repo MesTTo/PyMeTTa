@@ -10,7 +10,9 @@ Both definitions are ordinary Python functions. `f`'s parameter is named `g`
 exactly as the original's variable is, so inside the body `g` is that
 parameter and `g(x)` is `($g $x)`, the variable-head application; the `g`
 defined above it is a different thing with the same name, which is what the
-original means too.
+original means too. `repra` is an engine function named through the static
+namespace, `fn.repra`, which reads and autocompletes without the engine having
+to be running.
 
 The two type declarations are written as the atoms they are. Annotations are
 the decorator's own declaration door, but they emit ONE arrow per definition
@@ -18,21 +20,18 @@ and this head carries two, so no annotation says it. The residue table records
 that against P14.9.
 """
 
-from petta import S
+from petta import S, fn
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6016 to 5108, -908 (-15.1%), by the twin contract
-#: change: two `test` wrappers left the engine for `assert` and both `match
-#: &self` forms became `m[pattern]`, the subscript door, whose emptiness is
-#: Python's own truth test. Against the example's 7609 the ratio is 0.6713
-#: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
-#: figure priced a different program.
-BUDGET = 5108
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Declare two arrows for one head, specialize it, and find both on the copy."""
-    repra = m.fn("repra")
 
     @m.define
     def g(x):
@@ -48,10 +47,13 @@ def twin(m):
     @m.define
     def f(g, x):
         # (= (f $g $x) (repra ($g $x)))
-        return repra(g(x))
+        return fn.repra(g(x))
 
-    # The call that specializes it.
-    f(S.g, 42)
+    # !(f g 42), the call that specializes it. A call answers a LAZY view and
+    # creating one performs no engine work, so the answer has to be READ for
+    # the specialization to happen at all; `.one()` reads it and states its
+    # cardinality in the same breath.
+    assert f(S.g, 42).one() == S.repra(S.g(42))
 
     specialized = S["f_Spec_[g]"]
     assert m[S[":"](specialized, S["->"](S.Atom, S.Number, S.Atom))]

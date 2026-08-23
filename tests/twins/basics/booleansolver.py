@@ -16,7 +16,7 @@ sequence and `tuple(pair)` is the unpacking.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,13 +26,11 @@ Open Obligations:
 from petta import TRUE, S, V
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 1231 to 880, -351 (-28.5%), by the twin contract
-#: change: the `test` wrapper left the engine for `assert`, and reading the
-#: two answers as pairs is Python's own unpacking; the solving itself is
-#: untouched. Against the example's 2538 the ratio is 0.3467 [measured
-#: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
-#: priced a different program.
-BUDGET = 880
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):

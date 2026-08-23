@@ -8,7 +8,8 @@ nothing; removing the override restores the default on the same call.
 
 The override is an ordinary atom in an ordinary space, so setting it is `+=`
 and clearing it is `-=`: the library steers from inside MeTTa rather than
-through a Python knob, and the space handle carries both.
+through a Python knob, and `petta.reflection` is the handle for the space that
+holds it.
 
 One wall, measured here 2026-08-22 and filed as friction against P14.4:
 `m.eval` DROPS the not-reducible answer that this example is about. For a
@@ -25,36 +26,46 @@ is a bool, int, float or str, never a symbol. The residue table records that
 against P14.4 too.
 """
 
+import petta
 from petta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4594 to 2319, -2275 (-49.5%), by the twin contract
-#: change: three `test` wrappers and one `collapse` left the engine for
-#: `assert`, and both `add-atom`/`remove-atom` forms became `+=` and `-=`
-#: on the reflection space handle; the three claims are read through
-#: `m.fn("reduce")` because `m.eval` drops the not-reducible answer this
-#: example is about. Against the example's 8165 the ratio is 0.2840
-#: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
-#: figure priced a different program.
-BUDGET = 2319
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Read one call under the default policy, the override, and the default again."""
     only_a = S["only-a"]
-    reduce = m.fn("reduce")
+    reduce = m.fn.reduce
 
     # (= (only-a A) hit)
     m += equation(only_a(S.A)).to(S.hit)  # rung: the head fixes a SYMBOL
 
     # The catalogued default: a call nothing matches answers itself.
-    assert reduce.all(only_a(S.B)) == [only_a(S.B)]
+    #
+    # DEFECT, and the three claims below are the workaround. The perfect
+    # spelling is the evaluation door,
+    #
+    #     assert m.eval(only_a(S.B)) == [only_a(S.B)]
+    #
+    # and it answers `[]`: for a DEFINED function whose clauses do not match,
+    # `m.eval` drops the unreduced answer a runnable form keeps, so the
+    # override and the default become indistinguishable in exactly the file
+    # that is about telling them apart. `m.eval`'s own docstring says it is
+    # "what !(...) runs, minus the printing". The engine's `reduce` does apply
+    # the policy, so these read through it
+    # [measured 2026-08-22, reproduced 2026-08-23; commit=WORKTREE].
+    assert reduce(only_a(S.B)) == [only_a(S.B)]
 
-    reflection = m.space("&petta")
+    reflection = petta.reflection
     policy = S["dispatch-policy"](only_a, S.NoMatchEnum, S.NoMatchFail)
 
     reflection += policy
-    assert reduce.all(only_a(S.B)) == []
+    assert reduce(only_a(S.B)) == []
 
     reflection -= policy
-    assert reduce.all(only_a(S.B)) == [only_a(S.B)]
+    assert reduce(only_a(S.B)) == [only_a(S.B)]

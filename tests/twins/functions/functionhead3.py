@@ -5,83 +5,69 @@ constraint per argument, so the relation runs in BOTH directions: give it two
 numbers and it filters, give it variables and it enumerates what is reachable.
 The last form runs the whole relation backwards through a guard.
 
-Both definitions take the `@rules` shape of the definitional decorator, and
-here neither could take the function shape even in principle. `in` is a Python
-KEYWORD, so no Python function can carry that name and no Python body can call
-it either. Its body also names `is-member`, and a compiled body resolves a
-free name EXACTLY, so a hyphenated engine function is unreachable from one.
-`myplus` calls `in`, so the same wall stops it. In the equational shape both
-are ordinary atoms: `S["in"]` and `S["is-member"]` are the subscript form,
-which is exactly what the subscript is for, a name Python's own grammar will
-not take as an attribute. The residue table records the keyword gap against
-P14.4, where the hyphenated-name gap already sits.
+Both definitions are decorated Python functions, and both need the descent
+ladder's bottom rung, each for its own reason. `in` is a Python KEYWORD, so no
+Python function can carry that name: `name="in"` gives the equation the name
+the example uses, and `S["in"]` is how `myplus`'s body then calls it, the
+quoted-name escape for a name Python's grammar will not take. `is-member` is
+an engine function whose spelling is hyphenated, and `fn.is_member` is its
+mention door, rung 4's map applied at the factory.
 
-Every `collapse` dissolves, because an evaluation already answers the list of
-its answers. The last form's guard is `(> (myplus $x 2) 3)`, and there Python's
-own operator builds the term.
-Guarantees:
-  - TRUE, FALSE, UNIT, and HERE used here are package values rather
-    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+The variables `myplus` chains over are holes rather than parameters, which
+`V.x` and `V.y` say inside the body, and `S.let` names the relational `let`
+Python's assignment does not reach.
+
+Two ASKS, and the difference decides three of the six claims. A call carrying
+a caller variable answers that variable's BINDINGS, which is the surface's own
+`ancestor(V.who, S.Jim).who`; this example asks instead what the relation
+REDUCES TO while a variable stands in it, so those claims evaluate the term.
+`collapse` dissolves either way, because an evaluation already answers the
+list of its answers.
 """
 
-from petta import TRUE, S, V, equation, rules
+from petta import TRUE, S, V, fn
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 9302 to 6201, -3101 (-33.3%), by the twin contract
-#: change: six `test` wrappers and six `collapse` calls left the engine for
-#: `assert` and the list an evaluation already answers; every `let` chain
-#: and both directions of the relation stayed. Against the example's 15477
-#: the ratio is 0.4007 [measured 2026-08-22 min-of-3, `twin_coverage.py
-#: --measure`]. The old figure priced a different program.
-BUDGET = 6201
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Constrain both arguments and the result, then run it every way."""
 
-    def where(condition, answer):
-        """Answer `answer` only where `condition` reduces to True.
-
-        MeTTa's `(let True <condition> <answer>)`, the guard reading of `let`.
-        Everything it guards is evaluated in ONE derivation, which is what a
-        posted constraint needs, since the store is undone on the way out.
-        Python's `where=` says this on a query, but a guard over a CALL has no
-        Python spelling; the residue table records it against P14.4.
-        """
-        return S.let(TRUE, condition, answer)  # rung: let as a guard
-
-    # rung: `in` is a Python KEYWORD, so no function can carry that name and no
-    #   body can call it, and `is-member` is hyphenated, which a body cannot name
-    #   either (residue, P14.4)
-    @rules
-    def constrained(a, b, x, y, items):
+    @m.define(name="in")
+    def is_in(x, items):
         # (= (in $x $L) (let True (is-member $x $L) $x))
-        yield equation(S["in"](x, items)).to(where(S["is-member"](x, items), x))
+        return S.let(True, fn.is_member(x, items), x)  # noqa: FBT003  -- True is the ATOM the membership check answers, matched against, not a flag  # rung: let as a guard
+
+    @m.define
+    def myplus(a, b):
         # (= (myplus $A $B)
         #    (let $A (in $X (1 2 3))
         #      (let $B (in $Y (2 3))
         #        (in (+ $X $Y) (3 4 5)))))
-        inner = S.let(b, S["in"](y, (2, 3)), S["in"](x + y, (3, 4, 5)))  # rung: relational let
-        yield equation(S.myplus(a, b)).to(
-            S.let(a, S["in"](x, (1, 2, 3)), inner)  # rung: relational let
-        )
-
-    m.add(*constrained)
+        return S.let(a, S["in"](V.x, (1, 2, 3)),  # rung: relational let
+                     S.let(b, S["in"](V.y, (2, 3)),  # rung: relational let, again
+                           S["in"](V.x + V.y, (3, 4, 5))))
 
     # fine:
-    assert m.eval(S.myplus(1, 3)) == [4]
+    assert myplus(1, 3) == [4]
     # output out of range:
-    assert m.eval(S.myplus(3, 3)) == []
+    assert myplus(3, 3) == []
     # input out of range:
-    assert m.eval(S.myplus(3, 4)) == []
-    # what can be reached when adding $X to 3:
+    assert myplus(3, 4) == []
+    # what can be reached when adding $X to 3. The perfect spelling would be
+    # the call, `myplus(V.x, 3)`, and it answers `[Row(x=1), Row(x=2)]`: a call
+    # carrying a caller variable answers that variable's BINDINGS. That is the
+    # right reading for `ancestor(V.who, S.Jim).who` and the wrong one here,
+    # where the example asks what the relation REDUCES TO while a variable
+    # stands in it, so the term is evaluated instead. Not a defect, a split
+    # with only one door named [measured 2026-08-23; commit=WORKTREE].
     assert m.eval(S.myplus(V.x, 3)) == [4, 5]
     # what can be reached when adding $X to $Y:
     assert m.eval(S.myplus(V.x, V.y)) == [3, 4, 4, 5, 5]
     # with which $x added to 2 can we reach values above 3?
-    assert m.eval(where(S.myplus(V.x, 2) > 3, V.x)) == [2, 3]
+    assert m.eval(S.let(TRUE, S.myplus(V.x, 2) > 3, V.x)) == [2, 3]  # rung: let as a guard

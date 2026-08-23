@@ -4,24 +4,20 @@
 of `f`'s two clauses must leave the specialized call working over the clause
 that remains, and putting the clause back must bring its answer back.
 
-`g` is a computation, so it is a decorated Python function. `f`'s two clauses
-are ALTERNATIVES that both answer, which stacked `@m.define` clauses cannot
-mean, so they come from `@rules`, whose parameter IS the equation's variable.
-Naming the two equations is what lets `-=` and `+=` take them as the atoms
-they are.
+Both definitions are decorated Python functions. `g` is a computation; `f`'s
+two clauses are ALTERNATIVES that both answer, which a generator body says
+directly, one stored equation per yield. Naming the equation the yield stored
+is what lets `-=` and `+=` take it as the atom it is.
 """
 
-from petta import S, equation, rules
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 11696 to 10392, -1304 (-11.1%), by the twin
-#: contract change: three `test` wrappers and one `collapse` left the
-#: engine for `assert` and the answer list, and the two
-#: `add-atom`/`remove-atom` forms became `+=` and `-=`. Against the
-#: example's 13525 the ratio is 0.7684 [measured 2026-08-22 min-of-3,
-#: `twin_coverage.py --measure`]. The old figure priced a different
-#: program.
-BUDGET = 10392
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -32,17 +28,14 @@ def twin(m):
         # (= (g $x) (+ $x 1))
         return x + 1
 
-    # rung: the two clauses are ALTERNATIVES that both answer, which stacked
-    #   @m.define clauses read as first-match (residue, P14.4)
-    @rules
-    def clauses(g):
+    @m.define
+    def f(g):
         # (= (f $g) ($g 1))
-        yield equation(S.f(g)).to((g, 1))
+        yield (g, 1)
         # (= (f $g) ($g 2))
-        yield equation(S.f(g)).to((g, 2))
+        yield (g, 2)
 
-    one, two = clauses
-    m.add(one, two)
+    one = equation(S.f(V.g)).to((V.g, 1))
 
     assert m.eval(S.f(S.g)) == [2, 3]
 

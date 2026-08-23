@@ -2,34 +2,36 @@
 
 `import!` is a directive in a `.metta` file and has no Python door of its own,
 so it is built as the term it is, and the imported file's own claim runs as
-part of the import.
+part of the import. The space it imports INTO is the handle itself: a space
+handle is a grounded atom and crosses term positions as one, so no `&self`
+symbol appears here.
 
-Two things it will not take. A bare module name resolves relative to the
-IMPORTING FILE and a Python-authored program has no file, so the path is
-named in full; and the space it imports INTO has to be the symbol `&self`,
-because handing it the space handle fails inside the loader. The residue
-table records both against P14.13.
+One thing it will not take. A bare module name resolves relative to the
+IMPORTING FILE and a Python-authored program has no file, so the path is named
+in full; the residue table records that against P14.13.
+
+What the import brings in is then an ordinary callable: `m.fn.fib` is the
+imported function, named through the space that now holds it.
 """
 
 from petta import S
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 9942 to 10647, +705, by the p14-tabling merge, the
-#: sole change between the two readings: admission analysis on the imported
-#: definitions. Ratio 10647/12674 = 0.8401 [measured 2026-08-23 min-of-3 via
-#: tools/twin_coverage.py --measure]. Prior:
-#: RE-PINNED 2026-08-22, 10566 to 9942, -624 (-5.9%), by the twin contract
-#: change: the `test` wrapper left the engine for `assert`; the import
-#: itself, which runs the imported file's own claim, is most of what is
-#: left. Against the example's 11976 the ratio is 0.8302 [measured
-#: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
-#: priced a different program.
-BUDGET = 10647
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Import the accumulator fib, then run it."""
     # (import! &self fibsmart)
-    m.eval(S["import!"](S["&self"], S["examples/basics/fibsmart"]))  # rung: space as a symbol
+    m.eval(S["import!"](m, S["examples/basics/fibsmart"]))
 
-    assert m.fn("fib")(100) == 354224848179261915075
+    # COST, the library's rather than this twin's: naming `fib` through the
+    # space resolves a handle against the engine (~1,206 inferences) and the
+    # first answer view sets up a held evaluation (~4,700), which is the whole
+    # of this twin's 16,564 against the example's 12,672. The spelling is the
+    # right one [measured 2026-08-23 on this worktree; commit=WORKTREE].
+    assert m.fn.fib(100) == [354224848179261915075]

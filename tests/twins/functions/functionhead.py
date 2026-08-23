@@ -7,74 +7,59 @@ one the call can produce. So the constraint goes in the BODY, where the
 argument is unified with what the call produces, the call runs backwards, and
 `$B` comes out bound.
 
-`myfunc` is an ordinary Python function. `h` and `h_old` take the `@rules`
-shape of the definitional decorator, because both bodies mint a variable that
-is not a parameter: `$B` is the constraint's output, and a compiled body has
-no way to introduce a MeTTa variable of its own (a free lowercase name there
-is a call it cannot resolve, and an assignment binds a fresh name to a VALUE
-rather than leaving a hole to unify against). In the `@rules` shape it is
-simply another parameter, scoped to the generator, which is what the language
-calls it too. The residue table records the gap against P14.4.
+All three definitions are ordinary Python functions. What makes that possible
+is the mention doors a compiled body now has: `V.b` MINTS the hole the
+backwards call fills, a variable no parameter supplies; `fn.append` and
+`fn["="]` name engine functions whose spellings Python's grammar will not take
+as bare identifiers; and `S.let` names the relational `let` itself, which has
+no Python statement, because assignment is `let` in the OTHER direction, where
+the pattern is a fresh name and the subject is the call.
 
-`h_old` tests with `=`, MeTTa's unification, and `equation(a).to(b)` is the
-builder for exactly that atom; the newer `h` says the same thing with the
-inversion door.
+`h_old` tests with `=`, MeTTa's unification, and `fn["="]` is the function
+namespace's exact spelling for that head; the newer `h` says the same thing
+with the inversion door.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import Expression, S, equation, rules
+from petta import Expression, S, V, fn
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 8240 to 7701, -539 (-6.5%), by the twin contract
-#: change: two `test` wrappers left the engine for `assert`; both equations
-#: and both backward calls stayed, which is why this is a 6% saving rather
-#: than a half. Against the example's 13429 the ratio is 0.5735 [measured
-#: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
-#: priced a different program.
-BUDGET = 7701
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Constrain an argument to be what a call produces, two ways."""
 
-    def solve(pattern, subject, answer):
-        """Unify `pattern` with what `subject` produces, then answer `answer`.
-
-        Either side may be the call, which is what makes it run BACKWARDS: the
-        call's own variables come out bound. This is MeTTa's `let`, which
-        dissolves into Python's assignment when the subject is a call and the
-        pattern is a fresh name; the direction used here, a pattern the call
-        has to reach, has no Python spelling at all. The design's name for the
-        door it wants is `solve` (ai-python-first-revamp-discussion.md section
-        9g, idea 1), and the residue table records it against P14.4.
-        """
-        return S.let(pattern, subject, answer)  # rung: relational let
-
-    append = m.fn("append")
-
     @m.define
     def myfunc(a, b):
         # (= (myfunc $A $B) (append (append (42) $A) $B))
-        return append(append((42,), a), b)
+        return fn.append(fn.append((42,), a), b)
 
-    # rung: both bodies mint $B, a HOLE for the backwards call's unification to
-    #   fill, which a compiled body cannot introduce (residue, P14.4)
-    @rules
-    def constrained(a, c, b):
+    @m.define
+    def h_old(a, c):
         # (= (h_old $A $C) (if (= $A (myfunc (10) $B)) ($B $C) (empty)))
-        yield equation(S.h_old(a, c)).to(
-            S["if"](equation(a).to(S.myfunc((10,), b)), (b, c), S.empty())  # rung: MeTTa's if
-        )
+        return S["if"](fn["="](a, myfunc((10,), V.b)), (V.b, c), fn.empty())  # rung: MeTTa's if over a unification
+
+    @m.define
+    def h(a, c):
         # (= (h $A $C) (let $A (myfunc (10) $B) ($B $C)))
-        yield equation(S.h(a, c)).to(solve(a, S.myfunc((10,), b), (b, c)))
+        return S.let(a, myfunc((10,), V.b), (V.b, c))  # rung: relational let
 
-    m.add(*constrained)
-
-    assert m.eval(S.h((42, 10, 40), 42000)) == [Expression(((40,), 42000))]
-    assert m.eval(S.h_old((42, 10, 40), 42000)) == [Expression(((40,), 42000))]
+    # Both claims call the decorated functions rather than naming their heads.
+    # `h_old`'s MeTTa name carries an underscore, and the factory's attribute
+    # door applies rung 4's total map, so `S.h_old` is the atom `h-old` and
+    # would ask about a head nothing defines; the exact spelling is
+    # `S["h_old"]`. Calling the Python name sidesteps the trap entirely.
+    assert h((42, 10, 40), 42000) == [Expression(((40,), 42000))]
+    assert h_old((42, 10, 40), 42000) == [Expression(((40,), 42000))]

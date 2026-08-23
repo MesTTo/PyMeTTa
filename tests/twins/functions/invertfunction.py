@@ -6,71 +6,49 @@ destructuring it with an ordinary user function are the same act. The last
 form does it through arithmetic, where `#+` is the constraint path, so
 `(g $X $Y 35)` solves `$X + 35 = 42`.
 
-`f` is an ordinary Python function: `append((x,), y)` is `(append ($X) $Y)`,
-where the one-element Python tuple is the one-element expression.
+Both definitions are ordinary Python functions. `f` is `(append ($X) $Y)`,
+where the one-element Python tuple is the one-element expression; `g` names
+`#+`, which no Python identifier spells, and `fn["#+"]` is the function
+namespace's exact spelling for that head.
 
-`g` takes the `@rules` shape of the definitional decorator, because its body
-names `#+`, which no Python identifier spells; in the equational shape it is
-the ordinary subscripted symbol the subscript form exists for.
-Guarantees:
-  - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+`m.solve(pattern, subject)` is the inversion door: the known list on `let`'s
+pattern side, the call on its subject side, and the answer template derived
+from the subject's own variables, so each solution is a row keyed by the
+variable that solved it. The subject is a BUILT term rather than a Python
+call, because solve must receive the call unevaluated; `S.f` and `S.g` name
+the two definitions and `fn.cons` names the constructor.
 """
 
-from petta import Expression, S, V, equation, rules
+from petta import Expression, S, V, fn
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 8043 to 6756, -1287 (-16.0%), by the twin contract
-#: change: three `test` wrappers left the engine for `assert`; the three
-#: backward calls, which are the file, stayed. Against the example's 10800
-#: the ratio is 0.6256 [measured 2026-08-22 min-of-3, `twin_coverage.py
-#: --measure`]. The old figure priced a different program.
-BUDGET = 6756
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
+
+#: The list every claim destructures, and the head and tail it splits into.
+ITEMS = (1, 2, 3, 4, 5, 6)
+SPLIT = (1, Expression((2, 3, 4, 5, 6)))
 
 
 def twin(m):
     """Destructure a list three ways, one of them through arithmetic."""
 
-    def solve(pattern, subject, answer):
-        """Unify `pattern` with what `subject` produces, then answer `answer`.
-
-        Either side may be the call, which is what makes it run BACKWARDS: the
-        call's own variables come out bound. This is MeTTa's `let`, which
-        dissolves into Python's assignment when the subject is a call and the
-        pattern is a fresh name; the direction used here, a pattern the call
-        has to reach, has no Python spelling at all. The design's name for the
-        door it wants is `solve` (ai-python-first-revamp-discussion.md section
-        9g, idea 1), and the residue table records it against P14.4.
-        """
-        return S.let(pattern, subject, answer)  # rung: relational let
-
-    append = m.fn("append")
-
     @m.define
     def f(x, y):
         # (= (f $X $Y) (append ($X) $Y))
-        return append((x,), y)
+        return fn.append((x,), y)
 
-    # rung: the body names `#+`, which no Python identifier spells (residue, P14.4)
-    @rules
-    def constrained(x, y, z):
+    @m.define
+    def g(x, y, z):
         # (= (g $X $Y $Z) (append ((#+ $X $Z)) $Y))
-        yield equation(S.g(x, y, z)).to(S.append(((S["#+"], x, z),), y))
-
-    m.add(*constrained)
-
-    items = (1, 2, 3, 4, 5, 6)
-    split = Expression((1, (2, 3, 4, 5, 6)))
+        return fn.append((fn["#+"](x, z),), y)
 
     # List destructuring, through the cons constructor.
-    assert m.one(solve(S.cons(V.Head, V.Tail), items, (V.Head, V.Tail))) == split
+    assert tuple(m.solve(ITEMS, fn.cons(V.Head, V.Tail)).one()) == SPLIT
     # And through an ordinary user function, which is the point.
-    assert m.one(solve(S.f(V.Head, V.Tail), items, (V.Head, V.Tail))) == split
+    assert tuple(m.solve(ITEMS, S.f(V.Head, V.Tail)).one()) == SPLIT
     # A more complex case: the constraint solves 42 = $X + 35.
-    assert m.one(
-        solve(S.g(V.X, V.Y, 35), (42, 2, 3), (V.X, V.Y, 40))
-    ) == Expression((7, (2, 3), 40))
+    assert tuple(m.solve((42, 2, 3), S.g(V.X, V.Y, 35)).one()) == (7, Expression((2, 3)))

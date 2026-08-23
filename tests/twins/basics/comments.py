@@ -6,17 +6,11 @@ file puts them where the original puts them and says the same thing with them.
 """
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-23, 2003 to 1911, -92, by the p14-tabling merge, the sole
-#: change between the two readings: the define-path saving seen corpus-wide.
-#: Ratio 1911/2807 = 0.6808 [measured 2026-08-23 min-of-3 via
-#: tools/twin_coverage.py --measure]. Prior:
-#: RE-PINNED 2026-08-22, 2543 to 2003, -540 (-21.2%), by the twin contract
-#: change: the `test` wrapper and the `m.eval` around it left the engine
-#: for `assert` and the call door, so what is left is the definition and
-#: the one call over it. Against the example's 2771 the ratio is 0.7228
-#: [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old
-#: figure priced a different program.
-BUDGET = 1911
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):

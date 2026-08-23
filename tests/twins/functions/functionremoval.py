@@ -4,15 +4,14 @@ An equation is an ATOM, so it can be taken out of the space and put back, and
 the function answers differently while it is gone. When both clauses are gone
 `(f g)` matches nothing and answers itself.
 
-Two definitional doors, one per shape. `g` is a computation, so it is a
-decorated Python function. `f`'s two clauses are ALTERNATIVES that both
-answer, which stacked `@m.define` clauses cannot mean (stacking reads as
-first-match, and two clauses fixing no literal head are a redefinition of one
-another), so they come from `@rules`: the generator's parameter IS the
-equation's variable and each `yield` is one equation.
+Both definitions are decorated Python functions. `g` is a computation. `f`'s
+two clauses are ALTERNATIVES that both answer, and a generator body says
+exactly that: each independent yield stores one equation under the one head,
+so the pair is two atoms rather than a first-match ladder.
 
-The point of the file then writes itself, because the two equations are Python
-VALUES: named once, they are handed to `-=` and `+=` as the atoms they are.
+The point of the file then writes itself, because an equation is a VALUE:
+`equation(head).to(body)` builds the same atom the decorator stored, and `-=`
+and `+=` take it as the atom it is.
 
 The last claim reads through the engine's own reducer rather than `m.eval`,
 for the reason examples/functions/dispatch_policies.metta's twin measures:
@@ -20,17 +19,14 @@ with both clauses gone the call is not reducible, and `m.eval` drops that
 answer where a runnable form keeps it.
 """
 
-from petta import S, equation, rules
+from petta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 11719 to 9416, -2303 (-19.7%), by the twin
-#: contract change: four `test` wrappers and four `collapse` calls left the
-#: engine for `assert` and the answer list, and the four
-#: `add-atom`/`remove-atom` forms became `+=` and `-=` over the two named
-#: equations. Against the example's 14237 the ratio is 0.6614 [measured
-#: 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The old figure
-#: priced a different program.
-BUDGET = 9416
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -41,17 +37,15 @@ def twin(m):
         # (= (g $x) (+ $x 1))
         return x + 1
 
-    # rung: the two clauses are ALTERNATIVES that both answer, which stacked
-    #   @m.define clauses read as first-match (residue, P14.4)
-    @rules
-    def clauses(g):
+    @m.define
+    def f(g):
         # (= (f $g) ($g 1))
-        yield equation(S.f(g)).to((g, 1))
+        yield (g, 1)
         # (= (f $g) 42)
-        yield equation(S.f(g)).to(42)
+        yield 42
 
-    call, const = clauses
-    m.add(call, const)
+    call = equation(S.f(V.g)).to((V.g, 1))
+    const = equation(S.f(V.g)).to(42)
 
     assert m.eval(S.f(S.g)) == [2, 42]
 
@@ -63,4 +57,4 @@ def twin(m):
     assert m.eval(S.f(S.g)) == [42]
 
     m -= const
-    assert m.fn("reduce").all(S.f(S.g)) == [S.f(S.g)]
+    assert m.fn.reduce(S.f(S.g)) == [S.f(S.g)]

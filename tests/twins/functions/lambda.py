@@ -16,93 +16,85 @@ What a compiled body will not do is apply a lambda WHERE IT STANDS: `(lambda
 that apply an anonymous lambda immediately are built at the term door, where
 `|->` is an ordinary head, and the two claims that only bind one are compiled.
 
-`myfunc` and `myfunc2` are ordinary Python functions; `myfunc2` applies its
-own parameter, which is variable-head application.
+`apply` takes the `@m.rules` shape of the definitional decorator, because its
+HEAD is a pattern that takes `(lambda $var $body)` apart, which no parameter
+list spells. `applyL1` and `applyL2` are ordinary decorated functions whose
+bodies build lambda DATA holding `$x` and `$y`: those variables take their
+meaning from `apply`'s substitution rather than from anything in scope, and
+`V.x` is how a compiled body mints one.
 
-The `apply` family takes the `@rules` shape of the definitional decorator,
-because each body mints variables that are not parameters: `apply`'s head is a
-PATTERN that takes `(lambda $var $body)` apart, and `applyL1` and `applyL2`
-build lambda DATA holding `$x` and `$y`, which take their meaning from
-`apply`'s substitution rather than from anything in scope.
-
-Two operator spellings worth naming. `(or (== 1 $e) $acc)` is
-`val(1).eq(V.e) | V.acc`: `|` builds `or`, because Python's `or` keyword
-cannot be overloaded, and `.eq` builds `==`, because the `==` operator is
-taken by Python's own structural equality. And `$lambda` is `V["lambda"]`,
-since `lambda` is a Python keyword, which is exactly what the subscript is
-for.
+Two operator spellings worth naming, both in the fold that is applied where
+it stands. `(or (== 1 $e) $acc)` is `G(1).eq(V.e) | V.acc`: `|` builds `or`,
+because Python's `or` keyword cannot be overloaded, and `.eq` builds `==`,
+because the `==` operator is taken by Python's own structural equality.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import FALSE, Expression, S, V, equation, rules, val
+from petta import FALSE, Expression, G, S, V, equation, fn
 
 #: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 17054 to 17056, +2 (+0.0%), by the twin contract
-#: change: seven `test` wrappers left the engine for `assert`, and three of
-#: the seven claims ENTERED the compiled subset instead of the term door:
-#: Python's own `lambda` lowers to `|->`, so `maplist`, the
-#: partial-application binding and the closing lambda are now decorated
-#: definitions. The three registrations cost almost exactly what the seven
-#: wrappers saved, which is why this is the one twin in the two folders
-#: that did not get cheaper. Against the example's 24199 the ratio is
-#: 0.7048 [measured 2026-08-22 min-of-3, `twin_coverage.py --measure`]. The
-#: old figure priced a different program.
-BUDGET = 17056
+#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
+#: the integrator's single re-pin pass prices them all on the merged tree, so
+#: a figure measured in this worktree would price a tree that never ships
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Apply a lambda that is data, then five that are functions."""
-    cons, maplist = m.fn("cons"), m.fn("maplist")
-
     # (: apply (-> Atom %Undefined% %Undefined%))
     # rung: below the ANNOTATION door: the annotation door needs a decorated
-    #   definition, and `apply` cannot be one (residue, P14.4)
+    #   function, and `apply`'s head is a pattern (residue, P14.4)
     m += S[":"](S.apply, S["->"](S.Atom, S["%Undefined%"], S["%Undefined%"]))
 
-    # rung: `apply`'s head takes the PATTERN (lambda $var $body) apart, and
-    #   applyL1 and applyL2 build lambda data holding $x and $y, variables no
-    #   parameter supplies (residue, P14.4)
-    @rules
-    def fake(var, body, arg, x, y):
+    @m.rules
+    def fake(var, body, arg):
         # (= (apply (lambda $var $body) $arg) (eval (let $var $arg $body)))
         yield equation(S.apply(S["lambda"](var, body), arg)).to(
             S.eval(S.let(var, arg, body))  # rung: let as substitution
         )
+
+    # The MeTTa names are camel-cased and Python's are not, so `name=` carries
+    # the example's own spelling and the Python side stays PEP 8.
+    @m.define(name="applyL1")
+    def apply_l1():
         # (= (applyL1) (apply (lambda $x (+ $x 1)) 2))
-        yield equation(S.applyL1()).to(S.apply(S["lambda"](x, x + 1), 2))
+        return S.apply(S["lambda"](V.x, V.x + 1), 2)
+
+    @m.define(name="applyL2")
+    def apply_l2():
         # (= (applyL2) (apply (lambda ($x $y) (+ $x $y)) (2 7)))
-        yield equation(S.applyL2()).to(S.apply(S["lambda"]((x, y), x + y), (2, 7)))
+        return S.apply(S["lambda"]((V.x, V.y), V.x + V.y), (2, 7))
 
-    m.add(*fake)
-
-    assert m.eval(S.applyL1()) == [3]
-    assert m.eval(S.applyL2()) == [9]
+    assert apply_l1() == [3]
+    assert apply_l2() == [9]
 
     # A real lambda, mapped over a list: Python's own lambda IS `|->`.
-    @m.define
+    @m.define(name="increment-all")
     def increment_all(items):
         # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
-        return maplist(lambda a: 1 + a, items)
+        return fn.maplist(lambda a: 1 + a, items)
 
     assert increment_all((1, 2, 3)) == [Expression((2, 3, 4))]
 
     # Applied where it stands, which a compiled body will not do.
-    folding = S["|->"]((V.acc, V.e), val(1).eq(V.e) | V.acc)
+    folding = S["|->"]((V.acc, V.e), G(1).eq(V.e) | V.acc)
     assert m.eval((folding, FALSE, 1)) == [True]
 
     @m.define
     def myfunc(a, b):
         # (= (myfunc $a $b) (cons $a $b))
-        return cons(a, b)
+        return fn.cons(a, b)
 
     # A lambda over a PARTIAL application bound above it.
-    @m.define
+    @m.define(name="through-partial")
     def through_partial():
         # (let $f (myfunc 42) ((|-> ($x) ($f ($x 2 3))) 43))
         f = myfunc(42)
@@ -112,7 +104,9 @@ def twin(m):
     assert through_partial() == [Expression((42, 43, 2, 3))]
 
     # Partially applied: one argument now, the other later.
-    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [Expression((42, 43, 44))]
+    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [
+        Expression((42, 43, 44))
+    ]
 
     @m.define
     def myfunc2(mylambda):
