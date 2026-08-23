@@ -115,6 +115,10 @@
 %   - petta_py_limited/6 adds a negative-sentinel stack byte ceiling to the
 %     existing time and inference bounds and restores it on every exit path
 %     [tested: test_janus_stack_scope_restores_on_all_exits; commit=WORKTREE]
+%   - petta_py_function_generation/1 exposes the engine's process-global
+%     fun/1-set generation without reproducing catalogue policy in the host
+%     [tested: test_generation_tracks_definitions_but_not_evaluation;
+%     commit=WORKTREE]
 %   - petta_py_register_token/2 retains a Python constructor in the engine's
 %     reader table and seam:host_reader_token_construct/3 returns its encoded
 %     Atom through the shared decoder [tested:
@@ -2350,6 +2354,9 @@ petta_py_builtins(Names) :-
     append(Functions, SpecialForms, Language0),
     sort(Language0, Language),
     maplist(atom_string, Language, Names).
+
+petta_py_function_generation(Generation) :-
+    metta_host_function_generation(Generation).
 
 petta_py_special_form_names(Names) :-
     findall(Name, metta_special_form_head(Name), Names0),
