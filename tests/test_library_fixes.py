@@ -27,6 +27,9 @@ Guarantees:
   - function handles and Defined objects suspend endless producers between
     requested answers [tested: test_function_calls_suspend_endless_producers;
     commit=WORKTREE]
+  - a grounded atom participates in term-building operators instead of
+    computing as its carried Python value [tested:
+    test_grounded_atoms_lift_python_operators_to_terms; commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -222,3 +225,13 @@ def test_function_calls_suspend_endless_producers() -> None:
     assert expected == actual == defined_actual == [G(0), G(1), G(2), G(3)]
     assert handle_cost.inferences < engine_cost.inferences
     assert defined_cost.inferences < engine_cost.inferences
+
+
+def test_grounded_atoms_lift_python_operators_to_terms() -> None:
+    """G(value) is the explicit bridge from Python data to staged syntax."""
+    target = space()
+
+    assert G(1) + 2 == S["+"](1, 2)
+    assert 2 + G(1) == S["+"](2, 1)
+    assert -G(1) == S["-"](0, 1)
+    assert target.answers(G(1) + 2).one() == 3

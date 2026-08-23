@@ -11,7 +11,7 @@ Guarantees:
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
-      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+      commit=WORKTREE]
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in
@@ -143,10 +143,12 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     metta.run("(= (matmul $left $right) (* $left $right))")
     assert metta.eval(provided) == [42]
 
-    assert Grounded(7) // 2 == 3
-    assert -Grounded(7) == -7
-    assert abs(Grounded(-7)) == 7
-    assert Grounded(3) << 2 == 12
-    assert Grounded(12) >> 2 == 3
+    assert Grounded(7) // 2 == S["floor-math"](S["/"](7, 2))
+    assert -Grounded(7) == S["-"](0, 7)
+    assert abs(Grounded(-7)) == S["abs-math"](-7)
+    with pytest.raises(TypeError, match="MeTTa has no integer-left-shift operation"):
+        Grounded(3) << 2
+    with pytest.raises(TypeError, match="MeTTa has no integer-right-shift operation"):
+        Grounded(12) >> 2
     assert (S.x == S.x) is True
     assert str(S.x.eq(S.y)) == "(== x y)"

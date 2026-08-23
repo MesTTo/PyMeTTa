@@ -9,6 +9,9 @@ Guarantees:
     truthiness-refusing comparison terms [tested:
     test_rich_comparisons_order_atoms_and_explicit_terms_refuse_truthiness;
     commit=WORKTREE]
+  - grounded atoms stage operators while their explicit value and conversion
+    doors retain host-value semantics [tested:
+    test_grounded_atoms_keep_values_but_stage_operators; commit=WORKTREE]
   - Python classes declare through ``Space.define`` [tested:
     test_define_decorator_declares_field_types; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - an unannotated weighted operation stays untyped without a typed flag
@@ -71,15 +74,17 @@ def test_boolean_operators_compose_guards():  # noqa: D103  -- pytest discovers 
     assert ~V.ok == Expression(S["not"], V.ok)
 
 
-def test_grounded_values_keep_value_semantics():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert Grounded(3) + 1 == 4
-    assert Grounded(3) * Grounded(4) == 12
-    assert 10 - Grounded(4) == 6
-    assert Grounded(2) ** 10 == 1024
-    assert Grounded(6) & 3 == 2
-    assert Grounded(5) ^ 1 == 4
-    assert ~Grounded(0) == -1
+def test_grounded_atoms_keep_values_but_stage_operators():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert Grounded(3) + 1 == Expression(S["+"], 3, 1)
+    assert Grounded(3) * Grounded(4) == Expression(S["*"], 3, 4)
+    assert 10 - Grounded(4) == Expression(S["-"], 10, 4)
+    assert Grounded(2) ** 10 == Expression(S["pow-math"], 2, 10)
+    assert Grounded(6) & 3 == Expression(S["and"], 6, 3)
+    assert Grounded(5) ^ 1 == Expression(S["xor"], 5, 1)
+    assert ~Grounded(0) == Expression(S["not"], 0)
     assert (Grounded(7) >= 5) is True  # a boolean, never a term
+    assert Grounded(7).value == 7
+    assert int(Grounded(7)) == 7
 
 
 def test_rich_comparisons_order_atoms_and_explicit_terms_refuse_truthiness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -818,100 +818,10 @@ class Grounded(Atom):
             )
         return Grounded, (self.value,)
 
-    # Grounded values are VALUES throughout: comparisons answer booleans
-    # (engine-exactly) and arithmetic computes, so an answer post-processes
-    # like the number it is; term building belongs to symbols, variables
-    # and expressions.
-
-    def _value_of(self, other: Any) -> Any:
-        return other.value if isinstance(other, Grounded) else other
-
-    def __add__(self, other: Any) -> Any:
-        return self.value + self._value_of(other)
-
-    def __radd__(self, other: Any) -> Any:
-        return self._value_of(other) + self.value
-
-    def __sub__(self, other: Any) -> Any:
-        return self.value - self._value_of(other)
-
-    def __rsub__(self, other: Any) -> Any:
-        return self._value_of(other) - self.value
-
-    def __mul__(self, other: Any) -> Any:
-        return self.value * self._value_of(other)
-
-    def __rmul__(self, other: Any) -> Any:
-        return self._value_of(other) * self.value
-
-    def __truediv__(self, other: Any) -> Any:
-        return self.value / self._value_of(other)
-
-    def __rtruediv__(self, other: Any) -> Any:
-        return self._value_of(other) / self.value
-
-    def __floordiv__(self, other: Any) -> Any:
-        return self.value // self._value_of(other)
-
-    def __rfloordiv__(self, other: Any) -> Any:
-        return self._value_of(other) // self.value
-
-    def __mod__(self, other: Any) -> Any:
-        return self.value % self._value_of(other)
-
-    def __rmod__(self, other: Any) -> Any:
-        return self._value_of(other) % self.value
-
-    def __pow__(self, other: Any) -> Any:
-        return self.value ** self._value_of(other)
-
-    def __rpow__(self, other: Any) -> Any:
-        return self._value_of(other) ** self.value
-
-    def __matmul__(self, other: Any) -> Any:
-        return self.value @ self._value_of(other)
-
-    def __rmatmul__(self, other: Any) -> Any:
-        return self._value_of(other) @ self.value
-
-    def __lshift__(self, other: Any) -> Any:
-        return self.value << self._value_of(other)
-
-    def __rlshift__(self, other: Any) -> Any:
-        return self._value_of(other) << self.value
-
-    def __rshift__(self, other: Any) -> Any:
-        return self.value >> self._value_of(other)
-
-    def __rrshift__(self, other: Any) -> Any:
-        return self._value_of(other) >> self.value
-
-    def __and__(self, other: Any) -> Any:
-        return self.value & self._value_of(other)
-
-    def __rand__(self, other: Any) -> Any:
-        return self._value_of(other) & self.value
-
-    def __or__(self, other: Any) -> Any:
-        return self.value | self._value_of(other)
-
-    def __ror__(self, other: Any) -> Any:
-        return self._value_of(other) | self.value
-
-    def __xor__(self, other: Any) -> Any:
-        return self.value ^ self._value_of(other)
-
-    def __rxor__(self, other: Any) -> Any:
-        return self._value_of(other) ^ self.value
-
-    def __invert__(self) -> Any:
-        return ~self.value
-
-    def __neg__(self) -> Any:
-        return -self.value
-
-    def __abs__(self) -> Any:
-        return abs(self.value)
+    # Grounded values are atoms at the operator boundary.  They inherit the
+    # base class's term builders, making G(value) the explicit lift from host
+    # data into staged syntax.  Their carried Python value remains available
+    # through .value and through the numeric conversion methods below.
 
     # Grounded primitives order like their values, so answers sort and
     # compare with plain numbers: max(rows["age"]) and Grounded(7) >= 5
