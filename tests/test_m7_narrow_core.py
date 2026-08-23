@@ -50,7 +50,7 @@ FINAL_METTA_METHODS = 20
 # atoms TRUE, FALSE, UNIT and HERE to root values the twins can name; +1 when
 # R1 exported the static fn namespace at the root; +8 when R5 landed its
 # ruled doors (typed, arrow, the keyword builders, State and solve's kin).
-FINAL_PETTA_EXPORTS = 79
+FINAL_PETTA_EXPORTS = 80
 
 SATELLITES = {
     "aio",

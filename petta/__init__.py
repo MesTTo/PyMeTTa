@@ -33,6 +33,9 @@ Guarantees:
     [tested:
     test_expression_position_superpose_and_match_share_the_ambient_space;
     commit=WORKTREE]
+  - ``view`` lazily opens a live provider space over Python mappings, sets,
+    and sequences [tested: test_view_is_a_live_queryable_space;
+    commit=WORKTREE]
 Decides:
   - ``DEFAULT_STACK_LIMIT`` preserves the upstream wrapper's 8 GB Prolog
     stack policy [source: PeTTa-base/python/petta/__init__.py:8;
@@ -120,6 +123,7 @@ _LAZY_ATTRIBUTES = {
     "boot": ("manifest", "boot"),
     "equation": ("_rules", "equation"),
     "rules": ("_rules", "rules"),
+    "view": ("spaces", "view"),
 }
 
 _HIDDEN_IMPLEMENTATION_MODULES = {
@@ -482,6 +486,7 @@ __all__ = [
     "trace",
     "typed",
     "unify",
+    "view",
     "vocabularies",
     "wire",
 ]
