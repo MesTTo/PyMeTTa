@@ -13,7 +13,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
 
-from petta import MeTTa
+from metta import MeTTa
 
 
 def _answers(metta: MeTTa, source: str) -> list[str]:

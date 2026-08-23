@@ -19,7 +19,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression
+from metta import Expression
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the

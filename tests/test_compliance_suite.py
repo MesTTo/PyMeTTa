@@ -1,4 +1,4 @@
-"""Purpose: petta.testing.SpaceComplianceSuite, the engine's own space tests
+"""Purpose: metta.testing.SpaceComplianceSuite, the engine's own space tests
 run against a third party's provider.
 
 The suite is only worth having if it holds of providers that differ, so it runs
@@ -27,11 +27,11 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa
-from petta.atoms import Expression, S, Symbol, Variable
-from petta.errors import PettaError
-from petta.foreign import SpaceProvider
-from petta.testing import SpaceComplianceSuite
+from metta import MeTTa
+from metta.atoms import Expression, S, Symbol, Variable
+from metta.errors import PettaError
+from metta.foreign import SpaceProvider
+from metta.testing import SpaceComplianceSuite
 
 from .test_foreign import ListSpace
 
@@ -175,7 +175,7 @@ def test_the_suite_covers_every_declarable_capability():
     from both lists rather than restated, so the next one added to the seam
     fails here instead of going quietly unchecked.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from petta import _compliance, foreign
+    from metta import _compliance, foreign
 
     assert set(_compliance.CAPABILITIES) == set(foreign.CAPABILITIES), (
         f"the suite does not cover "
@@ -229,8 +229,8 @@ def test_a_provider_declaring_nothing_cannot_pass(tmp_path):
     suite = tmp_path / "test_empty_provider.py"
     suite.write_text(
         "import pytest\n"
-        "from petta.foreign import SpaceProvider\n"
-        "from petta.testing import SpaceComplianceSuite\n"
+        "from metta.foreign import SpaceProvider\n"
+        "from metta.testing import SpaceComplianceSuite\n"
         "\n"
         "class Nothing(SpaceProvider):\n"
         "    def can_run(self, capability, /, **request):\n"
@@ -246,7 +246,7 @@ def test_a_provider_declaring_nothing_cannot_pass(tmp_path):
 
 
 def test_a_collectible_subclass_without_its_fixture_refuses_at_definition():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta.testing import GatewayComplianceSuite
+    from metta.testing import GatewayComplianceSuite
 
     with pytest.raises(TypeError, match=r"without a `provider` fixture"):
         type("TestNoProvider", (SpaceComplianceSuite,), {})
@@ -267,7 +267,7 @@ def test_the_shape_the_suite_picks_does_not_depend_on_enumeration_order():
     """  # noqa: D205  -- the invariant is one continuous statement, not summary-and-body prose
     from itertools import permutations
 
-    from petta._compliance import shaped_atom
+    from metta._compliance import shaped_atom
 
     picked = {str(shaped_atom(list(order))) for order in permutations(ROWS)}
     assert picked == {"(edge a b)"}

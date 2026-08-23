@@ -9,7 +9,7 @@ definition is an ordinary atom, so `-=`, the operator that removes an atom,
 removes it, and `equation(head).to(body)` names which atom to remove.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

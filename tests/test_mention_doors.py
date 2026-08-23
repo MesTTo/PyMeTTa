@@ -32,8 +32,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from petta import Expression, S, V, Variable, fn
-from petta.errors import CompileError
+from metta import Expression, S, V, Variable, fn
+from metta.errors import CompileError
 
 
 @pytest.fixture()
@@ -290,20 +290,20 @@ def test_the_fn_namespace_is_generated(repo_root: Path):
     with pytest.raises(AttributeError, match="no target function"):
         getattr(fn, missing)
 
-    stub = (repo_root / "bindings" / "python" / "petta" / "_fn.pyi").read_text(encoding="utf-8")
+    stub = (repo_root / "bindings" / "python" / "metta" / "_fn.pyi").read_text(encoding="utf-8")
     assert "car_atom: Symbol" in stub
     assert "def __getattr__" not in stub
 
     manifest = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
-    assert "*.pyi" in manifest["tool"]["setuptools"]["package-data"]["petta"]
+    assert "*.pyi" in manifest["tool"]["setuptools"]["package-data"]["metta"]
 
     environment = os.environ | {"PYTHONPATH": str(repo_root / "bindings" / "python")}
     imported = subprocess.run(
         [
             sys.executable,
             "-c",
-            "import sys; from petta import fn; "
-            "assert 'petta._engine' not in sys.modules; print(fn.car_atom)",
+            "import sys; from metta import fn; "
+            "assert 'metta._engine' not in sys.modules; print(fn.car_atom)",
         ],
         cwd=repo_root,
         env=environment,
@@ -316,7 +316,7 @@ def test_the_fn_namespace_is_generated(repo_root: Path):
 
 def test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door():
     """Genuine underscores and non-Python-style names remain exact-only."""
-    from petta._name_mapping import generated_aliases
+    from metta._name_mapping import generated_aliases
 
     assert generated_aliases(["same-name", "same_name", "mixedCase", "pragma!"]) == {
         "pragma": "pragma!",

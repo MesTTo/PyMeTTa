@@ -13,8 +13,8 @@ Open Obligations:
 
 import pytest
 
-from petta import S, V, parse
-from petta.algebra import RateDeclarationError
+from metta import S, V, parse
+from metta.algebra import RateDeclarationError
 
 
 def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
@@ -28,7 +28,7 @@ def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
     )
     with metta._new_space() as program:
         program.add(S.ordinary(S.stays))
-        unchanged = program.query(S.ordinary(V.value))
+        unchanged = program.match(S.ordinary(V.value))
         program.add_tagged_fact(parse("(rate 1)"), S.branch(S.slow))
         program.add_tagged_fact(parse("(rate 3)"), S.branch(S.fast))
         first = program.sample_rates(
@@ -43,7 +43,7 @@ def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
         assert slow + fast == 1_000
         assert abs(slow / 1_000 - 0.25) <= 0.05
         assert abs(fast / 1_000 - 0.75) <= 0.05
-        assert program.query(S.ordinary(V.value)) == unchanged
+        assert program.match(S.ordinary(V.value)) == unchanged
 
 
 def test_invalid_rates_are_refused_before_the_tagged_fact_lands(metta):

@@ -19,15 +19,15 @@ import textwrap
 
 import pytest
 
-from petta import (
+from metta import (
     Expression,
     PettaError,
     S,
     V,
     ground,
 )
-from petta._persistent import PersistentFactSpace
-from petta.errors import EngineError
+from metta._persistent import PersistentFactSpace
+from metta.errors import EngineError
 
 
 def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -194,8 +194,8 @@ def _crash_writer(journal, sync_mode, checkpoint):
     program = textwrap.dedent(
         f"""
         import os, signal
-        from petta import S
-        from petta._persistent import PersistentFactSpace
+        from metta import S
+        from metta._persistent import PersistentFactSpace
 
         space = PersistentFactSpace({str(journal)!r}, {{"survivor": 1}}, sync={sync_mode!r})
         space.add(S.survivor(1))
@@ -361,7 +361,7 @@ def test_incomplete_terminal_record_is_backed_up_and_removed(tmp_path, caplog): 
     with journal.open("ab") as stream:
         stream.write(incomplete_tail)
 
-    with caplog.at_level(logging.WARNING, logger="petta._persistent"):
+    with caplog.at_level(logging.WARNING, logger="metta._persistent"):
         recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     try:
         assert list(recovered.atoms()) == prefix_facts
@@ -389,7 +389,7 @@ def test_tail_backup_is_durable_before_truncation(tmp_path, monkeypatch):  # noq
         synced.append("directory" if stat.S_ISDIR(mode) else "file")
         real_fsync(descriptor)
 
-    monkeypatch.setattr("petta._persistent.os.fsync", record_fsync)
+    monkeypatch.setattr("metta._persistent.os.fsync", record_fsync)
     recovered = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     recovered.close()
 

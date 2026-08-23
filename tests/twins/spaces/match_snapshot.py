@@ -24,8 +24,8 @@ the bare lowercase symbol needs the term door any more.
 
 from collections import Counter
 
-import petta
-from petta import S, V, equation
+import metta
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -59,7 +59,7 @@ def twin(m):
     # The single-pattern case, reduced to its detector: two rows, and each
     # template removes the OTHER one. A lazy query would lose the row it had
     # not reached yet and answer once.
-    snapshot = petta.space("&snapshot")
+    snapshot = metta.space("&snapshot")
     snapshot += S.item(S.alpha)
     snapshot += S.item(S.beta)
 

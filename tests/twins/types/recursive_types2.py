@@ -13,7 +13,7 @@ constructor belongs to, and the constructor here is spelled `S`, which is
 already the name of the symbol factory in Python.
 """
 
-from petta import FALSE, TRUE, S, V, arrow, equation, typed
+from metta import FALSE, TRUE, S, V, arrow, equation, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

@@ -1,4 +1,4 @@
-"""Purpose: petta.boot assembles an app from a (boot ...) manifest: closed
+"""Purpose: metta_module.boot assembles an app from a (boot ...) manifest: closed
 vocabulary, whole-manifest validation before any effect, source-order
 performance, and the deployment recorded as queryable atoms.
 Guarantees:
@@ -19,7 +19,7 @@ import urllib.request
 
 import pytest
 
-import petta
+import metta as metta_module
 
 
 def _free_port() -> int:
@@ -29,10 +29,10 @@ def _free_port() -> int:
 
 
 def test_boot_is_reachable_lazily():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert "boot" in dir(petta)
-    assert "Boot" not in dir(petta)
-    assert petta.boot is petta.manifest.boot
-    assert petta.manifest.Boot.__module__ == "petta.manifest"
+    assert "boot" in dir(metta_module)
+    assert "Boot" not in dir(metta_module)
+    assert metta_module.boot is metta_module.manifest.boot
+    assert metta_module.manifest.Boot.__module__ == "metta.manifest"
 
 
 def test_load_and_serve_assemble_and_record(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -40,10 +40,10 @@ def test_load_and_serve_assemble_and_record(metta, tmp_path):  # noqa: D103  -- 
     (tmp_path / "app.metta").write_text(
         ';; the app, declared\n(boot (load "rules.metta"))\n(boot (serve (&self) 0))\n'
     )
-    booted = petta.boot(tmp_path / "app.metta", m=metta)
+    booted = metta_module.boot(tmp_path / "app.metta", m=metta)
     try:
         assert list(metta.eval("(manifest-double 21)")) == [42]
-        topology = {str(row[0]) for row in metta.query("(boot $what)")}
+        topology = {str(row[0]) for row in metta.match("(boot $what)")}
         assert '(load "rules.metta")' in topology
         assert "(serve (&self) 0)" in topology
         (server,) = booted.servers
@@ -58,7 +58,7 @@ def test_load_and_serve_assemble_and_record(metta, tmp_path):  # noqa: D103  -- 
 
 def test_boot_is_a_context_manager(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text("(boot (serve (&self) 0))\n")
-    with petta.boot(tmp_path / "app.metta", m=metta) as booted:
+    with metta_module.boot(tmp_path / "app.metta", m=metta) as booted:
         url = booted.servers[0].url
         urllib.request.urlopen(url + "/health")
     with pytest.raises(urllib.error.URLError):
@@ -71,8 +71,8 @@ def test_load_resolves_against_the_manifest_directory(metta, tmp_path):  # noqa:
     (nested / "facts.metta").write_text("(manifest-fact here)\n")
     (nested / "app.metta").write_text('(boot (load "facts.metta"))\n')
     # cwd is wherever pytest runs; only the manifest's directory may matter.
-    with petta.boot(nested / "app.metta", m=metta):
-        assert [str(row[0]) for row in metta.query("(manifest-fact $w)")] == ["here"]
+    with metta_module.boot(nested / "app.metta", m=metta):
+        assert [str(row[0]) for row in metta.match("(manifest-fact $w)")] == ["here"]
 
 
 def test_bridge_declares_materializes_and_registers(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -82,7 +82,7 @@ def test_bridge_declares_materializes_and_registers(metta, tmp_path):  # noqa: D
     (tmp_path / "app.metta").write_text(
         "(boot (bridge &mdb (medge $a $b) (row medges (a $a) (b $b))))\n"
     )
-    booted = petta.boot(tmp_path / "app.metta", m=metta, connections={"&mdb": connection})
+    booted = metta_module.boot(tmp_path / "app.metta", m=metta, connections={"&mdb": connection})
     assert [str(p) for p in booted.performed] == [
         "(boot (bridge &mdb (medge $a $b) (row medges (a $a) (b $b))))"
     ]
@@ -95,7 +95,7 @@ def test_bridge_declares_materializes_and_registers(metta, tmp_path):  # noqa: D
 def test_attach_registers_the_remote_space(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Registration is lazy, so a dead URL attaches; only use would fail.
     (tmp_path / "app.metta").write_text('(boot (attach &mhq "http://127.0.0.1:9" &their))\n')
-    with petta.boot(tmp_path / "app.metta", m=metta):
+    with metta_module.boot(tmp_path / "app.metta", m=metta):
         assert "&mhq" in metta.space_names()
     metta._unregister_space("&mhq")
 
@@ -108,40 +108,40 @@ def test_every_problem_is_reported_before_anything_performs(metta, tmp_path):  #
         "(boot (serve (&self) 70000))\n"
         "(not-a-boot-form)\n"
     )
-    with pytest.raises(petta.PettaError) as caught:
-        petta.boot(tmp_path / "app.metta", m=metta)
+    with pytest.raises(metta_module.PettaError) as caught:
+        metta_module.boot(tmp_path / "app.metta", m=metta)
     message = str(caught.value)
     assert "form 1: unknown boot form launch" in message
     assert "form 2: load takes one string path" in message
     assert "form 3: serve's first argument" in message
     assert "form 4: serve's second argument" in message
     assert "form 5: (not-a-boot-form) is not a (boot (...)) form" in message
-    assert list(metta.query("(boot (launch $x))")) == []
+    assert list(metta.match("(boot (launch $x))")) == []
 
 
 def test_connections_must_match_bridges_exactly(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text("(boot (bridge &mconn (e $a) (row t (a $a))))\n")
-    with pytest.raises(petta.PettaError, match=r"bridge &mconn names no connection"):
-        petta.boot(tmp_path / "app.metta", m=metta)
+    with pytest.raises(metta_module.PettaError, match=r"bridge &mconn names no connection"):
+        metta_module.boot(tmp_path / "app.metta", m=metta)
     (tmp_path / "plain.metta").write_text("(boot (serve (&self) 0))\n")
-    with pytest.raises(petta.PettaError, match=r"'&stray' is claimed by no bridge"):
-        petta.boot(
+    with pytest.raises(metta_module.PettaError, match=r"'&stray' is claimed by no bridge"):
+        metta_module.boot(
             tmp_path / "plain.metta",
             m=metta,
             connections={"&stray": sqlite3.connect(":memory:")},
         )
-    assert list(metta.query("(boot (bridge &mconn $s $r))")) == []
+    assert list(metta.match("(boot (bridge &mconn $s $r))")) == []
 
 
 def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "bang.metta").write_text('!(boot (load "x.metta"))\n')
-    with pytest.raises(petta.PettaError, match=r"does not run.*drop the !"):
-        petta.boot(tmp_path / "bang.metta", m=metta)
+    with pytest.raises(metta_module.PettaError, match=r"does not run.*drop the !"):
+        metta_module.boot(tmp_path / "bang.metta", m=metta)
     (tmp_path / "defn.metta").write_text("(= (manifest-smuggled) 1)\n")
-    with pytest.raises(petta.PettaError, match=r"does not define"):
-        petta.boot(tmp_path / "defn.metta", m=metta)
+    with pytest.raises(metta_module.PettaError, match=r"does not define"):
+        metta_module.boot(tmp_path / "defn.metta", m=metta)
     # the refusal happened at the read: nothing was compiled
-    assert list(metta.query("(= (manifest-smuggled) $b)")) == []
+    assert list(metta.match("(= (manifest-smuggled) $b)")) == []
     # and nothing was REGISTERED either, which is the half a compiled-clause
     # query cannot see. run() and load() register a source's whole signature
     # set before processing its forms; a manifest read is the one door that
@@ -152,8 +152,8 @@ def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):  # noqa: D103  --
 
 def test_an_empty_manifest_refuses(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text(";; nothing but comments\n")
-    with pytest.raises(petta.PettaError, match=r"declares nothing"):
-        petta.boot(tmp_path / "app.metta", m=metta)
+    with pytest.raises(metta_module.PettaError, match=r"declares nothing"):
+        metta_module.boot(tmp_path / "app.metta", m=metta)
 
 
 def test_a_mid_way_failure_names_the_form_and_closes_servers(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -161,14 +161,14 @@ def test_a_mid_way_failure_names_the_form_and_closes_servers(metta, tmp_path):  
     (tmp_path / "app.metta").write_text(
         f'(boot (serve (&self) {port}))\n(boot (load "missing.metta"))\n'
     )
-    with pytest.raises(petta.PettaError, match=r"boot form 2 failed") as caught:
-        petta.boot(tmp_path / "app.metta", m=metta)
+    with pytest.raises(metta_module.PettaError, match=r"boot form 2 failed") as caught:
+        metta_module.boot(tmp_path / "app.metta", m=metta)
     assert "1 forms before it performed" in str(caught.value)
     assert caught.value.__cause__ is not None
     with pytest.raises(urllib.error.URLError):
         urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
     # the performed prefix stands, the law the engine's own guards follow
-    assert [str(r[0]) for r in metta.query(f"(boot (serve $s {port}))")] == ["(&self)"]
+    assert [str(r[0]) for r in metta.match(f"(boot (serve $s {port}))")] == ["(&self)"]
 
 
 def test_bridge_declarations_gather_and_source_order_holds(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -182,7 +182,7 @@ def test_bridge_declarations_gather_and_source_order_holds(metta, tmp_path):  # 
         "(boot (bridge &mzoo (mpet $n) (row mpets (n $n))))\n"
         "(boot (serve (&mzoo) 0))\n"
     )
-    booted = petta.boot(
+    booted = metta_module.boot(
         tmp_path / "app.metta", m=metta, connections={"&mzoo": connection}
     )
     try:

@@ -3,7 +3,7 @@ and the shipped Python library, and require identical verdicts. The example
 corpus is the executable semantics documentation, and until this existed it
 was only ever executed by the engine: check.sh ran `swipl -s engine/main.pl`,
 test.sh and test_metta_examples.py shelled to run.sh, and the plunit suites
-loaded engine/metta.pl without bindings/python/petta/shim.pl. So the configuration most
+loaded engine/metta.pl without bindings/python/metta/shim.pl. So the configuration most
 users come through was gated by unit tests alone, and two defects lived
 there with green lanes above them [source: ai-audit-md-review.md section 4].
 
@@ -177,7 +177,7 @@ def run_library(path: Path, root: Path = REPO) -> Outcome:
     """
     source = (
         "import sys; sys.path.insert(0, 'bindings/python')\n"
-        "from petta import MeTTa\n"
+        "from metta import MeTTa\n"
         f"for group in MeTTa(petta_path='.').self.load({str(path.relative_to(root))!r}):\n"
         "    print('" + MARKER + "(' + ' '.join(str(a) for a in group) + ')')\n"
     )
@@ -201,7 +201,7 @@ def _value(written: str):
     reported as a difference in answer: boolean source aliases parse to the
     same Grounded value. An unparsable group compares as its own text, which keeps
     malformed output visible instead of collapsing it to equal."""
-    from petta.atoms import parse
+    from metta.atoms import parse
 
     try:
         return parse(written)

@@ -36,7 +36,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import TRUE, Expression, S, V, arrow, equation, fn, if_, typed
+from metta import TRUE, Expression, S, V, arrow, equation, fn, if_, typed
 
 #: The deduction formula's own head, and the two comparison heads this file
 #: builds terms with. Python's `<`, `>`, `<=` and `>=` order atoms and build

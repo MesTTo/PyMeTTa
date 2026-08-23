@@ -21,7 +21,7 @@ lane derives a twin's path from its example's; the pytest collection it invites
 is the integrator's to configure, not this file's to rename around.
 """
 
-from petta import S, equation, fn, ground
+from metta import S, equation, fn, ground
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

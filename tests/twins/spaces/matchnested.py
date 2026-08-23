@@ -18,7 +18,7 @@ it is checked once for what it does and the rewriting below is written out.
 `sorted(atoms)` is `msort`: atoms carry the engine's own elementwise order.
 """
 
-from petta import S, V, fn
+from metta import S, V, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

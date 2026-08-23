@@ -25,7 +25,7 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa
+from metta import MeTTa
 
 
 def _answers(metta: MeTTa, source: str) -> list[str]:

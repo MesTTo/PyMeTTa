@@ -15,7 +15,7 @@ is written out until `+=` tells a single atom from an iterable of atoms
 subscript door, and the answers come in the order they were written.
 """
 
-from petta import S, V
+from metta import S, V
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

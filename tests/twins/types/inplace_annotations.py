@@ -25,8 +25,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import Expression, S, V, equation, typed
+import metta
+from metta import Expression, S, V, equation, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -40,7 +40,7 @@ CONS = S["::"]
 
 def twin(m):
     """Declare types, then prune with them in heads and in queries."""
-    reflection = petta.reflection
+    reflection = metta.reflection
     reflection += S["dispatch-policy"](S["shape-of"], S.NoMatchEnum, S.NoMatchFail)
 
     m += typed(S.Ann, S.Person)

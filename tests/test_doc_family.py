@@ -16,7 +16,7 @@ Open Obligations:
 from hypothesis import given
 from hypothesis import strategies as st
 
-from petta import MeTTa, parse
+from metta import MeTTa, parse
 
 
 def test_the_doc_family_answers_what_upstream_answers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

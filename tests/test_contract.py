@@ -18,10 +18,10 @@ import uuid
 
 import pytest
 
-from petta import parse
-from petta.atoms import Expression, Variable
-from petta.errors import EngineError
-from petta.foreign import SpaceProvider
+from metta import parse
+from metta.atoms import Expression, Variable
+from metta.errors import EngineError
+from metta.foreign import SpaceProvider
 
 
 def _effect_atom(name):
@@ -87,7 +87,7 @@ def test_the_effect_atom_is_matchable_from_metta(metta):  # noqa: D103  -- pytes
     metta.op(
         add1, name="ct-query", declarations=[_effect_atom("ct-query")]
     )
-    rows = metta._at("&petta").query(parse("(effect ct-query $e)"))
+    rows = metta._at("&petta").match(parse("(effect ct-query $e)"))
     assert [str(row.e) for row in rows] == ["immutable"]
 
 
@@ -103,11 +103,11 @@ def test_the_ontology_is_loaded_at_boot(metta):  # noqa: D103  -- pytest discove
 
 
 def test_the_ontology_loads_once(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import _contract
+    from metta import _contract
 
     _contract.install(metta.runtime)
     _contract.install(metta.runtime)
-    rows = metta._at("&petta").query(parse("(: Declaration $t)"))
+    rows = metta._at("&petta").match(parse("(: Declaration $t)"))
     assert [str(row.t) for row in rows] == ["Type"]
 
 
@@ -267,7 +267,7 @@ class _CtPoint:
 
 
 def test_an_explicitly_registered_type_projects_from_an_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import convert
+    from metta import convert
 
     convert.register_type(
         _CtPoint,
@@ -296,7 +296,7 @@ def test_an_explicitly_registered_type_projects_from_an_op(metta):  # noqa: D103
 def test_a_memoized_default_never_projects_from_an_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import dataclasses
 
-    from petta import Grounded, convert
+    from metta import Grounded, convert
 
     @dataclasses.dataclass
     class _CtPlain:
@@ -318,7 +318,7 @@ def test_a_memoized_default_never_projects_from_an_op(metta):  # noqa: D103  -- 
 def test_an_explicit_handle_image_stays_opaque(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import dataclasses
 
-    from petta import Grounded, convert
+    from metta import Grounded, convert
 
     @dataclasses.dataclass
     class _CtHandle:
@@ -335,7 +335,7 @@ def test_an_explicit_handle_image_stays_opaque(metta):  # noqa: D103  -- pytest 
 
 
 def test_a_metta_hook_projects_from_an_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import parse
+    from metta import parse
 
     class _CtHooked:
         def __metta__(self):
@@ -349,7 +349,7 @@ def test_a_metta_hook_projects_from_an_op(metta):  # noqa: D103  -- pytest disco
 
 
 def test_register_type_reflects_an_image_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import convert
+    from metta import convert
 
     class _CtImaged:
         pass
@@ -375,11 +375,11 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noq
 
     script = (
         "import sys; sys.path.insert(0, 'bindings/python')\n"
-        "import petta\n"
-        "from petta import convert, parse\n"
+        "import metta\n"
+        "from metta import convert, parse\n"
         "class Early: pass\n"
         "convert.register_type(Early, image='handle', name='CtSnapshot')\n"
-        "m = petta.MeTTa(petta_path='.')\n"
+        "m = metta.MeTTa(petta_path='.')\n"
         "print(parse('(image CtSnapshot handle)') in m.space('&petta'))\n"
     )
     result = subprocess.run(
@@ -393,7 +393,7 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noq
 
 
 def test_auto_image_is_total_reproducible_and_two_valued():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta.convert import auto_image
+    from metta.convert import auto_image
 
     cases = {
         None: "transparent",
@@ -740,7 +740,7 @@ def test_declare_source_validates(metta):  # noqa: D103  -- pytest discovers or 
 
 
 def test_the_kit_catches_a_linear_object_declared_repeated():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import testing
+    from metta import testing
 
     with pytest.raises(AssertionError, match="second enumeration disagrees"):
         testing.check_space_provider(_StreamProvider(), source="repeated")

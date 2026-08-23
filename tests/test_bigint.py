@@ -23,8 +23,8 @@ from typing import get_args
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from petta import parse
-from petta.vocabularies import NUMERIC_TYPE, NumericType
+from metta import parse
+from metta.vocabularies import NUMERIC_TYPE, NumericType
 
 I64_MIN = -(2**63)
 I64_MAX = 2**63 - 1

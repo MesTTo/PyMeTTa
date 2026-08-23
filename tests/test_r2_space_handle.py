@@ -21,14 +21,14 @@ from pathlib import Path
 
 import pytest
 
-import petta
-from petta import Atom, Expression, Handle, S, Space, V, wire
+import metta
+from metta import Atom, Expression, Handle, S, Space, V, wire
 
 
 @pytest.fixture
 def spaces():
     """Two isolated handles in one runtime, released after each scenario."""
-    context = petta.MeTTa()
+    context = metta.MeTTa()
     host = context.space()
     target = context.space()
     try:
@@ -129,11 +129,11 @@ def test_a_python_self_constant_is_the_space_handle_itself(spaces):  # noqa: D10
 def test_an_ampersand_symbol_is_not_reclassified_as_a_space(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _context, host, target = spaces
 
-    operator = petta.parse("&&&")
-    assert type(operator) is petta.Symbol
-    assert type(host.eval(operator)[0]) is petta.Symbol
+    operator = metta.parse("&&&")
+    assert type(operator) is metta.Symbol
+    assert type(host.eval(operator)[0]) is metta.Symbol
     explicit_symbol = wire.atom_from_wire(["s", target.name])
-    assert type(explicit_symbol) is petta.Symbol
+    assert type(explicit_symbol) is metta.Symbol
     assert wire.atom_from_wire(["p", target.name]) == target
 
 

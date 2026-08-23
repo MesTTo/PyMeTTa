@@ -8,7 +8,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, V, Expression
+from metta import MeTTa, S, V, Expression
 
 m = MeTTa().space()
 
@@ -19,7 +19,7 @@ check("run", m.run("(= (double $x) (* $x 2))\n!(double 21)"), [[42]])
 # Atoms are Python values: S mints symbols, V variables, application builds
 # expressions, and none of it costs an engine call.
 m.add(S.Parent(S.Tom, S.Bob), S.Parent(S.Bob, S.Ann), S.Parent(S.Ann, S.Zoe))
-rows = m.query(S.Parent(V.gp, V.p), S.Parent(V.p, V.gc))
+rows = m.match(S.Parent(V.gp, V.p), S.Parent(V.p, V.gc))
 check("join count", len(rows), 2)
 check("first grandparent", (rows[0].gp, rows[0].gc), (S.Tom, S.Ann))
 

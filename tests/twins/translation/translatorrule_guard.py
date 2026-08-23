@@ -19,8 +19,8 @@ What is ordinary is the asking. A rule that declines has no answer, and
 Python: the empty list, not an error.
 """
 
-import petta
-from petta import S, V, equation
+import metta
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
@@ -42,7 +42,7 @@ def pair_sum(head):
 
 def twin(m):
     """Register four guarded rules, and ask each of them a hit and a miss."""
-    reflection = petta.reflection
+    reflection = metta.reflection
     reflection += (S["dispatch-policy"], S["add-pairs"], S.NoMatchEnum, S.NoMatchFail)
     atom_pair = S["->"](S.Atom, S.Atom, S["%Undefined%"])
 

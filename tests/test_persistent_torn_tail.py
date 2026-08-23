@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from petta import PettaError, S, ground
-from petta._persistent import PersistentFactSpace
-from petta.errors import EngineError
+from metta import PettaError, S, ground
+from metta._persistent import PersistentFactSpace
+from metta.errors import EngineError
 
 SCHEMA = {"edge": 2}
 

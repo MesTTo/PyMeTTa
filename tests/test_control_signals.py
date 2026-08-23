@@ -11,8 +11,8 @@ Open Obligations:
 
 import pytest
 
-from petta import errors
-from petta.errors import EngineError, InferenceLimitError, TimeLimitError
+from metta import errors
+from metta.errors import EngineError, InferenceLimitError, TimeLimitError
 
 
 @pytest.fixture()

@@ -13,15 +13,15 @@ from pathlib import Path
 
 import pytest
 
-from petta import (
+from metta import (
     Expression,
     S,
     V,
     engine,
     ground,
 )
-from petta import _space_persistence as persistence_module
-from petta.errors import EngineError
+from metta import _space_persistence as persistence_module
+from metta.errors import EngineError
 
 
 @pytest.fixture()
@@ -36,7 +36,7 @@ def test_fast_save_load_round_trip_recompiles_equations(metta, tmp_path):  # noq
         source.run("(fast-io-fact alpha) (fast-io-fact beta) (= (fast-io-next $x) (+ $x 1))")
         assert source.save(path, format="fast") == 3
         assert loaded.load(path) == []
-        assert [row.x for row in loaded.query(S["fast-io-fact"](V.x))] == [
+        assert [row.x for row in loaded.match(S["fast-io-fact"](V.x))] == [
             S.alpha,
             S.beta,
         ]
@@ -58,8 +58,8 @@ def test_load_auto_detects_text_and_fast_files(metta, tmp_path):  # noqa: D103  
         assert from_text.load(text_path) == []
         assert from_fast.load(fast_path) == []
         expected = [S.one, S.two]
-        assert [row.x for row in from_text.query(S["auto-fact"](V.x))] == expected
-        assert [row.x for row in from_fast.query(S["auto-fact"](V.x))] == expected
+        assert [row.x for row in from_text.match(S["auto-fact"](V.x))] == expected
+        assert [row.x for row in from_fast.match(S["auto-fact"](V.x))] == expected
 
 
 def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -69,7 +69,7 @@ def test_escaped_quote_round_trips_through_text_save_and_load(metta, tmp_path): 
         assert source.save(path) == 1
         assert path.read_text() == '(h "a\\"b")\n'
         assert loaded.load(path) == []
-        assert loaded.query(S.h(V.value))[0].value.value == 'a"b'
+        assert loaded.match(S.h(V.value))[0].value.value == 'a"b'
 
 
 @pytest.mark.parametrize("suffix", [".metta", ".metta.gz"])
@@ -93,7 +93,7 @@ def test_comments_remain_outside_escaped_string_state(metta):  # noqa: D103  -- 
         assert space.run(
             '; leading comment\n(escaped-text "a\\"; ) b") ; trailing comment\n!(+ 1 2)'
         ) == [[3]]
-        assert space.query(S["escaped-text"](V.value))[0].value.value == 'a"; ) b'
+        assert space.match(S["escaped-text"](V.value))[0].value.value == 'a"; ) b'
 
 
 def test_fast_save_refuses_live_objects_exactly_like_text(m, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -275,14 +275,14 @@ def test_gz_round_trips_both_formats_and_import(metta, tmp_path):  # noqa: D103 
         assert from_text.load(text_gz) == []
         assert from_fast.load(fast_gz) == []
         for target in (from_text, from_fast):
-            assert [row.x for row in target.query(S["gz-fact"](V.x))] == [
+            assert [row.x for row in target.match(S["gz-fact"](V.x))] == [
                 S.one,
                 S.two,
             ]
             assert target.run("!(gz-next 41)") == [[42]]
         # import! answers the unit value, the way add-atom and pragma! do.
         assert imported.run(f'!(import! (context-space) "{text_gz}")') == [[Expression()]]
-        assert [row.x for row in imported.query(S["gz-fact"](V.x))] == [
+        assert [row.x for row in imported.match(S["gz-fact"](V.x))] == [
             S.one,
             S.two,
         ]
@@ -347,4 +347,4 @@ else:
             source.add(*(S["generated-value"](value) for value in values))
             assert source.save(path, format="fast") == len(values)
             assert target.load(path) == []
-            assert [int(row.value) for row in target.query(S["generated-value"](V.value))] == values
+            assert [int(row.value) for row in target.match(S["generated-value"](V.value))] == values

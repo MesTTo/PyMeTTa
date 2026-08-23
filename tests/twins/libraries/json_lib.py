@@ -12,12 +12,12 @@ assignment, `collapse` is a list, and `get-keys` and `get-value` are what
 iterating and subscripting a space already are.
 
 A decoded object answers its space NAME as a Symbol, and the space door takes
-a Symbol as readily as a string, so `opened` is `petta.space(answers.one())`
+a Symbol as readily as a string, so `opened` is `metta.space(answers.one())`
 with nothing between them.
 """
 
-import petta
-from petta import G, S, V
+import metta
+from metta import G, S, V
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -35,7 +35,7 @@ def twin(m):
 
     def opened(answers):
         """The handle for the space json-decode or dict-space answered by name."""
-        return petta.space(answers.one())
+        return metta.space(answers.one())
 
     # An object becomes a space, so its keys are the heads of its atoms.
     doc = opened(decode(G('{"a":1,"b":2}')))
@@ -54,7 +54,7 @@ def twin(m):
     # Nesting decodes all the way down, so an inner object is a space too.
     outer = opened(decode(G('{"c":{"d":2}}')))
     [nested] = [row.v for row in outer[S.c(V.v)]]
-    inner = petta.space(nested)
+    inner = metta.space(nested)
     assert [row.v for row in inner[S.d(V.v)]] == [2]
 
     # Encoding inverts decoding.

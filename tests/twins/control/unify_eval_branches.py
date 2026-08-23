@@ -24,7 +24,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, ground
+from metta import Expression, S, ground
 
 # THIS FILE'S NAME IS A DEFECT. It begins with `test_`, so pytest treats it as a
 # test module and imports it during collection, and the twins wave owed it a

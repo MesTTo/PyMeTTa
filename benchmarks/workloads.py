@@ -13,9 +13,9 @@ Open Obligations:
   Future Enhancements: None
 """
 
-from petta import S, V, Expression
-from petta.wire import from_wire
-from petta.testing import count_atoms
+from metta import S, V, Expression
+from metta.wire import from_wire
+from metta.testing import count_atoms
 
 TERM_COUNT = 20_000
 WIRE_TRIPS = 2_000
@@ -71,7 +71,7 @@ def json_payload() -> dict:
 
 def json_wire(payload: dict, trips: int = JSON_TRIPS) -> int:
     """Encode and decode a DAS-shaped payload, returning round trips."""
-    from petta import _json
+    from metta import _json
 
     decoded = None
     for _ in range(trips):
@@ -91,8 +91,8 @@ def term_operators(terms: int = TERM_COUNT) -> int:
 def structures_dispatch(patterns: int = 200, probes: int = 2_000) -> int:
     """Route ground probes through PatternMap and MatchIndex, returning
     hits: the pure-Python structures priced at their dispatch job."""
-    from petta.atoms import Grounded, Symbol, Variable, _expression_atoms
-    from petta.structures import MatchIndex, PatternMap
+    from metta.atoms import Grounded, Symbol, Variable, _expression_atoms
+    from metta.structures import MatchIndex, PatternMap
 
     routing = PatternMap()
     index = MatchIndex()

@@ -37,7 +37,7 @@ from pathlib import Path
 
 import pytest
 
-from petta.testing import check_codec, codec_plan
+from metta.testing import check_codec, codec_plan
 
 _SERVER = (
     Path(__file__).resolve().parents[1]

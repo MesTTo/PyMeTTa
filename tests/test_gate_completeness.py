@@ -9,7 +9,7 @@ Assumes:
     - the repository root is two directories above this file, the same way
       test_example_parity.py derives it
     - `m.disassemble/1` answers the Prolog text a MeTTa equation compiled
-      to [source: bindings/python/petta/space.py:MeTTa.disassemble;
+      to [source: bindings/python/metta/space.py:MeTTa.disassemble;
       commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
     - each test fails if its outcome is reverted, which is what makes it
@@ -36,7 +36,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 PYTHON_ROOT = REPO / "bindings" / "python"
 RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
-RUFF_SCOPE = ("petta", "tests", "bench.py")
+RUFF_SCOPE = ("metta", "tests", "bench.py")
 REQUIRED_RUFF_FAMILIES = frozenset({"FBT", "N", "A", "D", "ARG", "PERF", "C90", "TRY", "EM"})
 RUFF_SUPPRESSION_GUARDS = frozenset({"RUF100", "RUF103"})
 RUFF_FAMILY_BURN_DOWN = {
@@ -97,7 +97,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # emitter strips one trailing period, because a docstring is Python's
     # concept and Python's convention wins), and these two suppressions go
     # when it lands. Measured on the merged tree, after the last merge.
-    # 2151 after the startup-perf merge, which added `petta/__main__.py` and
+    # 2151 after the startup-perf merge, which added `metta/__main__.py` and
     # its test. Measured on the merged tree, after the last merge.
     "D": 2151,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
@@ -220,7 +220,7 @@ def _assert_ruff_configuration(path: Path, ruff: dict) -> None:
 def _audit_policy_suppressions() -> list[tuple[str, list[str], str]]:
     suppressions = []
     sources = [
-        *sorted((PYTHON_ROOT / "petta").rglob("*.py")),
+        *sorted((PYTHON_ROOT / "metta").rglob("*.py")),
         *sorted((PYTHON_ROOT / "tests").rglob("*.py")),
         PYTHON_ROOT / "bench.py",
     ]

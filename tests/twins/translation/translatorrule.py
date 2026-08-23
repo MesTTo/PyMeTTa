@@ -22,7 +22,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S
+from metta import Expression, S
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

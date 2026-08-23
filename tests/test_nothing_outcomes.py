@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from petta import S
-from petta.errors import StrictError
+from metta import S
+from metta.errors import StrictError
 
 
 def test_eager_eval_keeps_empty_and_not_reducible_distinct(metta):  # noqa: D103 -- the test name states the behavioral contract

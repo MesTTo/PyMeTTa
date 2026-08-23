@@ -7,9 +7,9 @@ Open Obligations:
 
 import pytest
 
-from petta import Expression, S, V
-from petta.derivation import Builtin, Derivation, Fact, Truncated
-from petta.errors import InferenceLimitError
+from metta import Expression, S, V
+from metta.derivation import Builtin, Derivation, Fact, Truncated
+from metta.errors import InferenceLimitError
 
 
 def test_multi_step_proof_names_equations_and_facts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -3,12 +3,12 @@ the real file tree, so the file an LLM reads first cannot quietly rot.
 
 It was written because llms.txt HAD rotted: six commits after it was last
 touched it still named `m.fresh_space()` and `m.value()`, both renamed, and
-documented `petta.matching` and `petta.measure`, both deleted, which is the
+documented `metta.matching` and `metta.measure`, both deleted, which is the
 worst possible failure for a file whose whole purpose is to be believed
 without being verified.
 
 Assumes:
-  - petta imports here, unlike bindings/python/tools/reference.py, which reads the AST
+  - metta imports here, unlike bindings/python/tools/reference.py, which reads the AST
     so it can run without janus. Builtin names come from the running self-space
     handle and there is no static inventory exposed to this checker
     [assumed: the supported builtin inventory is runtime-defined; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -16,12 +16,15 @@ Assumes:
     a path claim, and nothing else in the file is shaped that way
     [source: bindings/python/tools/llmsdoc.py:PATH_LIKE and check; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
-  - every petta name, MeTTa method, path, count, special form, derived form,
+  - every metta name, MeTTa method, path, count, special form, derived form,
     builtin and library named in llms.txt exists, and the two modules it says
     are gone really are gone
     [tested: GATE_ONLY=1 sh check.sh llms; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all failures are reported at once, not just the first
     [source: bindings/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - repository paths such as ``engine/metta.pl`` are not mistaken for Python
+    submodules [tested: test_the_llms_module_scanner_ignores_engine_paths;
+    commit=b962cf7c06b2680f94174515e24a3b6afd5ee5c4]
 Fails when:
   - a claim is prose rather than a name, a count or a path. Those stay the
     reader's job; this checks what a machine can check
@@ -45,7 +48,7 @@ DOC = ROOT / "llms.txt"
 BACKTICK = re.compile(r"`([^`\n]+)`")
 PATH_LIKE = re.compile(r"^[\w./*-]+\.(?:md|py|pl|metta|sh|ipynb|toml|txt|json)$")
 METHOD = re.compile(r"\bm\.([a-z_]\w*)")
-PETTA_ATTR = re.compile(r"\bpetta\.([a-z_]\w*)(?:\.([a-z_]\w*))?")
+METTA_ATTR = re.compile(r"(?<![/\w])metta\.([a-z_]\w*)(?:\.([a-z_]\w*))?")
 SECTION = re.compile(r"^## (.+)$", re.MULTILINE)
 
 
@@ -90,7 +93,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     way, which is where a form goes when it leaves the compiler.
     """
     sys.path.insert(0, str(ROOT / "bindings" / "python"))
-    from petta import MeTTa
+    from metta import MeTTa
 
     builtins = set(MeTTa().self.builtins())
     special = set()
@@ -115,7 +118,7 @@ def counts() -> list[tuple[str, int]]:
     src_lines = sum(
         len(p.read_text().splitlines()) for p in sorted((ROOT / "engine").glob("*.pl"))
     )
-    main = (ROOT / "bindings" / "python" / "petta" / "__main__.py").read_text()
+    main = (ROOT / "bindings" / "python" / "metta" / "__main__.py").read_text()
     # The example count comes from the runners' own definition rather than a
     # glob. A bare examples/**/*.metta answers 242, which counts 24 symlink
     # aliases for files already in the list and 12 fixtures that are inputs
@@ -128,7 +131,7 @@ def counts() -> list[tuple[str, int]]:
 
     return [
         (r"(\d+) executable programs", len(corpus())),
-        (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/petta-*.md")))),
+        (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/metta-*.md")))),
         (r"(\d+) plunit suites", len(list(ROOT.glob("tests/prolog/*.plt")))),
         (r"(\d+) files, blackbox", len(list(ROOT.glob("bindings/python/tests/*.py")))),
         (r"(\d+) Python twins", len(list(ROOT.glob("bindings/python/tests/twins/**/*.py")))),
@@ -193,8 +196,8 @@ def check() -> list[str]:
     bad: list[str] = []
 
     sys.path.insert(0, str(ROOT / "bindings" / "python"))
-    import petta
-    from petta import MeTTa, Space
+    import metta
+    from metta import MeTTa, Space
 
     for name in sorted(set(METHOD.findall(text))):
         if name.endswith("_"):        # m.declare_*, a family rather than a method
@@ -203,28 +206,28 @@ def check() -> list[str]:
             bad.append(f"neither MeTTa nor Space has method m.{name}")
 
     gone = {"matching", "measure"}
-    groups = {petta.integrate.ENTRY_POINT_GROUP, petta.integrate.SPACES_GROUP, petta.integrate.LIBRARIES_GROUP}
-    for module, member in sorted(set(PETTA_ATTR.findall(text))):
-        if module in gone or f"petta.{module}" in groups and not member:
+    groups = {metta.integrate.ENTRY_POINT_GROUP, metta.integrate.SPACES_GROUP, metta.integrate.LIBRARIES_GROUP}
+    for module, member in sorted(set(METTA_ATTR.findall(text))):
+        if module in gone or f"metta.{module}" in groups and not member:
             continue
-        found = getattr(petta, module, None)
+        found = getattr(metta, module, None)
         if found is None:
             try:
-                found = importlib.import_module(f"petta.{module}")
+                found = importlib.import_module(f"metta.{module}")
             except ImportError:
-                bad.append(f"petta has no attribute or submodule petta.{module}")
+                bad.append(f"metta has no attribute or submodule metta.{module}")
                 continue
         if member and not hasattr(found, member):
-            bad.append(f"petta.{module} has no attribute {member}")
+            bad.append(f"metta.{module} has no attribute {member}")
     # A deleted module may be NAMED, but only in the sentence saying it is gone.
-    # Skipping the name everywhere is how "there is no petta.matching" would
+    # Skipping the name everywhere is how "there is no metta.matching" would
     # have covered for a later paragraph using it as though it were live.
     denial = paragraph(parts["The MeTTa language surface"], r"\d+ libraries load with")
     for module in sorted(gone):
-        if (ROOT / "bindings" / "python" / "petta" / f"{module}.py").exists():
-            bad.append(f"llms.txt says petta.{module} is gone, but the module is back")
-        elif text.count(f"petta.{module}") != denial.count(f"petta.{module}"):
-            bad.append(f"petta.{module} is deleted but llms.txt names it outside the sentence saying so")
+        if (ROOT / "bindings" / "python" / "metta" / f"{module}.py").exists():
+            bad.append(f"llms.txt says metta.{module} is gone, but the module is back")
+        elif text.count(f"metta.{module}") != denial.count(f"metta.{module}"):
+            bad.append(f"metta.{module} is deleted but llms.txt names it outside the sentence saying so")
 
     for token in sorted({t for t in BACKTICK.findall(text) if "/" in t and PATH_LIKE.match(t)}):
         if not list(ROOT.glob(token)):
@@ -283,8 +286,8 @@ def check() -> list[str]:
         bad.append("llms.txt no longer lists the provider capabilities")
     else:
         listed = ("match", "enumerate", *BACKTICK.findall(declared.group(1)))
-        if listed != petta.foreign.CAPABILITIES:
-            bad.append(f"capabilities differ: llms.txt {listed}, engine {petta.foreign.CAPABILITIES}")
+        if listed != metta.foreign.CAPABILITIES:
+            bad.append(f"capabilities differ: llms.txt {listed}, engine {metta.foreign.CAPABILITIES}")
 
     services = re.search(r"whole permitted inward surface\n\((.*?)\), and", text, re.DOTALL)
     if services is None:
@@ -302,12 +305,12 @@ def check() -> list[str]:
     # Read from the frozenset rather than a second copy of it here: a hand-kept
     # list is the same rot this whole lane exists to catch.
     lazy = paragraph(parts["Apps, from source"], r"\w+ submodules")
-    listed = {name for name in BACKTICK.findall(lazy) if name != "import petta"}
-    real = set(petta._SATELLITES) | set(petta._LAZY_ATTRIBUTES)
+    listed = {name for name in BACKTICK.findall(lazy) if name != "import metta"}
+    real = set(metta._SATELLITES) | set(metta._LAZY_ATTRIBUTES)
     if listed != real - {"Boot"}:
         bad.append(f"lazy submodules differ: missing {sorted(real - {'Boot'} - listed)}, extra {sorted(listed - real)}")
-    if not inspect.getsource(petta).count("def __getattr__"):
-        bad.append("petta no longer lazy-loads submodules, so llms.txt's lazy list is wrong")
+    if not inspect.getsource(metta).count("def __getattr__"):
+        bad.append("metta no longer lazy-loads submodules, so llms.txt's lazy list is wrong")
 
     return bad
 

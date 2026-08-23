@@ -20,7 +20,7 @@ spelling, which neither of those is a Python identifier for (residue, P14.4).
 
 from pathlib import Path
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: The two engine libraries the example opens, spelled with their real
 #: underscores.

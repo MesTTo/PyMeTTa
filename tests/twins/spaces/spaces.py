@@ -18,7 +18,7 @@ cannot perform, so the body names the engine's own head. PERFECT: the subscript
 lowers inside a compiled body the way the other structure operations do.
 """
 
-from petta import S, V, fn
+from metta import S, V, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

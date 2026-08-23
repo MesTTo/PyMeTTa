@@ -12,8 +12,8 @@ Open Obligations:
 
 import pytest
 
-from petta import Expression, Grounded, S, Symbol, Variable
-from petta.atoms import _alpha_eq, order_key
+from metta import Expression, Grounded, S, Symbol, Variable
+from metta.atoms import _alpha_eq, order_key
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given

@@ -12,7 +12,7 @@ its parts' types, elementwise, and it answers once per arrow the second element
 has.
 """
 
-from petta import S, arrow, typed
+from metta import S, arrow, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

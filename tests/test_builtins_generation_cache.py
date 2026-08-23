@@ -12,9 +12,9 @@ from __future__ import annotations
 
 from typing import cast
 
-from petta import S, V, space
-from petta._engine import Runtime
-from petta._space import _space_builtins
+from metta import S, V, space
+from metta._engine import Runtime
+from metta._space import _space_builtins
 
 
 class _GenerationRuntime:

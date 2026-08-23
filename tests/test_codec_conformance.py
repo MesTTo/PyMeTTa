@@ -6,7 +6,7 @@ form encodes and decodes in Prolog (petta_py_encode_named/3,
 petta_py_decode_shared/3) and carries its terms through janus's own term
 conversion. The remote JSON wire encodes and decodes in Python
 (Atom.to_wire, atom_from_wire) and carries them as JSON bytes through the
-engine's library(json), which is what petta.remote puts on a socket. So a
+engine's library(json), which is what metta.remote puts on a socket. So a
 disagreement between them is a real disagreement between two
 implementations in two languages, which is what the corpus is for.
 
@@ -35,8 +35,8 @@ import sys
 
 import pytest
 
-from petta import _json, parse, testing, wire
-from petta.testing import check_codec, codec_corpus, codec_plan
+from metta import _json, parse, testing, wire
+from metta.testing import check_codec, codec_corpus, codec_plan
 
 CORE = frozenset({"s", "v", "n", "g", "e"})
 FULL = CORE | {"b", "o", "h", "p"}
@@ -302,7 +302,7 @@ def test_alpha_comparison_refuses_a_collapsed_variable():
     """The renaming is a bijection, so it accepts the two shipped naming
     schemes and still separates (f $x $x) from (f $x $y).
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from petta._codec_kit import alpha_equal
+    from metta._codec_kit import alpha_equal
 
     repeated = ["e", [["s", "f"], ["v", "x"], ["v", "x"]]]
     distinct = ["e", [["s", "f"], ["v", "x"], ["v", "y"]]]

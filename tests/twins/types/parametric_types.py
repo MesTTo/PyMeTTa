@@ -15,7 +15,7 @@ the variables the pattern introduces as well as the subject's.
 
 from collections.abc import Callable
 
-from petta import FALSE, S, V, arrow, fn
+from metta import FALSE, S, V, arrow, fn
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

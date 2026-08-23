@@ -20,7 +20,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import (
+from metta import (
     Expression,
     PettaError,
     S,
@@ -28,8 +28,8 @@ from petta import (
     V,
     ground,
 )
-from petta import integrate as pi
-from petta.casting import CastError
+from metta import integrate as pi
+from metta.casting import CastError
 
 
 def test_module_ops_bulk_registers_a_stdlib_module(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -84,7 +84,7 @@ def test_wrap_object_methods_with_effect_convention(metta):  # noqa: D103  -- py
     assert r == [[True], [True], [2]]
     assert store.items == [42, 43]
     # The instance is enumerable as a fact.
-    rows = metta.query(S.wrapped(S.store, V.obj))
+    rows = metta.match(S.wrapped(S.store, V.obj))
     assert rows and rows[0].obj == store
 
 
@@ -214,7 +214,7 @@ def test_py_attr_and_bound_py_field_read_a_property_once(metta):  # noqa: D103  
 def test_pi_protocol_and_idempotence(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
     fake = types.SimpleNamespace(
-        __name__="fake_integration", install_petta=lambda m: calls.append(m)
+        __name__="fake_integration", install_metta=lambda m: calls.append(m)
     )
 
     name = pi.integrate(metta, fake)
@@ -246,7 +246,7 @@ def test_dropped_space_name_reinstalls_integrations(metta):  # noqa: D103  -- py
     first = metta._at(space_name)
     first.clear()
     pi.integrate(first, integration)
-    assert first.query(S.integration_marker(V.value)).one().value == 1
+    assert first.match(S.integration_marker(V.value)).one().value == 1
 
     first.drop()
     assert (space_name, integration.name) not in pi.installed()
@@ -254,7 +254,7 @@ def test_dropped_space_name_reinstalls_integrations(metta):  # noqa: D103  -- py
     second = metta._at(space_name)
     try:
         pi.integrate(second, integration)
-        assert second.query(S.integration_marker(V.value)).one().value == 2
+        assert second.match(S.integration_marker(V.value)).one().value == 2
         assert calls == [space_name, space_name]
     finally:
         second.drop()
@@ -289,7 +289,7 @@ def test_networkx_integrates_in_a_page(metta):
     space.op(shortest_path, name="nx-path")
     # And both compose with reasoning:
     assert space.run("!(nx-path a c)") == [[Expression(S.a, S.b, S.c)]]
-    rows = space.query(S.nx_edge(S.a, V.to, V.w))
+    rows = space.match(S.nx_edge(S.a, V.to, V.w))
     assert {(str(r.to), float(r.w)) for r in rows} == {("b", 1.0), ("c", 9.0)}
 
 
@@ -318,8 +318,8 @@ def test_entry_point_discovery_is_unloaded_and_loading_is_by_name(monkeypatch): 
     from importlib import metadata as importlib_metadata
 
     advertised = (
-        importlib_metadata.EntryPoint("db", "sqlite3:connect", "petta.spaces"),
-        importlib_metadata.EntryPoint("paths", "sys:path", "petta.libraries"),
+        importlib_metadata.EntryPoint("db", "sqlite3:connect", "metta.spaces"),
+        importlib_metadata.EntryPoint("paths", "sys:path", "metta.libraries"),
     )
 
     def fake_entry_points(*, group):
@@ -349,5 +349,5 @@ def test_entry_point_discovery_is_unloaded_and_loading_is_by_name(monkeypatch): 
         pi.load_entry_point("paths", "extra", group=pi.LIBRARIES_GROUP)
 
     # a typo reads as one: the refusal lists what IS installed
-    with pytest.raises(PettaError, match=r"no petta\.spaces entry point named 'nope'; installed: db"):
+    with pytest.raises(PettaError, match=r"no metta\.spaces entry point named 'nope'; installed: db"):
         pi.load_entry_point("nope")

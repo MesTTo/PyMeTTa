@@ -19,7 +19,7 @@ Open Obligations:
 
 import pytest
 
-from petta.errors import EngineError
+from metta.errors import EngineError
 
 
 def _answers(space, query):

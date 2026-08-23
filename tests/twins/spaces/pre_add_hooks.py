@@ -33,9 +33,9 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import S, V, equation, ground
-from petta.errors import EngineError
+import metta
+from metta import S, V, equation, ground
+from metta.errors import EngineError
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -64,7 +64,7 @@ CLAIMED = (
 
 def twin(m):
     """Claim a space's write door, then write four atoms it judges."""
-    pool = petta.space("&pool")
+    pool = metta.space("&pool")
 
     m += equation(S.guard(S.secret(V.x))).to(S.refuse(ground("no secrets in this pool")))
     m += equation(S.guard(S.raw(V.x))).to(S.accept(S.cooked(V.x)))

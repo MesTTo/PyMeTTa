@@ -10,7 +10,7 @@ A pair comes back as one expression, so the claim compares the whole answer
 sequence; where the pair's head is a symbol the term is built by calling it.
 """
 
-from petta import Expression, S
+from metta import Expression, S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

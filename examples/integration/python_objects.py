@@ -12,9 +12,9 @@ from enum import Enum
 
 from _common import check, done
 
-from petta import MeTTa, S, V, ground
-from petta.convert import build, project
-from petta.integrate import install_reflection_ops
+from metta import MeTTa, S, V, ground
+from metta.convert import build, project
+from metta.integrate import install_reflection_ops
 
 m = MeTTa().space()
 
@@ -35,7 +35,7 @@ check("projection", str(projected.atom), '(Robot "R2" calm)')
 m.add(*projected.declarations, projected.atom)
 m.add(project(Robot("HAL", Mood.stormy)).atom)
 
-rows = m.query(S.Robot(V.name, S.stormy))
+rows = m.match(S.Robot(V.name, S.stormy))
 check("match on parts", str(rows[0].name), '"HAL"')
 
 rebuilt = build(projected.atom)

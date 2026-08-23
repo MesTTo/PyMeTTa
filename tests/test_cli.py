@@ -17,7 +17,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from petta import cli
+from metta import cli
 
 
 def test_package_import_does_not_require_janus():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -29,8 +29,8 @@ def test_package_import_does_not_require_janus():  # noqa: D103  -- pytest disco
         "        raise AssertionError('janus_swi imported during package import')\n"
         "    return real_import_module(name, package)\n"
         "importlib.import_module = guarded_import_module\n"
-        "import petta\n"
-        "import petta.cli\n"
+        "import metta\n"
+        "import metta.cli\n"
     )
     done = subprocess.run(
         [sys.executable, "-c", program],
@@ -185,26 +185,26 @@ def test_the_bare_demo_runs_the_interop_example_and_backend_selftests():
 def test_the_launcher_answers_version_and_help_without_booting(capsys):
     """A released command answers `--version`; it does not report a missing file.
 
-    The bare `petta` command keeps upstream's launcher contract and forwards
+    The bare `metta` command keeps upstream's launcher contract and forwards
     everything to the engine, which is deliberate and documented. Forwarding
     these two produced `source_sink '--version' does not exist`, an engine error
     about a missing FILE in answer to the one flag every installed tool is asked
     first. They are answered ONLY as the whole command line, so a MeTTa program
     taking its own `--help` still receives it, and answering them boots nothing.
     """
-    from petta._version import __version__
-    from petta.cli import main
+    from metta._version import __version__
+    from metta.cli import main
 
     assert main(["--version"]) == 0
-    assert capsys.readouterr().out.strip() == f"petta {__version__}"
+    assert capsys.readouterr().out.strip() == f"metta {__version__}"
 
     assert main(["-V"]) == 0
-    assert capsys.readouterr().out.strip() == f"petta {__version__}"
+    assert capsys.readouterr().out.strip() == f"metta {__version__}"
 
     assert main(["--help"]) == 0
     printed = capsys.readouterr().out
-    assert "usage: petta" in printed
-    assert "python -m petta" in printed, "the help names the subcommand surface"
+    assert "usage: metta" in printed
+    assert "python -m metta" in printed, "the help names the subcommand surface"
 
     # Not the whole command line, so it belongs to the program being run.
     assert "--help" not in petta_cli_self_answered_for(["program.metta", "--help"])
@@ -212,6 +212,6 @@ def test_the_launcher_answers_version_and_help_without_booting(capsys):
 
 def petta_cli_self_answered_for(argv):
     """Which of argv the launcher would answer itself, as a set."""
-    from petta.cli import SELF_ANSWERED
+    from metta.cli import SELF_ANSWERED
 
     return {flag for flag in argv if len(argv) == 1 and flag in SELF_ANSWERED}

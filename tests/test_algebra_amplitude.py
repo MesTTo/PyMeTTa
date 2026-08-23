@@ -13,8 +13,8 @@ Open Obligations:
 
 import pytest
 
-from petta import S, wire
-from petta.algebra import AlgebraRequirementError, Amplitude
+from metta import S, wire
+from metta.algebra import AlgebraRequirementError, Amplitude
 
 
 def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta):

@@ -30,7 +30,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation
+from metta import Expression, S, V, equation
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "the `let`s here bind the variables whose identity is under test, which a Python name cannot be"

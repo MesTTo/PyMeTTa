@@ -14,8 +14,8 @@ score against 1.0 and the subject's own `$who` comes back bound to `cat`,
 which is exactly what the example's `(let $probe ... ($probe $who))` says.
 """
 
-import petta
-from petta import Expression, S, V
+import metta
+from metta import Expression, S, V
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -57,7 +57,7 @@ def twin(m):
     assert m.solve(1.0, scored).who == S.cat
 
     # Soft matching over a space, feeding the measure algebra.
-    zoo = petta.space()
+    zoo = metta.space()
     zoo += S.likes(S.cat, S.fish)
     zoo += S.likes(S.dog, S.bones)
     zoo += S.likes(S.bird, S.seeds)

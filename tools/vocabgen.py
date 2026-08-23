@@ -1,4 +1,4 @@
-"""Purpose: generate bindings/python/petta/vocabularies.py from the running engine's
+"""Purpose: generate bindings/python/metta/vocabularies.py from the running engine's
 (vocabulary ...) catalog rows, so the binding's Literal types and runtime
 value tuples follow the catalog's one authority.
 
@@ -38,7 +38,7 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-MODULE = ROOT / "bindings" / "python" / "petta" / "vocabularies.py"
+MODULE = ROOT / "bindings" / "python" / "metta" / "vocabularies.py"
 
 QUERY = (
     "consult('engine/metta.pl'), "
@@ -150,7 +150,7 @@ def main(argv: list[str]) -> int:
         print(f"rewrote {MODULE.name}")
         return 0
     print(
-        f"petta/{MODULE.name} no longer matches the engine's (vocabulary ...) "
+        f"metta/{MODULE.name} no longer matches the engine's (vocabulary ...) "
         f"rows: run `python bindings/python/tools/vocabgen.py --write`"
     )
     return 1

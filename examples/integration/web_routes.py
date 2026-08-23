@@ -27,9 +27,9 @@ from typing import Any
 
 from _common import check, done
 
-from petta import MeTTa, S, V, Expression
-from petta import wire
-from petta.atoms import Expression, Grounded, Symbol, Variable, unify
+from metta import MeTTa, S, V, Expression
+from metta import wire
+from metta.atoms import Expression, Grounded, Symbol, Variable, unify
 
 #: FastAPI's path converters: the caster runs after the structural match,
 #: the pydantic-after-match order, so /users/abc against /users/{id:int}
@@ -104,7 +104,7 @@ class Router:
 
     def dispatch(self, method: str, path: str) -> Response:
         request = Expression([Symbol(s) for s in path.strip("/").split("/") if s])
-        table = self._m.query(
+        table = self._m.match(
             Expression(S.route, S[self.name], S[method.upper()],
                  V.pattern, V.handler, V.k)
         )
@@ -170,7 +170,7 @@ check("no match is 404", app.dispatch("GET", "/nowhere").status, 404)
 check("a refused parameter is 422", app.dispatch("GET", "/users/abc").status, 422)
 
 # The table is facts, so MeTTa reads it like any facts...
-handlers = m.query(S.route(S.app, S.GET, V.p, V.h, V.k))
+handlers = m.match(S.route(S.app, S.GET, V.p, V.h, V.k))
 check("the table is facts", sorted(str(r.h) for r in handlers), ["karma", "read-user"])
 
 # ...and extends it: a route whose handler is a MeTTa equation, added by a

@@ -12,8 +12,8 @@ import sys
 
 import pytest
 
-MAGIC_SETUP = """%load_ext petta.ipython
-from petta.ipython import use
+MAGIC_SETUP = """%load_ext metta.ipython
+from metta.ipython import use
 
 use(m)"""
 

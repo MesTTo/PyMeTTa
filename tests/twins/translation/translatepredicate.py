@@ -14,7 +14,7 @@ answers what the last goal left even though `$x` and `$z` are the caller's own
 variables: their bindings are the parallel row face on the same view.
 """
 
-from petta import S, V
+from metta import S, V
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

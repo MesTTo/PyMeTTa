@@ -12,8 +12,8 @@ import uuid
 
 import pytest
 
-from petta import S
-from petta.errors import EngineError
+from metta import S
+from metta.errors import EngineError
 
 
 def test_public_space_add_observes_every_pre_add_verdict(metta):

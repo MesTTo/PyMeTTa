@@ -17,25 +17,25 @@ from pathlib import Path
 
 import janus_swi
 
-import petta
-from petta.parallel import engine_thread
+import metta
+from metta.parallel import engine_thread
 
 
 def test_backend_info_reports_versions_and_consulted_tree():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    info = petta.engine().info()
+    info = metta.engine().info()
 
     assert type(info) is dict
     assert set(info) == {
-        "petta",
+        "metta",
         "janus",
         "swi_prolog",
         "python",
         "petta_path",
     }
-    for key in ("petta", "janus", "swi_prolog", "python"):
+    for key in ("metta", "janus", "swi_prolog", "python"):
         assert re.fullmatch(r"\d+(?:\.\d+)+", info[key])
     assert info["python"] == ".".join(map(str, sys.version_info[:3]))
-    petta_path = petta.engine().info()["petta_path"]
+    petta_path = metta.engine().info()["petta_path"]
 
     assert isinstance(petta_path, str)
     runtime_tree = Path(petta_path)
@@ -46,8 +46,8 @@ def test_backend_info_reports_versions_and_consulted_tree():  # noqa: D103  -- p
 def test_engine_info_owns_the_runtime_it_reports():
     """The replacement is a verb on the process-default engine context."""
     program = (
-        "import petta\n"
-        "info = petta.engine().info()\n"
+        "import metta\n"
+        "info = metta.engine().info()\n"
         "assert info['petta_path'], info\n"
         "assert info['janus'] and info['swi_prolog']\n"
         "print('ENGINE-INFO-OK')\n"

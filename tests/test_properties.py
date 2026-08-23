@@ -20,7 +20,7 @@ import sys
 
 import pytest
 
-from petta import (
+from metta import (
     Expression,
     Grounded,
     S,
@@ -31,11 +31,11 @@ from petta import (
     wire,
 )
 
-# The generators are the library's own public ones: petta.testing carries
+# The generators are the library's own public ones: metta.testing carries
 # the engine truths (readable names, boolean canonicalization, printer
 # limits) so users fuzz with exactly what this suite fuzzes with.
-from petta import testing as pt
-from petta.errors import EngineError
+from metta import testing as pt
+from metta.errors import EngineError
 
 hypothesis = pytest.importorskip("hypothesis")
 example = hypothesis.example
@@ -48,7 +48,7 @@ _numbers = pt.numbers()
 _strings = pt.texts()
 _atoms = pt.atoms
 
-# This lane deliberately goes beyond petta.testing.atoms(), whose public
+# This lane deliberately goes beyond metta.testing.atoms(), whose public
 # strategy generates only reader-safe names and serializable grounded values.
 # The writer law must cover values at the edge of its domain too: arbitrary
 # UTF-8 symbol names, and Janus tuples that have no MeTTa literal.
@@ -255,7 +255,7 @@ def test_atom_equality_is_engine_unification(metta, a, b):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     with metta._new_space() as space:
         space.add(Expression([Grounded(b)]))
-        matched = len(list(space.query(Expression([Grounded(a)])))) == 1
+        matched = len(list(space.match(Expression([Grounded(a)])))) == 1
     assert (Grounded(a) == Grounded(b)) is matched
     assert (unify(Grounded(a), Grounded(b)) is not None) is matched
     if matched:

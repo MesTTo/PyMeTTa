@@ -26,8 +26,8 @@ Until then the three equations read as one body, with one space, at one door.
 Reading the aftermath is the container door, `list(space)`.
 """
 
-import petta
-from petta import S, V, equation
+import metta
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -53,7 +53,7 @@ def increment(temp, *tail):
 
 def twin(m):
     """Increment a shared counter five times at once, then roll one back."""
-    temp = petta.space("&temp")
+    temp = metta.space("&temp")
     temp += (S.cnt, 37)
 
     # This only works predictably single-threaded, else there is a data race.

@@ -23,7 +23,7 @@ import subprocess
 
 import pytest
 
-from petta import ground
+from metta import ground
 
 
 def test_a_string_operand_to_math_refuses_instead_of_answering_its_char_code(metta):

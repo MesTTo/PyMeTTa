@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import subprocess
 
-from petta import MeTTa
+from metta import MeTTa
 
 
 def _answers(metta: MeTTa, expression: str) -> list[str]:

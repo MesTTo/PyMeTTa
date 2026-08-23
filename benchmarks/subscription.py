@@ -16,7 +16,7 @@ Open Obligations:
   Future Enhancements: None
 """
 
-from petta import MeTTa, S, V, ground
+from metta import MeTTa, S, V, ground
 
 SUBSCRIPTIONS = 1_000
 WRITES = 200

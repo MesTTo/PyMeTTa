@@ -19,7 +19,7 @@ import uuid
 
 import pytest
 
-from petta import Expression, S, V
+from metta import Expression, S, V
 
 _CONTAINER = f"petta-redis-test-{uuid.uuid4().hex[:12]}"
 
@@ -92,7 +92,7 @@ def _other_process(redis_address: str, program: str) -> str:
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(sys.path)
     source = (
-        "from petta import MeTTa, S\n"
+        "from metta import MeTTa, S\n"
         "context = MeTTa()\n"
         "m = context.self\n"
         "m.run('!(import! &self (library lib_redis))')\n"
@@ -109,7 +109,7 @@ def _other_process(redis_address: str, program: str) -> str:
 
 def test_shared_space_serves_one_process(shared):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     shared.add(S.stock(S.widget, 5), S.stock(S.gadget, 7))
-    rows = shared.query(S.stock(V.item, V.n))
+    rows = shared.match(S.stock(V.item, V.n))
     assert sorted(str(row.item) for row in rows) == ["gadget", "widget"]
     assert len(shared) == 2
     assert shared.remove(S.stock(S.widget, 5)) is True
@@ -121,7 +121,7 @@ def test_writes_in_another_process_are_this_processs_facts(shared, redis_address
         redis_address,
         "context.space('&shared-test').add(S.remote(S.fact, 1), S.remote(S.fact, 2))\n",
     )
-    rows = shared.query(S.remote(S.fact, V.n))
+    rows = shared.match(S.remote(S.fact, V.n))
     assert sorted(int(row.n.value) for row in rows) == [1, 2]
 
 

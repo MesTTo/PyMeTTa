@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-import petta
-from petta import Handle
-from petta.errors import EngineError
+import metta
+from metta import Handle
+from metta.errors import EngineError
 
 _LIBRARY = (
     Path(__file__).resolve().parents[3]
@@ -29,7 +29,7 @@ _LIBRARY = (
 def vectors():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if not _LIBRARY.is_file():
         pytest.skip("handle.so is not built; see examples/integration/c_extension/README.md")
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     m.register_foreign_library(
         _LIBRARY,
         entry="install_handle",

@@ -4,6 +4,10 @@ the llms lane's builtin-count claim distinguishes a missing build product
 from documentation drift. A lane that cannot be shown failing is not
 evidence of anything, so these plant differences and require the lanes to
 report them.
+Guarantees:
+  - the llms module scanner distinguishes ``engine/metta.pl`` from the
+    ``metta.remote`` Python module [tested:
+    test_the_llms_module_scanner_ignores_engine_paths; commit=b962cf7c06b2680f94174515e24a3b6afd5ee5c4]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,6 +26,14 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402
+
+
+def test_the_llms_module_scanner_ignores_engine_paths():
+    """The import-module rename must not reinterpret a repository filename."""
+    from llmsdoc import METTA_ATTR
+
+    claims = "`engine/metta.pl` implements the engine; `metta.remote.attach` is Python"
+    assert METTA_ATTR.findall(claims) == [("remote", "attach")]
 
 
 def test_the_corpus_is_one_definition():

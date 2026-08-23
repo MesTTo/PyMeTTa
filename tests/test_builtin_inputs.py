@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import MeTTa, PettaError
+from metta import MeTTa, PettaError
 
 REPO = Path(__file__).resolve().parents[3]
 
@@ -51,7 +51,7 @@ REPO = Path(__file__).resolve().parents[3]
 _PROBE = r"""
 import json, sys
 sys.path.insert(0, sys.argv[1])
-from petta import MeTTa, PettaError
+from metta import MeTTa, PettaError
 
 TABLE = (
     "findall([_Name, _Position, _Kinds], "

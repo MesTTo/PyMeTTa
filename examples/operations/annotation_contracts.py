@@ -22,13 +22,13 @@ Open Obligations:
 
 from _common import check, done
 
-import petta
+import metta
 
-m = petta.MeTTa().space()
+m = metta.MeTTa().space()
 
 
 @m.op
-def anyatom(term: petta.Atom) -> petta.Atom:
+def anyatom(term: metta.Atom) -> metta.Atom:
     return term
 
 @m.op

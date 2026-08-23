@@ -7,8 +7,8 @@ Open Obligations:
 
 import pytest
 
-from petta import Grounded, wire
-from petta import testing as pt
+from metta import Grounded, wire
+from metta import testing as pt
 
 pytest.importorskip("numpy")
 hypothesis = pytest.importorskip("hypothesis")

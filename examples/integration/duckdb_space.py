@@ -24,11 +24,11 @@ try:
 except ImportError:
     skip("duckdb is not installed")
 
-from petta import MeTTa, S, V, Expression
-from petta import wire
-from petta.atoms import Atom, Expression, Grounded, Symbol, Variable
-from petta.errors import PettaError
-from petta.foreign import SpaceProvider
+from metta import MeTTa, S, V, Expression
+from metta import wire
+from metta.atoms import Atom, Expression, Grounded, Symbol, Variable
+from metta.errors import PettaError
+from metta.foreign import SpaceProvider
 
 # SQL NULL as an atom: the symbol NULL, SQL's own name for it. A string
 # "NULL" stays a string; only the symbol means the absent value.
@@ -241,7 +241,7 @@ def attach(m, name: str, database: Any = ":memory:", tables: list[str] | None = 
 def demo() -> None:
     """The worked run, kept behind a function so the provider above can be
     IMPORTED. A module that connects and queries at import time cannot be
-    pointed at by a test, and petta.testing.SpaceComplianceSuite is pointed at
+    pointed at by a test, and metta.testing.SpaceComplianceSuite is pointed at
     DuckDBSpace in bindings/python/tests/test_compliance_duckdb.py."""
     m = MeTTa().space()
     conn = duckdb.connect(":memory:")

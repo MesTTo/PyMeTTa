@@ -16,8 +16,8 @@ import that form needed goes with it. `EngineError` is a detailed error, so it
 arrives from the errors satellite rather than from the narrow root.
 """
 
-from petta import S, ground
-from petta.errors import EngineError
+from metta import S, ground
+from metta.errors import EngineError
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

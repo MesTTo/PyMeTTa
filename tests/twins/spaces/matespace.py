@@ -24,7 +24,7 @@ sits in every space position below, and `add-atom-no-duplicate` takes its space
 as a parameter the way the original does.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Why this twin sits below the top rung, stated once for the whole file.
 RUNG = (

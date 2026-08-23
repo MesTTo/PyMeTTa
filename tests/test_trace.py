@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import S, Symbol
+from metta import S, Symbol
 
 _C_EXTENSION = (
     Path(__file__).resolve().parents[3] / "examples" / "integration" / "c_extension"
@@ -63,7 +63,7 @@ def test_trace_names_variables_by_first_occurrence(m):  # noqa: D103  -- pytest 
 def test_trace_runs_the_source_for_real(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (tr-writer) (add-atom (context-space) (tr-mark left)))")
     m.trace("!(tr-writer)")
-    assert m.query(S["tr-mark"](S.left))
+    assert m.match(S["tr-mark"](S.left))
 
 
 def test_a_failing_reduction_is_a_call_with_no_exit(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

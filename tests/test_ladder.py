@@ -15,7 +15,7 @@ Guarantees:
     test_define_refuses_an_unregistrable_class; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - a batch discards on exception and refuses remove/clear inside its own
     block, the stated edges [tested test_batch_edges_are_enforced]
-  - query(into=) and Rows.build rebuild a complete constructor expression,
+  - match(into=) and Rows.build rebuild a complete constructor expression,
     while cast returns the admitted atom [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -36,57 +36,57 @@ from typing import NamedTuple
 import pytest
 from hypothesis import given
 
-import petta
-from petta import PettaError, S, V
-from petta._space_objects import _apply_limited, _limits
-from petta.errors import InferenceLimitError
+import metta
+from metta import PettaError, S, V
+from metta._space_objects import _apply_limited, _limits
+from metta.errors import InferenceLimitError
 
 
 def test_module_tier_is_sugar_over_one_default_engine():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert petta.engine() is petta.engine()
-    scratch = petta.space()
+    assert metta.engine() is metta.engine()
+    scratch = metta.space()
     scratch.add(S.ml(1))
-    assert len(scratch.query(S.ml(V.x))) == 1
+    assert len(scratch.match(S.ml(V.x))) == 1
     # The module functions and the instance touch the same engine.
-    petta.run("(= (ml-fn $x) (+ $x 1))")
-    assert petta.eval("(ml-fn 4)") == [5]
-    assert petta.engine().self.fn.ml_fn(9).one() == 10
-    assert petta.space("&ml-named").name == "&ml-named"
-    assert importlib.util.find_spec("petta.space") is None
-    assert callable(petta.space)
+    metta.run("(= (ml-fn $x) (+ $x 1))")
+    assert metta.eval("(ml-fn 4)") == [5]
+    assert metta.engine().self.fn.ml_fn(9).one() == 10
+    assert metta.space("&ml-named").name == "&ml-named"
+    assert importlib.util.find_spec("metta.space") is None
+    assert callable(metta.space)
 
 
 def test_module_tier_exposes_the_mode_and_definition_family() -> None:
     """The guide's root verbs are self-space methods with lazy engine creation."""
 
-    @petta.define
+    @metta.define
     def module_tier_increment(n):
         return n + 1
 
-    @petta.cache
+    @metta.cache
     def module_tier_square(n):
         return n * n
 
     assert module_tier_increment(4) == [5]
     assert module_tier_square(3) == [9]
-    with petta.stats() as measured:
-        assert petta.eval(S.module_tier_increment(8)) == [9]
+    with metta.stats() as measured:
+        assert metta.eval(S.module_tier_increment(8)) == [9]
     assert measured.inferences > 0
-    with petta.limits(inferences=100_000), petta.strict():
-        assert petta.eval(S.module_tier_square(4)) == [16]
-    events = petta.trace("!(module-tier-increment 1)")
+    with metta.limits(inferences=100_000), metta.strict():
+        assert metta.eval(S.module_tier_square(4)) == [16]
+    events = metta.trace("!(module-tier-increment 1)")
     assert events
-    assert callable(petta.trace)
+    assert callable(metta.trace)
 
 
 def test_module_tier_verbs_are_inert_until_called() -> None:
     """Naming every PEP 562-era root verb does not start the default engine."""
     root = Path(__file__).parents[3]
     source = (
-        "from petta import _engine\n"
-        "import petta\n"
+        "from metta import _engine\n"
+        "import metta\n"
         "assert not _engine.started()\n"
-        "assert all(callable(getattr(petta, name)) for name in "
+        "assert all(callable(getattr(metta, name)) for name in "
         "('define', 'cache', 'stats', 'limits', 'strict', 'trace'))\n"
         "assert not _engine.started()\n"
     )
@@ -165,16 +165,16 @@ class _Pair(NamedTuple):
 def test_query_into_shapes_rows(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta._new_space()
     m.add(S.edge(S.x, S.y), S.edge(S.y, S.z))
-    edges = m.query(S.edge(V.a, V.b), into=_Edge)
+    edges = m.match(S.edge(V.a, V.b), into=_Edge)
     assert edges == [_Edge("x", "y"), _Edge("y", "z")]
     m.add(S.pair(S.k, 7))
-    assert m.query(S.pair(V.a, V.n), into=_Pair) == [_Pair("k", 7)]
+    assert m.match(S.pair(V.a, V.n), into=_Pair) == [_Pair("k", 7)]
     # A missing column is an error at the door.
     with pytest.raises(TypeError, match="needs column"):
-        m.query(S.edge(V.a, V.other), into=_Edge)
+        m.match(S.edge(V.a, V.other), into=_Edge)
     # A primitive annotation is checked, not assumed.
     with pytest.raises(TypeError, match="not int"):
-        m.query(S.edge(V.a, V.n), into=_Pair)
+        m.match(S.edge(V.a, V.n), into=_Pair)
 
 
 def test_a_constructor_expression_rebuilds_through_the_query_door(metta):
@@ -189,9 +189,9 @@ def test_a_constructor_expression_rebuilds_through_the_query_door(metta):
     atom = S.P5Constructor("bolts", 4)
     with metta._new_space() as space:
         space.add(atom)
-        rows = space.query(V.constructor)
+        rows = space.match(V.constructor)
         assert rows.build(P5Constructor) == [P5Constructor("bolts", 4)]
-        assert space.query(V.constructor, into=P5Constructor) == [
+        assert space.match(V.constructor, into=P5Constructor) == [
             P5Constructor("bolts", 4)
         ]
         assert space.cast(atom, P5Constructor) is atom
@@ -203,8 +203,8 @@ def test_batch_crosses_once_and_reads_see_the_pre_batch_space(metta):  # noqa: D
         for n in range(10):
             m.add(S.bt(n))
         assert len(batch) == 10
-        assert len(m.query(S.bt(V.n))) == 0  # the stated edge: reads pre-batch
-    assert len(m.query(S.bt(V.n))) == 10
+        assert len(m.match(S.bt(V.n))) == 0  # the stated edge: reads pre-batch
+    assert len(m.match(S.bt(V.n))) == 10
 
 
 def test_batch_edges_are_enforced(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -223,7 +223,7 @@ def test_batch_edges_are_enforced(metta):  # noqa: D103  -- pytest discovers or 
             m.add(S.bt(1))
             msg = "boom"
             raise RuntimeError(msg)
-    assert len(m.query(S.bt(V.n))) == 0
+    assert len(m.match(S.bt(V.n))) == 0
     # Same-space batches do not nest; different spaces batch independently.
     other = metta._new_space()
     with m.batch():
@@ -232,7 +232,7 @@ def test_batch_edges_are_enforced(metta):  # noqa: D103  -- pytest discovers or 
                 pass
         with other.batch():
             other.add(S.ob(1))
-        assert len(other.query(S.ob(V.x))) == 1
+        assert len(other.match(S.ob(V.x))) == 1
 
 
 def test_batch_composes_with_transaction(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -248,7 +248,7 @@ def test_batch_composes_with_transaction(metta):  # noqa: D103  -- pytest discov
         m.transaction(work)
     # The batch flushed inside the transaction, and the transaction
     # rolled the flushed writes back: economy composed with atomicity.
-    assert len(m.query(S.tx(V.n))) == 0
+    assert len(m.match(S.tx(V.n))) == 0
 
 
 def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -257,7 +257,7 @@ def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):  # noqa: D103  --
     # point does in an installed environment.
     test_file = tmp_path / "test_plugin_probe.py"
     test_file.write_text(
-        "from petta import S\n"
+        "from metta import S\n"
         "def test_probe(metta, scratch_space):\n"
         "    scratch_space.add(S.pp(1))\n"
             "    assert len(scratch_space) == 1\n"
@@ -281,7 +281,7 @@ def test_shipped_plugin_provides_the_fixtures(tmp_path: Path):  # noqa: D103  --
             "pytest",
             str(test_file),
             "-p",
-            "petta.pytest_plugin",
+            "metta.pytest_plugin",
             "-q",
         ],
         capture_output=True,
@@ -299,15 +299,15 @@ def test_the_entry_point_is_declared():  # noqa: D103  -- pytest discovers or in
 
     pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
     data = tomllib.loads(pyproject.read_text())
-    assert data["project"]["entry-points"]["pytest11"]["petta"] == "petta.pytest_plugin"
+    assert data["project"]["entry-points"]["pytest11"]["metta"] == "metta.pytest_plugin"
 
 
-@given(petta.testing.patterns(max_leaves=4))
+@given(metta.testing.patterns(max_leaves=4))
 def test_patterns_strategy_always_carries_a_variable(pattern):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert pattern.vars
 
 
-@given(petta.testing.ground_atoms(max_leaves=4))
+@given(metta.testing.ground_atoms(max_leaves=4))
 def test_ground_atoms_strategy_is_ground(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert not atom.vars
 
@@ -315,7 +315,7 @@ def test_ground_atoms_strategy_is_ground(atom):  # noqa: D103  -- pytest discove
 def test_ladder_rungs_cross_the_async_seam(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     import asyncio
 
-    from petta import aio
+    from metta import aio
 
     async def go():
         async with aio.AsyncMeTTa(metta=metta._new_space()) as am:
@@ -332,10 +332,10 @@ def test_ladder_rungs_cross_the_async_seam(metta):  # noqa: D103  -- pytest disc
                 for n in range(5):
                     await am.add(S.ab(n))
                 assert len(batch) == 5
-                assert len(await am.query(S.ab(V.n))) == 0
-            assert len(await am.query(S.ab(V.n))) == 5
+                assert len(await am.match(S.ab(V.n))) == 0
+            assert len(await am.match(S.ab(V.n))) == 5
             # into= crosses too.
-            rows = await am.query(S.ab(V.n), into=_Count)
+            rows = await am.match(S.ab(V.n), into=_Count)
             assert sorted(row.n for row in rows) == [0, 1, 2, 3, 4]
             return True
 
@@ -349,25 +349,27 @@ class _Count(NamedTuple):
 def test_define_wires_the_declarative_dance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     from dataclasses import dataclass
 
+    from metta import convert
+
     @metta.define
     @dataclass
     class LadderEdge:
         a: str
         b: str
 
-    declared = metta.query("(: LadderEdge $t)")
+    declared = metta.match("(: LadderEdge $t)")
     assert [str(row[0]) for row in declared] == ["(-> String String LadderEdge)"]
     # cast narrows against the landed declaration ...
-    atom = petta.parse('(LadderEdge "x" "y")')
+    atom = metta.parse('(LadderEdge "x" "y")')
     assert metta.cast(atom, LadderEdge) is atom
     # ... conversion runs both ways ...
-    projected = petta.convert.project(LadderEdge("p", "q"))
+    projected = convert.project(LadderEdge("p", "q"))
     assert str(projected.atom) == '(LadderEdge "p" "q")'
-    assert petta.convert.build(projected.atom, LadderEdge) == LadderEdge("p", "q")
+    assert convert.build(projected.atom, LadderEdge) == LadderEdge("p", "q")
     # ... and the class serves as an into= target.
     sp = metta._new_space()
     sp.add(projected.atom)
-    assert sp.query("(LadderEdge $a $b)", into=LadderEdge) == [LadderEdge("p", "q")]
+    assert sp.match("(LadderEdge $a $b)", into=LadderEdge) == [LadderEdge("p", "q")]
 
 
 def test_define_refuses_an_unregistrable_class(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -380,10 +382,10 @@ def test_define_refuses_an_unregistrable_class(metta):  # noqa: D103  -- pytest 
 
 def test_current_space_leaves_every_root_verb_in_place():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # current_space() once popped the hidden implementation-module names
-    # with no replacement, so petta.define and five siblings vanished from
+    # with no replacement, so metta.define and five siblings vanished from
     # the package for the life of the process; the failure only surfaced
     # when another test in the same worker had called it first.
-    petta.current_space()
+    metta.current_space()
     for verb in ("define", "answer", "errors", "ops", "results", "atoms"):
-        if verb in petta._ROOT_IMPLEMENTATION_VERBS:
-            assert getattr(petta, verb) is petta._ROOT_IMPLEMENTATION_VERBS[verb]
+        if verb in metta._ROOT_IMPLEMENTATION_VERBS:
+            assert getattr(metta, verb) is metta._ROOT_IMPLEMENTATION_VERBS[verb]

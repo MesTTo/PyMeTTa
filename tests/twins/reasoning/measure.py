@@ -12,7 +12,7 @@ cardinality door for the single answer each of these calls has, and
 sequence it is.
 """
 
-from petta import S
+from metta import S
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

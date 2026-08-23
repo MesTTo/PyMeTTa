@@ -21,8 +21,8 @@ import pickle
 
 import pytest
 
-from petta import S, V, parse, tables
-from petta.results import Rows, _row_class
+from metta import S, V, parse, tables
+from metta.results import Rows, _row_class
 
 
 @pytest.fixture()
@@ -35,7 +35,7 @@ def test_rows_to_pl_builds_the_polars_frame(m):  # noqa: D103  -- pytest discove
     pytest.importorskip("polars")
 
     tables.add(m, "score", [("ada", 3), ("bob", 5)])
-    rows = m.query(S.score(V.who, V.points), into=Rows)
+    rows = m.match(S.score(V.who, V.points), into=Rows)
     frame = rows.to_pl()
     assert frame.columns == ["who", "points"]
     assert frame["points"].to_list() == [3, 5]
@@ -44,7 +44,7 @@ def test_rows_to_pl_builds_the_polars_frame(m):  # noqa: D103  -- pytest discove
 
 def test_rows_to_df_builds_or_names_the_need(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "score", [("ada", 3)])
-    rows = m.query(S.score(V.who, V.points), into=Rows)
+    rows = m.match(S.score(V.who, V.points), into=Rows)
     if importlib.util.find_spec("pandas") is None:
         with pytest.raises(ImportError, match="pandas"):
             rows.to_df()
@@ -54,7 +54,7 @@ def test_rows_to_df_builds_or_names_the_need(m):  # noqa: D103  -- pytest discov
 
 def test_rows_to_dicts_returns_plain_records(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "score", [("ada", 3), ("bob", 5)])
-    rows = m.query(S.score(V.who, V.points), into=Rows)
+    rows = m.match(S.score(V.who, V.points), into=Rows)
     assert rows.to_dicts() == [
         {"who": "ada", "points": 3},
         {"who": "bob", "points": 5},
@@ -73,7 +73,7 @@ def test_query_rows_explain_empty_results(m):  # noqa: D103  -- pytest discovers
         S.age(S.Ada, 12),
     )
 
-    missing = m.query(S.Parent(S.Missing, V.child), into=Rows)
+    missing = m.match(S.Parent(S.Missing, V.child), into=Rows)
     assert "none unifies" in missing.why()
     assert "why()" in repr(missing)
     assert "rows.why()" in missing._repr_html_()
@@ -81,19 +81,19 @@ def test_query_rows_explain_empty_results(m):  # noqa: D103  -- pytest discovers
     assert "none unifies" in copy.deepcopy(missing).why()
     assert "none unifies" in pickle.loads(pickle.dumps(missing)).why()
 
-    joined = m.query(
+    joined = m.match(
         S.edge(V.left, V.middle), S.edge(V.middle, V.right), into=Rows
     )
     assert "shared variable binding" in joined.why()
 
-    guarded = m.query(
+    guarded = m.match(
         S.age(S.Ada, V.years), where=S[">="](V.years, 18), into=Rows
     )
     assert "where guard" in guarded.why()
 
     with pytest.raises(ValueError, match="returned 1 row"):
-        m.query(S.Parent(S.Tom, V.child), into=Rows).why()
-    with pytest.raises(TypeError, match=r"query\(\)"):
+        m.match(S.Parent(S.Tom, V.child), into=Rows).why()
+    with pytest.raises(TypeError, match=r"match\(\)"):
         Rows(("value",), []).why()
     with pytest.raises(TypeError, match="transformed"):
         missing[:].why()
@@ -225,7 +225,7 @@ def test_empty_zero_column_rows_remain_an_empty_table():  # noqa: D103  -- pytes
 
 def test_pipe_chains_user_functions(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.add(parse("(pipe-edge x y)"), parse("(pipe-edge y z)"))
-    rows = metta.query("(pipe-edge $a $b)", into=Rows)
+    rows = metta.match("(pipe-edge $a $b)", into=Rows)
     assert rows.pipe(len) == 2
     # arguments thread through, pandas' shape
     assert rows.pipe(lambda r, k: [str(row[0]) for row in r[:k]], 1) == ["x"]
@@ -236,14 +236,14 @@ def test_rich_renders_rows_as_a_table(metta):  # noqa: D103  -- pytest discovers
     from rich.console import Console
 
     metta.add(parse("(rich-edge x y)"))
-    rows = metta.query("(rich-edge $a $b)", into=Rows)
+    rows = metta.match("(rich-edge $a $b)", into=Rows)
     console = Console(file=io.StringIO(), width=80)
     console.print(rows)
     printed = console.file.getvalue()
     assert "a" in printed and "b" in printed and "x" in printed and "y" in printed
     # a zero-column answer set falls back to the plain repr
     console2 = Console(file=io.StringIO(), width=80)
-    console2.print(metta.query("(rich-edge x y)", into=Rows))
+    console2.print(metta.match("(rich-edge x y)", into=Rows))
     assert "Rows[]" in console2.file.getvalue()
 
 

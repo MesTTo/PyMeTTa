@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import pytest
 
-from petta import S, V
-from petta.errors import PettaError
-from petta.foreign import SpaceProvider, delivery_promise
-from petta.subscribe import bridge
+from metta import S, V
+from metta.errors import PettaError
+from metta.foreign import SpaceProvider, delivery_promise
+from metta.subscribe import bridge
 
 
 class Dictionary(SpaceProvider):
@@ -88,7 +88,7 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
     try:
         # The promise is an ordinary declaration atom, so a MeTTa program
         # reads what the engine acts on.
-        rows = metta._at("&petta").query(S.events(V.ctx, V.delivery, V.order))
+        rows = metta._at("&petta").match(S.events(V.ctx, V.delivery, V.order))
         promises = {str(row.ctx): (str(row.delivery), str(row.order)) for row in rows}
         assert promises["&ev-declared"] == ("per-write-exactly", "ordered")
         assert "&ev-silent" not in promises
@@ -108,8 +108,8 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
         try:
             metta._at("&ev-declared").add(S.tick(1))
             assert [event.bindings["n"] for event in seen] == [1]
-            assert target.query(S.heard(V.n))
-            assert mirror.query(S.reacted(V.n))
+            assert target.match(S.heard(V.n))
+            assert mirror.match(S.reacted(V.n))
         finally:
             rule.cancel()
             subscription.cancel()
@@ -127,7 +127,7 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
         # works, so this is a withdrawn promise rather than a broken space.
         metta._at("&ev-silent").add(S.tick(2))
         assert S.tick(2) in quiet.stored
-        assert metta._at("&ev-silent").query(S.tick(V.n))
+        assert metta._at("&ev-silent").match(S.tick(V.n))
     finally:
         metta._unregister_space("&ev-silent")
         metta._unregister_space("&ev-declared")

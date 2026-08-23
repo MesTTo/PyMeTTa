@@ -13,8 +13,8 @@ Open Obligations:
 
 import pytest
 
-from petta import Grounded, S, V, integrate
-from petta.casting import CastError, cast
+from metta import Grounded, S, V, integrate
+from metta.casting import CastError, cast
 
 
 @pytest.fixture()
@@ -108,7 +108,7 @@ try:
 except ModuleNotFoundError:
     pass
 else:
-    from petta.testing import expressions
+    from metta.testing import expressions
 
     @settings(
         max_examples=25,

@@ -1,4 +1,4 @@
-"""Purpose: petta.parallel.EnginePool, the Python-side fan-out across engines.
+"""Purpose: metta.parallel.EnginePool, the Python-side fan-out across engines.
 Guarantees:
   - every worker holds its OWN engine, asserted by distinct engine ids rather
     than by wall clock [tested test_each_worker_holds_a_distinct_engine]
@@ -24,8 +24,8 @@ import time
 
 import pytest
 
-from petta import PettaError, S, V
-from petta.parallel import EnginePool, imap_unordered, pool
+from metta import PettaError, S, V
+from metta.parallel import EnginePool, imap_unordered, pool
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given
@@ -52,9 +52,9 @@ def test_each_worker_holds_a_distinct_engine(p):
     """The whole design rests on per-worker engines, so assert the engine ids
     differ rather than inferring it from a timing win.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    # petta.subscribe.bridge is the space-to-space bridge; the Janus
+    # metta.subscribe.bridge is the space-to-space bridge; the Janus
     # bridge is the one in _engine.
-    from petta._engine import bridge
+    from metta._engine import bridge
 
     seen = set()
     barrier = threading.Barrier(p.workers, timeout=30)
@@ -102,7 +102,7 @@ def test_pool_agrees_with_the_home_engine(m, p):
     cases = {
         "value": lambda: m._one("(pool-double 21)"),
         "arith": lambda: m._one("(+ 1 (* 2 3))"),
-        "query": lambda: sorted(str(r) for r in m.query(S.pool_kind(V.x, V.k))),
+        "query": lambda: sorted(str(r) for r in m.match(S.pool_kind(V.x, V.k))),
         "count": lambda: len(m),
         "eval": lambda: sorted(str(a) for a in m.eval("(superpose (1 2 3))")),
     }
@@ -124,7 +124,7 @@ def test_pool_agrees_with_the_home_engine_on_arbitrary_arithmetic(metta, values)
 
 def test_a_worker_can_write_and_the_home_engine_sees_it(m, p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     p.map(lambda n: m.add(S.pool_wrote(n)), range(4))
-    rows = sorted(str(r.n) for r in m.query(S.pool_wrote(V.n)))
+    rows = sorted(str(r.n) for r in m.match(S.pool_wrote(V.n)))
     assert rows == ["0", "1", "2", "3"]
 
 

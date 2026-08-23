@@ -29,7 +29,7 @@ The space every equation writes into and matches is the HANDLE, because a space
 is an ordinary term operand.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

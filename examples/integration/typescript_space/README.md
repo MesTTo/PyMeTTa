@@ -11,10 +11,10 @@ MeTTa implementations joined through one seam.
 Attach either from PeTTa and the space is ordinary:
 
 ```python
-import petta
-from petta import remote
+import metta
+from metta import remote
 
-m = petta.MeTTa()
+m = metta.MeTTa()
 remote.attach(m, "&ts", "http://127.0.0.1:8700")
 m.run("!(add-atom &ts (edge a b))")
 m.run("!(match &ts (edge $x $y) ($x $y))")
@@ -22,7 +22,7 @@ m.run("!(match &ts (edge $x $y) ($x $y))")
 
 ## The protocol
 
-What `petta.remote.serve()` speaks, so any language can stand on either
+What `metta.remote.serve()` speaks, so any language can stand on either
 end. Eight POST operations, JSON bodies both ways, plus `GET /health`:
 
 | request | body | answer |
@@ -104,6 +104,6 @@ PeTTa: MeTTa-driven queries, the conformance kit over the attached
 provider, a thread pool, the async surface, one-request batches, and
 the MeTTaScript backend when `PETTA_METTASCRIPT_CORE` names its core
 module. Both servers are also certified by
-`petta.testing.GatewayComplianceSuite`, the protocol's own conformance
+`metta.testing.GatewayComplianceSuite`, the protocol's own conformance
 suite, which any implementation in any language can subclass against a
 URL.

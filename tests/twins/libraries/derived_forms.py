@@ -11,8 +11,8 @@ space crosses a term position as a grounded operand, so the equation carries the
 handle the twin already holds.
 """
 
-import petta
-from petta import S, V, equation
+import metta
+from metta import S, V, equation
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -38,7 +38,7 @@ def twin(m):
 
     # It is still the FIRST answer of a generator with side effects, so the
     # rest of the generator does not run.
-    seen = petta.space("&seen")
+    seen = metta.space("&seen")
     m += equation(S.noisy(V.x)).to(S.let(V._, S["add-atom"](seen, S.saw(V.x)), V.x))  # rung: this is the equation's stored BODY, and `space += atom` and assignment are Python statements, which an atom cannot hold
 
     assert once(S.superpose((S.noisy(S.a), S.noisy(S.b)))) == [S.a]

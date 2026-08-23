@@ -10,7 +10,7 @@ directly, one stored equation per yield. Naming the equation the yield stored
 is what lets `-=` and `+=` take it as the atom it is.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

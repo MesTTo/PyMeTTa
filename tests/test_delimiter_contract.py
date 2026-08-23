@@ -44,7 +44,7 @@ def test_every_delimiter_check_derives_from_one_grammar_rule(metta, repo_root):
     }
     assert actual == expected
 
-    core = repo_root / "bindings" / "python" / "petta" / "_atoms_core.py"
+    core = repo_root / "bindings" / "python" / "metta" / "_atoms_core.py"
     tree = ast.parse(core.read_text(encoding="utf-8"))
     imported = {
         alias.name

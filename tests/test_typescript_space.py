@@ -22,9 +22,9 @@ from pathlib import Path
 
 import pytest
 
-import petta
-from petta import S, V, aio, remote, testing
-from petta.remote import RemoteSpace
+import metta
+from metta import S, V, aio, remote, testing
+from metta.remote import RemoteSpace
 
 _SERVER_DIR = Path(__file__).resolve().parents[1] / "examples" / "integration" / "typescript_space"
 _NODE = shutil.which("node")
@@ -81,7 +81,7 @@ def mettascript_server():  # noqa: D103  -- pytest discovers or injects this cal
 
 
 def test_metta_reaches_atoms_held_by_typescript(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     try:
         remote.attach(m, "&ts-basics", ts_server)
         m.run("!(add-atom &ts-basics (edge a b))")
@@ -106,7 +106,7 @@ def test_the_conformance_kit_certifies_the_typescript_provider(ts_server):  # no
 
 
 def test_threaded_clients_interleave_whole_operations(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     try:
         remote.attach(m, "&ts-threads", ts_server)
 
@@ -128,7 +128,7 @@ def test_threaded_clients_interleave_whole_operations(ts_server):  # noqa: D103 
 
 def test_async_clients_reach_the_typescript_space(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     async def drive() -> list:
-        m = petta.MeTTa().space()
+        m = metta.MeTTa().space()
         try:
             remote.attach(m, "&async-ts", ts_server)
             async with await aio.connect(metta=m) as engine:
@@ -164,7 +164,7 @@ def test_the_wire_round_trip_is_fast_enough_to_matter(ts_server):  # noqa: D103 
 
 
 def test_mettascript_holds_the_atoms_when_named(mettascript_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     try:
         remote.attach(m, "&ms", mettascript_server)
         m.run("!(add-atom &ms (edge a b))")
@@ -190,7 +190,7 @@ def test_a_batch_crosses_in_one_request(ts_server):  # noqa: D103  -- pytest dis
         operations.append(operation)
         return inner(operation, payload)
 
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     try:
         remote.attach(m, "&ts-batch", counting)
         m._at("&ts-batch").add(S.row(1), S.row(2), S.row(3))

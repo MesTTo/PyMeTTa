@@ -10,7 +10,7 @@ Open Obligations:
 
 from _common import check, done
 
-from petta import MeTTa, S, Expression
+from metta import MeTTa, S, Expression
 
 app = MeTTa().space()
 app.run(

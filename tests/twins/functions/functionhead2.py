@@ -35,8 +35,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import TRUE, S, V, equation
+import metta
+from metta import TRUE, S, V, equation
 
 #: The knowledge, as the table it is: each animal and what holds of it, in the
 #: original's own order.
@@ -57,7 +57,7 @@ BUDGET = 1
 
 def twin(m):
     """Filter ten facts through two chained relations."""
-    petta.reflection += S["dispatch-policy"](S.small, S.NoMatchEnum, S.NoMatchFail)
+    metta.reflection += S["dispatch-policy"](S.small, S.NoMatchEnum, S.NoMatchFail)
 
     # (= (living garfield) True) ... (= (small cat42) True)
     # rung: each head fixes a SYMBOL, and a stacked clause's literal default is a

@@ -11,7 +11,7 @@ is intentionally larger than the evaluator's default fuel, so the example
 states its own budget and the twin evaluates the same scoped pragma.
 """
 
-from petta import S, equation, fn
+from metta import S, equation, fn
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

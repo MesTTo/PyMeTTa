@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from petta import MeTTa
+from metta import MeTTa
 
 _ARBITER_ROOT = (
     Path(os.environ["LEATTA_PATH"])

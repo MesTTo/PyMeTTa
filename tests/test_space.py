@@ -49,29 +49,31 @@ import re
 import janus_swi
 import pytest
 
-import petta
-from petta import (
+import metta
+from metta import (
     Expression,
     MeTTa,
     PettaError,
     S,
     V,
     _engine,
+    current_space,
     ground,
     parse,
     tables,
+    unify,
     wire,
 )
-from petta.atoms import Grounded, Variable
-from petta.errors import (
+from metta.atoms import Grounded, Variable
+from metta.errors import (
     EngineError,
     MettaOperationError,
     MettaSyntaxError,
     StrictError,
     TimeLimitError,
 )
-from petta.foreign import SpaceProvider, register_provider, unregister_provider
-from petta.results import Rows
+from metta.foreign import SpaceProvider, register_provider, unregister_provider
+from metta.results import Rows
 
 
 @pytest.fixture()
@@ -251,20 +253,20 @@ def test_strict_is_opt_in(m):  # noqa: D103  -- pytest discovers or injects this
 
 def test_add_query_atoms(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.Parent(S.Tom, S.Bob), S.Parent(S.Bob, S.Ann))
-    rows = m.query(S.Parent(V.x, S.Bob))
+    rows = m.match(S.Parent(V.x, S.Bob))
     assert rows.columns == ("x",)
     assert [r.x for r in rows] == [S.Tom]
 
 
 def test_query_join(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.Edge(S.a, S.b), S.Edge(S.b, S.c), S.Edge(S.c, S.d))
-    rows = m.query(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
+    rows = m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
     assert {(r.x, r.z) for r in rows} == {(S.a, S.c), (S.b, S.d)}
 
 
 def test_query_projection_and_column(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.age(S.Ada, 36), S.age(S.Bob, 41))
-    rows = m.query(S.age(V.who, V.years))
+    rows = m.match(S.age(V.who, V.years))
     assert set(rows.who) == {S.Ada, S.Bob}
     assert sorted(rows.years, key=int) == [36, 41]
 
@@ -275,7 +277,7 @@ def test_query_surfaces_share_column_order(m):  # noqa: D103  -- pytest discover
         S.right(V.third, V.second),
     )
     expected = ("first", "second", "third")
-    assert m.query(*patterns).columns == expected
+    assert m.match(*patterns).columns == expected
     assert m.prepare(*patterns).columns == expected
     with m._stream(*patterns) as cursor:
         assert cursor.columns == expected
@@ -326,7 +328,7 @@ def test_getitem_queries_and_a_tuple_joins(m):  # noqa: D103  -- pytest discover
 
 
 def test_getitem_refuses_a_slice_naming_the_doors(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(TypeError, match=r"query\(limit=n\)"):
+    with pytest.raises(TypeError, match=r"match\(limit=n\)"):
         m[0:3]
     with pytest.raises(TypeError, match=r"stream\(\)"):
         m[:]
@@ -412,7 +414,7 @@ def test_eval(metta):  # noqa: D103  -- pytest discovers or injects this callabl
 
 def test_source_strings_are_parsed_where_atoms_are_expected(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add("(likes Ada Coffee)")
-    assert m.query("(likes $who Coffee)")[0].who == S.Ada
+    assert m.match("(likes $who Coffee)")[0].who == S.Ada
 
 
 @pytest.mark.parametrize(
@@ -480,14 +482,14 @@ def test_live_object_identity(m):  # noqa: D103  -- pytest discovers or injects 
 
     model = Model()
     m.add(S.model(S.main, ground(model)))
-    back = m.query(S.model(S.main, V.m))[0].m
+    back = m.match(S.model(S.main, V.m))[0].m
     assert wire.decode(back) is model
 
 
 def test_boxed_container_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     payload = {"weights": [1, 2]}
     m.add(S.blob(ground(payload)))
-    assert wire.decode(m.query(S.blob(V.d))[0].d) is payload
+    assert wire.decode(m.match(S.blob(V.d))[0].d) is payload
 
 
 def test_fact_isolation_between_spaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -495,7 +497,7 @@ def test_fact_isolation_between_spaces(metta):  # noqa: D103  -- pytest discover
     a.add(S.fact(S.here))
     assert len(a) == 1
     assert len(b) == 0
-    assert len(b.query(S.fact(V.x))) == 0
+    assert len(b.match(S.fact(V.x))) == 0
 
 
 def test_default_metta_handles_share_the_self_space():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -535,8 +537,8 @@ def test_load_adds_to_existing_space(m, tmp_path):
     m.load(second)
 
     assert len(m) == 3
-    assert len(m.query(S["loaded-copy"](V.value))) == 1
-    assert len(m.query(S["other-copy"](V.value))) == 1
+    assert len(m.match(S["loaded-copy"](V.value))) == 1
+    assert len(m.match(S["other-copy"](V.value))) == 1
 
 
 def test_why(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -635,7 +637,7 @@ def test_object_identity_survives_the_boundary(m):
     thing = Thing()
     m.add(S.holds(ground(thing)))
     assert S.holds(ground(thing)) in m
-    rows = m.query(S.holds(V.x))
+    rows = m.match(S.holds(V.x))
     assert rows[0].x.value is thing
     assert m.remove(S.holds(ground(thing))) is True
     assert S.holds(ground(thing)) not in m
@@ -644,9 +646,9 @@ def test_object_identity_survives_the_boundary(m):
 def test_anonymous_variables_do_not_join(m):
     """Two underscores are two fresh variables, exactly as parsed $_ $_."""
     m.add(S.duo(S.a, S.a), S.duo(S.a, S.b))
-    assert len(m.query(S.duo(V._, V._))) == 2
+    assert len(m.match(S.duo(V._, V._))) == 2
     # And the anonymous variable never becomes a column.
-    assert m.query(S.duo(V.x, V._)).columns == ("x",)
+    assert m.match(S.duo(V.x, V._)).columns == ("x",)
 
 
 def test_new_spaces_drop_and_names_recycle(metta):
@@ -661,7 +663,7 @@ def test_new_spaces_drop_and_names_recycle(metta):
         assert again.name == first
         assert len(again) == 0
     with metta:
-        assert petta.current_space() == metta.name
+        assert current_space() == metta.name
 
 
 def test_load_restores_the_working_directory(metta, tmp_path):
@@ -699,7 +701,7 @@ def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa
 
 def test_add_table_reads_records_by_value(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a, S.b))
-    rows = m.query(S.p(V.x, V.y), into=Rows)
+    rows = m.match(S.p(V.x, V.y), into=Rows)
     records = m._new_space()
     tables.add(records, S.p, rows.to_dicts())
     # Iterating a mapping yields keys, so this once stored ("x" "y").
@@ -726,12 +728,12 @@ def test_the_empty_symbol_is_refused_rather_than_written_unreadably(m, tmp_path)
 def test_a_where_guard_that_can_never_be_true_is_refused(m, guard):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.age(S.Ada, 36))
     with pytest.raises(TypeError, match="can never answer true"):
-        m.query(S.age(V.who, V.n), where=guard)
+        m.match(S.age(V.who, V.n), where=guard)
 
 
 def test_wrong_bound_types_name_the_argument(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError, match="limit must be"):
-        m.query(S.age(V.who, V.n), limit="x")
+        m.match(S.age(V.who, V.n), limit="x")
     with pytest.raises(TypeError, match="timeout must be"):
         m.run("!(+ 1 2)", timeout="x")
     with pytest.raises(TypeError, match="inferences must be"):
@@ -754,8 +756,8 @@ def test_a_reserved_limit_does_not_leak_janus_framing(metta):  # noqa: D103  -- 
 
 def test_build_never_hands_back_its_private_sentinel(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a))
-    rows = m.query(S.p(V.x), into=Rows)
-    assert petta.convert.build(S.a, str) == S.a
+    rows = m.match(S.p(V.x), into=Rows)
+    assert metta.convert.build(S.a, str) == S.a
     assert rows.build("x", str) == [S.a]
 
 
@@ -795,7 +797,7 @@ def test_removing_what_was_never_registered_is_reported(metta):  # noqa: D103  -
 
 def test_an_unknown_column_names_the_columns_that_exist(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a))
-    rows = m.query(S.p(V.who))
+    rows = m.match(S.p(V.who))
     with pytest.raises(AttributeError, match="did you mean 'who'"):
         _ = rows.wh
 
@@ -821,13 +823,13 @@ def test_a_rational_tree_join_fails_the_row_instead_of_the_process(m):  # noqa: 
     # at a 53-million-frame walk. Now the cyclic candidate fails its row,
     # exactly as the same pattern behaves through match.
     m.add(parse("(rt-fact (f $x) $x)"))
-    assert len(m.query(parse("(rt-fact $y $y)"))) == 0
+    assert len(m.match(parse("(rt-fact $y $y)"))) == 0
     assert m.run("!(collapse (match (context-space) (rt-fact $y $y) hit))") == [
         [Expression()]
     ]
     # The acyclic twin still answers through both doors.
     m.add(parse("(rt-fact ok ok)"))
-    assert len(m.query(parse("(rt-fact $y $y)"))) == 1
+    assert len(m.match(parse("(rt-fact $y $y)"))) == 1
 
 
 def test_copy_clones_through_the_bulk_door(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -882,13 +884,13 @@ def test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag(m):
 
     blob = Blob()
     assert "residuals" not in inspect.signature(m.eval).parameters
-    assert "residuals" not in inspect.signature(petta.aio.AsyncMeTTa.eval).parameters
+    assert "residuals" not in inspect.signature(metta.aio.AsyncMeTTa.eval).parameters
     with pytest.raises(TypeError, match="residuals"):
         m.eval("(Point item)", residuals=True)
 
     assert m.eval_status("(Point item)")[0][0] == "not-reducible"
     (answer,) = m.eval("(Point item)", using={"item": blob})
-    assert isinstance(answer, petta.Expression)
+    assert isinstance(answer, metta.Expression)
     assert answer.args[0].value is blob
 
 
@@ -897,7 +899,7 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
     before processing any of its forms, so a `!` may name a function the same
     source defines lower down [source: engine/filereader.pl
     register_parsed_signatures/1]. run() and load() reach the engine through
-    bindings/python/petta/shim.pl rather than through that reader, and until this they
+    bindings/python/metta/shim.pl rather than through that reader, and until this they
     skipped the pass: seven shipped examples passed in the engine and failed
     here with `Domain error: function_symbol expected` [measured 2026-08-18].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
@@ -1112,8 +1114,8 @@ def test_a_variable_headed_pattern_answers_through_every_door(metta):
             4: ("p230-h", "4", "5", "6"),
         }
         for width, expected in widths.items():
-            pattern = petta.Expression([getattr(V, f"p230v{i}") for i in range(width)])
-            rows = list(space.query(pattern))
+            pattern = Expression([getattr(V, f"p230v{i}") for i in range(width)])
+            rows = list(space.match(pattern))
             assert [tuple(str(cell) for cell in row) for row in rows] == [expected]
     # The match door runs inside a fresh space's own context, because &self
     # is shared process-wide at the root and a variable-headed pattern would
@@ -1136,19 +1138,19 @@ def test_an_integer_pattern_never_matches_a_stored_float_atom(metta):
     matches another, and the raw-value comparison keeps the == operator's
     numeric tower so answers still compare with == 3.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    stored = petta.Expression([Grounded(0.0)])
-    pattern = petta.Expression([Grounded(0)])
+    stored = Expression([Grounded(0.0)])
+    pattern = Expression([Grounded(0)])
     with metta._new_space() as space:
         space.add(stored)
-        assert list(space.query(pattern)) == []
+        assert list(space.match(pattern)) == []
         assert pattern not in space
         assert stored in space
         assert space.remove(pattern) is False
         assert space.remove(stored) is True
-    assert petta.unify(pattern, stored) is None
+    assert unify(pattern, stored) is None
     assert Grounded(0) != Grounded(0.0)
     assert Grounded(0.0) != Grounded(-0.0)
-    assert petta.unify(Grounded(float("nan")), Grounded(float("nan"))) is not None
+    assert unify(Grounded(float("nan")), Grounded(float("nan"))) is not None
     # The raw-value arm keeps the engine's == tower untouched.
     assert Grounded(0) == 0.0
     assert Grounded(3.0) == 3

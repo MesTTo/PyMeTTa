@@ -82,10 +82,10 @@ from pathlib import Path
 
 import pytest
 
-from petta import FALSE, TRUE, UNIT, Expression, G, S, V, fn, if_, space
-from petta.atoms import order_key
-from petta.errors import EngineError
-from petta.vocabularies import SpaceCapability
+from metta import FALSE, TRUE, UNIT, Expression, G, S, V, fn, if_, space
+from metta.atoms import order_key
+from metta.errors import EngineError
+from metta.vocabularies import SpaceCapability
 
 
 def test_resolved_bang_call_is_eager(tmp_path: Path) -> None:
@@ -306,7 +306,7 @@ def test_rows_share_the_answer_projection_contract() -> None:
     target += S["libfix-projection"](1)
     target += S["libfix-projection"](2)
 
-    rows = target.query(S["libfix-projection"](V.value))
+    rows = target.match(S["libfix-projection"](V.value))
 
     assert rows.value == rows[V.value] == rows["value"] == [G(1), G(2)]
 
@@ -460,7 +460,7 @@ def test_first_answer_pull_has_no_late_consult_floor() -> None:
     """A fresh process prices its first lazy pull near direct evaluation."""
     repo = Path(__file__).resolve().parents[3]
     script = """
-from petta import S, space
+from metta import S, space
 m = space()
 with m.stats() as eager:
     assert m.eval(S[\"+\"](1, 2)) == [3]

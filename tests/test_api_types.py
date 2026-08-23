@@ -20,19 +20,19 @@ from typing import Final, Literal, get_args, get_overloads, get_type_hints
 
 import pytest
 
-import petta
-from petta import MeTTa, _api_types, aio, arrays, convert
-from petta import _atom_namespace as atom_namespace
-from petta._ops import Operation
-from petta._space import Space, current_space
-from petta.casting import cast
-from petta.vocabularies import SaveFormat
+import metta
+from metta import MeTTa, _api_types, aio, arrays, convert
+from metta import _atom_namespace as atom_namespace
+from metta._ops import Operation
+from metta._space import Space, current_space
+from metta.casting import cast
+from metta.vocabularies import SaveFormat
 
 
 def test_canonical_context_types_replace_public_newtypes():
     """Space handles and symbols replace the two public string NewTypes."""
-    assert "SpaceName" not in dir(petta)
-    assert "MettaName" not in dir(petta)
+    assert "SpaceName" not in dir(metta)
+    assert "MettaName" not in dir(metta)
     assert _api_types.__all__ == []
     assert get_type_hints(Space.save)["format"] is str
     assert get_type_hints(aio.AsyncMeTTa.save)["format"] == Literal["metta", "fast"]

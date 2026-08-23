@@ -12,7 +12,7 @@ nothing fails exactly as the example's does. The space each import names is the
 handle itself, which crosses into a built term as a grounded operand.
 """
 
-from petta import S
+from metta import S
 
 #: The engine library the example opens first. Its underscore is real, so it
 #: takes the bracket door: `S.lib_he` would name `lib-he`, which is not a

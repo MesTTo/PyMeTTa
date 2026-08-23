@@ -16,7 +16,7 @@ bare `OK` with an `F821` suppression under it, because the name had no Python
 value; the mention door removed both the suppression and the reason for it.
 """
 
-from petta import S, equation
+from metta import S, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

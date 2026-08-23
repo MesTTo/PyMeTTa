@@ -15,7 +15,7 @@ Calling is ordinary: `m.fn.myfun(...)` answers once per element, which is
 what a `for` form is for, and the answers compare as the sequence they are.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

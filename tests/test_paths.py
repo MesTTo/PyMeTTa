@@ -9,8 +9,8 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-from petta import S, V, ground
-from petta.paths import Key, path
+from metta import S, V, ground
+from metta.paths import Key, path
 
 
 def test_a_path_reaches_into_a_handle_without_converting_it(metta):
@@ -33,7 +33,7 @@ def test_a_path_reaches_into_a_handle_without_converting_it(metta):
             S.record(ground({"score": 7})),
         )
 
-        rows = space.query(
+        rows = space.match(
             S.manager(V.who, path("age", to=V.age)),
             S.band(V.age, V.band),
         )
@@ -42,12 +42,12 @@ def test_a_path_reaches_into_a_handle_without_converting_it(metta):
 
         profile.age = 32
         space.add(S.band(32, S.current))
-        assert space.query(
+        assert space.match(
             S.manager(S.ada, path("age", to=V.age)),
             S.band(V.age, V.band),
         ).to_dicts() == [{"age": 32, "band": "current"}]
 
-        assert space.query(S.record(path(Key("score"), to=V.score))).to_dicts() == [
+        assert space.match(S.record(path(Key("score"), to=V.score))).to_dicts() == [
             {"score": 7}
         ]
-        assert not space.query(S.manager(S.ada, path("loop", "age", to=V.age)))
+        assert not space.match(S.manager(S.ada, path("loop", "age", to=V.age)))

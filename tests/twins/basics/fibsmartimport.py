@@ -14,7 +14,7 @@ What the import brings in is then an ordinary callable: `m.fn.fib` is the
 imported function, named through the space that now holds it.
 """
 
-from petta import S
+from metta import S
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

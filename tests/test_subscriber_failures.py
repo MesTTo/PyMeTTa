@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from petta import PettaError, S, V
-from petta.errors import EngineError, SubscriberError
-from petta.foreign import Adder, Enumerable, SpaceProvider
+from metta import PettaError, S, V
+from metta.errors import EngineError, SubscriberError
+from metta.foreign import Adder, Enumerable, SpaceProvider
 
 
 class _ReadOnly(SpaceProvider, Adder, Enumerable):
@@ -82,7 +82,7 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
         assert "the watcher is broken" in str(failure)
         # It says the write stands, and the space agrees.
         assert "applied" in str(failure)
-        assert len(space.query(S.fact(V.q))) == 1
+        assert len(space.match(S.fact(V.q))) == 1
         # Still a PettaError, so nothing that caught it before stops doing so.
         assert isinstance(failure, PettaError)
 
@@ -94,6 +94,6 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
         finally:
             removing.cancel()
         assert removed.value.action == "remove"
-        assert space.query(S.fact(V.q)) == []
+        assert space.match(S.fact(V.q)) == []
     finally:
         space.drop()

@@ -32,8 +32,8 @@ from pathlib import Path
 
 import pytest
 
-from petta import Symbol, parse
-from petta import testing as pt
+from metta import Symbol, parse
+from metta import testing as pt
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given

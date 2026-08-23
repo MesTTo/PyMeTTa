@@ -29,7 +29,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import FALSE, TRUE, Expression, S, V, equation, if_
+from metta import FALSE, TRUE, Expression, S, V, equation, if_
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree. This one

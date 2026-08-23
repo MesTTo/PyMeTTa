@@ -12,7 +12,7 @@ equation as soon as it lands, and calling one IS evaluating it.
 
 from typing import Any
 
-from petta import Atom, S
+from metta import Atom, S
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

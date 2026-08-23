@@ -20,7 +20,7 @@ what `pattern in space` asks, so the twin answers True and False rather than
 Yes and No.
 """
 
-from petta import S, V, equation, typed
+from metta import S, V, equation, typed
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

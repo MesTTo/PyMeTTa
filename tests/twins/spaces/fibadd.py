@@ -17,7 +17,7 @@ the pragma is a term (residue, P14.10). PERFECT:
 carrying the pragma vocabulary the way it carries the other two bounds.
 """
 
-from petta import S
+from metta import S
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

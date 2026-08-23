@@ -16,7 +16,7 @@ whose pattern is an EXPRESSION, so it unifies rather than binds, and `testf`
 fixes a SYMBOL in its head; a compiled parameter list reaches neither.
 """
 
-from petta import Expression, S, V, Variable, arrow, equation, fn, ground, typed
+from metta import Expression, S, V, Variable, arrow, equation, fn, ground, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

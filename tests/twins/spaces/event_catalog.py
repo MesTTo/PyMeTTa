@@ -16,9 +16,9 @@ The two spaces the declarations are ABOUT go into those declarations as
 handles, because a space is an ordinary term operand.
 """
 
-import petta
-from petta import S, V
-from petta.errors import EngineError
+import metta
+from metta import S, V
+from metta.errors import EngineError
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -30,7 +30,7 @@ BUDGET = 1
 
 def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; the default handle stays untouched
     """Read the event declarations, then try to write an unsayable one."""
-    reflection = petta.reflection
+    reflection = metta.reflection
 
     # Delivery is drawn from messaging's own three promises, and order is the
     # second axis, because a channel may deliver every write out of order.
@@ -47,7 +47,7 @@ def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; 
 
     # The value set is closed, so a promise nobody could act on is refused at
     # the write rather than stored as an atom that never matches.
-    feed = petta.space("&feed")
+    feed = metta.space("&feed")
     refusal = None
     try:
         reflection += (S.events, feed, S.eventually)
@@ -58,7 +58,7 @@ def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; 
     # A native space needs no declaration and is watchable anyway: every write
     # into the engine's own store runs its write hooks, which is a fact about
     # this engine rather than a promise a provider is making.
-    native = petta.space("&native-events")
+    native = metta.space("&native-events")
     native += (S.reading, 1)
     assert not reflection[S.events(native, V.d, V.o)]
 

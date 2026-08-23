@@ -6,7 +6,7 @@ carries the Python string whole, which is how a MeTTa string literal is
 written from Python.
 """
 
-from petta import ground
+from metta import ground
 
 #: The text under test. Its parentheses and its spaces are DATA, and `ground`
 #: is what says so: every other string in a twin would be program text.

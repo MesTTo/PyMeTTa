@@ -8,7 +8,7 @@ nothing; removing the override restores the default on the same call.
 
 The override is an ordinary atom in an ordinary space, so setting it is `+=`
 and clearing it is `-=`: the library steers from inside MeTTa rather than
-through a Python knob, and `petta.reflection` is the handle for the space that
+through a Python knob, and `metta.reflection` is the handle for the space that
 holds it.
 
 The three claims are read through `m.eval`, which keeps the not-reducible
@@ -23,8 +23,8 @@ is a bool, int, float or str, never a symbol. The residue table records that
 against P14.4 too.
 """
 
-import petta
-from petta import S, equation
+import metta
+from metta import S, equation
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
@@ -44,7 +44,7 @@ def twin(m):
     # The catalogued default: a call nothing matches answers itself.
     assert m.eval(only_a(S.B)) == [only_a(S.B)]
 
-    reflection = petta.reflection
+    reflection = metta.reflection
     policy = S["dispatch-policy"](only_a, S.NoMatchEnum, S.NoMatchFail)
 
     reflection += policy

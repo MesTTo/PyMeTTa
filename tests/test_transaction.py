@@ -15,8 +15,8 @@ Open Obligations:
 
 import pytest
 
-from petta import S
-from petta.errors import MettaResultError
+from metta import S
+from metta.errors import MettaResultError
 
 
 @pytest.fixture()

@@ -21,7 +21,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import S, V, fn
+from metta import S, V, fn
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the

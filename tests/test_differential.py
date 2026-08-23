@@ -55,7 +55,7 @@ _LIBRARY_RUNNER = r"""
 import os, sys
 sys.path.insert(0, {python_dir!r})
 os.environ["PETTA_PATH"] = {repo!r}
-from petta import MeTTa
+from metta import MeTTa
 
 m = MeTTa().self
 groups = m.load(sys.argv[1])

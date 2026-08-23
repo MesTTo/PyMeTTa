@@ -13,7 +13,7 @@ written, and `call` and `quote` are translator forms rather than registry
 functions, so `is_function` answers False for both (residue, P14.4).
 """
 
-from petta import S, equation
+from metta import S, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

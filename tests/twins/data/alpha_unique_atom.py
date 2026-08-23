@@ -6,7 +6,7 @@ variable survive as one. Every claim compares with `a.alpha_eq(b)` rather than
 `==`, for the same reason the operation exists: the surviving element carries
 whichever variable came first, and the expected answer names a different one.
 
-The Python route is `petta.structures.AlphaSet`, whose membership is that same
+The Python route is `metta.structures.AlphaSet`, whose membership is that same
 equivalence, so a four-line walk over it does what the operation does. The last
 claim runs both and holds them to one answer.
 Guarantees:
@@ -18,8 +18,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V
-from petta.structures import AlphaSet
+from metta import Expression, S, V
+from metta.structures import AlphaSet
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

@@ -33,7 +33,7 @@ reason tabling_space_write gives: the compiled `match(...)` has to name its
 space, and caching refuses the two-argument form that would let it stay silent.
 """
 
-from petta import S, V
+from metta import S, V
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

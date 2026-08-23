@@ -14,7 +14,7 @@ from __future__ import annotations
 import functools
 from functools import reduce as fold
 
-from petta import Expression, S
+from metta import Expression, S
 
 
 def test_reduce_lowers_named_and_lambda_reducers(metta):  # noqa: D103 -- the test name states the behavioral contract

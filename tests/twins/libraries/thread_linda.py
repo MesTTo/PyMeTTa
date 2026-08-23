@@ -28,8 +28,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import S, V
+import metta
+from metta import S, V
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree. This one
@@ -53,7 +53,7 @@ def twin(m):
         return x + 1
 
     # A peek leaves the atom, so two peeks answer the same job.
-    jobs = petta.space("&jobs")
+    jobs = metta.space("&jobs")
     jobs += S.job(7)
     assert jobs.peek(S.job(V.n)) == S.job(7)
     assert jobs.peek(S.job(V.n)) == S.job(7)
@@ -74,7 +74,7 @@ def twin(m):
 
     # A worker is the point: take a job, do it, take the next. Each take
     # consumes its own job, so two takes drain two.
-    work = petta.space("&work")
+    work = metta.space("&work")
     work += S.job(1)
     work += S.job(2)
     first = work.take(S.job(V.a), deadline=1)
@@ -85,7 +85,7 @@ def twin(m):
     # Blocking means blocking: the take below starts before the atom exists and
     # another thread writes it, which is the rendezvous a channel would
     # otherwise be needed for.
-    inbox = petta.space("&inbox")
+    inbox = metta.space("&inbox")
     worker = m.answers(S.spawn(S["add-atom"](inbox, S.msg(S.hello)))).one()  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
     seen = inbox.take(S.msg(V.what), deadline=10)
     m.fn["await"](worker).one()

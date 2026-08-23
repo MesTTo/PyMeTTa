@@ -9,18 +9,12 @@ Open Obligations:
 
 import importlib
 import os
-import sys
 from pathlib import Path
 
 import janus_swi
 import pytest
 
-# The legacy python.petta alias resolves through the repo root, whatever
-# directory the lane invokes from; the seat's own pythonpath entry only
-# reaches the seat.
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-
-from petta import MeTTa
+from metta import MeTTa
 
 # The twins are programs the coverage lane runs, not test modules; five of
 # them carry example-derived names pytest would otherwise import at
@@ -39,9 +33,9 @@ else:
     # A red example must be reproducible: every failure prints its
     # reproduction blob, and HYPOTHESIS_PROFILE=ci derandomizes whole
     # runs while the default keeps exploring fresh examples.
-    settings.register_profile("petta", print_blob=True)
+    settings.register_profile("metta", print_blob=True)
     settings.register_profile("ci", print_blob=True, derandomize=True)
-    settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "petta"))
+    settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "metta"))
 
 
 @pytest.fixture(autouse=True)
@@ -74,23 +68,13 @@ def repo_root():  # noqa: D103  -- pytest discovers or injects this callable; it
 
 
 @pytest.fixture(scope="session")
-def petta_module():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return importlib.import_module("petta")
+def metta_module():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    return importlib.import_module("metta")
 
 
 @pytest.fixture(scope="session")
 def petta_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return str(repo_root)
-
-
-@pytest.fixture(scope="session")
-def petta_instance(petta_module, petta_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return petta_module.PeTTa(verbose=False, petta_path=petta_path)
-
-
-@pytest.fixture(scope="session")
-def petta_verbose(petta_module, petta_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return petta_module.PeTTa(verbose=True, petta_path=petta_path)
 
 
 @pytest.fixture(scope="session")
@@ -100,6 +84,6 @@ def dummy_metta_path(repo_root):  # noqa: D103  -- pytest discovers or injects t
 
 @pytest.fixture(scope="session")
 def metta(petta_path):
-    """The rich surface, on the same engine the legacy fixtures use."""
+    """Return the default rich space on the repository runtime."""
     os.environ.setdefault("PETTA_PATH", petta_path)
     return MeTTa(petta_path=petta_path).self

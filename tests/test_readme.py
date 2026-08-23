@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-import petta
+import metta as metta_module
 
 README = Path(__file__).resolve().parents[3] / "README.md"
 
@@ -35,11 +35,11 @@ def test_readme_block_executes(index, metta, tmp_path):  # noqa: ARG001, D103  -
     # the compiler asks of a REPL.
     path = tmp_path / f"readme_block_{index + 1}.py"
     path.write_text(source)
-    settings = petta.config.as_dict()
+    settings = metta_module.config.as_dict()
     try:
         exec(compile(source, str(path), "exec"), _NAMESPACE)
     finally:
-        petta.config.configure(
+        metta_module.config.configure(
             declaration_limit=settings["declaration_limit"],
             display_rows=settings["display_rows"],
         )

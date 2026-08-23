@@ -26,11 +26,11 @@ import gc
 
 import pytest
 
-from petta import TRUE, Answer, Bindings, Expression, S, V, parse
-from petta.atoms import Grounded, Symbol, Variable
-from petta.errors import EngineError, MettaResultError, PettaError, TransportFailure
-from petta.foreign import SpaceProvider
-from petta.results import Answers
+from metta import TRUE, Answer, Bindings, Expression, S, V, parse
+from metta.atoms import Grounded, Symbol, Variable
+from metta.errors import EngineError, MettaResultError, PettaError, TransportFailure
+from metta.foreign import SpaceProvider
+from metta.results import Answers
 
 
 def test_answer_wire_form_is_exact():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -437,7 +437,7 @@ def test_declare_annotations_validates_and_replaces(metta):  # noqa: D103  -- py
         metta.annotations("&ap-v", "sorta")
     metta.annotations("&ap-v", "ranked")
     metta.annotations("&ap-v", "prob")
-    rows = metta._at("&petta").query(parse("(annotations &ap-v $s)"))
+    rows = metta._at("&petta").match(parse("(annotations &ap-v $s)"))
     assert [str(row.s) for row in rows] == ["prob"]
 
 
@@ -445,7 +445,7 @@ def test_declare_emits_validates(metta):  # noqa: D103  -- pytest discovers or i
     with pytest.raises(ValueError, match="best-first"):
         metta._at("&ap-v").emits("fastest")
     metta._at("&ap-v").emits("best-first")
-    rows = metta._at("&petta").query(parse("(emits &ap-v $p)"))
+    rows = metta._at("&petta").match(parse("(emits &ap-v $p)"))
     assert [str(row.p) for row in rows] == ["best-first"]
 
 
@@ -455,7 +455,7 @@ def test_the_residue_honesty_differential_over_the_pattern_family(metta):
     opened positions, repeated-variable folds). The provider answers every
     atom conditionally; brute force applies the same condition by hand.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from petta.testing import _claim_patterns, _unifiable
+    from metta.testing import _claim_patterns, _unifiable
 
     stored = [parse(f"(edge {x} {n})") for x, n in [("a", 1), ("b", 5), ("c", 9)]]
 
@@ -873,7 +873,7 @@ def test_admission_is_sugar_over_the_pre_add_hook(metta):
 def test_a_recorded_session_replays_verbatim(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     import random
 
-    from petta import testing
+    from metta import testing
 
     class _Roulette(SpaceProvider):
         """A host-stateful context: answers differ across live runs."""
@@ -899,7 +899,7 @@ def test_a_recorded_session_replays_verbatim(metta):  # noqa: ARG001, D103  -- p
 
 
 def test_a_replayer_refuses_an_unseen_query(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import testing
+    from metta import testing
 
     class _One(SpaceProvider):
         def atoms(self):
@@ -916,7 +916,7 @@ def test_a_replayer_refuses_an_unseen_query(metta):  # noqa: ARG001, D103  -- py
 
 
 def test_a_replayed_provider_registers_like_any_other(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import testing
+    from metta import testing
 
     class _Feed(SpaceProvider):
         def atoms(self):
@@ -1097,7 +1097,7 @@ def test_top_still_refuses_the_unordered_prov(metta):  # noqa: D103  -- pytest d
 
 
 def test_fabricated_space_identities_are_refused():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import testing
+    from metta import testing
 
     class _Minter(SpaceProvider):
         def atoms(self):
@@ -1131,7 +1131,7 @@ def test_the_three_families_share_the_tolerant_member(metta):  # noqa: D103  -- 
     # first(): the first answer decoded; absence needs an explicit default.
     assert metta._first("(ic-many)") == 1
     assert metta.fn.ic_many().first() == 1
-    rows = metta.query(parse("(ic-no-such-fact $x)"))
+    rows = metta.match(parse("(ic-no-such-fact $x)"))
     marker = object()
     with pytest.raises(EngineError, match="pass default"):
         rows.first()
@@ -1141,7 +1141,7 @@ def test_the_three_families_share_the_tolerant_member(metta):  # noqa: D103  -- 
 def test_rows_one_raises_the_family_exception(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(add-atom &self (ic-fact a))")
     metta.run("!(add-atom &self (ic-fact b))")
-    rows = metta.query(parse("(ic-fact $x)"))
+    rows = metta.match(parse("(ic-fact $x)"))
     with pytest.raises(EngineError, match="exactly one answer"):
         rows.one()
 

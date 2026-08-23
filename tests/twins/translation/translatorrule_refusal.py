@@ -16,8 +16,8 @@ Both equations are terms: their heads select on STRUCTURE, `(dose $n)` and
 P14.4).
 """
 
-import petta
-from petta import S, V, equation, ground, if_
+import metta
+from metta import S, V, equation, ground, if_
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
@@ -55,7 +55,7 @@ def twin(m):
     assert m.fn.strength(S.dose(5000), S.unit(S.mg)).one() == S.grams(5)
 
     # And the words are the rule's own, published where a program can ask.
-    reflection = petta.reflection
+    reflection = metta.reflection
     assert [
         row.why for row in reflection[S["translator-rule-refusal"](S.strength, V.why)]
     ] == [TOO_STRONG]

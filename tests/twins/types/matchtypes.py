@@ -13,7 +13,7 @@ rather than written as Python's own, while `if_` is the keyword builder for a
 stored `if`.
 """
 
-from petta import FALSE, TRUE, S, V, equation, if_
+from metta import FALSE, TRUE, S, V, equation, if_
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no

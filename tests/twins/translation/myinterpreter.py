@@ -16,7 +16,7 @@ ordinary compiled definitions, which is what makes the point that the code
 being interpreted is the same code anything else would call.
 """
 
-from petta import S, V, equation, ground
+from metta import S, V, equation, ground
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

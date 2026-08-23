@@ -4,7 +4,7 @@ Two spaces import the same file. Each gets its own copy of what the file
 defines, exactly once, and the space that did the importing gets nothing: in
 `&self` the imported name stays data, an unreduced term answering itself.
 
-`bind! (new-space)` is `petta.space(name)` plus a Python name binding, which is
+`bind! (new-space)` is `metta.space(name)` plus a Python name binding, which is
 what a token was for. Everything the claims ask goes through the handle:
 `space[pattern]` matches it and `space.eval(term)` evaluates in it, which is
 what the example spells `(metta term %Undefined% &space)`. `import!` takes the
@@ -12,8 +12,8 @@ handle too, as a grounded operand, so no space here is named as a symbol; what
 stays below the top rung is that `import!` has no Python door of its own.
 """
 
-import petta
-from petta import S
+import metta
+from metta import S
 
 #: The file both spaces import, from the repository root: a Python program has
 #: no importing file to resolve a relative import against.
@@ -33,13 +33,13 @@ BUDGET = 1
 
 def twin(m):
     """Import one payload into two spaces, and ask all three what they hold."""
-    # Known issue: `petta.space(name)` is the one space-creation door, and it
+    # Known issue: `metta.space(name)` is the one space-creation door, and it
     # rides the process-DEFAULT context rather than the one holding `m`. The
     # two reach the same store only because the SWI runtime is process-wide,
     # so the perfect spelling for a twin handed its own handle is a creation
-    # door ON that handle's context [measured 2026-08-23: petta.engine() is
+    # door ON that handle's context [measured 2026-08-23: metta.engine() is
     # not the twin's MeTTa object, and their runtimes are the same object].
-    a, b = petta.space("&import-space-a"), petta.space("&import-space-b")
+    a, b = metta.space("&import-space-a"), metta.space("&import-space-b")
     # Known issue: `import!` has no Python door on the handle. The perfect
     # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
     # library (appendix stamp 1), and neither exists yet, so the directive is

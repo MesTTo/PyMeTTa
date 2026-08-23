@@ -14,7 +14,7 @@ The template is where the arithmetic happens, `(+ $n 1)` per row, so the fold
 sees 2 and 3 and answers 5.
 """
 
-from petta import S, V, equation
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on

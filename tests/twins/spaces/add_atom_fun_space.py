@@ -17,8 +17,8 @@ the container door again: iterating the space the function named is
 `for atom in space`.
 """
 
-import petta
-from petta import S
+import metta
+from metta import S
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -30,7 +30,7 @@ BUDGET = 1
 
 def twin(m):
     """Answer a space name from a function, then write into what it names."""
-    target = petta.space("&my_space_name")
+    target = metta.space("&my_space_name")
 
     # (= (space) &my_space_name)
     @m.define(name="space")

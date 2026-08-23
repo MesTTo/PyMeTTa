@@ -157,7 +157,7 @@ DEFINITION_COST = 765
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed
-#: [source: bindings/python/petta/benchmarking.py _COUNTER_TOLERANCE;
+#: [source: bindings/python/metta/benchmarking.py _COUNTER_TOLERANCE;
 #: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 TOLERANCE = 4
 
@@ -203,7 +203,7 @@ NAMING_NAMESPACES = frozenset({"S", "V", "fn"})
 #: The subset that mints ANY name, where attribute access reaches the same atom
 #: the bracket spells. `fn` is deliberately absent: its catalog is generated and
 #: closed, so a bracket name it does not alias has no attribute spelling at all
-#: [source: bindings/python/petta/_name_mapping.py generated_aliases;
+#: [source: bindings/python/metta/_name_mapping.py generated_aliases;
 #: commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 MINTING_NAMESPACES = frozenset({"S", "V"})
 
@@ -265,7 +265,7 @@ DISSOLVED = {
     "trace!": "print(), or logging",
     "format-args": "an f-string",
     "bind!": "a Python name binding",
-    "new-space": "petta.space(), the one space-creation door",
+    "new-space": "metta.space(), the one space-creation door",
     "get-type": "space.type(atom)",
     # NOT here, though section 9e assigns it: `get-doc`. The ledger DESIGNS
     # `space.doc(atom)` and the surface has not shipped it, so naming the head
@@ -295,26 +295,26 @@ RETIRED_ROOT = {
     "SpaceName": "Handle",
     "DECLINE": "NotReducible",
     "Decline": "NotReducible",
-    "REFLECTION_SPACE": "petta.reflection",
+    "REFLECTION_SPACE": "metta.reflection",
     "alpha_eq": "a.alpha_eq(b)",
-    "atom_from_wire": "petta.wire.atom_from_wire(x)",
-    "backend_info": "petta.engine().info()",
+    "atom_from_wire": "metta.wire.atom_from_wire(x)",
+    "backend_info": "metta.engine().info()",
     "bridge": "a declaration, a fold, or the += pipe",
-    "default_engine": "petta.engine()",
+    "default_engine": "metta.engine()",
     "expr": "Expression(...), or calling the head",
-    "fresh_space": "petta.space()",
+    "fresh_space": "metta.space()",
     "is_ground": "not a.vars",
     "map_atoms": "a.map(f)",
     "object_view": "view(...)",
     "order_key": "sorted(atoms); atoms carry the engine's order",
-    "parse_all": "petta.forms(source)",
+    "parse_all": "metta.forms(source)",
     "pretty": "repr(a)",
     "record": "@space.define on the class",
-    "register_object_repr": "petta.integrate.register_repr(...)",
-    "register_object_repr_protocol": "petta.integrate.register_repr(...)",
+    "register_object_repr": "metta.integrate.register_repr(...)",
+    "register_object_repr_protocol": "metta.integrate.register_repr(...)",
     "sym": "S[...] or S.name",
-    "unregister_object_repr": "petta.integrate, the owning satellite",
-    "unregister_object_repr_protocol": "petta.integrate, the owning satellite",
+    "unregister_object_repr": "metta.integrate, the owning satellite",
+    "unregister_object_repr_protocol": "metta.integrate, the owning satellite",
     "val": "ground(...) or G(...)",
     "var": "V[...] or V.name",
     "variables": "a.vars",
@@ -329,11 +329,11 @@ RETIRED_ROOT = {
 #: door, and only the receiver's type tells them apart, so the twin's own run
 #: reports it as `'Space' object has no attribute 'space'`.
 RETIRED_HANDLE = {
-    "add_table": "petta.tables.add(space, head, data)",
+    "add_table": "metta.tables.add(space, head, data)",
     "disassemble": "no public door; diagnostics are internal",
-    "new_space": "petta.space(name) or ctx.space(name)",
+    "new_space": "metta.space(name) or ctx.space(name)",
     "register_op": "space.op(...), or @space.op",
-    "register_space": "petta.attach(name, provider)",
+    "register_space": "metta.attach(name, provider)",
     "space_name": "space.name",
     "unregister": "space.unregister_op(...)",
     "unregister_space": "space.drop()",
@@ -347,7 +347,7 @@ RETIRED_HANDLE = {
 #: and `fn` survives as the namespace and died as a function of a name string,
 #: 366 times in the old corpus. Only a call through a RECEIVER is read, so a
 #: twin's own local helper named `one` is nobody's business but its own
-#: [source: bindings/python/petta/results.py Answers.one, Answers.first and
+#: [source: bindings/python/metta/results.py Answers.one, Answers.first and
 #: Answers.count; ai-report-p14-r3.md corpus counts; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 RETIRED_CALL_SHAPES = {
     #  name: (positional arguments that mark the retired call, current spelling)
@@ -465,7 +465,7 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 
     One reader for every spelling of the same door, because the namespace
     arrives bare (`S.f`, `fn["=="]`) and through a receiver (`m.fn.xor`,
-    `petta.S.done`) and the rules below must not care which
+    `metta.S.done`) and the rules below must not care which
     [tested: test_a_term_may_name_a_head_that_shares_a_source_doors_name;
     commit=8c057bb8055459cc13127d89b418deb634b90ae4].
     """
@@ -503,7 +503,7 @@ COMPILING_DECORATORS = frozenset({"define", "cache", "rules"})
 #: `(+ $a $b)`. A `@rules` body is EXECUTED instead, so its `a == b` is
 #: Python's own structural equality and `.eq(...)` is the building spelling
 #: there; the operator rule below would report a correct bundle
-#: [source: bindings/python/petta/_rules.py rules, which calls the generator
+#: [source: bindings/python/metta/_rules.py rules, which calls the generator
 #: with Variable arguments; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 LOWERING_DECORATORS = frozenset({"define", "cache"})
 
@@ -694,7 +694,7 @@ def _named_strings(tree: ast.Module) -> set[int]:
 
 #: Heads Python's own syntax already builds, so writing them as a call or
 #: through Expression() spells with a function what the language spells with a
-#: character. The lowering table in petta._operator_lowerings is the
+#: character. The lowering table in metta._operator_lowerings is the
 #: authority for which these are; this is the subset a twin can reach.
 #: A line-level rung declaration, in the shape of the tree's noqa grammar.
 RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
@@ -731,7 +731,7 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str] | None:
     `my_var` while `S.my_var` is `my-var`; and Python normalizes an identifier
     to NFKC while parsing, so a non-ASCII spelling changes at the attribute
     door too. Both keep the bracket, which is rung 5 doing its job
-    [source: bindings/python/petta/_name_mapping.py attribute_name;
+    [source: bindings/python/metta/_name_mapping.py attribute_name;
     commit=8c057bb8055459cc13127d89b418deb634b90ae4]
     [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one;
     commit=8c057bb8055459cc13127d89b418deb634b90ae4].
@@ -951,7 +951,7 @@ def scan(twin: Path) -> list[str]:
 def retired(twin: Path) -> list[str]:
     """Where a twin names something the narrow core deleted.
 
-    An import from `petta` and an attribute on the handle are the two places a
+    An import from `metta` and an attribute on the handle are the two places a
     retired name can still be written and read as ordinary Python, so those are
     the two places this reads. Every finding names the current spelling, which
     is the whole value of the check: an `ImportError` three seconds later says
@@ -967,10 +967,10 @@ def retired(twin: Path) -> list[str]:
             findings.extend(
                 (node.lineno, f"{alias.name} is retired; write {RETIRED_ROOT[alias.name]}")
                 for alias in node.names
-                if root == "petta" and alias.name in RETIRED_ROOT
+                if root == "metta" and alias.name in RETIRED_ROOT
             )
         elif isinstance(node, ast.Attribute):
-            package = isinstance(node.value, ast.Name) and node.value.id == "petta"
+            package = isinstance(node.value, ast.Name) and node.value.id == "metta"
             current = RETIRED_HANDLE.get(node.attr) or (
                 RETIRED_ROOT.get(node.attr) if package else None
             )
@@ -1004,7 +1004,7 @@ class Run:
 
 _PREAMBLE = (
     "import sys; sys.path.insert(0, 'bindings/python')\n"
-    "from petta import Expression, MeTTa, S, V\n"
+    "from metta import Expression, MeTTa, S, V\n"
     "def _key(head):\n"
     "    if isinstance(head, Expression) and head.children:\n"
     "        return f'{head.children[0]}/{len(head.children) - 1}'\n"
@@ -1018,7 +1018,7 @@ _EPILOGUE = (
     "'(' + ' '.join(str(a) for a in group) + ')'\n"
     "    print('" + parity.MARKER + "' + written)\n"
     "print('" + COST + "' + str(spent.inferences))\n"
-    "heads = {_key(row.head) for row in m.query(S['='](V.head, V.body))}\n"
+    "heads = {_key(row.head) for row in m.match(S['='](V.head, V.body))}\n"
     "print('" + HEADS + "' + ' '.join(sorted(heads)))\n"
 )
 
@@ -1056,7 +1056,7 @@ def _launch(source: str, root: Path) -> Run:
 #: `os.environ` is what the first version did, and under pytest that escaped
 #: the lane: `test_twin_coverage.py` calls run_twin, so every later test in the
 #: same process lost `~/.elan/bin` from PATH and the two LeaTTa conformance
-#: tests failed to find `lake` [source: bindings/python/petta/benchmarking.py
+#: tests failed to find `lake` [source: bindings/python/metta/benchmarking.py
 #: builds its child environment the same way and says why; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
 
@@ -1103,7 +1103,7 @@ def run_twin(twin: Path, root: Path = REPO) -> Run:
     return _launch(
         _PREAMBLE
         + "import importlib.util\n"
-        f"_spec = importlib.util.spec_from_file_location('petta_twin', {str(twin)!r})\n"
+        f"_spec = importlib.util.spec_from_file_location('metta_twin', {str(twin)!r})\n"
         "_module = importlib.util.module_from_spec(_spec)\n"
         "_spec.loader.exec_module(_module)\n"
         "groups = []\n"

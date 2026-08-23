@@ -6,10 +6,10 @@ matched through the whole read chain; same-shaped facts come back child first;
 and neither write reached the parent.
 
 The original names the child `&family-child` so its later forms can address it.
-Nothing here needs the name: `petta.space(inherits=parent)` answers the HANDLE,
+Nothing here needs the name: `metta.space(inherits=parent)` answers the HANDLE,
 and every door the example uses hangs off that handle, so the anonymous space
 is not a compromise but the point (the named form has no Python door, residue
-P14.10). PERFECT: `petta.space("&family-child", inherits=parent)`, the creation
+P14.10). PERFECT: `metta.space("&family-child", inherits=parent)`, the creation
 options applying to a named space as well as an anonymous one.
 
 One claim keeps the engine's own function. `len(space)` and iterating it both
@@ -23,8 +23,8 @@ the question the example is about has a Python spelling. The handle goes into
 the call as an ordinary operand.
 """
 
-import petta
-from petta import S, V
+import metta
+from metta import S, V
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -36,12 +36,12 @@ BUDGET = 1
 
 def twin(m):
     """Fill a parent and a child, then read the chain from both ends."""
-    parent = petta.space("&family-parent")
+    parent = metta.space("&family-parent")
     parent += S.edge(S.a, S.b)
     parent += S["parent-only"](S.kept)
     parent += S.layer(S.parent)
 
-    child = petta.space(inherits=parent)
+    child = metta.space(inherits=parent)
     child += S.edge(S.b, S.c)
     child += S["child-only"](S.local)
     child += S.layer(S.child)

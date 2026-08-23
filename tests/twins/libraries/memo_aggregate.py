@@ -18,7 +18,7 @@ would read the old mode. Both calls therefore state the `True` they answer,
 which both pulls them and says what they answered.
 """
 
-from petta import S, equation, rules
+from metta import S, equation, rules
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

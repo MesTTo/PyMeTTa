@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from petta import PettaError, S, V, ground, parse, spaces, testing, view
+from metta import PettaError, S, V, ground, parse, spaces, testing, view
 
 
 @pytest.fixture()
@@ -45,9 +45,9 @@ def test_view_is_a_live_queryable_space():  # noqa: D103  -- pytest discovers th
 
     members = {S.red, S.blue}
     member_space = view(members)
-    assert set(member_space.query(V.member).member) == members
+    assert set(member_space.match(V.member).member) == members
     members.add(S.green)
-    assert set(member_space.query(V.member).member) == members
+    assert set(member_space.match(V.member).member) == members
 
     with pytest.raises(TypeError, match="dict, set, or non-string sequence"):
         view("not a sequence view")
@@ -233,7 +233,7 @@ def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
         metta._register_space(spaces.union(stored, view), join_name)
         try:
             joined = metta._at(join_name)
-            rows = joined.query(
+            rows = joined.match(
                 S.manager(V.who, V.manager),
                 field(V.manager, S.age, V.age),
                 S.band(V.age, V.band),
@@ -244,7 +244,7 @@ def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
 
             manager.age = 32
             stored.add(S.band(32, S.current))
-            assert joined.query(
+            assert joined.match(
                 S.manager(S.ada, V.manager),
                 field(V.manager, S.age, V.age),
                 S.band(V.age, V.band),
@@ -252,7 +252,7 @@ def test_a_query_joins_stored_atoms_with_live_object_fields(metta):
 
             metta._at(view_name).add(field(ground(manager), S.age, 33))
             assert manager.age == 33
-            assert joined.query(
+            assert joined.match(
                 S.manager(S.ada, V.manager),
                 field(V.manager, S.age, V.age),
             ).age == [33]

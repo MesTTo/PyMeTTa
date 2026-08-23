@@ -14,7 +14,7 @@ table puts collection work in Python.
 That last fold adds Python numbers, not atoms, so it reads the answers'
 carried scalars: `+` over a grounded atom STAGES `(+ ...)` rather than
 computing it, which is what makes `G(1) + 2` a term everywhere else in this
-corpus [source: bindings/python/petta/_atoms_core.py:769 Grounded.value;
+corpus [source: bindings/python/metta/_atoms_core.py:769 Grounded.value;
 measured 2026-08-23: `sum(m.fn.gen())` builds `(+ (+ (+ 0 1) 2) 3)`;
 commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
 
@@ -33,8 +33,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import UNIT, S, equation, rules
+import metta
+from metta import UNIT, S, equation, rules
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
@@ -51,8 +51,8 @@ def twin(m):
             yield k
             yield from counter(k + 1, n)
 
-    s1 = petta.space("&s1")
-    s2 = petta.space("&s2")
+    s1 = metta.space("&s1")
+    s2 = metta.space("&s2")
 
     # !(forall (range 1 5) (|-> ($x) (add-atom &s1 (num $x))))
     for x in counter(1, 5):

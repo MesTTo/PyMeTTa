@@ -16,7 +16,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-from petta import MeTTa
+from metta import MeTTa
 
 
 def _counting_engine():

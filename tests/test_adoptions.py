@@ -28,10 +28,10 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from petta import Answer, Expression, S, V, ground
-from petta import reflection as catalog
-from petta.atoms import Grounded, Variable
-from petta.ops import referenced_classes, type_atoms_for
+from metta import Answer, Expression, S, V, ground
+from metta import reflection as catalog
+from metta.atoms import Grounded, Variable
+from metta.ops import referenced_classes, type_atoms_for
 
 
 @pytest.fixture()
@@ -214,17 +214,17 @@ def test_query_where_guard_and_limit(m):  # noqa: D103  -- pytest discovers or i
         S.person(S.bob, 12),
         S.person(S.cyd, 70),
     )
-    adults = m.query(S.person(V.name, V.age), where=S[">="](V.age, 18))
+    adults = m.match(S.person(V.name, V.age), where=S[">="](V.age, 18))
     assert {str(r.name) for r in adults} == {"ada", "cyd"}
     # Guards compose with the boolean operators, the engine reading them.
-    mid = m.query(
+    mid = m.match(
         S.person(V.name, V.age),
         where=S[">="](V.age, 18) & S["<="](V.age, 40),
     )
     assert {str(r.name) for r in mid} == {"ada"}
-    assert len(m.query(S.person(V.name, V.age), limit=2)) == 2
+    assert len(m.match(S.person(V.name, V.age), limit=2)) == 2
     with pytest.raises(ValueError):
-        m.query(S.person(V.name, V.age), limit=0)
+        m.match(S.person(V.name, V.age), limit=0)
 
 
 # ------------------------------------------------------------- assumptions
@@ -233,8 +233,8 @@ def test_query_where_guard_and_limit(m):  # noqa: D103  -- pytest discovers or i
 def test_assuming_scopes_facts(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.road(S.a, S.b))
     with m.assuming(S.road(S.b, S.c)):
-        assert len(m.query(S.road(V.x, V.y))) == 2
-    assert len(m.query(S.road(V.x, V.y))) == 1
+        assert len(m.match(S.road(V.x, V.y))) == 2
+    assert len(m.match(S.road(V.x, V.y))) == 1
     # The exception path removes too.
     try:
         with m.assuming(S.road(S.b, S.c)):
@@ -242,7 +242,7 @@ def test_assuming_scopes_facts(m):  # noqa: D103  -- pytest discovers or injects
             raise RuntimeError(msg)  # noqa: TRY301  -- the raised exception is the deliberate catch-path probe exercised by this test
     except RuntimeError:
         pass
-    assert len(m.query(S.road(V.x, V.y))) == 1
+    assert len(m.match(S.road(V.x, V.y))) == 1
 
 
 # --------------------------------------------------------- prepared queries
@@ -296,22 +296,22 @@ def test_the_library_reflects_into_its_own_space(m):  # noqa: D103  -- pytest di
     def reflect_probe(x: int) -> int:
         return x
 
-    rows = reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
+    rows = reflection.match(S.op(S["reflect-probe"], V.arity, V.kind))
     assert [(r.arity, str(r.kind)) for r in rows] == [(1, "det")]
     m.unregister_op("reflect-probe")
-    assert not reflection.query(S.op(S["reflect-probe"], V.arity, V.kind))
+    assert not reflection.match(S.op(S["reflect-probe"], V.arity, V.kind))
 
     @m.define(name="probe-twice")
     def probe_twice(x):
         return x + x
 
-    assert reflection.query(S.defined(S[m.name], S["probe-twice"]))
+    assert reflection.match(S.defined(S[m.name], S["probe-twice"]))
 
     sub = m.subscribe(S.road(V.a, V.b))
-    watched = reflection.query(S.subscription(S[m.name], V.p, V.on))
+    watched = reflection.match(S.subscription(S[m.name], V.p, V.on))
     assert len(watched) == 1 and str(watched[0].on) == "add"
     sub.cancel()
-    assert not reflection.query(S.subscription(S[m.name], V.p, V.on))
+    assert not reflection.match(S.subscription(S[m.name], V.p, V.on))
 
 
 def test_reflection_facts_follow_a_dropped_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -323,9 +323,9 @@ def test_reflection_facts_follow_a_dropped_space(metta):  # noqa: D103  -- pytes
         return x
 
     name = space.name
-    assert reflection.query(S.defined(S[name], S.fleeting))
+    assert reflection.match(S.defined(S[name], S.fleeting))
     space.drop()
-    assert not reflection.query(S.defined(S[name], S.fleeting))
+    assert not reflection.match(S.defined(S[name], S.fleeting))
 
 
 def test_metta_programs_steer_through_the_reflection_space(m):
@@ -351,12 +351,12 @@ def test_drop_cancels_the_spaces_subscriptions(metta):  # noqa: D103  -- pytest 
     name = space.name
     seen = []
     subscription = space.subscribe(S.ping(V.x), lambda e: seen.append(e))
-    assert reflection.query(S.subscription(S[name], V.p, V.on))
+    assert reflection.match(S.subscription(S[name], V.p, V.on))
     space.drop()
     # The watcher died with its space: inactive, and its reflection fact
     # removed, so a pooled name reused later starts unwatched.
     assert subscription._active is False
-    assert not reflection.query(S.subscription(S[name], V.p, V.on))
+    assert not reflection.match(S.subscription(S[name], V.p, V.on))
 
 
 def test_shared_class_declarations_survive_one_unregister(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -391,7 +391,7 @@ def test_registration_failure_leaves_nothing_half_registered(m):  # noqa: D103  
     with pytest.raises(TypeError):
         m.op(bad, name="bad-op")
     reflection = catalog
-    assert not reflection.query(S.op(S["bad-op"], V.a, V.k))
+    assert not reflection.match(S.op(S["bad-op"], V.a, V.k))
     assert not m.is_function("bad-op")
     assert _arrows_of(m, "bad-op") == set()
 

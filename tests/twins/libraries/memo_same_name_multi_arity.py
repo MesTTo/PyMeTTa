@@ -9,7 +9,7 @@ name, dispatched by arity, for the reason memo_per_arity gives.
 `[False]` rather than against the symbols the example prints.
 """
 
-from petta import S
+from metta import S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a

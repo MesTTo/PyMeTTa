@@ -14,7 +14,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import S, V
+from metta import S, V
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
@@ -32,7 +32,7 @@ def twin(m):
     m += S.friend(S.sam, S.tom)
     m -= S.friend(S.sam, S.tom)
     m += S.friend(S.sam, S.tim)
-    assert m.query(S.friend(S.sam, V.who)).who == [S.tim]
+    assert m.match(S.friend(S.sam, V.who)).who == [S.tim]
 
     # The top rung is a statement sequence whose value is the FIRST statement.
     # Python has none: `progn` is what a statement sequence already is, and the

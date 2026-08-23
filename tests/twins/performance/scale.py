@@ -29,7 +29,7 @@ no pragma to copy. PERFECT: a compiled `if` that leaves an engine-Bool
 condition alone, or a stack-depth mode block. Residue P14.4 and P14.14.
 """
 
-from petta import S, V, equation, fn
+from metta import S, V, equation, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

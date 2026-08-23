@@ -17,8 +17,8 @@ is refused, which the residue table records; the write and read doors take the
 old equation away and put the new one in without ceremony.
 """
 
-import petta
-from petta import S, V, equation
+import metta
+from metta import S, V, equation
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -32,7 +32,7 @@ def twin(m):
     """Two spaces, one function name, two caches, and one equation change."""
     m.fn["import!"](m, S.library(S["lib_memo"]))
 
-    metric = petta.space("&metric")
+    metric = metta.space("&metric")
     metric += equation(S["shipping-cost"](V.w)).to(V.w * 9)
 
     @m.define

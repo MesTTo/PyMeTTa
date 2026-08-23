@@ -6,7 +6,7 @@ one. `space.eval(term)` IS evalc, to the letter: its signature is a term plus a
 space, and the space is the handle it hangs off. So the whole example reads as
 two handles and the same term asked of each.
 
-`bind! &metric (new-space)` is `petta.space("&metric")`, because binding a name
+`bind! &metric (new-space)` is `metta.space("&metric")`, because binding a name
 to a space is Python's own name binding and a space exists from its first
 write. All three definitions arrive through the decorator, and the third is the
 one that used to need the container door: `(= (preferred-space) &metric)`
@@ -28,9 +28,9 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import G, S, V, equation
-from petta.errors import MettaOperationError
+import metta
+from metta import G, S, V, equation
+from metta.errors import MettaOperationError
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -42,7 +42,7 @@ BUDGET = 1
 
 def twin(m):
     """Give one name two meanings, one per space, and ask each of them."""
-    metric = petta.space("&metric")
+    metric = metta.space("&metric")
     evalc = m.fn["evalc"]
 
     @metric.define(name="distance")

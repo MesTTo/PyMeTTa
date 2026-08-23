@@ -15,7 +15,7 @@ file carries. The space is the handle itself, which crosses into the built term
 as a grounded operand.
 """
 
-from petta import S, ground
+from metta import S, ground
 
 #: The file the import reads, a host path carried whole.
 FIXTURE = ground("examples/integration/_fixtures/python_import_file.py")

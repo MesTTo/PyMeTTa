@@ -8,8 +8,8 @@ Open Obligations:
 
 import pytest
 
-from petta import MeTTa, S, V
-from petta.ipython import use
+from metta import MeTTa, S, V
+from metta.ipython import use
 
 globalipapp = pytest.importorskip("IPython.testing.globalipapp")
 
@@ -17,7 +17,7 @@ globalipapp = pytest.importorskip("IPython.testing.globalipapp")
 @pytest.fixture(scope="module")
 def shell(metta):  # noqa: ARG001, D103  -- the test reflects this callable signature, so every declared parameter must remain visible; pytest discovers or injects this callable; its descriptive name states the contract
     ip = globalipapp.get_ipython()
-    ip.run_line_magic("load_ext", "petta.ipython")
+    ip.run_line_magic("load_ext", "metta.ipython")
     return ip
 
 
@@ -30,7 +30,7 @@ def test_cell_magic_runs_and_returns_groups(shell, capsys):  # noqa: D103  -- py
 
 def test_cell_magic_targets_a_named_space(shell):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     shell.run_cell_magic("metta", "&nbspace", "(nb-fact here)")
-    assert MeTTa().space("&nbspace").query(S["nb-fact"](V.x))[0].x == S.here
+    assert MeTTa().space("&nbspace").match(S["nb-fact"](V.x))[0].x == S.here
 
 
 def test_ipython_magic_uses_selected_space(shell, metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -38,6 +38,6 @@ def test_ipython_magic_uses_selected_space(shell, metta):  # noqa: D103  -- pyte
         use(selected)
         try:
             shell.run_cell_magic("metta", "", "(selected-fact here)")
-            assert selected.query(S["selected-fact"](V.x))[0].x == S.here
+            assert selected.match(S["selected-fact"](V.x))[0].x == S.here
         finally:
             use(metta)

@@ -1,9 +1,9 @@
 /* Purpose: a PeTTa space served from TypeScript: the remote-space wire
  *   protocol implemented outside the engine's own languages, so
- *   petta.remote.attach() reaches atoms held by a Node process exactly as
+ *   metta.remote.attach() reaches atoms held by a Node process exactly as
  *   it reaches a served Python engine.
  * Assumes:
- *   - the client is petta.remote.connect(): POST per operation, JSON both
+ *   - the client is metta.remote.connect(): POST per operation, JSON both
  *     ways, one wire atom grammar (see the README beside this file)
  *   - Node >= 22, for native TypeScript stripping and JSON.parse source
  *     access; no dependencies beyond node's own modules, deliberately,
@@ -14,7 +14,7 @@
  *     in the engine; the engine still re-unifies every candidate, so a
  *     defect here can cost time, never soundness [tested:
  *     space_server.test.ts, unification block]
- *   - the HTTP boundary mirrors petta.remote.serve()'s refusals: 401
+ *   - the HTTP boundary mirrors metta.remote.serve()'s refusals: 401
  *     before the body is read, 411 without content-length, 413 over the
  *     byte limit, 400 for ambiguous lengths, invalid JSON, non-object
  *     payloads and unknown operations, each with a JSON error body
@@ -356,7 +356,7 @@ export class CursorTable {
 }
 
 // ---------------------------------------------------------------------------
-// The HTTP boundary. Refusals mirror petta.remote.serve(), status for status.
+// The HTTP boundary. Refusals mirror metta.remote.serve(), status for status.
 
 export class HttpProblem extends Error {
   constructor(public readonly status: number, message: string) {

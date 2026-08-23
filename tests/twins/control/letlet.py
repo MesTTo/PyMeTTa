@@ -17,7 +17,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, equation
+from metta import Expression, S, V, equation
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling"

@@ -26,7 +26,7 @@ file carries beside the scalar crossing.
 
 import numpy as np
 
-from petta import S, ground
+from metta import S, ground
 
 #: The three numpy entry points the example binds, and the submodule it holds
 #: once so it can reach several functions out of it.

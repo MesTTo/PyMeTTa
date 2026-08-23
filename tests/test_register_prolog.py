@@ -46,8 +46,8 @@ from pathlib import Path
 
 import pytest
 
-from petta import PettaError
-from petta.errors import EngineError, SourceNotFound
+from metta import PettaError
+from metta.errors import EngineError, SourceNotFound
 
 
 @pytest.fixture()
@@ -381,7 +381,7 @@ from pathlib import Path
 
 repo = Path(sys.argv[1])
 sys.path.insert(0, str(repo / "bindings" / "python"))
-from petta import MeTTa
+from metta import MeTTa
 
 m = MeTTa(petta_path=str(repo)).self
 def types(form):

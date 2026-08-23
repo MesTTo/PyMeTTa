@@ -27,10 +27,10 @@ import pytest
 from hypothesis import example, given
 from hypothesis import strategies as st
 
-import petta
-from petta import S, testing
-from petta.errors import EngineError
-from petta.tables import TableBridge
+import metta
+from metta import S, testing
+from metta.errors import EngineError
+from metta.tables import TableBridge
 
 _MODULE_PATH = (
     Path(__file__).resolve().parents[1] / "examples" / "integration" / "sqlite_space.py"
@@ -69,15 +69,15 @@ class _OneRow:
 )
 def test_a_row_value_becomes_an_atom_without_being_reparsed(value):
     """Map a database row value directly into one atom without parsing text."""
-    m = petta.MeTTa().self
+    m = metta.MeTTa().self
     provider = TableBridge(
         m.parse,
         _OneRow(value),
         "(bridge (value $x) (row generated (cell $x)))",
     )
     (atom,) = tuple(provider.atoms())
-    expected = petta.Symbol(value) if isinstance(value, str) else petta.ground(value)
-    assert atom == petta.Expression([S.value, expected])
+    expected = metta.Symbol(value) if isinstance(value, str) else metta.ground(value)
+    assert atom == metta.Expression([S.value, expected])
 
 
 def _module():
@@ -97,7 +97,7 @@ def _module():
 @pytest.fixture
 def attached(request):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = f"&sqlite-{request.node.name[-16:].replace('_', '')}"
-    m = petta.MeTTa().space()
+    m = metta.MeTTa().space()
     provider = _module().attach_sqlite(m, name)
     try:
         yield m, name, provider
@@ -134,8 +134,8 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
     """Keep the opaque BLOB behind a handle and reach one field by a lazy path."""
     import sqlite3
 
-    from petta import S, V
-    from petta.paths import path
+    from metta import S, V
+    from metta.paths import path
 
     m, name, opaque_provider = attached
     image = m.parse(f"(image {name} Blob opaque)")
@@ -155,7 +155,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
         rows = None
         for _sample in range(3):
             with space.stats() as counted:
-                rows = list(space.query(S.document(S.manual, V.blob)))
+                rows = list(space.match(S.document(S.manual, V.blob)))
             samples.append(counted.inferences)
         assert rows is not None
         return min(samples), rows
@@ -173,7 +173,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
         image_guard.setattr(
             type(opaque_blob), "__metta__", refuse_whole_projection
         )
-        rows = opaque_space.query(
+        rows = opaque_space.match(
             S.document(S.manual, path("data", 17, to=V.byte))
         )
     assert rows.to_dicts() == [{"byte": 17}]
@@ -182,7 +182,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
     transparent_image = m._at(name).image("Blob", "transparent")
     assert image not in m._at("&petta")
     assert transparent_image in m._at("&petta")
-    transparent_provider = petta.tables.TableBridge.from_context(
+    transparent_provider = metta.tables.TableBridge.from_context(
         m, name, opaque_provider.connection
     )
     m._register_space(transparent_provider, name)
@@ -237,7 +237,7 @@ def test_the_declaration_may_be_text(attached):  # noqa: D103  -- pytest discove
     m, _name, _provider = attached
     import sqlite3
 
-    from petta.tables import TableBridge
+    from metta.tables import TableBridge
 
     connection = sqlite3.connect(":memory:")
     connection.execute("CREATE TABLE pairs (x TEXT, y TEXT)")
@@ -252,7 +252,7 @@ def test_a_schema_is_several_shapes_answering_together(attached):  # noqa: D103 
     m, _name, _provider = attached
     import sqlite3
 
-    from petta.tables import TableBridge
+    from metta.tables import TableBridge
 
     connection = sqlite3.connect(":memory:")
     connection.execute("CREATE TABLE edges (a TEXT, b TEXT)")
@@ -280,7 +280,7 @@ def test_an_ambiguous_add_is_refused_naming_both(attached):  # noqa: D103  -- py
     m, _name, _provider = attached
     import sqlite3
 
-    from petta.tables import TableBridge
+    from metta.tables import TableBridge
 
     connection = sqlite3.connect(":memory:")
     connection.execute("CREATE TABLE one (a TEXT, b TEXT)")
@@ -301,7 +301,7 @@ def test_metta_source_declares_its_own_schema(attached):  # noqa: D103  -- pytes
     m, _name, _provider = attached
     import sqlite3
 
-    from petta.tables import TableBridge
+    from metta.tables import TableBridge
 
     m.run(
         "!(add-atom &petta"

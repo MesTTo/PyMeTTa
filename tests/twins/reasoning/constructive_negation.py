@@ -38,8 +38,8 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import petta
-from petta import FALSE, TRUE, Atom, S, V, equation, fn
+import metta
+from metta import FALSE, TRUE, Atom, S, V, equation, fn
 
 #: The three comparison heads this file needs as TERMS. Python's `<`, `>`,
 #: `<=` and `>=` order atoms rather than building, `!=` on atoms is structural
@@ -62,7 +62,7 @@ BUDGET = 1
 
 def twin(m):
     """Walk negation from what `not` cannot say to a constrained domain."""
-    reflection = petta.reflection
+    reflection = metta.reflection
     for relation in FALLIBLE:
         reflection += S["dispatch-policy"](relation, S.NoMatchEnum, S.NoMatchFail)
 
@@ -177,7 +177,7 @@ def twin(m):
     # space is finite, so what it narrows a variable to is an enumeration and
     # never a constraint. $y is local to the match and $x is not, which is the
     # whole difference between "has a child" and "who has no child".
-    kin = petta.space()
+    kin = metta.space()
     kin += S.parent(S.alice, S.bob)
     kin += S.parent(S.carol, S.dave)
     m += equation(S["has-child"](V.x)).to(fn.match(kin, S.parent(V.x, V.y), TRUE))  # rung: a match INSIDE a stored body, where the subscript door is a Python read (P14.4)

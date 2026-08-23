@@ -18,7 +18,7 @@ the one write door because a library IS knowledge. Its name keeps the underscore
 would be the atom `lib-spaces` and no such library exists.
 """
 
-from petta import S, V
+from metta import S, V
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a

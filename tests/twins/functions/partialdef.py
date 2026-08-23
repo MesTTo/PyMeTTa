@@ -18,7 +18,7 @@ named the same way, at rung 5 of the descent ladder, since the Python name
 reach a sibling definition whose MeTTa name differs from its Python one.
 """
 
-from petta import S
+from metta import S
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and

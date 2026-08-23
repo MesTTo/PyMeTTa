@@ -2,7 +2,7 @@
 dict-law and dispatch, MatchIndex against the brute-force oracle, AlphaSet
 as alpha_eq membership, and the module's engine-freedom.
 Guarantees:
-  - petta.structures imports and works in a process that never loads janus
+  - metta.structures imports and works in a process that never loads janus
     [tested test_structures_are_engine_free, subprocess-proven]
 Open Obligations:
   To Do: None
@@ -18,10 +18,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from petta import Expression, S, V, ground
-from petta.atoms import unify
-from petta.structures import AlphaSet, MatchIndex, PatternMap
-from petta.testing import atoms as atom_strategy
+from metta import Expression, S, V, ground
+from metta.atoms import unify
+from metta.structures import AlphaSet, MatchIndex, PatternMap
+from metta.testing import atoms as atom_strategy
 
 
 def test_patternmap_ground_keys_are_dict_keys():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -145,8 +145,8 @@ def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or inj
     # A fresh interpreter uses the structures and never imports janus.
     code = (
         "import sys\n"
-        "from petta.structures import PatternMap, MatchIndex, AlphaSet\n"
-        "from petta.atoms import Symbol, Variable, Expression\n"
+        "from metta.structures import PatternMap, MatchIndex, AlphaSet\n"
+        "from metta.atoms import Symbol, Variable, Expression\n"
         "pm = PatternMap(); pm[Expression([Symbol('r'), Variable('x')])] = 1\n"
         "assert list(pm.matching(Expression([Symbol('r'), Symbol('a')])))\n"
         "mi = MatchIndex(); mi.add(Expression([Symbol('r'), Variable('x')]), 'h')\n"
@@ -156,7 +156,7 @@ def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or inj
         "print('engine-free ok')\n"
     )
     # cwd=python/, because a bare subprocess inherits THIS process's working
-    # directory and `petta` is only importable from there. The pytest gate
+    # directory and `metta` is only importable from there. The pytest gate
     # lane happens to run from python/ and passed; the invocation the docs
     # give, `pytest bindings/python/tests/ --rootdir=python` from the repo root,
     # failed this one test and nothing else [measured 2026-08-19]. A test
@@ -177,7 +177,7 @@ def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or inj
 
 
 def test_tabledmap_caches_and_stays_fresh(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta.structures import TabledMap
+    from metta.structures import TabledMap
 
     kb = metta._new_space()
     kb.add(S.price(S.apple, 3), S.price(S.pear, 4))
@@ -202,8 +202,8 @@ def test_tabledmap_caches_and_stays_fresh(metta):  # noqa: D103  -- pytest disco
 
 
 def test_tabledmap_mapping_edges(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta import PettaError
-    from petta.structures import TabledMap
+    from metta import PettaError
+    from metta.structures import TabledMap
 
     m = metta._new_space()
     m.run("(= (tm-half $x) (if (== (% $x 2) 0) (/ $x 2) (empty)))")
@@ -217,7 +217,7 @@ def test_tabledmap_mapping_edges(metta):  # noqa: D103  -- pytest discovers or i
 
 
 def test_liveview_mirrors_the_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta.structures import LiveView
+    from metta.structures import LiveView
 
     sp = metta._new_space()
     with LiveView(sp, S.alert(V.level)) as alerts:
@@ -251,7 +251,7 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
     removal re-reads and its cost does. Measured 2026-08-19 over views of 10,
     100 and 1000: 64 inferences flat against 211, 1200 and 11100.
     """
-    from petta.structures import LiveView
+    from metta.structures import LiveView
 
     def removal_cost(size, atom):
         # Minimum of three, the repository's own measurement rule: the
@@ -275,7 +275,7 @@ def test_a_ground_removal_costs_the_view_nothing_that_grows(metta):
 
 
 def test_closureview_terminates_and_stays_fresh(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from petta.structures import ClosureView
+    from metta.structures import ClosureView
 
     g = metta._new_space()
     g.add(S.linkage(S.a, S.b), S.linkage(S.b, S.c), S.linkage(S.c, S.a))

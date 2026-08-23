@@ -19,8 +19,8 @@ same function asked in that space, which is how the wrapped `car-atom` and the
 untouched one are the same question put to two handles.
 """
 
-import petta
-from petta import S, V, equation
+import metta
+from metta import S, V, equation
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -41,7 +41,7 @@ def twin(m):
 
     # A space that gates it. `super` names the next definition up THIS space's
     # chain, so the guard delegates without naming what it delegates to.
-    guarded = petta.space("&guarded")
+    guarded = metta.space("&guarded")
     guarded += equation(S.store(V.atom)).to(
         S["if"](S["=="](V.atom, S.bad), S.refused, S.super(S.store(V.atom)))  # rung: the stored body of an equation naming `super`, which no compiled body reaches
     )
@@ -53,7 +53,7 @@ def twin(m):
     assert store(S.bad) == [S.stored(S.bad)]
 
     # `super` reaches the engine's own definitions too.
-    wrapping = petta.space("&wrapping")
+    wrapping = metta.space("&wrapping")
     head = S["car-atom"](V.expr)  # rung: an override OF `car-atom`, so the head is the point rather than e[0]
     wrapping += equation(head).to(S.wrapped(S.super(head)))
 

@@ -1,4 +1,4 @@
-"""Purpose: petta.testing.check_space_provider, the conformance kit a
+"""Purpose: metta.testing.check_space_provider, the conformance kit a
 downstream library runs against its own provider.
 
 The platform ships the suite for its own extension points, which is the CSI
@@ -22,9 +22,9 @@ Open Obligations:
 
 import pytest
 
-from petta import testing
-from petta.atoms import Expression, Variable, parse
-from petta.foreign import SpaceProvider
+from metta import testing
+from metta.atoms import Expression, Variable, parse
+from metta.foreign import SpaceProvider
 
 ROWS = [parse("(edge a b)"), parse("(edge b c)")]
 

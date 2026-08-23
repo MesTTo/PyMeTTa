@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import pytest
 
-from petta import S
-from petta.errors import CompileError
+from metta import S
+from metta.errors import CompileError
 
 
 def test_match_statement_lowers_to_one_ordered_case_tower(metta):  # noqa: D103 -- the test name states the behavioral contract

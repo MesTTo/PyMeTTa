@@ -18,8 +18,8 @@ Open Obligations:
 
 import pytest
 
-from petta import Expression, S, V
-from petta.foreign import SpaceProvider
+from metta import Expression, S, V
+from metta.foreign import SpaceProvider
 
 
 @pytest.fixture()
@@ -246,7 +246,7 @@ def test_a_persistent_space_subtracts_one_fact_like_a_native_one(metta, tmp_path
     """The journal-backed provider, which used to retractall and now
     retracts, so its journal records one removal rather than a sweep.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    from petta._persistent import PersistentFactSpace
+    from metta._persistent import PersistentFactSpace
 
     provider = PersistentFactSpace(tmp_path / "law.db", {"law": 1})
     name = f"&lawstore{id(provider) % 100000}"
