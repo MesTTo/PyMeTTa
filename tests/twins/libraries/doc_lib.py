@@ -9,29 +9,27 @@ the two functions they document; and `get-doc` is the subscript door, because
 matching the space for the atom IS what the library function does.
 
 An undocumented name therefore answers no rows, not an empty doc, which is the
-distinction the example makes twice.
+distinction the example makes twice. A row projects by attribute, `row.desc`,
+which is the naming convention re-applied.
 """
 
-from petta import S, V, val
+from petta import G, S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 13448 to 9338, -4110 (-30.56%), by the idiomatic
-#: rewrite: `get-doc` and its `collapse`s left the engine for the subscript
-#: door, so four of the five claims are now matches the space answers
-#: directly rather than library calls inside `test`. Measured min-of-three
-#: with the MORK backend linked into this worktree, which the earlier figure
-#: may not have been. Prior: 13448 was the last figure for the generator twin
-#: that yielded `m.eval(S.test(...))` once per runnable form.
-BUDGET = 9338
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 #: The description text, written once: it is both what the docstring says and
 #: what the claim expects, and a drift between them would be the defect.
-GREET_DESC = val("Greets somebody by name")
+GREET_DESC = G("Greets somebody by name")
 
 
 def twin(m):
     """Document two functions from Python, then ask the space what it knows."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_doc)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_doc"])))
 
     @m.define
     def greet(who):
@@ -52,20 +50,20 @@ def twin(m):
         return a + b
 
     # Retrieval is a match, so it answers the atom that was written.
-    assert m[S["@doc"](S.greet, V.desc)]["desc"] == [S["@desc"](GREET_DESC)]
+    assert [row.desc for row in m[S["@doc"](S.greet, V.desc)]] == [S["@desc"](GREET_DESC)]
 
     # @doc carries two, three or four parts depending on how much was written.
     [documented] = m[S["@doc"](S["add-two"], V.desc, V.params, V.ret)]
     assert (documented.desc, documented.params, documented.ret) == (
-        S["@desc"](val("Adds two numbers")),
-        S["@params"]((S["@param"](val("the first")), S["@param"](val("the second")))),
-        S["@return"](val("their sum")),
+        S["@desc"](G("Adds two numbers")),
+        S["@params"]((S["@param"](G("the first")), S["@param"](G("the second")))),
+        S["@return"](G("their sum")),
     )
 
     # An undocumented name answers nothing at all rather than an empty doc.
-    assert m[S["@doc"](S["greet-nobody"], V.rest)]["rest"] == []
-    assert m[S["@doc"](S.missing, V.rest)]["rest"] == []
+    assert list(m[S["@doc"](S["greet-nobody"], V.rest)]) == []
+    assert list(m[S["@doc"](S.missing, V.rest)]) == []
 
     # And a program can ask what it has NOT documented, which is the gap worth
     # closing in a real codebase. Both functions above are documented.
-    assert m.fn("undocumented").all() == []
+    assert list(m.fn.undocumented()) == []

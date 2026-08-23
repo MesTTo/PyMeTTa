@@ -5,10 +5,14 @@ subject here, so they stay named; the example's `let` around them is Python's
 own assignment, spelled as a one-element unpacking so the twin says out loud
 that exactly one answer is expected.
 
-That unpacking is also the door that WORKS. `m.one` and `m.fn` take the loud
-reading of an error ANSWER and raise MettaResultError, which is right for a
-caller that wanted a value and wrong for this file, whose claims are about the
-error atoms themselves. `m.eval` hands them over as the data they are.
+Iterating the answer view is what hands an error atom over AS DATA. The scalar
+doors take the loud reading and raise, which is right for a caller that wanted
+a value and wrong for this file, whose claims are about the error atoms
+themselves; unpacking iterates, so it keeps them.
+
+One call goes through `m.eval` instead, and the reason is the answer view
+rather than the error: a call whose ARGUMENT carries the caller's own
+variables answers binding rows, and the claim here is about the term.
 
 Four kinds of nothing-went-right are drawn apart here. An operand whose type
 RULES THE CALL OUT is already an error atom, so if-error sees one with no catch
@@ -18,17 +22,14 @@ kind the language has no atom for, needs the catch; and integer division by
 zero already is error data.
 """
 
-from petta import S, V, val
+from petta import G, S, V, typed
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 17863 to 16189, -1674 (-9.37%), by the idiomatic
-#: rewrite: eight `test` wrappers and the two `let` chains left the engine
-#: for `assert` and one-element unpacking; the catches and the if-error
-#: routing still run there, which is the file's subject. Measured min-of-
-#: three with the MORK backend linked into this worktree, which the earlier
-#: figure may not have been. Prior: 17863 was the last figure for the
-#: generator twin that yielded `m.eval(S.test(...))` once per runnable form.
-BUDGET = 16189
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 #: The error atom the last three claims are about.
 BAD_TYPE = S.Error(5, S.BadType)
@@ -36,33 +37,40 @@ BAD_TYPE = S.Error(5, S.BadType)
 
 def twin(m):
     """Catch what needs catching, then route four answers through if-error."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_he"])))
 
-    if_error = m.fn("if-error")
+    if_error = m.fn.if_error
 
-    [caught] = m.eval(S.catch(S["+"](40, 2)))
-    assert if_error(caught, S.Error, caught) == 42
+    [caught] = m.fn.catch(S["+"](40, 2))
+    assert if_error(caught, S.Error, caught) == [42]
 
     # An operand whose type RULES THE CALL OUT is an error atom already: `a` is
     # declared a String and the arrow says Number.
-    m += S[":"](S.a, S.String)
-    assert if_error(S["+"](40, S.a), S.Error, S.fine) == S.Error
+    m += typed(S.a, S.String)
+    assert if_error(S["+"](40, S.a), S.Error, S.fine) == [S.Error]
 
     # An operand whose type merely does not DECIDE is not an error. The call is
     # left as written, so if-error takes its second branch.
-    assert if_error(S["+"](40, S["undeclared-operand"]), S.Error, S.fine) == S.fine
+    assert if_error(S["+"](40, S["undeclared-operand"]), S.Error, S.fine) == [S.fine]
 
     # catch is for a HOST error, the kind the language has no atom for. Two
     # unbound arithmetic operands are one.
+    #
+    # DEFECT, and this line is what it costs. It ought to read
+    # `m.fn.catch(S["+"](V.left, V.right))` like the first catch above. The
+    # argument carries `$left` and `$right`, and the answer view reads every
+    # variable in a call as one of the caller's own, so the call door answers a
+    # binding row where the claim is about the error atom.
     [host] = m.eval(S.catch(S["+"](V.left, V.right)))
-    assert if_error(host, S.Error, host) == S.Error
+    assert if_error(host, S.Error, host) == [S.Error]
 
     # Integer division by zero already is Error data, so it needs no catch.
-    assert if_error(S["/"](40, 0), S.Error, S.fine) == S.Error
+    assert if_error(S["/"](40, 0), S.Error, S.fine) == [S.Error]
 
-    assert if_error(BAD_TYPE, val("Error!"), val("No error")) == val("Error!")
+    assert if_error(BAD_TYPE, G("Error!"), G("No error")) == [G("Error!")]
 
     # return-on-error passes an error through and answers its second argument
     # for anything else.
-    assert m.eval(S["return-on-error"](BAD_TYPE, 6)) == [BAD_TYPE]
-    assert m.fn("return-on-error")(5, 6) == 6
+    return_on_error = m.fn.return_on_error
+    assert return_on_error(BAD_TYPE, 6) == [BAD_TYPE]
+    assert return_on_error(5, 6) == [6]

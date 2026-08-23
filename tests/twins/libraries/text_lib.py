@@ -1,6 +1,7 @@
 """examples/libraries/text_lib.metta in Python: lib_string and lib_file.
 
-Both libraries are the subject, so every function here is named. What Python
+Both libraries are the subject, so every function here is named through the
+function namespace, where a typo raises on the line that writes it. What Python
 takes over is the plumbing around them: the `let` chain that threads a file
 handle through three calls is three statements, the file space is queried
 through the handle's own subscript door, and every answer is compared as
@@ -12,117 +13,123 @@ example of it, including what it does with too few arguments, which an f-string
 cannot reproduce; `sort-strings` is the library function under test, not a
 request to sort a Python list.
 
+A trailing `!` has no Python image, so `write_file` and its siblings resolve to
+`write-file!`: rung 4 of the descent ladder, applied at the function namespace.
+
 The file this writes is named for the twin rather than for the example, so the
 two can never meet on one path.
 """
 
-from petta import S, V, val
+import petta
+from petta import G, S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 117079 to 101616, -15463 (-13.21%), by the idiomatic
-#: rewrite: thirty-seven `test` wrappers left the engine for `assert`, the
-#: file-handle `let` chain became three statements, and the two `file-space!`
-#: matches became subscripts on the space the file decodes into. Measured
-#: min-of-three with the MORK backend linked into this worktree, which the
-#: earlier figure may not have been. Prior: 117079 was the last figure for
-#: the generator twin that yielded `m.eval(S.test(...))` once per runnable
-#: form.
-BUDGET = 101616
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 #: Written, appended to, read back four ways, then removed.
-SCRATCH = val("/tmp/petta-text-twin.txt")
+SCRATCH = G("/tmp/petta-text-twin.txt")
 
 
 def twin(m):
     """Walk lib_string's measuring, slicing, testing and padding, then lib_file."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_string)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
-    m.eval(S["import!"](S["&self"], S.library(S.lib_file)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one, as above
+    m.eval(S["import!"](m, S.library(S["lib_string"])))
+    m.eval(S["import!"](m, S.library(S["lib_file"])))
 
     # Measuring and slicing. string-slice is half-open, From included, To not.
-    assert m.fn("string-length")(val("hello")) == 5
-    slice_ = m.fn("string-slice")
-    assert slice_(val("hello world"), 0, 5) == val("hello")
+    string_length = m.fn.string_length
+    assert string_length(G("hello")) == [5]
+    string_slice = m.fn.string_slice
+    assert string_slice(G("hello world"), 0, 5) == [G("hello")]
     # An over-long end clamps instead of erroring, as slicing does everywhere.
-    assert slice_(val("hello"), 3, 999) == val("lo")
-    assert slice_(val("hello"), 99, 120) == val("")
+    assert string_slice(G("hello"), 3, 999) == [G("lo")]
+    assert string_slice(G("hello"), 99, 120) == [G("")]
 
     # Splitting and joining are inverses.
-    assert list(m.fn("string-split")(val(","), val("a,b,c"))) == [val("a"), val("b"), val("c")]
-    assert m.fn("string-join")(val(", "), (val("a"), val("b"), val("c"))) == val("a, b, c")
-    assert m.fn("string-trim")(val("  padded  ")) == val("padded")
-    assert m.fn("string-upper")(val("shout")) == val("SHOUT")
-    assert m.fn("string-lower")(val("QUIET")) == val("quiet")
+    [pieces] = m.fn.string_split(G(","), G("a,b,c"))
+    assert list(pieces) == [G("a"), G("b"), G("c")]
+    assert m.fn.string_join(G(", "), (G("a"), G("b"), G("c"))) == [G("a, b, c")]
+    assert m.fn.string_trim(G("  padded  ")) == [G("padded")]
+    string_upper = m.fn.string_upper
+    assert string_upper(G("shout")) == [G("SHOUT")]
+    assert m.fn.string_lower(G("QUIET")) == [G("quiet")]
 
     # The tests answer True or False, so they guard a query.
-    assert m.fn("string-starts-with")(val("hello"), val("he")) is True
-    assert m.fn("string-ends-with")(val("hello"), val("lo")) is True
-    contains = m.fn("string-contains")
-    assert contains(val("hello"), val("ell")) is True
-    assert contains(val("hello"), val("zzz")) is False
+    assert m.fn.string_starts_with(G("hello"), G("he")) == [True]
+    assert m.fn.string_ends_with(G("hello"), G("lo")) == [True]
+    contains = m.fn.string_contains
+    assert contains(G("hello"), G("ell")) == [True]
+    assert contains(G("hello"), G("zzz")) == [False]
 
     # index-of answers -1 rather than failing: asking "where is it" deserves an
     # answer either way.
-    index_of = m.fn("string-index-of")
-    assert index_of(val("hello"), val("l")) == 2
-    assert index_of(val("hello"), val("z")) == -1
+    index_of = m.fn.string_index_of
+    assert index_of(G("hello"), G("l")) == [2]
+    assert index_of(G("hello"), G("z")) == [-1]
 
     # replace changes every occurrence.
-    assert m.fn("string-replace")(val("banana"), val("a"), val("X")) == val("bXnXnX")
+    assert m.fn.string_replace(G("banana"), G("a"), G("X")) == [G("bXnXnX")]
 
     # chars are one-character STRINGS, not char symbols, so the pieces are the
     # same kind of thing as the whole and feed straight back in.
-    chars = m.fn("string-chars")(val("abc"))
-    assert list(chars) == [val("a"), val("b"), val("c")]
-    assert m.fn("string-from-chars")(chars) == val("abc")
-    assert m.fn("string-repeat")(val("ab"), 3) == val("ababab")
-    assert m.fn("string-pad-left")(val("7"), 3, val("0")) == val("007")
-    assert m.fn("string-pad-right")(val("7"), 3, val(".")) == val("7..")
+    [chars] = m.fn.string_chars(G("abc"))
+    assert list(chars) == [G("a"), G("b"), G("c")]
+    assert m.fn.string_from_chars(chars) == [G("abc")]
+    assert m.fn.string_repeat(G("ab"), 3) == [G("ababab")]
+    assert m.fn.string_pad_left(G("7"), 3, G("0")) == [G("007")]
+    assert m.fn.string_pad_right(G("7"), 3, G(".")) == [G("7..")]
 
     # rung: format-args is MeTTa HE's own formatter and this is HE's example of
     # it; an f-string cannot show what it does with too few arguments, which is
     # the second claim.
-    format_args = m.fn("format-args")
-    assert format_args(val("Probability of {} is {}%"), (S.head, 50)) == val("Probability of head is 50%")
+    format_args = m.fn.format_args
+    assert format_args(G("Probability of {} is {}%"), (S.head, 50)) == [
+        G("Probability of head is 50%")
+    ]
     # A short argument list produces NOTHING for the placeholders it cannot
     # fill, which is the dyn_fmt formatter upstream interpolates through.
-    assert format_args(val("{} and {}"), (S.only,)) == val("only and ")
+    assert format_args(G("{} and {}"), (S.only,)) == [G("only and ")]
 
-    # rung: sort-strings is the library function under test, not a request to
-    # sort a Python list.
-    sorted_strings = m.fn("sort-strings")((val("pear"), val("apple"), val("fig")))
-    assert list(sorted_strings) == [val("apple"), val("fig"), val("pear")]
-    assert m.fn("parse-number")(val("42")) == 42
-    assert m.fn("number-to-string")(42) == val("42")
+    [sorted_strings] = m.fn.sort_strings((G("pear"), G("apple"), G("fig")))  # rung: sort-strings is the library function under test, not a request to sort a Python list
+    assert list(sorted_strings) == [G("apple"), G("fig"), G("pear")]
+    assert m.fn.parse_number(G("42")) == [42]
+    assert m.fn.number_to_string(42) == [G("42")]
 
     # Text operations accept a Symbol or a Number where a String is wanted,
     # because a symbol arriving where a string was meant is ordinary in MeTTa.
-    assert m.fn("string-length")(S.hello) == 5
-    assert m.fn("string-upper")(S.hello) == val("HELLO")
+    assert string_length(S.hello) == [5]
+    assert string_upper(S.hello) == [G("HELLO")]
 
     # Files.
-    assert m.fn("write-file!")(SCRATCH, val("one\ntwo\nthree\n")) is True
-    assert m.fn("read-file!")(SCRATCH) == val("one\ntwo\nthree\n")
+    assert m.fn.write_file(SCRATCH, G("one\ntwo\nthree\n")) == [True]
+    assert m.fn.read_file(SCRATCH) == [G("one\ntwo\nthree\n")]
     # file-lines! drops the trailing empty line a final newline would produce.
-    assert list(m.fn("file-lines!")(SCRATCH)) == [val("one"), val("two"), val("three")]
-    assert m.fn("append-file!")(SCRATCH, val("four\n")) is True
-    assert list(m.fn("file-lines!")(SCRATCH)) == [val("one"), val("two"), val("three"), val("four")]
+    file_lines = m.fn.file_lines
+    [lines] = file_lines(SCRATCH)
+    assert list(lines) == [G("one"), G("two"), G("three")]
+    assert m.fn.append_file(SCRATCH, G("four\n")) == [True]
+    [lines] = file_lines(SCRATCH)
+    assert list(lines) == [G("one"), G("two"), G("three"), G("four")]
 
     # The handle surface is MeTTa HE's exactly: r read, w write, c create,
     # a append, t truncate. The example's `let` chain is three statements.
-    handle = m.fn("file-open!")(SCRATCH, val("r"))
-    head = m.fn("file-read-exact!")(handle, 3)
-    m.fn("file-close!")(handle)
-    assert head == val("one")
+    handle = m.fn.file_open(SCRATCH, G("r")).one()
+    head = m.fn.file_read_exact(handle, 3).one()
+    m.fn.file_close(handle).one()
+    assert head == G("one")
 
     # file-space! is the mettafied reading of reading a file: its lines become
     # (line Number Text) atoms in a space, so the file is QUERYABLE rather than
     # one long string you then have to take apart. The line number is kept
     # because a space is unordered.
-    log = m.space(str(m.fn("file-space!")(SCRATCH)))
-    assert [(row.n, row.t) for row in log.query(S.line(V.n, V.t))] == [
-        (1, val("one")), (2, val("two")), (3, val("three")), (4, val("four")),
+    log = petta.space(str(m.fn.file_space(SCRATCH).one()))
+    assert [(row.n, row.t) for row in log[S.line(V.n, V.t)]] == [
+        (1, G("one")), (2, G("two")), (3, G("three")), (4, G("four")),
     ]
     # Asking for one line is a match, not a scan.
-    assert log.query(S.line(2, V.t))["t"] == [val("two")]
+    assert [row.t for row in log[S.line(2, V.t)]] == [G("two")]
 
-    assert m.fn("delete-file!")(SCRATCH) is True
+    assert m.fn.delete_file(SCRATCH) == [True]

@@ -10,20 +10,17 @@ rather than hitting. Both claims hold either way.
 
 from petta import S
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 128629 to 125532, -3097 (-2.41%), by the idiomatic
-#: rewrite: two `test` wrappers left the engine for `assert`; the import is
-#: almost the whole cost of every lib_memo file, which is why the ratio moves
-#: so little. Measured min-of-three with the MORK backend linked into this
-#: worktree, which the earlier figure may not have been. Prior: 128629 was
-#: the last figure for the generator twin that yielded `m.eval(S.test(...))`
-#: once per runnable form.
-BUDGET = 125532
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 
 def twin(m):
     """Double five twice."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_memo"])))
 
     @m.define
     def double(x):

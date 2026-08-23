@@ -6,64 +6,74 @@ is why every function here is named: `is-function` observes an arrow,
 `type-cast` admits or refuses, `match-types` unifies with wildcards, and the
 pair accessors and `match-type-or` are the rest of that vocabulary.
 
+`type-cast` takes the space it asks as an ARGUMENT, and a space crosses a term
+position as a grounded operand, so the receiver is handed over rather than
+named. A declaration is `typed(a, T)`, the `(: a T)` form as data.
+
 `type-cast` is asked through the engine rather than through `m.cast`, and that
 is a measured decision, not a habit: `m.cast(S.B, S.type1)` RAISES CastError
 where the engine answers B, because an atom nobody declared has type
 `%Undefined%`, which the language's own rule treats as a wildcard that matches
 any requested type. The divergence is recorded in the residue table.
 
-The refusal is an Error ATOM, so it comes back through `m.eval`, which hands
-error answers over as data where the cardinality doors raise on them.
+The refusal is an Error ATOM, and iterating the answer view keeps it as data
+where the scalar doors take the loud reading and raise.
 """
 
-from petta import S, V, val
+from petta import G, S, V, typed
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 18997 to 11268, -7729 (-40.69%), by the idiomatic
-#: rewrite: fourteen `test` wrappers left the engine for `assert`; the five
-#: casts, four match-types, two pair halves and match-type-or are what
-#: remains. Measured min-of-three with the MORK backend linked into this
-#: worktree, which the earlier figure may not have been. Prior: 18997 was the
-#: last figure for the generator twin that yielded `m.eval(S.test(...))` once
-#: per runnable form.
-BUDGET = 11268
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 
 def twin(m):
     """Observe arrows, cast five atoms, unify four type pairs, take two halves."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_he"])))
 
-    is_function = m.fn("is-function")
-    assert is_function(S["->"](S.Atom, S.Atom)) is True
-    assert is_function(S.Atom) is False
+    is_function = m.fn.is_function
+    assert is_function(S["->"](S.Atom, S.Atom)) == [True]
+    assert is_function(S.Atom) == [False]
 
     # type-cast answers the atom when it has the type and (Error $atom BadType)
     # when it does not. Three ways to have it: the type is the atom's metatype,
     # a declared type matches it, or the atom has no declaration at all, which
     # the engine answers as %Undefined%, a wildcard matching any type.
-    m += S[":"](S.type1, S.Type)
-    m += S[":"](S.A, S.type1)
+    m += typed(S.type1, S.Type)
+    m += typed(S.A, S.type1)
 
-    cast = m.fn("type-cast")
-    assert cast(S.A, S.type1, S["&self"]) == S.A  # rung: the space is type-cast's own ARGUMENT, and m.cast diverges from it on undeclared atoms, so the engine is asked directly
-    assert m.eval(S["type-cast"](1, S.type1, S["&self"])) == [S.Error(1, S.BadType)]  # rung: as above, and the answer is an error ATOM, which only m.eval hands over as data
+    cast = m.fn.type_cast
+    assert cast(S.A, S.type1, m) == [S.A]
+    assert cast(1, S.type1, m) == [S.Error(1, S.BadType)]
 
     # A metatype counts, so any symbol casts to Symbol and any number to Number.
-    assert cast(S.A, S.Symbol, S["&self"]) == S.A  # rung: as above
-    assert cast(1, S.Number, S["&self"]) == 1  # rung: as above
+    assert cast(S.A, S.Symbol, m) == [S.A]
+    assert cast(1, S.Number, m) == [1]
     # An atom nobody declared is not the wrong type.
-    assert cast(S.B, S.type1, S["&self"]) == S.B  # rung: as above
+    assert cast(S.B, S.type1, m) == [S.B]
 
     # match-types is unification with wildcards, Hyperon's own contract:
     # %Undefined% and Atom on EITHER side match anything, and otherwise the two
     # types unify, so a type carrying a variable matches its instance.
-    match_types = m.fn("match-types")
-    matched, missed = val("Matched!"), val("Didn't match")
-    assert match_types(S.Atom, S.Atom, matched, missed) == matched
-    assert match_types(S.Atom, S.Number, matched, missed) == matched
-    assert match_types(S.Bool, S.Number, matched, missed) == missed
-    assert match_types(S.List(V.x), S.List(S.Number), matched, missed) == matched
+    match_types = m.fn.match_types
+    matched, missed = G("Matched!"), G("Didn't match")
+    assert match_types(S.Atom, S.Atom, matched, missed) == [matched]
+    assert match_types(S.Atom, S.Number, matched, missed) == [matched]
+    assert match_types(S.Bool, S.Number, matched, missed) == [missed]
+    # DEFECT, and this line is what it costs. It ought to read
+    # `match_types(S.List(V.x), S.List(S.Number), matched, missed)`, the call
+    # door, like the three above it. The pair carries a variable INSIDE a type,
+    # and the answer view reads every variable in a call as one of the caller's
+    # own, so the call door answers a binding row for `$x` where the claim is
+    # about the answer. Until it distinguishes them, this one is stated as the
+    # term it is.
+    assert m.eval(S["match-types"](S.List(V.x), S.List(S.Number), matched, missed)) == [
+        matched
+    ]
 
-    assert m.fn("first-from-pair")((S.A, S.B)) == S.A
-    assert m.fn("second-from-pair")((S.A, S.B)) == S.B
-    assert m.fn("match-type-or")(True, S.Number, S.Bool) is True  # noqa: FBT003  -- True is the folded accumulator this call carries, an ordinary atom, not a flag
+    assert m.fn.first_from_pair((S.A, S.B)) == [S.A]
+    assert m.fn.second_from_pair((S.A, S.B)) == [S.B]
+    assert m.fn.match_type_or(True, S.Number, S.Bool) == [True]  # noqa: FBT003  -- True is the folded accumulator this call carries, an ordinary atom, not a flag

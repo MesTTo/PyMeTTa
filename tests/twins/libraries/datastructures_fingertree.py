@@ -1,94 +1,91 @@
-"""Purpose: exercise the finger-tree example through Python calls.
+"""Purpose: examples/libraries/datastructures_fingertree.metta in Python: the finger tree, walked.
 
-The twin covers every claim in examples/libraries/datastructures_fingertree.metta.
-Assumes:
-  - lib_datastructures publishes the eleven ``ft-*`` functions used below
-    [source: lib/lib_datastructures.metta:ft-empty; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Guarantees:
-  - twin imports the library and asserts all fifteen source claims, including
-    both end operations, deep trees, concatenation, and nested data
-    [measured: twin completed; command=bindings/python/tools/twin_coverage.py --measure examples/libraries/datastructures_fingertree.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+The finger tree from lib_datastructures: O(1) at both ends, O(log n)
+concatenation, one structure serving as sequence and deque at once. Fifteen
+claims, every one of them about one of the eleven `ft-*` functions, so all
+eleven are named.
+
+DEFECT, and it decides how this file is written. Every claim below ought to
+nest the calls the way Python nests calls,
+`push_front(1, push_back(3, push_front(2, ft_empty())))` through
+`space.fn.ft_push_front` and its siblings. A call through the function
+namespace answers an ANSWER VIEW, and an answer view is not an operand:
+handing one to another engine function crosses it as a grounded Python object
+and answers `(BadArgType 1 Number Answers)`. Threading `.one()` through every
+nesting level would say the same thing four times a line and would also cross
+the boundary once per SUB-CALL, which the cost model prices per collection.
+So the eleven names are bound as MENTIONS, each claim composes one term, and
+`eval` performs it once, exactly as the example's own single form does.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import S
+from petta import Expression, S
 
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 312515..312779 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 312515,
-    "maximum": 312779,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree. This one
+#: needs an EMPIRICAL ENVELOPE rather than a point: its cost moved across
+#: 264 inferences over the concurrent lane's own observations, because
+#: the shared engine's scheduling changes what a concurrent round costs
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: Until it is measured again, this file's own distribution-budget residue
+#: entry, retired 2026-08-22 because the twin declared an envelope, is
+#: unbacked: a point budget is not the envelope that retired it.
+BUDGET = 1
 
 
 def twin(m):
     """Build, inspect, drain, and concatenate finger trees from Python."""
-    m.eval(
-        S["import!"](
-            S["&self"],  # rung: import!'s target is a named space argument; handles do not yet encode there
-            S.library(S.lib_datastructures),
-        )
-    )
+    m.eval(S["import!"](m, S.library(S["lib_datastructures"])))
 
-    ft_empty = m.fn("ft-empty")
-    push_front = m.fn("ft-push-front")
-    push_back = m.fn("ft-push-back")
-    from_list = m.fn("ft-from-list")
-    to_list = m.fn("ft-to-list")
-    front = m.fn("ft-front")
-    back = m.fn("ft-back")
-    pop_front = m.fn("ft-pop-front")
-    pop_back = m.fn("ft-pop-back")
-    concat = m.fn("ft-concat")
-    is_empty = m.fn("ft-is-empty")
+    ft_empty, from_list, to_list = S.ft_empty, S.ft_from_list, S.ft_to_list
+    push_front, push_back = S.ft_push_front, S.ft_push_back
+    front, back = S.ft_front, S.ft_back
+    pop_front, pop_back = S.ft_pop_front, S.ft_pop_back
+    concat, is_empty = S.ft_concat, S.ft_is_empty
 
     built_at_both_ends = push_front(1, push_back(3, push_front(2, ft_empty())))
-    assert tuple(to_list(built_at_both_ends)) == (1, 2, 3)
+    assert m.eval(to_list(built_at_both_ends)) == [Expression((1, 2, 3))]
 
     ten = (S.a, S.b, S.c, S.d, S.e, S.f, S.g, S.h, S.i, S.j)
-    assert tuple(to_list(from_list(ten))) == ten
+    assert m.eval(to_list(from_list(ten))) == [Expression(ten)]
 
     abc = from_list((S.a, S.b, S.c))
-    assert front(abc) == S.a
-    assert back(abc) == S.c
+    assert m.eval(front(abc)) == [S.a]
+    assert m.eval(back(abc)) == [S.c]
 
-    item, remainder = pop_front(abc)
-    assert (item, tuple(to_list(remainder))) == (S.a, (S.b, S.c))
+    # A pop answers the element and the remaining tree, so the example reads
+    # both out of one answer; Python's own unpacking is that reading.
+    [popped] = m.eval(pop_front(abc))
+    item, remainder = popped
+    assert (item, m.eval(to_list(remainder))) == (S.a, [S.b(S.c)])
 
-    item, remainder = pop_back(abc)
-    assert (item, tuple(to_list(remainder))) == (S.c, (S.a, S.b))
+    [popped] = m.eval(pop_back(abc))
+    item, remainder = popped
+    assert (item, m.eval(to_list(remainder))) == (S.c, [S.a(S.b)])
 
     deep = tuple(range(1, 16))
-    assert tuple(to_list(from_list(deep))) == deep
+    assert m.eval(to_list(from_list(deep))) == [Expression(deep)]
 
     deque = push_back(9, push_front(0, from_list((4, 5, 6))))
-    assert tuple(to_list(deque)) == (0, 4, 5, 6, 9)
+    assert m.eval(to_list(deque)) == [Expression((0, 4, 5, 6, 9))]
 
     left, right = from_list((1, 2, 3, 4, 5)), from_list((6, 7, 8, 9, 10))
-    assert tuple(to_list(concat(left, right))) == tuple(range(1, 11))
-    assert tuple(to_list(concat(ft_empty(), from_list((S.x, S.y))))) == (S.x, S.y)
-    assert tuple(to_list(concat(from_list((S.x, S.y)), ft_empty()))) == (S.x, S.y)
+    assert m.eval(to_list(concat(left, right))) == [Expression(range(1, 11))]
+    assert m.eval(to_list(concat(ft_empty(), from_list((S.x, S.y))))) == [S.x(S.y)]
+    assert m.eval(to_list(concat(from_list((S.x, S.y)), ft_empty()))) == [S.x(S.y)]
 
     singleton = push_front(S.a, ft_empty())
-    assert tuple(to_list(concat(singleton, from_list((S.b, S.c, S.d, S.e, S.f, S.g, S.h))))) == (
-        S.a,
-        S.b,
-        S.c,
-        S.d,
-        S.e,
-        S.f,
-        S.g,
-        S.h,
-    )
+    seven = from_list((S.b, S.c, S.d, S.e, S.f, S.g, S.h))
+    assert m.eval(to_list(concat(singleton, seven))) == [
+        S.a(S.b, S.c, S.d, S.e, S.f, S.g, S.h)
+    ]
 
-    assert is_empty(ft_empty()) is True
-    assert is_empty(push_front(1, ft_empty())) is False
+    assert m.eval(is_empty(ft_empty())) == [True]
+    assert m.eval(is_empty(push_front(1, ft_empty()))) == [False]
 
     nested = from_list((S.nested(S.pair), S.plain))
-    assert front(nested) == S.nested(S.pair)
+    assert m.eval(front(nested)) == [S.nested(S.pair)]

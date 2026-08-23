@@ -15,32 +15,33 @@ resolves a lowercase free name as a function.
 Evaluating IN a space is the space handle's own `eval`, which is what
 `(metta $atom %Undefined% &space)` says: a rule belongs to the space that holds
 it, so calling `(fdouble 21)` from `&self` would find nothing.
+
+`import_prolog_functions_from_file` keeps the bracket, because that MeTTa name
+really has underscores and the attribute door maps every underscore to a
+hyphen.
 """
 
-from petta import S, V, equation, rules, val
+import petta
+from petta import G, S, V, equation, rules
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 48124 to 42388, -5736 (-11.92%), by the idiomatic
-#: rewrite: six `test` wrappers, a `collapse` and a `sort-atom` left the
-#: engine for `assert` and `sorted`, and three of the five rules are now
-#: compiled by `@demo.define` where the source built them as atoms, which is
-#: the same equation through a different door. Measured min-of-three with the
-#: MORK backend linked into this worktree, which the earlier figure may not
-#: have been. Prior: 48124 was the last figure for the generator twin that
-#: yielded `m.eval(S.test(...))` once per runnable form.
-BUDGET = 42388
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 #: The provider under test, thirteen lines. Its whole contribution is declaring
 #: the `rules` capability beside match, enumerate, add and remove.
-PROVIDER = val("./examples/libraries/_fixtures/rule_provider.pl")
+PROVIDER = G("./examples/libraries/_fixtures/rule_provider.pl")
 
 
 def twin(m):
     """Put five rules and one fact in a foreign space, then evaluate them there."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_import)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
-    m.eval(S.import_prolog_functions_from_file(PROVIDER, ()))
+    m.eval(S["import!"](m, S.library(S["lib_import"])))
+    m.eval(S["import_prolog_functions_from_file"](PROVIDER, ()))
 
-    demo = m.space("&rule_demo")
+    demo = petta.space("&rule_demo")
 
     # A rule, added to the foreign space, evaluating.
     @demo.define
@@ -56,7 +57,7 @@ def twin(m):
         yield equation(S.fpick()).to(S.one)
         yield equation(S.fpick()).to(S.two)
 
-    demo.add(*picks)
+    demo += picks
     assert sorted(demo.eval(S.fpick()), key=str) == [S.one, S.two]
 
     # A body that is not a call IS the answer, the way a native equation with a

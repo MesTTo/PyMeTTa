@@ -3,15 +3,17 @@
 `quote` is an ordinary constructor and `unquote` undoes it, so both stay named:
 they are the file's subject. Everything around them is Python's own.
 
-Evaluating a term is `m.one`. Printing one is `str`, because a built atom
-already prints as engine-exact swrite text, which is what MeTTa's `repr`
-answers. And `noreduce-eq`, which compares two terms WITHOUT reducing them, is
-Python's `==` on atoms: outside a compiled body `S["+"](1, 2) == 3` is
-structural equality between an expression and a number, and it is False for
-exactly the reason the example gives.
-Guarantees:
-  - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+Evaluating a term is `space.answers(term).one()`. Printing one is `str`,
+because a built atom already prints as engine-exact swrite text, which is what
+MeTTa's `repr` answers. And `noreduce-eq`, which compares two terms WITHOUT
+reducing them, is Python's `==` on atoms: outside a compiled body
+`S["+"](1, 2) == 3` is structural equality between an expression and a number,
+and it is False for exactly the reason the example gives.
+
+`(+ 1 2)` is built by naming the head. The guide's grounded lift, `G(1) + 2`,
+would be the operator spelling for it, and it is not the shipped behaviour:
+`Grounded` arithmetic COMPUTES, so that expression answers the integer 3 and
+the quotation this file is about would have nothing left to quote.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,26 +22,23 @@ Open Obligations:
 
 from petta import S
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 12127 to 8295, -3832 (-31.60%), by the idiomatic
-#: rewrite: `repr` and `noreduce-eq` left the engine for `str()` and Python's
-#: own structural `==` on atoms, and six `test` wrappers went with them.
-#: Measured min-of-three with the MORK backend linked into this worktree,
-#: which the earlier figure may not have been. Prior: 12127 was the last
-#: figure for the generator twin that yielded `m.eval(S.test(...))` once per
-#: runnable form.
-BUDGET = 8295
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 
 def twin(m):
     """Quote a sum, unquote it, print it, and compare it unreduced."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_he)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_he"])))
 
     quoted = S.quote(S["+"](1, 2))
     assert m.eval(quoted) == [quoted]
 
-    assert m.one(S["+"](1, 2)) == 3
-    assert m.fn("unquote")(quoted) == 3
+    assert m.answers(S["+"](1, 2)).one() == 3
+    assert m.fn.unquote(quoted) == [3]
 
     # Printing an atom is what MeTTa's repr answers, character for character.
     assert str(S.unquote(42)) == "(unquote 42)"

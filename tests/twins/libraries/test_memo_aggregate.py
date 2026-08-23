@@ -9,28 +9,31 @@ claim is a declined residue entry with its reproduction, not a silent gap.
 What this twin does state is the half that does hold: the mode is accepted and
 readable, and setting it back to `none` restores the default for whatever runs
 next in the same process, which is why the example ends the way it does.
+
+DEFECT, and it is the quiet kind. A call through the function namespace is
+LAZY: creating the answer view performs no engine work, so
+`config(S.aggregate(S.sum))` written for its EFFECT, which is how the example
+writes it, silently does nothing and every later claim reads the old mode. The
+answer has to be pulled. Both calls therefore state the `True` they answer,
+which both pulls them and says what they answered.
 """
 
 from petta import S, equation, rules
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 130374 to 127849, -2525 (-1.94%), by the idiomatic
-#: rewrite: the one `test` wrapper left with the claim it wrapped, which is
-#: now declined because the fold happens inside a cache the Python call door
-#: does not reach; what replaces it is two reads of the memoize
-#: configuration. Measured min-of-three with the MORK backend linked into
-#: this worktree, which the earlier figure may not have been. Prior: 130374
-#: was the last figure for the generator twin that yielded
-#: `m.eval(S.test(...))` once per runnable form.
-BUDGET = 127849
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 
 def twin(m):
     """Ask for a summing cache, build the function, and read the mode back."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_memo)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_memo"])))
 
-    config = m.fn("config-memoize")
-    config(S.aggregate(S.sum))
+    config = m.fn.config_memoize
+    assert config(S.aggregate(S.sum)) == [True]
 
     @rules
     def choices(x):
@@ -38,12 +41,15 @@ def twin(m):
         yield equation(S.choices(x)).to(x + 1)
         yield equation(S.choices(x)).to(x + 2)
 
-    m.add(*choices)
+    m += choices
     m.eval(S.memoize(S.choices))
 
-    assert S.aggregate(S.sum) in m.fn("get-memoize-config")()
+    read_config = m.fn.get_memoize_config
+    [declared] = read_config()
+    assert S.aggregate(S.sum) in declared
 
     # Restore the default mode: the counters and the configuration are
     # process-global, so a later run in the same process would inherit this one.
-    config(S.aggregate(S.none))
-    assert S.aggregate(S.none) in m.fn("get-memoize-config")()
+    assert config(S.aggregate(S.none)) == [True]
+    [restored] = read_config()
+    assert S.aggregate(S.none) in restored

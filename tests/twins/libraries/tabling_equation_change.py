@@ -20,33 +20,30 @@ answer SET is what tabling preserves; that is what this asserts.
 
 from petta import S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 77656 to 74824, -2832 (-3.65%), by the idiomatic
-#: rewrite: four `test` wrappers, two `collapse`s and a `sort-atom` left the
-#: engine for `assert`, `.all()` and `sorted`; the table and its two
-#: invalidations still run there. Measured min-of-three with the MORK backend
-#: linked into this worktree, which the earlier figure may not have been.
-#: Prior: 77656 was the last figure for the generator twin that yielded
-#: `m.eval(S.test(...))` once per runnable form.
-BUDGET = 74824
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree, so a
+#: figure measured here would pin a tree that does not ship
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+BUDGET = 1
 
 
 def twin(m):
     """Table one equation, add a second, remove the first, watch the answers move."""
-    m.eval(S["import!"](S["&self"], S.library(S.lib_tabling)))  # rung: import!'s target space is an ARGUMENT, and a space handle does not encode as one (the engine answers "expects a space"), so the name is written as the symbol its own door takes
+    m.eval(S["import!"](m, S.library(S["lib_tabling"])))
 
     m += equation(S.pick(V.x)).to(S.one)
     m.eval(S.tabled(S.pick(V.x)))
 
-    pick = m.fn("pick")
-    assert pick.all(S.a) == [S.one]
-    assert pick.all(S.a) == [S.one]
+    pick = m.fn.pick
+    assert pick(S.a) == [S.one]
+    assert pick(S.a) == [S.one]
 
     # A second equation for the same function. Without invalidation the table
     # would keep answering [one].
     m += equation(S.pick(V.x)).to(S.two)
-    assert sorted(pick.all(S.a), key=str) == [S.one, S.two]
+    assert sorted(pick(S.a), key=str) == [S.one, S.two]
 
     # Removing one again.
     m -= equation(S.pick(V.x)).to(S.one)
-    assert pick.all(S.a) == [S.two]
+    assert pick(S.a) == [S.two]
