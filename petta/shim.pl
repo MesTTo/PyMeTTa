@@ -112,6 +112,9 @@
 %     __bool__, retain the Python dispatch fallback [tested:
 %     shim_python_scalar_semantics,
 %     test_wire_scalars_match_the_python_host_oracle; commit=WORKTREE]
+%   - petta_py_limited/6 adds a negative-sentinel stack byte ceiling to the
+%     existing time and inference bounds and restores it on every exit path
+%     [tested: test_janus_stack_scope_restores_on_all_exits; commit=WORKTREE]
 %   - petta_py_register_token/2 retains a Python constructor in the engine's
 %     reader table and seam:host_reader_token_construct/3 returns its encoded
 %     Atom through the shared decoder [tested:
@@ -682,6 +685,19 @@ petta_py_wrapped_goal(Pred0, Ins, Out, Goal) :-
 petta_py_limited(TimeS, Inf, Pred, Ins, Out) :-
     petta_py_wrapped_goal(Pred, Ins, Out, Goal),
     petta_py_guarded(TimeS, Inf, Goal).
+
+%The six-argument seam extends rather than changes petta_py_limited/5. A
+%negative StackBytes is the same no-bound sentinel the older limits use.
+petta_py_limited(TimeS, Inf, StackBytes, Pred, Ins, Out) :-
+    petta_py_wrapped_goal(Pred, Ins, Out, Goal),
+    petta_py_guarded(TimeS, Inf, StackBytes, Goal).
+
+petta_py_guarded(TimeS, Inf, StackBytes, Goal) :-
+    (   StackBytes < 0
+    ->  petta_py_guarded(TimeS, Inf, Goal)
+    ;   metta_host_with_stack_limit(
+            StackBytes, petta_py_guarded(TimeS, Inf, Goal))
+    ).
 
 petta_py_guarded(TimeS, Inf, Goal) :-
     ( TimeS < 0 -> Timed = Goal
