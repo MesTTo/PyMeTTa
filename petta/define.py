@@ -42,8 +42,9 @@ Guarantees:
     test_flat_generator_emits_one_equation_per_yield,
     test_loop_yields_remain_one_superpose_equation; commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - a host-bound sibling Defined resolves to its declared MeTTa name inside a
-    compiled body [tested: test_compiled_body_calls_renamed_defined_sibling;
-    commit=WORKTREE]
+    compiled body, while self-recursion remains runnable by the Python twin
+    [tested: test_compiled_body_calls_renamed_defined_sibling,
+    test_compiled_calls_share_the_installed_name_resolver; commit=WORKTREE]
   - ordinary Defined calls keep the held evaluation cursor inside a stats
     scope, so a bounded view suspends an endless producer [tested:
     test_function_calls_suspend_endless_producers; commit=WORKTREE]
@@ -882,7 +883,11 @@ class _Compiler(
         """Whether the twin could resolve this callee: a host binding or a
         Python builtin. An engine-only name makes the twin unrunnable.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return self.host(identifier) or identifier in self._builtins
+        return (
+            identifier in (self.pyname, self.name)
+            or self.host(identifier)
+            or identifier in self._builtins
+        )
 
     def _temp(self, base: str) -> str:
         """A fresh variable for the compiler's own use, outside any Python

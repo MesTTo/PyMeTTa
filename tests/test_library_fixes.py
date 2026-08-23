@@ -413,13 +413,14 @@ def test_compiled_calls_share_the_installed_name_resolver() -> None:
     def libfix_named_step(value):
         return 0 if value == 0 else libfix_named_step(value - 1) + 1
 
-    target.define(libfix_named_step, name="libfixNamedStep")
+    named_step = target.define(libfix_named_step, name="libfixNamedStep")
 
     @target.define
     def libfix_named_caller(value):
         return libfix_named_step(value)
 
     assert target.fn["libfixNamedStep"](3).one() == 3
+    assert named_step.py(3) == 3
     assert libfix_named_caller(4).one() == 4
 
 
