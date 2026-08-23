@@ -112,6 +112,10 @@
 %     __bool__, retain the Python dispatch fallback [tested:
 %     shim_python_scalar_semantics,
 %     test_wire_scalars_match_the_python_host_oracle; commit=551f6236be947d5c52f5243e3d56f0009a000071]
+%   - native comparison classifies a decoded expression by its outer cell and
+%     never walks the whole operand before comparing it [tested:
+%     comparing_against_the_empty_expression_does_not_walk_the_other_operand;
+%     commit=WORKTREE]
 %   - petta_py_limited/6 adds a negative-sentinel stack byte ceiling to the
 %     existing time and inference bounds and restores it on every exit path
 %     [tested: test_janus_stack_scope_restores_on_all_exits; commit=81c50d3ae4c03ddfd70ed3f1ff70e085cfee3978]
@@ -1885,7 +1889,12 @@ petta_py_native_class(false, boolean) :- !.
 petta_py_native_class(Value, number) :- number(Value), !.
 petta_py_native_class(Value, string) :- string(Value), !.
 petta_py_native_class(Value, symbol) :- atom(Value), !.
-petta_py_native_class(Value, expression) :- is_list(Value).
+%The decoder has already proved an expression wire is a proper list. Inspect
+%only its outer cell here: is_list/1 would walk the whole operand before the
+%recursive comparison and would make repeated end-of-list comparisons
+%quadratic in a traversal.
+petta_py_native_class([], expression) :- !.
+petta_py_native_class([_|_], expression).
 
 petta_py_native_eq_classes(boolean, Left, boolean, Right, Result) :-
     petta_py_boolean_number(Left, LeftNumber),
