@@ -1,9 +1,9 @@
 """Purpose: immutable atom values, Python value encoding, and bounded identity caches.
 Guarantees:
-  - standard callable mentions encode as their symbolic MeTTa heads and
-    Atom.__lt__ follows the engine order used by plain sorted [tested:
+  - standard callable mentions encode as their symbolic MeTTa heads and all
+    four atom rich comparisons follow the engine order used by plain sorted [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names and
-    test_plain_sorted_uses_the_engines_elementwise_order; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+    test_atom_comparisons_are_only_ordering; commit=WORKTREE]
   - Grounded normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
   - Grounded carries the engine's two relations, one per operand kind: against a
@@ -417,14 +417,10 @@ class Atom:
     def __getitem__(self, i: int | slice) -> Any:
         raise TypeError(_leaf_refusal_message(self, "is not indexable"))
 
-    # Term-building operators, the query-builder lesson: arithmetic and
-    # order comparisons on symbols, variables and expressions CONSTRUCT the
-    # corresponding term, so V.age >= 18 is (>= $age 18) and V.x + 1 is
-    # (+ $x 1), guards and bodies written as the Python they look like.
-    # Grounded overrides both families with VALUE semantics (its comparisons
-    # answer booleans, engine-exactly), so a grounded number never quietly
-    # becomes a program. Equality stays equality everywhere; the term is
-    # spelled x.eq(y), since overloading == would cost structural equality.
+    # Arithmetic operators construct terms on symbolic atoms. Rich
+    # comparisons compare atom values in the engine's total order; comparison
+    # terms use explicit heads such as S[">="](left, right). Equality stays
+    # equality everywhere; its term is x.eq(y).
 
     def _build(self, op: str, other: Any, flipped: bool = False) -> Expression:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
         left, right = (encode(other), self) if flipped else (self, encode(other))
@@ -465,9 +461,9 @@ class Atom:
         def __neg__(self) -> Expression: ...
         def __abs__(self) -> Expression: ...
         def __lt__(self, other: Any) -> bool: ...
-        def __le__(self, other: Any) -> Expression | bool: ...
-        def __gt__(self, other: Any) -> Expression | bool: ...
-        def __ge__(self, other: Any) -> Expression | bool: ...
+        def __le__(self, other: Any) -> bool: ...
+        def __gt__(self, other: Any) -> bool: ...
+        def __ge__(self, other: Any) -> bool: ...
 
     def eq(self, other: Any) -> Expression:
         """The equality TERM, (== self other); == itself compares atoms."""
@@ -941,18 +937,24 @@ class Grounded(Atom):
         return pair[0] < pair[1]
 
     def __le__(self, other: Any) -> bool:
+        if isinstance(other, Atom):
+            return _standard_order_le(self, other)
         pair = self._ordered(other)
         if pair is None:
             return NotImplemented
         return pair[0] <= pair[1]
 
     def __gt__(self, other: Any) -> bool:
+        if isinstance(other, Atom):
+            return _standard_order_gt(self, other)
         pair = self._ordered(other)
         if pair is None:
             return NotImplemented
         return pair[0] > pair[1]
 
     def __ge__(self, other: Any) -> bool:
+        if isinstance(other, Atom):
+            return _standard_order_ge(self, other)
         pair = self._ordered(other)
         if pair is None:
             return NotImplemented
@@ -1359,10 +1361,40 @@ def _standard_order_lt(self: Atom, other: Any) -> bool:
     return order_key(self) < order_key(other)
 
 
+def _standard_order_le(self: Atom, other: Any) -> bool:
+    """Compare atoms by the engine order, refusing non-atoms."""
+    if not isinstance(other, Atom):
+        return NotImplemented
+    from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
+
+    return order_key(self) <= order_key(other)
+
+
+def _standard_order_gt(self: Atom, other: Any) -> bool:
+    """Compare atoms by the engine order, refusing non-atoms."""
+    if not isinstance(other, Atom):
+        return NotImplemented
+    from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
+
+    return order_key(self) > order_key(other)
+
+
+def _standard_order_ge(self: Atom, other: Any) -> bool:
+    """Compare atoms by the engine order, refusing non-atoms."""
+    if not isinstance(other, Atom):
+        return NotImplemented
+    from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
+
+    return order_key(self) >= order_key(other)
+
+
 # Appendix stamp 6 rules plain sorting over the old ``<`` term-building
 # spelling. Compiled Python comparisons lower from the AST, while quoted code
 # spells the relation explicitly as ``S["<"](left, right)``.
 Atom.__lt__ = _standard_order_lt  # type: ignore[method-assign]
+Atom.__le__ = _standard_order_le  # type: ignore[method-assign]
+Atom.__gt__ = _standard_order_gt  # type: ignore[method-assign]
+Atom.__ge__ = _standard_order_ge  # type: ignore[method-assign]
 
 
 # Registered so case [head, *args] matches: the Sequence pattern checks the ABC.

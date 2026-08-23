@@ -1,14 +1,13 @@
-"""Purpose: pin Phase 9 item P9.6: every term-building operator on atoms is
-documented in one table, derived from the class rather than maintained by
-hand, and the two operators that are deliberately NOT symbolic (`==`, whose
-term is spelled `.eq()`, and `<`, whose term is spelled `.lt()`) are called
-out. Before this, `S.x + S.y` built a
+"""Purpose: pin Phase 9 item P9.6: every atom operator is documented in one
+table, derived from the class rather than maintained by hand, with rich
+comparisons reserved for ordering and their terms built through explicit
+heads. Before this, `S.x + S.y` built a
 term and no page in website/ showed the form at all [measured 2026-08-19].
 Guarantees:
-    - ``Atom.__lt__`` is the standard-order sorting exception and the ``<``
-      term remains explicitly buildable [tested:
+    - all atom rich comparisons use standard ordering and comparison terms
+      remain explicitly buildable [tested:
       test_every_operator_is_documented_including_non_symbolic_comparisons;
-      commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+      commit=WORKTREE]
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
@@ -37,7 +36,7 @@ from petta import (
     S,
     V,
 )
-from petta.atoms import OPERATOR_LOWERINGS
+from petta.atoms import OPERATOR_LOWERINGS, order_key
 
 DOC = Path(__file__).resolve().parents[3] / "website" / "guide" / "atoms-terms.md"
 
@@ -69,6 +68,8 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
         if entries[dunder].kind == "absent":
             with pytest.raises(TypeError, match="has no MeTTa lowering"):
                 method(S.x, V.y)
+            continue
+        if entries[dunder].kind == "taken":
             continue
         term = method(S.x, V.y)
         built[dunder] = _head(term)
@@ -116,13 +117,11 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
 
     for entry in OPERATOR_LOWERINGS:
         if entry.kind == "taken":
-            assert entry.method in {"eq", "ne"}
-            assert callable(getattr(Atom, entry.method))
+            assert entry.method in {"eq", "ne", "order_key"}
+            implementation = order_key if entry.method == "order_key" else getattr(Atom, entry.method)
+            assert callable(implementation)
             continue
         method = getattr(Atom, entry.dunder)
-        if entry.dunder == "__lt__":
-            assert method(S.a, S.b) is True
-            continue
         assert method.__petta_lowering__ == entry
         if entry.reflected is not None:
             assert getattr(Atom, entry.reflected).__petta_lowering__ == entry

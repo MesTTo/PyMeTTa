@@ -5,10 +5,10 @@ classes as declared types), guarded and bounded queries, assumptions,
 prepared queries, general weighted relations, goal-directed soft proving with Proof objects, and
 the &petta reflection space the library describes itself into.
 Guarantees:
-  - plain ``<`` orders atoms while explicit ``S["<"]`` retains the
-    truthiness-refusing comparison term [tested:
-    test_less_than_orders_atoms_and_the_explicit_term_refuses_truthiness;
-    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+  - all rich comparisons order atoms while explicit symbolic heads retain
+    truthiness-refusing comparison terms [tested:
+    test_rich_comparisons_order_atoms_and_explicit_terms_refuse_truthiness;
+    commit=WORKTREE]
   - Python classes declare through ``Space.define`` [tested:
     test_define_decorator_declares_field_types; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - an unannotated weighted operation stays untyped without a typed flag
@@ -55,10 +55,8 @@ def _arrows_of(space, name):
 
 
 def test_operators_build_terms_on_variables_and_symbols():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert (V.age >= 18) == Expression(S[">="], V.age, 18)
     assert (V.x + 1) == Expression(S["+"], V.x, 1)
     assert (2 * V.x) == Expression(S["*"], 2, V.x)
-    assert (V.x + 1 <= V.y) == Expression(S["<="], Expression(S["+"], V.x, 1), V.y)
     assert V.x.eq(3) == Expression(S["=="], V.x, 3)
     assert (V.a % 2) == Expression(S["%"], V.a, 2)
     assert (V.x**2) == Expression(S["pow-math"], V.x, 2)
@@ -66,7 +64,7 @@ def test_operators_build_terms_on_variables_and_symbols():  # noqa: D103  -- pyt
 
 
 def test_boolean_operators_compose_guards():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    guard = (V.age >= 18) & (V.age <= 40)
+    guard = S[">="](V.age, 18) & S["<="](V.age, 40)
     assert guard == Expression(S["and"], Expression(S[">="], V.age, 18), Expression(S["<="], V.age, 40))
     assert (V.a | V.b) == Expression(S["or"], V.a, V.b)
     assert (V.a ^ V.b) == Expression(S["xor"], V.a, V.b)
@@ -84,13 +82,13 @@ def test_grounded_values_keep_value_semantics():  # noqa: D103  -- pytest discov
     assert (Grounded(7) >= 5) is True  # a boolean, never a term
 
 
-def test_less_than_orders_atoms_and_the_explicit_term_refuses_truthiness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert V.a < V.b
+def test_rich_comparisons_order_atoms_and_explicit_terms_refuse_truthiness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert V.a < V.b and V.a <= V.b and V.b > V.a and V.b >= V.a
     assert sorted([V.b, V.a]) == [V.a, V.b]
     with pytest.raises(TypeError):
         bool(S["<"](V.a, V.b))
     with pytest.raises(TypeError):
-        bool((V.a >= 1) & (V.b >= 2))
+        bool(S[">="](V.a, 1) & S[">="](V.b, 2))
 
 
 def test_a_grounded_bool_is_falsey_and_nothing_else_is(m):
@@ -211,10 +209,13 @@ def test_query_where_guard_and_limit(m):  # noqa: D103  -- pytest discovers or i
         S.person(S.bob, 12),
         S.person(S.cyd, 70),
     )
-    adults = m.query(S.person(V.name, V.age), where=V.age >= 18)
+    adults = m.query(S.person(V.name, V.age), where=S[">="](V.age, 18))
     assert {str(r.name) for r in adults} == {"ada", "cyd"}
     # Guards compose with the boolean operators, the engine reading them.
-    mid = m.query(S.person(V.name, V.age), where=(V.age >= 18) & (V.age <= 40))
+    mid = m.query(
+        S.person(V.name, V.age),
+        where=S[">="](V.age, 18) & S["<="](V.age, 40),
+    )
     assert {str(r.name) for r in mid} == {"ada"}
     assert len(m.query(S.person(V.name, V.age), limit=2)) == 2
     with pytest.raises(ValueError):

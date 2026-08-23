@@ -8,11 +8,18 @@ Guarantees:
     with caller bindings retained on their row and projection faces both in
     and out of a stats scope [tested: test_calls_keep_values_and_binding_rows;
     commit=WORKTREE]
+  - all four rich comparisons use the engine's total atom order, reject raw
+    mixed operands symmetrically, and leave comparison terms to explicit
+    symbol construction [tested: test_atom_comparisons_are_only_ordering;
+    commit=WORKTREE]
 """
 
 from pathlib import Path
 
-from petta import TRUE, UNIT, G, S, V, space
+import pytest
+
+from petta import TRUE, UNIT, Expression, G, S, V, space
+from petta.atoms import order_key
 
 
 def test_resolved_bang_call_is_eager(tmp_path: Path) -> None:
@@ -53,3 +60,28 @@ def test_calls_keep_values_and_binding_rows() -> None:
 
     assert outside.one() is True
     assert inside.one() is True
+
+
+def test_atom_comparisons_are_only_ordering() -> None:
+    """Rich comparisons order atoms; an explicit head builds a condition."""
+    atoms = [S.z, V.a, Expression(S.f, 1), G(2)]
+    for left in atoms:
+        for right in atoms:
+            expected_left = order_key(left)
+            expected_right = order_key(right)
+            assert (left < right) is (expected_left < expected_right)
+            assert (left <= right) is (expected_left <= expected_right)
+            assert (left > right) is (expected_left > expected_right)
+            assert (left >= right) is (expected_left >= expected_right)
+
+    with pytest.raises(TypeError):
+        _ = V.a < 2
+    with pytest.raises(TypeError):
+        _ = 2 > V.a
+
+    pool = space()
+    pool.add(S.present())
+    guard = S["<"](
+        S["space-atom-count"](pool), S["car-atom"](Expression(2))
+    )
+    assert pool.eval(guard) == [TRUE]

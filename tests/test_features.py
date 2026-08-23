@@ -16,6 +16,8 @@ Guarantees:
     test_atomic_run_commits_or_rolls_back_whole,
     test_speculative_run_answers_and_discards;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - streaming comparison guards use explicit comparison heads [tested:
+    test_stream_guard_and_per_pull_bounds; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -982,7 +984,7 @@ def test_abandoned_stream_warns_before_reaping(m):  # noqa: D103  -- pytest disc
 
 def test_stream_guard_and_per_pull_bounds(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(100)])
-    with m._stream(S.edge(V.a, V.b), where=V.a >= 90) as rows:
+    with m._stream(S.edge(V.a, V.b), where=S[">="](V.a, 90)) as rows:
         assert [r.a for r in rows] == list(range(90, 100))
     m.run("(= (stream-spin $n) (if (== $n 0) done (stream-spin (- $n 1))))")
     cursor = m._stream(

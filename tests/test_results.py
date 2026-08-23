@@ -5,6 +5,8 @@ Guarantees:
     zero-column row counts [tested test_rows_to_dicts_returns_plain_records]
   - eager query results explain empty pattern, join, and guard outcomes [tested
     test_query_rows_explain_empty_results]
+  - query comparison guards use explicit comparison heads [tested:
+    test_query_rows_explain_empty_results; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -82,7 +84,7 @@ def test_query_rows_explain_empty_results(m):  # noqa: D103  -- pytest discovers
     joined = m.query(S.edge(V.left, V.middle), S.edge(V.middle, V.right))
     assert "shared variable binding" in joined.why()
 
-    guarded = m.query(S.age(S.Ada, V.years), where=V.years >= 18)
+    guarded = m.query(S.age(S.Ada, V.years), where=S[">="](V.years, 18))
     assert "where guard" in guarded.why()
 
     with pytest.raises(ValueError, match="returned 1 row"):
