@@ -1,32 +1,42 @@
-"""Purpose: spell the two-stage definition-order example in pure Python.
+"""examples/translation/twostage.metta in Python: a call before its callee exists.
 
-Assumes:
-  - f is stored before g while h is stored after it
-    [source: examples/translation/twostage.metta lines 1-9; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Guarantees:
-  - both early and late references reduce through g to 42
-    [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/translation/twostage.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+Three nullary equations, and the order they are written in is the subject. `f`
+is stored before `g`, so its body names something the engine does not yet know;
+`h` is stored after, so its body names a function. Both answer 42, which is the
+two-stage claim: a call compiled against a name that is only data at the time
+is re-dispatched once the name becomes a function.
+
+Python spells that difference with the two doors the guide already has for it.
+Calling the SYMBOL, `S.g()`, mentions a head and builds `(g)`, which is what
+you write for a name nothing has defined; calling the Python name, `g()`, is an
+application of a function that exists. The compiler says the same thing from
+the other side, refusing an unknown callee and naming `S.g` as the remedy.
 """
 
-from metta import S, equation
+from metta import S
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Install the three nullary equations in their original order."""
-    m += equation(S.f()).to(S.g())
-    m += equation(S.g()).to(42)
-    m += equation(S.h()).to(S.g())
 
-    assert m.eval(S.f()) == [42]
-    assert m.eval(S.h()) == [42]
+    @m.define
+    def f():
+        return S.g()        # (= (f) (g)): g is not a function yet, so it is data
+
+    @m.define
+    def g():                # (= (g) 42)
+        return 42
+
+    @m.define
+    def h():
+        return g()          # (= (h) (g)): now g is a name a body can call
+
+    assert f().one() == 42  # [42]
+    assert h().one() == 42  # [42]

@@ -1,43 +1,52 @@
 """examples/translation/translatorrule_for.metta in Python: adding a form to the language.
 
-`for` is not a builtin here; it is three lines of MeTTa registered as a
-translator rule, after which `(for $x $L body)` expands at compile time into a
+`for` is not a builtin here; it is one equation registered as a translator
+rule, after which `(for $var $collection $body)` expands at compile time into a
 `let` over a superposition. So the example is about writing a binding form, and
 the form it writes is the one Python spells with `for ... in`.
 
-Both equations are terms. The rule's own body binds a variable the CALLER
-supplies, `(let $var (superpose $collection) $body)`, where the bound name is
-held in a parameter and Python's assignment binds a name it can see; and
-`myfun`'s body carries `even` and `odd` as lowercase data constructors, which a
-compiled body reads as calls (residue, P14.4).
+Both definitions compile. `for` is a Python keyword, so the head is named
+explicitly and the def carries a spellable Python name; its three parameters
+are annotated `Atom`, which is the declaration `(: for (-> Atom Atom Atom
+%Undefined%))` said in Python's own notation and is what makes each argument
+arrive unreduced. That annotation is load-bearing rather than decorative:
+without it the collection and the body reduce before the `let` binds anything,
+and the modulus in the body then runs on an unbound name.
 
-Calling is ordinary: `m.fn.myfun(...)` answers once per element, which is
-what a `for` form is for, and the answers compare as the sequence they are.
+`myfun`'s body mentions the new form and hands it three arguments: a variable
+to bind, the collection, and the template. The template is Python's conditional
+expression, which lowers to the engine's own `if`, so nothing there is written
+as a term that Python can spell.
 """
 
-from metta import S, V, equation
+from typing import Any
+
+from metta import Atom, S, V
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Register a `for` form, then write a definition that uses it."""
-    # (: for (-> Atom Atom Atom %Undefined%))
-    m += S[":"](S["for"], S["->"](S.Atom, S.Atom, S.Atom, S["%Undefined%"]))
 
-    # (= (for $var $collection $body) (noeval (let $var (superpose $collection) $body)))
-    m += equation(S["for"](V.var, V.collection, V.body)).to(
-        S.noeval(S.let(V.var, S.superpose(V.collection), V.body))  # rung: the bound NAME is a parameter here, where Python's assignment binds a name it can see
-    )
-    m.fn.add_translator_rule(S["for"])
+    @m.define(name="for")
+    def for_form(var: Atom, collection: Atom, body: Atom) -> Any:
+        # (= (for $var $collection $body)
+        #    (noeval (let $var (superpose $collection) $body)))
+        return S.noeval(S.let(var, S.superpose(collection), body))  # rung: the bound NAME arrives in a parameter, where Python's assignment binds a name it can see
 
-    # (= (myfun $L) (for $x $L (if (== (% $x 2) 0) (even $x) (odd $x))))
-    parity = S["if"](S["=="](S["%"](V.x, 2), 0), S.even(V.x), S.odd(V.x))  # rung: this `if` is DATA, the third argument of an Atom-typed form
-    m += equation(S.myfun(V.items)).to(S["for"](V.x, V.items, parity))
+    m.fn.add_translator_rule(S["for"])       # (add-translator-rule! for)
 
-    assert m.fn.myfun((3, 4)) == [S.odd(3), S.even(4)]
+    @m.define
+    def myfun(items):
+        # (= (myfun $L) (for $x $L (if (== (% $x 2) 0) (even $x) (odd $x))))
+        return S["for"](
+            V.x, items, S.even(V.x) if V.x % 2 == 0 else S.odd(V.x)
+        )
+
+    assert myfun((3, 4)) == [S.odd(3), S.even(4)]   # ((odd 3) (even 4))
