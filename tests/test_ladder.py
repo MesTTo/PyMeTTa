@@ -376,3 +376,14 @@ def test_define_refuses_an_unregistrable_class(metta):  # noqa: D103  -- pytest 
         @metta.define
         class Plain:
             pass
+
+
+def test_current_space_leaves_every_root_verb_in_place():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # current_space() once popped the hidden implementation-module names
+    # with no replacement, so petta.define and five siblings vanished from
+    # the package for the life of the process; the failure only surfaced
+    # when another test in the same worker had called it first.
+    petta.current_space()
+    for verb in ("define", "answer", "errors", "ops", "results", "atoms"):
+        if verb in petta._ROOT_IMPLEMENTATION_VERBS:
+            assert getattr(petta, verb) is petta._ROOT_IMPLEMENTATION_VERBS[verb]
