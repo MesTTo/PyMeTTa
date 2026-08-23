@@ -56,26 +56,26 @@ def test_a_docstring_emits_the_whole_doc_vocabulary() -> None:
         """One line and no sections."""
         return a + b
 
-    assert _documentation(metta, "docemit_cube") == (
-        '(@doc docemit_cube (@desc "Answer n cubed.") '
+    assert _documentation(metta, "docemit-cube") == (
+        '(@doc docemit-cube (@desc "Answer n cubed.") '
         '(@params ((@param "the number to cube."))) '
         '(@return "n raised to the third power."))'
     )
     # The SIGNATURE decides the list and its order, so an undocumented
     # parameter holds its place rather than shifting the next description onto
     # it. A @param is positional in the engine's shape.
-    assert _documentation(metta, "docemit_partly") == (
-        '(@doc docemit_partly (@desc "Two parameters, one documented.") '
+    assert _documentation(metta, "docemit-partly") == (
+        '(@doc docemit-partly (@desc "Two parameters, one documented.") '
         '(@params ((@param "") (@param "only the second is described here."))))'
     )
     # No sections is what it always was: one description, nothing invented.
-    assert _documentation(metta, "docemit_plain") == (
-        '(@doc docemit_plain (@desc "One line and no sections."))'
+    assert _documentation(metta, "docemit-plain") == (
+        '(@doc docemit-plain (@desc "One line and no sections."))'
     )
 
     # The atoms are ordinary data the engine's own reader answers.
-    (group,) = metta.run("!(get-doc docemit_cube)")
-    assert str(group[0]) == _documentation(metta, "docemit_cube")
+    (group,) = metta.run("!(get-doc docemit-cube)")
+    assert str(group[0]) == _documentation(metta, "docemit-cube")
 
     # And the definitions still run.
     assert docemit_cube(3) == [27]
