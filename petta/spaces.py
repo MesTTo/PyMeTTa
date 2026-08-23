@@ -78,7 +78,7 @@ class _LiveDataView(SpaceProvider):
     def _entries(self) -> Iterator[tuple[Any, Any]]:
         if isinstance(self.object, Mapping):
             yield from self.object.items()
-        else:
+        elif isinstance(self.object, Sequence):
             yield from enumerate(self.object)
 
     def _kv_atom(self, key: Any, value: Any) -> Expression:
@@ -131,7 +131,7 @@ class _LiveDataView(SpaceProvider):
                     seen.add(identity)
                     yield key, value
             return
-        if isinstance(key_pattern, Grounded):
+        if isinstance(key_pattern, Grounded) and isinstance(self.object, Sequence):
             index = _decode(key_pattern)
             if type(index) is int and 0 <= index < len(self.object):
                 yield index, self.object[index]

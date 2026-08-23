@@ -33,7 +33,7 @@ class TraceEvent:
     term: Atom
     answer: Atom | None
 
-    def __str__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
+    def __str__(self) -> str:
         indent = "  " * self.depth
         if self.kind == "exit":
             return f"{indent}{self.term} = {self.answer}"

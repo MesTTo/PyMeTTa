@@ -48,6 +48,10 @@ Guarantees:
     provider can declare is either exercised or reported as skipped and never
     silently outside the suite. `add-many` and `rules` were the two that were
     [tested test_the_suite_covers_every_declarable_capability]
+  - provider enumeration and countability are separate: every Enumerable is
+    checked through atoms(), while len(space) is checked only for Sized
+    providers [tested: test_declared_length_answers_the_provider_size;
+    commit=WORKTREE]
   - `rules` is checked on the provider's STORAGE and not only on the rule
     firing. The engine compiles an equation as it passes through add-atom, so
     a provider whose add() drops the atom still answers the call
@@ -71,6 +75,7 @@ Open Obligations:
 from __future__ import annotations
 
 import itertools
+from collections.abc import Sized
 from typing import Any
 
 from ._api_types import _SpaceId
@@ -297,9 +302,16 @@ class SpaceComplianceSuite:
     def test_enumeration_answers_what_the_provider_holds(
         self, provider, exercised, space, stored
     ):
-        """get-atoms and count read the provider, not a cache of it."""
+        """get-atoms reads the provider rather than a cache of it."""
         self.requires(provider, exercised, "enumerate")
         assert len(space.atoms()) == len(stored)
+
+    def test_declared_length_answers_the_provider_size(
+        self, provider, space, stored
+    ):
+        """Sized is the provider's explicit countability declaration."""
+        if not isinstance(provider, Sized):
+            pytest.skip("the provider does not declare countability through __len__")
         assert len(space) == len(stored)
 
     def test_a_stored_atom_matches_itself(self, provider, exercised, space, stored):
@@ -448,13 +460,13 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "remove")
         self.restore_or_skip(provider, exercised, "add")
         atom = self.restorable_or_skip(stored)[0]
-        before = len(space) if provider.can_run("enumerate") else None
+        before = len(space.atoms()) if provider.can_run("enumerate") else None
         space.remove(atom)
         assert not space.query(atom), "a removed atom still matched"
         space.add(atom)
         assert space.query(atom), "an added atom did not match"
         if before is not None:
-            assert len(space) == before
+            assert len(space.atoms()) == before
 
     def test_a_batch_add_stores_every_atom(
         self, provider, exercised, space, stored
@@ -469,7 +481,7 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "add-many")
         self.restore_or_skip(provider, exercised, "remove")
         batch = self.restorable_or_skip(stored, needed=2)[:4]
-        before = len(space) if provider.can_run("enumerate") else None
+        before = len(space.atoms()) if provider.can_run("enumerate") else None
         for atom in batch:
             space.remove(atom)
             assert not space.query(atom), f"{atom!r} still matched after removal"
@@ -479,7 +491,7 @@ class SpaceComplianceSuite:
                 f"{atom!r} went in as part of a batch and did not match"
             )
         if before is not None:
-            assert len(space) == before, (
+            assert len(space.atoms()) == before, (
                 "a batch add left a different number of atoms than the "
                 "per-atom removes took out"
             )
@@ -535,7 +547,7 @@ class SpaceComplianceSuite:
             pytest.skip("set destructive = True to exercise clear")
         self.requires(provider, exercised, "clear")
         space.clear()
-        assert len(space) == 0
+        assert space.atoms() == []
 
     def test_an_undeclared_write_refuses_rather_than_answering_nothing(
         self, provider, exercised, space

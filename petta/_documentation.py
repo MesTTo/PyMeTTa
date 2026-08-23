@@ -23,16 +23,18 @@ from __future__ import annotations
 
 import ast
 import doctest
+import importlib
 import inspect
 import textwrap
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from docstring_parser import DocstringStyle  # type: ignore[import-not-found]
-from docstring_parser import parse as parse_docstring  # type: ignore[import-not-found]
-
 from ._type_annotations import metta_type_for
 from .atoms import Expression, S, _expr, parse
+
+_docstring_parser = importlib.import_module("docstring_parser")
+DocstringStyle = _docstring_parser.DocstringStyle
+parse_docstring = _docstring_parser.parse
 
 __all__ = ["attribute_docstrings", "documentation_atom"]
 

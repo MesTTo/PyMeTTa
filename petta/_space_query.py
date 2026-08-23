@@ -31,8 +31,8 @@ from typing import Any
 from ._engine import Runtime
 from ._name_mapping import resolve_known_name
 from ._space_objects import _apply_limited, _column_names, _limits, guard_atom
-from .atoms import Atom, Expression, _atom_from_wire, _to_atom
-from .results import Rows, _QueryContext
+from .atoms import Atom, Expression, _to_atom
+from .results import Rows
 
 
 class SolveRows(Rows):
@@ -63,56 +63,6 @@ def solve_rows(columns: tuple[str, ...], answers: list[Atom]) -> SolveRows:
                 raise TypeError(msg)
             rows.append(tuple(answer))
     return SolveRows(columns, rows)
-
-
-def _query_target(
-    space: str,
-    wires: list[Any],
-    columns: list[str],
-    where: Atom | None,
-    limit: int | None,
-) -> tuple[str, list[Any]]:
-    if where is not None:
-        return "petta_py_query_guarded_all", [
-            space,
-            wires,
-            where.to_wire(),
-            columns,
-            limit or 0,
-        ]
-    if limit is not None:
-        return "petta_py_query_limit_all", [space, wires, columns, limit]
-    return "petta_py_query_all", [space, wires, columns]
-
-
-def query_rows(
-    rt: Runtime,
-    space: str,
-    patterns: tuple[Any, ...],
-    *,
-    where: Any | None,
-    limit: int | None,
-    timeout: float | None,
-    inferences: int | None,
-) -> Rows:
-    """Execute one eager query and decode its rows."""
-    _validate_limit(limit)
-    atoms: list[Atom] = [_to_atom(pattern) for pattern in patterns]
-    guard = guard_atom(where)
-    columns = _column_names(atoms)
-    predicate, inputs = _query_target(
-        space,
-        [atom.to_wire() for atom in atoms],
-        columns,
-        guard,
-        limit,
-    )
-    answered = _execute_query(rt, predicate, inputs, _limits(timeout, inferences))
-    return Rows(
-        tuple(columns),
-        _decode_rows(answered),
-        _query=_QueryContext(space, tuple(atoms), guard),
-    )
 
 
 def query_count(
@@ -170,7 +120,3 @@ def _execute_query(
     if limits is None:
         return rt.apply_must(predicate, *inputs)
     return _apply_limited(rt, limits, predicate, inputs)
-
-
-def _decode_rows(answered: Any) -> list[tuple[Atom, ...]]:
-    return [tuple(_atom_from_wire(value) for value in row) for row in answered]

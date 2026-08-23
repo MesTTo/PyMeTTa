@@ -88,7 +88,7 @@ def test_overlapping_clauses_materialize_as_one_case_equation(metta):  # noqa: D
     m = metta._new_space()
 
     @m.define(name="ordered-clause")
-    def zero(value=0):  # noqa: ARG001
+    def zero(value=0):  # noqa: ARG001 -- the default is the clause-head pattern compiled by this test
         return S.Zero
 
     @m.define(name="ordered-clause")
@@ -101,11 +101,11 @@ def test_overlapping_clauses_materialize_as_one_case_equation(metta):  # noqa: D
     assert m.run("!(ordered-clause 0) !(ordered-clause 9)") == [[S.Zero], [9]]
 
     @m.define(name="disjoint-clause")
-    def lower_left(x=0, y=0):  # noqa: ARG001
+    def lower_left(x=0, y=0):  # noqa: ARG001 -- both defaults are clause-head patterns compiled by this test
         return S.LowerLeft
 
     @m.define(name="disjoint-clause")
-    def upper_right(x=1, y=1):  # noqa: ARG001
+    def upper_right(x=1, y=1):  # noqa: ARG001 -- both defaults are clause-head patterns compiled by this test
         return S.UpperRight
 
     disjoint = [atom for atom in m if str(atom).startswith("(= (disjoint-clause ")]

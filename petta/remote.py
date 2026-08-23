@@ -1494,7 +1494,7 @@ def serve(  # noqa: C901  -- serve keeps the HTTP negotiation and resource lifec
                 status,
             )
 
-        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002  -- BaseHTTPRequestHandler fixes the log_message format parameter name
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 -- BaseHTTPRequestHandler fixes the keyword-capable override parameter name
             logger.debug("remote HTTP: " + format, *args)
 
     httpd = ThreadingHTTPServer((host, port), Handler)

@@ -470,7 +470,7 @@ def _copies_after_its_base(atom: Any) -> bool:
 class _HashableSpaceTerm(list[Any]):
     """A Janus list carrier that can also key Python's per-space registries."""
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore[override]  # Janus requires a list carrier while per-space registries require a stable hash
         def frozen(value: Any) -> Any:
             if isinstance(value, list):
                 return tuple(frozen(item) for item in value)
@@ -547,7 +547,9 @@ class Space(Handle):
         self._name_atom: Symbol | Expression | None = None
         if isinstance(name, Symbol):
             self._name_atom = name
-            name = name.name if name.name.startswith("&") else f"&{name.name}"
+            engine_name: str | _HashableSpaceTerm = (
+                name.name if name.name.startswith("&") else f"&{name.name}"
+            )
         elif isinstance(name, Expression):
             if name.vars:
                 msg = (
@@ -559,20 +561,22 @@ class Space(Handle):
                 msg = "a parametric space name is a nonempty ground expression"
                 raise ValueError(msg)
             self._name_atom = name
-            name = _HashableSpaceTerm(
+            engine_name = _HashableSpaceTerm(
                 self._rt.apply_must("petta_py_open_atom_space", name.to_wire())
             )
-        if not isinstance(name, (str, list)):
+        else:
+            engine_name = name
+        if not isinstance(engine_name, (str, list)):
             msg = (
                 f"a space name is an & string, Symbol, or ground Expression; "
-                f"got {name!r}"
+                f"got {engine_name!r}"
             )
             raise TypeError(
                 msg
             )
-        if isinstance(name, str) and not name.startswith("&"):
+        if isinstance(engine_name, str) and not engine_name.startswith("&"):
             msg = (
-                f"a space name starts with &, as in &self or &kb; got {name!r}. "
+                f"a space name starts with &, as in &self or &kb; got {engine_name!r}. "
                 f"The prefix is load-bearing: is-space recognises it, and a $ "
                 f"name would read back as a variable."
             )
@@ -581,13 +585,13 @@ class Space(Handle):
             )
         # The public parameter takes a plain str so a literal is writable;
         # the NewType is constructed once here and threads through inside.
-        self._name = _SpaceId(name)  # type: ignore[arg-type]
+        self._name = cast(_SpaceId, engine_name)
         self._dropped = False
         self._ephemeral = False
         self._backing: Any = None
         self._owns_backing = False
         self._context_tokens: list[Any] = []
-        if isinstance(name, str):
+        if isinstance(engine_name, str):
             _remember_space_name(self._name)
 
     @property
@@ -1191,7 +1195,7 @@ class Space(Handle):
         max_events bounds the recording, raising past it rather than
         accumulating a long run's trace without limit.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _satellite("trace").trace(self, source, max_events=max_events)
+        return _satellite("_trace").trace(self, source, max_events=max_events)
 
     def lint(self):
         """Diagnose this space for the silently-wrong class: declared
@@ -1493,7 +1497,7 @@ class Space(Handle):
             tuple(_to_atom(pattern) for pattern in patterns),
             guard_atom(where),
         )
-        answers = Answers(
+        answers: Answers[Any] = Answers(
             source(),
             columns=cursor.columns,
             space=self._space,

@@ -825,13 +825,19 @@ def _prepare_plain_data_class(target: _builtins.type, convert: Any) -> None:
     if not fields:
         return
     defaults = {name: target.__dict__.get(name, _MISSING_FIELD) for name in fields}
-    target.__match_args__ = fields
+    _builtins.type.__setattr__(target, "__match_args__", fields)
     if target.__dict__.get("__init__") is None:
-        target.__init__ = _plain_initializer(target, fields, defaults)
+        _builtins.type.__setattr__(
+            target, "__init__", _plain_initializer(target, fields, defaults)
+        )
     if "__replace__" not in target.__dict__:
-        target.__replace__ = _plain_replacer(target, fields)
+        _builtins.type.__setattr__(
+            target, "__replace__", _plain_replacer(target, fields)
+        )
     if "__metta__" not in target.__dict__:
-        target.__metta__ = lambda value: convert.project(value).atom
+        _builtins.type.__setattr__(
+            target, "__metta__", lambda value: convert.project(value).atom
+        )
 
     def parts(value: Any) -> tuple[Any, ...]:
         return tuple(getattr(value, name) for name in fields)

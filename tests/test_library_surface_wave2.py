@@ -149,7 +149,7 @@ def test_expression_position_superpose_and_match_share_the_ambient_space() -> No
 
     @target.define
     def child_of(parent):
-        return match(S.parent(parent, child), child)  # noqa: F821
+        return match(S.parent(parent, child), child)  # noqa: F821 -- compiled-body names are resolved by the MeTTa compiler rather than Python globals
 
     assert list(choose(8)) == [8, 9]
     assert list(child_of(S.Tom)) == [S.Bob]

@@ -88,14 +88,14 @@ def test_the_four_containers_share_one_parameterised_treatment(metta):
         for atom in metta.atoms()
         if isinstance(atom, Expression)
         and atom.head == Symbol("annotation")
-        and atom.args[0] == Symbol("container_probe")
+        and atom.args[0] == Symbol("container-probe")
     }
     assert claims == {
-        "(annotation container_probe (param 1 (tuple Number String)))",
-        "(annotation container_probe (param 2 (list Number)))",
-        "(annotation container_probe (param 3 (dict String Number)))",
-        "(annotation container_probe (param 4 (set Number)))",
-        "(annotation container_probe (return (set Number)))",
+        "(annotation container-probe (param 1 (tuple Number String)))",
+        "(annotation container-probe (param 2 (list Number)))",
+        "(annotation container-probe (param 3 (dict String Number)))",
+        "(annotation container-probe (param 4 (set Number)))",
+        "(annotation container-probe (return (set Number)))",
     }
 
 
@@ -144,10 +144,10 @@ def test_a_typed_dict_annotation_agrees_with_its_value(metta):
         return config
 
     metta.op(echo_config)
-    assert metta.eval(Expression([S["echo_config"], projected.atom])) == [projected.atom]
+    assert metta.eval(Expression([S.echo_config, projected.atom])) == [projected.atom]
     claims = {str(atom) for atom in metta.atoms()}
-    assert "(annotation echo_config (param 1 (TypedDict Config (field retries Number) (field label String))))" in claims
-    assert "(annotation echo_config (return (TypedDict Config (field retries Number) (field label String))))" in claims
+    assert "(annotation echo-config (param 1 (TypedDict Config (field retries Number) (field label String))))" in claims
+    assert "(annotation echo-config (return (TypedDict Config (field retries Number) (field label String))))" in claims
 
 
 def test_every_advanced_annotation_reaches_metta_as_a_target_symbol(metta):
@@ -227,13 +227,13 @@ def test_two_values_of_one_base_type_are_distinguishable_by_their_metadata(metta
 
     metta.op(convert_units)
     declarations = {str(atom) for atom in metta.atoms()}
-    assert "(: convert_units (-> Number Number Number))" in declarations
+    assert "(: convert-units (-> Number Number Number))" in declarations
     assert (
-        '(annotation convert_units (param 1 (Annotated Number "metres")))'
+        '(annotation convert-units (param 1 (Annotated Number "metres")))'
         in declarations
     )
     assert (
-        '(annotation convert_units (param 2 (Annotated Number "feet")))'
+        '(annotation convert-units (param 2 (Annotated Number "feet")))'
         in declarations
     )
 

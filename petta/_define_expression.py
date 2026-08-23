@@ -527,14 +527,14 @@ class ExpressionCompilerMixin(CompilerContext):
         initial = self.expression(initial_node)
         if isinstance(reducer_node, ast.Lambda):
             arguments = reducer_node.args
-            if (
-                len(arguments.args) != 2
-                or arguments.vararg
-                or arguments.kwarg
-                or arguments.kwonlyargs
-                or arguments.defaults
-                or arguments.posonlyargs
-            ):
+            extras = (
+                arguments.vararg,
+                arguments.kwarg,
+                arguments.kwonlyargs,
+                arguments.defaults,
+                arguments.posonlyargs,
+            )
+            if len(arguments.args) != 2 or any(extras):
                 msg = "a reduce lambda takes exactly accumulator and item"
                 raise CompileError(msg, construct="reduce lambda", line=reducer_node.lineno)
             accumulator, item = (argument.arg for argument in arguments.args)

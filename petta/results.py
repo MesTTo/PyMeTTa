@@ -66,7 +66,7 @@ from collections import UserList
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from difflib import get_close_matches
 from functools import lru_cache
-from typing import Any, Final, NamedTuple, Self, SupportsIndex, overload
+from typing import Any, Final, NamedTuple, Self, SupportsIndex, cast, overload
 
 from ._config import config
 from ._optional import require_module
@@ -905,7 +905,8 @@ class Answers[T](Sequence[T]):
 
     def _eager_rows(self) -> Rows:
         """Materialize this row-valued view as the eager Rows face."""
-        return Rows(self._columns, self, _query=self._query)
+        rows = cast(Iterable[Iterable[Any]], self)
+        return Rows(self._columns, rows, _query=self._query)
 
     def build(self, *args: Any) -> list[Any]:
         """Materialize, then rebuild one column through Rows.build."""

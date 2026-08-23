@@ -143,7 +143,6 @@ _HIDDEN_IMPLEMENTATION_MODULES = {
     "errors",
     "ops",
     "results",
-    "trace",
 }
 
 # These four names are the retained upstream package state. Exact ``__dir__``
@@ -460,13 +459,7 @@ def strict():
 
 def trace(source: str, *, max_events: int = 10_000):
     """Trace source in the default self space."""
-    root_trace = trace
-    try:
-        return engine().self.trace(source, max_events=max_events)
-    finally:
-        # Importing the implementation submodule writes it onto its package;
-        # the designed root name remains this verb after the lazy import.
-        globals()["trace"] = root_trace
+    return engine().self.trace(source, max_events=max_events)
 
 
 _ROOT_IMPLEMENTATION_VERBS = {

@@ -64,7 +64,7 @@ class ListSpace(SpaceProvider):
     def __init__(self, atoms=()):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         self.stored = list(atoms)
 
-    def match(self, pattern):  # noqa: ARG002, D102  -- the test double preserves the protocol method signature its caller exercises; the test double method is documented by its containing scenario and protocol
+    def match(self, _pattern):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return iter(self.stored)
 
     def atoms(self):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
@@ -296,7 +296,7 @@ def test_a_provider_states_its_own_refusal(metta):  # noqa: D103  -- pytest disc
         def atoms(self):
             return iter(())
 
-        def add(self, atom):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
+        def add(self, _atom):
             msg = "declined before this runs"
             raise AssertionError(msg)
 
@@ -327,7 +327,7 @@ def test_declining_and_not_implementing_read_differently(metta):  # noqa: D103  
         def atoms(self):
             return iter(())
 
-        def add(self, atom):  # noqa: ARG002  -- the test double preserves the protocol method signature its caller exercises
+        def add(self, _atom):
             msg = "declined before this runs"
             raise AssertionError(msg)
 

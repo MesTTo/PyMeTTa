@@ -463,35 +463,17 @@ class _StatementPattern:
         self.compiler = compiler
         self.as_variables: list[Variable] = []
 
-    def pattern(self, node: ast.pattern) -> Atom:  # noqa: C901 -- Python's closed AST pattern sum is dispatched in one exhaustive compiler boundary
+    def pattern(self, node: ast.pattern) -> Atom:
         if isinstance(node, ast.MatchValue):
             return self.compiler.expression(node.value)
         if isinstance(node, ast.MatchSingleton):
-            if isinstance(node.value, bool):
-                return Grounded(node.value)
-            msg = "None has no MeTTa case value; use a data symbol such as Nil"
-            raise CompileError(msg, construct="match pattern", line=node.lineno)
+            return self._singleton(node)
         if isinstance(node, ast.MatchSequence):
             return Expression([self.pattern(part) for part in node.patterns])
         if isinstance(node, ast.MatchClass):
-            if node.kwd_attrs:
-                msg = (
-                    "keyword class patterns have no positional MeTTa image; "
-                    "match the constructor's positional fields"
-                )
-                raise CompileError(msg, construct="match pattern", line=node.lineno)
-            return Expression(
-                [self.compiler.expression(node.cls), *(self.pattern(p) for p in node.patterns)]
-            )
+            return self._class(node)
         if isinstance(node, ast.MatchAs):
-            inner = Variable("_") if node.pattern is None else self.pattern(node.pattern)
-            if node.name is None:
-                return inner
-            variable = Variable(self.compiler._bind(node.name))
-            if node.pattern is None:
-                return variable
-            self.as_variables.append(variable)
-            return inner
+            return self._as(node)
         if isinstance(node, ast.MatchStar):
             msg = (
                 "star patterns need the engine's named segment variables; "
@@ -506,6 +488,33 @@ class _StatementPattern:
             raise CompileError(msg, construct="match pattern", line=node.lineno)
         msg = f"{type(node).__name__} has no MeTTa case-pattern image"
         raise CompileError(msg, construct="match pattern", line=getattr(node, "lineno", None))
+
+    def _singleton(self, node: ast.MatchSingleton) -> Atom:
+        if isinstance(node.value, bool):
+            return Grounded(node.value)
+        msg = "None has no MeTTa case value; use a data symbol such as Nil"
+        raise CompileError(msg, construct="match pattern", line=node.lineno)
+
+    def _class(self, node: ast.MatchClass) -> Atom:
+        if node.kwd_attrs:
+            msg = (
+                "keyword class patterns have no positional MeTTa image; "
+                "match the constructor's positional fields"
+            )
+            raise CompileError(msg, construct="match pattern", line=node.lineno)
+        return Expression(
+            [self.compiler.expression(node.cls), *(self.pattern(p) for p in node.patterns)]
+        )
+
+    def _as(self, node: ast.MatchAs) -> Atom:
+        inner = Variable("_") if node.pattern is None else self.pattern(node.pattern)
+        if node.name is None:
+            return inner
+        variable = Variable(self.compiler._bind(node.name))
+        if node.pattern is None:
+            return variable
+        self.as_variables.append(variable)
+        return inner
 
     def wrap_as_bindings(self, subject: Atom, body: Atom) -> Atom:
         for variable in reversed(self.as_variables):
