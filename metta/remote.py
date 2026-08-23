@@ -545,7 +545,7 @@ class RemoteSpace(SpaceProvider):
         return bool(answer.get("removed"))
 
 
-def connect(  # noqa: C901  -- connect keeps the HTTP negotiation and resource lifecycle together so its branches share one state
+def connect(
     url: str,
     timeout: float = 30.0,
     *,

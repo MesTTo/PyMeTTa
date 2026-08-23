@@ -124,7 +124,7 @@ def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]: 
     """Resolve local annotation syntax without executing arbitrary source."""
     namespace = _function_namespace(fn)
 
-    def resolve(node: ast.expr) -> Any:  # noqa: C901  -- resolve keeps the annotation syntax forms together so its branches share one state
+    def resolve(node: ast.expr) -> Any:
         if isinstance(node, ast.Name):
             if node.id not in namespace:
                 msg = f"the local annotation name {node.id!r} is not available"

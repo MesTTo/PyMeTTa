@@ -1220,7 +1220,7 @@ def _apply_operator_lowering(
     return lowered
 
 
-def _operator_method(  # noqa: C901  -- _operator_method keeps every specialization shape together so its branches share one table row
+def _operator_method(
     entry: OperatorLowering, *, reflected: bool = False
 ) -> Callable[..., Expression]:
     """Specialize one dunder once and retain its table row for inspection."""

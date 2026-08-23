@@ -111,7 +111,7 @@ def test_the_ontology_loads_once(metta):  # noqa: D103  -- pytest discovers or i
     assert [str(row.t) for row in rows] == ["Type"]
 
 
-def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, monkeypatch):  # noqa: C901  -- test_every_register_op_writes_its_declaration_and_get_doc_answers keeps the four-kind registration and doc lifecycle together so its branches share one state
+def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, monkeypatch):
     """All four operation kinds are typed; docs follow the full lifecycle."""
     suffix = uuid.uuid4().hex
 

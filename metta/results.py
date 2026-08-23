@@ -613,7 +613,7 @@ def _into_fields(cls: type) -> dict[str, Any]:
     )
 
 
-def rows_into(rows: Rows, cls: type) -> list:  # noqa: C901  -- rows_into keeps the per-annotation decode paths together so its branches share one row state
+def rows_into(rows: Rows, cls: type) -> list:
     """Each row as one cls instance, matched by field name: sqlite3's
     row_factory reading, over the existing conversion machinery. A field
     annotated with a registered class builds through the two-way

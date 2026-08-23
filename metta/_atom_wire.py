@@ -241,7 +241,7 @@ def _finish_expression(pendings: list[_PendingExpr], root: _PendingExpr) -> Expr
     return root.built
 
 
-def _expression_from_wire(payload: Any, *, engine: bool = False) -> Expression:  # noqa: C901  -- _expression_from_wire keeps the tagged wire decoder together so its branches share one state
+def _expression_from_wire(payload: Any, *, engine: bool = False) -> Expression:
     root = _PendingExpr()
     pendings: list[_PendingExpr] = [root]
     stack: list[tuple[Any, _PendingExpr]] = [(payload, root)]

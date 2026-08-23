@@ -333,7 +333,7 @@ class MatchIndex:
                 return True
         return False
 
-    def matches(self, atom: Any) -> Iterator[tuple[Atom, Any]]:  # noqa: C901  -- matches keeps the structural matching decision table together so its branches share one state
+    def matches(self, atom: Any) -> Iterator[tuple[Atom, Any]]:
         """Every registered (pattern, value) whose pattern matches the
         ground atom, in REGISTRATION order, whatever order the tree walk
         reached them in. The tree answers candidates; unify confirms, so

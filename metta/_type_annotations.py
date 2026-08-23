@@ -75,7 +75,7 @@ def type_atom_for(annotation: Any) -> Atom:
     return type_atoms_for(annotation)[0]
 
 
-def annotation_atom_for(annotation: Any) -> Atom:  # noqa: C901  -- annotation_atom_for keeps every annotation construct's projection together so its branches share one state
+def annotation_atom_for(annotation: Any) -> Atom:
     """Project a Python annotation itself, preserving generic parameters."""
     origin = typing.get_origin(annotation)
     if origin is typing.Annotated:
@@ -203,7 +203,7 @@ def _generic_type_atoms(origin: Any) -> list[Atom]:
     return [S["%Undefined%"]]
 
 
-def type_atoms_for(annotation: Any) -> list[Atom]:  # noqa: C901  -- type_atoms_for keeps every annotation construct's type mapping together so its branches share one state
+def type_atoms_for(annotation: Any) -> list[Atom]:
     """Return every MeTTa type alternative named by an annotation."""
     origin = typing.get_origin(annotation)
     if _is_new_type(annotation):
@@ -336,7 +336,7 @@ def annotation_exprs(
     return claims
 
 
-def referenced_classes(annotations: Iterable[Any]) -> list[type]:  # noqa: C901  -- referenced_classes keeps the recursive annotation walker together so its branches share one state
+def referenced_classes(annotations: Iterable[Any]) -> list[type]:
     """Return concrete user classes mentioned anywhere in annotations."""
     found: list[type] = []
 

@@ -54,7 +54,7 @@ BUDGET = 1
 ADD_ONE = S["+"](1)
 
 
-def twin(m):  # noqa: C901  -- thirteen definitions because the example has thirteen, and each one lands where the example defines it, which is the source order the claims between them depend on
+def twin(m):
     """Specialize eight functions on the function they carry."""
 
     @m.rules

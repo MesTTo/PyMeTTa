@@ -358,7 +358,7 @@ def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
     }[(transport == "raw", many)]
 
 
-def _partition_declarations(  # noqa: C901  -- _partition_declarations keeps the local/catalog declaration routing together so its branches share one state
+def _partition_declarations(
     name: str, declarations: Iterable[Atom]
 ) -> tuple[list[Expression], tuple[Expression, ...]]:
     """Split operation-local declarations from &petta policy facts.

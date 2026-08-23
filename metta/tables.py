@@ -263,7 +263,7 @@ class _Shape:
                 msg = f"the atom shape's {child} has no column in {row_shape}"
                 raise ValueError(msg)
 
-    def constraints(self, pattern: Atom) -> tuple[list[str], list[Any], bool] | None:  # noqa: C901  -- constraints keeps the table constraint compiler together so its branches share one state
+    def constraints(self, pattern: Atom) -> tuple[list[str], list[Any], bool] | None:
         """WHERE fragments from matching the pattern against this shape.
 
         Answers (where, arguments, exact), or None when the shapes cannot

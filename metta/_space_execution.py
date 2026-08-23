@@ -362,7 +362,7 @@ def evaluate(
     return [_from_wire(wire) for wire in wires]
 
 
-def evaluate_answers(  # noqa: C901  -- count and stream closures share one decoded target and policy context
+def evaluate_answers(
     rt: Runtime,
     space: str,
     target: Any,

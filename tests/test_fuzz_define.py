@@ -86,7 +86,7 @@ def _normalize(value):
 
 
 @st.composite
-def int_expr(draw, names: tuple, depth: int = 0):  # noqa: C901, D103  -- int_expr keeps the recursive expression generator together so its branches share one state; pytest discovers or injects this callable; its descriptive name states the contract
+def int_expr(draw, names: tuple, depth: int = 0):  # noqa: D103  -- int_expr keeps the recursive expression generator together so its branches share one state; pytest discovers or injects this callable; its descriptive name states the contract
     if depth >= 3 or draw(st.booleans()):
         leaf = draw(st.sampled_from(("name", "lit")))
         if leaf == "name" and names:

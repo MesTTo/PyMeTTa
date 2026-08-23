@@ -278,7 +278,7 @@ def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest 
     ("read_fails", "oversized"),
     [(False, False), (True, False), (False, True)],
 )
-def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, oversized):  # noqa: C901, D103  -- test_http_endpoint_closes_transport_resources keeps the transport failure matrix together so its branches share one state; pytest discovers or injects this callable; its descriptive name states the contract
+def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, oversized):  # noqa: D103  -- test_http_endpoint_closes_transport_resources keeps the transport failure matrix together so its branches share one state; pytest discovers or injects this callable; its descriptive name states the contract
     class Response:
         status = 200
         reason = "OK"
