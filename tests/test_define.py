@@ -17,7 +17,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - implicit definition names apply the underscore-to-hyphen map and explicit
     name= remains exact [tested:
-    test_the_implicit_name_is_mapped_and_name_is_exact; commit=WORKTREE]
+    test_the_implicit_name_is_mapped_and_name_is_exact; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]

@@ -6,7 +6,7 @@ Guarantees:
     every measured iteration [tested test_pure_workload_counts_are_derived]
   - term_operators builds explicit comparison terms now that rich comparison
     is reserved for atom ordering [tested: test_pure_workload_counts_are_derived;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None

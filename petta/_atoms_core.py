@@ -3,14 +3,14 @@ Guarantees:
   - standard callable mentions encode as their symbolic MeTTa heads and all
     four atom rich comparisons follow the engine order used by plain sorted [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names and
-    test_atom_comparisons_are_only_ordering; commit=WORKTREE]
+    test_atom_comparisons_are_only_ordering; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Grounded normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
   - exact rational values retain their Fraction payload through the n wire
     tag [tested: test_rational_payloads_cross_the_scalar_door;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - pathlib paths encode as symbols rather than opaque host boxes [tested:
-    test_path_and_capability_options_cross_as_symbols; commit=WORKTREE]
+    test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Grounded carries the engine's two relations, one per operand kind: against a
     raw value it is the == operator's numeric tower, against another atom it
     is unification identity (integer and float atoms distinct, signed zeros

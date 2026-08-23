@@ -17,7 +17,7 @@ Guarantees:
     test_speculative_run_answers_and_discards;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - streaming comparison guards use explicit comparison heads [tested:
-    test_stream_guard_and_per_pull_bounds; commit=WORKTREE]
+    test_stream_guard_and_per_pull_bounds; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None

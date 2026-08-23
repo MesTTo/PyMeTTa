@@ -17,13 +17,13 @@ Guarantees:
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - a host-bound Defined mention lowers to the sibling's declared MeTTa name
     [tested: test_compiled_body_calls_renamed_defined_sibling;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - host-bound and parameter-carried space handles remain operands of compiled
     match calls [tested: test_compiled_match_accepts_space_handles;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - calls whose declared output is Bool remain direct conditions rather than
     acquiring py-truthy [tested:
-    test_compiled_boolean_call_is_a_direct_condition; commit=WORKTREE]
+    test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None

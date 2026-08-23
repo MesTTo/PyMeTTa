@@ -17,7 +17,7 @@ Guarantees:
     BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
   - n decodes SWI rationals as exact Fractions in both leaf and expression
     positions [tested: test_rational_payloads_cross_the_scalar_door;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - p decodes a canonical space name into the executable Space handle for
     the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]

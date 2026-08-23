@@ -19,10 +19,10 @@ Guarantees:
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - lazy evaluation keeps the answer value distinct from its parallel caller
     bindings [tested: test_calls_keep_values_and_binding_rows;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - the held-evaluation cursor ships in the boot-consulted bridge rather than
     being consulted on the first answer pull [tested:
-    test_first_answer_pull_has_no_late_consult_floor; commit=WORKTREE]
+    test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None

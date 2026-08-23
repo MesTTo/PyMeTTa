@@ -6,7 +6,7 @@ Guarantees:
   - eager query results explain empty pattern, join, and guard outcomes [tested
     test_query_rows_explain_empty_results]
   - query comparison guards use explicit comparison heads [tested:
-    test_query_rows_explain_empty_results; commit=WORKTREE]
+    test_query_rows_explain_empty_results; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None

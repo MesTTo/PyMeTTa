@@ -7,16 +7,16 @@ Guarantees:
     test_literal_defaults_are_head_patterns_and_clauses_stack]
   - clauses at different arities under one MeTTa name stack instead of
     replacing one another [tested:
-    test_define_supports_one_name_at_multiple_arities; commit=WORKTREE]
+    test_define_supports_one_name_at_multiple_arities; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - implicit definition names apply the total underscore-to-hyphen map while
     explicit name= remains exact [tested: test_define_maps_its_implicit_python_name;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a previously installed Python callable carries its exact MeTTa name into
     later compiled definitions [tested:
-    test_compiled_calls_share_the_installed_name_resolver; commit=WORKTREE]
+    test_compiled_calls_share_the_installed_name_resolver; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - the compiler sees declared Bool result types, so condition positions do
     not add a redundant host-truthiness operation [tested:
-    test_compiled_boolean_call_is_a_direct_condition; commit=WORKTREE]
+    test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - clear_definitions removes process bookkeeping with the equations it
     describes [tested test_reflection_facts_follow_a_dropped_space]
   - a definition is exposed only after its first twin clause exists, and its

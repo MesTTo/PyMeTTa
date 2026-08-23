@@ -34,16 +34,16 @@ Guarantees:
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - evaluation values and their caller-binding rows are parallel faces of one
     Answers cursor [tested: test_calls_keep_values_and_binding_rows;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - an Answers view crossing into a term observes exact-one cardinality and
     encodes that answer as the operand [tested:
-    test_answer_views_observe_when_used_as_operands; commit=WORKTREE]
+    test_answer_views_observe_when_used_as_operands; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Rows and Answers project caller variables by attribute, Variable key, or
     exact string key
-    [tested: test_rows_share_the_answer_projection_contract; commit=WORKTREE]
+    [tested: test_rows_share_the_answer_projection_contract; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - len on an untouched engine-backed Answers view uses its engine count door
     without populating the Python cache [tested:
-    test_len_counts_an_unmaterialised_view_engine_side; commit=WORKTREE]
+    test_len_counts_an_unmaterialised_view_engine_side; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None

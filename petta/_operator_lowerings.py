@@ -6,7 +6,7 @@ Guarantees:
     commit=613f35974fa98746552dba584ad66082fdd1f3c7]
   - all four rich-comparison entries are reserved for atom ordering rather
     than term construction [tested: test_atom_comparisons_are_only_ordering;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Decides:
   - ``@`` always lowers to the library-provided name ``matmul``; libraries
     define that MeTTa name rather than remapping Python syntax [tested:

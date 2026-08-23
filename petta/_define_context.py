@@ -15,7 +15,7 @@ Guarantees:
     nested compiler fork [tested:
     test_compiled_bodies_reach_all_four_mention_families; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - compiler bands can resolve a bound Defined through its MeTTa name [tested:
-    test_compiled_body_calls_renamed_defined_sibling; commit=WORKTREE]
+    test_compiled_body_calls_renamed_defined_sibling; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]

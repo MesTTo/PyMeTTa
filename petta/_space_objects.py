@@ -10,9 +10,9 @@ Guarantees:
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - a resolved bang call completes before the call returns while retaining a
     replayable answer view [tested: test_resolved_bang_call_is_eager;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - resolved bang mutations invalidate the owning space's builtin catalogue
-    [tested: test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
+    [tested: test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested

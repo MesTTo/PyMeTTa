@@ -24,7 +24,7 @@ Guarantees:
     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
   - the space-capability vocabulary generates a StrEnum whose values encode
     as their MeTTa symbols [tested:
-    test_path_and_capability_options_cross_as_symbols; commit=WORKTREE]
+    test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -58,7 +58,7 @@ Guarantees:
     [tested: test_the_vocabulary_module_is_generated; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - SpaceCapability is a StrEnum whose values encode as MeTTa symbols
     [tested: test_path_and_capability_options_cross_as_symbols;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None

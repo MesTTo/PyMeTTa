@@ -18,7 +18,7 @@ Guarantees:
     test_transaction_term_uses_empty_answer_rollback_law; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - relational solve exposes variables from its pattern before variables from
     its subject [tested: test_solve_projects_variables_from_the_winning_pattern;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - ``MeTTa`` carries only context primitives while ``Space`` owns storage,
     query, declaration, and lifecycle verbs [tested:
     test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -26,10 +26,10 @@ Guarantees:
     [tested: test_module_tier_is_sugar_over_one_default_engine;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - named space construction accepts a space-name Symbol as well as its text
-    spelling [tested: test_space_factory_accepts_a_name_symbol; commit=WORKTREE]
+    spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - handle-level Linda waits load their support into the default caller space,
     never into a distinct waited-on space [tested:
-    test_peek_does_not_import_linda_into_the_waited_space; commit=WORKTREE]
+    test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - ``Space.query``, every ``declare_*`` verb, and the write door retain their
     established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
@@ -45,7 +45,7 @@ Guarantees:
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - builtin discovery is cached per logical space and invalidated by every
     catalogue mutation [tested: test_builtin_discovery_is_cached,
-    test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
+    test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - ``Space`` is a grounded ``Handle`` that crosses as a term operand, and
     ``peek`` and ``take`` expose the engine's event-driven Linda operations
     [tested: test_space_handles_are_term_operands_and_round_trip,

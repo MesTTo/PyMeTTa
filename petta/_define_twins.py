@@ -6,7 +6,7 @@ Guarantees:
     [tested test_existing_twin_sees_later_redefinition]
   - twin dispatch skips clauses whose callable arity cannot accept the call
     [tested: test_define_supports_one_name_at_multiple_arities;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a twin that cannot run names the eager Defined call as the engine door
     [tested: test_twin_refuses_engine_only_bodies; commit=88d2e764c999d89e8919172e5c1455be804b293d]
 Guarded by:

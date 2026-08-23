@@ -21,9 +21,9 @@ Guarantees:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - grounded atoms lift Python arithmetic to staged MeTTa terms [tested:
-    test_grounded_atoms_lift_python_operators_to_terms; commit=WORKTREE]
+    test_grounded_atoms_lift_python_operators_to_terms; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - if_ preserves both the engine's one-armed and three-armed forms [tested:
-    test_if_builder_accepts_the_one_armed_form; commit=WORKTREE]
+    test_if_builder_accepts_the_one_armed_form; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - the canonical truth, unit, and context atoms are public values [tested:
     test_the_canonical_atoms_are_public_values;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]

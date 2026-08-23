@@ -7,11 +7,11 @@ Guarantees:
     - all atom rich comparisons use standard ordering and comparison terms
       remain explicitly buildable [tested:
       test_every_operator_is_documented_including_non_symbolic_comparisons;
-      commit=WORKTREE]
+      commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
     - one immutable 22-entry table generates every symbolic, templated,
       provided, or refusing operator method [tested:
       test_the_operator_table_is_generated_from_one_source_with_no_holes;
-      commit=WORKTREE]
+      commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Assumes:
     - Python's operator dunders are a closed universe, so enumerating a
       fixed list of them IS deriving the surface: a new overload lands in

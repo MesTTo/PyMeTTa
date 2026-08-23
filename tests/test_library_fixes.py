@@ -3,75 +3,75 @@
 Guarantees:
   - a bound call whose resolved MeTTa name ends in ``!`` completes its effect
     before the Python call returns [tested: test_resolved_bang_call_is_eager;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - bound calls expose evaluation values through iteration and scalar doors,
     with caller bindings retained on their row and projection faces both in
     and out of a stats scope [tested: test_calls_keep_values_and_binding_rows;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - all four rich comparisons use the engine's total atom order, reject raw
     mixed operands symmetrically, and leave comparison terms to explicit
     symbol construction [tested: test_atom_comparisons_are_only_ordering;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - builtin discovery is cached per logical space and invalidated after every
     function-catalog mutation [tested: test_builtin_discovery_is_cached,
-    test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
+    test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - rational number payloads cross lazy values and binding rows exactly as
     ``Fraction`` [tested: test_rational_payloads_cross_the_scalar_door;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - one defined MeTTa name may own independent Python clauses at different
     arities [tested: test_define_supports_one_name_at_multiple_arities;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - compiled bodies call a host-bound sibling Defined through that object's
     own MeTTa name [tested: test_compiled_body_calls_renamed_defined_sibling;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - function handles and Defined objects suspend endless producers between
     requested answers [tested: test_function_calls_suspend_endless_producers;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a grounded atom participates in term-building operators instead of
     computing as its carried Python value [tested:
-    test_grounded_atoms_lift_python_operators_to_terms; commit=WORKTREE]
+    test_grounded_atoms_lift_python_operators_to_terms; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - an Answers view used as a term operand is observed through exact-one
     cardinality, making deterministic calls nest and refusing ambiguity
-    [tested: test_answer_views_observe_when_used_as_operands; commit=WORKTREE]
+    [tested: test_answer_views_observe_when_used_as_operands; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - eager Rows and lazy Answers share attribute and Variable projection
     spellings [tested: test_rows_share_the_answer_projection_contract;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - the public space factory accepts a space-name Symbol returned by the
-    engine [tested: test_space_factory_accepts_a_name_symbol; commit=WORKTREE]
+    engine [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - relational solve returns variables introduced by either its winning
     pattern or its producing subject [tested:
-    test_solve_projects_variables_from_the_winning_pattern; commit=WORKTREE]
+    test_solve_projects_variables_from_the_winning_pattern; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - waiting on a space loads Linda support in the caller context without
     adding library definitions to the waited-on space [tested:
-    test_peek_does_not_import_linda_into_the_waited_space; commit=WORKTREE]
+    test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - compiled match accepts a captured or parameter-carried Space handle as
     its space operand [tested: test_compiled_match_accepts_space_handles;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - state cells are shared by eager evaluation and held answer engines in
     both directions [tested: test_state_cells_are_shared_across_answer_engines;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - len on an untouched evaluation view counts inside the engine without
     materialising its Python answer cache [tested:
-    test_len_counts_an_unmaterialised_view_engine_side; commit=WORKTREE]
+    test_len_counts_an_unmaterialised_view_engine_side; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - define applies the mechanical underscore-to-hyphen map to an implicit
     MeTTa name while name= remains exact [tested:
-    test_define_maps_its_implicit_python_name; commit=WORKTREE]
+    test_define_maps_its_implicit_python_name; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - compiled self and sibling calls use the installed MeTTa name even when
     an explicit name is not mechanically related to the Python spelling
     [tested: test_compiled_calls_share_the_installed_name_resolver;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - compiled conditions whose declared result is Bool run directly rather
     than through py-truthy [tested:
-    test_compiled_boolean_call_is_a_direct_condition; commit=WORKTREE]
+    test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - pathlib paths and typed space capabilities cross function calls as
     symbols [tested: test_path_and_capability_options_cross_as_symbols;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - if_ builds both the engine's one-armed filtering form and its three-armed
     conditional form [tested: test_if_builder_accepts_the_one_armed_form;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - the held-evaluation cursor is available at engine boot, so the first
     Answers pull does not pay a late consult [tested:
-    test_first_answer_pull_has_no_late_consult_floor; commit=WORKTREE]
+    test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 """
 
 import os

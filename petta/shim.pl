@@ -50,7 +50,7 @@
 %     test_eval_status_reports_the_four_outcomes]
 %   - the held evaluation cursor is present at bridge boot, so the first lazy
 %     answer pull performs no late consult [tested:
-%     test_first_answer_pull_has_no_late_consult_floor; commit=WORKTREE]
+%     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 %   - petta_py_operation_error/5 reports a builtin refusal as its written
 %     operation, formal functor, expected type and culprit, and every value it
 %     yields is one Janus can carry [tested

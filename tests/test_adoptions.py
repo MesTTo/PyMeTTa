@@ -8,10 +8,10 @@ Guarantees:
   - all rich comparisons order atoms while explicit symbolic heads retain
     truthiness-refusing comparison terms [tested:
     test_rich_comparisons_order_atoms_and_explicit_terms_refuse_truthiness;
-    commit=WORKTREE]
+    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - grounded atoms stage operators while their explicit value and conversion
     doors retain host-value semantics [tested:
-    test_grounded_atoms_keep_values_but_stage_operators; commit=WORKTREE]
+    test_grounded_atoms_keep_values_but_stage_operators; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Python classes declare through ``Space.define`` [tested:
     test_define_decorator_declares_field_types; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - an unannotated weighted operation stays untyped without a typed flag

@@ -44,10 +44,10 @@ Guarantees:
   - a host-bound sibling Defined resolves to its declared MeTTa name inside a
     compiled body, while self-recursion remains runnable by the Python twin
     [tested: test_compiled_body_calls_renamed_defined_sibling,
-    test_compiled_calls_share_the_installed_name_resolver; commit=WORKTREE]
+    test_compiled_calls_share_the_installed_name_resolver; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - ordinary Defined calls keep the held evaluation cursor inside a stats
     scope, so a bounded view suspends an endless producer [tested:
-    test_function_calls_suspend_endless_producers; commit=WORKTREE]
+    test_function_calls_suspend_endless_producers; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
 Open Obligations:
   To Do: None
   Hacks: None
