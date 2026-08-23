@@ -69,8 +69,14 @@ Guarantees:
   - if_ builds both the engine's one-armed filtering form and its three-armed
     conditional form [tested: test_if_builder_accepts_the_one_armed_form;
     commit=WORKTREE]
+  - the held-evaluation cursor is available at engine boot, so the first
+    Answers pull does not pay a late consult [tested:
+    test_first_answer_pull_has_no_late_consult_floor; commit=WORKTREE]
 """
 
+import os
+import subprocess
+import sys
 from fractions import Fraction
 from pathlib import Path
 
@@ -446,3 +452,28 @@ def test_if_builder_accepts_the_one_armed_form() -> None:
     assert if_(TRUE, S.yes) == S["if"](TRUE, S.yes)
     assert target.eval(if_(TRUE, S.yes)) == [S.yes]
     assert target.eval(if_(FALSE, S.yes)) == []
+
+
+def test_first_answer_pull_has_no_late_consult_floor() -> None:
+    """A fresh process prices its first lazy pull near direct evaluation."""
+    repo = Path(__file__).resolve().parents[3]
+    script = """
+from petta import S, space
+m = space()
+with m.stats() as eager:
+    assert m.eval(S[\"+\"](1, 2)) == [3]
+with m.stats() as lazy:
+    assert m.answers(S[\"+\"](1, 2)).one() == 3
+print(eager.inferences, lazy.inferences)
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=repo,
+        env=os.environ | {"PYTHONPATH": str(repo / "bindings/python")},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    eager, lazy = map(int, completed.stdout.split())
+    assert lazy < eager * 6
