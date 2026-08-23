@@ -44,9 +44,9 @@ def twin(m):
     # everywhere and names `space[pattern]`, a Python expression over a handle
     # that a body cannot have; the operator rule is scoped to lowered bodies
     # and the dissolution rule is not. That is why this line carries a rung
-    # note. Nine lines in control/ carry one for the same reason: `match` here
-    # and in once.py, `add-atom`/`remove-atom` in eval.py, `add-atom` twice in
-    # unify.py and three times in thin_forms.py.
+    # note. Nine lines in control/ carry one for the same reason: `match` in
+    # cut.py and once.py, `add-atom`/`remove-atom` in eval.py, `add-atom` twice
+    # in unify.py and three times in thin_forms.py.
     @m.define(name="match-single")
     def match_single(space, pat, ret):
         # (= (match-single $space $pat $ret)
