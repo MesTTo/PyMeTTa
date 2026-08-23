@@ -10,6 +10,9 @@ Guarantees:
   - the package coordination family exposes future spaces, races, timers,
     channels, parallel maps, and quiet-gap watch timeouts [tested:
     test_the_coordination_family_is_python_shaped; commit=WORKTREE]
+  - unary plus preserves atom identity while unary minus keeps its staged
+    subtraction meaning [tested: test_unary_plus_is_atom_identity;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -130,6 +133,13 @@ def test_the_coordination_family_is_python_shaped():
     quiet.drop()
 
     assert issubclass(Timeout, TimeoutError)
+
+
+def test_unary_plus_is_atom_identity():
+    """Unary plus has Python's identity meaning and constructs no term."""
+    assert +V.number is V.number
+    assert +S.value is S.value
+    assert -V.number == S["-"](0, V.number)
 
 
 def test_define_absorbs_class_declaration_and_frees_space_type(metta):

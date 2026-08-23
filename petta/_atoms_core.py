@@ -26,6 +26,8 @@ Guarantees:
     keeps its kind when sliced [tested:
     test_expression_collects_iterables_and_slices_keep_the_expression_kind,
     test_expression_of_a_space_is_an_assembly_order_snapshot; commit=WORKTREE]
+  - unary plus is atom identity and allocates no staged expression [tested:
+    test_unary_plus_is_atom_identity; commit=WORKTREE]
   - Expression virtual Sequence registration uses 4.00% fewer instructions than
     nominal inheritance [measured 2026-08-14: minimum of three instructions:u runs]
   - Expression writes its slots through their descriptors rather than
@@ -477,6 +479,10 @@ class Atom:
         def __le__(self, other: Any) -> bool: ...
         def __gt__(self, other: Any) -> bool: ...
         def __ge__(self, other: Any) -> bool: ...
+
+    def __pos__(self) -> Self:
+        """Return this atom unchanged, Python's unary-plus identity law."""
+        return self
 
     def eq(self, other: Any) -> Expression:
         """The equality TERM, (== self other); == itself compares atoms."""
