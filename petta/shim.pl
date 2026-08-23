@@ -111,7 +111,7 @@
 %     opaque grounded objects, including None and objects with __eq__ or
 %     __bool__, retain the Python dispatch fallback [tested:
 %     shim_python_scalar_semantics,
-%     test_wire_scalars_match_the_python_host_oracle; commit=WORKTREE]
+%     test_wire_scalars_match_the_python_host_oracle; commit=551f6236be947d5c52f5243e3d56f0009a000071]
 %   - petta_py_limited/6 adds a negative-sentinel stack byte ceiling to the
 %     existing time and inference bounds and restores it on every exit path
 %     [tested: test_janus_stack_scope_restores_on_all_exits; commit=81c50d3ae4c03ddfd70ed3f1ff70e085cfee3978]
@@ -1821,7 +1821,7 @@ petta_py_declined(TR) :- TR = [T, D], petta_py_tag(T, x), petta_py_tag(D, declin
 %its Python class may implement __eq__ or __bool__, so only the retained host
 %route may decide it [source: Python 3.14 data model, object.__eq__ and
 %object.__bool__, https://docs.python.org/3/reference/datamodel.html;
-%commit=WORKTREE].
+%commit=551f6236be947d5c52f5243e3d56f0009a000071].
 %Numbers lead because compiled arithmetic comparisons are the loop case. The
 %two guards and arithmetic comparison are in this clause so that case pays no
 %classification or helper calls.

@@ -6,10 +6,10 @@ Assumes:
 Guarantees:
   - every wire-crossable scalar produces the same answer through the native
     dispatch and the retained host route [tested:
-    test_wire_scalars_match_the_python_host_oracle; commit=WORKTREE]
+    test_wire_scalars_match_the_python_host_oracle; commit=551f6236be947d5c52f5243e3d56f0009a000071]
   - Python's named edge cases and expression-container truth rules retain
     their exact answers [tested: test_python_edge_cases_and_containers;
-    commit=WORKTREE]
+    commit=551f6236be947d5c52f5243e3d56f0009a000071]
 Fails when:
   - a new wire value class is routed natively without implementing Python's
     comparison and truth protocols for it.
