@@ -1,4 +1,4 @@
-"""examples/spaces/event_catalog.metta in Python: the event layer's own declarations.
+"""Purpose: examples/spaces/event_catalog.metta in Python: the event layer's own declarations.
 
 Whether a context can emit change events at all, and which reaction fires first
 when several match one write, are both DECLARED rather than inferred, and the
@@ -11,25 +11,26 @@ Python door is an exception carrying the checker's own sentence. And a native
 space needs no declaration to be watchable, which shows up as the absence of a
 row: `not reflection[...]` is the empty answer, and empty is a legitimate
 answer here rather than a shape error.
+
+The two spaces the declarations are ABOUT go into those declarations as
+handles, because a space is an ordinary term operand.
 """
 
-from petta import REFLECTION_SPACE, EngineError, S, V
+import petta
+from petta import S, V
+from petta.errors import EngineError
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6469 to 3259, -3210 (-49.6%), by the twin contract
-#: change: nine `(test ...)` terms became nine Python `assert`s, so `test` left
-#: the engine nine times and one `collapse`, one `catch` and one `if-error`
-#: went with it, the refusal becoming an ordinary exception. The eight matches
-#: and both writes stayed. Against the example's 18203 the ratio is 0.1790.
-#: Prior: 6469, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 3259
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
-def twin(m):
+def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; the default handle stays untouched
     """Read the event declarations, then try to write an unsayable one."""
-    reflection = m.space(REFLECTION_SPACE)
+    reflection = petta.reflection
 
     # Delivery is drawn from messaging's own three promises, and order is the
     # second axis, because a channel may deliver every write out of order.
@@ -46,10 +47,10 @@ def twin(m):
 
     # The value set is closed, so a promise nobody could act on is refused at
     # the write rather than stored as an atom that never matches.
-    feed = m.space("&feed")
+    feed = petta.space("&feed")
     refusal = None
     try:
-        reflection += (S.events, S[feed.space_name], S.eventually)
+        reflection += (S.events, feed, S.eventually)
     except EngineError as error:
         refusal = error
     assert refusal is not None
@@ -57,9 +58,9 @@ def twin(m):
     # A native space needs no declaration and is watchable anyway: every write
     # into the engine's own store runs its write hooks, which is a fact about
     # this engine rather than a promise a provider is making.
-    native = m.space("&native-events")
+    native = petta.space("&native-events")
     native += (S.reading, 1)
-    assert not reflection[S.events(S[native.space_name], V.d, V.o)]
+    assert not reflection[S.events(native, V.d, V.o)]
 
     # Which reaction fires first is the second declaration, and its default is
     # STATED rather than accidental.

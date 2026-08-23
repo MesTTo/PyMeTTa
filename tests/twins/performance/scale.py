@@ -1,73 +1,75 @@
-"""examples/performance/scale.metta in Python: a million atoms, five index shapes.
+"""Purpose: examples/performance/scale.metta in Python: a million atoms, five index shapes.
 
 `addK` bulk-loads a million `(r K (mod K 10))` atoms, and five query shapes then
 ask the same store different questions: everything, a bound first argument, a
 bound second, both bound, and a variable in HEAD position. The driver runs all
 five and reports the counts, which is the claim.
 
-Every definition stays in the engine, and every one of them is the benchmark:
-`addK` writes with `add-atom`, the five queries match against `&self`, and the
-driver names its hyphenated siblings. A compiled body has a Python name for none
-of those (residue, P14.4). Reading the report is Python's: the answer is an
-expression, so `list(...)` is its children.
+The driver is an ordinary Python function under the decorator: it calls its six
+siblings by name through the mention door and builds the report it answers.
+
+Two families stay at the container door, each for a blocker rather than a
+preference.
+
+The five queries are `(collapse (match ...))`, and a compiled body has no
+spelling for `collapse` at all: `list(...)` and `fn.collapse` are both refused,
+and a comprehension over a match lowers to `map-atom`, a different operation,
+`(map-atom (match ...) (|-> ($x) $x))`, answering once per solution where
+collapse answers once [measured 2026-08-23; commit=WORKTREE]. PERFECT:
+`list(space[pattern])` inside a body. Residue P14.4.
+
+`addK` compiles and then cannot run. A compiled `if` wraps its condition in
+`py-truthy` and `==` lowers to `py-eq`, so every level of this million-deep
+recursion spends reductions the original does not, and the evaluator's default
+100,000 stack bound is reached at K=100,000: the compiled `addK` answers
+`(Error 75002 StackOverflow)` where the term door completes a million
+[measured 2026-08-23; commit=WORKTREE]. `m.limits` bounds inferences and time
+and not stack depth, so there is no scope to raise it in and the example states
+no pragma to copy. PERFECT: a compiled `if` that leaves an engine-Bool
+condition alone, or a stack-depth mode block. Residue P14.4 and P14.14.
 """
 
-from petta import S, V, equation
+from petta import S, V, equation, fn
 
-#: Why this file sits below the top rung: every definition is the benchmark and
-#: none of them compiles. `addK` writes with `add-atom`, the five queries match
-#: a named space and collapse, and the driver names its hyphenated siblings; a
-#: compiled body has a Python name for none of those.
-RUNG = "every definition is the benchmark: add-atom, a named space, collapse, and hyphenated callees, none of which a compiled body can name"
-
-#: The space every definition here writes into and matches, named as a symbol
-#: because a term carries no handle.
-SELF = S["&self"]
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 
 #: What a million atoms answer to the five shapes, in the driver's own order.
-COUNTS = [S["all:"], 1_000_000, S["first:"], 1, S["second:"], 100_000,
-          S["rel:"], 1, S["both:"], 1]
-
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 24314635 to 24313586, -1049 (-0.0043%), by the twin
-#: contract change: the `test` wrapper left the engine for Python's own
-#: `assert` and reading the report became `list()` over the answer. Nothing else
-#: could move: the million writes and the five matches over them are the
-#: benchmark. Against the example's 25326596 the ratio is 0.9600 [measured
-#: 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/performance/scale.metta`]. Prior: ADDED 2026-08-22 at 24314635 by
-#: the wave-3 twin baseline.
-BUDGET = 24313586
+REPORT = S["all:"](1_000_000, S["first:"], 1, S["second:"], 100_000,
+                   S["rel:"], 1, S["both:"], 1)
 
 
 def twin(m):
     """Load a million atoms, then ask five differently-shaped questions."""
-    m += equation(S.addK(V.K)).to(
-        S["if"](V.K.eq(0),
+    m += equation(S.addK(V.k)).to(
+        S["if"](S["=="](V.k, 0),  # rung: the compiled body answers StackOverflow at this depth
                 S.done,
-                S["let*"](((V.K10, V.K % 10),
-                           (V.t, S["add-atom"](SELF, S.r(V.K, V.K10)))),
-                          S.addK(V.K - 1))))
+                S["let*"](((V.k10, V.k % 10),  # rung: as above
+                           (V.written, S["add-atom"](m, S.r(V.k, V.k10)))),  # rung: as above
+                          S.addK(V.k - 1))))
 
     # Five shapes over one store: nothing bound, first bound, second bound,
     # both bound, and the relation itself a variable.
-    m += equation(S["q-all"]()).to(S.collapse(S.match(SELF, S.r(V.x, V.y), S.r(V.x, V.y))))
-    m += equation(S["q-first"](V.a)).to(S.collapse(S.match(SELF, S.r(V.a, V.y), S.r(V.a, V.y))))
-    m += equation(S["q-second"](V.b)).to(S.collapse(S.match(SELF, S.r(V.x, V.b), S.r(V.x, V.b))))
-    m += equation(S["q-both"](V.a, V.b)).to(S.collapse(S.match(SELF, S.r(V.a, V.b), S.r(V.a, V.b))))
-    m += equation(S["q-rel"](V.r)).to(S.collapse(S.match(SELF, (V.r, 643, 3), (V.r, 643, 3))))
+    m += equation(S["q-all"]()).to(S.collapse(S.match(m, S.r(V.x, V.y), S.r(V.x, V.y))))  # rung: a compiled body has no spelling for collapse
+    m += equation(S["q-first"](V.a)).to(S.collapse(S.match(m, S.r(V.a, V.y), S.r(V.a, V.y))))  # rung: as above
+    m += equation(S["q-second"](V.b)).to(S.collapse(S.match(m, S.r(V.x, V.b), S.r(V.x, V.b))))  # rung: as above
+    m += equation(S["q-both"](V.a, V.b)).to(S.collapse(S.match(m, S.r(V.a, V.b), S.r(V.a, V.b))))  # rung: as above
+    m += equation(S["q-rel"](V.r)).to(S.collapse(S.match(m, (V.r, 643, 3), (V.r, 643, 3))))  # rung: as above
 
-    m += equation(S["indexing-demo"](V.K)).to(
-        S["let*"](((V.temp, S.addK(V.K)),
-                   (V.all, S["q-all"]()),
-                   (V.first, S["q-first"](7)),
-                   (V.second, S["q-second"](3)),
-                   (V.rel, S["q-rel"](S.r)),
-                   (V.both, S["q-both"](42, 2))),
-                  S["all:"](S.length(V.all),
-                            S["first:"], S.length(V.first),
-                            S["second:"], S.length(V.second),
-                            S["rel:"], S.length(V.rel),
-                            S["both:"], S.length(V.both))))
+    @m.define(name="indexing-demo")
+    def indexing_demo(k):
+        _loaded = fn.addK(k)
+        everything = fn.q_all()
+        first = fn.q_first(7)
+        second = fn.q_second(3)
+        rel = fn.q_rel(S.r)
+        both = fn.q_both(42, 2)
+        return S["all:"](fn.length(everything), S["first:"], fn.length(first),
+                         S["second:"], fn.length(second), S["rel:"], fn.length(rel),
+                         S["both:"], fn.length(both))
 
-    assert list(m.one(S["indexing-demo"](1_000_000))) == COUNTS
+    assert indexing_demo(1_000_000) == [REPORT]

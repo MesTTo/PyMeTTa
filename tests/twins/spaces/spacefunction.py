@@ -1,4 +1,4 @@
-"""examples/spaces/spacefunction.metta in Python: removing a definition.
+"""Purpose: examples/spaces/spacefunction.metta in Python: removing a definition.
 
 Two identical equations under different names, one of them removed. The removal
 takes the compiled answer with it, so `(f 3 4)` becomes its own answer while
@@ -11,17 +11,12 @@ removes it, and `equation(head).to(body)` names which atom to remove.
 
 from petta import S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5426 to 3981, -1445 (-26.6%), by the twin contract
-#: change: three `(test ...)` terms became three Python `assert`s, so the
-#: `test` and `collapse` wrappers and the last form's `match` all left the
-#: engine, replaced by `not in` over the container door. What did NOT move is
-#: the two definitions and the two removals. Against the example's 8288 the
-#: ratio is 0.4803.
-#: Prior: 5426, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 3981
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):

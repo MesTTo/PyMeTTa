@@ -1,4 +1,4 @@
-"""examples/spaces/matespace2.metta in Python: the same growth, collapsed first.
+"""Purpose: examples/spaces/matespace2.metta in Python: the same growth, collapsed first.
 
 matespace.py's sibling. `expand` and `mate` here read the space through
 `(superpose (collapse (match ...)))` rather than matching lazily, so each round
@@ -6,38 +6,37 @@ works from a snapshot of what was there when it started, and `rewriteK` runs
 both of them per round instead of expanding 390 times and mating once. Eighty
 rounds answer just under 1.3 million atoms.
 
-The count stays in the engine for the reason matespace.py measures: collapsing
-a million answers into Python to take their length costs several times what
-counting them where they are costs, because every atom crosses the seam to be
-thrown away.
+The count is Python's, `len(answers)` being what `(length (collapse X))`
+dissolves into, and it is expensive at this size for the reason matespace.py
+measures beside this file: every atom crosses the seam to be counted and thrown
+away. The cost is named there and is the library's to close (residue, P14.7).
+
+Every definition is a term because its body names `case` or `once`, neither of
+which is in the engine's function registry (residue, P14.4); PERFECT is
+matespace.py's, Python's own `match` statement plus `once` in the registry. The
+space is no
+longer part of that: a handle is an ordinary term operand, so `m` itself sits
+in every space position below.
 """
 
 from petta import S, V, equation
 
 #: Why this twin sits below the top rung, stated once for the whole file.
 RUNG = (
-    "every definition here is built as a term: their bodies name case, once "
-    "and add-atom, and add-atom-no-duplicate matches against a space its "
-    "CALLER names, none of which a compiled body reaches (residue, P14.4); "
-    "and the closing count stays in the engine for the reason matespace.py "
-    "measures"
+    "every definition here is built as a term: their bodies name case and "
+    "once, neither of which a compiled body reaches (residue, P14.4)"
 )
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 39336332 to 39336177, -155 (-0.0%), by the twin
-#: contract change: `(test (length (collapse ...)) 1297533)` became one
-#: `assert`, so the `test` wrapper left the engine while `length` and
-#: `collapse` stayed in it deliberately. The 1.3-million-atom rewrite
-#: underneath is untouched. Against the example's 40647871 the ratio is 0.9677.
-#: Prior: 39336332, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 39336177
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Run eighty expand-and-mate rounds, then count what the space holds."""
-    here = S[m.space_name]
     nodup = S["add-atom-no-duplicate"]
 
     # (= (add-atom-no-duplicate $Space $Atom)
@@ -52,19 +51,19 @@ def twin(m):
     # (= (expand) (case (superpose (collapse (match &self (num $t) $t))) ...))
     m += equation(S.expand()).to(
         S.case(
-            S.superpose(S.collapse(S.match(here, S.num(V.t), V.t))),
-            ((V.t, (nodup(here, S.num(S.M(V.t))), nodup(here, S.num(S.W(V.t))))),),
+            S.superpose(S.collapse(S.match(m, S.num(V.t), V.t))),
+            ((V.t, (nodup(m, S.num(S.M(V.t))), nodup(m, S.num(S.W(V.t))))),),
         )
     )
 
     # (= (mate) (case (superpose (collapse (match &self (num (M $t)) $t))) ...))
     paired = S.case(
-        S.once(S.match(here, S.num(S.W(V.t)), V.t)),
-        ((V.t, nodup(here, S.num(S.C(V.t)))),),
+        S.once(S.match(m, S.num(S.W(V.t)), V.t)),
+        ((V.t, nodup(m, S.num(S.C(V.t)))),),
     )
     m += equation(S.mate()).to(
         S.case(
-            S.superpose(S.collapse(S.match(here, S.num(S.M(V.t)), V.t))),
+            S.superpose(S.collapse(S.match(m, S.num(S.M(V.t)), V.t))),
             ((V.t, paired),),
         )
     )
@@ -85,9 +84,9 @@ def twin(m):
     #                               (match &self (num $1) (num $1))))
     m += equation(S["mate-space-demo"](V.k)).to(
         S["let*"](
-            ((V.seed, S["add-atom"](here, S.num(S.Z))), (V.done, S.rewriteK(V.k))),
-            S.match(here, S.num(V.x), S.num(V.x)),
+            ((V.seed, S["add-atom"](m, S.num(S.Z))), (V.done, S.rewriteK(V.k))),
+            S.match(m, S.num(V.x), S.num(V.x)),
         )
     )
 
-    assert m.one(S.length(S.collapse(S["mate-space-demo"](80)))) == 1297533
+    assert len(m.fn["mate-space-demo"](80)) == 1297533

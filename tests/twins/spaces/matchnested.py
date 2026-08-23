@@ -1,4 +1,4 @@
-"""examples/spaces/matchnested.metta in Python: a match inside a match.
+"""Purpose: examples/spaces/matchnested.metta in Python: a match inside a match.
 
 Four friendships go in; for each one, a second match looks for a friendship
 starting where it ends, records the pair as `transitive` and deletes both links
@@ -11,24 +11,21 @@ the identical thing with the comma join instead, and the difference between the
 two files is exactly the difference between the two examples.
 
 `hide` is the original's output silencer, `(= (hide $1) (empty))`, and it
-compiles: `empty()` is an engine function and a body that answers nothing
-prunes its branch. Nothing needs silencing here, so it is checked once for what
-it does and the rewriting below is written out.
+compiles: `fn.empty` names the engine function through the mention door and a
+body that answers nothing prunes its branch. Nothing needs silencing here, so
+it is checked once for what it does and the rewriting below is written out.
+
+`sorted(atoms)` is `msort`: atoms carry the engine's own elementwise order.
 """
 
-from petta import S, V, order_key
+from petta import S, V, fn
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5150 to 3144, -2006 (-39.0%), by the twin contract
-#: change: the nested `(match ... (match ... (add-atom ...)))` term became a
-#: nested Python loop over two subscript queries, and the closing
-#: `(test (msort (collapse (match ...))) ...)` became one `assert`, so `test`,
-#: `msort` and `collapse` left the engine while every write, removal and match
-#: stayed in it. Against the example's 10246 the ratio is 0.3069.
-#: Prior: 5150, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 3144
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 
 #: The four friendships the original stores, in its own order.
 FRIENDS = [(S.tim, S.tom), (S.tom, S.tam), (S.sim, S.som), (S.som, S.sam)]
@@ -40,7 +37,7 @@ def twin(m):
     @m.define
     def hide(_x):
         # (= (hide $1) (empty)): a body that answers nothing prunes.
-        return empty()  # noqa: F821
+        return fn.empty()
 
     assert hide(S.anything) == []
 
@@ -54,7 +51,7 @@ def twin(m):
             m -= S.friend(outer.b, inner.c)
 
     chains = [S.transitive(row.a, row.b, row.c) for row in m[S.transitive(V.a, V.b, V.c)]]
-    assert sorted(chains, key=order_key) == [
+    assert sorted(chains) == [
         S.transitive(S.sim, S.som, S.sam),
         S.transitive(S.tim, S.tom, S.tam),
     ]

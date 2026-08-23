@@ -2,36 +2,42 @@
 
 Assumes:
   - the custom judge, pool setup, and seven claims mirror the source example
-    [source: examples/spaces/admission_pools.metta lines 9-72; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    [source: examples/spaces/admission_pools.metta lines 9-72; commit=WORKTREE]
 Guarantees:
   - the custom and builtin judges agree before, at, and after the declared
-    capacity boundary [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/spaces/admission_pools.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    capacity boundary [measured 2026-08-23: the twin runs to completion under
+    the lane, which is what proves every assert it states;
+    command=python bindings/python/tools/twin_coverage.py
+    examples/spaces/admission_pools.metta; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
+
+Both spaces the judge talks about are HANDLES here, in the stored equations as
+well as at the call sites: a space is an ordinary term operand, so nothing has
+to read a name back out of a handle to put it in a term.
 """
 
-from petta import REFLECTION_SPACE, Expression, S, V, equation
+import petta
+from petta import Expression, S, V, equation
 
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 57709..57789 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 57709,
-    "maximum": 57789,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships. This file's previous pin was an empirical envelope rather than a
+#: point, because its judge runs engine-time matching whose count moves with
+#: the lane's own scheduling; the re-pin pass owns that decision too
+#: [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 RUNG = "the custom judge embeds engine-time matching, branching, and sequence traversal"
 
 
 def twin(m):
     """Install the MeTTa-bodied judge, claim one pool, and compare verdicts."""
-    reflection = m.space(REFLECTION_SPACE)
-    pool = m.space("&metta-pool")
-    at_reflection = S[reflection.space_name]
-    at_pool = S[pool.space_name]
+    reflection = petta.reflection
+    pool = petta.space("&metta-pool")
 
     admission_verdict = S["metta-admission-verdict"]
     admission_typed = S["metta-admission-typed"]
@@ -48,7 +54,7 @@ def twin(m):
             V.atom,
             S.collapse(
                 S["match"](  # rung: a stored definition embeds a query against another space
-                    at_reflection,
+                    reflection,
                     S.admits(V.pool, V.type),
                     V.type,
                 )
@@ -93,7 +99,7 @@ def twin(m):
             V.pool,
             S.collapse(
                 S["match"](  # rung: a stored definition embeds a query against another space
-                    at_reflection,
+                    reflection,
                     S.capacity(V.pool, V.limit),
                     V.limit,
                 )
@@ -105,8 +111,21 @@ def twin(m):
             V.limits.eq(Expression(())),
             S.accept(),
             S["if"](
-                S["space-atom-count"](V.pool)
-                < S["car-atom"](V.limits),  # rung: the value is an engine-time variable
+                # DEFECT: `<` is the one comparison that no longer BUILDS.
+                # R5 put the engine's sort order on Atom.__lt__ so that plain
+                # sorted() is msort, and that took the term-building `<` with
+                # it: `V.a < 2` raises TypeError and its mirror `2 > V.a`
+                # raises too, while >, <= and >= all still build. It is silent
+                # rather than loud, and it read as the constant False here
+                # until the head was named [measured 2026-08-23;
+                # source: bindings/python/petta/_atoms_core.py:1353-1365;
+                # commit=WORKTREE]. PERFECT: `S["space-atom-count"](V.pool) <
+                # S["car-atom"](V.limits)`, the way every other comparison in
+                # this file's judge is written.
+                S["<"](
+                    S["space-atom-count"](V.pool),
+                    S["car-atom"](V.limits),  # rung: the value is an engine-time variable
+                ),
                 S.accept(),
                 S.refuse(
                     S["pool-at-capacity"](
@@ -117,16 +136,14 @@ def twin(m):
         )
     )
 
-    reflection += S.admits(at_pool, S.Ticket)
-    reflection += S.capacity(at_pool, 2)
+    reflection += S.admits(pool, S.Ticket)
+    reflection += S.capacity(pool, 2)
     m += S[":"](S.ticket(S.a), S.Ticket)
     m += S[":"](S.ticket(S.b), S.Ticket)
 
     guard = S["metta-pool-guard"]
-    m += equation(guard(V.incoming)).to(
-        admission_verdict(at_pool, V.incoming)
-    )
-    m.fn("declare-pre-add!")(at_pool, guard)
+    m += equation(guard(V.incoming)).to(admission_verdict(pool, V.incoming))
+    m.fn["declare-pre-add!"](pool, guard).one()
 
     pool += S.ticket(S.a)
     assert [row.x for row in pool[S.ticket(V.x)]] == [S.a]
@@ -134,7 +151,7 @@ def twin(m):
     stowaway = S.stowaway(1)
     refused_stowaway = S.Error(
         S["petta_add_refused"](
-            at_pool,
+            pool,
             stowaway,
             S["does-not-carry"](S.Ticket),
         ),
@@ -142,14 +159,14 @@ def twin(m):
     )
     assert m.eval(
         S.catch(
-            S["add-atom"](at_pool, stowaway)  # rung: catch keeps this failure as aggregate data
+            S["add-atom"](pool, stowaway)  # rung: catch keeps this failure as aggregate data
         )
     ) == [refused_stowaway]
 
     pool += S.ticket(S.b)
     refused_capacity = S.Error(
         S["petta_add_refused"](
-            at_pool,
+            pool,
             S.ticket(S.a),
             S["pool-at-capacity"](2),
         ),
@@ -158,22 +175,17 @@ def twin(m):
     assert m.eval(
         S.catch(
             S["add-atom"](  # rung: catch keeps this failure as aggregate data
-                at_pool,
+                pool,
                 S.ticket(S.a),
             )
         )
     ) == [refused_capacity]
 
-    builtin = S["space-admission-verdict"]
-    assert m.eval(builtin(at_pool, stowaway)) == m.eval(
-        admission_verdict(at_pool, stowaway)
-    )
-    assert m.eval(builtin(at_pool, S.ticket(S.a))) == m.eval(
-        admission_verdict(at_pool, S.ticket(S.a))
-    )
+    builtin = m.fn["space-admission-verdict"]
+    custom = m.fn["metta-admission-verdict"]
+    assert builtin(pool, stowaway).one() == custom(pool, stowaway).one()
+    assert builtin(pool, S.ticket(S.a)).one() == custom(pool, S.ticket(S.a)).one()
 
-    reflection -= S.capacity(at_pool, 2)
-    assert m.eval(builtin(at_pool, S.ticket(S.a))) == m.eval(
-        admission_verdict(at_pool, S.ticket(S.a))
-    )
-    assert m.eval(builtin(at_pool, S.ticket(S.a))) == [S.accept()]
+    reflection -= S.capacity(pool, 2)
+    assert builtin(pool, S.ticket(S.a)).one() == custom(pool, S.ticket(S.a)).one()
+    assert builtin(pool, S.ticket(S.a)).one() == S.accept()

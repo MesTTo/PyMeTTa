@@ -1,71 +1,66 @@
-"""examples/performance/peanofast.metta in Python: 2500 successors, and how to count them.
+"""Purpose: examples/performance/peanofast.metta in Python: 2500 successors, and how to count them.
 
 `expandK` writes `(num Z)`, `(num (S Z))`, and so on down 2500 levels;
 `demo-peano` starts it from `Z`. Then the space is asked how many `num` atoms
 it holds.
 
-`expandK` stays in the engine because its body WRITES: `add-atom` is
-hyphenated, so a compiled body has no name for it, and `done` is a lowercase
-symbol used as data in the same body, which the subset has no spelling for
-either (residue, P14.4). `demo-peano` IS an ordinary Python function, decorated
-and then CALLED: `expandK` is a name the engine already knows and `Z` is a
-capitalised free name, which a compiled body reads as the data constructor it
-is.
+Both equations are ordinary Python functions under the decorator. `expandK`
+writes with the engine's own `add-atom`, spelled through the mention door
+because a hyphen is not a Python identifier, and answers the lowercase symbol
+`S.done` in its base case; the mention door reads both as syntax, so the whole
+body compiles. `demo-peano` calls it by name and starts it from the data
+constructor `S.Z`.
 
-The count is where this file earns its keep, because the obvious Python
-spelling is asymptotically wrong and the measurement says so. `len(m[pattern])`
-builds a Python atom for every answer, and every answer here is a term of depth
-O(K), so counting costs Θ(K²): 251,831 inferences at K=250, 1,003,611 at 500,
-4,007,233 at 1000 and 16,014,711 at 2000, quadrupling per doubling, against the
-engine's own `(length (collapse (match ...)))` at 1,308 / 2,058 / 3,558 / 6,558,
-which is linear. At K=2000 that is 2,442x [measured 2026-08-22,
-ai-tmp/probe/f_query_scaling.py]. Pushing a small TEMPLATE down instead, so the
-answers that cross are constants, restores linearity at 5,802 / 11,304 / 22,302
-but still costs +15.6% over the whole example here, past the lane's 10% band
-[ai-tmp/probe/f_peanofast_routes.py]. So the count stays engine-side, and the
-missing door, a query that projects or aggregates before it crosses, is filed
-as friction.
+The count is Python's: `len(space[pattern])` is what `(length (collapse
+(match ...)))` dissolves into, and this is the file where that dissolution is
+expensive rather than free. Every answer here is a term of depth O(K), and the
+query door builds a Python atom for each one, so counting costs Theta(K^2)
+against the engine's linear collapse-and-length: 251,831 inferences at K=250,
+1,003,611 at 500, 4,007,233 at 1000 and 16,014,711 at 2000, quadrupling per
+doubling, against 1,308 / 2,058 / 3,558 / 6,558 [measured 2026-08-22,
+ai-tmp/probe/f_query_scaling.py]. The missing door is a query that projects or
+aggregates BEFORE it crosses, the way MeTTa's own `match` template does; the
+count below is the spelling the surface rules, and the cost is the library's
+to close (residue, P14.7).
 """
 
-from petta import S, V, equation
+from petta import S, V, fn
 
-#: Why this file sits below the top rung, in its two halves: `expandK` writes
-#: with `add-atom`, which a compiled body has no name for, and the count stays
-#: engine-side because the Python query door is quadratic in the term depth,
-#: measured in the docstring above.
-RUNG = "expandK writes with add-atom and cannot compile, and counting deep matches through the Python query door is quadratic"
-
-#: The space `expandK` writes into, named as a symbol because a term carries no
-#: handle.
-SELF = S["&self"]
-
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 68491 to 68380, -111 (-0.16%), by the twin contract
-#: change: the `test` wrapper left the engine for Python's own `assert`, which
-#: is all that could move. `demo-peano` was already compiled at the previous
-#: pin, so `@m.define`'s per-name admission is inside both figures, and the
-#: count did NOT move, for the reason the docstring measures. Against the
-#: example's 76206 the ratio is 0.8973 [measured 2026-08-22 min-of-3:
-#: `twin_coverage.py --measure examples/performance/peanofast.metta`]. Prior:
-#: RE-PINNED at 68491, +1621, when `demo-peano` gained the decorator (~1.6k
-#: inferences of admission paid once); ADDED 2026-08-22 at 66870 by the wave-3
-#: twin baseline.
-BUDGET = 68380
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Build 2500 Peano successors, then count them."""
-    m += equation(S.expandK(V.expression, V.n)).to(
-        S["if"](V.n.eq(0),
-                S.done,
-                S.let(V.temp1,
-                      S["add-atom"](SELF, S.num(V.expression)),
-                      S.expandK(S.S(V.expression), V.n - 1))))
+
+    # The define door does not apply rung 4's underscore-to-hyphen map, so
+    # every MeTTa name that is not a Python identifier states itself through
+    # `name=`; the Python side stays snake_case, which is what PEP 8 and the
+    # linter both want [measured 2026-08-23: `def find_divisor` lands as
+    # `find_divisor`, not `find-divisor`; commit=WORKTREE].
+    @m.define(name="expandK")
+    def expand_k(expression, n):
+        if n == 0:
+            return S.done
+        _written = fn.add_atom(fn.context_space(), S.num(expression))
+        return expand_k(S.S(expression), n - 1)
 
     @m.define(name="demo-peano")
     def demo_peano(k):
         """Expand from zero, k times."""
-        return expandK(Z, k)  # noqa: F821  -- both names are MeTTa's: expandK is the equation above and Z its zero, and a compiled body is read as syntax
+        # A SELF-recursive call delegates through `name=`, which is why the
+        # body above says `expand_k`. A call to ANOTHER definition resolves
+        # the Python name against the engine instead, so it has to say the
+        # MeTTa name through the mention door: a bare `expand_k(...)` here is
+        # refused with "'expand_k' is not a parameter of demo-peano, not a
+        # function the engine knows" [measured 2026-08-23; commit=WORKTREE].
+        # PERFECT: one rule at both call sites, the way `name=` already binds
+        # the two names together.
+        return fn.expandK(S.Z, k)
 
-    demo_peano(2500)
-    assert m.eval(S.length(S.collapse(S.match(SELF, S.num(V.stored), V.stored)))) == [2500]
+    assert demo_peano(2500) == [S.done]
+    assert len(m[S.num(V.stored)]) == 2500

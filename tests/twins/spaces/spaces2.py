@@ -1,4 +1,4 @@
-"""examples/spaces/spaces2.metta in Python: what is stored and what is only run.
+"""Purpose: examples/spaces/spaces2.metta in Python: what is stored and what is only run.
 
 Four facts are stored, two `!(bar ...)` forms are only EVALUATED, and the last
 claim collects everything the space actually holds. `(bar 42)` is nowhere,
@@ -9,31 +9,25 @@ The facts are plain tuples, which is the knowledge front's own shape: `(foo 42
 42)` reads as `(S.foo, 42, 42)` and nests, so `(foo (42 42))` is
 `(S.foo, (42, 42))`.
 
-The original sorts before comparing, and this file counts instead, because the
-two sorts are not the same sort. MeTTa's `msort` compares an expression element
-by element, where `petta.order_key` compares length first, so the two disagree
-whenever one expression is a longer version of another: msort answers
-`((foo 42 42) (foo (42 42)))` and `sorted(key=order_key)` answers
-`((foo (42 42)) (foo 42 42))` for the very atoms below [measured 2026-08-22;
-reported to the integrator]. Answers are a multiset, `Counter` is the multiset
-algebra, and a multiset needs no order at all.
+The original sorts before comparing, and so does this file: `sorted(atoms)`
+is `msort`, because atoms carry the engine's own elementwise order. That was
+not true when this twin was first written, when the shipped key compared an
+expression's LENGTH first and disagreed with `msort` whenever one expression
+was a longer version of another, which is exactly the pair below; the twin
+counted with `Counter` to avoid the question. `Atom.__lt__` now reads the
+engine's order, so the ordinary spelling is the correct one again
+[measured 2026-08-23: `sorted` and `msort` both answer
+`((foo 42 42) (foo (42 42)))` for this file's own atoms; commit=WORKTREE].
 """
-
-from collections import Counter
 
 from petta import S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5204 to 2801, -2403 (-46.2%), by the twin contract
-#: change: the closing `(test (space (msort (collapse (superpose ...)))) ...)`
-#: became three subscript queries, a `Counter` comparison and one call, so
-#: `test`, `msort`, `collapse` and `superpose` all left the engine while the
-#: three matches it wrapped stayed in it. Against the example's 8186 the ratio
-#: is 0.3422.
-#: Prior: 5204, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 2801
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
+#: single re-pin pass prices the whole corpus on the merged tree, because a
+#: cost measured in one agent's worktree is a cost measured on a base nothing
+#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -56,7 +50,5 @@ def twin(m):
         + [S.foo(row.x, row.y) for row in m[S.foo(V.x, V.y)]]
         + [S.bar(row.x) for row in m[S.bar(V.x)]]
     )
-    assert Counter(held) == Counter(
-        [S.foo(1), S.foo(2), S.foo(42, 42), S.foo((42, 42))]
-    )
+    assert sorted(held) == [S.foo(1), S.foo(2), S.foo(42, 42), S.foo((42, 42))]
     assert answer() == [42]
