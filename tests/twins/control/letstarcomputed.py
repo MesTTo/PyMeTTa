@@ -18,7 +18,7 @@ list, a refusal crosses the seam as a Python exception so `catch` is `except`,
 and `repr` of an atom is Python's own `str`.
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,7 +36,7 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
 BUDGET = 1
 
 

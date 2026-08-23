@@ -9,7 +9,7 @@ asks is which of 3, 4 or anything else `$y` is, which an `if`/`elif` chain
 asks in Python's own words.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,7 +20,7 @@ from petta import Expression, S
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
 BUDGET = 1
 
 

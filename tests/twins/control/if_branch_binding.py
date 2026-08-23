@@ -21,7 +21,7 @@ stays a term.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=WORKTREE]
+    commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -32,7 +32,7 @@ from petta import FALSE, TRUE, S, V, equation
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
 BUDGET = 1
 
 

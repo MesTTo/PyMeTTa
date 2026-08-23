@@ -15,7 +15,7 @@ Slicing the endless producer answers the right four numbers and costs
 a self-recursive superposition to a fixed internal bound whatever the slice
 asks for, so the view is lazy in the answers it hands back and not in the
 producer behind them [measured 2026-08-23: 1,500,147 / 1,500,141 / 1,500,141 /
-1,500,141 inferences to pull 1, 2, 4 and 8; commit=WORKTREE]. That is the
+1,500,141 inferences to pull 1, 2, 4 and 8; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]. That is the
 library's cost to fix, not a reason to write the term: the pull has to suspend
 the producer. Filed as residue against P14.4.
 
@@ -32,7 +32,7 @@ from petta.errors import EngineError
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
 BUDGET = 1
 
 

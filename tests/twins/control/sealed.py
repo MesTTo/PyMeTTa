@@ -23,7 +23,7 @@ decoded with its own variable numbering, while collapsing it first answers
 Filed as residue against P14.4.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,7 +37,7 @@ RUNG = "the `let`s here bind the variables whose identity is under test, which a
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
 BUDGET = 1
 
 
