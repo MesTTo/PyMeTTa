@@ -291,16 +291,31 @@ def __getattr__(name: str) -> _Any:
     else:
         msg = f"module {__name__!r} has no attribute {name!r}"
         raise AttributeError(msg)
+    _rehide_implementation_modules()
+    globals()[name] = value
+    return value
+
+
+def _rehide_implementation_modules() -> None:
+    """Restore each root verb an implementation-module import shadowed.
+
+    Importing a submodule writes it onto its parent package, so any import
+    that pulls in ``petta.define`` and its siblings replaces the root VERB
+    with the module object. This puts the verb back. A name with no verb is
+    removed. During partial package initialization the verbs table is not
+    bound yet; popping then would delete the verb with nothing to restore
+    it, which is how ``petta.define`` once vanished for the life of the
+    process, so the pass defers to the end-of-init sweep instead.
+    """
+    verbs = globals().get("_ROOT_IMPLEMENTATION_VERBS")
+    if verbs is None:
+        return
     for implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
-        replacement = globals().get("_ROOT_IMPLEMENTATION_VERBS", {}).get(
-            implementation_name
-        )
+        replacement = verbs.get(implementation_name)
         if replacement is None:
             globals().pop(implementation_name, None)
         else:
             globals()[implementation_name] = replacement
-    globals()[name] = value
-    return value
 
 
 def __dir__() -> list[str]:
@@ -334,8 +349,7 @@ def current_space():
     """Return the ambient space selected by an enclosing space context."""
     space_api = _importlib.import_module(f"{__name__}._space")
     value = space_api.current_space()
-    for implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
-        globals().pop(implementation_name, None)
+    _rehide_implementation_modules()
     return value
 
 
@@ -565,12 +579,6 @@ __all__ = [
 
 # Importing a submodule writes it onto its parent package. These concrete
 # modules remain explicitly importable, but they are implementation modules,
-# not root attributes.
-for _implementation_name in _HIDDEN_IMPLEMENTATION_MODULES:
-    if _implementation_name in _ROOT_IMPLEMENTATION_VERBS:
-        globals()[_implementation_name] = _ROOT_IMPLEMENTATION_VERBS[
-            _implementation_name
-        ]
-    else:
-        globals().pop(_implementation_name, None)
-del _implementation_name
+# not root attributes. The verbs table is bound by here, so this is the
+# end-of-init sweep the partial-init guard in the helper defers to.
+_rehide_implementation_modules()
