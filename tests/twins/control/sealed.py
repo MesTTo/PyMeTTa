@@ -13,39 +13,32 @@ intermediate result, it IS an assignment, and the nested case below reads that
 way in both languages.
 
 Answers that carry fresh variables are compared modulo renaming, which is what
-`=alpha` means and what `petta.alpha_eq` does. Where the claim is about two
+`=alpha` means and what `a.alpha_eq(b)` does. Where the claim is about two
 answers carrying DIFFERENT variables, the gathering has to happen in the
 ENGINE rather than in Python, and this is the one place the dissolution
-table's `collapse` is `list()` does not hold: measured 2026-08-22, evaluating
-the match answers `[($_716 ok), ($_716 ok)]` because each answer atom is
+table's `collapse` is `list()` does not hold: measured 2026-08-23, evaluating
+the match answers `[($_846 ok), ($_846 ok)]` because each answer atom is
 decoded with its own variable numbering, while collapsing it first answers
-`(($_1732 ok) ($_1714 ok))`, which is the distinctness the claim is about.
+`(($_1734 ok) ($_1716 ok))`, which is the distinctness the claim is about.
 Filed as residue against P14.4.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from petta import Expression, S, V, alpha_eq, equation
+from petta import Expression, S, V, equation
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "the `let`s here bind the variables whose identity is under test, which a Python name cannot be"
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 9793 to 6991, -2802 (-28.6%), by the twin contract
-#: change: ten `test` wrappers LEFT the engine for `assert`s and the `let`s
-#: that only name intermediate results became assignments; the two claims
-#: about variable identity ACROSS answers still collapse in the engine,
-#: because gathering them in Python loses the distinctness. Measured min-of-3
-#: over fresh processes with the MORK backend linked in, which the artefact-
-#: free worktree omits and which moves a compiled twin by about 10 inferences
-#: per definition; against the example's 22019 the ratio is 0.3175. Prior:
-#: 9793, the transliterated twin this replaces.
-BUDGET = 6991
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -65,7 +58,7 @@ def twin(m):
     # the returned Atom is fresh.
     # !(test (collapse (let $z 7 (sealed ($z) ($z $w)))) ((7 $unbound)))
     kept = m.eval(S.let(V.z, 7, S.sealed((V.z,), (V.z, V.w))))
-    assert alpha_eq(Expression(kept), Expression((Expression((7, V.unbound)),)))
+    assert Expression(kept).alpha_eq(Expression((Expression((7, V.unbound)),)))
 
     # A ground Atom has no variable to rename.
     # !(test (sealed () 42) 42)
@@ -92,13 +85,15 @@ def twin(m):
     # !(test (collapse (let $f (mk-tagger) (superpose (($f 1) ($f 2)))))
     #        ((tagged 1 $a) (tagged 2 $b)))
     tagged = S.let(V.f, S["mk-tagger"](), S.superpose(((V.f, 1), (V.f, 2))))
-    assert alpha_eq(m.eval(S.collapse(tagged))[0], Expression((S.tagged(1, V.a), S.tagged(2, V.b))))
+    assert m.eval(S.collapse(tagged))[0].alpha_eq(
+        Expression((S.tagged(1, V.a), S.tagged(2, V.b)))
+    )
 
     # An ignored variable keeps its surrounding binding.
     # !(test (collapse (let $outer 7 (sealed ($outer) (both $outer $local))))
     #        ((both 7 $c)))
     outer = m.eval(S.let(V.outer, 7, S.sealed((V.outer,), S.both(V.outer, V.local))))
-    assert alpha_eq(Expression(outer), Expression((S.both(7, V.c),)))
+    assert Expression(outer).alpha_eq(Expression((S.both(7, V.c),)))
 
     # Freshen a rule's variables before adding it so two stored rules do not
     # share one identity. Evaluating the `sealed` first is what the original's
@@ -108,16 +103,25 @@ def twin(m):
     m += m.eval(S.sealed((), S["stored-rule"](V.r, S.ok)))[0]
     m += m.eval(S.sealed((), S["stored-rule"](V.r, S.ok)))[0]
 
+    # The top rung reads the space through the subscript door and gathers in
+    # Python: `Expression([...])` over `m[S["stored-rule"](V.x, V.y)]`. It
+    # gives the wrong answer. Each answer atom is decoded with its own
+    # variable numbering, so the two rows arrive as `$_716` twice where the
+    # engine's own collapse answers `(($_1734 ok) ($_1716 ok))`, and the
+    # DISTINCTNESS is the claim. Residue: P14.4.
     # !(test (collapse (match &self (stored-rule $x $y) ($x $y)))
     #        (($p ok) ($q ok)))
-    both = S.match(S[m.space_name], S["stored-rule"](V.x, V.y), (V.x, V.y))
-    assert alpha_eq(m.eval(S.collapse(both))[0], Expression((Expression((V.p, S.ok)), Expression((V.q, S.ok)))))
+    # The handle IS the space operand, so no symbol names it.
+    both = S["match"](m, S["stored-rule"](V.x, V.y), (V.x, V.y))
+    assert m.eval(S.collapse(both))[0].alpha_eq(
+        Expression((Expression((V.p, S.ok)), Expression((V.q, S.ok))))
+    )
 
     # The ignored $y keeps its binding; the unignored $x is fresh.
     # !(test (collapse (let $x 1 (let $y 2 (sealed ($y) (pair $x $y)))))
     #        ((pair $fresh 2)))
     paired = m.eval(S.let(V.x, 1, S.let(V.y, 2, S.sealed((V.y,), S.pair(V.x, V.y)))))
-    assert alpha_eq(Expression(paired), Expression((S.pair(V.fresh, 2),)))
+    assert Expression(paired).alpha_eq(Expression((S.pair(V.fresh, 2),)))
 
     # The returned Atom stays inert until eval is asked to run it.
     # !(test (let $atom (sealed () (+ 1 2)) (eval $atom)) 3)

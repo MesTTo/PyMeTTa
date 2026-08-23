@@ -18,7 +18,7 @@ list, a refusal crosses the seam as a Python exception so `catch` is `except`,
 and `repr` of an atom is Python's own `str`.
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,21 +34,22 @@ UNAPPLIED = "(partial let* (foo ok))"
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 8844 to 8934, +90 (+1.0%), by the twin contract
-#: change: eight `test` wrappers, one collapse and one `repr` LEFT the engine
-#: for `assert`s, an empty list and Python's `str`, while `car-atom`/`catch`
-#: became `except`; the total barely moves because the eight `mylet` and
-#: `let*` calls are the whole cost and they all still run there. Measured
-#: min-of-3 over fresh processes with the MORK backend linked in, which the
-#: artefact-free worktree omits and which moves a compiled twin by about 10
-#: inferences per definition; against the example's 18590 the ratio is
-#: 0.4806. Prior: 8844, the transliterated twin this replaces.
-BUDGET = 8934
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Hand bindings over, write them out, and refuse a list that is not one."""
+    # The top rung is a compiled definition whose bindings are assignments:
+    #
+    #     @m.define
+    #     def mylet(bindings, body): ...
+    #
+    # An assignment binds a name the AUTHOR wrote, so a definition whose
+    # bindings arrive as a value has no compiled spelling, and neither has a
+    # binding whose left side is a pattern. Residue: P14.4.
     # (: mylet (-> Atom Atom %Undefined%))
     # The body has to reach the definition unevaluated for the bindings to
     # bind anything in it, and `Atom` is the metatype that says so.

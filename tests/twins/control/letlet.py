@@ -10,7 +10,7 @@ body refuses even that: "a compiled body binds plain names; destructuring and
 attribute assignment have no let* form". Filed as residue against P14.4.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,19 +22,25 @@ from petta import Expression, S, V, equation
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling"
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 1709 to 1036, -673 (-39.4%), by the twin contract
-#: change: the `test` wrapper LEFT the engine for `assert`, and the answer is
-#: compared as an atom in Python rather than by an engine `test`. Measured
-#: min-of-3 over fresh processes with the MORK backend linked in, which the
-#: artefact-free worktree omits and which moves a compiled twin by about 10
-#: inferences per definition; against the example's 3689 the ratio is 0.2808.
-#: Prior: 1709, the transliterated twin this replaces.
-BUDGET = 1036
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Unify a three-element pattern with a three-element value."""
+    # The top rung is Python's own destructuring assignment, which IS a
+    # `let*` binding whose left side is a pattern:
+    #
+    #     @m.define
+    #     def f():
+    #         f1, c1, _three = 1, 2, d1
+    #         return f1, c1, d1
+    #
+    # A compiled body refuses it: "a compiled body binds plain names;
+    # destructuring and attribute assignment have no let* form", and even
+    # then the assignment carries only the left-to-right half. Residue: P14.4.
     # (= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1)))
     m += equation(S.f()).to(
         S["let*"](

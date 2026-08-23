@@ -13,14 +13,19 @@ and compiles.
 The lambdas are terms. A Python lambda inside a compiled body does lower to
 the engine's own `|->`, but a definition whose BODY is a lambda cannot hand
 one out as data: the lambda's parameter folds into the head's arity, so
-`(below 2)` answers `(partial below (2))`, and a nullary one answers a lifted
-closure symbol. Measured 2026-08-22; filed as residue against P14.4. So the
-two lambdas are built at the term door, once each, and the `let` and `let*`
-that bind them are Python name bindings, which is what a `let` is.
+`(below 2)` answers `(partial below (2))` and `arities("below")` is `[3]`.
+Measured 2026-08-23; filed as residue against P14.4. So the two lambdas are
+built at the term door, once each, and the `let` and `let*` that bind them are
+Python name bindings, which is what a `let` is.
+
+The comparison inside a built lambda is `S["<"](...)` rather than `V.v < 2`,
+because `Atom.__lt__` is the engine's standard ORDER over two atoms, so a
+comparison against a Python int has no term to build and raises. `>`, `<=`
+and `>=` still build, which makes `<` the one glyph that changed hands.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,33 +40,58 @@ GENERATOR = S["|->"]((V.x,), S.g(V.x))
 #: `(|-> ($x) (* 100 (g $x)))`, the generator that scales what it gives.
 SCALED = S["|->"]((V.x,), 100 * S.g(V.x))
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 27983 to 24004, -3979 (-14.2%), by the twin contract
-#: change: twelve `test` wrappers LEFT the engine for twelve `assert`s; every
-#: `forall` still runs there, which is the file's subject, and the two
-#: lambdas are still terms because a definition whose body is a lambda
-#: answers a partial application rather than the lambda. Measured min-of-3
-#: over fresh processes with the MORK backend linked in, which the artefact-
-#: free worktree omits and which moves a compiled twin by about 10 inferences
-#: per definition; against the example's 39434 the ratio is 0.6087. Prior:
-#: 27983, the transliterated twin this replaces.
-BUDGET = 24004
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+BUDGET = 1
 
 
 def below(limit):
-    """`(|-> ($v) (< $v <limit>))`, the check the original writes inline."""
-    return S["|->"]((V.v,), V.v < limit)
+    """`(|-> ($v) (< $v <limit>))`, the check the original writes inline.
+
+    The top rung builds the comparison with the operator, `V.v < limit`, and
+    hands the lambda out of a definition:
+
+        @m.define
+        def below(limit):
+            return lambda v: v < limit
+
+    Neither works. `Atom.__lt__` is the engine's standard ORDER over two
+    atoms, so `V.v < 2` raises `'<' not supported between instances of
+    'Variable' and 'int'` instead of building `(< $v 2)`, which makes `<` the
+    one glyph that changed hands: `>`, `<=` and `>=` still build. And a
+    definition whose body IS a lambda folds the lambda's parameter into the
+    head's arity, so `(below 2)` answers `(partial below (2))` and
+    `arities("below")` is `[3]`. Residue: P14.4.
+    """
+    return S["|->"]((V.v,), S["<"](V.v, limit))
 
 
 def twin(m):
     """Check every answer of a generator, nine ways of naming the two."""
+    # The top rung stacks two clauses under one head, the way `g` does below:
+    #
+    #     @m.define(name="f")
+    #     def f_one(): return 1
+    #     @m.define(name="f")
+    #     def f_two(): return 2
+    #
+    # A literal DEFAULT is what makes stacked clauses stack, so two clauses
+    # fixing nothing have no `@m.define` spelling at all. Measured 2026-08-23:
+    # rebinding one Python name under one MeTTa name stores only the LAST
+    # equation, and two different Python functions carrying one `name=` raise
+    # `IndexError: list assignment index out of range` from
+    # `petta/_define_twins.py` `replace_twin_clause`. The crash is a defect on
+    # its own. `@rules` is the door that writes a clause set without deriving a
+    # first-match guard; what it cannot do is take Python SYNTAX for its
+    # bodies. Residue: P14.4.
     @rules
     def f():
         # (= (f) 1) (= (f) 2)
         yield equation(S.f()).to(1)
         yield equation(S.f()).to(2)
 
-    m.add(*f)
+    m += f
 
     # A literal default is the head PATTERN for that position, so the
     # parameter itself never appears in the equation and the underscore says

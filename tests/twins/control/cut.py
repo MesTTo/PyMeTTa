@@ -1,29 +1,34 @@
-"""examples/control/cut.metta in Python: keeping the first answer only.
+"""Purpose: examples/control/cut.metta in Python: keeping the first answer only.
 
 `(foo 1)` and `(foo 2)` both match, and `cut` throws the second away, so the
 `let` above sees one answer and one `(bar 1)` is stored.
 
-`match-single` takes its space, its pattern and its template as PARAMETERS,
-and a compiled `match()` reads its pattern as SYNTAX against a space named on
-the spot, so a definition that takes a query apart has no compiled spelling at
-all. That is the one line below that is a term; everything around it is
-ordinary Python, because a write is `space += atom` and a query is the
-subscript door.
+`match-single` takes its space, its pattern and its template as PARAMETERS and
+is an ordinary compiled definition: the handle crosses as a term operand, so
+the space itself is what the call hands over, and the two assignments in the
+body are the `let*` pair the original writes flat. A write is `space += atom`
+and a read is the subscript door.
+
+Two things about the answer view are worth knowing here, both measured
+2026-08-23 and both the library's to fix rather than this file's. Calling a
+DEFINITION answers binding rows for the caller's own variables outside a
+`stats()` scope and the bare answers inside one, and a twin runs inside one;
+and `m.fn.<name>(...)` answers binding rows in BOTH, which discards the
+answer when the variable is an argument rather than an answer template
+(`m.fn.unify(V.x, S.f(V.x), S.cyclic, S.sound)` answers `[Row(x=$_70)]` where
+the form answers `sound`).
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
-from petta import S, V, equation
+from petta import S, V, fn
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 2605 to 1736, -869 (-33.4%), by the twin contract
-#: change: `add-atom`, `match` and `collapse` LEFT the engine for `+=`, the
-#: query door and a Python comprehension; only `match-single` still runs
-#: there, because a definition whose space and pattern are parameters has no
-#: compiled spelling. Measured min-of-3 over fresh processes with the MORK
-#: backend linked in, which the artefact-free worktree omits and which moves
-#: a compiled twin by about 10 inferences per definition; against the
-#: example's 6067 the ratio is 0.2861. Prior: 2605, the transliterated twin
-#: this replaces.
-BUDGET = 1736
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -33,15 +38,28 @@ def twin(m):
     # (foo 2)
     m += S.foo(2)
 
-    # (= (match-single $space $pat $ret)
-    #    (let* (($x (match $space $pat $ret)) ($temp (cut))) $x))
-    single = S["let*"](((V.x, S.match(V.space, V.pat, V.ret)), (V.temp, S.cut())), V.x)  # rung: a definition whose space, pattern and template are parameters has no compiled spelling
-    m += equation(S["match-single"](V.space, V.pat, V.ret)).to(single)
+    # A compiled body is MeTTa, so `fn.match` IS the ruled spelling there: the
+    # quotation tier reads `fn.<name>` as a callee exactly as it reads `S.done`
+    # as data. The lane still reports it, because its dissolution table fires
+    # everywhere and names `space[pattern]`, a Python expression over a handle
+    # that a body cannot have; the operator rule is scoped to lowered bodies
+    # and the dissolution rule is not. That is why this line carries a rung
+    # note. Nine lines in control/ carry one for the same reason: `match` here
+    # and in once.py, `add-atom`/`remove-atom` in eval.py, `add-atom` twice in
+    # unify.py and three times in thin_forms.py.
+    @m.define(name="match-single")
+    def match_single(space, pat, ret):
+        # (= (match-single $space $pat $ret)
+        #    (let* (($x (match $space $pat $ret)) ($temp (cut))) $x))
+        x = fn.match(space, pat, ret)  # rung: the subscript door is a Python statement over a handle, and the space here is a parameter of the equation
+        _temp = S.cut()
+        return x
 
     # !(let $x (match-single &self (foo $1) $1) (add-atom &self (bar $x)))
-    # `let` over a value that answers once is a loop that runs once.
-    for one in m.eval(S["match-single"](S[m.space_name], S.foo(V.one), V.one)):
-        m += S.bar(one)
+    # Calling IS evaluation, and a `let` over a value that answers once is a
+    # loop that runs once.
+    for hit in match_single(m, S.foo(V.hit), V.hit):
+        m += S.bar(hit)
 
     # !(test (collapse (match &self (bar $1) (bar $1))) ((bar 1)))
-    assert [S.bar(row.one) for row in m.query(S.bar(V.one))] == [S.bar(1)]
+    assert [S.bar(row.hit) for row in m[S.bar(V.hit)]] == [S.bar(1)]

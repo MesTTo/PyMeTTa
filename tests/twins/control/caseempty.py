@@ -1,4 +1,4 @@
-"""examples/control/caseempty.metta in Python: the `Empty` branch.
+"""Purpose: examples/control/caseempty.metta in Python: the `Empty` branch.
 
 `Empty` is the branch a key with NO ANSWERS takes. In `wu` the key is
 `(empty)`, so the default fires and the answer is 42; in `wu2` the key answers
@@ -11,24 +11,33 @@ The two `case` equations are not: `Empty` asks whether the KEY HAS ANY
 ANSWERS, and Python's `if` asks about a value, of which there is none when
 there are no answers. Python's `match` statement has no lowering in the
 compiled subset either, so both are stated as terms and filed against P14.4.
+Open Obligations:
+  To Do: None
+  Hacks: None
+  Future Enhancements: None.
 """
 
 from petta import S, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4784 to 3729, -1055 (-22.1%), by the twin contract
-#: change: two `test` wrappers LEFT the engine for `assert`s, and only `f`
-#: ENTERED as `@m.define`; the two `case` equations stay terms because
-#: `Empty` asks whether the key answered at all. Measured min-of-3 over fresh
-#: processes with the MORK backend linked in, which the artefact-free
-#: worktree omits and which moves a compiled twin by about 10 inferences per
-#: definition; against the example's 6438 the ratio is 0.5792. Prior: 4784,
-#: the transliterated twin this replaces.
-BUDGET = 3729
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Take the `Empty` branch, then take an ordinary one instead."""
+    # The top rung compiles both equations, which needs two things the
+    # subset has not got: a `match` statement, and a pattern that asks
+    # whether the KEY ANSWERED AT ALL rather than what it answered.
+    #
+    #     @m.define
+    #     def wu():
+    #         match empty():          # `ast.Match` has no lowering
+    #             case 1: return 2
+    #             case Empty: return 42   # and `Empty` is not a value pattern
+    #
+    # Residue: P14.4.
     # (= (wu) (case (empty) ((1 2) (Empty 42))))
     m += equation(S.wu()).to(S.case(S.empty(), ((1, 2), (S.Empty, 42))))  # rung: `Empty` asks whether the key answered at all, which Python's `if` cannot ask
 
