@@ -33,7 +33,10 @@ is Python's own `assert`.
 #: a node functor, is a C-level clause walk it cannot see: this example's graph
 #: is far too small to collect any of that, where loading 8,000 definitions fell
 #: from 3.25 seconds to 0.73.
-BUDGET = 2258
+#: RE-PINNED 2026-08-24, 2258 to 2228, by dropping the second walk over an
+#: already-translated data head, which is 30 inferences this example no longer
+#: spends. Back inside the 2210..2250 band recorded above.
+BUDGET = 2228
 
 
 def twin(m):
