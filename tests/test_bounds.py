@@ -83,16 +83,25 @@ def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_pa
     assert S["bounds-hot"] is hot, "a name touched every round aged out anyway"
 
     # ---------------------------------------------------------------- load
+    # The loop must not GROW: the counting spin `(spin (+ $n 1))` built 5.6GB
+    # of local stack, and under gate contention the 0.05s wall alarm lost the
+    # race to SWI's 7.5GB stack cap, surfacing either as a raw stack-limit
+    # PrologError or, when the engine's own overflow recovery caught it, as a
+    # load that RETURNED error answers instead of raising. A zero-argument
+    # self-call runs flat (last-call optimized), so the alarm always gets its
+    # chance, and 0.3s gives signal delivery headroom on a starved box
+    # [measured 2026-08-24: the counting spin failed 2 of 6 full-battery runs
+    # both ways; the flat loop raises at 0.30s exactly].
     forever = tmp_path / "forever.metta"
     forever.write_text(
-        "(= (spin $n) (spin (+ $n 1)))\n"
-        "!(with-pragma! ((max-stack-depth 300000000)) (spin 0))\n",
+        "(= (spin) (spin))\n"
+        "!(with-pragma! ((max-stack-depth 300000000)) (spin))\n",
         encoding="utf-8",
     )
     with pytest.raises(InferenceLimitError):
         metta.load(forever, inferences=20_000)
     with pytest.raises(TimeLimitError):
-        metta.load(forever, timeout=0.05)
+        metta.load(forever, timeout=0.3)
 
     # An unbounded load still works, and still resolves an import relative
     # to the loaded file rather than the process directory.
