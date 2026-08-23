@@ -11,6 +11,9 @@ Guarantees:
     weakening static checks [tested:
     test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - operator word aliases are generated from the same fixed vocabulary as
+    both runtime fn doors [tested:
+    test_operator_words_precede_the_mechanical_name_map; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -71,6 +74,9 @@ Guarantees:
   - attribute access is closed over the generated catalog and exact bracket
     access never applies the Python spelling map [tested:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - generated operator word attributes resolve through the shared fixed table
+    [tested: test_operator_words_precede_the_mechanical_name_map;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -119,6 +125,9 @@ def stub_text(names: list[str]) -> str:
 # Guarantees:
 #   - every safe runtime alias is explicit and no dynamic Any fallback exists
 #     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+#   - operator word aliases are explicit members generated from the runtime
+#     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
+#     commit=WORKTREE]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None

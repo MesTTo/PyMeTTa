@@ -8,6 +8,9 @@ Guarantees:
   - attribute access is closed over the generated catalog and exact bracket
     access never applies the Python spelling map [tested:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - generated operator word attributes resolve through the shared fixed table
+    [tested: test_operator_words_precede_the_mechanical_name_map;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -299,6 +302,7 @@ _ALIASES.update(
     (
         ("abs_math", "abs-math"),
         ("acos_math", "acos-math"),
+        ("add", "+"),
         ("add_atom", "add-atom"),
         ("add_atoms", "add-atoms"),
         ("add_reduct", "add-reduct"),
@@ -340,6 +344,7 @@ _ALIASES.update(
         ("documented_space", "documented-space"),
         ("elapsed", "elapsed"),
         ("empty", "empty"),
+        ("eq", "=="),
         ("eval", "eval"),
         ("evalc", "evalc"),
         ("exclude_item", "exclude-item"),
@@ -357,6 +362,7 @@ _ALIASES.update(
         ("forall", "forall"),
         ("format_args", "format-args"),
         ("format_time", "format-time"),
+        ("ge", ">="),
         ("get_atoms", "get-atoms"),
         ("get_doc", "get-doc"),
         ("get_doc_atom", "get-doc-atom"),
@@ -369,6 +375,7 @@ _ALIASES.update(
         ("get_type", "get-type"),
         ("get_type_space", "get-type-space"),
         ("git_import", "git-import!"),
+        ("gt", ">"),
         ("has_declared_type", "has-declared-type"),
         ("help", "help!"),
         ("hyperpose", "hyperpose"),
@@ -392,10 +399,12 @@ _ALIASES.update(
         ("isinf_math", "isinf-math"),
         ("isnan_math", "isnan-math"),
         ("last", "last"),
+        ("le", "<="),
         ("length", "length"),
         ("let", "let"),
         ("library", "library"),
         ("log_math", "log-math"),
+        ("lt", "<"),
         ("map_atom", "map-atom"),
         ("maplist", "maplist"),
         ("match", "match"),
@@ -408,9 +417,12 @@ _ALIASES.update(
         ("min", "min"),
         ("min_atom", "min-atom"),
         ("mm2_exec", "mm2-exec"),
+        ("mod", "%"),
         ("mork_add_atoms", "mork-add-atoms"),
         ("mork_flush", "mork-flush"),
         ("msort", "msort"),
+        ("mul", "*"),
+        ("ne", "!="),
         ("new_space", "new-space"),
         ("new_state", "new-state"),
         ("noeval", "noeval"),
@@ -420,6 +432,7 @@ _ALIASES.update(
         ("once", "once"),
         ("or_else", "or-else"),
         ("parse", "parse"),
+        ("pow", "pow-math"),
         ("pow_math", "pow-math"),
         ("pragma", "pragma!"),
         ("pretty_atom", "pretty-atom"),
@@ -475,6 +488,7 @@ _ALIASES.update(
         ("sqrt_math", "sqrt-math"),
         ("sread", "sread"),
         ("sread_command", "sread-command"),
+        ("sub", "-"),
         ("subtraction", "subtraction"),
         ("subtraction_atom", "subtraction-atom"),
         ("super", "super"),
@@ -489,6 +503,7 @@ _ALIASES.update(
         ("top", "top"),
         ("trace", "trace!"),
         ("transaction", "transaction"),
+        ("truediv", "/"),
         ("trunc_math", "trunc-math"),
         ("type_cast", "type-cast"),
         ("type_cast_holds", "type-cast-holds"),

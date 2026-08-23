@@ -2,6 +2,9 @@
 # Guarantees:
 #   - every safe runtime alias is explicit and no dynamic Any fallback exists
 #     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+#   - operator word aliases are explicit members generated from the runtime
+#     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
+#     commit=WORKTREE]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
@@ -14,6 +17,7 @@ from .atoms import Symbol
 class _FunctionNamespace:
     abs_math: Symbol
     acos_math: Symbol
+    add: Symbol
     add_atom: Symbol
     add_atoms: Symbol
     add_reduct: Symbol
@@ -55,6 +59,7 @@ class _FunctionNamespace:
     documented_space: Symbol
     elapsed: Symbol
     empty: Symbol
+    eq: Symbol
     eval: Symbol
     evalc: Symbol
     exclude_item: Symbol
@@ -72,6 +77,7 @@ class _FunctionNamespace:
     forall: Symbol
     format_args: Symbol
     format_time: Symbol
+    ge: Symbol
     get_atoms: Symbol
     get_doc: Symbol
     get_doc_atom: Symbol
@@ -84,6 +90,7 @@ class _FunctionNamespace:
     get_type: Symbol
     get_type_space: Symbol
     git_import: Symbol
+    gt: Symbol
     has_declared_type: Symbol
     help: Symbol
     hyperpose: Symbol
@@ -107,10 +114,12 @@ class _FunctionNamespace:
     isinf_math: Symbol
     isnan_math: Symbol
     last: Symbol
+    le: Symbol
     length: Symbol
     let: Symbol
     library: Symbol
     log_math: Symbol
+    lt: Symbol
     map_atom: Symbol
     maplist: Symbol
     match: Symbol
@@ -123,9 +132,12 @@ class _FunctionNamespace:
     min: Symbol
     min_atom: Symbol
     mm2_exec: Symbol
+    mod: Symbol
     mork_add_atoms: Symbol
     mork_flush: Symbol
     msort: Symbol
+    mul: Symbol
+    ne: Symbol
     new_space: Symbol
     new_state: Symbol
     noeval: Symbol
@@ -135,6 +147,7 @@ class _FunctionNamespace:
     once: Symbol
     or_else: Symbol
     parse: Symbol
+    pow: Symbol
     pow_math: Symbol
     pragma: Symbol
     pretty_atom: Symbol
@@ -190,6 +203,7 @@ class _FunctionNamespace:
     sqrt_math: Symbol
     sread: Symbol
     sread_command: Symbol
+    sub: Symbol
     subtraction: Symbol
     subtraction_atom: Symbol
     super: Symbol
@@ -204,6 +218,7 @@ class _FunctionNamespace:
     top: Symbol
     trace: Symbol
     transaction: Symbol
+    truediv: Symbol
     trunc_math: Symbol
     type_cast: Symbol
     type_cast_holds: Symbol

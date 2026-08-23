@@ -8,6 +8,9 @@ Guarantees:
     bracket names, resolves a trailing bang, and rejects unknown names at
     access [tested: test_bound_function_namespace_validates_at_access;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - bound function attributes consult the operator word table before the
+    mechanical map [tested: test_operator_words_precede_the_mechanical_name_map;
+    commit=WORKTREE]
   - a resolved bang call completes before the call returns while retaining a
     replayable answer view [tested: test_resolved_bang_call_is_eager;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -36,6 +39,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._engine import Runtime
+from ._name_mapping import operator_attribute_target
 from .atoms import (
     Atom,
     Expression,
@@ -976,7 +980,9 @@ class _FunctionNamespace:
     def __getattr__(self, name: str) -> _EngineFunction:
         if name.startswith("_"):
             raise AttributeError(name)
-        return self._resolve(name.replace("_", "-"), attribute=name)
+        resolved = operator_attribute_target(name)
+        target = name.replace("_", "-") if resolved is None else resolved
+        return self._resolve(target, attribute=name)
 
     def __getitem__(self, name: str) -> _EngineFunction:
         if not isinstance(name, str) or not name:

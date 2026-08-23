@@ -18,6 +18,9 @@ Guarantees:
     preserves exact target spelling [tested:
     test_attribute_factories_apply_the_total_map_and_brackets_stay_exact;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - Symbol attributes consult the operator word table before transliteration
+    while exact item access remains unchanged [tested:
+    test_operator_words_precede_the_mechanical_name_map; commit=WORKTREE]
   - hot attribute spellings reuse a separate bounded cache, so the name map
     stays within the established term-building budget [measured: 659673847
     instructions; date=2026-08-23; command=cd bindings/python && ../../../../.venv-pypetta/bin/python -m benchmarks.check_instructions term-operators; fixture=20000 term-operators terms; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
@@ -38,7 +41,7 @@ import threading
 from typing import Any, Final
 
 from ._atoms_core import Symbol
-from ._name_mapping import generated_aliases
+from ._name_mapping import generated_aliases, operator_attribute_target
 
 NAMESPACE_CACHE_MAX: Final[int] = 512
 #: The fast tier in front of it, read without the lock and without
@@ -122,7 +125,11 @@ class _Namespace:
         except KeyError:
             pass
         aliases = object.__getattribute__(self, "_aliases")
-        if object.__getattribute__(self, "_allowed") is None:
+        kind = object.__getattribute__(self, "_kind")
+        operator_target = operator_attribute_target(name) if kind is Symbol else None
+        if operator_target is not None:
+            target = operator_target
+        elif object.__getattribute__(self, "_allowed") is None:
             target = name
             if name != "_" and "_" in name:
                 target = name.replace("_", "-")
