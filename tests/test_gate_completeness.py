@@ -16,6 +16,10 @@ Guarantees:
       evidence rather than decoration
       [tested: test_the_ruff_configuration_enables_every_family_or_records_why_not;
       commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    - the compiler-state test scans the translator and reader umbrellas plus
+      every source unit in their matching fragment directories
+      [tested: test_no_dcg_semicontext_threads_the_compilers_state;
+      commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -371,6 +375,16 @@ def _dcg_scan(*sources):
     return scanned, dcgs, clauses
 
 
+def _engine_source_units(owner: str) -> tuple[str, ...]:
+    """The owner umbrella and each source unit in its matching directory."""
+    umbrella = f"../../engine/{owner}.pl"
+    fragments = tuple(
+        f"../../engine/{owner}/{path.name}"
+        for path in sorted((REPO / "engine" / owner).glob("*.pl"))
+    )
+    return (umbrella, *fragments)
+
+
 def test_no_dcg_semicontext_threads_the_compilers_state():
     """P2.20, closed as REJECTED by measurement, and this is what it owes.
 
@@ -383,7 +397,7 @@ def test_no_dcg_semicontext_threads_the_compilers_state():
     [measured 2026-08-18]. The item closed on that, and nothing stopped it
     being reversed by the next reader who finds a ten-argument predicate ugly.
 
-    The scan reads engine/translator.pl's TERMS, so the two `-->` inside its
+    The scan reads the translator source tree's TERMS, so the two `-->` inside
     tracer format strings are not mistaken for rules. Its only DCGs are message
     rules, which thread nothing: three `prolog:error_message//1` clauses and
     the two `prolog:message//1` head-pattern notes.
@@ -394,14 +408,20 @@ def test_no_dcg_semicontext_threads_the_compilers_state():
     head is also what proves this detector can see a semicontext rule at all,
     so a green result here is not an empty scan.
     """
-    translator = "../../engine/translator.pl"
-    reader = "../../engine/filereader.pl"
-    scanned, dcgs, clauses = _dcg_scan(translator, reader)
-    assert scanned[translator] > 300, scanned
-    assert scanned[reader] > 100, scanned
+    translator_sources = _engine_source_units("translator")
+    reader_sources = _engine_source_units("filereader")
+    scanned, dcgs, clauses = _dcg_scan(*translator_sources, *reader_sources)
+    assert sum(scanned[path] for path in translator_sources) > 300, scanned
+    assert sum(scanned[path] for path in reader_sources) > 100, scanned
 
     # The detector is live: the reader's one pushback rule is found.
-    assert (reader, "semicontext", "exec_marker_boundary", 0) in dcgs, sorted(dcgs)
+    assert any(
+        path in reader_sources
+        and shape == "semicontext"
+        and name == "exec_marker_boundary"
+        and arity == 0
+        for path, shape, name, arity in dcgs
+    ), sorted(dcgs)
 
     # And the compiler has no DCG that threads anything. Its message rules are
     # the whole of its DCG use, so this covers the semicontext question and the
@@ -409,7 +429,7 @@ def test_no_dcg_semicontext_threads_the_compilers_state():
     compiling = {
         (shape, name, arity)
         for path, shape, name, arity in dcgs
-        if path == translator
+        if path in translator_sources
     }
     assert compiling == {
         ("plain", "error_message", 1),
@@ -419,7 +439,7 @@ def test_no_dcg_semicontext_threads_the_compilers_state():
     # The other half of the same claim, from the positive side: the predicates
     # the item named still have ordinary clauses, which a converted one would
     # not.
-    assert {name for path, name in clauses if path == translator} == {
+    assert {name for path, name in clauses if path in translator_sources} == {
         "translate_expr_dl",
         "translate_special_dl",
         "translate_args_dl",

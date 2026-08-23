@@ -17,9 +17,10 @@ Assumes:
     [source: bindings/python/tools/llmsdoc.py:PATH_LIKE and check; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - every metta name, MeTTa method, path, count, special form, derived form,
-    builtin and library named in llms.txt exists, and the two modules it says
+    builtin and library named in llms.txt exists, the engine counts and special
+    forms include nested consulted source units, and the two modules it says
     are gone really are gone
-    [tested: GATE_ONLY=1 sh check.sh llms; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [tested: GATE_ONLY=1 sh check.sh llms; commit=WORKTREE]
   - all failures are reported at once, not just the first
     [source: bindings/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - repository paths such as ``engine/metta.pl`` are not mistaken for Python
@@ -83,6 +84,11 @@ def fenced(text: str) -> list[str]:
     return re.findall(r"^```\w*\n(.*?)^```", text, re.MULTILINE | re.DOTALL)
 
 
+def engine_sources() -> list[pathlib.Path]:
+    """Every shipped Prolog source under engine, including consulted units."""
+    return sorted((ROOT / "engine").rglob("*.pl"))
+
+
 def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     """Builtins from the running engine; the two translated sets from source.
 
@@ -97,7 +103,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
 
     builtins = set(MeTTa().self.builtins())
     special = set()
-    for source in sorted((ROOT / "engine").glob("*.pl")):
+    for source in engine_sources():
         body = source.read_text()
         special |= {
             head.strip("'")
@@ -115,9 +121,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
 
 def counts() -> list[tuple[str, int]]:
     """Each dated count in llms.txt, with what the tree says it is now."""
-    src_lines = sum(
-        len(p.read_text().splitlines()) for p in sorted((ROOT / "engine").glob("*.pl"))
-    )
+    src_lines = sum(len(path.read_text().splitlines()) for path in engine_sources())
     main = (ROOT / "bindings" / "python" / "metta" / "__main__.py").read_text()
     # The example count comes from the runners' own definition rather than a
     # glob. A bare examples/**/*.metta answers 242, which counts 24 symlink
