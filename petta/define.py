@@ -44,6 +44,9 @@ Guarantees:
   - a host-bound sibling Defined resolves to its declared MeTTa name inside a
     compiled body [tested: test_compiled_body_calls_renamed_defined_sibling;
     commit=WORKTREE]
+  - ordinary Defined calls keep the held evaluation cursor inside a stats
+    scope, so a bounded view suspends an endless producer [tested:
+    test_function_calls_suspend_endless_producers; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -67,7 +70,6 @@ from ._define_twins import _python_twin
 from ._fn import fn as fn_namespace
 from ._name_mapping import resolve_known_name
 from ._rules import _defined_calls_are_staged
-from ._space_objects import _stats_active
 from ._type_annotations import type_atoms_for
 from .atoms import (
     Atom,
@@ -309,7 +311,7 @@ class Defined[**P, R]:
         term = Expression([Symbol(self.name), *(_encode(a) for a in args)])
         if _defined_calls_are_staged():
             return term
-        if self._uses_main_engine or _stats_active():
+        if self._uses_main_engine:
             # SWI answer tables belong to the main engine. A child engine is
             # the right suspension mechanism for ordinary lazy evaluation,
             # but a cached definition must populate the table cache_info()

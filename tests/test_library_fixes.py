@@ -24,6 +24,9 @@ Guarantees:
   - compiled bodies call a host-bound sibling Defined through that object's
     own MeTTa name [tested: test_compiled_body_calls_renamed_defined_sibling;
     commit=WORKTREE]
+  - function handles and Defined objects suspend endless producers between
+    requested answers [tested: test_function_calls_suspend_endless_producers;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -189,3 +192,33 @@ def test_compiled_body_calls_renamed_defined_sibling() -> None:
 
     assert sibling_caller(4).one() == 5
     assert "(libfix-sibling-head $value)" in sibling_caller.source()
+
+
+def test_function_calls_suspend_endless_producers() -> None:
+    """Each cursor pull resumes rather than materialising an endless source."""
+    target = space()
+    target.run(
+        "(= (libfix-stream-from $n) "
+        "(superpose ($n (libfix-stream-from (+ $n 1)))))"
+    )
+    handle = target.fn["libfix-stream-from"]
+
+    # Warm the cursor shim so this test measures producer suspension.  Its
+    # one-time installation cost has its own regression in fix 24.
+    assert list(handle(0)[:1]) == [G(0)]
+    with target.stats() as engine_cost:
+        expected = target.eval(S.take(4, S["libfix-stream-from"](0)))
+    with target.stats() as handle_cost:
+        actual = list(handle(0)[:4])
+
+    @target.define(name="libfix-defined-stream-from")
+    def defined_count_up(n):
+        yield n
+        yield from defined_count_up(n + 1)
+
+    with target.stats() as defined_cost:
+        defined_actual = list(defined_count_up(0)[:4])
+
+    assert expected == actual == defined_actual == [G(0), G(1), G(2), G(3)]
+    assert handle_cost.inferences < engine_cost.inferences
+    assert defined_cost.inferences < engine_cost.inferences
