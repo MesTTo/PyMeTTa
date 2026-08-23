@@ -138,6 +138,7 @@ CONSULTED = False
 CONSULT_LOCK = _thread.allocate_lock()
 janus: _Any = None
 DEFAULT_STACK_LIMIT = 8_000_000_000
+_OMITTED = object()
 
 
 def _path_exists(path: str) -> bool:
@@ -367,6 +368,21 @@ def match(*args: _Any):
     raise TypeError(msg)
 
 
+def accept(atom: _Any = _OMITTED) -> Expression:
+    """Build a pre-add verdict that keeps or replaces the offered atom."""
+    return S.accept() if atom is _OMITTED else S.accept(atom)
+
+
+def refuse(words: _Any) -> Expression:
+    """Build a pre-add verdict that rejects a write with the judge's words."""
+    return S.refuse(words)
+
+
+def drop() -> Expression:
+    """Build a pre-add verdict that silently skips the offered atom."""
+    return S.drop()
+
+
 def add(*atoms: _Any):
     """Add atoms to the default context's self space."""
     return engine().self.add(*atoms)
@@ -414,6 +430,7 @@ __all__ = [
     "V",
     "Variable",
     "__version__",
+    "accept",
     "add",
     "aio",
     "algebra",
@@ -427,6 +444,7 @@ __all__ = [
     "convert",
     "current_space",
     "derivation",
+    "drop",
     "engine",
     "equation",
     "eval",
@@ -448,6 +466,7 @@ __all__ = [
     "paths",
     "query",
     "reflection",
+    "refuse",
     "remote",
     "remove",
     "rules",

@@ -14,6 +14,9 @@ Guarantees:
     ambient-space matching [tested:
     test_expression_position_superpose_and_match_share_the_ambient_space;
     commit=WORKTREE]
+  - ``Space.pre_add`` installs one compiled judge whose package verdict
+    builders preserve, transform, refuse, or silently drop each offered atom
+    [tested: test_pre_add_compiles_the_four_verdict_judge; commit=WORKTREE]
 """
 
 import copy
@@ -21,7 +24,7 @@ from collections import Counter
 
 import pytest
 
-from petta import MeTTa, S, V, match, space, superpose
+from petta import MeTTa, S, V, accept, drop, match, refuse, space, superpose
 from petta.errors import EngineError
 from petta.results import Answers
 
@@ -146,4 +149,35 @@ def test_expression_position_superpose_and_match_share_the_ambient_space() -> No
 
     assert list(choose(8)) == [8, 9]
     assert list(child_of(S.Tom)) == [S.Bob]
+    target.drop()
+
+
+def test_pre_add_compiles_the_four_verdict_judge() -> None:
+    """One decorated function owns every outcome at the write boundary."""
+    target = space("&libfix-pre-add")
+    target.clear()
+
+    @target.pre_add
+    @target.define
+    def judge(atom):
+        if atom == S.secret():
+            return refuse("secrets stay out")
+        if atom == S.raw():
+            return accept(S.cooked())
+        if atom == S.duplicate():
+            return drop()
+        return accept()
+
+    target += S.plain()
+    target += S.raw()
+    target += S.duplicate()
+
+    assert S.plain() in target
+    assert S.cooked() in target
+    assert S.raw() not in target
+    assert S.duplicate() not in target
+    with pytest.raises(EngineError, match="secrets stay out"):
+        target += S.secret()
+
+    target.eval(S["undeclare-pre-add!"](target))
     target.drop()

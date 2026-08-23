@@ -24,6 +24,9 @@ Guarantees:
   - calls whose declared output is Bool remain direct conditions rather than
     acquiring py-truthy [tested:
     test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - pre-add verdict builders are known expression-position callees inside a
+    compiled judge [tested: test_pre_add_compiles_the_four_verdict_judge;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -83,9 +86,9 @@ _INSTEAD = {
 }
 
 # Names with special meaning inside a compiled body. `match` runs a pattern
-# against the running space, the nondeterminism trio passes through, and
-# `empty` answers nothing.
-_MAGIC = ("match", "superpose", "collapse", "empty")
+# against the running space, nondeterminism and verdict forms pass through,
+# and `empty` answers nothing.
+_MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose")
 
 
 class ExpressionCompilerMixin(CompilerContext):

@@ -38,6 +38,9 @@ Guarantees:
     only their demanded prefix, while len counts inside the engine [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
     test_query_single_unpack_pulls_at_most_two_answers; commit=WORKTREE]
+  - ``Space.pre_add`` declares one compiled unary judge through the engine's
+    existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
+    commit=WORKTREE]
   - handle-level Linda waits load their support into the default caller space,
     never into a distinct waited-on space [tested:
     test_peek_does_not_import_linda_into_the_waited_space; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -2778,6 +2781,24 @@ class Space(Handle):
         bundle = _collect_rules(fn)
         self += bundle
         return bundle
+
+    def pre_add(self, fn: Defined[..., Any] | Callable[..., Any]) -> Defined[..., Any]:
+        """Compile or accept one unary judge and claim this space's write door.
+
+        The common decorator stack places ``@pre_add`` above ``@define``, so
+        an existing Defined keeps the module that owns its equations. A raw
+        function is compiled into this space before claiming the hook.
+        """
+        handler = fn if isinstance(fn, Defined) else self.define(fn)
+        if len(handler.params) != 1:
+            msg = "a pre-add judge takes exactly one incoming atom"
+            raise TypeError(msg)
+        handler.space.eval(
+            Expression(
+                [Symbol("declare-pre-add!"), self, Symbol(handler.name)]
+            )
+        )
+        return handler
 
     @overload
     def cache(self, fn: Callable[_P, _R], /) -> Defined[_P, _R]: ...
