@@ -2615,16 +2615,17 @@ class Space(Handle):
             S.add_one(5)                # (add_one 5), staged as data
             add_one.py(5)               # 6, ordinary Python
 
-        The equation's name is the Python name, verbatim, or `name=`
-        when given. Hyphens are the MeTTa convention and Python cannot
-        spell one, so a hyphenated name is asked for rather than inferred:
+        The equation's implicit name applies the factories' total mechanical
+        map, replacing each underscore with a hyphen. ``name=`` is the exact
+        quoted-name escape for punctuation that map cannot preserve:
 
             @m.define(name="add-one")
             def add_one(n):
                 return n + 1
 
-        Nothing is rewritten behind the author's back, which is the whole
-        of the rule: the name in the source is the name in the space.
+        This is rung 4 of the naming ladder applied to the definition door
+        itself: ``def not_provable`` lands as ``not-provable``. An authored
+        MeTTa underscore therefore uses explicit ``name="not_provable"``.
 
         A generator compiles to nondeterminism (each yield one answer), a
         lambda to the engine's own |->, a comprehension to map-atom and

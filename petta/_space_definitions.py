@@ -8,6 +8,9 @@ Guarantees:
   - clauses at different arities under one MeTTa name stack instead of
     replacing one another [tested:
     test_define_supports_one_name_at_multiple_arities; commit=WORKTREE]
+  - implicit definition names apply the total underscore-to-hyphen map while
+    explicit name= remains exact [tested: test_define_maps_its_implicit_python_name;
+    commit=WORKTREE]
   - clear_definitions removes process bookkeeping with the equations it
     describes [tested test_reflection_facts_follow_a_dropped_space]
   - a definition is exposed only after its first twin clause exists, and its
@@ -59,6 +62,7 @@ from ._define_twins import (
     twin_dispatcher,
 )
 from ._documentation import documentation_atom
+from ._name_mapping import attribute_name
 from ._ops import REGISTRY
 from .atoms import Atom, Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode, _expr
 from .define import (
@@ -123,7 +127,7 @@ def install_prolog_define(
     if not isinstance(fn, types.FunctionType):
         msg = f"define expects a Python function, got {type(fn).__name__}"
         raise TypeError(msg)
-    name = name or fn.__name__
+    name = attribute_name(fn.__name__) if name is None else name
     origin = os.fspath(prolog)
     registered = space.register_prolog(path=origin)
     if name not in registered:
@@ -483,10 +487,9 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         msg = f"define expects a Python function, got {type(fn).__name__}"
         raise TypeError(msg)
 
-    # The equation's name is the Python name, verbatim, or the one asked
-    # for: one policy across both decorators, and neither rewrites what the
-    # author wrote.
-    name = name or fn.__name__
+    # Implicit names use the same total mechanical map as the factories;
+    # explicit names preserve every authored character.
+    name = attribute_name(fn.__name__) if name is None else name
     compiled = compile_function(
         fn,
         known=space.is_function,

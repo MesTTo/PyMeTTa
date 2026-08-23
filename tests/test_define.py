@@ -15,6 +15,9 @@ Guarantees:
     its AST and retires stale reflection on replacement and clear [tested:
     test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - implicit definition names apply the underscore-to-hyphen map and explicit
+    name= remains exact [tested:
+    test_the_implicit_name_is_mapped_and_name_is_exact; commit=WORKTREE]
 Owns:
   - test_define_from_two_threads_is_serialized joins both definition workers
     before examining their equations [tested test_define_from_two_threads_is_serialized]
@@ -81,14 +84,14 @@ def test_define_from_two_threads_is_serialized(m):  # noqa: D103  -- pytest disc
 
 
 def test_existing_twin_sees_later_redefinition(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.define(twin_base_probe)
-    twin_user = m.define(twin_user_probe)
+    m.define(twin_base_probe, name="twin_base_probe")
+    twin_user = m.define(twin_user_probe, name="twin_user_probe")
     assert twin_user.py(3) == 8
 
     original_name = twin_base_replacement.__name__
     twin_base_replacement.__name__ = twin_base_probe.__name__
     try:
-        m.define(twin_base_replacement)
+        m.define(twin_base_replacement, name="twin_base_probe")
     finally:
         twin_base_replacement.__name__ = original_name
 
@@ -159,8 +162,8 @@ def test_an_annotated_binding_emits_its_claim(m):
         return result
 
     assert "(: $result Number)" in str(annotated_binding.body)
-    assert m.run("!(annotated_binding 7)") == [[7]]
-    assert m.run('!(annotated_binding "nope")') == [[]]
+    assert m.run("!(annotated-binding 7)") == [[7]]
+    assert m.run('!(annotated-binding "nope")') == [[]]
 
     @m.define
     def annotated_generator(value):
@@ -168,7 +171,7 @@ def test_an_annotated_binding_emits_its_claim(m):
         yield result
 
     assert "(: $result Number)" in str(annotated_generator.body)
-    assert m.run("!(annotated_generator 8)") == [[8]]
+    assert m.run("!(annotated-generator 8)") == [[8]]
 
 
 def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
@@ -194,7 +197,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
 
     reflection = m._at("&petta")
     source_rows = reflection.query(
-        parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+        parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
     )
     assert len(source_rows) == 1
     source_row = source_rows[0]
@@ -203,7 +206,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     source_fact = Expression(
         S["source-span"],
         source_row.space,
-        S.ast_observed,
+        S["ast-observed"],
         source_row.path,
         source_row.sl,
         source_row.sc,
@@ -211,19 +214,19 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
         source_row.ec,
     )
     free_fact = parse(
-        "(free-variable " + m.name + " ast_observed ast_helper)"
+        "(free-variable " + m.name + " ast-observed ast_helper)"
     )
-    effect_fact = parse("(effect ast_observed immutable)")
+    effect_fact = parse("(effect ast-observed immutable)")
     assert free_fact in reflection
     assert effect_fact in reflection
     assert reflection.run(
-        f"!(get-type (defined {m.name} ast_observed))"
+        f"!(get-type (defined {m.name} ast-observed))"
     ) == [[S.DefinitionFact]]
     assert reflection.run(f"!(get-type {source_fact})") == [[S.DefinitionFact]]
     assert reflection.run(f"!(get-type {free_fact})") == [[S.DefinitionFact]]
     assert reflection.run(f"!(get-type {effect_fact})") == [[S.EffectDecl]]
     assert "Documentation derived from the parsed function body." in str(
-        m.run("!(get-doc ast_observed)")
+        m.run("!(get-doc ast-observed)")
     )
 
     m.run("(= (ast_effect $value) (println! $value))")
@@ -237,16 +240,16 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     assert effect_fact not in reflection
     assert len(
         reflection.query(
-            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+            parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
         )
     ) == 1
     assert "Replacement documentation from the replacement AST." in str(
-        m.run("!(get-doc ast_observed)")
+        m.run("!(get-doc ast-observed)")
     )
 
     old_source = list(
         reflection.query(
-            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+            parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
         )
     )
 
@@ -276,11 +279,11 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     monkeypatch.setattr(runtime_type, "must", real_must)
     assert list(
         reflection.query(
-            parse("(source-span $space ast_observed $path $sl $sc $el $ec)")
+            parse("(source-span $space ast-observed $path $sl $sc $el $ec)")
         )
     ) == old_source
     assert "Replacement documentation from the replacement AST." in str(
-        m.run("!(get-doc ast_observed)")
+        m.run("!(get-doc ast-observed)")
     )
 
     m.clear()
@@ -343,28 +346,25 @@ def test_lambda_is_first_class(m):  # noqa: D103  -- pytest discovers or injects
         f = lambda v: v + 10  # noqa: E731
         return f(f(x))
 
-    # One naming policy across both decorators: the Python name, verbatim.
-    assert m.run("!(dapply_twice 1)") == [[21]]
+    assert m.run("!(dapply-twice 1)") == [[21]]
 
 
-def test_the_python_name_is_the_metta_name_and_name_asks_for_another(m):
-    """No implicit rewriting. The identifier in the source is the name in
-    the space, and the hyphenated spelling MeTTa prefers is asked for.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+def test_the_implicit_name_is_mapped_and_name_is_exact(m):
+    """Implicit names transliterate; name= is the exact-name escape."""
 
     @m.define
     def add_one(value):
         return value + 1
 
-    assert m.run("!(add_one 5)") == [[6]]
-    assert m.run("!(add-one 5)") == [[S["add-one"](5)]]
+    assert m.run("!(add-one 5)") == [[6]]
+    assert m.run("!(add_one 5)") == [[S["add_one"](5)]]
 
-    @m.define(name="add-two")
+    @m.define(name="add_two")
     def add_two(value):
         return value + 2
 
-    assert m.run("!(add-two 5)") == [[7]]
-    assert m.run("!(add_two 5)") == [[S["add_two"](5)]]
+    assert m.run("!(add_two 5)") == [[7]]
+    assert m.run("!(add-two 5)") == [[S["add-two"](5)]]
     assert add_two.py(5) == 7
 
 
@@ -800,7 +800,7 @@ def test_same_head_redefinition_replaces_the_whole_yield_unit(m):  # noqa: D103 
         yield value + 1
 
     assert dyield_unit(3) == [3, 4]
-    assert len(m.fn["dyield_unit"].equations) == 2
+    assert len(m.fn["dyield-unit"].equations) == 2
 
     @m.define
     def dyield_unit(value):
@@ -808,7 +808,7 @@ def test_same_head_redefinition_replaces_the_whole_yield_unit(m):  # noqa: D103 
         yield value * 100
 
     assert dyield_unit(3) == [30, 300]
-    assert len(m.fn["dyield_unit"].equations) == 2
+    assert len(m.fn["dyield-unit"].equations) == 2
 
 
 def test_helper_only_redefinition_replaces_main_and_aux_equations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -844,7 +844,7 @@ def test_helper_only_redefinition_replaces_main_and_aux_equations(m):  # noqa: D
     assert daux_replace(3) == [6]
     assert daux_replace.py(3) == 6
     helpers = [
-        atom for atom in m.atoms() if str(atom).startswith("(= (daux_replace--loop")
+        atom for atom in m.atoms() if str(atom).startswith("(= (daux-replace--loop")
     ]
     assert len(helpers) == 1
 
@@ -873,7 +873,7 @@ def test_nonmatching_hazardous_twin_dispatches_to_the_next_clause(m):  # noqa: D
     def dhazard_guard(n):  # noqa: F811
         return n + 1
 
-    assert m.run("!(dhazard_guard 2)") == [[3]]
+    assert m.run("!(dhazard-guard 2)") == [[3]]
     assert dhazard_guard.py(2) == 3
     with pytest.raises(RuntimeError, match="match against the space"):
         dhazard_guard.py(0)
@@ -1004,7 +1004,7 @@ def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D
     m.run("(= (p12-witness-guard (raw $x)) (accept (stamp $x)))")
     m.run(
         "(= (p12-witness-guard (count $n))"
-        ' (if (budget_allows $n) (accept) (refuse "the python budget said no")))'
+        ' (if (budget-allows $n) (accept) (refuse "the python budget said no")))'
     )
     m.run("!(declare-pre-add! &p12-witness-pool p12-witness-guard)")
     try:

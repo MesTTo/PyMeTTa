@@ -53,6 +53,9 @@ Guarantees:
   - len on an untouched evaluation view counts inside the engine without
     materialising its Python answer cache [tested:
     test_len_counts_an_unmaterialised_view_engine_side; commit=WORKTREE]
+  - define applies the mechanical underscore-to-hyphen map to an implicit
+    MeTTa name while name= remains exact [tested:
+    test_define_maps_its_implicit_python_name; commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -368,3 +371,15 @@ def test_len_counts_an_unmaterialised_view_engine_side() -> None:
 
     assert list(view) == [G(1), G(2)]
     assert len(view) == 2
+
+
+def test_define_maps_its_implicit_python_name() -> None:
+    """The decorator's own name follows the same total map as factories."""
+    target = space()
+
+    @target.define
+    def libfix_default_name(value):
+        return value + 1
+
+    assert libfix_default_name.name == "libfix-default-name"
+    assert target.fn.libfix_default_name(2).one() == 3
