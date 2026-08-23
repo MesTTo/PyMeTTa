@@ -12,6 +12,10 @@ Guarantees:
     test_answers_are_lazy_cached_and_cardinality_aware,
     test_bound_function_namespace_validates_at_access;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - bound calls iterate their values while exposing caller bindings through
+    projections and the rows face [tested:
+    test_answers_project_caller_variables_and_slices_stay_answers;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,7 +26,7 @@ import gc
 
 import pytest
 
-from petta import Answer, Bindings, Expression, S, V, parse
+from petta import TRUE, Answer, Bindings, Expression, S, V, parse
 from petta.atoms import Grounded, Symbol, Variable
 from petta.errors import EngineError, MettaResultError, PettaError, TransportFailure
 from petta.foreign import SpaceProvider
@@ -1208,7 +1212,8 @@ def test_answers_project_caller_variables_and_slices_stay_answers(metta):  # noq
     assert isinstance(prefix, Answers)
     assert list(prefix.who) == [S.a]
     assert list(answers[V.who]) == [S.a, S.b]
-    assert list(answers) == [(S.a,), (S.b,)]
+    assert list(answers) == [TRUE, TRUE]
+    assert list(answers.rows) == [(S.a,), (S.b,)]
 
     colliding = space.fn.r3_rel(V.first)
     assert callable(colliding.first)

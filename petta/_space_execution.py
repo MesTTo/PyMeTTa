@@ -17,6 +17,9 @@ Guarantees:
     test_answers_project_caller_variables_and_slices_stay_answers,
     test_a_cached_definition_tables_and_answers_from_its_trie;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - lazy evaluation keeps the answer value distinct from its parallel caller
+    bindings [tested: test_calls_keep_values_and_binding_rows;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -50,7 +53,7 @@ from .atoms import (
     _to_atom,
 )
 from .errors import EngineError
-from .results import Answers, _row_class, error_answer
+from .results import Answers, _AnswerItem, _row_class, error_answer
 
 _SCOPED_EXECUTION: ContextVar[frozenset[str]] = ContextVar(
     "petta_scoped_execution", default=frozenset()
@@ -457,11 +460,12 @@ def evaluate_answers(
                 )
                 reported_inferences = current_inferences
                 value = _from_wire(value_wire)
-                # A failed branch is still its Error/Undefined answer. An
-                # ordinary relational answer is represented by exactly the
-                # caller variables, in first-appearance order.
+                # A failed branch is still its Error/Undefined answer.  For an
+                # ordinary relational answer, preserve the caller bindings as
+                # metadata instead of replacing the value with its row.
                 if columns and error_answer(value) is None and not isinstance(value, Undefined):
-                    yield row_cls(_atom_from_wire(wire) for wire in row_wires)
+                    row = row_cls(_atom_from_wire(wire) for wire in row_wires)
+                    yield _AnswerItem(value, row)
                 else:
                     yield value
         finally:

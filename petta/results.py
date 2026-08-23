@@ -32,6 +32,9 @@ Guarantees:
     test_answers_are_lazy_cached_and_cardinality_aware,
     test_answers_project_caller_variables_and_slices_stay_answers;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - evaluation values and their caller-binding rows are parallel faces of one
+    Answers cursor [tested: test_calls_keep_values_and_binding_rows;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -172,6 +175,13 @@ class Row(tuple):
 
     def __reduce__(self):  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return _restore_row, (type(self)._columns, tuple(self))
+
+
+class _AnswerItem(NamedTuple):
+    """One engine answer and the caller bindings produced alongside it."""
+
+    value: Any
+    row: Row | None
 
 
 @lru_cache(maxsize=256)
@@ -663,6 +673,7 @@ class Answers[T](Sequence[T]):
         "_done",
         "_error",
         "_lock",
+        "_row_cache",
         "_source",
         "_space",
         "_target",
@@ -681,6 +692,7 @@ class Answers[T](Sequence[T]):
         self._space = space
         self._target = target
         self._cache: list[T] = []
+        self._row_cache: list[Row | None] = []
         self._done = False
         self._error: Exception | None = None
         self._lock = threading.RLock()
@@ -695,7 +707,13 @@ class Answers[T](Sequence[T]):
         with self._lock:
             while len(self._cache) <= index and not self._done:
                 try:
-                    self._cache.append(next(self._source))
+                    item = next(self._source)
+                    if isinstance(item, _AnswerItem):
+                        self._cache.append(item.value)
+                        self._row_cache.append(item.row)
+                    else:
+                        self._cache.append(item)
+                        self._row_cache.append(None)
                 except StopIteration:
                     self._done = True
                 except Exception as exc:  # noqa: BLE001 -- replay requires caching the source's terminal failure unchanged
@@ -765,14 +783,20 @@ class Answers[T](Sequence[T]):
                 value is not None and value < 0
                 for value in (window.start, window.stop, window.step)
             ):
-                yield from self._materialize()[window]
+                self._materialize()
+                for index in range(len(self._cache))[window]:
+                    yield _AnswerItem(self._cache[index], self._row_cache[index])
                 return
-            yield from itertools.islice(
-                self,
+            indices = itertools.islice(
+                itertools.count(),
                 window.start or 0,
                 window.stop,
                 window.step or 1,
             )
+            for index in indices:
+                if not self._pull(index):
+                    return
+                yield _AnswerItem(self._cache[index], self._row_cache[index])
 
         return Answers(
             selected(), columns=self._columns, space=self._space, target=self._target
@@ -785,13 +809,35 @@ class Answers[T](Sequence[T]):
         index = self._columns.index(name)
 
         def values() -> Iterator[Any]:
-            for answer in self:
-                if not isinstance(answer, Row):
-                    msg = f"answer {answer!r} carries no variable row for {name!r}"
+            position = 0
+            while self._pull(position):
+                row = self._row_cache[position]
+                if row is None:
+                    msg = (
+                        f"answer {self._cache[position]!r} carries no variable "
+                        f"row for {name!r}"
+                    )
                     raise TypeError(msg)
-                yield answer[index]
+                yield row[index]
+                position += 1
 
         return Answers(values(), space=self._space, target=self._target)
+
+    @property
+    def rows(self) -> Answers[Row]:
+        """The caller-binding row paired with each evaluation answer."""
+
+        def values() -> Iterator[Row]:
+            position = 0
+            while self._pull(position):
+                row = self._row_cache[position]
+                if row is None:
+                    msg = f"answer {self._cache[position]!r} carries no variable row"
+                    raise TypeError(msg)
+                yield row
+                position += 1
+
+        return Answers(values(), columns=self._columns, space=self._space, target=self._target)
 
     def __getattr__(self, name: str) -> Answers[Any]:  # noqa: D105 -- projection is documented by the type
         return self._project(name)
