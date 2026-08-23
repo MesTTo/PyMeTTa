@@ -8,6 +8,7 @@ Guarantees:
 
 
 def test_generation_tracks_definitions_but_not_evaluation(metta):
+    """Advance on a definition and remain stable across plain evaluation."""
     before = metta.runtime.once("petta_py_function_generation(G)")["G"]
     metta.run("(= (p14-python-generation $x) $x)")
     defined = metta.runtime.once("petta_py_function_generation(G)")["G"]

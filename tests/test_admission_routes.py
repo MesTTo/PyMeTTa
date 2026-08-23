@@ -17,6 +17,7 @@ from petta.errors import EngineError
 
 
 def test_public_space_add_observes_every_pre_add_verdict(metta):
+    """Exercise all four admission verdicts through the public write door."""
     suffix = uuid.uuid4().hex[:8]
     guard = f"route-guard-{suffix}"
     pool = metta._new_space()

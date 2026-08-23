@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import math
 
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from petta import Expression, S, Symbol, ground
-
 
 SCALARS = st.one_of(
     st.none(),

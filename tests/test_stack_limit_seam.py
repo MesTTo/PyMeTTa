@@ -8,6 +8,7 @@ Guarantees:
 
 
 def test_janus_stack_scope_restores_on_all_exits(metta):
+    """Restore the calling thread's exact stack ceiling on every exit."""
     runtime = metta.runtime
     success = runtime.once(
         "current_prolog_flag(stack_limit, Before), "
