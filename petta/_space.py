@@ -56,6 +56,12 @@ Guarantees:
   - Expression recognizes Space as the one iterable Handle whose listing is
     collected as an assembly-order snapshot [tested:
     test_expression_of_a_space_is_an_assembly_order_snapshot; commit=WORKTREE]
+  - native iteration snapshots assembly order at iterator creation, handles
+    stay truthy independently of contents, and provider length requires its
+    Sized declaration [tested:
+    test_native_iteration_snapshots_before_mutation,
+    test_space_truth_does_not_ask_for_emptiness,
+    test_provider_length_requires_and_uses_sized; commit=WORKTREE]
   - ``Space.limits(stack=bytes)`` scopes a positive stack byte count beside
     time and inference bounds [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=WORKTREE]
@@ -1214,6 +1220,9 @@ class Space(Handle):
         return str(value)
 
     def __len__(self) -> int:
+        provider_length = _satellite("foreign")._provider_length(self._space)
+        if provider_length is not None:
+            return provider_length
         row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
@@ -1222,7 +1231,8 @@ class Space(Handle):
         dwindles. Without this, bool() falls through to __len__ and an
         empty space is falsy, so `if space:` skips a perfectly good empty
         space, the bug class that made datetime stop treating midnight as
-        false in 3.5.
+        false in 3.5. Existence is an ask: use
+        ``bool(space.query(V.x))`` rather than ``bool(space)``.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return True
 
@@ -1312,7 +1322,15 @@ class Space(Handle):
         return self
 
     def __iter__(self):
-        """Iterate the stored atoms: for atom in m."""
+        """Iterate one assembly-order snapshot of the stored atoms.
+
+        A native or inherited-native space materializes its readable chain
+        when ``iter(space)`` is called, so later additions and removals do not
+        alter that iterator. A Python-backed space likewise materializes its
+        provider's ``atoms()`` result before returning the iterator; the
+        provider owns and must document how concurrent mutation behaves while
+        that one enumeration itself is being produced.
+        """
         return iter(self.atoms())
 
     def __getitem__(self, i: Any) -> Rows:
