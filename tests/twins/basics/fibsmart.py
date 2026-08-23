@@ -6,12 +6,12 @@ how a compiled body reaches a name Python's grammar will not spell.
 Python identifier carries a hyphen. `fib`'s body has to CALL it, and a
 compiled body resolves a free name through the descent ladder: rung 4 asks
 for the exact spelling and then for its underscore-to-hyphen image, so a bare
-`fib_tr(...)` would reach `fib-tr`. It does not here, because this file binds
-the Python name `fib_tr` to the decorated function, and a host binding of
-that spelling deliberately blocks the mapped fallback rather than crossing
-the quotation boundary by surprise. So the call descends one more rung, to
-the quoted-name escape `S["fib-tr"]`, which is exactly what rung 5 is for and
-which stores the original's own equation.
+`fib_tr(...)` would reach `fib-tr`. It does not here, and the comment on the
+second definition says why and what it costs: the block that stops a host
+object from being mistaken for an engine function also stops a bound
+definition from being recognized as one. So the call descends one more rung,
+to the quoted-name escape `S["fib-tr"]`, which stores the original's own
+equation either way.
 
 `fib-tr`'s stored body differs from the original's in one place: a compiled
 body's `==` lowers to the prelude's `py-eq` where the original writes MeTTa's
