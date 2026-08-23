@@ -6,6 +6,15 @@ Open Obligations:
   Future Enhancements: None
 """
 
+# The twins are programs the coverage lane runs, not test modules; five of
+# them carry example-derived names pytest would otherwise import at
+# collection (test_datetime, test_string_comments, and kin). Ignoring the
+# directory here is the one general fix a per-file rename cannot be: the
+# lane derives each twin's path from its example's, so a twin renamed alone
+# becomes an orphan the corpus check rejects.
+collect_ignore = ["twins"]
+
+
 import importlib
 import os
 import sys
