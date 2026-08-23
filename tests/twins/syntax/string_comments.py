@@ -1,4 +1,4 @@
-"""Purpose: examples/syntax/test_string_comments.metta in Python: `;` inside a string.
+"""Purpose: examples/syntax/string_comments.metta in Python: `;` inside a string.
 
 The original is a READER test: a semicolon inside a string starts no comment, a
 lone `(` or `)` is a string rather than a paren, and a backslash escape
@@ -16,7 +16,7 @@ below `@m.define`: its body is the lowercase symbol `result`, and a compiled
 body reads a lowercase free name as a CALL, so the symbol has no decorator
 spelling (residue, P14.4).
 
-The file keeps its example-derived name, `test_string_comments.py`, because the
+The file keeps its example-derived name, `string_comments.py`, because the
 lane derives a twin's path from its example's; the pytest collection it invites
 is the integrator's to configure, not this file's to rename around.
 """

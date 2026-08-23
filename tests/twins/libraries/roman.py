@@ -1,4 +1,4 @@
-"""Purpose: examples/libraries/roman_test.metta in Python: lib_roman, walked end to end.
+"""Purpose: examples/libraries/roman.metta in Python: lib_roman, walked end to end.
 
 Every claim here is about a lib_roman function, so every one names it. Three
 families: the higher-order maps and folds, the nine set operations whose names

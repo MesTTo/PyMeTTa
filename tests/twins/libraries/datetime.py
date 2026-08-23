@@ -1,4 +1,4 @@
-"""examples/libraries/test_datetime.metta in Python: clocks and calendars.
+"""examples/libraries/datetime.metta in Python: clocks and calendars.
 
 `now`, `day-of-week` and `format-date` are lib_datetime's own and the subject
 of the file, so the twin names them. Everything around them is Python: the

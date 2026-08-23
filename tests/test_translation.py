@@ -120,7 +120,7 @@ DERIVED_FORMS = {
 DERIVED_FORM_SITES = [
     ("examples/control/and_then_or_else.metta", "examples/control/and_then_or_else.metta"),
     ("examples/data/streamops.metta", "examples/data/streamops.metta"),
-    ("lib/lib_roman.metta", "examples/libraries/roman_test.metta"),
+    ("lib/lib_roman.metta", "examples/libraries/roman.metta"),
     ("lib/lib_pln.metta", "examples/reasoning/pln_direct.metta"),
     ("lib/lib_nars.metta", "examples/reasoning/nars_direct.metta"),
 ]

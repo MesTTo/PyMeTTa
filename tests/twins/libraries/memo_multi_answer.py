@@ -1,4 +1,4 @@
-"""examples/libraries/test_memo_multi_answer.metta in Python: caching a function that answers twice.
+"""examples/libraries/memo_multi_answer.metta in Python: caching a function that answers twice.
 
 Two equations share one head, so they are two ALTERNATIVES rather than a
 redefinition, and `@rules` is the door that says that: the generator's

@@ -1,4 +1,4 @@
-"""examples/libraries/test_memo_per_arity.metta in Python: memoizing one arity of a name.
+"""examples/libraries/memo_per_arity.metta in Python: memoizing one arity of a name.
 
 `add` carries two arities, and `memoize add 2` caches only the two-argument
 one. The two clauses are STACKED decorations of one MeTTa name, which the

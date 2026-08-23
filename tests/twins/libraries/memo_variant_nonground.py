@@ -1,4 +1,4 @@
-"""examples/libraries/test_memo_variant_nonground.metta in Python: keying on structure.
+"""examples/libraries/memo_variant_nonground.metta in Python: keying on structure.
 
 `shape-kind` answers `pair` for anything shaped like a Pair, whatever the
 variable inside is called, so two non-ground calls that differ only in variable

@@ -1,4 +1,4 @@
-"""examples/libraries/test_memo_stats.metta in Python: one miss, then two hits.
+"""examples/libraries/memo_stats.metta in Python: one miss, then two hits.
 
 `sq` is an ordinary compiled definition and `memoize` is lib_memo's own
 declaration, so it stays named: caching by dependency-aware invalidation is

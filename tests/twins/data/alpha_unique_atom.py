@@ -1,4 +1,4 @@
-"""Purpose: examples/data/test_alpha_unique_atom.metta in Python: dedupe modulo renaming.
+"""Purpose: examples/data/alpha_unique_atom.metta in Python: dedupe modulo renaming.
 
 `alpha-unique-atom` drops a later element when an earlier one is the same term
 up to the names of its variables, so three links that differ only in their

@@ -1,4 +1,4 @@
-"""Purpose: examples/control/test_unify_eval_branches.metta in Python: branches evaluate.
+"""Purpose: examples/control/unify_eval_branches.metta in Python: branches evaluate.
 
 Space-based `unify` evaluates the branch it selects, both of them. Without
 that, the then branch of a matched case would answer `(+ 1 2)` instead of 3,
@@ -32,7 +32,7 @@ from petta import Expression, S, ground
 # transform from the example's path, and `orphans()` reports any .py under
 # `twins/` that no example derives, which `test_the_twin_set_is_derived_from_
 # the_one_corpus` asserts is empty. So renaming this file alone makes the lane
-# exit 2 on `examples/control/test_unify_eval_branches.metta` and turns that
+# exit 2 on `examples/control/unify_eval_branches.metta` and turns that
 # gate test red, and a `conftest.py` beside it would itself be an orphan. The
 # fix is one of two things the integrator owns: rename the EXAMPLE and this
 # file together, updating `tests/check_upstream_parity.py` and

@@ -1,4 +1,4 @@
-"""Purpose: examples/libraries/patrick_test.metta in Python: as-patterns, comprehension, and a lambda.
+"""Purpose: examples/libraries/patrick.metta in Python: as-patterns, comprehension, and a lambda.
 
 Three of lib_patrick's own forms, so all three stay named.
 

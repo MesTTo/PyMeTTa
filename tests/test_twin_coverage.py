@@ -966,7 +966,7 @@ def test_an_engine_function_may_be_named_with_an_ampersand(tmp_path):
 
     The combinator library ships functions called `&&&` and `&^&`, so reading
     every ampersand-prefixed factory name as a space would report two correct
-    lines in `libraries/roman_test.py` alone.
+    lines in `libraries/roman.py` alone.
     """
     planted = tmp_path / "planted.py"
     planted.write_text(

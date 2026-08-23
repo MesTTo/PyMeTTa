@@ -1,4 +1,4 @@
-"""examples/libraries/test_memo_aggregate.metta in Python: the one claim Python cannot make.
+"""examples/libraries/memo_aggregate.metta in Python: the one claim Python cannot make.
 
 `(config-memoize (aggregate sum))` folds a ground call's answers into one
 cached value, so `(choices 5)` answers 18 rather than 5, 6 and 7. The folding

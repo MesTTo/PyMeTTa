@@ -1,9 +1,9 @@
-"""examples/libraries/test_memo_dependency_invalidation.metta in Python: cache, then hit.
+"""examples/libraries/memo_dependency_invalidation.metta in Python: cache, then hit.
 
 Two claims over one memoized definition. `double` is compiled from Python and
 `memoize` is lib_memo's declaration, which stays named.
 
-The same divergence test_memo_stats records applies: a memoized function called
+The same divergence memo_stats records applies: a memoized function called
 from Python does not reach the dispatch hook, so the second call recomputes
 rather than hitting. Both claims hold either way.
 """

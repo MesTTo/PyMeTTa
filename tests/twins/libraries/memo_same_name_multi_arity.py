@@ -1,9 +1,9 @@
-"""examples/libraries/test_memo_same_name_multi_arity.metta in Python: two arities, cached apart.
+"""examples/libraries/memo_same_name_multi_arity.metta in Python: two arities, cached apart.
 
 `mix` answers at one and at two arguments, and each arity carries its own
 cache: memoizing one leaves the other alone, which is what `is-memoized`
 reports here five times. The two clauses are STACKED decorations of one MeTTa
-name, dispatched by arity, for the reason test_memo_per_arity gives.
+name, dispatched by arity, for the reason memo_per_arity gives.
 
 `is-memoized` answers a boolean, so the claims compare against `[True]` and
 `[False]` rather than against the symbols the example prints.

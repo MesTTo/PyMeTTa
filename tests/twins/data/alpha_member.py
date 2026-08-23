@@ -1,4 +1,4 @@
-"""Purpose: examples/data/is_alpha_member_test.metta in Python: membership modulo renaming.
+"""Purpose: examples/data/alpha_member.metta in Python: membership modulo renaming.
 
 `is-alpha-member` asks whether a list holds a term that is the same as the one
 you have UP TO the names of its variables, so `(f $x)` is a member of

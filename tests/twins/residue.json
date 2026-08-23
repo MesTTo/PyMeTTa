@@ -9,16 +9,16 @@
   "entries": [
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_aggregate.metta",
+      "example": "examples/libraries/memo_aggregate.metta",
       "form": null,
       "missing": "a Python batch door that installs equations before an earlier memoize runnable executes",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "The file loader precompiles equations before runnable forms. Six memo examples require the twin to reorder atom insertion ahead of memoize: test_memo_aggregate, test_memo_dependency_invalidation, test_memo_multi_answer, test_memo_per_arity, test_memo_stats and test_memo_variant_nonground."
+      "detail": "The file loader precompiles equations before runnable forms. Six memo examples require the twin to reorder atom insertion ahead of memoize: memo_aggregate, memo_dependency_invalidation, memo_multi_answer, memo_per_arity, memo_stats and memo_variant_nonground."
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_variant_nonground.metta",
+      "example": "examples/libraries/memo_variant_nonground.metta",
       "form": null,
       "missing": "a head pattern that is not a literal, so (f (Pair $x $y)) has no decorator spelling",
       "row": "P14.4",
@@ -45,7 +45,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_variant_nonground.metta",
+      "example": "examples/libraries/memo_variant_nonground.metta",
       "form": null,
       "missing": "a lowercase symbol as data inside a compiled body",
       "row": "P14.4",
@@ -63,21 +63,21 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_multi_answer.metta",
+      "example": "examples/libraries/memo_multi_answer.metta",
       "form": null,
       "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what test_memo_multi_answer and test_memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
+      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_aggregate.metta",
+      "example": "examples/libraries/memo_aggregate.metta",
       "form": null,
       "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what test_memo_multi_answer and test_memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
+      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
     },
     {
       "kind": "friction",
@@ -86,7 +86,7 @@
       "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what test_memo_multi_answer and test_memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
+      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
     },
     {
       "kind": "friction",
@@ -153,7 +153,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/patrick_test.metta",
+      "example": "examples/libraries/patrick.metta",
       "form": null,
       "missing": "an as-pattern as a let PATTERN",
       "row": "P14.4",
@@ -189,7 +189,7 @@
     },
     {
       "kind": "declined",
-      "example": "examples/libraries/test_memo_aggregate.metta",
+      "example": "examples/libraries/memo_aggregate.metta",
       "form": 3,
       "missing": "a memoized call that reaches lib_memo's cache from Python, which is where (aggregate sum) folds",
       "row": "P14.13",
@@ -198,12 +198,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_stats.metta",
+      "example": "examples/libraries/memo_stats.metta",
       "form": null,
       "missing": "a Python evaluation door that reaches lib_memo's dispatch hook",
       "row": "P14.13",
       "section": "correction to §9j: the library catalogue's caching entry",
-      "detail": "A memoized function is not cached when called through m.eval, and therefore through every door over it: the function namespace, the answer view's scalar doors, and calling a Defined. Reproduction in ai-tmp/idiomb-memoize-repro.py: with (= (sq $x) (* $x $x)) and !(memoize sq) both written by a loaded file, two calls from Python answer ((cache_hit 0) (cache_miss 0)), an empty get-memoize-stats, while two ! forms in a loaded file answer ((cache_hit 1) (cache_miss 1)); is-memoized answers true in both. lib_tabling does NOT share this: @m.cache on fib(30) costs less than the .metta original, which an untabled fib could not do. Eight files in libraries/ are affected (the seven test_memo_* and memo_spaces); seven of them state claims whose answers are the same cached or not, and test_memo_aggregate's is not, which is its own declined entry. One further observable: memoize recompiles by removing each equation and adding it back, which REVERSES the order two clauses answer in, so test_memo_multi_answer compares a sorted multiset."
+      "detail": "A memoized function is not cached when called through m.eval, and therefore through every door over it: the function namespace, the answer view's scalar doors, and calling a Defined. Reproduction in ai-tmp/idiomb-memoize-repro.py: with (= (sq $x) (* $x $x)) and !(memoize sq) both written by a loaded file, two calls from Python answer ((cache_hit 0) (cache_miss 0)), an empty get-memoize-stats, while two ! forms in a loaded file answer ((cache_hit 1) (cache_miss 1)); is-memoized answers true in both. lib_tabling does NOT share this: @m.cache on fib(30) costs less than the .metta original, which an untabled fib could not do. Eight files in libraries/ are affected (the seven test_memo_* and memo_spaces); seven of them state claims whose answers are the same cached or not, and memo_aggregate's is not, which is its own declined entry. One further observable: memoize recompiles by removing each equation and adding it back, which REVERSES the order two clauses answer in, so memo_multi_answer compares a sorted multiset."
     },
     {
       "kind": "friction",
@@ -234,7 +234,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_aggregate.metta",
+      "example": "examples/libraries/memo_aggregate.metta",
       "form": null,
       "missing": "a call made for its EFFECT, where creating the answer view performs no engine work",
       "row": "P14.7",
@@ -248,7 +248,7 @@
       "missing": "a call made for its EFFECT, where creating the answer view performs no engine work",
       "row": "P14.7",
       "section": "correction to §9f the answer container: laziness is silent at a declaration",
-      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). As for test_memo_aggregate: fix 1 covers bang names only, and neither `table-stats` nor a tabled reader carries one, so `list(reach(S.a, V.y))` is still what forces the call the counters are about."
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). As for memo_aggregate: fix 1 covers bang names only, and neither `table-stats` nor a tabled reader carries one, so `list(reach(S.a, V.y))` is still what forces the call the counters are about."
     },
     {
       "kind": "friction",
@@ -1035,7 +1035,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/syntax/test_string_comments.metta",
+      "example": "examples/syntax/string_comments.metta",
       "form": null,
       "missing": "a lowercase symbol as data inside a compiled body",
       "row": "P14.4",
@@ -1094,7 +1094,7 @@
       "missing": "a Python batch door that installs equations before an earlier memoize runnable executes",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "The example writes !(memoize energy) fourth and (= (energy ...)) fifth, and the file loader registers a file's function names before it runs the file's ! forms, so memoize finds energy. A Python program has no such pre-pass: m.eval(S.memoize(S.energy)) on an undefined name raises `Domain error: function_symbol expected`. The twin therefore writes @m.define first, out of the example's order. Same friction as examples/libraries/test_memo_aggregate.metta."
+      "detail": "The example writes !(memoize energy) fourth and (= (energy ...)) fifth, and the file loader registers a file's function names before it runs the file's ! forms, so memoize finds energy. A Python program has no such pre-pass: m.eval(S.memoize(S.energy)) on an undefined name raises `Domain error: function_symbol expected`. The twin therefore writes @m.define first, out of the example's order. Same friction as examples/libraries/memo_aggregate.metta."
     },
     {
       "kind": "friction",
@@ -2259,7 +2259,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/data/is_alpha_member_test.metta",
+      "example": "examples/data/alpha_member.metta",
       "form": null,
       "missing": "a call door that answers a VALUE when its term also carries variables",
       "row": "P14.7",
@@ -4635,7 +4635,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_per_arity.metta",
+      "example": "examples/libraries/memo_per_arity.metta",
       "form": null,
       "missing": "two arities under one MeTTa name; the second @m.define raises IndexError",
       "row": "P14.4",
@@ -4645,13 +4645,13 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_same_name_multi_arity.metta",
+      "example": "examples/libraries/memo_same_name_multi_arity.metta",
       "form": null,
       "missing": "two arities under one MeTTa name; the second @m.define raises IndexError",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
       "detail": "AS FILED, superseded by the retirement line below. DEFECT, not only a gap. @m.define(name='add') for (add $x $y) and then for (add $x $y $z) raises IndexError: list assignment index out of range at _define_twins.replace_twin_clause line 229, re-measured 2026-08-23 on this branch. The clause table `earlier` is keyed by the MeTTa name and both clauses carry no literal head patterns, so _locate_clause answers replaced=0; the twin dispatcher is keyed by (id(fn.__globals__), PYTHON function name), so the second decoration addresses position 0 of a dispatcher that has no clauses yet. Reusing the same Python name avoids the crash but then REPLACES the first arity, so neither route defines two arities. Both twins now write both arities through R3's @rules bundle, which lands them in one write; the decorator door is still the one that crashes.",
-      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 6, as for test_memo_per_arity; the twin stacks two @m.define decorations of `mix`"
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 6, as for memo_per_arity; the twin stacks two @m.define decorations of `mix`"
     },
     {
       "kind": "friction",
@@ -4665,7 +4665,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/roman_test.metta",
+      "example": "examples/libraries/roman.metta",
       "form": null,
       "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
       "row": "P14.7",
@@ -4715,7 +4715,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/patrick_test.metta",
+      "example": "examples/libraries/patrick.metta",
       "form": null,
       "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
       "row": "P14.7",
@@ -4725,7 +4725,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/test_memo_variant_nonground.metta",
+      "example": "examples/libraries/memo_variant_nonground.metta",
       "form": null,
       "missing": "a call whose ARGUMENT carries a variable, where the answer view answers the term rather than a binding row",
       "row": "P14.7",
@@ -4835,7 +4835,7 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/roman_test.metta",
+      "example": "examples/libraries/roman.metta",
       "form": null,
       "missing": "a solve whose PATTERN wins the variables, which is the guide's own first exemplar",
       "row": "P14.4",
