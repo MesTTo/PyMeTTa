@@ -23,7 +23,7 @@ from petta import Expression, S, V, fn
 #: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 186644, maximum 186685 over
 #: 28 observations under `full-lane/218/workers=32`, so the re-pin owes it an
 #: envelope rather than a point
-#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
 BUDGET = 1
 
 
