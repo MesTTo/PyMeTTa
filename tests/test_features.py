@@ -563,7 +563,7 @@ def test_space_iterates_and_subtracts(m):  # noqa: D103  -- pytest discovers or 
 
 def test_atoms_destructure_with_match_statements(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.likes(S.cat, 9))
-    (atom,) = m.query(V.a)["a"]
+    (atom,) = m.query(V.a).a
     match atom:
         case Expression([Symbol("likes"), Symbol(who), Grounded(count)]):
             assert who == "cat" and count == 9
