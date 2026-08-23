@@ -27,6 +27,9 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=WORKTREE]
+  - handle-level Linda waits load their support into the default caller space,
+    never into a distinct waited-on space [tested:
+    test_peek_does_not_import_linda_into_the_waited_space; commit=WORKTREE]
   - ``Space.query``, every ``declare_*`` verb, and the write door retain their
     established semantics after moving off ``MeTTa`` [tested:
     test_query_surfaces_share_column_order,
@@ -1001,11 +1004,16 @@ class Space(Handle):
         ):
             msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
             raise ValueError(msg)
-        self.eval(
+        caller = (
+            self
+            if self._space == _DEFAULT_SPACE
+            else Space(_DEFAULT_SPACE, _runtime=self._rt)
+        )
+        caller.eval(
             Expression(
                 [
                     Symbol("import!"),
-                    self,
+                    caller,
                     Expression([Symbol("library"), Symbol("lib_thread")]),
                 ]
             )

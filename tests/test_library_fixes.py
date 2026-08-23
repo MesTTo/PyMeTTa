@@ -41,6 +41,9 @@ Guarantees:
   - relational solve returns variables introduced by either its winning
     pattern or its producing subject [tested:
     test_solve_projects_variables_from_the_winning_pattern; commit=WORKTREE]
+  - waiting on a space loads Linda support in the caller context without
+    adding library definitions to the waited-on space [tested:
+    test_peek_does_not_import_linda_into_the_waited_space; commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -294,3 +297,13 @@ def test_solve_projects_variables_from_the_winning_pattern() -> None:
     solved = target.solve(S["libfix-solved"](V.value), S["libfix-solved"](42))
 
     assert solved.value == G(42)
+
+
+def test_peek_does_not_import_linda_into_the_waited_space() -> None:
+    """The target keeps only its own facts after a handle-level wait."""
+    mailbox = space()
+    message = S["libfix-mail"](1)
+    mailbox += message
+
+    assert mailbox.peek(S["libfix-mail"](V.value), deadline=0.1) == message
+    assert mailbox.atoms() == [message]
