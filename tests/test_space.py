@@ -784,7 +784,7 @@ def test_an_unknown_column_names_the_columns_that_exist(m):  # noqa: D103  -- py
     m.add(S.p(S.a))
     rows = m.query(S.p(V.who))
     with pytest.raises(AttributeError, match="did you mean 'who'"):
-        rows.wh
+        _ = rows.wh
 
 
 @pytest.mark.parametrize(
