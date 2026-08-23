@@ -47,6 +47,9 @@ Guarantees:
   - compiled match accepts a captured or parameter-carried Space handle as
     its space operand [tested: test_compiled_match_accepts_space_handles;
     commit=WORKTREE]
+  - state cells are shared by eager evaluation and held answer engines in
+    both directions [tested: test_state_cells_are_shared_across_answer_engines;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -333,3 +336,15 @@ def test_compiled_match_accepts_space_handles() -> None:
     assert captured_handle_match().one() == 42
     assert parameter_handle_match(facts).one() == 42
     assert carry_handle().one() == facts
+
+
+def test_state_cells_are_shared_across_answer_engines() -> None:
+    """A write through either evaluation door is visible through the other."""
+    target = space()
+    cell = target.eval(S["new-state"](S.rest))[0]
+
+    assert target.answers(S["change-state!"](cell, S.active)).one() == cell
+    assert target.eval(S["get-state"](cell)) == [S.active]
+
+    assert target.eval(S["change-state!"](cell, S.rest)) == [cell]
+    assert target.answers(S["get-state"](cell)).one() == S.rest
