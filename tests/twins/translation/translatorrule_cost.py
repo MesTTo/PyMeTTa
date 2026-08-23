@@ -14,46 +14,47 @@ Open Obligations:
 
 from petta import Expression, S, V, equation
 
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 6308..6333 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 6308,
-    "maximum": 6333,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Register the costed and conjunctive rules, then exercise every case."""
-    add_rule = m.fn("add-translator-rule!")
-
     m += S[":"](S.pow2, S["->"](S.Atom, S["%Undefined%"]))
     m += equation(S.pow2(V.x)).to(S.noeval(S.mul(V.x, V.x)))
-    add_rule(
+    # Known issue: a call through the function namespace answers a LAZY view,
+    # so the perfect statement-level spelling of a directive,
+    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
+    # its answers [measured 2026-08-23: the rule fires only after list() of the
+    # view]. The term door evaluates eagerly, so a directive is written that
+    # way until a side-effecting call runs at statement level.
+    m.eval(S["add-translator-rule!"](
         S.pow2,
         Expression((S.direction(S.bidirectional), S.cost(10))),
-    )
+    ))
 
-    assert m.eval(S.pow2(3)) == [S.mul(3, 3)]
+    assert m.fn.pow2(3).one() == S.mul(3, 3)
 
     large = S.a(S.b, S.c, S.d, S.e, S.f, S.g, S.h, S.i, S.j)
-    assert m.eval(S.mul(large, large)) == [S.pow2(large)]
+    assert m.fn.mul(large, large).one() == S.pow2(large)
 
     m += S.unit(S.mass, S.kg)
     m += S.unit(S.length, S.m)
     m += S[":"](S["unit-of"], S["->"](S.Atom, S["%Undefined%"]))
 
     conjuncts = Expression((S["unit-of"](V.q), S.unit(V.q, V.u)))
-    add_rule(
+    m.eval(S["add-translator-rule!"](
         S["unit-of"],
         Expression((S.left(conjuncts), S.right(S["in"](V.u)))),
-    )
+    ))
 
-    assert m.eval(S["unit-of"](S.mass)) == [S["in"](S.kg)]
-    assert m.eval(S["unit-of"](S.length)) == [S["in"](S.m)]
-    assert m.eval(S["unit-of"](S.time)) == []
+    assert m.fn.unit_of(S.mass).one() == S["in"](S.kg)
+    assert m.fn.unit_of(S.length).one() == S["in"](S.m)
+    assert m.fn.unit_of(S.time) == []
 
     compiled = m[equation(S["unit-of"](V.q)).to(V.body)]
     assert [row.body[0] for row in compiled] == [S.match]

@@ -248,7 +248,7 @@
       "missing": "cross-form bind! tokens through repeated m.eval calls",
       "row": "P14.15",
       "section": "\u00a79i the extension seams",
-      "detail": "The twin uses native Python imports and val(np.object) to carry NumPy callables and the submodule without strings. The file reader's bind! tokens do not persist across separate m.eval calls, so Python variables hold those objects instead."
+      "detail": "The twin uses native Python imports and `ground(np.absolute)` to carry NumPy callables and the submodule without strings. The file reader's bind! tokens do not persist across separate `m.eval` calls, so Python variables hold those objects instead. (Re-measured 2026-08-23 on the narrow core, where `val` is `ground`.)"
     },
     {
       "kind": "declined",
@@ -1881,15 +1881,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/integration/py_numpy.metta",
-      "form": null,
-      "missing": "a symbol whose name begins with `__` through the S factory",
-      "row": "P14.5",
-      "section": "\u00a79d terminology and the factory doors",
-      "detail": "py-dot reaches __class__ and __name__, and S.__class__ raises AttributeError because _atom_namespace refuses every name starting with `__`; the SUBSCRIPT door forwards to the same guard, so S[\"__class__\"] raises too. The twin reaches them through sym(...). examples/reasoning/permutations.metta needs the same escape for `___`."
-    },
-    {
-      "kind": "friction",
       "example": "examples/integration/c_extension/handle.metta",
       "form": null,
       "missing": "a compiled body naming a hyphenated C-backed function",
@@ -2165,7 +2156,7 @@
       "missing": "a Python declaration door for the rewrite seam",
       "row": "P14.10",
       "section": "\u00a79i: the rewrite seam's one door, a lowering is a declaration",
-      "detail": "Registering a translator rule is `m.fn('add-translator-rule!')(S.name)` in all six twins of this folder that use one. The design's own spelling is a declaration on the rule object, rule.lower(...), emitting the (lowering <rule> <strategy> (requires ...)) atom the seam reads, so registration is queryable knowledge rather than an evaluated call. Nothing is unreachable; the door is the engine function under its MeTTa name."
+      "detail": "Registering a translator rule is `m.eval(S[\"add-translator-rule!\"](S.name))` in all six twins of this folder that use one. The design's own spelling is a declaration on the rule object, `rule.lower(...)`, emitting the `(lowering <rule> <strategy> (requires ...))` atom the seam reads, so registration is queryable knowledge rather than an evaluated call. Nothing is unreachable; the door is the engine function under its MeTTa name. Note the sibling entry filed 2026-08-23: the call door cannot carry this either, because a call through the function namespace answers a LAZY view and registers nothing until pulled."
     },
     {
       "kind": "friction",
@@ -2579,16 +2570,7 @@
       "missing": "the iterable write door: space += <iterable of atoms> as the fact-stream pipe",
       "row": "P14.25",
       "section": "\u00a79f input tuples against output Answers (the pipe: kb += (t for t in source()))",
-      "detail": "The ledger's generative principle is that \"ANYTHING THAT YIELDS TUPLES IS A FACT STREAM\", written `kb += (t for t in source())` and `kb += db.execute(...)`. The door is not open: measured 2026-08-22, `m += (generator)` raises \"a stored atom is a non-empty expression; Gnd(<generator>) is Grounded\", and `m += [S.p(1), S.p(2)]` stores the LIST as one atom, after which `m[S.p(V.x)]` answers nothing, which is the worse of the two failures because it is silent. `m.add(*rows)` works and is what this twin uses for its eight facts. A single atom and an iterable of atoms are distinguishable at the door (an Atom is not an iterable of Atoms), so `+=` can carry both."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/data/foldallmatch.metta",
-      "form": null,
-      "missing": "a space handle inside a built TERM, where only the &self SYMBOL works",
-      "row": "P14.25",
-      "section": "\u00a79b space-scoped symbols (the space handle carries every context-relative door)",
-      "detail": "`foldall` enumerates its generator itself, so the generator has to reach it as a TERM and the space has to sit inside that term. Every context-relative door hangs off the handle by design, and the handle does not encode into a term: measured 2026-08-22, `m.eval(S.foldall(S[\"+\"], S.match(m, S.kb(V.n), V.n + 1), 0))` and the same with `m.space(\"&self\")` both fail inside `+` (the match never runs, so the addition meets two unknowns), while the `S[\"&self\"]` symbol answers 5. The same shape appears in foldallspacecount and in the import! entry on types/builin_types, so it is one gap seen three times: a space needs a spelling in term position that is not its name written as a symbol."
+      "detail": "The ledger's generative principle is that \"ANYTHING THAT YIELDS TUPLES IS A FACT STREAM\", written `kb += (t for t in source())` and `kb += db.execute(...)`. The door is not open: re-measured 2026-08-23 on the narrow core, `m += (generator)` raises \"a stored atom is a non-empty expression; Grounded(<generator>) is Grounded\", and `m += [S.p(1), S.p(2)]` stores the LIST as one atom, after which `m[S.p(V.x)]` answers nothing, which is the worse of the two failures because it is silent. `m.add(*rows)` works and is what this twin uses for its eight facts. A single atom and an iterable of atoms are distinguishable at the door (an Atom is not an iterable of Atoms), so `+=` can carry both."
     },
     {
       "kind": "friction",
@@ -2597,7 +2579,7 @@
       "missing": "functools.reduce in a compiled body, where sum() already lowers to foldl-atom",
       "row": "P14.4",
       "section": "\u00a79d rule 1: map/filter/reduce for map-atom/filter-atom/foldl-atom",
-      "detail": "Three of this file's four higher-order forms are already Python syntax in the compiled subset, measured 2026-08-22: `[x + 1 for x in (1, 2, 3)]` compiles to `(map-atom (1 2 3) (|-> ($x) (+ $x 1)))`, adding an `if` compiles to a `filter-atom` inside it, and `sum((1, 2, 3, 4))` compiles to `(foldl-atom (1 2 3 4) 0 +)`. The fourth has no spelling: folding with a NAMED function is `functools.reduce(foldfun, items, 0)`, and `reduce` is neither in the compiler's Python-builtin bridge (_define_expression._PYBUILTIN_CALLS carries len, abs, min, max, sum, sorted, pow, str, repr, round, range) nor resolvable as an engine name, so `f1b` is written as the term `S[\"foldl-atom\"](expr(1, 2, 3, 4), 0, S.foldfun)` under a declared rung. Bridging `functools.reduce` to foldl-atom is the same one-spelling lowering as `sum`, with the seed as the third argument. Sibling of this example's existing entry, which files the other half of the same wall (a hyphenated engine name cannot be written in a compiled body at all); the fixes are different, one bridging a Python builtin and one admitting a name."
+      "detail": "Three of this file's four higher-order forms are already Python syntax in the compiled subset, measured 2026-08-22: `[x + 1 for x in (1, 2, 3)]` compiles to `(map-atom (1 2 3) (|-> ($x) (+ $x 1)))`, adding an `if` compiles to a `filter-atom` inside it, and `sum((1, 2, 3, 4))` compiles to `(foldl-atom (1 2 3 4) 0 +)`. The fourth has no spelling: folding with a NAMED function is `functools.reduce(foldfun, items, 0)`, and `reduce` is neither in the compiler's Python-builtin bridge (_define_expression._PYBUILTIN_CALLS carries len, abs, min, max, sum, sorted, pow, str, repr, round, range) nor resolvable as an engine name, so `f1b` is written as the term `S.foldl_atom(Expression((1, 2, 3, 4)), 0, S.foldfun)` under a declared rung. Bridging `functools.reduce` to foldl-atom is the same one-spelling lowering as `sum`, with the seed as the third argument. Sibling of this example's existing entry, which files the other half of the same wall (a hyphenated engine name cannot be written in a compiled body at all); the fixes are different, one bridging a Python builtin and one admitting a name."
     },
     {
       "kind": "friction",
@@ -2606,7 +2588,7 @@
       "missing": "a `py-call` that accepts a Python object held by a Python name",
       "row": "P14.15",
       "section": "\u00a79f host-bound operations; \u00a75 the three lanes",
-      "detail": "An object made inside the engine cannot be held by a Python name and handed back. `(py-call (types.SimpleNamespace))` answers Gnd(<SimpleNamespace>) whose `.value` IS the real object, but passing that atom, or any Python-side object through `val()`, back into `(py-call (setattr ...))` gives the callee janus's `Box` wrapper instead of the object, and setattr raises `'Box' object has no attribute 'foo'` [measured 2026-08-22 on three shapes: the engine-made namespace, a Python-made types.SimpleNamespace, and a plain class instance; all three fail identically]. So the example's three-step chain stays one `let*` term rather than three Python statements, which is the twin's one rung line."
+      "detail": "An object made inside the engine cannot be held by a Python name and handed back. `(py-call (types.SimpleNamespace))` answers Grounded(<SimpleNamespace>) whose `.value` IS the real object, but passing that atom, or any Python-side object through `ground()`, back into `(py-call (setattr ...))` gives the callee janus's `Box` wrapper instead of the object, and setattr raises `'Box' object has no attribute 'foo'` [measured 2026-08-22 on three shapes: the engine-made namespace, a Python-made types.SimpleNamespace, and a plain class instance; all three fail identically]. So the example's three-step chain stays one `let*` term rather than three Python statements, which is the twin's one rung line."
     },
     {
       "kind": "friction",
@@ -2615,88 +2597,88 @@
       "missing": "a Python view of a grounded value's own Python type, and a keyword-argument spelling for a MeTTa-side call",
       "row": "P14.15",
       "section": "\u00a79f host-bound operations",
-      "detail": "Two halves. A numpy SCALAR does not survive the crossing back into Python: inside the engine `(py-dot (np-abs -5) __class__)` says int64, which is the tutorial's own point, while `m.eval` and `m.one` both hand Python an ordinary `int` (Gnd(5), value type int), so that claim can only be asked engine-side. An ndarray DOES survive, by reference, which is why the array claim is plain `isinstance`. And `Kwargs` remains the seam's own spelling for keyword arguments in a MeTTa-side call, with no Python-authored alternative that still crosses; \u00a78c filed the design decision and nothing has landed."
+      "detail": "Two halves. A numpy SCALAR does not survive the crossing back into Python: inside the engine `(py-dot (np-abs -5) __class__)` says int64, which is the tutorial's own point, while `m.eval` and the answer view both hand Python an ordinary `int` (Grounded(5), value type int), so that claim can only be asked engine-side. An ndarray DOES survive, by reference, which is why the array claim is plain `isinstance`. And `Kwargs` remains the seam's own spelling for keyword arguments in a MeTTa-side call, with no Python-authored alternative that still crosses; \u00a78c filed the design decision and nothing has landed. (Re-measured 2026-08-23 on the narrow core.)"
     },
     {
       "kind": "friction",
       "example": "examples/integration/git_import.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "`import!` has no Python spelling. `space.load(path)` is a source door the lane refuses, and the library itself writes `Expr([Sym(\"import!\"), Sym(\"&self\"), ...])` internally (space.py _cache_define), so naming the space as a symbol is the only route. Evaluating on a named handle does NOT rebind `&self`: `m.space('&x').eval(S['import!'](S['&self'], path))` imports into `&self` [measured 2026-08-22]. Every import-bearing twin in this folder carries the same one-line rung."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
       "example": "examples/integration/import_duplicate_cycle.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta: the space is named as a symbol because no import door hangs off the handle."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
       "example": "examples/integration/import_error_surface.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta. The error ALGEBRA itself needs no Python door: `catch` answers an `(Error ...)` atom and `e[0]` reads its head at no engine cost, which is what replaced `if-error` here."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
       "example": "examples/integration/import_relative_nested.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta, beside the already-filed relative-path entry."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
       "example": "examples/integration/import_space_identity.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "The sharpest instance: every OTHER door this example needs already hangs off the handle. `bind! (new-space)` is `m.space(name)`, `(match &s p present)` is `space[p]`, and `(metta t %Undefined% &s)` is `space.eval(t)`; only `import!` still takes the space by name."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
       "example": "examples/integration/python_import.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta, beside the already-filed relative-path entry."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
       "example": "examples/integration/c_extension/c_extension.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta. The rest of this example DID dissolve: `import_prolog_functions_from_file` is `m.register_prolog(path=, names=)` and the `file-exists` guard is `Path.exists()`."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
       "example": "examples/integration/c_extension/handle.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
       "example": "examples/integration/c_space/c_space.metta",
       "form": null,
-      "missing": "an import door on the space handle, so `import!` need not name its space as a symbol",
+      "missing": "a Python import door on the space handle, and an EAGER call door for a directive",
       "row": "P14.13",
       "section": "\u00a79b the space handle carries every context-relative door",
-      "detail": "Same wall as git_import.metta. The C-backed space itself needed no rung at all: `store += atom`, `store[pattern]` and `store -= atom` are the ordinary container doors, and `(let \"cstore.pl\" (consult_global) provider)` is `m.register_prolog(path=)`."
+      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means."
     },
     {
       "kind": "friction",
@@ -2723,16 +2705,16 @@
       "missing": "a compliance kit that reaches a Prolog or C provider, not only a Python one",
       "row": "P14.15",
       "section": "\u00a79i the catalog's four doors",
-      "detail": "`petta.testing.check_space_provider(provider)` takes a Python SpaceProvider OBJECT, so the seam's own proof harness is unreachable for a provider whose clauses live in Prolog and whose store lives in C. The MeTTa door `(check-space-provider &cstore)` is the only route, and it names the space as a symbol, which is the twin's second rung line."
+      "detail": "NARROWED 2026-08-23: the half that said the MeTTa door names the space as a symbol is closed, because `check-space-provider` takes the handle (`m.answers(S[\"check-space-provider\"](store)).one()` answers the same seven lines as the symbol did, measured). What survives is that `petta.testing.check_space_provider(provider)` takes a Python `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and whose store lives in C is reachable only through the engine's own function. The twin has no rung line left; it calls the engine function like any other."
     },
     {
       "kind": "friction",
       "example": "examples/integration/c_extension/handle.metta",
       "form": null,
-      "missing": "`Handle` as a `Gnd` species, and `atom.metatype` answering the symbol rather than its name",
+      "missing": "`Handle` as a `Grounded` species, and `atom.metatype` answering the symbol rather than its name",
       "row": "P14.5",
       "section": "\u00a79d the concept map, \"the Python CLASS of an atom to its metatype\"",
-      "detail": "The design's rule is that the Python class of an atom IS its metatype, so `isinstance(a, Gnd)` should answer what `(get-metatype a)` answers. It does not for a native handle: `Handle.__mro__` is (Handle, Atom, object), `issubclass(Handle, Gnd)` is False, and the engine still says Grounded [measured 2026-08-22]. Separately `atom.metatype` answers the STRING 'Grounded' rather than `S.Grounded`, so the claim reads `vector.metatype == S.Grounded.name`."
+      "detail": "The design's rule is that the Python class of an atom IS its metatype, so `isinstance(a, Grounded)` should answer what `(get-metatype a)` answers. It does not for a native handle: `Handle.__mro__` is (Handle, Atom, object), `issubclass(Handle, Grounded)` is False, and the engine still says Grounded [re-measured 2026-08-23 on the narrow core]. Separately `atom.metatype` answers the STRING 'Grounded' rather than `S.Grounded`, so the claim reads `vector.metatype == S.Grounded.name`."
     },
     {
       "kind": "friction",
@@ -2841,6 +2823,51 @@
       "row": "P14.4",
       "section": "\u00a74 surface gaps",
       "detail": "A NEW instance of the family case2.metta states in full, created by lifting this twin to the definitional door under the authoring allowance: the inner `(if True 42 lol)` answers `lol`, written `Lol`, because a compiled body resolves a lowercase free name as a FUNCTION and a capitalised one as data. At the term door the twin wrote `S.lol` and the exact symbol; compiled, it writes `Lol` and carries a `# noqa: F821`. The gap did not grow, it moved into one more file, which is what closing the band exposes."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/translatorrule.metta",
+      "form": null,
+      "missing": "an EAGER call door, so a directive reached by name runs at statement level",
+      "row": "P14.13",
+      "section": "\u00a74 surface gaps: declarations that are directives",
+      "detail": "Measured 2026-08-23. `_EngineFunction.__call__` answers a lazy `Answers` view, and creating that view performs no engine work, so `m.fn.add_translator_rule(S.unpack)` written as a statement registers NOTHING: the control shows `(twin (a b c) (a b c))` unchanged after the call and rewritten only after `list()` of the view. The same swallows `m.fn[\"import!\"](m, target)`. Every directive in data/, integration/ and translation/ is therefore written through the eager term door, `m.eval(S[\"add-translator-rule!\"](S.unpack))`, with a comment naming the perfect spelling. The style guide's own row for `!(expr)` is \"a call at statement level\", so the fix is for a call whose answers nobody reads to still perform its effect, or for the directives to gain handle verbs."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/translation/callquoteevalreduce.metta",
+      "form": null,
+      "missing": "`<` on an atom, which the sort order has taken from the term builder",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps: operator holes",
+      "detail": "Measured 2026-08-23, a critical pair between two adopted rulings. The style guide's operator rule (3.2) says a comparison on an atom BUILDS the term, and `V.n > 3`, `V.n <= 2` and `V.n >= 2` do. `V.n < 2` raises `TypeError: '<' not supported between instances of 'Variable' and 'int'`, and `V.n < V.m` answers `False`, because R5's `Atom.__lt__` (appendix stamp 6, so `sorted(atoms)` agrees with `msort`) took `<`. The silent bool is the worse half: a guard written the ruled way answers a Python truth value instead of a term. The twin writes `S[\"<\"](V.n, 2)` under a comment naming the perfect spelling. A fix has to give the sort order a door that is not `__lt__` on the public atom, or make `__lt__` build and route `sorted` through `key=order_key`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/is_alpha_member_test.metta",
+      "form": null,
+      "missing": "a call door that answers a VALUE when its term also carries variables",
+      "row": "P14.7",
+      "section": "\u00a79d the Rows retirement; decision 11's carrier note",
+      "detail": "Measured 2026-08-23. `m.fn.<name>(...)` answers the caller's variable bindings whenever the built term holds variables: `m.fn.is_alpha_member(S.f(V.x), Expression((S.f(V.y), S.g(V.z))))` answers `Row(x=..., y=..., z=...)` and the True/False verdict is gone, while `m.eval` of the same term answers `[Grounded(True)]`. Decision 11 wants both (the value AND its bindings), and today a caller picks one door for one of them. Eleven of this file's twenty-three claims, plus every claim in data/alpha_unique_atom.py, data/atomops.py's guarded block and translation/translatepredicate.py, are written through the term door for this reason and say so."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/multiset_operations.metta",
+      "form": null,
+      "missing": "the one-iterable Expression constructor over ANY iterable, not a list or tuple",
+      "row": "P14.25",
+      "section": "\u00a79f input tuples against output Answers (the pipe: kb += (t for t in source()))",
+      "detail": "Measured 2026-08-23. `Expression(iterable)` reads a list and a tuple and wraps anything else as ONE grounded value, silently: `Expression(dict.fromkeys(items))` builds `(<dict>)`, and a generator or a `map` object builds `(<generator>)` and `(<map>)`. The twin writes `Expression(list(dict.fromkeys(items)))`. Same shape as the `+=` iterable entry on data/mettaset.metta, and the same fix decides both: a door that tells a single value from an iterable of atoms."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_space_identity.metta",
+      "form": null,
+      "missing": "a space-creation door on the handle's OWN context, not the process default",
+      "row": "P14.13",
+      "section": "\u00a79b the space handle carries every context-relative door",
+      "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `petta.space(name)`, which rides `petta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`petta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it."
     }
   ],
   "retired": [
@@ -4600,6 +4627,26 @@
       "section": "correction to the lane's determinism assumption",
       "detail": "Form 1 shares the same file-level blocker. The source cost 5,531-5,555, the faithful twin 4,190-4,206, and definition installation alone 2,971-3,007. Declining either or both forms cannot produce a stable point budget.",
       "retired": "2026-08-23: the twin declares an empirical two-sided envelope with observed extrema, successful observation count, and the full concurrent lane protocol"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/data/foldallmatch.metta",
+      "form": null,
+      "missing": "a space handle inside a built TERM, where only the &self SYMBOL works",
+      "row": "P14.25",
+      "section": "\u00a79b space-scoped symbols (the space handle carries every context-relative door)",
+      "detail": "CLOSED by R2's handle-as-operand encoding (the portable `p` wire tag). Re-measured 2026-08-23: `m.eval(S.foldall(S[\"+\"], S.match(m, S.kb(V.n), V.n + 1), 0))` answers 5, the same as the `S[\"&self\"]` symbol did, and `import!`, `metta/3` and `check-space-provider` take the handle too. No twin in data/, integration/ or translation/ names a space as a symbol any more. ORIGINAL ENTRY: `foldall` enumerates its generator itself, so the generator has to reach it as a TERM and the space has to sit inside that term. Every context-relative door hangs off the handle by design, and the handle does not encode into a term: measured 2026-08-22, `m.eval(S.foldall(S[\"+\"], S.match(m, S.kb(V.n), V.n + 1), 0))` and the same with `m.space(\"&self\")` both fail inside `+` (the match never runs, so the addition meets two unknowns), while the `S[\"&self\"]` symbol answers 5. The same shape appears in foldallspacecount and in the import! entry on types/builin_types, so it is one gap seen three times: a space needs a spelling in term position that is not its name written as a symbol.",
+      "retired": "2026-08-23"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/py_numpy.metta",
+      "form": null,
+      "missing": "a symbol whose name begins with `__` through the S factory",
+      "row": "P14.5",
+      "section": "\u00a79d terminology and the factory doors",
+      "detail": "CLOSED by R1's mention doors. Re-measured 2026-08-23: `S[\"__class__\"]` and `S[\"__name__\"]` build the symbols they name, which is rung 5 doing its job; only the ATTRIBUTE door still refuses a leading double underscore, and it must, because inside a class body Python's own compiler mangles such a name. The twin writes the brackets and needs no escape. ORIGINAL ENTRY: py-dot reaches __class__ and __name__, and S.__class__ raises AttributeError because _atom_namespace refuses every name starting with `__`; the SUBSCRIPT door forwards to the same guard, so S[\"__class__\"] raises too. The twin reaches them through sym(...). examples/reasoning/permutations.metta needs the same escape for `___`.",
+      "retired": "2026-08-23"
     }
   ]
 }

@@ -6,24 +6,23 @@ every one of them. In Python the fan-out is a comprehension over the members,
 each row a plain tuple that encodes to the expression it names, and the write
 door takes them all.
 
-`m.add(*rows)` rather than `space += rows`: a generator or list on the right of
-`+=` is stored as ONE atom today, so the iterable pipe the design names is not
-open yet (filed as friction). Reading them back is the subscript door, and the
-answers come in the order they were written.
+Known issue: the perfect spelling of the write is `space += rows`, the fact-
+stream pipe the design names ('anything that yields tuples is a fact stream').
+A LIST on the right of `+=` is stored as ONE atom instead, silently, after
+which the pattern below answers nothing; a generator raises. `m.add(*rows)`
+is written out until `+=` tells a single atom from an iterable of atoms
+[measured 2026-08-22, re-measured 2026-08-23]. Reading them back is the
+subscript door, and the answers come in the order they were written.
 """
 
 from petta import S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 3573 to 422, -3151 (-88.19%), by the twin-shape
-#: rewrite: the `test` wrapper and the `collapse` under it left the engine
-#: for `assert` over rows, and the nondeterministic construction left it
-#: entirely: `(cons set (superpose ...))` fanning out into eight atoms is a
-#: comprehension over the members, so the engine sees eight writes and one
-#: query instead of a superposed let. Against the example's 7144 the ratio is
-#: 0.0591 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/data/mettaset.metta`]. Prior: the file's first pin, uncommented.
-BUDGET = 422
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):

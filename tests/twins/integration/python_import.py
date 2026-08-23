@@ -10,33 +10,37 @@ names it: a Python string comes back from `py-call` as a SYMBOL, which is
 upstream's conversion and is exactly what the claim now says.
 
 The path is written from the repository root, because a Python program has no
-importing file to resolve a relative import against, and `import!` names its
-space as a symbol because no import door hangs off the space handle.
+importing file to resolve a relative import against: that is the residue this
+file carries. The space is the handle itself, which crosses into the built term
+as a grounded operand.
 """
 
-from petta import S, val
+from petta import S, ground
 
-#: The space the import writes, and the file it reads.
-SELF = S["&self"]  # rung: no import door hangs off the space handle
-FIXTURE = val("examples/integration/_fixtures/python_import_file.py")
+#: The file the import reads, a host path carried whole.
+FIXTURE = ground("examples/integration/_fixtures/python_import_file.py")
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 2081 to 1480, -601 (-28.9%), by the twin contract
-#: change: two `test` wrappers and a `repr` left the engine for Python's own
-#: `assert` and atom equality; the import and the two crossings did not move.
-#: Against the example's 4612 the ratio is 0.3209 [measured 2026-08-22
-#: min-of-3: `twin_coverage.py --measure
-#: examples/integration/python_import.metta`]. Prior: ADDED 2026-08-22 at 2081
-#: by the wave-3 twin baseline, which priced a transliteration.
-BUDGET = 1480
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Import a Python file, then call two of its functions."""
-    m.eval(S["import!"](SELF, FIXTURE))
+    # Known issue, two halves. `import!` has no Python door on the handle: the
+    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
+    # shipped library (appendix stamp 1), and neither exists yet. And the
+    # generic call door cannot stand in for it, because a call through the
+    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
+    # statement IMPORTS NOTHING until something pulls its answers [measured
+    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
+    # that way.
+    m.eval(S["import!"](m, FIXTURE))
 
-    py = m.fn("py-call")
-    assert py(S["python_import_file.greet"](val("PeTTa User"))) == S[
-        "Hello, PeTTa User from Python!"
-    ]
-    assert py(S["python_import_file.add"](10, 20)) == 30
+    py = m.fn.py_call
+    greeting = py(S["python_import_file.greet"](ground("PeTTa User")))
+    assert greeting.one() == S["Hello, PeTTa User from Python!"]
+    assert py(S["python_import_file.add"](10, 20)).one() == 30

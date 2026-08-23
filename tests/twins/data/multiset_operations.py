@@ -23,16 +23,12 @@ from collections import Counter
 
 from petta import Expression, S
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6152 to 4320, -1832 (-29.78%), by the twin-shape
-#: rewrite: eight `test` wrappers left the engine for `assert`, and each
-#: claim now computes its answer in Python with `collections.Counter`, which
-#: is the multiset algebra these operations implement, and holds it against
-#: the engine's own `-atom` answer. Against the example's 10222 the ratio is
-#: 0.4226 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/data/multiset_operations.metta`]. Prior: RE-PINNED at 6152 by the
-#: wave-4 idiom rewrite.
-BUDGET = 4320
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -60,24 +56,30 @@ def twin(m):
         return Expression((*left, *right))
 
     def once_each(items):
-        """Duplicates dropped, first occurrence kept: dict.fromkeys is that."""
-        return Expression(dict.fromkeys(items))
+        """Duplicates dropped, first occurrence kept: dict.fromkeys is that.
 
-    assert once_each(S.a(S.b, S.c, S.d, S.d)) == S.a(S.b, S.c, S.d) == m.fn(
-        "unique-atom")(S.a(S.b, S.c, S.d, S.d))
-    assert joined(S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d)) == S.a(
-        S.b, S.b, S.c, S.b, S.c, S.c, S.d) == m.fn("union-atom")(
-        S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d))
-    assert common(S.a(S.b, S.c, S.c), S.b(S.c, S.c, S.c, S.d)) == S.b(
-        S.c, S.c) == m.fn("intersection-atom")(
-        S.a(S.b, S.c, S.c), S.b(S.c, S.c, S.c, S.d))
-    assert without(S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d)) == S.a(
-        S.b) == m.fn("subtraction-atom")(S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d))
-    assert common(S.a(S.b, S.c, S.c), S.b(S.c, S.d)) == S.b(S.c) == m.fn(
-        "intersection-atom")(S.a(S.b, S.c, S.c), S.b(S.c, S.d))
-    assert common(S.a(S.a, S.a), S.a()) == S.a() == m.fn(
-        "intersection-atom")(S.a(S.a, S.a), S.a())
-    assert without(S.a(S.a, S.a), S.a()) == S.a(S.a) == m.fn(
-        "subtraction-atom")(S.a(S.a, S.a), S.a())
-    assert common(S.a(S.b), Expression(())) == Expression(()) == m.fn(
-        "intersection-atom")(S.a(S.b), Expression(()))
+        Known issue: `Expression(iterable)` reads a list or a tuple and wraps
+        anything else as ONE grounded value, silently, so the perfect
+        `Expression(dict.fromkeys(items))` builds `(<dict>)` and the walk
+        below sees one element. `list(...)` is written out until the one-
+        iterable constructor accepts any iterable [measured 2026-08-23: a
+        dict, a generator and a map all wrap rather than iterate].
+        """
+        return Expression(list(dict.fromkeys(items)))
+
+    repeated = S.a(S.b, S.c, S.d, S.d)
+    left, right = S.a(S.b, S.b, S.c), S.b(S.c, S.c, S.d)
+    wide, wider = S.a(S.b, S.c, S.c), S.b(S.c, S.c, S.c, S.d)
+    narrow = S.b(S.c, S.d)
+    thrice, once = S.a(S.a, S.a), S.a()
+
+    assert once_each(repeated) == m.fn.unique_atom(repeated).one() == S.a(S.b, S.c, S.d)
+    assert joined(left, right) == m.fn.union_atom(left, right).one() == S.a(
+        S.b, S.b, S.c, S.b, S.c, S.c, S.d)
+    assert common(wide, wider) == m.fn.intersection_atom(wide, wider).one() == S.b(S.c, S.c)
+    assert without(left, right) == m.fn.subtraction_atom(left, right).one() == S.a(S.b)
+    assert common(wide, narrow) == m.fn.intersection_atom(wide, narrow).one() == S.b(S.c)
+    assert common(thrice, once) == m.fn.intersection_atom(thrice, once).one() == S.a()
+    assert without(thrice, once) == m.fn.subtraction_atom(thrice, once).one() == S.a(S.a)
+    assert common(S.a(S.b), Expression(())) == m.fn.intersection_atom(
+        S.a(S.b), Expression(())).one() == Expression(())

@@ -6,9 +6,10 @@ a Python object, read and write its attributes, import a module and reach
 equations, because they are what the file is: a compiled body has no spelling
 for `py-call` (P14.4), so they are built as the terms they are.
 
-Calling them is Python's own: `m.fn(name)` reads an engine function as a
-callable, so `attribute(obj, S.foo)` is a function call and its answer is the
-value. What cannot be Python here is the SEQUENCE in the first claim, and the
+Calling them is Python's own: `m.fn.py_call` reads the seam's own function as
+an ordinary callable, the attribute door applying rung 4's hyphen map.
+
+What cannot be Python here is the SEQUENCE in the first claim, and the
 reason is measured rather than stylistic: an object made inside the engine
 cannot be held by a Python name and handed back, because `py-call` re-wraps a
 Python value it receives as an argument in janus's `Box`, so the callee gets the
@@ -18,18 +19,14 @@ one term, and the missing spelling is filed as friction.
 
 import math
 
-from petta import S, V, equation, val
+from petta import S, V, equation, ground
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 7591 to 6887, -704 (-9.27%), by the twin contract
-#: change: three `test` wrappers left the engine for Python's own `assert`, and
-#: two of the three calls became `m.fn(name)(...)`. The five equations and the
-#: `let*` chain did not move, which is why this is the smallest drop in the
-#: folder. Against the example's 14270 the ratio is 0.4826 [measured 2026-08-22
-#: min-of-3: `twin_coverage.py --measure examples/integration/python.metta`].
-#: Prior: ADDED 2026-08-22 at 7591 by the wave-3 twin baseline, which priced a
-#: transliteration.
-BUDGET = 6887
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -44,8 +41,15 @@ def twin(m):
     m += equation(S["import"](V.name)).to(S["py-call"](S["importlib.import_module"](V.name)))
     m += equation(S["math.pi"]()).to(S["get-attribute"](S["import"](S.math), S.pi))
 
-    # Make an object, give it an attribute, read the attribute back. The three
-    # steps share one term because the object cannot cross out and back in.
+    # Make an object, give it an attribute, read the attribute back.
+    #
+    # Known issue: the perfect spelling is three Python statements, an object
+    # in a Python name between them. It does not work: `py-call` re-wraps a
+    # Python value it receives as an ARGUMENT in janus's `Box`, so the callee
+    # gets the wrapper and `setattr` raises `'Box' object has no attribute
+    # 'foo'` [measured on three shapes: the engine-made namespace, a
+    # Python-made types.SimpleNamespace, and a plain class instance]. The
+    # chain therefore stays one term.
     stored = m.eval(S["let*"](  # rung: an engine-made object arrives back at py-call wrapped in a janus Box, so the sequence cannot become three Python statements
         ((V.obj, S["make-object"]()),
          (V.written, S["set-attribute"](V.obj, S.foo, S["math.pi"]()))),
@@ -54,6 +58,6 @@ def twin(m):
     assert stored == [math.pi]
 
     # A bound method is a head like any other, and its receiver is the argument.
-    py = m.fn("py-call")
-    assert py(S[".upper"](val("abc"))) == S.ABC
-    assert py(S[".__add__"](5, 3)) == 8
+    py = m.fn.py_call
+    assert py(S[".upper"](ground("abc"))).one() == S.ABC
+    assert py(S[".__add__"](5, 3)).one() == 8

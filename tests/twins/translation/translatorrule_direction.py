@@ -14,34 +14,35 @@ Open Obligations:
 
 from petta import Expression, S, V, equation
 
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 8926..8978 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 8926,
-    "maximum": 8978,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Register both direction policies, exercise them, then withdraw one."""
-    add_rule = m.fn("add-translator-rule!")
-
     m += S[":"](S.celsius, S["->"](S.Atom, S["%Undefined%"]))
     m += equation(S.celsius(S.degrees(V.c))).to(
         S.noeval(S.kelvin(V.c + 273))
     )
-    add_rule(S.celsius, Expression((S.direction(S.forward),)))
+    # Known issue: a call through the function namespace answers a LAZY view,
+    # so the perfect statement-level spelling of a directive,
+    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
+    # its answers [measured 2026-08-23: the rule fires only after list() of the
+    # view]. The term door evaluates eagerly, so a directive is written that
+    # way until a side-effecting call runs at statement level.
+    m.eval(S["add-translator-rule!"](S.celsius, Expression((S.direction(S.forward),))))
 
-    assert m.eval(S.celsius(S.degrees(27))) == [S.kelvin(300)]
+    assert m.fn.celsius(S.degrees(27)).one() == S.kelvin(300)
 
     m += S[":"](S.unpack, S["->"](S.Atom, S["%Undefined%"]))
     m += equation(S.unpack(S.wrap(S.box(V.x)))).to(
         S.noeval(S.twin(V.x, V.x))
     )
-    add_rule(S.unpack, Expression((S.direction(S.bidirectional),)))
+    m.eval(S["add-translator-rule!"](S.unpack, Expression((S.direction(S.bidirectional),))))
 
     small = S.twin(1, 1)
     small_unpack = S.unpack(S.wrap(S.box(1)))
@@ -51,9 +52,19 @@ def twin(m):
 
     assert m.eval(small_unpack) == [small]
     assert m.eval(large_twin) == [large_unpack]
+
+    # The example writes these two as `(test (twin 1 1) (twin 1 1))` and
+    # `(test (unpack (wrap (box (a b c)))) (unpack (wrap (box (a b c)))))`,
+    # reading them as a form already at its cheapest being left alone. `test`
+    # evaluates BOTH sides, so a rewrite of the expected side cancels out of
+    # the comparison; an `assert` compares an evaluated left against a LITERAL
+    # right, and the small form is in fact carried the other way. Known issue,
+    # for whoever owns the extractor: `(twin 1 1)` is three nodes and
+    # `(unpack (wrap (box 1)))` is four, so this rewrite RAISES the cost the
+    # example's own prose says decides the direction.
     assert m.eval(small) == [small_unpack]
     assert m.eval(large_unpack) == [large_unpack]
 
-    m.fn("remove-translator-rule!")(S.unpack)
+    m.eval(S["remove-translator-rule!"](S.unpack))
 
     assert m.eval(large_twin) == [large_twin]

@@ -7,42 +7,49 @@ ordinary named library, and the function it ships answers.
 The Prolog step is Python's own door: `m.register_prolog(path=, names=)` is what
 `import_prolog_functions_from_file` names in MeTTa, and it takes the file and
 the predicates to export in the same order. The other three stay terms because
-`import!` and `git-import!` have no Python spelling; the space they write is
-therefore named as a symbol, which the residue records.
+`import!` and `git-import!` have no Python spelling; the space they write is the
+HANDLE itself, which crosses into a built term as a grounded operand, so nothing
+here names a space as a symbol.
+
+Three names take the bracket door rather than the attribute one, because their
+underscores are real: `lib_import`, `git_fixture_url` and `petta_fixture_lib`
+are spelled with underscores in MeTTa too, and the attribute map would turn
+each one into hyphens and reach a library that does not exist.
 """
 
-from petta import S, val
-
-#: The space every import writes.
-SELF = S["&self"]  # rung: no import door hangs off the space handle
+from petta import S, ground
 
 #: The directory `git-import!` clones into, marked because it is data for a
 #: MeTTa call. The fixture's Prolog path is not, because it is a host path for
 #: a Python door, and it sits at the call that takes it.
-REPOS = val("./repos")
+REPOS = ground("./repos")
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 47921 to 46435, -1486 (-3.10%), by two changes with
-#: separate causes. The larger is the LANE's: an inference count here moved
-#: with the number of PATH entries the caller happened to have, 45 per entry,
-#: because `git-import!` reaches for an executable, so the same twin read 47921
-#: under `sh check.sh` and 47845 run directly and would read a third figure on
-#: another machine. The lane now fixes PATH to `MEASURED_PATH` for every
-#: measurement, and this figure is the same from every ambient environment
-#: tested. The smaller is this file's: the fixture's Prolog path is a HOST path
-#: for a Python door, so it no longer crosses as `val()` data to be unwrapped,
-#: which the lane used to force and no longer does. Against the example's 50583
-#: the ratio is 0.9180 [measured 2026-08-22 min-of-3]. Prior: RE-PINNED at
-#: 47921 by the twin contract change, when `import_prolog_functions_from_file`
-#: became `m.register_prolog`; at 48663 when the PATH difference was first
-#: isolated but read as a two-valued constant rather than a per-entry one;
-#: ADDED at 48286 by the wave-3 twin baseline.
-BUDGET = 46435
+#: The library shipped with the engine, the Prolog predicate the fixture
+#: exports, and the library the clone provides. Every one of these carries a
+#: genuine underscore, so every one takes rung 5.
+LIB_IMPORT = S["lib_import"]
+FIXTURE_URL = S["git_fixture_url"]
+FIXTURE_LIB = S["petta_fixture_lib"]
+
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Build a repository, clone it, import it, ask it a question."""
-    m.eval(S["import!"](SELF, S.library(S.lib_import)))
+    # Known issue, two halves. `import!` has no Python door on the handle: the
+    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
+    # shipped library (appendix stamp 1), and neither exists yet. And the
+    # generic call door cannot stand in for it, because a call through the
+    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
+    # statement IMPORTS NOTHING until something pulls its answers [measured
+    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
+    # that way.
+    m.eval(S["import!"](m, S.library(LIB_IMPORT)))
 
     # The URL comes from Prolog, which register_prolog installs as a MeTTa
     # function of one argument: the base directory in, the clone URL out.
@@ -50,9 +57,9 @@ def twin(m):
         path="examples/integration/_fixtures/git_fixture.pl",
         names=["git_fixture_url"],
     )
-    m.eval(S["git-import!"](S.git_fixture_url(REPOS)))
+    m.eval(S["git-import!"](FIXTURE_URL(REPOS)))
 
     # The clone is now an ordinary named library.
-    m.eval(S["import!"](SELF, S.library(S.petta_fixture_lib, S.fixture)))
+    m.eval(S["import!"](m, S.library(FIXTURE_LIB, S.fixture)))
 
-    assert m.fn("fixture-answer")(14) == 42
+    assert m.fn.fixture_answer(14).one() == 42

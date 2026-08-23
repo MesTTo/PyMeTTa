@@ -16,21 +16,18 @@ Both equations are terms: their heads select on STRUCTURE, `(dose $n)` and
 P14.4).
 """
 
-from petta import REFLECTION_SPACE, S, V, equation, val
+import petta
+from petta import S, V, equation, ground
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4725 to 3693, -1032 (-21.8%), by the twin contract
-#: change: three `(test ...)` terms became three Python `assert`s, so the
-#: `test` wrapper left the engine three times and the last form's `match`
-#: became the subscript door, while both rewrites and the refusal that drives
-#: them stayed. Against the example's 12896 the ratio is 0.2864.
-#: Prior: 4725, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 3693
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 #: The words the rule declines with, which are its own.
-TOO_STRONG = val("a dose above 1000 is not a milligram strength")
+TOO_STRONG = ground("a dose above 1000 is not a milligram strength")
 
 
 def twin(m):
@@ -40,21 +37,27 @@ def twin(m):
     # (= (strength (dose $n) (unit mg))
     #    (if (> $n 1000) (refuse "...") (noeval (mg $n))))
     m += equation(S.strength(S.dose(V.n), S.unit(S.mg))).to(
-        S["if"](S[">"](V.n, 1000), S.refuse(TOO_STRONG), S.noeval(S.mg(V.n)))  # rung: the stored body of an equation whose head selects on structure
+        S["if"](V.n > 1000, S.refuse(TOO_STRONG), S.noeval(S.mg(V.n)))  # rung: this `if` is the stored BODY of an equation, so it is data rather than control flow
     )
     # A refusal is a decline, so a rule with another equation tries that one.
     m += equation(S.strength(S.dose(V.n), S.unit(S.mg))).to(
         S.noeval(S.grams(V.n / 1000))
     )
-    m.fn("add-translator-rule!")(S.strength)
+    # Known issue: a call through the function namespace answers a LAZY view,
+    # so the perfect statement-level spelling of a directive,
+    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
+    # its answers [measured 2026-08-23: the rule fires only after list() of the
+    # view]. The term door evaluates eagerly, so a directive is written that
+    # way until a side-effecting call runs at statement level.
+    m.eval(S["add-translator-rule!"](S.strength))
 
     # A match the rule can honour rewrites.
-    assert m.one(S.strength(S.dose(250), S.unit(S.mg))) == S.mg(250)
+    assert m.fn.strength(S.dose(250), S.unit(S.mg)).one() == S.mg(250)
     # A match it declines falls through to the second equation.
-    assert m.one(S.strength(S.dose(5000), S.unit(S.mg))) == S.grams(5)
+    assert m.fn.strength(S.dose(5000), S.unit(S.mg)).one() == S.grams(5)
 
     # And the words are the rule's own, published where a program can ask.
-    reflection = m.space(REFLECTION_SPACE)
+    reflection = petta.reflection
     assert [
         row.why for row in reflection[S["translator-rule-refusal"](S.strength, V.why)]
     ] == [TOO_STRONG]

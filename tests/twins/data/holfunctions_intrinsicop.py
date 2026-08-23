@@ -28,19 +28,12 @@ Open Obligations:
 
 from petta import Expression, S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 10337 to 10353, +16 (+0.15%), by the twin-shape
-#: rewrite: the `test` wrapper left the engine for `assert`, and nothing else
-#: moved: the two structural clauses, `eq`, and the two half-applied maps are
-#: the same atoms the original writes. Writing `eq` as `def eq(a, b): return
-#: a == b` instead measures 12020, and the extra 1,667 is the compiler's one-
-#: time warm-up for the first compiled definition in a process, which buys a
-#: clause that lowers to `(py-eq $a $b)` rather than to the `==` this example
-#: is about. Against the example's 13372 the ratio is 0.7742 [measured
-#: 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/data/holfunctions_intrinsicop.metta`]. Prior: the file's first
-#: pin, uncommented.
-BUDGET = 10353
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
@@ -53,4 +46,5 @@ def twin(m):
     m += equation(S.eq(V.a, V.b)).to(V.a.eq(V.b))
 
     numbers = Expression((1, 2, 3))
-    assert m.fn("mymap").all(S["=="](1), numbers) == m.fn("mymap").all(S.eq(1), numbers)
+    mymap = m.fn.mymap
+    assert mymap(S["=="](1), numbers) == mymap(S.eq(1), numbers)

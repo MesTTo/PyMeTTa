@@ -28,18 +28,12 @@ Open Obligations:
 
 from petta import Expression, S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 24789 to 22717, -2072 (-8.36%), by the twin-shape
-#: rewrite: ten `test` wrappers left the engine for `assert`, and the `let`
-#: and `let*` terms that bound the lambdas became Python locals, so nothing
-#: reduces to bind them. `f` moved the other way, from one compiled generator
-#: to the TWO stored equations the original writes: the generator spelling
-#: stores `(= (f) (superpose (2 3)))`, one clause where the example has two,
-#: and the same file with it measures 22660, so faithfulness costs 57 here.
-#: Against the example's 35344 the ratio is 0.6427 [measured 2026-08-22 min-
-#: of-3: `twin_coverage.py --measure examples/data/foldall.metta`]. Prior:
-#: RE-PINNED at 24789 by the wave-4 idiom rewrite.
-BUDGET = 22717
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):

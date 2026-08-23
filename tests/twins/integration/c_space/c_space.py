@@ -5,74 +5,82 @@ seam, so `&cstore` is a space like any other and nothing above it knows there is
 a C backend. That is exactly why this twin reads like the spaces twins: the
 store is a handle, `store += atom` writes, `store[pattern]` matches, and
 `store -= atom` takes one unifying occurrence away, which is what `remove-atom`
-means everywhere.
+means everywhere. `check-space-provider` takes that handle too, as a grounded
+operand, so nothing here names a space as a symbol.
 
 The provider file is consulted through `m.register_prolog(path=)`, the Python
 door for what the example spells `(let "cstore.pl" (consult_global) provider)`.
 
-Two things do not dissolve. `check-space-provider` is the seam's own proof
-harness and the Python compliance kit beside it, `petta.testing`, reaches only
-Python providers, so the C provider is checkable only through the MeTTa door,
-which names the space as a symbol. And the concurrent-writer form is DECLINED:
-`hyperpose` runs its branches on real threads and the completion schedule moves
-the inference count, which the residue records against P14.14.
+Two things do not dissolve. The Python compliance kit, `petta.testing`, reaches
+only Python providers, so a provider whose clauses live in Prolog and whose
+store lives in C is checkable only through the engine's own
+`check-space-provider`. And the concurrent-writer form is DECLINED: `hyperpose`
+runs its branches on real threads and the completion schedule moves the
+inference count, which the residue records against P14.14.
 """
 
 from pathlib import Path
 
-from petta import S, V, val
+import petta
+from petta import S, V, ground
 
-#: The space the imports write, and the C-backed space they are for.
-SELF = S["&self"]  # rung: no import door hangs off the space handle
-CSTORE = S["&cstore"]  # rung: check-space-provider takes the space as a symbol; petta.testing's kit reaches only Python providers
+#: The three engine libraries the example opens, spelled with their real
+#: underscores: `S.lib_file` would name `lib-file`, which the tree does not ship.
+LIBRARIES = (S["lib_import"], S["lib_file"], S["lib_conformance"])
 
-#: The build artefact and the provider that loads it. Marked data because a
-#: twin may not write a bare string; `.value` is the path a Python door takes.
-CSTORE_SO = Path(val("examples/integration/c_space/cstore.so").value)
-CSTORE_PL = Path(val("examples/integration/c_space/cstore.pl").value)
+#: The build artefact and the provider that loads it, as host paths for a
+#: Python door.
+CSTORE_SO = Path("examples/integration/c_space/cstore.so")
+CSTORE_PL = Path("examples/integration/c_space/cstore.pl")
 
 #: What a healthy provider reports about itself.
 REPORT = [
-    val("enumerate: declared, seam:foreign_atoms/2 has clauses"),
-    val("add: declared, seam:foreign_add/2 has clauses"),
-    val("remove: declared, seam:foreign_remove/3 has clauses"),
-    val("clear: declared, seam:foreign_clear/1 has clauses"),
-    val("match: over-approximation holds over 1 atoms"),
-    val("pushdown: 0 of 1 patterns claimed exact, and are"),
-    val("plan: not declared, so a conjunction takes the engine's split"),
+    ground("enumerate: declared, seam:foreign_atoms/2 has clauses"),
+    ground("add: declared, seam:foreign_add/2 has clauses"),
+    ground("remove: declared, seam:foreign_remove/3 has clauses"),
+    ground("clear: declared, seam:foreign_clear/1 has clauses"),
+    ground("match: over-approximation holds over 1 atoms"),
+    ground("pushdown: 0 of 1 patterns claimed exact, and are"),
+    ground("plan: not declared, so a conjunction takes the engine's split"),
 ]
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 141295 to 132196, -9099 (-6.44%), by the twin
-#: contract change: five `if`/`file-exists` guards, six `test` wrappers, eight
-#: `collapse`/`match` pairs and three `size-atom` calls left the engine for
-#: Python's own `if`, `Path.exists()`, `assert`, the space handle's `[...]` and
-#: `len()`. The writes, the removals and the C crossings under them did not
-#: move. Against the example's 174913 the ratio is 0.7558, and the
-#: concurrent-writer form stays declined [measured 2026-08-22 min-of-3:
-#: `twin_coverage.py --measure examples/integration/c_space/c_space.metta`].
-#: Prior: ADDED 2026-08-22 at 141295 by the wave-3 twin baseline, which priced
-#: a transliteration.
-BUDGET = 132196
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Write into C, read back out of it, and prove the provider."""
-    for library in (S.lib_import, S.lib_file, S.lib_conformance):
-        m.eval(S["import!"](SELF, S.library(library)))
+    # Known issue, two halves. `import!` has no Python door on the handle: the
+    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
+    # shipped library (appendix stamp 1), and neither exists yet. And the
+    # generic call door cannot stand in for it, because a call through the
+    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
+    # statement IMPORTS NOTHING until something pulls its answers [measured
+    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
+    # that way.
+    for library in LIBRARIES:
+        m.eval(S["import!"](m, S.library(library)))
 
     if not CSTORE_SO.exists():
         # The example prints its skip here. A twin has no door for prose.
         return
 
     m.register_prolog(path=CSTORE_PL)
-    store = m.space(CSTORE.name)
+    # Known issue: `petta.space(name)` rides the process-DEFAULT context, not
+    # the one holding `m`; the two reach the same store only because the SWI
+    # runtime is process-wide. A creation door on the handle's own context is
+    # the perfect spelling [measured 2026-08-23].
+    store = petta.space("&cstore")
 
     # Writes and reads cross into C; the engine keeps unification for itself.
     store += S.edge(S.a, S.b)
     store += S.edge(S.a, S.c)
     store += S.edge(S.b, S.c)
-    assert list(store[S.edge(S.a, V.x)]["x"]) == [S.b, S.c]
+    assert [row.x for row in store[S.edge(S.a, V.x)]] == [S.b, S.c]
 
     # Removal is multiset subtraction: two atoms match `(edge a $any)`, so
     # clearing them takes two removals rather than one.
@@ -93,4 +101,10 @@ def twin(m):
 
     # Every declared capability has clauses behind it, match over-approximates,
     # and no pushdown claim overreaches. It raises on a violation.
-    assert list(m.one(S["check-space-provider"](CSTORE))) == REPORT
+    #
+    # Known issue: the perfect spelling is the Python compliance kit,
+    # `petta.testing.check_space_provider(provider)`, and it takes a Python
+    # `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and
+    # whose store lives in C cannot reach it. The engine's own function is the
+    # only route, and it does take the handle.
+    assert list(m.answers(S["check-space-provider"](store)).one()) == REPORT

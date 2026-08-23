@@ -9,24 +9,25 @@ That sequencing has to happen in one engine call, which is why this file is one
 term rather than three Python statements: the first goal binds `$x` and the
 second reads it, and a Python variable cannot hold a binding the engine has not
 finished making (residue, P14.10). Everything else is ordinary: the term is
-built at the `S.` door and asked once.
+built at the `S.` door and asked once. Known issue: the perfect spelling is
+`m.fn.progn(...).one()`, and this term carries `$x` and `$z`, where a call
+through the function namespace answers BINDING ROWS rather than the value
+[measured 2026-08-23]. The term door answers the value whatever the term
+holds.
 """
 
 from petta import S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 685 to 535, -150 (-21.9%), by the twin contract
-#: change: `(test (progn ...) 42)` became one `assert`, so only the `test`
-#: wrapper left the engine and the two translated goals stayed in it. Against
-#: the example's 2261 the ratio is 0.2366.
-#: Prior: 685, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 535
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):
     """Run two Prolog goals in sequence, and read what the second bound."""
     translate = S.translatePredicate
     goals = S.progn(translate(S["is"](V.x, 2)), translate(S["+"](V.x, 40, V.z)), V.z)
-    assert m.one(goals) == 42
+    assert m.eval(goals) == [42]
