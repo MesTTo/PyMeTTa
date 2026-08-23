@@ -15,6 +15,9 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - n decodes Python integers without a width conversion, so Number and
     BigInt retain every digit [tested test_janus_carries_bigint_losslessly]
+  - n decodes SWI rationals as exact Fractions in both leaf and expression
+    positions [tested: test_rational_payloads_cross_the_scalar_door;
+    commit=WORKTREE]
   - p decodes a canonical space name into the executable Space handle for
     the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -32,6 +35,7 @@ from __future__ import annotations
 
 import importlib
 import threading
+from fractions import Fraction
 from typing import Any
 
 from ._atoms_core import (
@@ -132,7 +136,7 @@ def _string_from_wire(payload: Any) -> Atom:
 
 
 def _number_from_wire(payload: Any) -> Atom:
-    if type(payload) not in (int, float):
+    if type(payload) not in (int, float, Fraction):
         msg = f"wire number payload must be numeric, got {payload!r}"
         raise ValueError(msg)
     return Grounded(payload)
@@ -272,7 +276,7 @@ def _expression_from_wire(payload: Any, *, engine: bool = False) -> Expression: 
                 else:
                     items.append(wire_sym(payload))
             elif tag == "n":
-                if type(payload) not in (int, float):
+                if type(payload) not in (int, float, Fraction):
                     msg = f"wire number payload must be numeric, got {payload!r}"
                     raise ValueError(msg)
                 items.append(gnd(payload))

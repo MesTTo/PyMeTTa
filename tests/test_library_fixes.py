@@ -15,8 +15,12 @@ Guarantees:
   - builtin discovery is cached per logical space and invalidated after every
     function-catalog mutation [tested: test_builtin_discovery_is_cached,
     test_builtin_cache_invalidates_after_a_miss; commit=WORKTREE]
+  - rational number payloads cross lazy values and binding rows exactly as
+    ``Fraction`` [tested: test_rational_payloads_cross_the_scalar_door;
+    commit=WORKTREE]
 """
 
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -130,3 +134,18 @@ def test_builtin_cache_invalidates_after_a_miss(tmp_path: Path) -> None:
     source.write_text(f"(= ({import_name}) imported)\n", encoding="utf-8")
     target.fn["import!"](target, str(source))
     assert import_name in target.builtins()
+
+
+def test_rational_payloads_cross_the_scalar_door() -> None:
+    """A rational in a value or a parallel binding retains exactness."""
+    target = space()
+    target.run("!(import! &self (library lib_constraints))")
+    rational = Fraction(1, 2)
+    represented = target.parse(
+        "(let True (clpq (= (* 2 $x) 1)) (repr $x))"
+    )
+    value = target.parse("(let True (clpq (= (* 2 $x) 1)) $x)")
+
+    assert target.answers(represented).one() == "1r2"
+    assert target.answers(value).one() == rational
+    assert target.answers(G(rational)).one() == rational

@@ -6,6 +6,9 @@ Guarantees:
     test_atom_comparisons_are_only_ordering; commit=WORKTREE]
   - Grounded normalizes the numeric tower to engine-native values [tested
     test_numpy_scalars_are_engine_numbers]
+  - exact rational values retain their Fraction payload through the n wire
+    tag [tested: test_rational_payloads_cross_the_scalar_door;
+    commit=WORKTREE]
   - Grounded carries the engine's two relations, one per operand kind: against a
     raw value it is the == operator's numeric tower, against another atom it
     is unification identity (integer and float atoms distinct, signed zeros
@@ -90,6 +93,7 @@ import weakref
 from abc import ABCMeta
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from fractions import Fraction
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, Self, cast
 
@@ -121,7 +125,7 @@ def _encodable(value: str) -> str:
 
 def _normalize_grounded(value: Any) -> Any:
     """Convert the numeric tower to the exact host types the engine carries."""
-    if type(value) in (bool, int, float, str):
+    if type(value) in (bool, int, float, Fraction, str):
         return value
     if isinstance(value, _numbers.Integral):
         return int(value)
@@ -132,7 +136,7 @@ def _normalize_grounded(value: Any) -> Any:
 
 def _is_primitive(value: Any) -> bool:
     """Whether PeTTa has a native term for this value: string, number, boolean."""
-    return type(value) in (str, int, float, bool)
+    return type(value) in (str, int, float, Fraction, bool)
 
 
 def _ground_equal(mine: Any, theirs: Any) -> bool:
@@ -152,7 +156,9 @@ def _ground_equal(mine: Any, theirs: Any) -> bool:
     theirs = _normalize_grounded(theirs)
     if isinstance(mine, bool) or isinstance(theirs, bool):
         return type(mine) is type(theirs) is bool and mine == theirs
-    if isinstance(mine, (int, float)) and isinstance(theirs, (int, float)):
+    if isinstance(mine, (int, float, Fraction)) and isinstance(
+        theirs, (int, float, Fraction)
+    ):
         return mine == theirs
     if type(mine) is not type(theirs):
         return False
@@ -980,13 +986,15 @@ class Grounded(Atom):
             return '"' + escaped + '"'
         if isinstance(v, float):
             return _float_text(v)
+        if isinstance(v, Fraction):
+            return f"{v.numerator}r{v.denominator}"
         if isinstance(v, int):
             return repr(v)
         return _object_str(v)
 
-    def _number(self, target: str) -> int | float:
+    def _number(self, target: str) -> int | float | Fraction:
         v = self.value
-        if isinstance(v, bool) or not isinstance(v, (int, float)):
+        if isinstance(v, bool) or not isinstance(v, (int, float, Fraction)):
             msg = (
                 f"cannot read {self} as a Python {target}: it is not a Number "
                 f"in MeTTa. int(atom.value) is how to say parse this text."
@@ -1029,7 +1037,7 @@ class Grounded(Atom):
             return ["b", "true" if v else "false"]
         if isinstance(v, str):
             return ["g", _encodable(v)]
-        if isinstance(v, (int, float)):
+        if isinstance(v, (int, float, Fraction)):
             return ["n", v]
         if isinstance(v, Box):
             return ["o", v]
