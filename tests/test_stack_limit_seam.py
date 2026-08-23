@@ -3,7 +3,7 @@
 Guarantees:
   - ``petta_py_limited/6`` restores the calling thread's prior stack limit on
     success and on an exception [tested: test_janus_stack_scope_restores_on_all_exits;
-    commit=WORKTREE]
+    commit=81c50d3ae4c03ddfd70ed3f1ff70e085cfee3978]
 """
 
 

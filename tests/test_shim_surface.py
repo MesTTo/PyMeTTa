@@ -18,7 +18,7 @@ Guarantees:
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor;
-    commit=WORKTREE]
+    commit=4c9a794750103e0a3a2e9d883adde337ffb501f0]
   - the host query door uses the engine's published pattern-modifier walk
     [tested: test_a_path_reaches_into_a_handle_without_converting_it;
     commit=a1b10566194f10c174101fdc05f956b33171613b]

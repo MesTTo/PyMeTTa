@@ -3,7 +3,7 @@
 Guarantees:
   - ``petta_py_function_generation/1`` is monotonic across a public function
     definition and stable across evaluation [tested:
-    test_generation_tracks_definitions_but_not_evaluation; commit=WORKTREE]
+    test_generation_tracks_definitions_but_not_evaluation; commit=4c9a794750103e0a3a2e9d883adde337ffb501f0]
 """
 
 

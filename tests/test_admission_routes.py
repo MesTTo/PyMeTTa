@@ -3,7 +3,7 @@
 Guarantees:
   - ``Space.add`` observes accept, transform, drop, and refuse from the
     existing ``declare-pre-add!`` registry [tested:
-    test_public_space_add_observes_every_pre_add_verdict; commit=WORKTREE]
+    test_public_space_add_observes_every_pre_add_verdict; commit=ce55fe46f26484be4269d06d6b99684d5edc040f]
 """
 
 from __future__ import annotations

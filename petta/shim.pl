@@ -111,14 +111,14 @@
 %     opaque grounded objects, including None and objects with __eq__ or
 %     __bool__, retain the Python dispatch fallback [tested:
 %     shim_python_scalar_semantics,
-%     test_wire_scalars_match_the_python_host_oracle; commit=WORKTREE]
+%     test_wire_scalars_match_the_python_host_oracle; commit=50e914ec00b986964784af05521b224f3456655c]
 %   - petta_py_limited/6 adds a negative-sentinel stack byte ceiling to the
 %     existing time and inference bounds and restores it on every exit path
-%     [tested: test_janus_stack_scope_restores_on_all_exits; commit=WORKTREE]
+%     [tested: test_janus_stack_scope_restores_on_all_exits; commit=81c50d3ae4c03ddfd70ed3f1ff70e085cfee3978]
 %   - petta_py_function_generation/1 exposes the engine's process-global
 %     fun/1-set generation without reproducing catalogue policy in the host
 %     [tested: test_generation_tracks_definitions_but_not_evaluation;
-%     commit=WORKTREE]
+%     commit=4c9a794750103e0a3a2e9d883adde337ffb501f0]
 %   - petta_py_register_token/2 retains a Python constructor in the engine's
 %     reader table and seam:host_reader_token_construct/3 returns its encoded
 %     Atom through the shared decoder [tested:
@@ -1821,7 +1821,7 @@ petta_py_declined(TR) :- TR = [T, D], petta_py_tag(T, x), petta_py_tag(D, declin
 %its Python class may implement __eq__ or __bool__, so only the retained host
 %route may decide it [source: Python 3.14 data model, object.__eq__ and
 %object.__bool__, https://docs.python.org/3/reference/datamodel.html;
-%commit=WORKTREE].
+%commit=50e914ec00b986964784af05521b224f3456655c].
 %Numbers lead because compiled arithmetic comparisons are the loop case. The
 %two guards and arithmetic comparison are in this clause so that case pays no
 %classification or helper calls.
