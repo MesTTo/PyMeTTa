@@ -1880,7 +1880,7 @@ class Space(Handle):
         self,
         fn: Callable | None = None,
         *,
-        name: str | Symbol | None = None,
+        name: str | None = None,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/petta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
         declarations: Iterable[Atom] = (),
