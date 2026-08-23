@@ -155,7 +155,7 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
         rows = None
         for _sample in range(3):
             with space.stats() as counted:
-                rows = space.query(S.document(S.manual, V.blob))
+                rows = list(space.query(S.document(S.manual, V.blob)))
             samples.append(counted.inferences)
         assert rows is not None
         return min(samples), rows

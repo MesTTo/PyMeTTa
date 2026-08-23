@@ -546,7 +546,10 @@ def test_value_answers_the_one_answer(m):  # noqa: D103  -- pytest discovers or 
 
 def test_rows_first_and_one(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.city(S.perth), S.city(S.sydney))
-    assert m.query(S.town(V.x)).first() is None
+    marker = object()
+    with pytest.raises(EngineError, match="pass default"):
+        m.query(S.town(V.x)).first()
+    assert m.query(S.town(V.x)).first(default=marker) is marker
     assert m.query(S.city(V.x)).first() is not None
     with pytest.raises(EngineError):
         m.query(S.city(V.x)).one()  # two rows
@@ -804,7 +807,14 @@ def test_limits_on_query_eval_value_and_prepared(m):  # noqa: D103  -- pytest di
     rows = m.query(S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0, inferences=50_000_000)
     assert len(rows) == 199  # a generous bound changes nothing
     with pytest.raises(InferenceLimitError):
-        m.query(S.edge(V.a, V.b), S.edge(V.b, V.c), S.edge(V.c, V.d), inferences=100)
+        list(
+            m.query(
+                S.edge(V.a, V.b),
+                S.edge(V.b, V.c),
+                S.edge(V.c, V.d),
+                inferences=100,
+            )
+        )
     m.run("(= (spin-d $n) (if (== $n 0) done (spin-d (- $n 1))))")
     with pytest.raises(InferenceLimitError):
         m.eval("(spin-d 100000000)", inferences=5_000)
@@ -856,7 +866,7 @@ def test_eval_capture(m):  # noqa: D103  -- pytest discovers or injects this cal
 def test_stats_block_counts_the_work(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(50)])
     with m.stats() as s:
-        m.query(S.edge(V.a, V.b), S.edge(V.b, V.c))
+        list(m.query(S.edge(V.a, V.b), S.edge(V.b, V.c)))
     assert s.inferences > 100
     assert s.walltime > 0 and s.cputime >= 0
     assert s.gc_count >= 0 and s.gc_freed >= 0 and s.gc_time >= 0.0
@@ -920,12 +930,11 @@ def test_a_cursor_slice_pulls_only_what_it_takes(m):  # noqa: D103  -- pytest di
     space.add(*[S.fact(i, i) for i in range(2000)])
     with space.stats() as lazy, space._stream(S.fact(V.k, V.n)) as cursor:
         first_three = cursor[:3]
-    with space.stats() as eager:
-        trimmed = space.query(S.fact(V.k, V.n))[:3]
+    with space.stats() as answers_cost:
+        trimmed = list(space.query(S.fact(V.k, V.n))[:3])
     assert len(first_three) == len(trimmed) == 3
-    # Two orders of magnitude, not a constant factor, and the gap grows with
-    # the space because one stops early and the other trims afterwards.
-    assert lazy.inferences * 100 < eager.inferences
+    # The public query view now shares the cursor's demand-driven cost.
+    assert answers_cost.inferences < lazy.inferences * 3
 
     with space._stream(S.fact(V.k, V.n)) as cursor:
         assert cursor[0].k == first_three[0].k

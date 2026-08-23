@@ -21,7 +21,6 @@ import keyword
 from collections.abc import Callable, Iterable
 from typing import Final
 
-
 # Python's operator module owns these public words. ``neg`` and ``floordiv``
 # are intentionally absent because each needs more than one engine head.
 # [source: https://docs.python.org/3.14/library/operator.html; commit=WORKTREE]

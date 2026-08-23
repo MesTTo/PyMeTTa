@@ -565,7 +565,11 @@ def test_a_pushdown_class_that_is_neither_word_is_refused(metta):
     metta._register_space(provider, "&nonsense-test")
     try:
         with pytest.raises(PettaError, match="answered 'probably'"):
-            MeTTa().space("&nonsense-test").query(S.fact(V.k, V.v), limit=2)
+            list(
+                MeTTa()
+                .space("&nonsense-test")
+                .query(S.fact(V.k, V.v), limit=2)
+            )
     finally:
         metta._unregister_space("&nonsense-test")
 

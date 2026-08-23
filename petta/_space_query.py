@@ -12,6 +12,9 @@ Guarantees:
     test_limit_validation_refuses_nonsense]
   - eager Rows retain normalized query context for why() [tested
     test_query_rows_explain_empty_results]
+  - query_count returns one integer from an engine-side aggregate rather than
+    crossing answer rows [tested:
+    test_query_answers_complete_the_lazy_projection_protocol; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -106,6 +109,38 @@ def query_rows(
         tuple(columns),
         _decode_rows(answered),
         _query=_QueryContext(space, tuple(atoms), guard),
+    )
+
+
+def query_count(
+    rt: Runtime,
+    space: str,
+    patterns: tuple[Any, ...],
+    *,
+    where: Any | None,
+    limit: int | None,
+    timeout: float | None,
+    inferences: int | None,
+) -> int:
+    """Count one query wholly inside the engine."""
+    _validate_limit(limit)
+    atoms = [_to_atom(pattern) for pattern in patterns]
+    guard = guard_atom(where)
+    columns = _column_names(atoms)
+    inputs = [
+        space,
+        [atom.to_wire() for atom in atoms],
+        [] if guard is None else guard.to_wire(),
+        columns,
+        limit or 0,
+    ]
+    return int(
+        _execute_query(
+            rt,
+            "petta_py_query_count",
+            inputs,
+            _limits(timeout, inferences),
+        )
     )
 
 

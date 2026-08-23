@@ -96,7 +96,7 @@ def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
     m.run("!(add-atom &petta (freshness &fr-rows (edge $a $b) stale))")
 
     with pytest.raises(EngineError, match="refuses"):
-        m._at("&fr-rows").query(S.edge(V.x, V.y), limit=2)
+        list(m._at("&fr-rows").query(S.edge(V.x, V.y), limit=2))
 
 
 def test_a_malformed_third_party_declaration_is_refused_at_the_add(tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract

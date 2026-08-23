@@ -80,7 +80,7 @@ def test_take_peek_and_watch_retire_the_thread_linda_fn_strings(metta):
 def test_watch_close_before_first_event_cancels_its_eager_subscription(metta):
     """Closing a never-started watch releases its standing query."""
     reflection = metta._at("&petta")
-    descriptor = S.subscription(S[metta.name], S.r5_watch(V.n), S.add)
+    descriptor = S.subscription(S[metta.name], S.r5_watch(V.n), S["add"])
     changes = metta.watch(S.r5_watch(V.n))
     assert len(reflection.query(descriptor)) == 1
     changes.close()

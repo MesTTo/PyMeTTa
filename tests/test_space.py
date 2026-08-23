@@ -68,6 +68,7 @@ from petta.errors import (
     TimeLimitError,
 )
 from petta.foreign import SpaceProvider, register_provider, unregister_provider
+from petta.results import Rows
 
 
 @pytest.fixture()
@@ -686,7 +687,7 @@ def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa
 
 def test_add_table_reads_records_by_value(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a, S.b))
-    rows = m.query(S.p(V.x, V.y))
+    rows = m.query(S.p(V.x, V.y), into=Rows)
     records = m._new_space()
     tables.add(records, S.p, rows.to_dicts())
     # Iterating a mapping yields keys, so this once stored ("x" "y").
@@ -741,7 +742,7 @@ def test_a_reserved_limit_does_not_leak_janus_framing(metta):  # noqa: D103  -- 
 
 def test_build_never_hands_back_its_private_sentinel(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.p(S.a))
-    rows = m.query(S.p(V.x))
+    rows = m.query(S.p(V.x), into=Rows)
     assert petta.convert.build(S.a, str) == S.a
     assert rows.build("x", str) == [S.a]
 

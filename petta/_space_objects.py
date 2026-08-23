@@ -441,6 +441,8 @@ class Cursor:
         where: Any | None,
         timeout: float | None,
         inferences: int | None,
+        *,
+        limit: int | None = None,
     ) -> None:
         atoms = [_to_atom(p) for p in patterns]
         columns = _column_names(atoms)
@@ -460,7 +462,13 @@ class Cursor:
         self._where_atom = checked
         guard = [] if checked is None else checked.to_wire()
         self._handle = self._rt.apply_must(
-            "petta_py_cursor_open", space.name, wires, guard, columns.copy(), steps
+            "petta_py_cursor_open",
+            space.name,
+            wires,
+            guard,
+            columns.copy(),
+            limit or 0,
+            steps,
         )
         self._closed = False
         self._exhausted = False

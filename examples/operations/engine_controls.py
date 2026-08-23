@@ -45,7 +45,7 @@ rows = m.query(S.edge(V.a, V.b), S.edge(V.b, V.c), timeout=30.0)
 check("a generous bound changes nothing", len(rows), 199)
 
 with m.stats() as s:
-    m.query(S.edge(V.a, V.b), S.edge(V.b, V.c))
+    list(m.query(S.edge(V.a, V.b), S.edge(V.b, V.c)))
 check("the stats block counts the engine steps spent", s.inferences > 100)
 
 with m.capture() as output:

@@ -1129,18 +1129,21 @@ def test_fn_decodes_exactly_as_value(metta):  # noqa: D103  -- pytest discovers 
 
 def test_the_three_families_share_the_tolerant_member(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-many) (superpose (1 2 3)))")
-    # first(): the first answer decoded, or None.
+    # first(): the first answer decoded; absence needs an explicit default.
     assert metta._first("(ic-many)") == 1
     assert metta.fn.ic_many().first() == 1
     rows = metta.query(parse("(ic-no-such-fact $x)"))
-    assert rows.first() is None
+    marker = object()
+    with pytest.raises(EngineError, match="pass default"):
+        rows.first()
+    assert rows.first(default=marker) is marker
 
 
 def test_rows_one_raises_the_family_exception(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(add-atom &self (ic-fact a))")
     metta.run("!(add-atom &self (ic-fact b))")
     rows = metta.query(parse("(ic-fact $x)"))
-    with pytest.raises(EngineError, match="exactly one row"):
+    with pytest.raises(EngineError, match="exactly one answer"):
         rows.one()
 
 

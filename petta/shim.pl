@@ -125,6 +125,10 @@
 %     561467, 440 over 20 queries on 2026-08-21; command=python bench.py query-2k-rows
 %     --counter-only; fixture=2000-row native space;
 %     commit=b54ecaaa1224eabb90f808275003cd9abeef8065]
+%   - petta_py_query_count/6 counts a query inside the engine for an untouched
+%     lazy Python answer view [tested:
+%     test_query_answers_complete_the_lazy_projection_protocol;
+%     commit=WORKTREE]
 %   - evaluation emits one undefined-truth frame and never a flag-selected
 %     residual-program shape [tested:
 %     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -652,6 +656,7 @@ petta_py_wrappable(petta_py_run_using).
 petta_py_wrappable(petta_py_query_all).
 petta_py_wrappable(petta_py_query_guarded_all).
 petta_py_wrappable(petta_py_query_limit_all).
+petta_py_wrappable(petta_py_query_count).
 petta_py_wrappable(petta_py_eval_all).
 petta_py_wrappable(petta_py_eval_using_all).
 petta_py_wrappable(petta_py_eval_status_all).
@@ -737,10 +742,18 @@ petta_py_speculative(Pred, Ins, Out) :-
 %dynamic extent lives on the engine's own stack, so it spans every resume,
 %the cumulative-budget reading. Wall bounds stay outside, per pull, where
 %idle time between pulls cannot count.
-petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Inf, prolog(Engine)) :-
-    ( GuardTagged == [] ->
-        Goal = petta_py_query(Space, PatternsTagged, VarNames, Row)
-    ; Goal = petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row)
+petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf,
+                     prolog(Engine)) :-
+    (   GuardTagged == [], Limit > 0,
+        PatternsTagged = [PatternTagged], seam:foreign_space(Space)
+    ->  Goal0 = petta_py_bounded_query(Space, PatternTagged, VarNames,
+                                       Limit, Row)
+    ;   GuardTagged == []
+    ->  Goal0 = petta_py_query(Space, PatternsTagged, VarNames, Row)
+    ;   Goal0 = petta_py_query_guarded(Space, PatternsTagged, GuardTagged,
+                                       VarNames, Row)
+    ),
+    ( Limit > 0 -> Goal = limit(Limit, Goal0) ; Goal = Goal0
     ),
     ( Inf < 0 -> Bounded = Goal
     ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
@@ -1318,6 +1331,23 @@ petta_py_match_goal(Space, Ps, match(Space, [','|Ps], answered, answered)).
 
 petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
     findall(Row, petta_py_query(Space, PatternsTagged, VarNames, Row), Rows).
+
+%Count without encoding or crossing answer rows. GuardTagged=[] selects the
+%unguarded query, and Limit=0 means unbounded, matching the eager query doors.
+petta_py_query_count(Space, PatternsTagged, GuardTagged, VarNames, Limit, Count) :-
+    (   GuardTagged == [], Limit > 0,
+        PatternsTagged = [PatternTagged], seam:foreign_space(Space)
+    ->  Query = petta_py_bounded_query(Space, PatternTagged, VarNames,
+                                       Limit, _)
+    ;   GuardTagged == []
+    ->  Query = petta_py_query(Space, PatternsTagged, VarNames, _)
+    ;   Query = petta_py_query_guarded(Space, PatternsTagged, GuardTagged,
+                                       VarNames, _)
+    ),
+    (   Limit > 0
+    ->  aggregate_all(count, limit(Limit, Query), Count)
+    ;   aggregate_all(count, Query, Count)
+    ).
 
 %The seam's own decision for this query, shown without running it, is the
 %engine's metta_host_explain_match/3; this renders its term report as the
