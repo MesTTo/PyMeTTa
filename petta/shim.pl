@@ -106,6 +106,12 @@
 %     rather than only its callable registry [tested:
 %     test_builtins_equals_the_union_of_functions_and_special_forms;
 %     commit=bcf80e727923cce0e034f716d7eef01f9395c490]
+%   - py-eq and py-truthy are decided without a host crossing for variables,
+%     booleans, numbers, strings, symbols, and recursively for expressions;
+%     opaque grounded objects, including None and objects with __eq__ or
+%     __bool__, retain the Python dispatch fallback [tested:
+%     shim_python_scalar_semantics,
+%     test_wire_scalars_match_the_python_host_oracle; commit=WORKTREE]
 %   - petta_py_register_token/2 retains a Python constructor in the engine's
 %     reader table and seam:host_reader_token_construct/3 returns its encoded
 %     Atom through the shared decoder [tested:
@@ -1788,7 +1794,37 @@ petta_py_declined(TR) :- TR = [T, D], petta_py_tag(T, x), petta_py_tag(D, declin
 %this is the hot path: guard plus catch cost two inferences per call where the
 %catch alone costs one [measured 2026-08-17: the encoded operation at 14.01
 %through the wrapper, 13.01 written out]. Same catcher, same recovery.
+%Python's equality and truth protocols are richer than Prolog term identity,
+%but the wire's structural classes have exact local answers. Keep this pair
+%ahead of the generic dispatch so a compiled Python body does not cross the
+%host once per comparison. Failure means an opaque grounded value is present;
+%its Python class may implement __eq__ or __bool__, so only the retained host
+%route may decide it [source: Python 3.14 data model, object.__eq__ and
+%object.__bool__, https://docs.python.org/3/reference/datamodel.html;
+%commit=WORKTREE].
+%Numbers lead because compiled arithmetic comparisons are the loop case. The
+%two guards and arithmetic comparison are in this clause so that case pays no
+%classification or helper calls.
+petta_py_dispatch_det('py-eq', [Left, Right], Result) :-
+    number(Left), number(Right),
+    !,
+    ( Left =:= Right -> Result = true ; Result = false ).
+petta_py_dispatch_det('py-eq', [Left, Right], Result) :-
+    petta_py_native_eq(Left, Right, Result),
+    !.
+petta_py_dispatch_det('py-truthy', [Value], Result) :-
+    number(Value),
+    !,
+    ( Value =:= 0 -> Result = false ; Result = true ).
+petta_py_dispatch_det('py-truthy', [Value], Result) :-
+    petta_py_native_truthy(Value, Result),
+    !.
 petta_py_dispatch_det(Name, Args, Result) :-
+    petta_py_dispatch_det_host(Name, Args, Result).
+
+%The old route remains named so both differential suites send identical
+%decoded terms through it. It is also the ordinary fallback above.
+petta_py_dispatch_det_host(Name, Args, Result) :-
     maplist(petta_py_encode, Args, TA),
     catch(py_call(petta_ops:dispatch(Name, TA), TR),
           Error, TR = '$petta_op_error'(Error)),
@@ -1807,6 +1843,76 @@ petta_py_dispatch_det(Name, Args, Result) :-
         ;   petta_py_decode_shared_(TR, Result, variables_of(Args), _)
         )
     ).
+
+petta_py_native_eq(Left, Right, Result) :-
+    petta_py_native_class(Left, LeftClass),
+    petta_py_native_class(Right, RightClass),
+    petta_py_native_eq_classes(LeftClass, Left, RightClass, Right, Result).
+
+%Order matters: true and false are atoms in Prolog but bool is a numeric
+%subclass in Python, and an unbound variable must never bind to either while
+%being classified.
+petta_py_native_class(Value, variable) :- var(Value), !.
+petta_py_native_class(true, boolean) :- !.
+petta_py_native_class(false, boolean) :- !.
+petta_py_native_class(Value, number) :- number(Value), !.
+petta_py_native_class(Value, string) :- string(Value), !.
+petta_py_native_class(Value, symbol) :- atom(Value), !.
+petta_py_native_class(Value, expression) :- is_list(Value).
+
+petta_py_native_eq_classes(boolean, Left, boolean, Right, Result) :-
+    petta_py_boolean_number(Left, LeftNumber),
+    petta_py_boolean_number(Right, RightNumber),
+    petta_py_numeric_eq(LeftNumber, RightNumber, Result).
+petta_py_native_eq_classes(boolean, Left, number, Right, Result) :-
+    petta_py_boolean_number(Left, LeftNumber),
+    petta_py_numeric_eq(LeftNumber, Right, Result).
+petta_py_native_eq_classes(number, Left, boolean, Right, Result) :-
+    petta_py_boolean_number(Right, RightNumber),
+    petta_py_numeric_eq(Left, RightNumber, Result).
+petta_py_native_eq_classes(number, Left, number, Right, Result) :-
+    petta_py_numeric_eq(Left, Right, Result).
+petta_py_native_eq_classes(string, Left, string, Right, Result) :-
+    ( Left == Right -> Result = true ; Result = false ).
+petta_py_native_eq_classes(symbol, Left, symbol, Right, Result) :-
+    ( Left == Right -> Result = true ; Result = false ).
+petta_py_native_eq_classes(variable, Left, variable, Right, Result) :-
+    ( Left == Right -> Result = true ; Result = false ).
+petta_py_native_eq_classes(expression, Left, expression, Right, Result) :-
+    petta_py_native_expression_eq(Left, Right, Result).
+petta_py_native_eq_classes(_, _, _, _, false).
+
+petta_py_boolean_number(true, 1).
+petta_py_boolean_number(false, 0).
+
+%Arithmetic comparison gives Python's numeric widening, signed-zero equality,
+%and NaN inequality directly.
+petta_py_numeric_eq(Left, Right, Result) :-
+    ( Left =:= Right -> Result = true ; Result = false ).
+
+petta_py_native_expression_eq([], [], true).
+petta_py_native_expression_eq([], [_|_], false).
+petta_py_native_expression_eq([_|_], [], false).
+petta_py_native_expression_eq([Left|Lefts], [Right|Rights], Result) :-
+    petta_py_native_eq(Left, Right, HeadResult),
+    (   HeadResult == false
+    ->  Result = false
+    ;   petta_py_native_expression_eq(Lefts, Rights, Result)
+    ).
+
+petta_py_native_truthy(Value, Result) :-
+    petta_py_native_class(Value, Class),
+    petta_py_native_truth_class(Class, Value, Result).
+
+petta_py_native_truth_class(variable, _, true).
+petta_py_native_truth_class(boolean, Value, Value).
+petta_py_native_truth_class(number, Value, Result) :-
+    ( Value =:= 0 -> Result = false ; Result = true ).
+petta_py_native_truth_class(string, Value, Result) :-
+    ( Value == "" -> Result = false ; Result = true ).
+petta_py_native_truth_class(symbol, _, true).
+petta_py_native_truth_class(expression, Value, Result) :-
+    ( Value == [] -> Result = false ; Result = true ).
 
 %The guard wraps the whole enumeration and that is safe in both directions:
 %catch/3 keeps Goal's choice points and re-establishes the catcher on
