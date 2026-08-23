@@ -6,8 +6,8 @@ Guarantees:
   - a compiled ``with space.limits(stack=N)`` block lowers to the sibling
     engine's ``stack-limit`` scoped pragma spelling [tested:
     test_compiled_stack_limit_uses_the_scoped_pragma_contract; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - star patterns refuse with the named segment-variable remedy [tested:
-    test_match_star_refusal_names_the_engine_remedy; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - star patterns lower to the engine's segment variables, named and anonymous
+    [tested: test_match_star_lowers_to_a_segment_variable; commit=WORKTREE]
   - overlapping decorator clauses share one exclusive case equation while
     disjoint heads remain separate equations [tested:
     test_overlapping_clauses_materialize_as_one_case_equation; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -15,10 +15,7 @@ Guarantees:
 
 from __future__ import annotations
 
-import pytest
-
 from metta import S
-from metta.errors import CompileError
 
 
 def test_match_statement_lowers_to_one_ordered_case_tower(metta):  # noqa: D103 -- the test name states the behavioral contract
@@ -72,16 +69,21 @@ def test_compiled_stack_limit_uses_the_scoped_pragma_contract(metta):  # noqa: D
     assert str(bounded_increment.body) == ("(with-pragma! ((stack-limit 4000000)) (+ $value 1))")
 
 
-def test_match_star_refusal_names_the_engine_remedy(metta):  # noqa: D103 -- the test name states the behavioral contract
+def test_match_star_lowers_to_a_segment_variable(metta):  # noqa: D103 -- the test name states the behavioral contract
     m = metta._new_space()
 
-    with pytest.raises(CompileError, match="named segment variables"):
+    # A NAMED star is the engine's named segment and an unnamed one is its
+    # anonymous gap, which is what Python's own `*_` already means.
+    @m.define
+    def head_of(items):
+        match items:
+            case (head, *tail):
+                return S.Split(head, tail)
+            case (*_,):
+                return S.Empty
 
-        @m.define
-        def head_of(items):
-            match items:
-                case (head, *_tail):
-                    return head
+    assert "(:seg $tail)" in str(head_of.body)
+    assert "..." in str(head_of.body)
 
 
 def test_overlapping_clauses_materialize_as_one_case_equation(metta):  # noqa: D103 -- the test name states the behavioral contract

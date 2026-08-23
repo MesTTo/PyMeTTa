@@ -16,6 +16,11 @@
 %     [tested test_declare_handles_rejects_a_conflict_eagerly]
 %   - petta_py_raise/2 reserves one exact exception shape for Python-side
 %     classification [tested test_reserved_exception_shape_maps_by_kind]
+%   - a query pattern carrying a sequence variable is classified once at the ask
+%     and handed to match/4 wrapped, from the same walk that lifts its
+%     modifiers, so a gap-free query builds the goal it always built
+%     [tested: test_ellipsis_is_an_anonymous_segment,
+%     test_a_segment_binding_projects_as_an_expression_slice; commit=WORKTREE]
 %   - petta_py_add_strict_declaration/2 refuses a declaration already owned by
 %     source code before Python publishes an operation
 %     [tested: test_a_duplicate_declaration_names_the_first_one;
@@ -1327,8 +1332,8 @@ petta_py_release_space(Name0) :-
 
 petta_py_query(Space, PatternsTagged, VarNames, Row) :-
     petta_py_decode_shared(["e", PatternsTagged], Patterns, Bindings),
-    petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers),
-    petta_py_match_goal(Space, PlainPatterns, Goal),
+    petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
+    petta_py_match_goal(Segments, Space, PlainPatterns, Goal),
     %Choose before the nondeterministic match. Calling the empty modifier
     %walker after Goal would call it once for every answer row.
     (   Modifiers == []
@@ -1355,8 +1360,8 @@ seam:pattern_modifier([PathAt, [SegmentsHead|Segments], Target], Root,
     nonvar(SegmentsHead), SegmentsHead == segments,
     !.
 
-petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers) :-
-    lift_pattern_modifiers(Patterns, PlainPatterns, Modifiers).
+petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments) :-
+    lift_pattern_modifiers(Patterns, PlainPatterns, Modifiers, Segments).
 
 petta_py_call_modifiers([]).
 petta_py_call_modifiers([Modifier|Modifiers]) :-
@@ -1378,8 +1383,21 @@ petta_py_path_steps(Cursor, [Segment|Segments]) :-
     Answer == @(true),
     petta_py_path_steps(Cursor, Segments).
 
-petta_py_match_goal(Space, [P], match(Space, P, answered, answered)) :- !.
-petta_py_match_goal(Space, Ps, match(Space, [','|Ps], answered, answered)).
+%The gap-pattern decision arrives from the walk that already lifted the
+%modifiers, so the question costs no inference of its own, and the answer sits
+%in the FIRST argument, where SWI's clause index decides it: a query with no
+%sequence variable resolves to the same one goal construction it always did
+%[measured 2026-08-24: query-2k-rows unchanged at its pinned count]. A gap
+%pattern is parsed and classified at the ask instead of at compile time,
+%because a host built it rather than wrote it.
+petta_py_match_goal(false, Space, [P], match(Space, P, answered, answered)) :- !.
+petta_py_match_goal(false, Space, Ps,
+                    match(Space, [','|Ps], answered, answered)).
+petta_py_match_goal(true, Space, [P],
+                    match(Space, Asked, answered, answered)) :- !,
+    petta_seq_query_plan(P, Asked).
+petta_py_match_goal(true, Space, Ps, match(Space, Asked, answered, answered)) :-
+    petta_seq_query_plan([','|Ps], Asked).
 
 petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
     findall(Row, petta_py_query(Space, PatternsTagged, VarNames, Row), Rows).
@@ -1445,8 +1463,8 @@ petta_py_render_origin(refused(Refusing), Text) :-
 %row, which measured at ~500ms per 2000-row guarded query.
 petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
     petta_py_decode_shared(["e", [GuardTagged | PatternsTagged]], [Guard | Patterns], Bindings),
-    petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers),
-    petta_py_match_goal(Space, PlainPatterns, Goal),
+    petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
+    petta_py_match_goal(Segments, Space, PlainPatterns, Goal),
     petta_py_module(Space, Module),
     petta_py_in_module(Module, translate_expr(Guard, Goals, Out)),
     (   Modifiers == []
@@ -1484,8 +1502,16 @@ petta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
 
 petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
     petta_py_decode_shared(["e", [PatternTagged]], [Pattern], Bindings),
-    petta_py_prepare_patterns([Pattern], [PlainPattern], Modifiers),
-    (   Modifiers == []
+    petta_py_prepare_patterns([Pattern], [PlainPattern], Modifiers, Segments),
+    %A gap pattern is not a shape a provider was handed a bound for: its arity
+    %is what the gap decides, so the engine enumerates candidates and the
+    %caller's own limit/2 still cuts the stream. The test is == on an atom,
+    %which SWI compiles inline, so the pushdown path keeps its per-row cost.
+    (   Segments == true
+    ->  petta_seq_query_plan(PlainPattern, Asked),
+        match(Space, Asked, answered, answered),
+        ( Modifiers == [] -> true ; petta_py_call_modifiers(Modifiers) )
+    ;   Modifiers == []
     ->  match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered)
     ;   match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered),
         petta_py_call_modifiers(Modifiers)

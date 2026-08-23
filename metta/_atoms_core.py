@@ -11,6 +11,9 @@ Guarantees:
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - pathlib paths encode as symbols rather than opaque host boxes [tested:
     test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - Ellipsis encodes as the gap symbol, so `...` in a pattern child position is
+    the engine's anonymous segment variable [tested:
+    test_ellipsis_is_an_anonymous_segment; commit=WORKTREE]
   - Grounded carries the engine's two relations, one per operand kind: against a
     raw value it is the == operator's numeric tower, against another atom it
     is unification identity (integer and float atoms distinct, signed zeros
@@ -1420,6 +1423,20 @@ def _(value: Any) -> Atom:
     # A Python sequence reads as an expression, which is what (1 2 3) is.
     # To carry a list whole as one opaque value, wrap it: metta.ground([1, 2, 3]).
     return _expression_atoms(encode(v) for v in value)
+
+
+@_encode_value.register(type(Ellipsis))
+def _(value: Any) -> Atom:
+    # Python's own gap glyph IS MeTTa's: `...` in a pattern child position is an
+    # ANONYMOUS segment variable standing for a run of zero or more children,
+    # and each occurrence is its own variable. The atom is the plain symbol,
+    # because whether a marker is a live gap or ordinary data is decided by the
+    # SIDE it sits on rather than by its shape: a pattern's `...` is a gap and a
+    # stored atom's is data [source: LeaTTa MettaHyperonFull/Core/SeqSyntax.lean,
+    # parseSeqAtom against parseConcreteAtom]. Before this it encoded as a
+    # grounded ellipsis object, so `space[(S.A, ..., S.D)]` answered nothing.
+    del value
+    return Symbol("...")
 
 
 # A table keyed on the value's EXACT class, consulted before the dispatch

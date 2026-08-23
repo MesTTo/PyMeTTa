@@ -8,6 +8,10 @@ Guarantees:
     dotted value patterns, guards, alternatives, as-bindings, and fallback
     [tested: test_match_statement_lowers_to_one_ordered_case_tower;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - a star pattern lowers to the engine's segment variable, named through
+    (:seg $x) and anonymous through ... [tested:
+    test_match_star_lowers_to_a_segment_variable,
+    test_a_case_star_pattern_binds_the_rest; commit=WORKTREE]
   - a final ``with space.limits(stack=N)`` block compiles to the scoped
     ``stack-limit`` pragma contract [tested:
     test_compiled_stack_limit_uses_the_scoped_pragma_contract;
@@ -475,11 +479,7 @@ class _StatementPattern:
         if isinstance(node, ast.MatchAs):
             return self._as(node)
         if isinstance(node, ast.MatchStar):
-            msg = (
-                "star patterns need the engine's named segment variables; "
-                "spell the fixed prefix today and use that segment-variable row when it lands"
-            )
-            raise CompileError(msg, construct="match star", line=node.lineno)
+            return self._star(node)
         if isinstance(node, ast.MatchMapping):
             msg = "mapping patterns need an engine dictionary image; match positional terms instead"
             raise CompileError(msg, construct="match mapping", line=node.lineno)
@@ -488,6 +488,25 @@ class _StatementPattern:
             raise CompileError(msg, construct="match pattern", line=node.lineno)
         msg = f"{type(node).__name__} has no MeTTa case-pattern image"
         raise CompileError(msg, construct="match pattern", line=getattr(node, "lineno", None))
+
+    def _star(self, node: ast.MatchStar) -> Atom:
+        """A star pattern is a SEGMENT VARIABLE, the variable's fifth face.
+
+        ``case (S.Order, id, *rest):`` binds ``rest`` to the run of children the
+        fixed part left over, which is Kutsia's final-position fragment exactly:
+        the gap is the last child of its own pattern, the arm's subject is a
+        value and therefore carries no gap of its own, and the answer is unitary
+        [source: LeaTTa MettaHyperonFull/Core/SeqFragment.lean, seqFinitary?].
+        Python's own grammar gives us the linearity the law wants for free,
+        since a sequence pattern admits at most one star.
+
+        ``*_`` needs no name, and the engine's anonymous gap is exactly that: an
+        occurrence whose run is consumed and discarded, distinct from every
+        other occurrence.
+        """
+        if node.name is None:
+            return Symbol("...")
+        return Expression([Symbol(":seg"), Variable(self.compiler._bind(node.name))])
 
     def _singleton(self, node: ast.MatchSingleton) -> Atom:
         if isinstance(node.value, bool):

@@ -31,6 +31,9 @@ Guarantees:
   - ``view`` lazily opens a live provider space over Python mappings, sets,
     and sequences [tested: test_view_is_a_live_queryable_space;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - the root exports ``seg``, the named segment builder, beside the ``...``
+    spelling Python already has [tested: test_seg_builds_a_named_segment;
+    commit=WORKTREE]
   - coordination functions are lazy satellite exports and Timeout remains
     catchable as builtin TimeoutError [tested:
     test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -75,6 +78,7 @@ from .atoms import (
     not_,
     or_,
     parse,
+    seg,
     typed,
     unify,
 )
@@ -418,6 +422,7 @@ __all__ = [
     "remove",
     "rules",
     "run",
+    "seg",
     "solve",
     "space",
     "spaces",
