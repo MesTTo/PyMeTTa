@@ -6,7 +6,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 807,
+  "metta_inferences": 809,
   "python": [
    "2"
   ],
@@ -58,7 +58,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 802,
+  "metta_inferences": 800,
   "python": [
    "3"
   ],
@@ -128,11 +128,11 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 2262,
+  "metta_inferences": 2260,
   "python": [
    "2"
   ],
-  "python_inferences": 1231
+  "python_inferences": 1233
  },
  "=%": {
   "leatta": [
@@ -265,7 +265,7 @@
   "metta": [
    "(@params ((@param \"the addend\")))"
   ],
-  "metta_inferences": 908,
+  "metta_inferences": 897,
   "python": [
    "\"the addend\""
   ],
@@ -331,7 +331,7 @@
   "metta": [
    "ErrorType"
   ],
-  "metta_inferences": 1178,
+  "metta_inferences": 1180,
   "python": [
    "ErrorType"
   ],
@@ -648,7 +648,7 @@
   "metta": [
    "(f 1)"
   ],
-  "metta_inferences": 1977,
+  "metta_inferences": 1975,
   "python": [
    "(f 1)"
   ],
@@ -1008,19 +1008,12 @@
   ],
   "python_inferences": 117
  },
- "get-deps": {
-  "leatta": [
-   "Grounded"
-  ],
-  "metta": null,
-  "python": null
- },
  "get-doc": {
   "leatta": [
    "(@doc-formal (@item +) (@kind function) (@type (-> Number Number Number)) (@desc \"Sums two numbers\") (@params ((@param (@type Number) (@desc \"Addend\")) (@param (@type Number) (@desc \"Augend\")))) (@return (@type Number) (@desc \"Sum\")))"
   ],
   "metta": [],
-  "metta_inferences": 1477,
+  "metta_inferences": 1476,
   "python": [
    "\"Make a title into a slug.\""
   ],
@@ -1258,7 +1251,7 @@
   "metta": [
    "(b c)"
   ],
-  "metta_inferences": 1279,
+  "metta_inferences": 1281,
   "python": [
    "(b c)"
   ],
@@ -1986,7 +1979,7 @@
    "b",
    "c"
   ],
-  "metta_inferences": 1327,
+  "metta_inferences": 1325,
   "python": [
    "a",
    "b",

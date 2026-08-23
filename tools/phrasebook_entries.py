@@ -5,10 +5,9 @@ what you write in Python instead, and which bucket the translation falls in.
 The names, their types and their metatypes are LeaTTa's, copied verbatim from
 `tests/conformance/stdlib-manifest.json`, whose own derivation field says every
 field was measured against LeaTTa's built binary rather than transcribed. The
-manifest declares 380 operations over 378 distinct names: `print-alternatives!`
+manifest declares 379 operations over 377 distinct names: `print-alternatives!`
 and `_minimal-foldl-atom` are each declared twice, once in the prelude and once
-in a built-in module registry, with identical types both times; `get-deps`
-joined 2026-08-24 as the arbiter's module-dependency view.
+in a built-in module registry, with identical types both times.
 
 Assumes:
   - a row's MeTTa form is a whole program, so `bind!` and `(= ...)` inside one
@@ -38,7 +37,7 @@ from dataclasses import dataclass
 #: The manifest these rows were taken from.
 LEATTA_VERSION = "1.0.9"
 LEATTA_COMMIT = "e47c93f"
-LEATTA_ENTRY_COUNT = 380
+LEATTA_ENTRY_COUNT = 379
 
 BUCKETS = {
     "dissolves": (
@@ -1248,17 +1247,6 @@ ENTRIES: list[Entry] = [
             "decision 8: pip and entry-point discovery are the catalog, so the "
             "absence is a decision rather than a gap"
         ),
-    ),
-    Entry(
-        "get-deps", ("(-> Atom Atom)",), "Grounded", "modules", "absent",
-        "One loaded module's direct dependency names as data, an Error for an "
-        "unknown module. The arbiter added it 2026-08-24 because Hyperon's "
-        "pinned import corpus asks for it while printing only a tree. The "
-        "Python-distribution half is importlib.metadata.requires per "
-        "decision 8; the MeTTa-side per-module dependency view over import! "
-        "records is a genuine gap, not a decision.",
-        metta="!(get-metatype get-deps)",
-        unrun="PeTTa does not declare the name",
     ),
     Entry(
         "print-mods!", ("(-> (->))",), "Grounded", "modules", "dissolves",
