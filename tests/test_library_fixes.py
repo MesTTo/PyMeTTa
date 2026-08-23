@@ -63,6 +63,9 @@ Guarantees:
   - compiled conditions whose declared result is Bool run directly rather
     than through py-truthy [tested:
     test_compiled_boolean_call_is_a_direct_condition; commit=WORKTREE]
+  - pathlib paths and typed space capabilities cross function calls as
+    symbols [tested: test_path_and_capability_options_cross_as_symbols;
+    commit=WORKTREE]
 """
 
 from fractions import Fraction
@@ -73,6 +76,7 @@ import pytest
 from petta import TRUE, UNIT, Expression, G, S, V, fn, space
 from petta.atoms import order_key
 from petta.errors import EngineError
+from petta.vocabularies import SpaceCapability
 
 
 def test_resolved_bang_call_is_eager(tmp_path: Path) -> None:
@@ -420,3 +424,13 @@ def test_compiled_boolean_call_is_a_direct_condition() -> None:
     assert "py-truthy" not in str(libfix_boolean_condition.body)
     assert libfix_boolean_condition(0).one() == 1
     assert libfix_boolean_condition(3).one() == 2
+
+
+def test_path_and_capability_options_cross_as_symbols(tmp_path: Path) -> None:
+    """Typed paths and capabilities retain their atom role at the call door."""
+    source = tmp_path / "option-atom.metta"
+    source.write_text("ok\n", encoding="utf-8")
+    target = space(restricted=True, grants=[SpaceCapability.file])
+
+    assert S.file == SpaceCapability.file.__metta__()
+    assert target.fn["exists_file"](source).one() is True

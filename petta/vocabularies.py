@@ -8,13 +8,26 @@ this file. The vocab-sync gate lane fails when the two drift.
 Guarantees:
   - every tuple and Literal here exactly matches its catalog vocabulary row
     [tested: test_the_vocabulary_module_is_generated; commit=dcfc20be4933c19140ccb5759291401d13058301]
+  - SpaceCapability is a StrEnum whose values encode as MeTTa symbols
+    [tested: test_path_and_capability_options_cross_as_symbols;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
+from enum import StrEnum
 from typing import Literal
+
+from .atoms import Symbol
+
+
+class _AtomStrEnum(StrEnum):
+    """A closed Python option whose wire identity is its MeTTa symbol."""
+
+    def __metta__(self):
+        return Symbol(self.value)
 
 __all__ = [
     "AGENDA_POLICY",
@@ -173,7 +186,11 @@ SourceKind = Literal["linear", "repeated", "peek"]
 
 #: (vocabulary space-capability file process network)
 SPACE_CAPABILITY = ("file", "process", "network")
-SpaceCapability = Literal["file", "process", "network"]
+class SpaceCapability(_AtomStrEnum):
+    """Typed values of the space-capability vocabulary."""
+    file = "file"
+    process = "process"
+    network = "network"
 
 #: (vocabulary subscription-edge add remove both)
 SUBSCRIPTION_EDGE = ("add", "remove", "both")

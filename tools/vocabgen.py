@@ -22,11 +22,14 @@ Guarantees:
   - a catalog name that already uses CamelCase keeps that spelling in its
     Python alias [tested: test_generated_alias_preserves_declared_camel_case;
     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+  - the space-capability vocabulary generates a StrEnum whose values encode
+    as their MeTTa symbols [tested:
+    test_path_and_capability_options_cross_as_symbols; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""
+"""  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
@@ -53,15 +56,30 @@ this file. The vocab-sync gate lane fails when the two drift.
 Guarantees:
   - every tuple and Literal here exactly matches its catalog vocabulary row
     [tested: test_the_vocabulary_module_is_generated; commit=dcfc20be4933c19140ccb5759291401d13058301]
+  - SpaceCapability is a StrEnum whose values encode as MeTTa symbols
+    [tested: test_path_and_capability_options_cross_as_symbols;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
+from enum import StrEnum
 from typing import Literal
 
+from .atoms import Symbol
+
+
+class _AtomStrEnum(StrEnum):
+    """A closed Python option whose wire identity is its MeTTa symbol."""
+
+    def __metta__(self):
+        return Symbol(self.value)
+
 '''
+
+ATOM_ENUMS = {"space-capability"}
 
 
 def vocabularies() -> list[tuple[str, list[str]]]:
@@ -76,29 +94,38 @@ def vocabularies() -> list[tuple[str, list[str]]]:
         if words:
             rows.append((words[0], words[1:]))
     if not rows:
-        raise SystemExit(
+        msg = (
             "the engine answered no (vocabulary ...) rows; the catalog "
             "presets failed to load, which is its own defect"
         )
+        raise SystemExit(msg)
     return sorted(rows)
 
 
 def constant_name(vocab: str) -> str:
+    """Map a catalog vocabulary name to its exported value tuple."""
     return vocab.replace("-", "_").upper()
 
 
 def alias_name(vocab: str) -> str:
+    """Map a catalog vocabulary name to its Python type spelling."""
     return "".join(part[:1].upper() + part[1:] for part in vocab.split("-"))
 
 
 def module_text(rows: list[tuple[str, list[str]]]) -> str:
+    """Render one deterministic generated vocabulary module."""
     body = []
     for vocab, values in rows:
         rendered = ", ".join(f'"{value}"' for value in values)
         trailing = "," if len(values) == 1 else ""
         body.append(f"#: (vocabulary {vocab} {' '.join(values)})")
         body.append(f"{constant_name(vocab)} = ({rendered}{trailing})")
-        body.append(f"{alias_name(vocab)} = Literal[{rendered}]")
+        if vocab in ATOM_ENUMS:
+            body.append(f"class {alias_name(vocab)}(_AtomStrEnum):")
+            body.append(f'    """Typed values of the {vocab} vocabulary."""')
+            body.extend(f'    {value} = "{value}"' for value in values)
+        else:
+            body.append(f"{alias_name(vocab)} = Literal[{rendered}]")
         body.append("")
     # isort-style export order, the shape ruff's RUF022 enforces: the
     # constant group first, the alias group after, each sorted.
@@ -113,6 +140,7 @@ def module_text(rows: list[tuple[str, list[str]]]) -> str:
 
 
 def main(argv: list[str]) -> int:
+    """Check the generated module, or rewrite it when asked."""
     wanted = module_text(vocabularies())
     current = MODULE.read_text(encoding="utf-8") if MODULE.exists() else None
     if current == wanted:

@@ -9,6 +9,8 @@ Guarantees:
   - exact rational values retain their Fraction payload through the n wire
     tag [tested: test_rational_payloads_cross_the_scalar_door;
     commit=WORKTREE]
+  - pathlib paths encode as symbols rather than opaque host boxes [tested:
+    test_path_and_capability_options_cross_as_symbols; commit=WORKTREE]
   - Grounded carries the engine's two relations, one per operand kind: against a
     raw value it is the == operator's numeric tower, against another atom it
     is unification identity (integer and float atoms distinct, signed zeros
@@ -95,6 +97,7 @@ from collections import deque
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from fractions import Fraction
 from functools import singledispatch
+from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._callable_mentions import callable_mention
@@ -1381,6 +1384,12 @@ def _(value: Atom) -> Atom:
 def _(value: str) -> Atom:
     # A Python str is a grounded string, never a symbol. Symbols come from S.
     return Grounded(value)
+
+
+@_encode_value.register
+def _(value: PurePath) -> Atom:
+    """A filesystem path is an engine atom, distinct from text payload."""
+    return Symbol(str(value))
 
 
 @_encode_value.register(bool)
