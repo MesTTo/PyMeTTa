@@ -8,38 +8,44 @@ any expression, by its head.
 
 The paths stay relative and unresolvable, unlike the sibling import twins:
 these two claims are that the import FAILS, and a path that resolves against
-nothing fails exactly as the example's does.
+nothing fails exactly as the example's does. The space each import names is the
+handle itself, which crosses into a built term as a grounded operand.
 """
 
 from petta import S
 
-#: The space every import writes.
-SELF = S["&self"]  # rung: no import door hangs off the space handle
+#: The engine library the example opens first. Its underscore is real, so it
+#: takes the bracket door: `S.lib_he` would name `lib-he`, which is not a
+#: library the tree ships.
+LIB_HE = S["lib_he"]
 
 #: The two ways an import can fail: a file that will not parse, and one that
 #: is not there.
 BROKEN = S["examples/integration/_fixtures/imports/import_error_broken"]
 MISSING = S["examples/integration/_fixtures/imports/definitely_missing_import"]
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 9499 to 9041, -458 (-4.82%), by the twin contract
-#: change: two `test` wrappers and their `if-error` guards left the engine for
-#: Python's own `assert` and `e[0]`, which reads an atom's head at no engine
-#: cost at all. The two failing imports are nearly the whole cost and they did
-#: not move, which is why this is the smallest drop in the folder. Against the
-#: example's 13223 the ratio is 0.6837 [measured 2026-08-22 min-of-3:
-#: `twin_coverage.py --measure examples/integration/import_error_surface.metta`].
-#: Prior: ADDED 2026-08-22 at 9499 by the wave-3 twin baseline, which priced a
-#: transliteration.
-BUDGET = 9041
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
     """Import two files that cannot load, and read what came back."""
-    m.eval(S["import!"](SELF, S.library(S.lib_he)))
+    # Known issue, two halves. `import!` has no Python door on the handle: the
+    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
+    # shipped library (appendix stamp 1), and neither exists yet. And the
+    # generic call door cannot stand in for it, because a call through the
+    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
+    # statement IMPORTS NOTHING until something pulls its answers [measured
+    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
+    # that way.
+    m.eval(S["import!"](m, S.library(LIB_HE)))
 
-    broken, = m.eval(S.catch(S["import!"](SELF, BROKEN)))
+    broken, = m.eval(S.catch(S["import!"](m, BROKEN)))
     assert broken[0] == S.Error
 
-    missing, = m.eval(S.catch(S["import!"](SELF, MISSING)))
+    missing, = m.eval(S.catch(S["import!"](m, MISSING)))
     assert missing[0] == S.Error

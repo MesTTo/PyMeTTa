@@ -3,7 +3,7 @@
 The example is the language's own tutorial for holding Python objects in MeTTa
 [source: metta-lang.dev/docs/learn/tutorials/python_use/py_atom]. Every
 `!(bind! np-abs (py-atom numpy.absolute))` is a Python name binding here, which
-is what a token was for: `np_abs = val(np.absolute)` names the object itself
+is what a token was for: `np_abs = ground(np.absolute)` names the object itself
 rather than parsing its dotted path, and applying it is an ordinary tuple, the
 head being the function.
 
@@ -13,61 +13,70 @@ answer belongs to is `isinstance`. Two claims resist, and the reason is
 measured rather than stylistic: a numpy SCALAR does not survive the crossing
 back into Python, arriving as an ordinary `int`, so `np.absolute(-5)` staying
 `np.int64` is a fact only the engine can be asked about. An ndarray DOES
-survive, by reference, which is why the third claim is plain Python. The two
-that stay are also where `__class__` and `__name__` need `sym(...)`: the S
-factory refuses every name beginning with `__` (residue, P14.5).
+survive, by reference, which is why the third claim is plain Python.
 
-`Kwargs` stays too. It is the seam's own spelling for keyword arguments in a
-MeTTa-side call and the Python surface has no other, which is the second
-residue entry here.
+`__class__` and `__name__` take the bracket door, which is what rung 5 is for:
+the attribute door of the S factory refuses every name beginning with `__`,
+because inside a class body Python's own compiler would mangle it.
+
+`Kwargs` stays. It is the seam's own spelling for keyword arguments in a
+MeTTa-side call and the Python surface has no other, which is the residue this
+file carries beside the scalar crossing.
 """
 
 import numpy as np
 
-from petta import S, sym, val
+from petta import S, ground
 
 #: The three numpy entry points the example binds, and the submodule it holds
 #: once so it can reach several functions out of it.
-np_abs, np_array, np_arange = val(np.absolute), val(np.array), val(np.arange)
+np_abs, np_array, np_arange = ground(np.absolute), ground(np.array), ground(np.arange)
 np_random = np.random
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 6803 to 2652, -4151 (-61.0%), by the twin contract
-#: change: seven `test` wrappers, three `collapse`/`py-iter` pairs and four
-#: `py-dot` reaches left the engine for `assert`, `.tolist()` and `isinstance`,
-#: which on a value already in Python are native operations with no crossing at
-#: all. The two `py-dot` claims that remain are the two the crossing cannot
-#: answer. Against the example's 18790 the ratio is 0.1411, the cheapest twin in
-#: this folder [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/integration/py_numpy.metta`]. Prior: RE-PINNED at 6803, +2, by the
-#: NumPy crossing floor rather than a semantic path (twelve fresh processes on
-#: three trees all read 6803); ADDED 2026-08-22 at 6801 by the wave-3 twin
-#: baseline, which priced a transliteration.
-BUDGET = 2652
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
     """Hold four numpy objects, apply them in the engine, read the answers."""
     # A numpy scalar stays a numpy object INSIDE the engine, which is the
-    # tutorial's own point; it is an ordinary int by the time Python sees it,
-    # so this is the one question only the engine can be asked.
+    # tutorial's own point.
+    #
+    # Known issue: the perfect claim is `isinstance(np.absolute(-5), np.int64)`
+    # on the answer Python holds, and a numpy SCALAR does not survive the
+    # crossing back: `m.eval` hands Python an ordinary `int` [measured
+    # 2026-08-23, Grounded(5) whose .value is an int]. An ndarray DOES survive,
+    # by reference, which is why the array claim below is plain `isinstance`.
+    # So this one question can only be asked engine-side.
     scalar = (np_abs, -5)
-    assert m.eval(S["py-dot"](S["py-dot"](scalar, sym("__class__")), sym("__name__"))) == [
-        val("int64")
-    ]
-    assert m.eval((S["py-dot"](scalar, S.item),)) == [5]
+    class_of = S.py_dot(scalar, S["__class__"])
+    assert m.fn.py_dot(class_of, S["__name__"]) == [ground("int64")]
+
+    # An applied bound method: the HEAD is itself a term, which no name at the
+    # function namespace can spell, so this one is asked as the term it is.
+    assert m.eval((S.py_dot(scalar, S.item),)) == [5]
 
     # An array crosses by reference, so Python can ask about it directly. The
     # example's `(py-atom "[1, 2, 3]")` evaluates Python source text; a Python
     # program writes the list.
-    assert isinstance(m.one((np_array, val([1, 2, 3]))), np.ndarray)
+    assert isinstance(m.answers((np_array, ground([1, 2, 3]))).one(), np.ndarray)
 
-    # arange means different things by how many arguments you give it, and
-    # Kwargs is how a MeTTa-side call skips the ones it does not care about.
-    assert m.one((np_arange, 4)).tolist() == [0, 1, 2, 3]
-    assert m.one((np_arange, S.Kwargs(S.step(2), S.stop(8)))).tolist() == [0, 2, 4, 6]
-    assert m.one((np_arange, S.Kwargs(S.start(2), S.stop(10), S.step(3)))).tolist() == [2, 5, 8]
+    # arange means different things by how many arguments you give it.
+    #
+    # Known issue: the perfect spelling of the last two is Python's own
+    # `np.arange(step=2, stop=8)`, and a keyword argument has no Python-authored
+    # spelling that still crosses the seam, so `Kwargs` is the seam's own form
+    # written out as a term (§8c filed the design decision; nothing has landed).
+    assert m.answers((np_arange, 4)).one().tolist() == [0, 1, 2, 3]
+    assert m.answers((np_arange, S.Kwargs(S.step(2), S.stop(8)))).one().tolist() == [0, 2, 4, 6]
+    assert m.answers(
+        (np_arange, S.Kwargs(S.start(2), S.stop(10), S.step(3)))
+    ).one().tolist() == [2, 5, 8]
 
     # A submodule held once, reached into for the function wanted: randint
     # answers a Python int, not a numpy one.
-    assert isinstance(m.one((val(np_random.randint), 25)), int)
+    assert isinstance(m.answers((ground(np_random.randint), 25)).one(), int)

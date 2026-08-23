@@ -12,15 +12,12 @@ expression and Python unpacks it, which is the same act with no construct to
 learn.
 """
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 5783 to 3546, -2237 (-38.68%), by the twin-shape
-#: rewrite: the `test` wrapper left the engine for `assert`, and the `let*`
-#: chain that destructured each answer left it too: out here the answer is an
-#: expression and Python unpacks it. Against the example's 7823 the ratio is
-#: 0.4533 [measured 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/data/iter.metta`]. Prior: RE-PINNED at 5783 by the wave-4 idiom
-#: rewrite.
-BUDGET = 3546
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
@@ -36,9 +33,9 @@ def twin(m):
         following = n + 1
         return (value, following)
 
-    start = make_nat_iter()[0]
-    first, after_first = iter_next(start)[0]
-    second, after_second = iter_next(after_first)[0]
-    third, _ = iter_next(after_second)[0]
+    start = make_nat_iter().one()
+    first, after_first = iter_next(start).one()
+    second, after_second = iter_next(after_first).one()
+    third, _ = iter_next(after_second).one()
 
     assert (first, second, third) == (0, 1, 2)

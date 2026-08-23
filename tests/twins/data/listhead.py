@@ -21,15 +21,12 @@ Open Obligations:
 
 from petta import Expression, S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 4655 to 3099, -1556 (-33.43%), by the twin-shape
-#: rewrite: three `test` wrappers left the engine for `assert`, and the cons-
-#: pattern claim became `head, *tail = e`, which is native. The recursive
-#: `len` still walks in the engine, and the claim now says it agrees with
-#: Python's `len`. Against the example's 8323 the ratio is 0.3723 [measured
-#: 2026-08-22 min-of-3: `twin_coverage.py --measure
-#: examples/data/listhead.metta`]. Prior: the file's first pin, uncommented.
-BUDGET = 3099
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
@@ -38,6 +35,8 @@ def twin(m):
     m += equation(S.len(S.cons(V.head, V.tail))).to(S.len(V.tail) + 1)
 
     head, *tail = Expression((1, 2, 3, 4, 5, 6))
+    counted = Expression((1, 2, 3))
+
     assert (head, tail) == (1, [2, 3, 4, 5, 6])
-    assert m.fn("len")(Expression((1, 2, 3))) == len(Expression((1, 2, 3))) == 3
-    assert m.fn("cons")(42, Expression(())) == Expression((42,))
+    assert m.fn.len(counted).one() == len(counted) == 3
+    assert m.fn.cons(42, Expression(())).one() == Expression((42,))

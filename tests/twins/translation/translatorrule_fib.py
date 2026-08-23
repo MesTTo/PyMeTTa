@@ -16,16 +16,12 @@ are.
 
 from petta import S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 8119 to 7485, -634 (-7.8%), by the twin contract
-#: change: `(test (smartfun 42) 2310)` became one `assert`, so only the `test`
-#: wrapper left the engine; the four definitions, the rule registration and the
-#: compile-time expansion it causes all stayed. Against the example's 10451 the
-#: ratio is 0.7162.
-#: Prior: 8119, pinned 2026-08-22 by the P14 twin-style rewrite and
-#: measured under the previous contract, where twin(m) was a generator the
-#: lane consumed form by form.
-BUDGET = 7485
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
@@ -44,7 +40,13 @@ def twin(m):
         return fib(n)  # noqa: F821  -- a free name in a compiled body is resolved against the engine's registry, where `fib` now is
 
     # Can be left out, but then `smartfun` recomputes fib(10) on every call.
-    m.fn("add-translator-rule!")(S.compilefib)
+    # Known issue: a call through the function namespace answers a LAZY view,
+    # so the perfect statement-level spelling of a directive,
+    # `m.fn.add_translator_rule(head)`, REGISTERS NOTHING until something pulls
+    # its answers [measured 2026-08-23: the rule fires only after list() of the
+    # view]. The term door evaluates eagerly, so a directive is written that
+    # way until a side-effecting call runs at statement level.
+    m.eval(S["add-translator-rule!"](S.compilefib))
 
     @m.define
     def smartfun(b):
@@ -52,4 +54,4 @@ def twin(m):
         # while THIS definition is compiled, never per call.
         return compilefib(10) * b
 
-    assert smartfun(42) == [2310]
+    assert smartfun(42).one() == 2310

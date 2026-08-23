@@ -6,6 +6,14 @@ you have UP TO the names of its variables, so `(f $x)` is a member of
 is not. That difference is the whole subject, so the claims go to the operation
 itself, and the two spellings are put side by side once to show where they part.
 
+Known issue: the perfect spelling of every question below is
+`m.fn.is_alpha_member(needle, haystack).one()`, and half of these needles carry
+variables, where a call through the function namespace answers BINDING ROWS
+rather than the value: `is-alpha-member (f $x) ((f $y) (g $z))` comes back as
+`Row(x=..., y=..., z=...)` and the verdict is gone [measured 2026-08-23]. The
+term door answers the value whatever the term holds, so each question is one
+`m.eval` of the built term until a call can answer a value and its bindings.
+
 The cases walk the edges: an empty list, a variable against ground terms, a
 ground term, nested structure, a repeated variable that must repeat in the
 match too, differing arities, numbers, and the empty expression as a member.
@@ -20,61 +28,61 @@ Open Obligations:
 
 from petta import Expression, S, V
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 16069 to 12361, -3708 (-23.08%), by the twin-shape
-#: rewrite: twenty-two `test` wrappers left the engine for `assert`; every
-#: membership question still runs in the engine, because alpha-equivalence is
-#: what Python's own `in` does NOT do, and the twin says so with a claim.
-#: Against the example's 29435 the ratio is 0.4199 [measured 2026-08-22 min-
-#: of-3: `twin_coverage.py --measure
-#: examples/data/is_alpha_member_test.metta`]. Prior: RE-PINNED at 16069 by
-#: the wave-4 idiom rewrite.
-BUDGET = 12361
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
     """Ask about membership for twenty-two shapes of needle and haystack."""
-    member = m.fn("is-alpha-member")
+
+    def holds(needle, haystack):
+        """Whether `haystack` holds a term alpha-equal to `needle`."""
+        return m.eval(S.is_alpha_member(needle, haystack)) == [True]
+
     letters = S.a(S.b, S.c)
 
-    assert member(S.x, Expression(())) is False
-    assert member(V.x, letters) is False
-    assert member(S.a, letters) is True
-    assert member(S.d, letters) is False
+    assert not holds(S.x, Expression(()))
+    assert not holds(V.x, letters)
+    assert holds(S.a, letters)
+    assert not holds(S.d, letters)
 
     # Alpha-equivalence: the variable names differ and the structure does not.
-    assert member(S.f(V.x), Expression((S.f(V.y), S.g(V.z)))) is True
-    assert member(S.f(V.x), Expression((S.f(V.y), S.f(V.y)))) is True
+    assert holds(S.f(V.x), Expression((S.f(V.y), S.g(V.z))))
+    assert holds(S.f(V.x), Expression((S.f(V.y), S.f(V.y))))
     assert S.f(V.x) not in Expression((S.f(V.y), S.g(V.z)))
 
     # Nested structure, and a repeated variable that must repeat in the match.
-    assert member(S.f(S.g(V.x), V.y), Expression((S.f(S.g(V.a), V.b), S.h(V.c, V.d)))) is True
-    assert member(S.f(S.g(V.x), V.x), Expression((S.f(S.g(V.a), V.b), S.f(S.g(V.c), V.c)))) is True
+    assert holds(S.f(S.g(V.x), V.y), Expression((S.f(S.g(V.a), V.b), S.h(V.c, V.d))))
+    assert holds(S.f(S.g(V.x), V.x), Expression((S.f(S.g(V.a), V.b), S.f(S.g(V.c), V.c))))
 
     # Different arities never match.
-    assert member(S.f(V.x), Expression((S.f(V.x, V.y), S.g(V.z)))) is False
+    assert not holds(S.f(V.x), Expression((S.f(V.x, V.y), S.g(V.z))))
 
-    assert member(42, Expression((1, 2, 42, 3))) is True
-    assert member(99, Expression((1, 2, 42, 3))) is False
+    assert holds(42, Expression((1, 2, 42, 3)))
+    assert not holds(99, Expression((1, 2, 42, 3)))
 
-    assert member(Expression((1, V.x)), Expression((Expression((1, 2)), Expression((3, 4))))) is True
-    assert member(Expression((1, V.x)), Expression((Expression((2, 3)), Expression((4, 5))))) is False
+    assert holds(Expression((1, V.x)), Expression((Expression((1, 2)), Expression((3, 4)))))
+    assert not holds(Expression((1, V.x)), Expression((Expression((2, 3)), Expression((4, 5)))))
 
-    assert member(S.a, S.a(S.b, S.a, S.c)) is True
-    assert member(S.f(V.x, V.y), Expression((S.f(V.a, V.b), S.f(V.c, V.d)))) is True
+    assert holds(S.a, S.a(S.b, S.a, S.c))
+    assert holds(S.f(V.x, V.y), Expression((S.f(V.a, V.b), S.f(V.c, V.d))))
 
-    assert member(S.a, S.a()) is True
-    assert member(S.b, S.a()) is False
+    assert holds(S.a, S.a())
+    assert not holds(S.b, S.a())
 
     # Every element is a variable, and so is the needle.
-    assert member(V.x, Expression((V.y, V.z, V.w))) is True
+    assert holds(V.x, Expression((V.y, V.z, V.w)))
 
-    assert member(S.a(S.b(S.c(V.x))), Expression((S.a(S.b(S.c(V.d))), S.e(V.f)))) is True
-    assert member(S.f(V.x), Expression((S.g(V.y), S.h(V.z)))) is False
+    assert holds(S.a(S.b(S.c(V.x))), Expression((S.a(S.b(S.c(V.d))), S.e(V.f))))
+    assert not holds(S.f(V.x), Expression((S.g(V.y), S.h(V.z))))
 
     # The empty expression is an ordinary member.
-    assert member(Expression(()), Expression((Expression(()), S.a, S.b))) is True
-    assert member(Expression(()), S.a(S.b, S.c)) is False
+    assert holds(Expression(()), Expression((Expression(()), S.a, S.b)))
+    assert not holds(Expression(()), S.a(S.b, S.c))
 
     pattern = S.hi(S.name, S.boss)
-    print(pattern, member(V.new, pattern))
+    print(pattern, holds(V.new, pattern))

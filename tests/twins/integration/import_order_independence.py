@@ -1,11 +1,15 @@
 """Purpose: prove that an import may use a function defined by a later import.
 
+The space the import writes is the handle itself, which crosses into the
+built term as a grounded operand. What stays below the top rung is `import!`
+having no Python door of its own, which the residue records.
+
 Assumes:
   - the imported index loads uses before defines and then calls the resulting
     function [source: examples/integration/_fixtures/imports/import_order/index.metta lines 1-4; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Guarantees:
   - twin performs the import and checks its caller after the fixture's own
-    claim succeeds [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/integration/import_order_independence.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+    claim succeeds [measured 2026-08-23: twin completed; command=python bindings/python/tools/twin_coverage.py examples/integration/import_order_independence.metta; fixture=fresh isolated process; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -14,23 +18,28 @@ Open Obligations:
 
 from petta import S
 
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 7646..7710 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 7646,
-    "maximum": 7710,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
-RUNG = "import! has no handle method, so its target space remains a named term"
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
-SELF = S["&self"]
+#: The index the example imports, written from the repository root: a Python
+#: program has no importing file to resolve a relative import against.
 INDEX = S["examples/integration/_fixtures/imports/import_order/index"]
 
 
 def twin(m):
     """Import the index and ask the caller whose callee arrived second."""
-    m.eval(S["import!"](SELF, INDEX))
+    # Known issue, two halves. `import!` has no Python door on the handle: the
+    # perfect spelling is `m.import_(target)`, or `m += lib.<name>` for a
+    # shipped library (appendix stamp 1), and neither exists yet. And the
+    # generic call door cannot stand in for it, because a call through the
+    # function namespace answers a LAZY view: `m.fn["import!"](m, target)` as a
+    # statement IMPORTS NOTHING until something pulls its answers [measured
+    # 2026-08-23]. The term door evaluates eagerly, so the directive is written
+    # that way.
+    m.eval(S["import!"](m, INDEX))
 
-    assert m.eval(S["import-order-caller"]()) == [S["import-order-ok"]]
+    assert m.fn.import_order_caller().one() == S["import-order-ok"]

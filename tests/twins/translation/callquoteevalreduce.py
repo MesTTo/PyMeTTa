@@ -1,5 +1,16 @@
 """Purpose: preserve call, quote, eval, and reduce across definition timing.
 
+`compilefib` installs an equation from inside a stored `let`, so the program
+stays at the term door; the space that `add-atom` writes is the handle itself,
+which crosses into the built term as a grounded operand.
+
+Known issue on the guard below. The style guide rules that a comparison on an
+atom BUILDS the term, and `>`, `<=` and `>=` still do; `<` does not, because
+`Atom.__lt__` now carries the engine's SORT ORDER, so `V.n < 2` raises
+TypeError and `V.n < V.m` silently answers a bool [measured 2026-08-23]. The
+perfect spelling of this guard is `V.n < 2`; until the two rulings are
+reconciled the head is written out.
+
 Assumes:
   - fib is absent for the first claim, installed by compilefib, and present for
     the final two claims [source: examples/translation/callquoteevalreduce.metta lines 1-48; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
@@ -14,18 +25,12 @@ Open Obligations:
 
 from petta import Expression, S, V, equation
 
-#: Successful costs from two complete concurrent ten-round observations plus
-#: eight subsequent complete gate-protocol observations
-#: [measured: 28011..28139 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 28011,
-    "maximum": 28139,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
-RUNG = "compilefib installs an equation from inside a stored let, so the program stays at the term door"
-
-SELF = S["&self"]
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
@@ -51,8 +56,8 @@ def twin(m):
     ]
 
     fib_equation = equation(S.fib(V.n)).to(
-        S["if"](
-            V.n < 2,
+        S["if"](  # rung: this `if` is the stored BODY of an equation, so it is data rather than control flow
+            S["<"](V.n, 2),  # Known issue: `V.n < 2` is the perfect spelling and raises TypeError; see the module docstring
             V.n,
             S.fib(V.n - 1) + S.fib(V.n - 2),
         )
@@ -65,9 +70,9 @@ def twin(m):
         S["reduce-within"](S.reduce(fib5)),
     ))
     m += equation(S.compilefib()).to(
-        S.let(
+        S.let(  # rung: this `let` sequences INSIDE a stored program, where Python's assignment cannot reach
             V.temp,
-            S["add-atom"](SELF, fib_equation),  # rung: the target is computed inside the stored program
+            S["add-atom"](m, fib_equation),  # rung: add-atom is the target of a stored program, not this twin's own write
             compiled_body,
         )
     )

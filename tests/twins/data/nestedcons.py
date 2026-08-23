@@ -8,18 +8,16 @@ reads `(a b c d)` as head `a`, then `(b c d)` as head `b`, and answers `b`.
 
 from petta import S, V, equation
 
-#: Inferences this twin spends, its own tripwire.
-#: RE-PINNED 2026-08-22, 1252 to 1124, -128 (-10.22%), by the twin-shape
-#: rewrite: the `test` wrapper left the engine for `assert`; the doubly-
-#: nested clause and the one call over it are unchanged. Against the
-#: example's 2778 the ratio is 0.4046 [measured 2026-08-22 min-of-3:
-#: `twin_coverage.py --measure examples/data/nestedcons.metta`]. Prior: the
-#: file's first pin, uncommented.
-BUDGET = 1124
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
     """Define the doubly-nested clause and take the second element with it."""
     m += equation(S.f(S.cons(V.a, S.cons(V.b, V.L)))).to(V.b)
 
-    assert m.fn("f")(S.a(S.b, S.c, S.d)) == S.b
+    assert m.fn.f(S.a(S.b, S.c, S.d)).one() == S.b

@@ -14,17 +14,12 @@ Open Obligations:
 
 from petta import S, equation
 
-#: Successful costs from two complete concurrent ten-round observations
-#: The next complete lane falsified the first envelope at 3118, so this pin was
-#: explicitly widened only after that finding; seven later complete lanes stayed
-#: inside it
-#: [measured: 3118..3158 over 28 observations; command=python bindings/python/tools/twin_coverage.py --observe --rounds 10, repeated twice, then python bindings/python/tools/twin_coverage.py, repeated eight times; fixture=full-lane/218/workers=32; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
-BUDGET = {
-    "minimum": 3118,
-    "maximum": 3158,
-    "observations": 28,
-    "protocol": "full-lane/218/workers=32",
-}
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
+#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+BUDGET = 1
 
 
 def twin(m):
