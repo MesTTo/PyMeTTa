@@ -3,8 +3,12 @@ Guarantees:
   - ``install_type`` is the class branch behind ``Space.define`` [tested:
     test_define_absorbs_class_declaration_and_frees_space_type;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
-  - install_define keeps stacked clauses in Python first-match order [tested
-    test_literal_defaults_are_head_patterns_and_clauses_stack]
+  - install_define keeps stacked clauses in Python first-match order and
+    materializes every overlapping same-arity component as one case equation,
+    leaving disjoint heads separate [tested:
+    test_literal_defaults_are_head_patterns_and_clauses_stack,
+    test_overlapping_clauses_materialize_as_one_case_equation;
+    commit=WORKTREE]
   - clauses at different arities under one MeTTa name stack instead of
     replacing one another [tested:
     test_define_supports_one_name_at_multiple_arities; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -75,7 +79,18 @@ from ._define_twins import (
 from ._documentation import attribute_docstrings, documentation_atom
 from ._name_mapping import attribute_name
 from ._ops import REGISTRY
-from .atoms import Atom, Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode, _expr
+from .atoms import (
+    Atom,
+    Expression,
+    Grounded,
+    S,
+    Symbol,
+    Variable,
+    _alpha_eq,
+    _encode,
+    _expr,
+    _map_atoms,
+)
 from .define import (
     Compiled,
     Defined,
@@ -278,7 +293,7 @@ def _validate_clause_order(
 
 
 def _same_clause(clause: dict[str, Any], canonical: tuple[Expression, ...], name: str) -> bool:
-    old_equations = (*clause["equations"], *clause.get("aux", ()))
+    old_equations = (*clause.get("raw_equations", clause["equations"]), *clause.get("aux", ()))
     old_canonical = canonical_aux_set(old_equations, name)
     return len(old_canonical) == len(canonical) and all(
         _alpha_eq(old, new) for old, new in zip(old_canonical, canonical, strict=True)
@@ -327,6 +342,7 @@ def _store_clause(
     space: Any,
     earlier: list[dict[str, Any]],
     *,
+    name: str,
     patterns: dict[str, Atom],
     equations: tuple[Expression, ...],
     compiled: Compiled,
@@ -335,15 +351,24 @@ def _store_clause(
     replaced: int | None,
 ) -> None:
     record = _clause_record(patterns, equations, compiled)
-    previous_atoms: list[Expression] = []
-    if replaced is not None:
-        previous = earlier[replaced]
-        previous_atoms = [*previous.get("aux", ()), *previous["equations"]]
-        for atom in previous_atoms:
-            space.remove(atom)
+    prospective = earlier.copy()
+    if replaced is None:
+        prospective.append(record)
+    else:
+        prospective[replaced] = record
+    prospective = _materialize_clause_equations(name, prospective)
+
+    previous_atoms = [
+        atom for clause in earlier for atom in (*clause.get("aux", ()), *clause["equations"])
+    ]
+    for atom in previous_atoms:
+        space.remove(atom)
+    next_atoms = [
+        atom for clause in prospective for atom in (*clause.get("aux", ()), *clause["equations"])
+    ]
     added: list[Expression] = []
     try:
-        for atom in (*compiled.aux, *equations):
+        for atom in next_atoms:
             space.add(atom)
             added.append(atom)
     except BaseException:
@@ -353,10 +378,10 @@ def _store_clause(
             space.add(atom)
         raise
     if replaced is None:
-        earlier.append(record)
+        earlier[:] = prospective
         append_twin_clause(dispatcher, clause_twin)
     else:
-        earlier[replaced] = record
+        earlier[:] = prospective
         replace_twin_clause(dispatcher, replaced, clause_twin)
 
 
@@ -365,14 +390,121 @@ def _clause_record(
 ) -> dict[str, Any]:
     return {
         "arity": len(compiled.params),
+        "params": tuple(compiled.params),
         "patterns": patterns.copy(),
         "equations": equations,
+        "raw_equations": equations,
+        "bodies": tuple(compiled.equation_bodies),
         "aux": tuple(compiled.aux),
         "facts": compiled.facts,
     }
 
 
-def _definition_facts(space: Any, name: str, clauses: list[dict[str, Any]]) -> tuple[Expression, ...]:
+def _materialize_clause_equations(name: str, clauses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Assign physical equations, merging only connected overlapping heads."""
+    materialized = [clause | {"equations": ()} for clause in clauses]
+    by_arity: dict[int, list[int]] = {}
+    for position, clause in enumerate(clauses):
+        by_arity.setdefault(clause["arity"], []).append(position)
+
+    for positions in by_arity.values():
+        for component in _overlap_components(clauses, positions):
+            if len(component) == 1:
+                position = component[0]
+                materialized[position]["equations"] = clauses[position]["raw_equations"]
+                continue
+            owner = component[0]
+            materialized[owner]["equations"] = (
+                _case_equation(name, [clauses[position] for position in component]),
+            )
+    return materialized
+
+
+def _overlap_components(clauses: list[dict[str, Any]], positions: list[int]) -> list[list[int]]:
+    """Connected components under compatible literal-head overlap."""
+    remaining = set(positions)
+    components: list[list[int]] = []
+    while remaining:
+        seed = min(remaining)
+        remaining.remove(seed)
+        component = [seed]
+        frontier = [seed]
+        while frontier:
+            current = frontier.pop()
+            neighbours = [
+                candidate
+                for candidate in sorted(remaining)
+                if _heads_overlap(clauses[current]["patterns"], clauses[candidate]["patterns"])
+            ]
+            for candidate in neighbours:
+                remaining.remove(candidate)
+                component.append(candidate)
+                frontier.append(candidate)
+        components.append(sorted(component))
+    return components
+
+
+def _heads_overlap(left: dict[str, Atom], right: dict[str, Atom]) -> bool:
+    return all(left[name] == right[name] for name in left.keys() & right.keys())
+
+
+def _case_equation(name: str, clauses: list[dict[str, Any]]) -> Expression:
+    """One general equation whose case rows preserve authored clause order."""
+    params = clauses[0]["params"]
+    subject_variables = [Variable(f"{name}-argument-{index}") for index in range(len(params))]
+    subject: Atom = (
+        subject_variables[0] if len(subject_variables) == 1 else Expression(subject_variables)
+    )
+    rows: list[Expression] = []
+    for serial, clause in enumerate(clauses, start=1):
+        rename = {
+            variable.name: f"{name}-clause-{serial}-{variable.name}"
+            for body in clause["bodies"]
+            for variable in _variables_in(body)
+        }
+        rename.update(
+            {
+                param: f"{name}-clause-{serial}-{param}"
+                for param in params
+                if param not in clause["patterns"]
+            }
+        )
+
+        def renamed(atom: Atom, mapping: dict[str, str] = rename) -> Atom:
+            if isinstance(atom, Variable) and atom.name in mapping:
+                return Variable(mapping[atom.name])
+            return atom
+
+        row_parts = [
+            clause["patterns"][param] if param in clause["patterns"] else Variable(rename[param])
+            for param in params
+        ]
+        pattern: Atom = row_parts[0] if len(row_parts) == 1 else Expression(row_parts)
+        bodies = tuple(_map_atoms(body, renamed) for body in clause["bodies"])
+        body: Atom = (
+            bodies[0] if len(bodies) == 1 else Expression([Symbol("superpose"), Expression(bodies)])
+        )
+        rows.append(Expression([pattern, body]))
+    head = Expression([Symbol(name), *subject_variables])
+    body = Expression([Symbol("case"), subject, Expression(rows)])
+    return Expression([Symbol("="), head, body])
+
+
+def _variables_in(atom: Atom) -> tuple[Variable, ...]:
+    found: list[Variable] = []
+
+    def collect(node: Atom) -> Atom:
+        if isinstance(node, Variable):
+            found.append(node)
+        return node
+
+    _map_atoms(atom, collect)
+    return tuple(found)
+
+
+def _definition_facts(
+    space: Any, name: str, clauses: list[dict[str, Any]]
+) -> tuple[Expression, ...]:
     """The aggregate reflection of every live clause under one name."""
     facts: list[Expression] = [Expression([Symbol("defined"), Symbol(space.name), Symbol(name)])]
     for clause in clauses:
@@ -553,14 +685,10 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     # in the space, not in whichever MeTTa instance happened to add them.
     earlier = _DEFINE_CLAUSES.setdefault((space.name, name), [])
     _validate_clause_order(space, name, patterns, len(params), earlier)
-    # MeTTa equations are alternatives, and a Python author stacking
-    # clauses means first-match, so each clause is guarded against every
-    # earlier literal head it would otherwise also answer for. The guard
-    # is ordinary MeTTa, visible in .source(), never a hidden rule.
-    bodies = tuple(
-        _guard_against(body, [clause["patterns"] for clause in earlier], patterns)
-        for body in compiled.equation_bodies
-    )
+    # The materializer below turns overlapping heads into one ordered case
+    # equation. Keeping the authored bodies raw here lets replacement rebuild
+    # the whole connected component without accumulating old guards.
+    bodies = compiled.equation_bodies
     head = Expression([Symbol(name), *(patterns.get(p, Variable(p)) for p in params)])
     equations = tuple(Expression([Symbol("="), head, body]) for body in bodies)
     dispatcher = twin_dispatcher(fn)
@@ -607,6 +735,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         _store_clause(
             space,
             earlier,
+            name=name,
             patterns=patterns,
             equations=equations,
             compiled=compiled,
@@ -832,31 +961,3 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
             ],
             arities=arities,
         )
-
-
-def _guard_against(body: Atom, earlier: list, patterns: dict) -> Atom:
-    """The current clause's body, declining every earlier literal head.
-
-    For each earlier clause, the inputs it claims are the positions it fixed
-    with literals; when this clause leaves all of those positions variable,
-    the two overlap, and this clause answers (empty) there, so dispatch reads
-    first-match the way the stacked Python reads. define() refuses a later
-    head that fixes every literal in an earlier head because no variable is
-    available for a conditional guard.
-    """
-    for earlier_patterns in earlier:
-        if not earlier_patterns:
-            continue
-        overlapping = all(
-            p not in patterns or patterns[p] == v for p, v in earlier_patterns.items()
-        )
-        contested = [p for p in earlier_patterns if p not in patterns]
-        if not overlapping or not contested:
-            continue
-        first, *remaining = contested
-        condition: Atom = Expression([Symbol("=="), Variable(first), earlier_patterns[first]])
-        for p in remaining:
-            test = Expression([Symbol("=="), Variable(p), earlier_patterns[p]])
-            condition = Expression([Symbol("and"), condition, test])
-        body = Expression([Symbol("if"), condition, Expression([Symbol("empty")]), body])
-    return body
