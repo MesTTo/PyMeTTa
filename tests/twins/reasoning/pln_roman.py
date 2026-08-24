@@ -26,7 +26,7 @@ from metta import S, equation
 #: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 3285491, maximum 3285661
 #: over 28 observations under `full-lane/218/workers=32`, so the re-pin owes
 #: it an envelope rather than a point
-#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 #: How strongly each concept holds on its own, in the example's own order.

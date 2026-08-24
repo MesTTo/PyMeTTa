@@ -48,7 +48,7 @@ DIRECTIONS = ((S.U, -3), (S.L, -1), (S.R, 1), (S.D, 3))
 #: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 55047786, maximum 55047980
 #: over 28 observations under `full-lane/218/workers=32`, so the re-pin owes
 #: it an envelope rather than a point
-#: [assumed: 1 is a placeholder rather than a measurement; commit=WORKTREE].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
