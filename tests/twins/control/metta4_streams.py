@@ -4,6 +4,16 @@
 those answers are three ordinary Python lines: iterating them all, taking the
 first, and folding them into a total.
 
+`range` itself is the superposition it is: `superpose(k, counter(k + 1, n))`
+is the fork in expression position and `empty()` is the branch with nothing to
+say, so the equation stored is the original's own. Written as a generator with
+two yields it would store one superposition wrapped in another, which answers
+the same and is not the same knowledge. It is `counter` on the Python side
+because `range` is a BUILTIN a compiled body lowers to `py-range` before it
+looks for the definition's own name, so `def range` would compile its own
+recursion to the builtin and answer `[1, (2 3 4)]`; `name="range"` puts the
+MeTTa name on the equation and the recursion resolves to it.
+
 metta4's `forall` runs its body once per answer and stops early if one answers
 false, which is what a `for` loop over an iterator already does; `once` is
 `first(default=...)`, which pulls at most one answer out of the lazy view and
@@ -14,9 +24,9 @@ table puts collection work in Python.
 That last fold adds Python numbers, not atoms, so it reads the answers'
 carried scalars: `+` over a grounded atom STAGES `(+ ...)` rather than
 computing it, which is what makes `G(1) + 2` a term everywhere else in this
-corpus [source: bindings/python/metta/_atoms_core.py:769 Grounded.value;
-measured 2026-08-23: `sum(m.fn.gen())` builds `(+ (+ (+ 0 1) 2) 3)`;
-commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
+corpus [source: bindings/python/metta/_atoms_core.py, Grounded.value;
+re-measured 2026-08-24: `sum(m.fn.gen())` builds `(+ (+ (+ 0 1) 2) 3)`;
+commit=WORKTREE].
 
 `gen` has three clauses for one head. Stacked `@m.define` will not say that:
 stacking reads as first-match, so two clauses fixing no literal are a
@@ -24,9 +34,8 @@ REDEFINITION. `@rules` is the other shape of the definitional door and says it
 directly, and `space += bundle` lands the clause set through the one write
 door.
 Guarantees:
-  - TRUE, FALSE, UNIT, and HERE used here are package values rather
-    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+  - UNIT used here is a package value rather than a local reconstruction
+    [tested: test_the_canonical_atoms_are_public_values; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,11 +43,11 @@ Open Obligations:
 """
 
 import metta
-from metta import UNIT, S, equation, rules
+from metta import UNIT, S, equation, rules, superpose
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -47,9 +56,7 @@ def twin(m):
     @m.define(name="range")
     def counter(k, n):
         # (= (range $K $N) (if (< $K $N) (superpose ($K (range (+ $K 1) $N))) (empty)))
-        if k < n:
-            yield k
-            yield from counter(k + 1, n)
+        return superpose(k, counter(k + 1, n)) if k < n else empty()  # noqa: F821  -- `empty` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
 
     s1 = metta.space("&s1")
     s2 = metta.space("&s2")

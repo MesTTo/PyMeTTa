@@ -4,28 +4,29 @@
 `let` above sees one answer and one `(bar 1)` is stored.
 
 `match-single` takes its space, its pattern and its template as PARAMETERS and
-is an ordinary compiled definition: the handle crosses as a term operand, so
-the space itself is what the call hands over, and the two assignments in the
-body are the `let*` pair the original writes flat. A write is `space += atom`
-and a read is the subscript door.
+is an ordinary compiled definition: `match(space, pattern, template)` is the
+expression-position ask, which a compiled body lowers to the instruction, so
+the space the call hands over is the one the equation reads. The two
+assignments in the body are the `let*` pair the original writes flat. Outside
+the body a write is `space += atom` and a read is the subscript door.
 
 One thing about the answer view is worth knowing here: a call answers what
 it evaluated to whether or not its arguments carry the caller's variables, in
 a `stats()` scope and outside one, and the bindings those variables took are
-the parallel row face on the same view [measured 2026-08-23 on the merged
-tree: `m.fn.unify(V.x, S.f(V.x), S.cyclic, S.sound)` answers `[sound]` and its
-`.rows` answers `[Row(x=$_70)]`; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
+the parallel row face on the same view [re-measured 2026-08-24:
+`m.fn.unify(V.x, S.f(V.x), S.cyclic, S.sound)` answers `[sound]` either way and
+its `.rows` answers `[Row(x=$_70)]`; commit=WORKTREE].
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import S, V, fn
+from metta import S, V, match
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -36,20 +37,11 @@ def twin(m):
     # (foo 2)
     m += S.foo(2)
 
-    # A compiled body is MeTTa, so `fn.match` IS the ruled spelling there: the
-    # quotation tier reads `fn.<name>` as a callee exactly as it reads `S.done`
-    # as data. The lane still reports it, because its dissolution table fires
-    # everywhere and names `space[pattern]`, a Python expression over a handle
-    # that a body cannot have; the operator rule is scoped to lowered bodies
-    # and the dissolution rule is not. That is why this line carries a rung
-    # note. Nine lines in control/ carry one for the same reason: `match` in
-    # cut.py and once.py, `add-atom`/`remove-atom` in eval.py, `add-atom` twice
-    # in unify.py and three times in thin_forms.py.
     @m.define
     def match_single(space, pat, ret):
         # (= (match-single $space $pat $ret)
         #    (let* (($x (match $space $pat $ret)) ($temp (cut))) $x))
-        x = fn.match(space, pat, ret)  # rung: the subscript door is a Python statement over a handle, and the space here is a parameter of the equation
+        x = match(space, pat, ret)
         _temp = S.cut()
         return x
 

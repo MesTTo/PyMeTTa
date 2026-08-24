@@ -7,37 +7,41 @@ special form rather than a function.
 
 Most of them keep MeTTa's name, because a special form is exactly a thing
 whose arguments Python would have evaluated before the call. What does move
-into Python is everything around them: `size-atom` is `len`, `msort` is
-`sorted` (atoms carry the engine's own order, so the two agree by
-construction), a match is the subscript door, a `let` that only names an
-intermediate result is an assignment, `(let ($v $s) ...)` over an answer
-already in hand is tuple unpacking, `(timeout 5 ...)` is
-`m.eval(term, timeout=5)`, `once` is `first(default=...)` over the lazy answer
-view, and every `transaction` is `m.transaction(term)`, the door that keeps the
-engine's own empty-answer rollback.
+into Python is everything around them: an arithmetic TERM is the grounded lift
+`G(1) + 1`, `size-atom` is `len`, `msort` is `sorted` (atoms carry the
+engine's own order, so the two agree by construction), a match is the
+subscript door, a `let` that only names an intermediate result is an
+assignment, `(let ($v $s) ...)` over an answer already in hand is tuple
+unpacking, `(timeout 5 ...)` is `m.eval(term, timeout=5)`, `once` is
+`first(default=...)` over the lazy answer view, and every `transaction` is
+`m.transaction(term)`, the door that keeps the engine's own empty-answer
+rollback.
 
 One place where the dissolution table's `collapse` is `list()` does not hold,
-measured 2026-08-23 and filed against P14.4: collapsing gathers the answers
-into one ATOM, so the collapse of no answers is `()` while the list of no
-answers is `[]`, which is the distinction the first three claims are about;
-`Expression(answers)` is the ordered atom form. And
+filed against P14.4: collapsing gathers the answers into one ATOM, so the
+collapse of no answers is `()` while the list of no answers is `[]`, which is
+the distinction the first three claims are about; `Expression(answers)` is the
+ordered atom form, and the three assertions below are the check
+[tested: the first three asserts of twin(); commit=WORKTREE]. And
 `(let $b (tx-body) (transaction $b))` binds the body so the special form sees a
 VARIABLE holding a value; substituting the term in Python instead would hand
 `transaction` the term itself, and it would run rather than come back unrun.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+  - UNIT used here is a package value rather than a local reconstruction
+    [tested: test_the_canonical_atoms_are_public_values; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import UNIT, Expression, S, V, equation, rules
+from metta import UNIT, Expression, G, S, V, equation, fn, rules, superpose
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -59,10 +63,10 @@ def twin(m):
     # Both run every form; they differ in which one they answer.
     # !(test (prog1 (+ 1 1) (+ 2 2) (+ 3 3)) 2)
     # rung: `prog1` answers its first form after running the rest, and Python has no statement whose value is the first of several
-    assert m.eval(S.prog1(S["+"](1, 1), S["+"](2, 2), S["+"](3, 3))) == [2]
+    assert m.eval(S.prog1(G(1) + 1, G(2) + 2, G(3) + 3)) == [2]
     # !(test (progn (+ 1 1) (+ 2 2) (+ 3 3)) 6)
     # rung: a statement sequence IS progn, and three expressions with no effect are no statements
-    assert m.eval(S.progn(S["+"](1, 1), S["+"](2, 2), S["+"](3, 3))) == [6]
+    assert m.eval(S.progn(G(1) + 1, G(2) + 2, G(3) + 3)) == [6]
 
     # ----------------------------------------------------- transaction
     # Every write inside is undone when the body fails, which is what a
@@ -74,24 +78,24 @@ def twin(m):
     # The top rung is a scope, with the ordinary write door inside it:
     #
     #     with m.transaction():
-    #         m += S["tx-rolled"](S.a)
+    #         m += S.tx_rolled(S.a)
     #         ...                        # answering nothing rolls it back
     #
     # `transaction` takes a callable or a term, and an open `with` scope is
     # appendix stamp 4, unruled: a callable rolls back on a Python EXCEPTION,
     # and this file's claim is a body that simply answers nothing.
-    rolls_back = S.progn(S["add-atom"](m, S["tx-rolled"](S.a)), nothing)  # rung: the write has to be inside the engine's transaction, and `space += atom` is a statement over a handle
+    rolls_back = S.progn(S.add_atom(m, S.tx_rolled(S.a)), nothing)  # rung: the write has to be inside the engine's transaction, and `space += atom` is a statement over a handle
     assert m.transaction(rolls_back) == []
     # !(test (collapse (match &self (tx-rolled $x) $x)) ())
-    assert m[S["tx-rolled"](V.x)].x == []
+    assert m[S.tx_rolled(V.x)].x == []
 
     # A body that succeeds keeps its writes. The transaction answers whatever
     # its body did, and add-atom answers the unit value.
     # !(test (collapse (transaction (add-atom &self (tx-kept a)))) (()))
-    keeps = S["add-atom"](m, S["tx-kept"](S.a))  # rung: the same, for the committing case
+    keeps = S.add_atom(m, S.tx_kept(S.a))  # rung: the same, for the committing case
     assert m.transaction(keeps) == [Expression(())]
     # !(test (collapse (match &self (tx-kept $x) $x)) (a))
-    assert m[S["tx-kept"](V.x)].x == [S.a]
+    assert m[S.tx_kept(V.x)].x == [S.a]
 
     # "whatever its body did" means EVERY answer, not the first one. Until
     # 2026-08-19 this answered (1), because SWI's transaction/1 runs its goal
@@ -99,27 +103,27 @@ def twin(m):
     @rules
     def three():
         # (= (tx-three) 1) (= (tx-three) 2) (= (tx-three) 3)
-        yield equation(S["tx-three"]()).to(1)
-        yield equation(S["tx-three"]()).to(2)
-        yield equation(S["tx-three"]()).to(3)
+        yield equation(S.tx_three()).to(1)
+        yield equation(S.tx_three()).to(2)
+        yield equation(S.tx_three()).to(3)
 
     m += three
 
     # !(test (collapse (transaction (tx-three))) (1 2 3))
-    assert m.transaction(S["tx-three"]()) == [1, 2, 3]
+    assert m.transaction(S.tx_three()) == [1, 2, 3]
     # !(test (collapse (transaction (superpose ((add-atom &self (tx-each 1))
     #                                           (add-atom &self (tx-each 2))))))
     #        (() ()))
-    each = S.superpose((S["add-atom"](m, S["tx-each"](1)), S["add-atom"](m, S["tx-each"](2))))  # rung: two writes inside one transaction, and a write is a statement over a handle
+    each = S.superpose((S.add_atom(m, S.tx_each(1)), S.add_atom(m, S.tx_each(2))))  # rung: two writes inside one transaction, and a write is a statement over a handle
     assert m.transaction(each) == [Expression(()), Expression(())]
     # !(test (collapse (match &self (tx-each $x) $x)) (1 2))
-    assert m[S["tx-each"](V.x)].x == [1, 2]
+    assert m[S.tx_each(V.x)].x == [1, 2]
 
     # ----------------------------------------------------- atomically
     # The same operation under the name the concurrency vocabulary uses, and
     # sugar over transaction so the guarantees cannot drift.
     # !(test (collapse (atomically (tx-three))) (1 2 3))
-    assert m.eval(S.atomically(S["tx-three"]())) == [1, 2, 3]
+    assert m.eval(S.atomically(S.tx_three())) == [1, 2, 3]
 
     # What it does that transaction cannot: transaction is a special form and
     # compiles its body into the call site, so a variable there is a value and
@@ -128,9 +132,9 @@ def twin(m):
     @m.define
     def tx_body():
         # (= (tx-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))
-        return noeval(superpose(1 + 1, 2 + 2))  # noqa: F821  -- `noeval` and `superpose` are names a compiled body reads as MeTTa; the package exports neither yet (residue, P14.4)
+        return fn.noeval(superpose(1 + 1, 2 + 2))
 
-    computed = S["tx-body"]()
+    computed = S.tx_body()
     # !(test (collapse (let $b (tx-body) (atomically $b))) (2 4))
     assert m.eval(S.let(V.b, computed, S.atomically(V.b))) == [2, 4]  # rung: the binding IS the claim: it is what makes the argument a variable holding a value
     # !(test (size-atom (collapse (let $b (tx-body) (atomically $b)))) 2)
@@ -142,7 +146,7 @@ def twin(m):
     # Answers the value AND the seconds it took, as a pair, so the value is
     # still usable rather than being replaced by a measurement.
     # !(test (let ($v $s) (elapsed (+ 1 2)) $v) 3)
-    value, seconds = m.eval(S.elapsed(S["+"](1, 2)))[0]
+    value, seconds = m.eval(S.elapsed(G(1) + 2))[0]
     assert value == 3
     # !(test (let ($v $s) (elapsed (+ 1 2)) (< $s 60)) True)
     # The carried scalar, because `<` between atoms is the engine's total
@@ -163,12 +167,13 @@ def twin(m):
 
     # ----------------------------------------------------- with_mutex
     # Named, so two different names do not serialise against each other. The
-    # name really has an underscore, and the factory's attribute map is total,
-    # so it takes the bracket: `S.with_mutex` would be `with-mutex`.
+    # form's own name really has an underscore, and the factory's attribute
+    # map is total, so it takes the bracket: `S.with_mutex` would be
+    # `with-mutex`. The two lock names are hyphenated and take the attribute.
     # !(test (with_mutex thin-lock-a (+ 1 2)) 3)
-    assert m.eval(S["with_mutex"](S["thin-lock-a"], S["+"](1, 2))) == [3]
+    assert m.eval(S["with_mutex"](S.thin_lock_a, G(1) + 2)) == [3]
     # !(test (with_mutex thin-lock-b (+ 2 2)) 4)
-    assert m.eval(S["with_mutex"](S["thin-lock-b"], S["+"](2, 2))) == [4]
+    assert m.eval(S["with_mutex"](S.thin_lock_b, G(2) + 2)) == [4]
 
     # ----------------------------------------------------- hyperpose
     # Runs its branches concurrently, so `once` over an expensive branch and a
@@ -181,7 +186,7 @@ def twin(m):
     # over hyperpose observes. The sort is the assertion's, not the form's:
     # answers arrive in COMPLETION order, so (4 2) is as correct as (2 4).
     # !(test (msort (collapse (hyperpose ((+ 1 1) (+ 2 2))))) (2 4))
-    assert sorted(m.parallel(S["+"](1, 1), S["+"](2, 2))) == [2, 4]
+    assert sorted(m.parallel(G(1) + 1, G(2) + 2)) == [2, 4]
 
     # ----------------------------------------------------- call
     # Reaches a Prolog predicate with no registration at all, which is the

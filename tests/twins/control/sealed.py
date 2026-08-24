@@ -16,28 +16,31 @@ Answers that carry fresh variables are compared modulo renaming, which is what
 `=alpha` means and what `a.alpha_eq(b)` does. Where the claim is about two
 answers carrying DIFFERENT variables, the gathering has to happen in the
 ENGINE rather than in Python, and this is the one place the dissolution
-table's `collapse` is `list()` does not hold: measured 2026-08-23, evaluating
-the match answers `[($_846 ok), ($_846 ok)]` because each answer atom is
-decoded with its own variable numbering, while collapsing it first answers
-`(($_1734 ok) ($_1716 ok))`, which is the distinctness the claim is about.
-Filed as residue against P14.4.
+table's `collapse` is `list()` does not hold: evaluating the match answers
+`[($_846 ok), ($_846 ok)]` because each answer atom is decoded with its own
+variable numbering, while collapsing it first answers
+`(($_1734 ok) ($_1716 ok))`, which is the distinctness the claim is about
+[re-measured 2026-08-24, all three spellings plus the subscript door in one
+fresh process; commit=WORKTREE]. So the gathering is named as its own compiled
+definition, where `collapse` and `match` are both names the subset reads as
+MeTTa. Filed as residue against P14.4.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import Expression, S, V, equation
+from metta import Expression, G, S, V, equation, match
 
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "the `let`s here bind the variables whose identity is under test, which a Python name cannot be"
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -78,13 +81,13 @@ def twin(m):
     # other variables in its returned Atom. The ignored lambda parameter
     # remains captured, while $fresh does not become another lambda argument.
     # (= (mk-tagger) (|-> ($item) (sealed ($item) (tagged $item $fresh))))
-    m += equation(S["mk-tagger"]()).to(
+    m += equation(S.mk_tagger()).to(
         S["|->"]((V.item,), S.sealed((V.item,), S.tagged(V.item, V.fresh)))
     )
 
     # !(test (collapse (let $f (mk-tagger) (superpose (($f 1) ($f 2)))))
     #        ((tagged 1 $a) (tagged 2 $b)))
-    tagged = S.let(V.f, S["mk-tagger"](), S.superpose(((V.f, 1), (V.f, 2))))
+    tagged = S.let(V.f, S.mk_tagger(), S.superpose(((V.f, 1), (V.f, 2))))
     assert m.eval(S.collapse(tagged))[0].alpha_eq(
         Expression((S.tagged(1, V.a), S.tagged(2, V.b)))
     )
@@ -100,20 +103,24 @@ def twin(m):
     # `let` is for: placing it directly under the write would store the
     # sealed expression itself.
     # !(let $rule (sealed () (stored-rule $r ok)) (add-atom &self $rule))
-    m += m.eval(S.sealed((), S["stored-rule"](V.r, S.ok)))[0]
-    m += m.eval(S.sealed((), S["stored-rule"](V.r, S.ok)))[0]
+    m += m.eval(S.sealed((), S.stored_rule(V.r, S.ok)))[0]
+    m += m.eval(S.sealed((), S.stored_rule(V.r, S.ok)))[0]
 
     # The top rung reads the space through the subscript door and gathers in
-    # Python: `Expression([...])` over `m[S["stored-rule"](V.x, V.y)]`. It
-    # gives the wrong answer. Each answer atom is decoded with its own
-    # variable numbering, so the two rows arrive as `$_716` twice where the
-    # engine's own collapse answers `(($_1734 ok) ($_1716 ok))`, and the
-    # DISTINCTNESS is the claim. Residue: P14.4.
+    # Python: `Expression([...])` over `m[S.stored_rule(V.x, V.y)]`. It gives
+    # the wrong answer. Each answer atom is decoded with its own variable
+    # numbering, so both rows arrive under ONE name where the engine's own
+    # collapse answers two, and the DISTINCTNESS is the claim. So the
+    # gathering is a compiled definition, where the subset reads both names
+    # as MeTTa and the space is the ambient one. Residue: P14.4.
+    @m.define
+    def sealed_rules():
+        # (collapse (match &self (stored-rule $x $y) ($x $y)))
+        return collapse(match(S.stored_rule(V.x, V.y), (V.x, V.y)))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
+
     # !(test (collapse (match &self (stored-rule $x $y) ($x $y)))
     #        (($p ok) ($q ok)))
-    # The handle IS the space operand, so no symbol names it.
-    both = S["match"](m, S["stored-rule"](V.x, V.y), (V.x, V.y))
-    assert m.eval(S.collapse(both))[0].alpha_eq(
+    assert sealed_rules()[0].alpha_eq(
         Expression((Expression((V.p, S.ok)), Expression((V.q, S.ok))))
     )
 
@@ -123,7 +130,9 @@ def twin(m):
     paired = m.eval(S.let(V.x, 1, S.let(V.y, 2, S.sealed((V.y,), S.pair(V.x, V.y)))))
     assert Expression(paired).alpha_eq(Expression((S.pair(V.fresh, 2),)))
 
-    # The returned Atom stays inert until eval is asked to run it.
+    # The returned Atom stays inert until eval is asked to run it. The sum is
+    # the grounded lift, one atom operand staging `(+ 1 2)` rather than
+    # computing 3, which is what gives `sealed` something to hold.
     # !(test (let $atom (sealed () (+ 1 2)) (eval $atom)) 3)
-    atom = m.eval(S.sealed((), S["+"](1, 2)))[0]
+    atom = m.eval(S.sealed((), G(1) + 2))[0]
     assert m.eval(atom) == [3]

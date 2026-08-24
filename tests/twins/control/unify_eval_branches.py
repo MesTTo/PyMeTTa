@@ -9,37 +9,22 @@ check in the else branch when it does not.
 `unify` keeps MeTTa's name, for the reason unify.metta gives: Python has no
 expression that matches two terms and chooses a branch. What is ordinary
 Python here is the knowledge: two facts go in through the write door, the
-space operand is the handle itself, and the strings the errors carry are named
-once and carried whole.
+space operand is the handle itself, the arithmetic branches are the grounded
+lift, and the strings the errors carry are named once and carried whole.
 
 `lib_he` takes the bracket. The factory's attribute map is total, so
 `S.lib_he` is the atom `lib-he` and the import would look for a library of
 that name; the library on disk is `lib/lib_he.metta`.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import Expression, S, ground
-
-# THIS FILE'S NAME IS A DEFECT. It begins with `test_`, so pytest treats it as a
-# test module and imports it during collection, and the twins wave owed it a
-# rename. The rename is blocked: `twin_coverage.twin_for` is a pure path
-# transform from the example's path, and `orphans()` reports any .py under
-# `twins/` that no example derives, which `test_the_twin_set_is_derived_from_
-# the_one_corpus` asserts is empty. So renaming this file alone makes the lane
-# exit 2 on `examples/control/unify_eval_branches.metta` and turns that
-# gate test red, and a `conftest.py` beside it would itself be an orphan. The
-# fix is one of two things the integrator owns: rename the EXAMPLE and this
-# file together, updating `tests/check_upstream_parity.py` and
-# `tests/upstream-parity-baseline.json` with them; or set `python_files` in
-# `bindings/python/pyproject.toml` so `tests/twins/**` is never collected.
-# Until then the module imports cleanly and defines no `test_*` name, so
-# `pytest --collect-only` over this directory reports no tests and no errors.
+from metta import Expression, G, S, ground
 
 #: The strings the knowledge and the errors carry, carried whole rather than
 #: parsed: `$c` and `$v` are metamath's constant and variable markers, and the
@@ -50,7 +35,7 @@ CONFLICT = ground("active variable conflict")
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -92,8 +77,8 @@ def twin(m):
 
     # Test 4: arithmetic in branches (minimal reproducer)
     # !(test (unify &self (Constant wff (Type "$c")) (+ 1 2) 0) 3)
-    assert m.eval(S.unify(m, S.Constant(S.wff, S.Type(CONSTANT)), S["+"](1, 2), 0)) == [3]
+    assert m.eval(S.unify(m, S.Constant(S.wff, S.Type(CONSTANT)), G(1) + 2, 0)) == [3]
 
     # Test 5: arithmetic in else-branch
     # !(test (unify &self (Constant NOSUCH (Type "$c")) 0 (+ 10 20)) 30)
-    assert m.eval(S.unify(m, S.Constant(S.NOSUCH, S.Type(CONSTANT)), 0, S["+"](10, 20))) == [30]
+    assert m.eval(S.unify(m, S.Constant(S.NOSUCH, S.Type(CONSTANT)), 0, G(10) + 20)) == [30]

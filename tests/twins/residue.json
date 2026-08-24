@@ -252,21 +252,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/control/case.metta",
-      "form": null,
-      "missing": "Python's `match` statement, which is what a MeTTa `case` is",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "ast.Match has no lowering, so a `case` whose branches are patterns over structure is written at the container door. P14.4's row already names this as the single most Pythonic missing construct and pins the lowering (chained unify with guards, as-patterns, `case _` fallback). Re-measured 2026-08-23 after the wave's rewrite: `@m.define` over a body holding a `match` statement raises `CompileError: Match has no MeTTa equivalent in the compiled subset, which covers expressions, assignment, if/else, return, yield, lambda and comprehensions`. Derived demand from control/ is now four files rather than seven, because the mention doors let three of them say their `case` as a conditional or an if/elif chain: control/casecomputed, control/caseempty, control/if_branch_binding and control/ifcasenondet each still send at least one equation to the container door for this. A fifth, control/caseconstrain, writes a `case` as a bare ! form, which no Python STATEMENT could carry anyway."
-    },
-    {
-      "kind": "friction",
       "example": "examples/control/letlet.metta",
       "form": null,
       "missing": "a destructuring assignment as a `let*` PATTERN binding",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "(= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1))) binds a three-element pattern against a three-element value, which Python spells `f1, c1, _ = 1, 2, d1`. _define_expression._name_of refuses a tuple target: 'a compiled body binds plain names; destructuring and attribute assignment have no let* form'. The one-spelling rule points at let* with a pattern on the left, which the form already supports."
+      "detail": "(= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1))) binds a three-element pattern against a three-element value, which Python spells `f1, c1, _ = 1, 2, d1`. Re-measured 2026-08-24: `_define_expression._name_of` still refuses a tuple target, 'a compiled body binds plain names; destructuring and attribute assignment have no let* form'. `solve(pattern, subject)`, the `let` door for a pattern that must win variables, closed control/letext this wave but does not reach here: it is a module function and a compiled body reads only its own seven names, so a definition whose binding is a pattern has no spelling at all. The one-spelling rule points at let* with a pattern on the left, which the form already supports. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     },
     {
       "kind": "friction",
@@ -275,16 +266,7 @@
       "missing": "a stacked @m.define spelling for two clauses whose heads are identical",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "A literal default is what makes stacked clauses stack (`def fib(n=0)` is the head pattern for that position), so two clauses that fix NOTHING have no `@m.define` spelling at all. Measured on 2026-08-22: rebinding one Python name under one MeTTa name stores only the LAST equation (`@m.define def gg(): return 1` then `def gg(): return 2` leaves `(= (gg) 2)` alone in the space), and two DIFFERENT Python functions carrying one `name=` raise `IndexError: list assignment index out of range` from `petta/_define_twins.py:229` `replace_twin_clause`, because `_space_definitions._store_clause` computes `replaced` against the per-name clause records while the dispatcher is the new function's own empty one. A generator define writes one equation with a superpose body rather than two equations, so it is not the same knowledge either. `@rules` IS the door and these twins now use it: it writes a clause set without deriving a first-match guard, which `examples/basics/time_and_pragmas.metta` needs for `bounded-factorial` and `examples/control/forall.metta`, `examples/control/metta4_streams.metta` and `examples/control/thin_forms.metta` need for their identical-head sets. What remains missing is only the COMPILED half: `@rules` takes built terms, so a clause set whose bodies want to be Python syntax has no door. The crash stands on its own as a defect. [tested: ai-tmp/probe4.py and ai-tmp/probe_rules.py on the p14-twins-f worktree; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/control/caseconstrain.metta",
-      "form": null,
-      "missing": "Python's match statement inside a compiled body, so MeTTa's `case` can be reached at all",
-      "row": "P14.4",
-      "section": "§4 surface gaps: Python's match/case STATEMENT, verified absent 2026-08-21",
-      "detail": "The twin destructures the expression with Python's own match statement, which on an atom already held in Python costs no crossing: 5 inferences against the example's 1745. That is the ladder's own preference, but it means the example's construct never runs, because the define subset's statement dispatch has no ast.Match case and so no compiled body can spell `case`. Until it does, no twin can put this example's own form into the engine."
+      "detail": "A literal default is what makes stacked clauses stack (`def fib(n=0)` is the head pattern for that position), so two clauses that fix NOTHING have no `@m.define` spelling at all. Re-measured 2026-08-24 on the P14 integration tip, unchanged: rebinding one Python name under one MeTTa name stores only the LAST equation, and two DIFFERENT Python functions carrying one `name=` raise `IndexError: list assignment index out of range` from `metta/_define_twins.py` `replace_twin_clause`, because `_space_definitions._store_clause` computes `replaced` against the per-name clause records while the dispatcher is the new function's own empty one. A generator define writes one equation with a superpose body rather than two equations, so it is not the same knowledge either. `@rules` IS the door and these twins now use it: it writes a clause set without deriving a first-match guard, which `examples/basics/time_and_pragmas.metta` needs for `bounded-factorial` and `examples/control/forall.metta`, `examples/control/metta4_streams.metta` and `examples/control/thin_forms.metta` need for their identical-head sets. What remains missing is only the COMPILED half: `@rules` takes built terms, so a clause set whose bodies want to be Python syntax has no door. The crash stands on its own as a defect. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     },
     {
       "kind": "friction",
@@ -293,7 +275,7 @@
       "missing": "a collapse that gathers answers into one ATOM, which `list()` is not",
       "row": "P14.4",
       "section": "correction to §9e's dissolution table: `collapse` is `list()`",
-      "detail": "The dissolution table's row `(collapse X)` -> `list(...)` is unsound wherever the answers carry VARIABLES, and this file is where it shows. `(collapse (match &self (stored-rule $x $y) ($x $y)))` answers `(($_1734 ok) ($_1716 ok))`, two DISTINCT variables, which is the whole claim: two rules sealed separately do not share one identity. Evaluating the same match without the collapse answers `[($_846 ok), ($_846 ok)]`, one name twice, because each answer atom is decoded with its own variable numbering, and the subscript door answers the same way: `m[S[\"stored-rule\"](V.x, V.y)]` is `[Row(x=$_716, y=ok), Row(x=$_716, y=ok)]`. So gathering in the engine and gathering in Python are different operations, and the twin has to reach for `collapse` to say what the example says [re-measured 2026-08-23, all three spellings in one fresh process]. The table should carry the exception, and the Answers view should number an answer set's variables once for the set rather than once per answer."
+      "detail": "The dissolution table's row `(collapse X)` -> `list(...)` is unsound wherever the answers carry VARIABLES, and this file is where it shows. `(collapse (match &self (stored-rule $x $y) ($x $y)))` answers `(($_1734 ok) ($_1716 ok))`, two DISTINCT variables, which is the whole claim: two rules sealed separately do not share one identity. Evaluating the same match without the collapse answers `[($_846 ok), ($_846 ok)]`, one name twice, because each answer atom is decoded with its own variable numbering, and the subscript door answers the same way. So gathering in the engine and gathering in Python are different operations. Re-measured 2026-08-24, with the spelling that now stands: the twin names the gathering as its own compiled definition, `collapse(match(S.stored_rule(V.x, V.y), (V.x, V.y)))`, where both names are ones the subset reads as MeTTa and the space is the ambient one, and the answer alpha-matches the example's. The table should carry the exception, and the Answers view should number an answer set's variables once for the set rather than once per answer. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     },
     {
       "kind": "friction",
@@ -320,7 +302,7 @@
       "missing": "`list()` lowering to `collapse` inside a compiled body",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "The dissolution table says `(collapse X)` is `list(...)`, and inside a compiled body `list` is not a lowering at all: it is not in _PYBUILTIN_CALLS, so it falls through to the free-identifier refusal, \"'list' is not a parameter of <fn>, not a function the engine knows, and not a capitalized data constructor\" [measured 2026-08-22; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]. So the collapses in program1 and program4 is written `collapse(...)`. So the collapse is written as the bare name `collapse(...)`, one of the four names a compiled body reads as MeTTa, which then carries an F821 suppression because the package exports none of them. Adding `list` to the builtin bridge beside `len`, `min` and `sorted` closes it."
+      "detail": "The dissolution table says `(collapse X)` is `list(...)`, and inside a compiled body `list` is not a lowering at all: it is not in _PYBUILTIN_CALLS, so it falls through to the free-identifier refusal, \"'list' is not a parameter of <fn>, not a function the engine knows, and not a capitalized data constructor\" [re-measured 2026-08-24, unchanged]. So all three collapses here, in program1, program2 and program4, are written as the bare name `collapse(...)`, one of the seven names a compiled body reads as MeTTa, which then carries an F821 suppression because the package exports that one nowhere. Adding `list` to the builtin bridge beside `len`, `min` and `sorted` closes it. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     },
     {
       "kind": "friction",
@@ -335,10 +317,10 @@
       "kind": "friction",
       "example": "examples/control/tests.metta",
       "form": null,
-      "missing": "`superpose`, `collapse`, `match` and `empty` importable from petta",
+      "missing": "`collapse` and `empty` importable from metta, the two body names the package still does not export",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "The four names a compiled body reads as MeTTa are not exported, so a body that uses one is an undefined name to ruff. Re-measured 2026-08-23: `petta.__all__` holds neither `superpose`, `collapse`, `match` nor `empty`, so every compiled twin in control/ that fans or gathers carries an F821 suppression on the line, and §10b designs `superpose(a, b, c)` as a surface FUNCTION rather than as a magic name. Exporting the four (with `superpose()` of no arguments answering `(empty)`, which §10b already rules) removes the suppression from control/tests, control/supercollapse, control/superpose_nested and control/thin_forms at once."
+      "detail": "Of the four names a compiled body reads as MeTTa that a twin actually writes, two landed and two did not. Measured 2026-08-24 on the P14 integration tip: `superpose` and `match` are in `metta.__all__`, so a body that fans or asks imports the name and ruff sees it; `metta.collapse` and `metta.empty` raise `AttributeError: module 'metta' has no attribute ...`. Seven control/ twins therefore carry an F821 suppression: `collapse` in control/tests, control/supercollapse, control/superpose_nested and control/sealed, and `empty` in control/casenew, control/empty and control/metta4_streams. The `empty` three are the ones the export buys most, because `empty()` stores `(empty)` where its two sugars store `(superpose ())`, so it is the spelling that reproduces the original's own equation and the only reason to reach for a suppressed name at all. Exporting the two removes the last suppressions in control/ at once. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     },
     {
       "kind": "friction",
@@ -347,7 +329,7 @@
       "missing": "a space write inside a compiled body",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "`(= (note $tag) (let $_ (add-atom &ran (ran $tag)) True))`, the recorder both experiments hang on, writes to a NAMED space from inside an EQUATION. A compiled body reaches a space that is a parameter or `(context-space)`, and `&ran` is neither: it is a host value the body would have to close over, which would pin the equation to this process, and `S[\"&ran\"]` is refused by the lane's own rule that a space is a handle rather than a symbol. So the twin routes the effect through a grounded operation, `@m.op` plus a one-line `@m.define` that calls it, which is honest (a host effect is a grounded atom by the language's own design) and costs one crossing per write. What is missing is the statement spelling, a body statement that lowers to `(add-atom <space> <atom>)` for a space the equation names rather than receives. Re-measured 2026-08-23: control/unify and control/eval closed their own entries in this family by writing over `(context-space)`, which this file cannot, because its two experiments must not share `&self`."
+      "detail": "`(= (note $tag) (let $_ (add-atom &ran (ran $tag)) True))`, the recorder both experiments hang on, writes to a NAMED space from inside an EQUATION. A compiled body reaches a space that is a parameter or `(context-space)`, and `&ran` is neither: it is a host value the body would have to close over, which would pin the equation to this process, and `S[\"&ran\"]` is refused by the lane's own rule that a space is a handle rather than a symbol. So the twin routes the effect through a grounded operation, `@m.op` plus a one-line `@m.define` that calls it, which is what a host effect is by the language's own design and costs one crossing per write. MEASURED 2026-08-24, and this is the part that makes the gap urgent: the statement spelling does not refuse inside a body, it MISCOMPILES. `space += atom` there is read as arithmetic, so `@m.define def note(tag): space = S.context_space(); space += S.ran(tag); return True` stores `(let* (($s (context-space))) (let* (($_ (+ $s (ran $tag)))) True))`; the call answers `[True]` and the space stays empty, with no error anywhere. What is missing is a body statement that lowers to `(add-atom <space> <atom>)`, and what is WRONG today is that the same syntax silently means `+`. control/unify and control/eval closed their own entries in this family by writing the head over `(context-space)`, which this file cannot, because its two experiments must not share `&self`. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     },
     {
       "kind": "friction",
@@ -380,10 +362,10 @@
       "kind": "friction",
       "example": "examples/control/supercollapse.metta",
       "form": null,
-      "missing": "`superpose` over a BOUND value in expression position",
+      "missing": "`superpose(*xs)`, the star form that fans a BOUND expression in expression position",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "`superpose(x)` in a compiled body is `(superpose ($x))`, a superposition over ONE alternative that happens to be $x, because the lowering wraps the argument list. `(superpose $x)`, the superposition OF $x, is reachable only in yield position (`yield from x`) or as a for-loop source. Measured 2026-08-23: writing `TupleConcat` directly as `collapse(superpose(superpose(first), superpose(second)))` stores `(collapse (superpose ((superpose ($Ev1)) (superpose ($Ev2)))))` and answers `((1 2) (3 4))` where the example answers `(1 2 3 4)`. The twin therefore pays a second definition, `fanout`, whose body is two `yield from` statements, purely to reach the statement-position form. P14.4's expression-position rule names `superpose(...)` as one of the two forms to surface; this is the argument shape it has to admit. Moved here 2026-08-23 from control/tests.metta, whose own instance the ruled `yield from` spelling closed."
+      "detail": "The guide's own nondeterminism family prints both halves: \"`yield from xs` fans a collection at statement level where `superpose(*xs)` fans it in expression position\". The star half refuses. Measured 2026-08-24 inside `@m.define`: `superpose(*first)` raises `CompileError: Starred has no MeTTa equivalent in the compiled subset`, and `superpose(first)` is the OTHER operation, `(superpose ($Ev1))`, one alternative that happens to be the expression. The descent therefore goes one rung to the function namespace, where naming the instruction reaches it exactly: `collapse(superpose(fn.superpose(first), fn.superpose(second)))` stores `(collapse (superpose ((superpose $Ev1) (superpose $Ev2))))`, the example's own equation, and answers `(1 2 3 4)`. So the twin no longer pays the extra `fanout` definition it paid on 2026-08-23, and what is missing is the star form itself. control/ifcasenondet and control/tests descend the same rung and carry their own entries. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     },
     {
       "kind": "friction",
@@ -392,7 +374,7 @@
       "missing": "the four-argument `unify(a, b, then, els)` the expression-position rule names",
       "row": "P14.4",
       "section": "§4 surface gaps: the expression-position functions",
-      "detail": "The guide's expression-position rule names `unify` as one of the four operations that get a surface FUNCTION because Python's syntax cannot spell the concept in that position, and it prints the exemplar twice: `return unify(x, S.Person(V.n), S.Greeting(V.n), S.Unknown)` inside a body, and `unify(b, 0, superpose(), a / b)` beside it. Neither runs. Measured 2026-08-23: the root `unify` is the two-argument matcher over two atoms Python already holds and raises `unify() takes 2 positional arguments but 4 were given`; and a bare `unify(...)` inside a compiled body raises `CompileError: 'unify' is not a parameter of describe, not a function the engine knows, and not a capitalized data constructor`, because it is not one of the four magic names a body reads. `S.unify(x, pattern, then, els)` in a body does work and answers `[(Greeting Ann)]`, so the gap is the FUNCTION, not the instruction. Every one of this file's fifteen claims builds the four-argument form and evaluates it for want of the door."
+      "detail": "The guide's expression-position rule names `unify` as one of the four operations that get a surface FUNCTION because Python's syntax cannot spell the concept in that position, and it prints the exemplar twice: `return unify(x, S.Person(V.n), S.Greeting(V.n), S.Unknown)` inside a body, and `unify(b, 0, superpose(), a / b)` beside it. Neither runs. Re-measured 2026-08-24 on the P14 integration tip: the root `unify` is the two-argument matcher over two atoms Python already holds and raises `unify() takes 2 positional arguments but 4 were given`; and a bare `unify(...)` inside a compiled body raises `CompileError: 'unify' is not a parameter of describe, not a function the engine knows, and not a capitalized data constructor`, because it is not one of the SEVEN names a body reads as MeTTa (accept, collapse, drop, empty, match, refuse, superpose). `S.unify(x, pattern, then, els)` in a body does work and answers `[(Greeting Ann)]`, so the gap is the FUNCTION, not the instruction. Every one of this file's fifteen claims builds the four-argument form and evaluates it for want of the door. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     },
     {
       "kind": "declined",
@@ -2283,6 +2265,51 @@
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
       "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `petta.space(name)`, which rides `petta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`petta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/caseconstrain.metta",
+      "form": null,
+      "missing": "a STAR arm in a case pattern, so a cons constraint over a tail of any length can be spelled",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "The example matches `(1 2 3)` against `(cons $h $t)` and answers the head. `ast.Match` lowers now, so the shape is reachable in principle; the star arm is not. Measured 2026-08-24: `match e: case (h, *_tail): return h` inside `@m.define` raises `CompileError: star patterns need the engine's named segment variables; spell the fixed prefix today and use that segment-variable row when it lands`, while the fixed-arity arm `case (h, _b, _c)` compiles to `(case $e ((($h $b $c) $h) ($_ (empty))))` and answers 1. A fixed prefix is a NARROWER claim than the original's cons pattern, which holds for a tail of any length, so the twin does the destructuring in Python instead, `head, *tail = e`, which is the structure family's own spelling for decons-atom and costs no crossing at all: 5 inferences against the example's 1745. P4.10, sequence variables at the surface and in the index, is the prerequisite this lowering is waiting on. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/caseempty.metta",
+      "form": null,
+      "missing": "a `match` statement whose subject may have NO ANSWERS, which the lowering's own let* binding prunes",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "`(= (wu) (case (empty) ((1 2) (Empty 42))))` answers 42, because `Empty` is the branch a key with no answers takes. The match-statement lowering cannot say it. Measured 2026-08-24: `@m.define def wu(): match empty(): case 1: return 2; case S.Empty: return 42` stores `(let* (($k (empty))) (case $k ((1 2) ($_ (case $k ((Empty 42) ($_ (empty))))))))` and answers `[]`, because the lowering binds the SUBJECT into a `let*` first and a binding over a key with no answers prunes the whole form before any branch is consulted. The companion `wu2`, whose key answers 42, compiles and answers `ok`, so the gap is exactly the no-answer subject. The remedy is to emit `(case <subject> ...)` directly where the subject is a single expression, rather than always hoisting it into a binding. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/casecomputed.metta",
+      "form": null,
+      "missing": "a `case` whose BRANCHES arrive as a value, which Python's match arms cannot be",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "This file's subject is `case` over branches a program computes: `(= (switch $value $cases) (case $value $cases))` and then `(switch 2 ((1 one) (2 two)))`, with written-out cases stated beside handed-over ones so the two can be compared. Python's `match` IS a `case` and compiles as one since 2026-08-24, and it still cannot take its branches as an argument, because its arms are SYNTAX: no Python spelling passes them. Writing half the claims as `match` statements would compare a Python construct with a MeTTa value and break the very pairing the file exists to show, so all eleven stay at the term door and the twin declares its rung. This entry replaces the match-statement entry retired on control/case.metta, which named this file among the four it covered. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/ifcasenondet.metta",
+      "form": null,
+      "missing": "`superpose(*xs)`, the star form that fans a BOUND expression in expression position",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "Both equations take their condition from `(superpose $y)`, the superposition OF a bound expression, and both now compile: `if-nondet` is Python's conditional expression and `case-nondet` is Python's `match` statement. What neither can spell is the condition itself at the top rung. Measured 2026-08-24: `superpose(*y)` inside a body raises `CompileError: Starred has no MeTTa equivalent in the compiled subset`, and `superpose(y)` is the other operation, `(superpose ($y))`. `fn.superpose(y)` is one rung down and exact: the equations stored are `(if (py-truthy (superpose $y)) a b)` and `(let* (($k (superpose $y))) (case $k ((True a) ($_ (case $k ((False b) ($_ (empty))))))))`, and both answer `(a b a)`. Sibling of the entry on control/supercollapse.metta, which is where the star form is argued. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/tests.metta",
+      "form": null,
+      "missing": "`superpose(*xs)` in `program2`, where the fanned expression is a bound local",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "`(= (program2 $Y) (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))` fans a bound expression twice. Measured 2026-08-24, the two candidate spellings store different knowledge: `return fn.superpose(answers)` stores the example's own nesting, `(let* (($values (1 2 3))) (let* (($answers (collapse (superpose $values)))) (superpose $answers)))`, while `yield from answers` wraps it in two more superpositions, `(superpose ((let* ... (superpose ((superpose $answers))))))`. Both answer `(1 2 3)`. The twin takes the faithful one and descends to the function namespace for it, because `superpose(*answers)` refuses. Sibling of the entry on control/supercollapse.metta. [measured 2026-08-24 on the p14-twins3-b tree; commit=WORKTREE]"
     }
   ],
   "retired": [
@@ -5112,6 +5139,26 @@
       "section": "§4 surface gaps",
       "detail": "AS FILED, superseded by the retirement line below. p14-r3-calling landed the door: calling a definition answers a lazy `Answers` view, slices stay `Answers`, and `list(count_up(0)[:4])` answers the right four numbers over a producer that never stops, where nothing could before. What it costs is the library's problem, not this twin's. Measured 2026-08-23 on `(= (from $n) (superpose ($n (from (+ $n 1)))))`: pulling 1, 2, 4 and 8 answers costs 1,500,147, 1,500,141, 1,500,141 and 1,500,141 inferences, a FLAT figure that does not move with k, against 700 for the engine-side `(take 4 (from 0))`. So the first pull drives a self-recursive superposition to a fixed internal bound whatever the slice asks for: the view is lazy in the answers it hands back and not in the producer behind them. The twin slices every producer anyway, the endless one included, because the slice is the ruled spelling for at-most-k of a stream and the cost belongs to the library: control/take.metta therefore carries a BAND finding, twin 1,510,583 against the example's 16,419 at ratio 92.00, which no re-pin can clear and which closes when the pull suspends the producer. The finite producers cost 5,077 through the same door against the engine's 434. This is a cost gap rather than a capability gap, which is a different fix.",
       "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 8, function handles and Defined calls use the held-engine incremental cursor while statistics are active, so a slice suspends the producer at the requested frontier; measured 157 inferences to pull 4 and 234 to pull 8, against 1,500,141 for each before"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/case.metta",
+      "form": null,
+      "missing": "Python's `match` statement, which is what a MeTTa `case` is",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "ast.Match has no lowering, so a `case` whose branches are patterns over structure is written at the container door. P14.4's row already names this as the single most Pythonic missing construct and pins the lowering (chained unify with guards, as-patterns, `case _` fallback). Re-measured 2026-08-23 after the wave's rewrite: `@m.define` over a body holding a `match` statement raises `CompileError: Match has no MeTTa equivalent in the compiled subset, which covers expressions, assignment, if/else, return, yield, lambda and comprehensions`. Derived demand from control/ is now four files rather than seven, because the mention doors let three of them say their `case` as a conditional or an if/elif chain: control/casecomputed, control/caseempty, control/if_branch_binding and control/ifcasenondet each still send at least one equation to the container door for this. A fifth, control/caseconstrain, writes a `case` as a bare ! form, which no Python STATEMENT could carry anyway.",
+      "retired": "2026-08-24: the compiled subset lowers `ast.Match`. Measured on the P14 integration tip: `@m.define def casetest(x): match x: case 4: return 42; case _: return 44` stores `(= (casetest $x) (let* (($k $x)) (case $k ((4 42) ($_ (case $k (($_ 44) ($_ (empty)))))))))` and answers [44] for 5 and [42] for 4, so the twin writes the example's own construct. control/case, control/if_branch_binding and control/let_superpose_if_case all moved onto the statement; the three files this entry also named kept a term for reasons of their own, each filed as its own entry"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/caseconstrain.metta",
+      "form": null,
+      "missing": "Python's match statement inside a compiled body, so MeTTa's `case` can be reached at all",
+      "row": "P14.4",
+      "section": "§4 surface gaps: Python's match/case STATEMENT, verified absent 2026-08-21",
+      "detail": "The twin destructures the expression with Python's own match statement, which on an atom already held in Python costs no crossing: 5 inferences against the example's 1745. That is the ladder's own preference, but it means the example's construct never runs, because the define subset's statement dispatch has no ast.Match case and so no compiled body can spell `case`. Until it does, no twin can put this example's own form into the engine.",
+      "retired": "2026-08-24: `ast.Match` lowers, so a `case` whose branches are patterns over structure now compiles. What this file still cannot spell is the STAR arm its cons pattern needs, which is filed as its own entry against the same row"
     }
   ]
 }

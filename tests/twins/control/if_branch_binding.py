@@ -14,25 +14,18 @@ with an assignment in one arm compiles to:
 so three of the four are written that way and read the same in both languages.
 The binding is named `_c` rather than `c` because Python calls a bound name
 nothing reads a dead store, and it is not one here: it is the `let*` pair the
-defect lives in. `case-else` is the same shape through `case`, which Python's
-`match` statement would spell and the compiled subset has no lowering for yet
-(P14.4); writing it as an `if` would only repeat the equation above it, so it
-stays a term.
-Guarantees:
-  - TRUE, FALSE, UNIT, and HERE used here are package values rather
-    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+defect lives in. `case-else` is the same shape through `case`, which is
+Python's `match` statement, and it compiles to the case tower with both arms'
+bindings intact.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import FALSE, TRUE, S, V, equation
-
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -60,25 +53,18 @@ def twin(m):
     # !(test (pick-then 1 2) 1)
     assert pick_then(1, 2) == [1]
 
-    # The top rung is the same `if` statement above, written through
-    # Python's `match`, which is what a MeTTa `case` is:
-    #
-    #     @m.define(name="case-else")
-    #     def case_else(a, b):
-    #         match a < a:
-    #             case True:
-    #                 _c = a
-    #                 return a
-    #             case False:
-    #                 return b
-    #
-    # `ast.Match` has no lowering in the compiled subset. Residue: P14.4.
-    # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
-    arms = ((TRUE, S["let*"](((V.c, V.a),), V.a)), (FALSE, V.b))  # rung: a `case` is Python's `match` statement, which has no lowering yet
-    m += equation(S["case-else"](V.a, V.b)).to(S.case(S["<"](V.a, V.a), arms))  # rung: the same
+    @m.define
+    def case_else(a, b):
+        # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
+        match a < a:  # noqa: PLR0124 -- the same fixture, asked through `case` rather than through `if`
+            case True:
+                _c = a
+                return a
+            case False:
+                return b
 
     # !(test (case-else 3 4) 4)
-    assert m.eval(S["case-else"](3, 4)) == [4]
+    assert case_else(3, 4) == [4]
 
     @m.define
     def both(a, b):

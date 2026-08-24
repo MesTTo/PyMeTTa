@@ -13,9 +13,9 @@ arguments are syntax rather than calls.
 
 They are not a second spelling of `and` and `or`. Those are RELATIONAL: they
 evaluate both sides and can solve for an unbound argument. Python has no
-relational `and`, so that one keeps MeTTa's name, and so does the `if` in the
-last claim, which is there only to expose the bindings a solved answer would
-carry.
+relational `and`, so that one keeps MeTTa's name through the keyword builder
+`and_`, and the last claim's `if` keeps its own through `if_`, whose two-arity
+is the engine's and which Python's conditional expression cannot spell.
 
 The original opens a second space to keep its two experiments apart. Python
 keeps them apart with a slice of the first, so `note2` records into the same
@@ -25,11 +25,14 @@ which is what the original's two are once the space is factored out.
 The write itself goes through a grounded operation. A compiled body reaches a
 space that is a PARAMETER or the context space, and `&ran` is neither: it is a
 host value the body would have to close over, which would pin the equation to
-this process. Filed as residue against P14.4.
+this process. Worse, the statement spelling does not refuse there, it
+MISCOMPILES: `space += atom` inside a body lowers to `(+ $space $atom)`,
+arithmetic, and the equation then answers True while storing nothing
+[measured 2026-08-24; commit=WORKTREE]. Filed as residue against P14.4.
 Guarantees:
-  - TRUE, FALSE, UNIT, and HERE used here are package values rather
-    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+  - TRUE and FALSE used here are package values rather than local
+    reconstructions [tested: test_the_canonical_atoms_are_public_values;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,11 +40,11 @@ Open Obligations:
 """
 
 import metta
-from metta import FALSE, TRUE, Atom, S, V
+from metta import FALSE, TRUE, Atom, S, V, and_, if_
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -63,7 +66,13 @@ def twin(m):
     # two experiments must not share `&self`. Residue: P14.4.
     @m.op
     def record(tag: Atom) -> bool:
-        """Write the tag and answer True: `space += atom` is add-atom's door."""
+        """Write the tag and answer True.
+
+        `ran += S.ran(tag)` is the write door and cannot be written here:
+        augmented assignment binds `ran` locally, so Python would raise
+        UnboundLocalError against the enclosing name. The method form is the
+        same door under Python's own scoping rule.
+        """
         ran.add(S.ran(tag))
         return True
 
@@ -97,11 +106,13 @@ def twin(m):
     assert either(FALSE, S.fallback) == [S.fallback]
 
     # They take expressions, not just literals. An argument that is a term
-    # reduces on the way in, which is what the original's do too.
+    # reduces on the way in, which is what the original's do too. The
+    # comparison is built by its WORD, because `>` between two atoms is the
+    # engine's total order rather than a term.
     # !(test (and-then (> 2 1) (> 3 2)) True)
-    assert both(S[">"](2, 1), S[">"](3, 2)) == [True]
+    assert both(S.gt(2, 1), S.gt(3, 2)) == [True]
     # !(test (or-else (> 1 2) (> 3 2)) True)
-    assert either(S[">"](1, 2), S[">"](3, 2)) == [True]
+    assert either(S.gt(1, 2), S.gt(3, 2)) == [True]
 
     @m.define
     def gated(flag, tag):
@@ -109,8 +120,8 @@ def twin(m):
         # so whether it runs is the engine's decision, not Python's
         return flag and note(tag)
 
-    @m.define(name="fallback")
-    def fell_back(flag, tag):
+    @m.define
+    def fallback(flag, tag):
         # (or-else $flag (note $tag))
         return flag or note(tag)
 
@@ -118,21 +129,22 @@ def twin(m):
     # engine work, so a call whose result is dropped never reaches the engine
     # and the skipping this file is about would be unobservable.
     # !(and-then False (note skipped-by-and-then))
-    assert gated(FALSE, S["skipped-by-and-then"]) == [False]
+    assert gated(FALSE, S.skipped_by_and_then) == [False]
     # !(or-else True (note skipped-by-or-else))
-    assert fell_back(TRUE, S["skipped-by-or-else"]) == [True]
+    assert fallback(TRUE, S.skipped_by_or_else) == [True]
     # !(and-then True (note taken-by-and-then))
-    assert gated(TRUE, S["taken-by-and-then"]) == [True]
+    assert gated(TRUE, S.taken_by_and_then) == [True]
     # !(or-else False (note taken-by-or-else))
-    assert fell_back(FALSE, S["taken-by-or-else"]) == [True]
+    assert fallback(FALSE, S.taken_by_or_else) == [True]
 
     # !(test (collapse (get-atoms &ran))
     #        ((ran taken-by-and-then) (ran taken-by-or-else)))
-    assert list(ran) == [S.ran(S["taken-by-and-then"]), S.ran(S["taken-by-or-else"])]
+    assert list(ran) == [S.ran(S.taken_by_and_then), S.ran(S.taken_by_or_else)]
 
     # The contrast, in one place: `and` does NOT skip, so its second argument
     # runs even though the first is False. Both forms are written the same way
-    # so the pair stays comparable.
+    # so the pair stays comparable, and the relational `and` is the keyword
+    # builder, PEP 8's own escape for a name Python's grammar has taken.
     # The original opens `&ran2` to keep this experiment apart. The top rung
     # would open a second space here too, `metta.space("&ran2")`, and `note2`
     # would write into it; a compiled body cannot name either, so both
@@ -141,15 +153,16 @@ def twin(m):
     # entry as the write above.
     already = len(ran)
     # !(and False (note2 and-runs-it))
-    m.eval(S["and"](FALSE, S.note2(S["and-runs-it"])))
+    m.eval(and_(FALSE, S.note2(S.and_runs_it)))
     # !(and-then False (note2 and-then-skips-it))
-    m.eval(S["and-then"](FALSE, S.note2(S["and-then-skips-it"])))
+    m.eval(S.and_then(FALSE, S.note2(S.and_then_skips_it)))
 
     # !(test (collapse (get-atoms &ran2)) ((ran and-runs-it)))
-    assert list(ran)[already:] == [S.ran(S["and-runs-it"])]
+    assert list(ran)[already:] == [S.ran(S.and_runs_it)]
 
     # And the other side of the trade: and-then cannot be solved backwards,
-    # where `and` can.
+    # where `and` can. The one-armed `if_` is the engine's own filter arity,
+    # which is exactly why the keyword builder exists.
     # !(test (collapse (if (and-then (or-else $p True) $q) ($p $q))) ())
-    unsolved = S["and-then"](S["or-else"](V.p, TRUE), V.q)
-    assert m.eval(S["if"](unsolved, (V.p, V.q))) == []  # rung: the `if` is what exposes the bindings, and a two-argument `if` has no Python conditional to be
+    unsolved = S.and_then(S.or_else(V.p, TRUE), V.q)
+    assert m.eval(if_(unsolved, (V.p, V.q))) == []
