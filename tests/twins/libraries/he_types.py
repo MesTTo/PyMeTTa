@@ -6,9 +6,14 @@ is why every function here is named: `is-function` observes an arrow,
 `type-cast` admits or refuses, `match-types` unifies with wildcards, and the
 pair accessors and `match-type-or` are the rest of that vocabulary.
 
+The arrow it observes is built by `arrow(...)`, the `->` form as DATA, which is
+the same character Python writes in a signature and the builder the surface
+keeps for the rare case where the arrow itself has to be handed to something.
+A declaration is `typed(a, T)`, the `(: a T)` form as data.
+
 `type-cast` takes the space it asks as an ARGUMENT, and a space crosses a term
 position as a grounded operand, so the receiver is handed over rather than
-named. A declaration is `typed(a, T)`, the `(: a T)` form as data.
+named.
 
 `type-cast` is asked through the engine rather than through `m.cast`, and that
 is a measured decision, not a habit: `m.cast(S.B, S.type1)` RAISES CastError
@@ -20,13 +25,13 @@ The refusal is an Error ATOM, and iterating the answer view keeps it as data
 where the scalar doors take the loud reading and raise.
 """
 
-from metta import G, S, V, typed
+from metta import G, S, V, arrow, typed
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -35,7 +40,7 @@ def twin(m):
     m.fn["import!"](m, S.library(S["lib_he"]))
 
     is_function = m.fn.is_function
-    assert is_function(S["->"](S.Atom, S.Atom)) == [True]
+    assert is_function(arrow(S.Atom, S.Atom)) == [True]
     assert is_function(S.Atom) == [False]
 
     # type-cast answers the atom when it has the type and (Error $atom BadType)

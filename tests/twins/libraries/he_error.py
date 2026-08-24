@@ -10,6 +10,10 @@ doors take the loud reading and raise, which is right for a caller that wanted
 a value and wrong for this file, whose claims are about the error atoms
 themselves; unpacking iterates, so it keeps them.
 
+Every arithmetic term is built by its operator WORD, `S.add` for `+` and
+`S.truediv` for `/`, because these calls are terms handed to `catch` and
+`if-error` rather than sums to compute.
+
 Four kinds of nothing-went-right are drawn apart here. An operand whose type
 RULES THE CALL OUT is already an error atom, so if-error sees one with no catch
 in between; an operand whose type merely does not DECIDE is not an error, and
@@ -24,7 +28,7 @@ from metta import G, S, V, typed
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=WORKTREE].
 BUDGET = 1
 
 #: The error atom the last three claims are about.
@@ -37,25 +41,25 @@ def twin(m):
 
     if_error = m.fn.if_error
 
-    [caught] = m.fn.catch(S["+"](40, 2))
+    [caught] = m.fn.catch(S.add(40, 2))
     assert if_error(caught, S.Error, caught) == [42]
 
     # An operand whose type RULES THE CALL OUT is an error atom already: `a` is
     # declared a String and the arrow says Number.
     m += typed(S.a, S.String)
-    assert if_error(S["+"](40, S.a), S.Error, S.fine) == [S.Error]
+    assert if_error(S.add(40, S.a), S.Error, S.fine) == [S.Error]
 
     # An operand whose type merely does not DECIDE is not an error. The call is
     # left as written, so if-error takes its second branch.
-    assert if_error(S["+"](40, S["undeclared-operand"]), S.Error, S.fine) == [S.fine]
+    assert if_error(S.add(40, S.undeclared_operand), S.Error, S.fine) == [S.fine]
 
     # catch is for a HOST error, the kind the language has no atom for. Two
     # unbound arithmetic operands are one.
-    [host] = m.fn.catch(S["+"](V.left, V.right))
+    [host] = m.fn.catch(S.add(V.left, V.right))
     assert if_error(host, S.Error, host) == [S.Error]
 
     # Integer division by zero already is Error data, so it needs no catch.
-    assert if_error(S["/"](40, 0), S.Error, S.fine) == [S.Error]
+    assert if_error(S.truediv(40, 0), S.Error, S.fine) == [S.Error]
 
     assert if_error(BAD_TYPE, G("Error!"), G("No error")) == [G("Error!")]
 

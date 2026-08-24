@@ -23,7 +23,7 @@
       "missing": "a head pattern that is not a literal, so (f (Pair $x $y)) has no decorator spelling",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). Rewriting it as a body-side unify would be a different program: a head pattern that misses FAILS, where a body-side unify takes an else branch."
+      "detail": "RE-ANCHORED 2026-08-24. A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). A `match` statement in a compiled body DOES lower now, measured: `match pair: case (S.Pair, x, y): return S.pair` stores `(let* (($t $p)) (case $t (((Pair $x $y) pair) ($_ (case $t (($_ (empty)))))))). That is a different program: a head pattern that misses answers the application back as data, the language's own bare-execution rule, where the case tower's fallback is `(empty)` and prunes the branch."
     },
     {
       "kind": "friction",
@@ -32,7 +32,7 @@
       "missing": "a head pattern that is not a literal, so (f (Pair $x $y)) has no decorator spelling",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). Rewriting it as a body-side unify would be a different program: a head pattern that misses FAILS, where a body-side unify takes an else branch."
+      "detail": "RE-ANCHORED 2026-08-24. A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). A `match` statement in a compiled body DOES lower now, measured: `match pair: case (S.Pair, x, y): return S.pair` stores `(let* (($t $p)) (case $t (((Pair $x $y) pair) ($_ (case $t (($_ (empty)))))))). That is a different program: a head pattern that misses answers the application back as data, the language's own bare-execution rule, where the case tower's fallback is `(empty)` and prunes the branch."
     },
     {
       "kind": "friction",
@@ -41,43 +41,7 @@
       "missing": "a head pattern that is not a literal, so (f (Pair $x $y)) has no decorator spelling",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). Rewriting it as a body-side unify would be a different program: a head pattern that misses FAILS, where a body-side unify takes an else branch."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/memo_variant_nonground.metta",
-      "form": null,
-      "missing": "a lowercase symbol as data inside a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "A compiled body resolves a free identifier to a parameter, a function the engine knows, or a CAPITALIZED data constructor, and refuses anything else. MeTTa has no capitalization convention, so the answers `pair`, `one` and `two` cannot be written in a body at all and their equations stay at the container door. Same missing spelling as examples/basics/time_and_pragmas."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/tabling_equation_change.metta",
-      "form": null,
-      "missing": "a lowercase symbol as data inside a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "A compiled body resolves a free identifier to a parameter, a function the engine knows, or a CAPITALIZED data constructor, and refuses anything else. MeTTa has no capitalization convention, so the answers `pair`, `one` and `two` cannot be written in a body at all and their equations stay at the container door. Same missing spelling as examples/basics/time_and_pragmas."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/memo_multi_answer.metta",
-      "form": null,
-      "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/memo_aggregate.metta",
-      "form": null,
-      "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
+      "detail": "RE-ANCHORED 2026-08-24. A parameter default IS the head pattern for its position and the compiler requires it to be a LITERAL: 'a default here is a head pattern, so it must be a literal: def fib(n=0) makes an equation matching 0.' So an equation that destructures an argument in its HEAD, (shape-kind (Pair $x $y)) and (fib-step $i ($a $b)) and (quad-step $dummy ($t $i $sum)), is written at the container door with equation(...).to(...). A `match` statement in a compiled body DOES lower now, measured: `match pair: case (S.Pair, x, y): return S.pair` stores `(let* (($t $p)) (case $t (((Pair $x $y) pair) ($_ (case $t (($_ (empty)))))))). That is a different program: a head pattern that misses answers the application back as data, the language's own bare-execution rule, where the case tower's fallback is `(empty)` and prunes the branch."
     },
     {
       "kind": "friction",
@@ -86,7 +50,7 @@
       "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling."
+      "detail": "RE-ANCHORED 2026-08-24. _locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space: measured, a second `@space.define(name='pick')` under a fresh Python name raises `IndexError: list assignment index out of range`. Where the alternatives only need to answer together, YIELDS say it in one body and store one equation each, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as this file does, the container door is the only spelling, and the twin compiles the first clause and builds the second."
     },
     {
       "kind": "friction",
@@ -99,57 +63,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/crypto_lib.metta",
-      "form": null,
-      "missing": "a compiled body naming a hyphenated function it did not define",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/derived_forms.metta",
-      "form": null,
-      "missing": "a compiled body naming a hyphenated function it did not define",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/patrick_iterate_fib.metta",
-      "form": null,
-      "missing": "a compiled body naming a hyphenated function it did not define",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/patrick_iterate_quad.metta",
-      "form": null,
-      "missing": "a compiled body naming a hyphenated function it did not define",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names."
-    },
-    {
-      "kind": "friction",
       "example": "examples/libraries/tabling_space_write.metta",
       "form": null,
       "missing": "a conjunction pattern (, p q) inside a compiled match()",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "The compiled match() reads its pattern as syntax, where a Python tuple of patterns builds (p q) and `,` is not a name Python can put in head position. So (= (twohop $x $z) (match &self (, (edge $x $y) (edge $y $z)) $z)) is written at the container door while (= (reach $x $y) (match &self (edge $x $y) $y)) beside it is written by the decorator."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/tabling_space_write.metta",
-      "form": null,
-      "missing": "a compiled match() whose pattern is a PARAMETER",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The space half is closed by fix 15, and `reach` now reads `match(m, ...)`. What survives is the pattern: (= (bypattern $p) (match &self $p $p)) passes its pattern through, and the compiled match() reads its pattern as syntax rather than as a value. Same missing spelling as examples/control/cut and examples/control/once."
+      "detail": "RE-ANCHORED 2026-08-24 on the finished surface. The RECEIVER door takes a conjunction as varargs, `space.match(p, q)`, so the cell is served outside a body. Inside one the compiled `match()` refuses it by arity, measured: `match(m, S.edge(x, V.y), S.edge(V.y, z), z)` raises `CompileError: match takes (pattern, template) or (space, pattern, template)`. A Python tuple of patterns builds `(p q)` and `,` is not a name Python can put in head position, so (= (twohop $x $z) (match &self (, (edge $x $y) (edge $y $z)) $z)) is written at the container door while (= (reach $x $y) (match &self (edge $x $y) $y)) and (= (bypattern $p) (match &self $p $p)) beside it are both compiled."
     },
     {
       "kind": "friction",
@@ -158,16 +77,7 @@
       "missing": "an as-pattern as a let PATTERN",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "(= (mirror $A) (let $A (@ $L (cons $head $tail)) ...)) names the whole and destructures it at once. A compiled body binds plain names, so the as-pattern has no assignment spelling and the equation stays at the container door. Sibling of examples/control/letlet's destructuring entry."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/he_assert.metta",
-      "form": null,
-      "missing": "a free MeTTa variable as a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "(= (adder) ($x)) answers a one-element expression holding a variable the head does not bind. A compiled body reads every free name as a parameter, a known function or a constructor, and a fresh variable is none of those, so the equation stays at the container door."
+      "detail": "RE-ANCHORED 2026-08-24. `(= (mirror $A) (let $A (@ $L (cons $head $tail)) ...))` is the let whose PATTERN wins the variables from what the subject produces, and `solve(pattern, subject)` is that let's Python spelling: `m.solve(S['@'](V.lst, S.cons(V.head, V.tail)), (h a n n e s))` answers `.lst`, `.head` and `.tail` bound, live. A compiled body REFUSES it, measured: `CompileError: 'solve' is not a parameter of mirror, not a function the engine knows, and not a capitalized data constructor`. So what is missing is expression-position `solve` inside a compiled body; a `match` statement's as-pattern does lower but says something else, since it compares the argument's own structure rather than running `cons` backwards."
     },
     {
       "kind": "friction",
@@ -177,15 +87,6 @@
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
       "detail": "This example IS the instruction tier: its one equation is written in chain, eval and unify, and the 350,000-step run it makes is a measurement of that encoding. A compiled body spells sequencing as assignment, which lowers to let*, so the decorator would write a different program with a different instruction count. The equation stays at the container door deliberately; what is missing is a Python spelling for the instruction tier itself, which §9e keeps unrenamed as deep control."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/doc_lib.metta",
-      "form": null,
-      "missing": "a docstring that can be both a Google-style summary and an exact @desc atom, since pydocstyle's D415 wants a terminal period and the emitter keeps the text verbatim",
-      "row": "P14.8",
-      "section": "§9g idea 3, doctests in both languages: one docstring, both worlds",
-      "detail": "P14.8 shipped @doc emission from Google-style docstrings and this twin is what it looks like in use: `\"\"\"Greets somebody by name\"\"\"` emits (@doc greet (@desc \"Greets somebody by name\")), and a full Args/Returns docstring emits all four parts, so the source's hand-written (@doc ...) forms become the docstrings of the two functions they document. The cost is that the @desc text IS the docstring summary, verbatim (measured 2026-08-22: adding a period to the docstring puts the period in the atom), while the example asserts \"Greets somebody by name\" and \"Adds two numbers\" without one. So the twin carries two narrow `# noqa: D415` suppressions, which the P0.13 burn-down counts. Either resolution clears it: strip a single trailing period from the summary in _documentation.documentation_atom, so a docstring can satisfy both conventions at once, or add D415 to the twins' per-file ignores because a twin's docstring is DATA. BURN-DOWN STATUS, re-measured after merging 598ffea: the D-family count is 2148 against a ceiling of 2145. Exactly 2 of the 2148 are these two suppressions; the other overage is 598ffea's own, whose three new tests in test_twin_coverage.py took that file from 2 D findings to 5 (test_gate_completeness.py is unchanged at 4). The ceiling needs 2148, and the attribution for the last 3 is the harness commit, not this branch."
     },
     {
       "kind": "declined",
@@ -203,7 +104,7 @@
       "missing": "a Python evaluation door that reaches lib_memo's dispatch hook",
       "row": "P14.13",
       "section": "correction to §9j: the library catalogue's caching entry",
-      "detail": "A memoized function is not cached when called through m.eval, and therefore through every door over it: the function namespace, the answer view's scalar doors, and calling a Defined. Reproduction in ai-tmp/idiomb-memoize-repro.py: with (= (sq $x) (* $x $x)) and !(memoize sq) both written by a loaded file, two calls from Python answer ((cache_hit 0) (cache_miss 0)), an empty get-memoize-stats, while two ! forms in a loaded file answer ((cache_hit 1) (cache_miss 1)); is-memoized answers true in both. lib_tabling does NOT share this: @m.cache on fib(30) costs less than the .metta original, which an untabled fib could not do. Eight files in libraries/ are affected (the seven test_memo_* and memo_spaces); seven of them state claims whose answers are the same cached or not, and memo_aggregate's is not, which is its own declined entry. One further observable: memoize recompiles by removing each equation and adding it back, which REVERSES the order two clauses answer in, so memo_multi_answer compares a sorted multiset."
+      "detail": "RE-MEASURED 2026-08-24 on the finished surface, unchanged. A memoized function is not cached when called through m.eval, and therefore through every door over it: the function namespace, the answer view's scalar doors, and calling a Defined. With `(= (sq $x) (* $x $x))` compiled from Python and `!(memoize sq)` evaluated, two calls answer an EMPTY get-memoize-stats where two `!` forms in a loaded file answer `((cache_hit 1) (cache_miss 1))`; is-memoized answers true in both. lib_tabling does NOT share this: @m.cache on fib(30) costs less than the .metta original, which an untabled fib could not do. Eight files in libraries/ are affected (the seven memo_* and memo_spaces); seven of them state claims whose answers are the same cached or not, and memo_aggregate's is not, which is its own declined entry. One further observable: memoize recompiles by removing each equation and adding it back, which REVERSES the order two clauses answer in, so memo_multi_answer compares a sorted multiset."
     },
     {
       "kind": "friction",
@@ -221,7 +122,7 @@
       "missing": "a with-block for the stack-depth bound, where m.limits covers inferences and timeout",
       "row": "P14.4",
       "section": "§9b: control and modes, modes are with-blocks",
-      "detail": "The 70,000-step interpreter exercise states (with-pragma! ((max-stack-depth 1000000)) ...). m.limits(timeout=, inferences=) is the shipped block and has no stack-depth knob, so the pragma is built as the term it is. with-pragma! is not in the lane's dissolution table, so this costs no finding; it is recorded because it is the one mode in this folder that the with-block family does not reach."
+      "detail": "RE-ANCHORED 2026-08-24 on the finished surface. `m.limits` grew a `stack=` keyword, and it is a DIFFERENT bound: SWI's stack size in BYTES, carried to the limited-six seam. Measured on this file's own 350,000-step run: bare it answers `(Error (div 278580 5 14284) StackOverflow)`, under `with m.limits(stack=8_000_000_000)` it answers the same error, and under `(with-pragma! ((max-stack-depth 1000000)) ...)` it answers 70000. So the pragma is still built as the term it is, and what is missing is a with-block for MeTTa's own max-stack-depth. with-pragma! is not in the lane's dissolution table, so this costs no finding."
     },
     {
       "kind": "friction",
@@ -230,7 +131,7 @@
       "missing": "a lazy door that reads the same tabling statistics the term door reads",
       "row": "P14.7",
       "section": "correction to §9f the answer container: a variable inside an argument is not one of the caller's",
-      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The caller-variable half is closed by fix 2. What survives is narrower and was measured here: every LAZY door reads all five counters as zero. m.fn.table_stats(S.reach(V.x, V.y)).one() and m.answers(S[\"table-stats\"](...)).one() both answer ((tables 0) (answers 0) (complete-call 0) (invalidated 0) (reevaluated 0)) where m.eval of the same term answers (tables 1) (answers 1) (complete-call 1), inside a m.stats() scope and outside one, because a lazy pull runs on the held cursor's own SWI engine and SWI's tabling statistics are per-engine. So the six counter reads stay at the term door."
+      "detail": "RE-ANCHORED 2026-08-24 on the finished surface, and re-measured there. Every LAZY door reads all five counters as zero: `m.fn.table_stats(S.reach(V.x, V.y))` answers `((tables 0) (answers 0) (complete-call 0) (invalidated 0) (reevaluated 0))` where `m.eval` of the same term answers `((tables 1) (answers 1) (complete-call 1) (invalidated 0) (reevaluated 0))`, inside a `m.stats()` scope and outside one, because a lazy pull runs on the held cursor's own SWI engine and SWI's tabling statistics are per-engine. So the six counter reads stay at the term door."
     },
     {
       "kind": "friction",
@@ -249,6 +150,33 @@
       "row": "P14.7",
       "section": "correction to §9f the answer container: laziness is silent at a declaration",
       "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). As for memo_aggregate: fix 1 covers bang names only, and neither `table-stats` nor a tabled reader carries one, so `list(reach(S.a, V.y))` is still what forces the call the counters are about."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": null,
+      "missing": "a one-shot timer door beside `every`, whose future carries the wait, settled and cancel verbs a spawn's does",
+      "row": "P14.4",
+      "section": "ai-python-conventions.md 3.14, the coordination family",
+      "detail": "The coordination family shipped spawn, race, every, channel and par_map, and a spawned future answers a FutureSpace with wait(), settled() and cancel(). lib_thread's one-shot `after` has no package door, and `every` repeats rather than firing once, so the three timer claims here call `m.fn.after(...)` and get a bare Space back: `await`, `settled?` and `cancel` are then named at the function namespace beside the same verbs written as methods twenty lines above. Measured 2026-08-24: `metta.spawn` and `metta.every` both answer FutureSpace, and `metta.after` does not exist."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/thread_lib.metta",
+      "form": null,
+      "missing": "package doors for par_filter, par_forall and par_any beside par_map",
+      "row": "P14.4",
+      "section": "ai-python-conventions.md 3.14, the coordination family",
+      "detail": "`par_map(function, items)` is a package function and its three siblings are not, so one line of this file reads `par_map(S.inc, (1, 2, 3, 4))` and the next three read `m.fn.par_filter(...)`, `m.fn.par_forall(...)` and `m.fn.par_any(...)`. Python already spells all four concepts the same way it spells map: filter, all and any. Measured 2026-08-24 against metta.__all__."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/memo_per_arity.metta",
+      "form": null,
+      "missing": "a defined function MENTIONED in a term position, which should be its head symbol",
+      "row": "P14.4",
+      "section": "ai-python-conventions.md 3.1, the act is carried by the OBJECT",
+      "detail": "The guide's rule is that mentioning a function is holding its symbol, which is why the surface needs no quote operator. Measured 2026-08-24: a `Defined` mentioned in a term encodes as an opaque grounded box, `S.memoize(add, 2)` builds `(memoize <Defined> 2)` and the engine refuses it with `Domain error: 'function_symbol' expected, found '<py_Box>'`; the bound `m.fn['add']` mentions as `<_EngineFunction>` and fails the same way. So a declaration ABOUT a function the twin just defined has to re-spell its head, `S.memoize(S['add'], 2)`, and this file and memo_stats, memo_spaces, memo_multi_answer, memo_aggregate, memo_dependency_invalidation, memo_same_name_multi_arity and the two tabling files all do."
     },
     {
       "kind": "friction",
@@ -5112,6 +5040,116 @@
       "section": "§4 surface gaps",
       "detail": "AS FILED, superseded by the retirement line below. p14-r3-calling landed the door: calling a definition answers a lazy `Answers` view, slices stay `Answers`, and `list(count_up(0)[:4])` answers the right four numbers over a producer that never stops, where nothing could before. What it costs is the library's problem, not this twin's. Measured 2026-08-23 on `(= (from $n) (superpose ($n (from (+ $n 1)))))`: pulling 1, 2, 4 and 8 answers costs 1,500,147, 1,500,141, 1,500,141 and 1,500,141 inferences, a FLAT figure that does not move with k, against 700 for the engine-side `(take 4 (from 0))`. So the first pull drives a self-recursive superposition to a fixed internal bound whatever the slice asks for: the view is lazy in the answers it hands back and not in the producer behind them. The twin slices every producer anyway, the endless one included, because the slice is the ruled spelling for at-most-k of a stream and the cost belongs to the library: control/take.metta therefore carries a BAND finding, twin 1,510,583 against the example's 16,419 at ratio 92.00, which no re-pin can clear and which closes when the pull suspends the producer. The finite producers cost 5,077 through the same door against the engine's 434. This is a cost gap rather than a capability gap, which is a different fix.",
       "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 8, function handles and Defined calls use the held-engine incremental cursor while statistics are active, so a slice suspends the producer at the requested frontier; measured 157 inferences to pull 4 and 234 to pull 8, against 1,500,141 for each before"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/memo_variant_nonground.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "A compiled body resolves a free identifier to a parameter, a function the engine knows, or a CAPITALIZED data constructor, and refuses anything else. MeTTa has no capitalization convention, so the answers `pair`, `one` and `two` cannot be written in a body at all and their equations stay at the container door. Same missing spelling as examples/basics/time_and_pragmas.",
+      "retired": "2026-08-24: the `S` factory says a lowercase symbol inside a compiled body. Measured: `@space.define def picks(): return S.one` stores `(= (picks) one)`, and `return spin(n - 1) if n > 0 else S.done` stores `(= (spin $n) (if (> $n 0) (spin (- $n 1)) done))`, the example's own equation. This file's equation still goes to the container door, for the head-pattern reason its sibling entry states."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_equation_change.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "A compiled body resolves a free identifier to a parameter, a function the engine knows, or a CAPITALIZED data constructor, and refuses anything else. MeTTa has no capitalization convention, so the answers `pair`, `one` and `two` cannot be written in a body at all and their equations stay at the container door. Same missing spelling as examples/basics/time_and_pragmas.",
+      "retired": "2026-08-24: the `S` factory says a lowercase symbol inside a compiled body, so `@m.define def pick(x): return S.one` stores `(= (pick $x) one)` and the twin's first clause is now compiled. The second clause stays at the container door for the stacked-clause reason its sibling entry states."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/memo_multi_answer.metta",
+      "form": null,
+      "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling.",
+      "retired": "2026-08-24: same-head ALTERNATIVES are yields, and the door serves this cell. Measured: `@space.define def choose(x): yield x; yield S.Pair(x, x)` stores two equations, `$x` and `(Pair $x $x)`, and the call answers both. The stacked-decoration defect survives where the program must remove one of the two atoms later, which is tabling_equation_change's own entry."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/memo_aggregate.metta",
+      "form": null,
+      "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "_locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space. Two equations for one head therefore have no stacked decorator spelling. Where the alternatives only need to answer together, R3's @rules bundle says it in one write and `space += bundle` lands it, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as tabling_equation_change does, the container door is the only spelling.",
+      "retired": "2026-08-24: same-head ALTERNATIVES are yields. Measured: three independent yields in one `@m.define` body store `(= (choices $x) $x)`, `(+ $x 1)` and `(+ $x 2)` as three equations, so this file needs neither a stacked decoration nor a `@rules` bundle."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/crypto_lib.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names.",
+      "retired": "2026-08-24: the STATIC `fn` namespace is what a compiled body reads for a function it did not define. Measured: `@m.define def content_key(text): return fn.crypto_hash(S.sha256, text)` stores `(= (content-key $text) (crypto-hash sha256 $text))` and answers the digest. The BOUND `m.fn.crypto_hash` still refuses there, naming the remedy, because it is a host attribute."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/derived_forms.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names.",
+      "retired": "2026-08-24: the STATIC `fn` namespace serves this cell. Measured: `_ = fn.add_atom(seen, S.saw(x))` inside a compiled body stores `(let* (($_ (add-atom &seen (saw $x)))) $x)`, the space encoded as the handle it is, so `noisy` is compiled rather than built."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/patrick_iterate_fib.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names.",
+      "retired": "2026-08-24: the STATIC `fn` namespace serves this cell. Measured: `return fn.first(fn.iterate(0, n, (0, 1), S.fib_step))` stores `(= (fib $n) (first (iterate 0 $n (0 1) fib-step)))`, with the step PASSED by its `S` name because it is data there."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/patrick_iterate_quad.metta",
+      "form": null,
+      "missing": "a compiled body naming a hyphenated function it did not define",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "_known_symbol resolves the identifier AS WRITTEN and nothing else, so a body cannot call crypto-hash or add-atom, and cannot pass fib-step or quad-step by name either. Each of these equations therefore stays at the container door. Same missing spelling as examples/basics/fibsmart, and it bites hardest here because a library example is mostly hyphenated names.",
+      "retired": "2026-08-24: the STATIC `fn` namespace serves this cell. Measured: `return fn.last(fn.iterate(0, n * (n + 1) / 2, (1, 1, 0), S.quad_step))` stores `(last (iterate 0 (/ (* 1.0 (* $n (+ $n 1))) 2) (1 1 0) quad-step))` and answers 125417041750 for n=1000, the container-door equation's own answer at every n checked (5, 10, 40, 1000)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/tabling_space_write.metta",
+      "form": null,
+      "missing": "a compiled match() whose pattern is a PARAMETER",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The space half is closed by fix 15, and `reach` now reads `match(m, ...)`. What survives is the pattern: (= (bypattern $p) (match &self $p $p)) passes its pattern through, and the compiled match() reads its pattern as syntax rather than as a value. Same missing spelling as examples/control/cut and examples/control/once.",
+      "retired": "2026-08-24: the compiled `match()` takes its pattern as a value. Measured: `@m.define def bypattern(p): return match(m, p, p)` stores `(= (bypattern $p) (match &self $p $p))`, and `(tabled (bypattern $p))` still refuses with the unresolved-read error the example's last claim is about."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/he_assert.metta",
+      "form": null,
+      "missing": "a free MeTTa variable as a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "(= (adder) ($x)) answers a one-element expression holding a variable the head does not bind. A compiled body reads every free name as a parameter, a known function or a constructor, and a fresh variable is none of those, so the equation stays at the container door.",
+      "retired": "2026-08-24: a one-tuple holding a `V` variable is a compiled body. Measured: `@m.define def adder(): return (V.x,)` stores `(= (adder) ($x))` with the variable freshened, and `assertAlphaEqualToResult (adder) (($y))` answers True, which is the alpha claim the example makes."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/doc_lib.metta",
+      "form": null,
+      "missing": "a docstring that can be both a Google-style summary and an exact @desc atom, since pydocstyle's D415 wants a terminal period and the emitter keeps the text verbatim",
+      "row": "P14.8",
+      "section": "§9g idea 3, doctests in both languages: one docstring, both worlds",
+      "detail": "P14.8 shipped @doc emission from Google-style docstrings and this twin is what it looks like in use: `\"\"\"Greets somebody by name\"\"\"` emits (@doc greet (@desc \"Greets somebody by name\")), and a full Args/Returns docstring emits all four parts, so the source's hand-written (@doc ...) forms become the docstrings of the two functions they document. The cost is that the @desc text IS the docstring summary, verbatim (measured 2026-08-22: adding a period to the docstring puts the period in the atom), while the example asserts \"Greets somebody by name\" and \"Adds two numbers\" without one. So the twin carries two narrow `# noqa: D415` suppressions, which the P0.13 burn-down counts. Either resolution clears it: strip a single trailing period from the summary in _documentation.documentation_atom, so a docstring can satisfy both conventions at once, or add D415 to the twins' per-file ignores because a twin's docstring is DATA. BURN-DOWN STATUS, re-measured after merging 598ffea: the D-family count is 2148 against a ceiling of 2145. Exactly 2 of the 2148 are these two suppressions; the other overage is 598ffea's own, whose three new tests in test_twin_coverage.py took that file from 2 D findings to 5 (test_gate_completeness.py is unchanged at 4). The ceiling needs 2148, and the attribution for the last 3 is the harness commit, not this branch.",
+      "retired": "2026-08-24: neither resolution was needed. The @desc atom IS the docstring, so a twin whose summary ends in a full stop satisfies D415 and claims that text; one character of prose is the twin's own datum the way its scratch file names are, and the claims are about the round trip. The two `# noqa: D415` suppressions are gone and the file is ruff-clean."
     }
   ]
 }

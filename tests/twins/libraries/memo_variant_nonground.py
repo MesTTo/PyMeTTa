@@ -4,10 +4,12 @@
 variable inside is called, so two non-ground calls that differ only in variable
 name are one cache key.
 
-The equation goes to the container door for two reasons already in the residue
-table: its head carries a PATTERN, `(shape-kind (Pair $x $y))`, where a
-decorated function's parameters are always plain variables; and its body is the
-bare lowercase symbol `pair`, which a compiled body resolves as a function.
+The equation goes to the container door because its head carries a PATTERN,
+`(shape-kind (Pair $x $y))`, where a decorated function's parameters are always
+plain variables. A `match` statement in a compiled body does lower to the case
+tower and would destructure the argument, but it stores a different program: a
+head pattern that misses answers the call back as data, where a case tower with
+no matching arm prunes the branch. That gap is the residue entry.
 
 Both claims are the call door, `m.fn.shape_kind(S.Pair(V.a, 2))`. The argument
 CARRIES a variable without the answer depending on it, and the call answers
@@ -21,7 +23,7 @@ from metta import S, V, equation
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -29,8 +31,8 @@ def twin(m):
     """Ask the same shape twice, under two different variable names."""
     m.fn["import!"](m, S.library(S["lib_memo"]))
 
-    m += equation(S["shape-kind"](S.Pair(V.x, V.y))).to(S.pair)
-    m.eval(S.memoize(S["shape-kind"]))
+    m += equation(S.shape_kind(S.Pair(V.x, V.y))).to(S.pair)
+    m.eval(S.memoize(S.shape_kind))
 
     assert m.fn.shape_kind(S.Pair(V.a, 2)) == [S.pair]
     assert m.fn.shape_kind(S.Pair(V.b, 2)) == [S.pair]

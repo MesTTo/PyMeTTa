@@ -26,7 +26,7 @@ from metta import S, V, equation, typed
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -34,11 +34,11 @@ def twin(m):
     """Write one definition each way, read both back, then type and unify."""
     m.fn["import!"](m, S.library(S["lib_he"]))
 
-    m += equation(S.addnormal()).to(S["+"](1, 3))
-    m += equation(S.addreduct()).to(m.answers(S["+"](1, 3)).one())
+    m += equation(S.addnormal()).to(S.add(1, 3))
+    m += equation(S.addreduct()).to(m.answers(S.add(1, 3)).one())
 
     # The stored body, as written.
-    assert [row.body for row in m[equation(S.addnormal()).to(V.body)]] == [S["+"](1, 3)]
+    assert [row.body for row in m[equation(S.addnormal()).to(V.body)]] == [S.add(1, 3)]
     # And reduced, because add-reduct's Python spelling evaluates first.
     assert [row.body for row in m[equation(S.addreduct()).to(V.body)]] == [4]
 

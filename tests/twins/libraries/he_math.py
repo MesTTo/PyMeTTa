@@ -1,21 +1,32 @@
 """examples/libraries/he_math.metta in Python: the engine's numeric library, checked.
 
 Twenty-four claims about the `*-math` family and the two atom-level extrema.
-Every one of them names the operation it is about through the function
-namespace, because the operations ARE the subject: real-valued math promotes
-integers, `pow-math` answers a Float while enforcing the signed-i32 bound only
-for integer exponents, and the nan/inf predicates are how a caller finds out.
+Real-valued math promotes integers, `pow-math` answers a Float while enforcing
+the signed-i32 bound only for integer exponents, and the nan/inf predicates are
+how a caller finds out.
 
-The two nested claims nest the way Python nests calls. An answer view
-crossing into term position is an observation point, so a deterministic inner
-call composes without anything written between the levels.
+Two of the operations have a Python spelling and take it. `**` on a grounded
+operand builds `(pow-math a b)` and `abs()` builds `(abs-math a)`, so those two
+claims are written with Python's own punctuation over the lift, `G(0) ** -1`
+[appendix 12: the math dunder split, protocol-backed names build live]. The
+lift is what makes the second of them worth reading: Python raises
+ZeroDivisionError for `0 ** -1` where the engine answers inf, and the twin
+shows that difference instead of hiding it behind a head name.
+
+The rest of the family has no Python hook and takes rung 4 at the function
+namespace, `m.fn.sqrt_math(9)`, which is the guide's own answer for a
+hook-less math name in live position.
+
+The two nested claims nest the way Python nests calls. An answer view crossing
+into term position is an observation point, so a deterministic inner call
+composes without anything written between the levels.
 
 A name used more than once is bound once and called twice, the way a mention
 is bound once for reading. The two special float symbols are what the engine
 names them, `inf` and `nan`.
 """
 
-from metta import S
+from metta import G, S
 
 #: Why this twin sits below the top rung: `min-atom` and `max-atom` dissolve
 #: into Python's `min` and `max` everywhere else in the corpus, and here they
@@ -27,22 +38,22 @@ RUNG = "min-atom and max-atom are two of the stdlib numeric operations this file
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Ask each numeric operation for its answer."""
-    pow_math, sqrt_math = m.fn.pow_math, m.fn.sqrt_math
+    sqrt_math = m.fn.sqrt_math
     isnan, isinf = m.fn.isnan_math, m.fn.isinf_math
 
-    assert pow_math(2, 3) == [8.0]
+    assert m.answers(G(2) ** 3) == [8.0]
     assert isnan(sqrt_math(-1)) == [True]
-    assert isinf(pow_math(0, -1)) == [True]
+    assert isinf(G(0) ** -1) == [True]
     # The signed-i32 bound is enforced only for INTEGER exponents.
-    assert pow_math(1, 2147483648.0) == [1.0]
+    assert m.answers(G(1) ** 2147483648.0) == [1.0]
     assert sqrt_math(9) == [3.0]
-    assert m.fn.abs_math(-5) == [5]
+    assert m.answers(abs(G(-5))) == [5]
     assert m.fn.log_math(10, 100) == [2.0]
 
     assert m.fn.trunc_math(5.6) == [5]

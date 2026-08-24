@@ -8,6 +8,12 @@ head. `id` and `if-equal` are lib_he's own functions and stay named.
 `(= (add 1 2) 3)` goes to the container door. Its head carries LITERAL
 arguments, and a decorated Python function's parameters are always variables,
 so `@m.define` would store `(= (add $x $y) 3)`, a different equation.
+
+That head keeps the BRACKET, and this is the one place in the folder where the
+choice is load-bearing. `add` is one of the operator words, so the attribute
+door reads `S.add` as `+` and would store `(= (+ 1 2) 3)`, an equation about
+addition instead of about the symbol the example defines. Rung 5's bracket is
+the exact door, so `S["add"]` is the head literally named `add`.
 """
 
 from metta import G, S, V, equation
@@ -16,7 +22,7 @@ from metta import G, S, V, equation
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -24,7 +30,7 @@ def twin(m):
     """Store an equation with a literal head, then ask three equality questions."""
     m.fn["import!"](m, S.library(S["lib_he"]))
 
-    m += equation(S.add(1, 2)).to(3)
+    m += equation(S["add"](1, 2)).to(3)
 
     assert m.fn.id(5) == [5]
 

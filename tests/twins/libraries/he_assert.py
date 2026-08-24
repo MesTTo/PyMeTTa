@@ -7,20 +7,23 @@ declaration below records.
 
 Three distinctions the file draws, and they are the reason it exists.
 `assertEqual` compares evaluated results, so both sides are built as terms
-rather than computed in Python. The `ToResult` forms take the expected results
-as a TUPLE and do not evaluate it, so a single result is written `(3)` and not
-`3`. The `Alpha` forms compare modulo variable renaming, and the `Msg` variants
-add a failure message and otherwise behave as their bases.
+rather than computed in Python, and each takes the operator's WORD, `S.add` for
+`+` and `S.sub` for `-`. The `ToResult` forms take the expected results as a
+TUPLE and do not evaluate it, so a single result is written `(3)` and not `3`.
+The `Alpha` forms compare modulo variable renaming, and the `Msg` variants add
+a failure message and otherwise behave as their bases.
 
-`adder` stays at the container door: its body is a bare MeTTa variable, which a
-compiled body has no spelling for.
+`adder` is an ordinary compiled definition. Its body is a one-element
+expression holding a variable the head does not bind, which a body says with
+Python's own one-tuple; the engine freshens the name, which is why the claim
+about it is an ALPHA one.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import Expression, G, S, V, equation
+from metta import Expression, G, S, V
 
 #: Why this twin sits below the top rung: every claim here is about a member of
 #: the assert family, so naming them is the file's subject rather than MeTTa
@@ -31,7 +34,7 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -39,7 +42,7 @@ def twin(m):
     """Ask each member of the assert family whether it holds."""
     m.fn["import!"](m, S.library(S["lib_he"]))
 
-    assert m.fn.assertEqual(S["+"](1, 2), S["-"](6, 3)) == [True]
+    assert m.fn.assertEqual(S.add(1, 2), S.sub(6, 3)) == [True]
 
     # Comparing modulo variable renaming carries variables by definition, and
     # the call answers the True this family reports all the same.
@@ -50,10 +53,14 @@ def twin(m):
     # The ToResult forms take the expected results as a tuple, not a bare
     # value, and do not evaluate it. A single result is therefore (3), not 3.
     to_result = m.fn.assertEqualToResult
-    assert to_result(S["+"](1, 2), (3,)) == [True]
+    assert to_result(S.add(1, 2), (3,)) == [True]
     assert to_result(S.superpose((1, 2)), (1, 2)) == [True]
 
-    m += equation(S.adder()).to(Expression((V.x,)))
+    @m.define
+    def adder():
+        # (= (adder) ($x))
+        return (V.x,)
+
     assert m.fn.assertAlphaEqualToResult(
         S.adder(), (Expression((V.y,)),)
     ) == [True]
@@ -64,12 +71,12 @@ def twin(m):
     assert includes(S.superpose((1, 2, 3)), (2, 3)) == [True]
 
     # The Msg variants take a failure message and otherwise behave as their bases.
-    assert m.fn.assertEqualMsg(S["+"](1, 2), S["-"](6, 3), G("sums differ")) == [True]
+    assert m.fn.assertEqualMsg(S.add(1, 2), S.sub(6, 3), G("sums differ")) == [True]
     assert m.fn.assertAlphaEqualMsg(
         S.h(V.x, V.y), S.h(V.a, V.b), G("not alpha equal")
     ) == [True]
     assert m.fn.assertEqualToResultMsg(
-        S["+"](1, 2), (3,), G("not the expected result")
+        S.add(1, 2), (3,), G("not the expected result")
     ) == [True]
     assert m.fn.assertAlphaEqualToResultMsg(
         S.adder(), (Expression((V.y,)),), G("not alpha equal")

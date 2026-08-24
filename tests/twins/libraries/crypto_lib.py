@@ -3,18 +3,19 @@
 `crypto-hash` is lib_crypto's own function and the subject of the file, so the
 twin names it through the function namespace; what it hashes is Python data.
 
-`content-key` stays at the container door. A compiled body reaches a free name
-EXACTLY as written and `crypto-hash` is not a name Python can spell, which the
-residue table records against P14.4.
+`content-key` is an ordinary compiled definition. Its body calls a hyphenated
+library function, which the STATIC `fn` namespace spells: inside a compiled
+body `fn.crypto_hash(...)` is read as syntax and emits `(crypto-hash ...)`,
+where the bound `m.fn` would be a host attribute the body cannot close over.
 """
 
-from metta import G, S, V, equation
+from metta import G, S, fn
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=WORKTREE].
 BUDGET = 1
 
 #: The digest of "hello", which the file claims twice: once from the library
@@ -35,7 +36,9 @@ def twin(m):
     assert crypto_hash(S.sha256, G("hello")) == [HELLO_SHA256]
     assert crypto_hash(S.sha512, G("hello")) == [HELLO_SHA512]
 
-    # A content key: the fact carries the digest of its own payload.
-    m += equation(S["content-key"](V.text)).to(S["crypto-hash"](S.sha256, V.text))
+    @m.define
+    def content_key(text):
+        # (= (content-key $text) (crypto-hash sha256 $text))
+        return fn.crypto_hash(S.sha256, text)
 
-    assert m.fn.content_key(G("hello")) == [HELLO_SHA256]
+    assert content_key(G("hello")) == [HELLO_SHA256]
