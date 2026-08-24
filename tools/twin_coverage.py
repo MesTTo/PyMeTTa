@@ -907,6 +907,16 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str, str] | None:
         return None
     namespace, name = reached
     if name.isidentifier() and name.isascii() and not keyword.iskeyword(name) and "_" not in name:
+        # An operator WORD keeps its bracket: the attribute door resolves it
+        # through the word table to a DIFFERENT head (S.add is +), so
+        # S["add"] is the one exact spelling of the symbol `add`. The two
+        # composite words raise in the table and keep theirs the same way
+        # (agent A measured following the old advice storing (= (+ 1 2) 3)).
+        try:
+            if operator_attribute_target(name) is not None:
+                return None
+        except AttributeError:
+            return None
         return (namespace, name, name)
     # The map is total the OTHER way too: `S["foo-bar"]` is `S.foo_bar`,
     # because every attribute underscore becomes a hyphen. A name mixing

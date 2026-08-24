@@ -70,9 +70,10 @@ _BINOPS = {
     ast.Pow: "pow-math",
 }
 
+#Only the four order comparisons: _compare_link intercepts Eq/NotEq (py-eq)
+#and In/NotIn (py-in) before this lookup, so rows for them could never be
+#reached and two once sat here dead.
 _COMPARE = {
-    ast.Eq: "==",
-    ast.NotEq: "!=",
     ast.Lt: "<",
     ast.Gt: ">",
     ast.LtE: "<=",

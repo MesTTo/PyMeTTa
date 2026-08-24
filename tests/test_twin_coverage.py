@@ -1430,3 +1430,27 @@ def test_a_restated_define_name_is_a_finding(tmp_path):
     assert any('name="helper" is what def helper' in f for f in findings), findings
     assert not any("prime?" in f for f in findings), findings
     assert not any("facF" in f for f in findings), findings
+
+
+def test_an_operator_word_keeps_its_bracket(tmp_path):
+    """S["add"] is the exact door for the SYMBOL add: the attribute resolves
+    through the word table to the head + instead, so the redundancy rule
+    must not send an author through it (agent A measured the old advice
+    storing (= (+ 1 2) 3)).
+    """  # noqa: D205  -- the rule and its ground are one sentence
+    import twin_coverage as lane
+
+    twin = tmp_path / "words.py"
+    twin.write_text(
+        "from metta import S\n"
+        "def twin(m):\n"
+        "    a = S[\"add\"](1, 2)\n"   # word: bracket load-bearing
+        "    b = S[\"neg\"]\n"          # composite word: same
+        "    c = S[\"plain\"]\n"        # not a word: still redundant
+        "    return a, b, c\n",
+        encoding="utf-8",
+    )
+    findings = lane.idiom(twin)
+    assert not any('"add"' in f for f in findings), findings
+    assert not any('"neg"' in f for f in findings), findings
+    assert any('S["plain"] is S.plain' in f for f in findings), findings
