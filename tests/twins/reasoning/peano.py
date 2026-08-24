@@ -2,57 +2,78 @@
 
 Each round reads every `(num $t)` in the space and writes `(num (S $t))` back,
 refusing a duplicate, so 300 rounds leave 301 atoms. The claim is that count,
-and Python counts it: `collapse` is `list()` and `length` is `len()`, so the
-whole claim is `len(...) == 301` over the answers the call already hands back.
+and Python counts it: `collapse` is `list()` and `length` is `len()`, and a
+lazy answer view counts through the engine without pulling an atom into Python.
 
-All four definitions stay at the container door, and each names the construct
-that has no compiled spelling:
+All four definitions are compiled now, and each one is the Python statement its
+MeTTa form already was. An assignment is `let`; a statement sequence is `let*`;
+`if`/`else` is the conditional; a `case` with one capturing arm is an ordinary
+binding. Only `collapse` still declares a rung, because the dissolution table
+sends it to `list()` and a compiled body has no lowering for that.
 
-- `add-atom-no-duplicate` collapses a `once` over its match, and a compiled
-  body has a spelling for neither, though the space its CALLER names would
-  cross a compiled `match()` as the handle it is;
-- `expand-once` is a `case`, which is what Python's `match` statement would
-  spell and the subset has no lowering for yet;
-- `expandK` and `demo-peano` bind with `let` and `let*` over calls to the two
-  names above, which a compiled body reaches only through the function
-  namespace, putting back the very indirection the ladder is measuring.
+`&self` inside a stored body is the ambient space, and bare `match(pattern,
+template)` is what reads it: the one-pattern form lowers to
+`(match (context-space) ...)`. Where the example passes `&self` as an ARGUMENT
+the handle itself crosses, because a space is a grounded atom wherever a term
+wants one.
 
-`HERE` is the `(context-space)` term, which is what `&self` means inside a
-stored body: the space the equation runs in, resolved when it runs.
+`expandK` keeps its camelCase head through the explicit `name=`, because the
+implicit name is the mechanical image and `def expand_k` would install
+`expand-k`, a different head from the one the example makes matchable.
 """
 
-from metta import UNIT, S, V, equation, fn, if_
-from metta.atoms import _HERE as HERE
+from metta import S, V, fn, match, superpose
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
 def twin(m):
     """Expand the space 300 times, then count what is in it."""
-    # Nothing is written twice: an atom that already matches is skipped.
-    seen = fn.collapse(fn.once(fn.match(V.Space, V.Atom, V.Atom)))  # rung: a compiled body spells neither `collapse` nor `once` (P14.4)
-    m += equation(S["add-atom-no-duplicate"](V.Space, V.Atom)).to(
-        if_(UNIT.eq(seen), fn.add_atom(V.Space, V.Atom), fn.empty())
-    )
 
-    # For every existing (num $t), add (num (S $t)).
-    m += equation(S["expand-once"]()).to(
-        fn.case(fn.match(HERE, S.num(V.t), V.t),  # rung: a `case` over a match, neither of which a compiled body spells (P14.4)
-                ((V.x, S["add-atom-no-duplicate"](HERE, S.num(S.S(V.x)))),))
-    )
+    @m.define
+    def add_atom_no_duplicate(space, atom):
+        """Write the atom unless the space already answers a match for it."""
+        # (= (add-atom-no-duplicate $Space $Atom)
+        #    (if (== () (collapse (once (match $Space $Atom $Atom))))
+        #        (add-atom $Space $Atom)
+        #        (empty)))
+        seen = S.collapse(S.once(match(space, atom, atom)))  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
+        if seen == ():
+            return fn.add_atom(space, atom)
+        return superpose()
 
-    m += equation(S.expandK(V.n)).to(
-        if_(V.n.eq(0), S.done,
-            fn.let(V.temp1, S["expand-once"](), S.expandK(V.n - 1)))  # rung: a let over a call a compiled body reaches only through the namespace (P14.4)
-    )
+    @m.define
+    def expand_once():
+        """For every existing (num $t), add (num (S $t))."""
+        # (= (expand-once)
+        #    (case (match &self (num $t) $t)
+        #          (($x (add-atom-no-duplicate &self (num (S $x)))))))
+        found = match(S.num(V.t), V.t)
+        return add_atom_no_duplicate(m, S.num(S.S(found)))
 
-    m += equation(S["demo-peano"](V.K)).to(
-        fn["let*"](((V.s, fn.add_atom(HERE, S.num(S.Z))), (V.g, S.expandK(V.K))),  # rung: a let* over the same calls (P14.4)
-                   fn.match(HERE, S.num(V.stored), V.stored))  # rung: a match INSIDE a stored body, where the subscript door is a Python read (P14.4)
-    )
+    @m.define(name="expandK")
+    def expand_k(n):
+        """Run expand-once n times, then answer done."""
+        # (= (expandK $n)
+        #    (if (== $n 0) done (let $temp1 (expand-once) (expandK (- $n 1)))))
+        if n == 0:
+            return S.done
+        _round = expand_once()
+        return expand_k(n - 1)
 
-    assert len(m.fn.demo_peano(300)) == 301
+    @m.define
+    def demo_peano(k):
+        """Seed the space with Z, expand it k times, and read every number."""
+        # (= (demo-peano $K)
+        #    (let* (($s (add-atom &self (num Z))) ($g (expandK $K)))
+        #          (match &self (num $1) $1)))
+        _seeded = fn.add_atom(m, S.num(S.Z))
+        _grown = expand_k(k)
+        return match(S.num(V.stored), V.stored)
+
+    # !(test (length (collapse (demo-peano 300))) 301)
+    assert len(demo_peano(300)) == 301

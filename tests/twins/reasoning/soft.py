@@ -23,26 +23,34 @@ from metta import Expression, S, V
 #: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 186644, maximum 186685 over
 #: 28 observations under `full-lane/218/workers=32`, so the re-pin owes it an
 #: envelope rather than a point
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
 def twin(m):
     """Load soft matching, state two similarities, then check all seventeen claims."""
+    # !(import! &self (library lib_measure))
+    # !(import! &self (library lib_soft))
     m.fn["import!"](m, S.library(S["lib_measure"]))
     m.fn["import!"](m, S.library(S["lib_soft"]))
 
+    # (similar cat feline 0.8) (similar dog wolf 0.7)
     m += S.similar(S.cat, S.feline, 0.8)
     m += S.similar(S.dog, S.wolf, 0.7)
 
     sym_sim = m.fn.sym_sim
     soft_score = m.fn.soft_score
 
+    # Symbol closeness: identity is 1.0, declared similarity reads both ways,
+    # anything else is 0.0.
+    # !(test (sym-sim cat cat) 1.0), and three more
     assert sym_sim(S.cat, S.cat).one() == 1.0
     assert sym_sim(S.cat, S.feline).one() == 0.8
     assert sym_sim(S.feline, S.cat).one() == 0.8
     assert sym_sim(S.cat, S.dog).one() == 0.0
 
+    # Weak unification: structure crisp, symbols soft, minimum aggregation.
+    # !(test (soft-score (likes cat fish) (likes cat fish)) 1.0), and six more
     assert soft_score(S.likes(S.cat, S.fish), S.likes(S.cat, S.fish)).one() == 1.0
     assert soft_score(S.likes(S.feline, S.fish), S.likes(S.cat, S.fish)).one() == 0.8
     assert soft_score(S.likes(S.feline, S.wolf), S.likes(S.cat, S.dog)).one() == 0.7
@@ -52,26 +60,39 @@ def twin(m):
     assert soft_score(3, 4).one() == 0.0
 
     # A variable binds at degree one, and the binding is real.
+    # !(test (soft-score $x anything) 1.0)
     assert soft_score(V.x, S.anything).one() == 1.0
-    scored = S["soft-score"](S.likes(V.who, S.fish), S.likes(S.cat, S.fish))
+    # !(test (let $probe (soft-score (likes $who fish) (likes cat fish))
+    #             ($probe $who))
+    #        (1.0 cat))
+    scored = S.soft_score(S.likes(V.who, S.fish), S.likes(S.cat, S.fish))
     assert m.solve(1.0, scored).who == S.cat
 
     # Soft matching over a space, feeding the measure algebra.
+    # !(add-atom &zoo (likes cat fish)), and two more
     zoo = metta.space()
     zoo += S.likes(S.cat, S.fish)
     zoo += S.likes(S.dog, S.bones)
     zoo += S.likes(S.bird, S.seeds)
 
     soft_match = m.fn.soft_match
+    # !(test (collapse (soft-match &zoo (likes feline fish) 0.5))
+    #        ((0.8 (likes cat fish))))
     closest = soft_match(zoo, S.likes(S.feline, S.fish), 0.5).one()
     assert tuple(closest) == (0.8, S.likes(S.cat, S.fish))
+    # !(test (soft-best &zoo (likes feline fish)) (likes cat fish))
     assert m.fn.soft_best(zoo, S.likes(S.feline, S.fish)).one() == S.likes(S.cat, S.fish)
 
     # Attention over terms: every candidate scored, softmaxed into a
     # distribution, which sums to one whatever the temperature.
     # `Expression(answers)` is the collapse door: the scored candidates become
     # ONE ordered atom, which is what the measure algebra takes.
+    # !(test (size-atom (collapse (soft-match &zoo (likes $x $y) 0.0))) 3)
     assert len(soft_match(zoo, S.likes(V.x, V.y), 0.0)) == 3
+    # !(test (< (abs-math (- (ws-total (ws-softmax (collapse (soft-match ...)) 1.0))
+    #                        1.0))
+    #           1.0e-9)
+    #        true)
     candidates = Expression(soft_match(zoo, S.likes(S.feline, V.f), 0.0))
     distribution = m.fn.ws_softmax(candidates, 1.0).one()
     assert abs(m.fn.ws_total(distribution).one() - 1.0) < 1.0e-9

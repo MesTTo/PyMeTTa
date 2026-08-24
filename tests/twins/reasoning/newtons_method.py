@@ -12,8 +12,11 @@ like any other definition. Calling it evaluates, which is why the claims read
 `energy(2.0, 0)` and not a rebuilt term.
 
 The three directives stay terms: each names an engine service rather than a
-computation, and lib_memo has no Python face. The import takes the space
-HANDLE, because a space crosses a term position as itself.
+computation, none of them is banged, and lib_memo has no Python face.
+`@m.cache` is the Python-native memo door and it is a DIFFERENT mechanism,
+engine tabling rather than this library's policy cache, so using it here would
+twin something the example does not do. The import takes the space HANDLE,
+because a space crosses a term position as itself.
 
 The definition is written FIRST, where the example writes it fourth. A file
 loader registers a file's function names before it runs the file's `!` forms,
@@ -27,7 +30,7 @@ from metta import S
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
@@ -35,19 +38,24 @@ def twin(m):
     """Define the recursion, memoise it, then read two of its values."""
     # The library's file name is `lib_memo.metta`, and the factory attribute
     # door maps every underscore to a hyphen, so the name takes the bracket.
+    # !(import! &self (library lib_memo))
     m.fn["import!"](m, S.library(S["lib_memo"]))
 
     @m.define
     def energy(x, n):
-        """Halve, shift, and add the same branch to itself."""
+        """(= (energy $x $n) (if (<= $n 0) (* $x $x) (+ (energy ...) (energy ...))))."""
         if n <= 0:
             return x * x
         return energy(0.5 * x + 0.4, n - 1) + energy(0.5 * x + 0.4, n - 1)
 
-    m.eval(S["config-memoize"](S.strategy(S.wtinylfu), S["unique-limit"](100)))
+    # !(config-memoize (strategy wtinylfu) (unique-limit 100))
+    # !(memoize energy)
+    m.eval(S.config_memoize(S.strategy(S.wtinylfu), S.unique_limit(100)))
     m.eval(S.memoize(S.energy))
 
     # Base case: x*x.
+    # !(test (energy 2.0 0) 4.0)
     assert energy(2.0, 0) == [4.0]
     # One level down: 1.4*1.4 twice.
+    # !(test (energy 2.0 1) 3.9199999999999995)
     assert energy(2.0, 1) == [3.9199999999999995]

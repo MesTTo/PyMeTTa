@@ -990,15 +990,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/syntax/string_comments.metta",
-      "form": null,
-      "missing": "a lowercase symbol as data inside a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "`(= (test-func) result)` answers the lowercase symbol `result`, which a compiled body reads as a call it cannot resolve. The twin writes `m += equation(S['test-func']()).to(S.result)`."
-    },
-    {
-      "kind": "friction",
       "example": "examples/types/subtyping.metta",
       "form": null,
       "missing": "a builder for the subtype edge (:< Sub Super)",
@@ -1010,37 +1001,10 @@
       "kind": "friction",
       "example": "examples/types/dont_eval_type.metta",
       "form": null,
-      "missing": "the metatype accessor inside a compiled body, where Python's own type(a) is the named spelling",
+      "missing": "Python's own `type(a)` inside a compiled body",
       "row": "P14.4",
       "section": "§9d the concept map: the Python CLASS of an atom to its metatype",
-      "detail": "The design authority settles the metatype naming by deletion: \"Python's own builtin `type(a)` answers the METATYPE by construction (the four classes ARE the metatypes, P5.1)\". Inside a compiled body that mapping is absent: `_define_expression._PYBUILTIN_CALLS` bridges len, abs, min, max, sum, sorted, pow, str, repr, round and range, and not `type`, so `(= (inspect-opaque $written) (get-metatype $written))` has no compiled spelling and falls to the general hyphenated-name friction. Adding `type` to that table would close this one equation and give the concept map its compiled half."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/matchtypes.metta",
-      "form": null,
-      "missing": "a definitional-decorator spelling for a program's own equation over a name the engine already answers",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "`@m.define(name=\"match-types\")` refuses before it reads the body: \"'match-types' is already a function this space answers (an engine builtin, an operation, or an equation): defining it would stack a clause onto it\". The container door does the same thing silently, which is what the twin does and what the .metta original does. The refusal is a good default, so the gap is a spelling for the deliberate case rather than a bug: types/matchtypes extends `match-types` and types/types_dependent extends `get-type`, both of which are programs teaching the engine something new about a name it already answers. Measured 2026-08-22: `(match-types a a 1 2)` answers 1 on a fresh engine with no program equation at all. [tested: ai-tmp/probe2.py on the p14-twins-f worktree; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/logicprogset.metta",
-      "form": null,
-      "missing": "MeTTa's (and ...) inside a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "(and (member a $M) (member b $M)) is a generate-and-test: the first conjunct BINDS $M for the second, which is the whole point of the example. Python's `and` in a compiled body lowers to (let* ((v A)) (if (py-truthy v) B v)), which short-circuits on truthiness and binds nothing, and the operator that would mean it, &, is refused in a body. So myf is written at the term door with & building (and ...)."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/logicprog.metta",
-      "form": null,
-      "missing": "stacked clauses that are ALTERNATIVES rather than first-match, and a body variable that appears in neither head",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "later-in-alphabet has two clauses with the same variable head; stacked Python clauses derive first-match guards, which would make the recursive clause unreachable. Its second clause also binds $Z, which appears in neither head, while a free name in a compiled body must be a parameter, a known function, or a capitalised data constructor, never a fresh variable. Both clauses are written at the term door with & building (and ...)."
+      "detail": "The body names the accessor through `fn.get_metatype`, which compiles. What has no lowering is Python's own `type()`, which is the spelling the same question takes on the Python side of the seam, so one question is two words depending on which side of the decorator it is asked on."
     },
     {
       "kind": "friction",
@@ -1049,79 +1013,34 @@
       "missing": "a Python batch door that installs equations before an earlier memoize runnable executes",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "The example writes !(memoize energy) fourth and (= (energy ...)) fifth, and the file loader registers a file's function names before it runs the file's ! forms, so memoize finds energy. A Python program has no such pre-pass: m.eval(S.memoize(S.energy)) on an undefined name raises `Domain error: function_symbol expected`. The twin therefore writes @m.define first, out of the example's order. Same friction as examples/libraries/memo_aggregate.metta."
+      "detail": "A file loader registers a file's function names before it runs the file's `!` forms, so `!(memoize energy)` finds `energy` where the example writes it, fourth. A Python program has no such pre-pass: measured 2026-08-24, `m.eval(S.memoize(S.energy))` before the definition raises `Domain error: `function_symbol' expected, found `energy'`, and memoizing an already-defined function costs 19,859 inferences of its own against 16,945 to define it, which is the whole of the twin's 80,761 against the example's 65,418."
     },
     {
       "kind": "friction",
       "example": "examples/reasoning/peano.metta",
       "form": null,
-      "missing": "a compiled body spelling for `collapse`, `once` and `case`",
+      "missing": "a compiled body spelling for `collapse`, where the dissolution table names list()",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The space half is closed by fix 15: a compiled match() takes the handle its caller passes, measured on this tree. What survives is what stops each of the four definitions anyway: add-atom-no-duplicate collapses a `once` over its match and a compiled body spells neither, expand-once is a `case`, and expandK and demo-peano bind with `let` and `let*` over calls to those two names."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/plntest.metta",
-      "form": null,
-      "missing": "MeTTa's own `/` inside a compiled body, where Python's `/` inserts the (* 1.0 ...) true-division coercion",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "a / b in a compiled body compiles to (/ (* 1.0 $a) $b), because MeTTa's / keeps an exact integer quotient an integer ((/ 6 2) is 3) where Python's answers 3.0. The coercion is right for the Python twin and wrong for a twin of an example that writes MeTTa's own /, so smallest-intersection-probability and largest-intersection-probability stay at the term door. The same body needs MeTTa's (and ...), and the m.fn escape a body normally takes for a name the operators do not reach is closed here because m.fn binds the ENGINE's name and `and` is a Python keyword."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/plntest.metta",
-      "form": null,
-      "missing": "a structural head pattern, and a SYMBOL as a stacked clause's head pattern",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "Truth_Deduction destructures five (stv $s $c) arguments in its HEAD and |- destructures two nested pairs; a compiled head pattern must be a LITERAL, so def g(_n=1) writes (= (g 1) ...) and nothing writes (= (g (stv $s $c)) ...). SyllogisticRuleGuard and STV need the same door for a SYMBOL: (= (SyllogisticRuleGuard Inheritance) True) has a literal symbol head, and a default of S.Inheritance is refused with `a default here is a head pattern, so it must be a literal`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/plntestdirect.metta",
-      "form": null,
-      "missing": "MeTTa's own `/` inside a compiled body, MeTTa's (and ...), a structural head pattern, and a SYMBOL head pattern",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "The same four walls as plntest, plus the three `sentence` clauses, whose heads destructure (Inheritance $A $C) and (stv $s $c) and whose bodies are MeTTa's own generate-and-test `and`. Only clamp reaches the compiled subset."
+      "detail": "All four definitions are compiled now: `case` with one capturing arm is an ordinary binding, `S.once` is an ordinary mention, and `match(pattern, template)` reads the ambient space. `collapse` is what is left: `list()` is the dissolution table's answer for it and a compiled body refuses `list`, so the twin names the head and declares its rung on the line."
     },
     {
       "kind": "friction",
       "example": "examples/reasoning/scallop_readme.metta",
       "form": null,
-      "missing": "a compiled body naming a hyphenated function it did not define",
+      "missing": "a compiled body resolving `fn.<name>` for an engine head outside the space's catalog",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "Every definition here but sc-pick-max calls a SIBLING whose MeTTa name is hyphenated (sc-edge-to, sc-path-to, sc-parent-kind, sc-one-color, sc-class-max), and a compiled body names a function by exactly its MeTTa spelling, which none of those is a Python identifier for. Same wall as examples/basics/fibsmart.metta. sc-pick-max lifts because its body names no other sc- function."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/nars_tuffy.metta",
-      "form": null,
-      "missing": "a compiled body naming a punctuation-headed constructor",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "(kb)'s body is data built from -->, ==>, the U+00D7 product and ([] p). A free name in a compiled body must be a parameter, a function the engine knows by exactly that name, or a CAPITALISED data constructor, and none of the four is even a Python identifier. The twin names each once at the term door and the ten rows then read as the logic they are."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/reasoning/nilbc.metta",
-      "form": null,
-      "missing": "a compiled body naming a data constructor that collides with the S factory's own name",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "fromNumber's body builds (S (fromNumber (- $n 1))). A capitalised free name in a compiled body IS a data constructor, but _constructor_symbol first refuses any name that is a module binding, to avoid silently dropping a host value, and `S` is a module binding in every twin because `S` is the symbol factory they import. The refusal is right and the collision is real, so the equation is written at the term door. fromNat and every bc clause are separately blocked by literal-symbol and structural head patterns."
+      "detail": "A compiled body names a hyphenated SIBLING by its Python name and a hyphenated CATALOG function through `fn`. What it refuses is a head the catalog does not carry: measured 2026-08-24, `fn.foldall` and `fn.not_provable` both raise `names no target function in this space's catalog` inside `@m.define`, where the static `fn.foldall` outside one is the symbol `foldall`. The twin writes `S.foldall` and `S.not_provable` there instead."
     },
     {
       "kind": "friction",
       "example": "examples/reasoning/constructive_negation.metta",
       "form": null,
-      "missing": "MeTTa's (and ...) inside a compiled body, a `case`, and a `match` against a NAMED space",
+      "missing": "a `case` whose DUAL survives, where Python's match statement lowers to a nested tower",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "flies, unmarried-student, two-but-not-one and pension all use MeTTa's generate-and-test `and`, whose Python spelling short-circuits on truthiness and binds nothing; band is a `case`, which is what Python's `match` statement would spell; has-child matches against &kin, and a compiled match() names its space as a literal, which reaches &kin but leaves the whole body blocked by nothing else it can spell. The two mask-example definitions DO lift: their annotations emit the example's own (: ...) declarations and `10` as a parameter default is the head pattern."
+      "detail": "Two of the three closed on 2026-08-24: `&` builds `(and ...)` in a `@m.rules` body, and `match(space, pattern, template)` inside a compiled body stores `(match &kin (parent $x $y) True)`. The `case` did not. `(= (band $n) (case $n ((90 True) (40 False))))` written as a Python match statement lowers to a NESTED tower, answers correctly on a direct call, and then fails its dual with `Type error: `integer' expected, found `Empty'` on every key past the first arm, so the flat case term stays."
     },
     {
       "kind": "friction",
@@ -1179,15 +1098,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/types/parametric_types.metta",
-      "form": null,
-      "missing": "an answer template that can carry a variable from the PATTERN side, which is what instantiating a declared arrow needs",
-      "row": "P14.4",
-      "section": "§10b the expression-position rule (unify(a, b, then, els))",
-      "detail": "NARROWED 2026-08-23. R5 shipped `Space.solve(pattern, subject)`, the relational let, and it derives the answer template from the SUBJECT's variables: `(get-type apply)` has none, so solve refuses with `solve needs at least one variable in its subject` and cannot say the example's `(let (get-type apply) (-> (-> Bool Bool) Bool $result) $result)`, whose answer variable lives in the pattern. `petta.unify` still cannot say it either, for the reason this entry recorded: it is one-way, and the arrow it matches against is all variables. The twin asks the type of the APPLICATION instead, which is the example's own second form [measured 2026-08-23: ai-tmp/e-probe-doors.py neighbours]."
-    },
-    {
-      "kind": "friction",
       "example": "examples/types/recursive_types2.metta",
       "form": null,
       "missing": "a record whose constructor declares the ADT as its result type, and a record that may name itself",
@@ -1215,12 +1125,75 @@
     },
     {
       "kind": "friction",
-      "example": "examples/reasoning/permutations.metta",
+      "example": "examples/types/inplace_annotations.metta",
       "form": null,
-      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
-      "row": "P14.7",
-      "section": "§9e the performance note; §5 the three lanes",
-      "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `len(m[conjuncts])` counts the 362,880-row join through Python's own conjunction door and costs 55,719,867 inferences against the engine's own 32,521,598, +71%, past the lane's 10% band, because every row's ten bindings become Python atoms. The missing door is a query that aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/reasoning/permutations.metta]."
+      "missing": "a compiled head pattern, so an in-place annotation can be a def's parameter",
+      "row": "P14.4",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "Every clause here selects on `(: $x Person)` in its HEAD. A compiled parameter list carries plain names and literal defaults, so all six are written as stored equations. A declared parameter type is the same acceptance said the other way round, but it cannot bind the type to a variable, which `type-of`, `same-kind` and `fmap` all do."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/types.metta",
+      "form": null,
+      "missing": "the Python-type table read on the RIGHT of an equality, so an answered type compares against Any",
+      "row": "P14.9",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "`typed(x, Any)` and `arrow(int, int)` read Python types through the conversion table, but the table is one-way: measured 2026-08-24, `m.type(S.c) == Any` is False where `m.type(S.c) == S['%Undefined%']` is True, so a twin comparing an ANSWER against a type writes the marked name out."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/scallop_readme.metta",
+      "form": null,
+      "missing": "a `case` whose DUAL survives, where Python's match statement lowers to a nested tower",
+      "row": "P14.4",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "`sc-odd?` must stay the example's TWO coexisting equations, a literal head beside a variable one. Folding them into one guarded compiled body compiles and answers `sc-odd?(3)` correctly, and then `(not-provable (sc-odd? $y))` fails with `Type error: `integer' expected, found `Empty'`, the same nested-tower dual that constructive_negation's `band` hits."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/tilepuzzle.metta",
+      "form": null,
+      "missing": "an `if`/`else` lowering that keeps a recursive call in tail position, the way two coexisting clauses do",
+      "row": "P14.4",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "`bfs_loop`'s two clauses fold into one `if`/`else` that compiles and answers, and then raises StackOverflow at 16,665 of the 181,441 states (measured 2026-08-24), because the recursion moves out of the let* chain's tail into `if`'s third argument. The twin keeps the clause pair, which is a `@m.rules` bundle."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nilbc.metta",
+      "form": null,
+      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
+      "row": "P14.4",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "The six `bc` clauses are stored code built from an EXECUTING `@m.rules` body, so their `let*`, `let` and `match` have to be named as heads. `if_` is the exported builder for a stored `if` and there is no sibling for the other three, which is what makes those three lines declare a rung."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/tilepuzzle.metta",
+      "form": null,
+      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
+      "row": "P14.4",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "`bfs_loop`'s second clause is stored code built from an EXECUTING `@m.rules` body, so its `let*` is named as a head where `if_` builds the base clause's `if`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/constructive_negation.metta",
+      "form": null,
+      "missing": "a builder for a stored `let`, `let*` or `match` term, the way `if_` builds a stored `if`",
+      "row": "P14.4",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "`(let $x 2 True)` inside `two-but-not-one` is stored code built from an EXECUTING `@m.rules` body, so the `let` is named as a head; `if_` builds a stored `if` and has no sibling for `let`."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/pln_roman.metta",
+      "form": null,
+      "missing": "a scoped bound for `max-stack-depth` beside limits(timeout=, inferences=, stack=)",
+      "row": "P14.14",
+      "section": "§7 the examples-twin coverage lane",
+      "detail": "The bounded proof search needs more than the default fuel. `limits(stack=)` is SWI's per-thread BYTE ceiling (engine/metta.pl: 'stack-limit scopes SWI's per-thread byte ceiling ...; max-stack-depth remains branch-local reduction fuel'), so the twin writes the pragma term and performs it through the banged name."
     },
     {
       "kind": "declined",
@@ -5257,6 +5230,116 @@
       "section": "§4 surface gaps: Python's match/case STATEMENT, verified absent 2026-08-21",
       "detail": "The twin destructures the expression with Python's own match statement, which on an atom already held in Python costs no crossing: 5 inferences against the example's 1745. That is the ladder's own preference, but it means the example's construct never runs, because the define subset's statement dispatch has no ast.Match case and so no compiled body can spell `case`. Until it does, no twin can put this example's own form into the engine.",
       "retired": "2026-08-24: `ast.Match` lowers, so a `case` whose branches are patterns over structure now compiles. What this file still cannot spell is the STAR arm its cons pattern needs, which is filed as its own entry against the same row"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/syntax/string_comments.metta",
+      "form": null,
+      "missing": "a lowercase symbol as data inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "`(= (test-func) result)` answers the lowercase symbol `result`, which a compiled body reads as a call it cannot resolve. The twin writes `m += equation(S['test-func']()).to(S.result)`.",
+      "retired": "2026-08-24: the compiled body reaches it. `@m.define def test_func(): return S.result` stores `(= (test-func) result)`, because a factory mention inside a lowered body is data where a bare name is a call."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/matchtypes.metta",
+      "form": null,
+      "missing": "a definitional-decorator spelling for a program's own equation over a name the engine already answers",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "`@m.define(name=\"match-types\")` refuses before it reads the body: \"'match-types' is already a function this space answers (an engine builtin, an operation, or an equation): defining it would stack a clause onto it\". The container door does the same thing silently, which is what the twin does and what the .metta original does. The refusal is a good default, so the gap is a spelling for the deliberate case rather than a bug: types/matchtypes extends `match-types` and types/types_dependent extends `get-type`, both of which are programs teaching the engine something new about a name it already answers. Measured 2026-08-22: `(match-types a a 1 2)` answers 1 on a fresh engine with no program equation at all. [tested: ai-tmp/probe2.py on the p14-twins-f worktree; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]",
+      "retired": "2026-08-24: `@m.rules` is that decorator. It lands bare coexisting equations deliberately, so both `match-types` and `match-type-or` are written as definitions even though this engine already answers both names."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/parametric_types.metta",
+      "form": null,
+      "missing": "an answer template that can carry a variable from the PATTERN side, which is what instantiating a declared arrow needs",
+      "row": "P14.4",
+      "section": "§10b the expression-position rule (unify(a, b, then, els))",
+      "detail": "NARROWED 2026-08-23. R5 shipped `Space.solve(pattern, subject)`, the relational let, and it derives the answer template from the SUBJECT's variables: `(get-type apply)` has none, so solve refuses with `solve needs at least one variable in its subject` and cannot say the example's `(let (get-type apply) (-> (-> Bool Bool) Bool $result) $result)`, whose answer variable lives in the pattern. `petta.unify` still cannot say it either, for the reason this entry recorded: it is one-way, and the arrow it matches against is all variables. The twin asks the type of the APPLICATION instead, which is the example's own second form [measured 2026-08-23: ai-tmp/e-probe-doors.py neighbours].",
+      "retired": "2026-08-24: `solve(pattern, subject)` answers the pattern's own variables, so the twin instantiates the declared arrow and reads `.result` off the answer."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/logicprog.metta",
+      "form": null,
+      "missing": "stacked clauses that are ALTERNATIVES rather than first-match, and a body variable that appears in neither head",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "later-in-alphabet has two clauses with the same variable head; stacked Python clauses derive first-match guards, which would make the recursive clause unreachable. Its second clause also binds $Z, which appears in neither head, while a free name in a compiled body must be a parameter, a known function, or a capitalised data constructor, never a fresh variable. Both clauses are written at the term door with & building (and ...).",
+      "retired": "2026-08-24: `@m.rules` lands bare coexisting equations and mints a fresh variable for every parameter, so the recursive alternative and its unbound `$Z` are both written as a definition."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/logicprogset.metta",
+      "form": null,
+      "missing": "MeTTa's (and ...) inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "(and (member a $M) (member b $M)) is a generate-and-test: the first conjunct BINDS $M for the second, which is the whole point of the example. Python's `and` in a compiled body lowers to (let* ((v A)) (if (py-truthy v) B v)), which short-circuits on truthiness and binds nothing, and the operator that would mean it, &, is refused in a body. So myf is written at the term door with & building (and ...).",
+      "retired": "2026-08-24: the bundle door reaches the term. A `@m.rules` body EXECUTES, so `&` builds `(and ...)` there, which is rung 3 of the descent ladder rather than Python's truthiness chain."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/plntest.metta",
+      "form": null,
+      "missing": "MeTTa's own `/` inside a compiled body, where Python's `/` inserts the (* 1.0 ...) true-division coercion",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "a / b in a compiled body compiles to (/ (* 1.0 $a) $b), because MeTTa's / keeps an exact integer quotient an integer ((/ 6 2) is 3) where Python's answers 3.0. The coercion is right for the Python twin and wrong for a twin of an example that writes MeTTa's own /, so smallest-intersection-probability and largest-intersection-probability stay at the term door. The same body needs MeTTa's (and ...), and the m.fn escape a body normally takes for a name the operators do not reach is closed here because m.fn binds the ENGINE's name and `and` is a Python keyword.",
+      "retired": "2026-08-24: the coercion is the guide's own ruling and the twin takes it. Measured, `(clamp (/ (* 1.0 (- (+ $As $Bs) 1)) $As) 0 1)` answers the example's own (stv 0.7333333333333334 0.9), so no spelling is missing."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/plntest.metta",
+      "form": null,
+      "missing": "a structural head pattern, and a SYMBOL as a stacked clause's head pattern",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "Truth_Deduction destructures five (stv $s $c) arguments in its HEAD and |- destructures two nested pairs; a compiled head pattern must be a LITERAL, so def g(_n=1) writes (= (g 1) ...) and nothing writes (= (g (stv $s $c)) ...). SyllogisticRuleGuard and STV need the same door for a SYMBOL: (= (SyllogisticRuleGuard Inheritance) True) has a literal symbol head, and a default of S.Inheritance is refused with `a default here is a head pattern, so it must be a literal`.",
+      "retired": "2026-08-24: `@m.rules` is the door for both. `(|- (($LinkType $A $B) $T1) ...)` and `(SyllogisticRuleGuard Inheritance)` are written as definitions in a bundle whose parameters are their variables."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/plntestdirect.metta",
+      "form": null,
+      "missing": "MeTTa's own `/` inside a compiled body, MeTTa's (and ...), a structural head pattern, and a SYMBOL head pattern",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "The same four walls as plntest, plus the three `sentence` clauses, whose heads destructure (Inheritance $A $C) and (stv $s $c) and whose bodies are MeTTa's own generate-and-test `and`. Only clamp reaches the compiled subset.",
+      "retired": "2026-08-24: all four are reached. `/` takes the guide's ruled coercion, `&` builds `(and ...)` in a `@m.rules` body, and a structured or symbol head is what a bundle's equations are for."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/permutations.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "§9e the performance note; §5 the three lanes",
+      "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `len(m[conjuncts])` counts the 362,880-row join through Python's own conjunction door and costs 55,719,867 inferences against the engine's own 32,521,598, +71%, past the lane's 10% band, because every row's ten bindings become Python atoms. The missing door is a query that aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/reasoning/permutations.metta].",
+      "retired": "2026-08-24: `len(answers)` counts wholly inside the engine through `petta_py_query_count` and pulls no atom into Python, so the claim is `len(m.match(*conjuncts))`. What it costs is a LIBRARY item rather than a missing spelling: measured in one process over the same 29-way conjunction, the Python count spent 50,757,468 inferences against 27,170,677 for the engine's own (length (collapse (match ...))), 1.87x."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nars_tuffy.metta",
+      "form": null,
+      "missing": "a compiled body naming a punctuation-headed constructor",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "(kb)'s body is data built from -->, ==>, the U+00D7 product and ([] p). A free name in a compiled body must be a parameter, a function the engine knows by exactly that name, or a CAPITALISED data constructor, and none of the four is even a Python identifier. The twin names each once at the term door and the ten rows then read as the logic they are.",
+      "retired": "2026-08-24: a compiled body names it. Measured, `S[\"-->\"](a, S[\"[]\"](b))` inside `@m.define` stores `(--> $a ([] $b))`. `kb` stays at the write door because its body is DATA assembled by seven HOST helpers, which a body may not call, not because the heads are unreachable."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/reasoning/nilbc.metta",
+      "form": null,
+      "missing": "a compiled body naming a data constructor that collides with the S factory's own name",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "fromNumber's body builds (S (fromNumber (- $n 1))). A capitalised free name in a compiled body IS a data constructor, but _constructor_symbol first refuses any name that is a module binding, to avoid silently dropping a host value, and `S` is a module binding in every twin because `S` is the symbol factory they import. The refusal is right and the collision is real, so the equation is written at the term door. fromNat and every bc clause are separately blocked by literal-symbol and structural head patterns.",
+      "retired": "2026-08-24: the factory attribute says it. Measured, `S.S(from_number(n - 1))` inside `@m.define` stores `(S (fromNumber (- $n 1)))`; only a BARE `S` was ever ambiguous, and `fromNumber` is a compiled function now."
     }
   ]
 }

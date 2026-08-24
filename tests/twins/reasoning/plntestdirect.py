@@ -6,94 +6,113 @@ relation that either matches a stored premise or DERIVES one, and asking it for
 `(Inheritance a c)` makes the search find the middle term itself.
 
 The definitions duplicate the sibling file's because the examples do; each twin
-stands alone, since the lane runs it in its own process. The walls are the same
-four (division, MeTTa's `and`, head destructuring, symbol heads), plus one that
-belongs to this file: the recursive `sentence` clause carries `(= $TV ...)` as
-a GOAL rather than as a definition, and `equation(lhs).to(rhs)` is the same
-builder either way, because `(= lhs rhs)` in an evaluated position is an
-ordinary atom.
+stands alone, since the lane runs it in its own process.
+
+Four relations are compiled functions whose arithmetic is Python's own, and
+three are `@m.rules` bundles, the door for equations whose heads are structures
+or symbols. `sentence` is the interesting one: its three clauses coexist, its
+recursive body is a conjunction of two sentence goals, and `(= $TV ...)` there
+is a GOAL rather than a definition. `equation(lhs).to(rhs)` is the same builder
+either way, because `(= lhs rhs)` in an evaluated position is an ordinary atom.
 
 The claim is `solve`, the relational `let`: it evaluates the subject, unifies
 its answer with the pattern, and hands back the subject's own variables, which
 is how `$TV` leaves the search.
-Guarantees:
-  - TRUE, FALSE, UNIT, and HERE used here are package values rather
-    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
 """
 
-from metta import TRUE, S, V, arrow, equation, fn, if_, typed
+from metta import TRUE, S, V, equation, fn
 
-#: The deduction formula's own head, and the two comparison heads this file
-#: builds terms with. Python's `<`, `>`, `<=` and `>=` order atoms and build
-#: nothing, so every comparison TERM outside a compiled body names its head.
+#: The deduction formula's own head, which carries a genuine underscore no
+#: attribute door can spell: rung 4's map would make it `truth-deduction`.
 DEDUCTION = S["Truth_Deduction"]
-LESS, AT_MOST = fn["<"], fn["<="]
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
 def twin(m):
     """Build the deduction formula, then let the search find the middle term."""
-    smallest = S["smallest-intersection-probability"]
-    largest = S["largest-intersection-probability"]
-    consistent = S["conditional-probability-consistency"]
 
     @m.define
-    def clamp(v, low, high):
-        """Keep v inside [low, high]."""
-        return min(high, max(v, low))
+    def clamp(value, low, high):
+        """(= (clamp $v $min $max) (min $max (max $v $min)))."""
+        return min(high, max(value, low))
 
-    m += typed(smallest, arrow(int, int, int))
-    m += equation(smallest(V.As, V.Bs)).to(
-        S.clamp((V.As + V.Bs - 1) / V.As, 0, 1)
-    )
+    @m.define
+    def smallest_intersection_probability(a_size: int, b_size: int) -> int:
+        """(: ... (-> Number Number Number)) and (clamp (/ (- (+ $As $Bs) 1) $As) 0 1)."""
+        return clamp((a_size + b_size - 1) / a_size, 0, 1)
 
-    m += typed(largest, arrow(int, int, int))
-    m += equation(largest(V.As, V.Bs)).to(S.clamp(V.Bs / V.As, 0, 1))
+    @m.define
+    def largest_intersection_probability(a_size: int, b_size: int) -> int:
+        """(: ... (-> Number Number Number)) and (clamp (/ $Bs $As) 0 1)."""
+        return clamp(b_size / a_size, 0, 1)
 
-    m += typed(consistent, arrow(int, int, int, bool))
-    m += equation(consistent(V.As, V.Bs, V.ABs)).to(
-        LESS(0, V.As)
-        & (AT_MOST(smallest(V.As, V.Bs), V.ABs)
-           & AT_MOST(V.ABs, largest(V.As, V.Bs)))
-    )
-
-    m += equation(DEDUCTION(S.stv(V.Ps, V.Pc), S.stv(V.Qs, V.Qc),
-                            S.stv(V.Rs, V.Rc), S.stv(V.PQs, V.PQc),
-                            S.stv(V.QRs, V.QRc))).to(
-        if_(consistent(V.Ps, V.Qs, V.PQs) & consistent(V.Qs, V.Rs, V.QRs),
-            S.stv(if_(LESS(0.9999, V.Qs),  # Qs tending to 1 would divide by zero
-                      V.Rs,
-                      V.PQs * V.QRs
-                      + (1 - V.PQs) * (V.Rs - V.Qs * V.QRs) / (1 - V.Qs)),
-                  fn.min(V.Pc, fn.min(V.Qc, fn.min(V.Rc, fn.min(V.PQc, V.QRc))))),
-            S.stv(1, 0))
-    )
-
-    for concept in (S.a, S.b, S.c):
-        m += equation(S.STV(concept)).to(S.stv(0.4, 0.9))
-
-    # Two stored premises, and one rule that derives a third from any two that
-    # share a middle term. `(= $TV ...)` here is a GOAL, not a definition.
-    for left, right in ((S.a, S.b), (S.b, S.c)):
-        m += equation(S.sentence(S.Inheritance(left, right), S.stv(0.9, 0.9))).to(
-            fn.once(TRUE)
+    @m.define
+    def conditional_probability_consistency(a_size: int, b_size: int, both: int) -> bool:
+        """A conditional probability sits between the bounds its marginals allow."""
+        # (= (conditional-probability-consistency $As $Bs $ABs)
+        #    (and (< 0 $As) (and (<= (smallest ...) $ABs) (<= $ABs (largest ...)))))
+        return (
+            0 < a_size
+            and smallest_intersection_probability(a_size, b_size)
+            <= both
+            <= largest_intersection_probability(a_size, b_size)
         )
-    m += equation(S.sentence(S.Inheritance(V.A, V.C), V.TV)).to(
-        fn.once(S.sentence(S.Inheritance(V.A, V.B), V.T1)
-                & S.sentence(S.Inheritance(V.B, V.C), V.T2)
-                & equation(V.TV).to(DEDUCTION(S.STV(V.A), S.STV(V.B), S.STV(V.C),
-                                              V.T1, V.T2)))
-    )
 
+    @m.define(name="Truth_Deduction")
+    def truth_deduction(p, q, r, pq, qr):
+        """Strength from the two conditionals, confidence as the weakest link."""
+        # (= (Truth_Deduction (stv $Ps $Pc) ... ) (if (and ...) (stv ...) (stv 1 0)))
+        match (p, q, r, pq, qr):
+            case ((S.stv, ps, pc), (S.stv, qs, qc), (S.stv, rs, rc),
+                  (S.stv, pqs, pqc), (S.stv, qrs, qrc)) if (
+                    conditional_probability_consistency(ps, qs, pqs)
+                    and conditional_probability_consistency(qs, rs, qrs)):
+                # Qs tending to 1 would divide by zero, so that branch answers Rs.
+                strength = (
+                    rs
+                    if 0.9999 < qs
+                    else pqs * qrs + (1 - pqs) * (rs - qs * qrs) / (1 - qs)
+                )
+                return S.stv(strength, min(pc, min(qc, min(rc, min(pqc, qrc)))))
+            case _:
+                # Preconditions unmet.
+                return S.stv(1, 0)
+
+    @m.rules
+    def strengths():
+        """(= (STV a) (stv 0.4 0.9)), and two more with a symbol in the head."""
+        for name in (S.a, S.b, S.c):
+            yield equation(S.STV(name)).to(S.stv(0.4, 0.9))
+
+    @m.rules
+    def sentences(left, middle, right, first, second, truth):  # noqa: PLR0917  -- a bundle's parameters ARE its equations' variables, not a call signature
+        """Two stored premises, and one rule that derives a third."""
+        # (= (sentence (Inheritance a b) (stv 0.9 0.9)) (once True))
+        # (= (sentence (Inheritance b c) (stv 0.9 0.9)) (once True))
+        for start, end in ((S.a, S.b), (S.b, S.c)):
+            yield equation(S.sentence(S.Inheritance(start, end), S.stv(0.9, 0.9))).to(
+                fn.once(TRUE)
+            )
+        # (= (sentence (Inheritance $A $C) $TV)
+        #    (once (and (and (sentence (Inheritance $A $B) $T1)
+        #                    (sentence (Inheritance $B $C) $T2))
+        #               (= $TV (Truth_Deduction (STV $A) (STV $B) (STV $C) $T1 $T2)))))
+        yield equation(S.sentence(S.Inheritance(left, right), truth)).to(
+            fn.once(
+                S.sentence(S.Inheritance(left, middle), first)
+                & S.sentence(S.Inheritance(middle, right), second)
+                & equation(truth).to(
+                    DEDUCTION(S.STV(left), S.STV(middle), S.STV(right), first, second)
+                )
+            )
+        )
+
+    # !(test (let $derivation (sentence (Inheritance a c) $TV) $TV)
+    #        (stv 0.8166666666666668 0.9))
     derived = m.solve(V.derivation, S.sentence(S.Inheritance(S.a, S.c), V.TV))
     assert derived.TV == S.stv(0.8166666666666668, 0.9)

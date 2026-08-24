@@ -13,18 +13,16 @@ rows then read as the logic they are: `-->` is inheritance, `==>` implication,
 written as the escape `\N{MULTIPLICATION SIGN}` and called `multiplication-sign`
 in prose, because a bare one is a confusable ruff refuses.
 
-`kb` stays at the container door because its body is DATA rather than a
-computation: a compiled body's free names must be parameters, functions the
-engine knows by exactly that name, or capitalised constructors, and `-->`,
-`==>` and the product head are none of the three (residue, P14.4). The import
-takes the space HANDLE, because a space crosses a term position as itself.
+`kb` is ONE equation whose body is DATA, so it goes through the write door as
+the atom it is. The punctuation heads are not what keeps it there: measured
+2026-08-24, `S["-->"](a, S["[]"](b))` inside a compiled body stores
+`(--> $a ([] $b))`. What a compiled body cannot do is CALL the seven host
+helpers that make the ten rows readable, because a body is pure atoms, so
+compiling `kb` would mean inlining every bracket again. The import takes the
+space HANDLE, because a space crosses a term position as itself.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
 """
 
 from metta import Expression, S, V, equation
@@ -32,7 +30,7 @@ from metta import Expression, S, V, equation
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
@@ -88,6 +86,7 @@ def twin(m):
     """State ten sentences, then ask NARS about one of their consequences."""
     # The library's file name is `lib_nars.metta`, and the factory attribute
     # door maps every underscore to a hyphen, so the name takes the bracket.
+    # !(import! &self (library lib_nars))
     m.fn["import!"](m, S.library(S["lib_nars"]))
 
     # The knowledge base, as the ten rows it is. `$1` and `$2` in the first two
@@ -138,6 +137,8 @@ def twin(m):
 
     # Edward smokes, so Edward is cancerous, and the answer names the five
     # sentences the derivation used.
+    # !(test (NARS.Query (kb) (--> Edward ([] cancerous)))
+    #        ((stv 0.6 0.48941156079382964) (2 5 6 9 10)))
     assert m.fn["NARS.Query"](
         S.kb(), inheritance(S.Edward, prop(S.cancerous))
     ) == [Expression((S.stv(0.6, 0.48941156079382964), Expression((2, 5, 6, 9, 10))))]

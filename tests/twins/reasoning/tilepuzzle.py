@@ -7,29 +7,37 @@ duplicate, until the queue empties. The claim is the count it reaches, 181441.
 The moves are one shape repeated, so a pair of loops writes them: the blank's
 position and the direction are the loop variables, and the row is the eight
 placeholders with the blank swapped into place. The example writes all
-twenty-four out; here the shape is stated once and the loops supply the rest.
+twenty-four out; here the shape is stated once and `@m.rules` lands the
+twenty-four equations the loops supply, which is the door for a head that
+destructures a nine-cell board.
 
-Everything stays at the container door. Every move head destructures a
-nine-cell board, `bfs_loop` has two clauses under one head that are
-ALTERNATIVES rather than first-match, and its body binds with `let*` over a
-queue library whose names are not Python identifiers.
+The search is a `@m.rules` bundle and two compiled functions. `bfs_loop` must
+stay the example's TWO coexisting clauses, and that is measured rather than
+assumed: folding them into one `if`/`else` compiles, answers correctly for a
+few thousand states, and then raises StackOverflow at 16,665 of the 181,441,
+because the recursive call moves out of the let* chain's tail position into
+`if`'s third argument (friction, P14.4). The example inlines a `let*` under the
+`collapse`, and the twin NAMES that intermediate as `fresh-neighbour` instead,
+which is a compiled function whose statements ARE that let*.
 
-Three names carry a genuine underscore, `bfs_loop`, `bfs_all` and `$_1`, and
-the factory attribute door maps every underscore to a hyphen, so all of them
-take the bracket: `S.bfs_loop` would be the DIFFERENT head `bfs-loop`.
+Three names carry a genuine underscore, `bfs_loop`, `bfs_all` and `$_1`. The
+factory attribute door maps every underscore to a hyphen, so the variables take
+the bracket and the two heads are given explicitly with `name=`: the implicit
+name would install `bfs-loop`, a different head from the one the example makes
+matchable.
 """
 
 import metta
-from metta import S, V, equation, fn, if_
+from metta import S, V, equation, if_
+
+#: The search head, whose MeTTa name carries a genuine underscore, so the
+#: attribute door cannot say it: rung 4's map would make it `bfs-loop`.
+BFS_LOOP = S["bfs_loop"]
 
 #: The blank, and one variable per board position.
 BLANK = S["___"]
 SLOTS = (V["_1"], V["_2"], V["_3"], V["_4"], V["_5"],
          V["_6"], V["_7"], V["_8"], V["_9"])
-
-#: The two search heads, whose MeTTa names are underscored.
-BFS_LOOP = S["bfs_loop"]
-BFS_ALL = S["bfs_all"]
 
 #: Source order is up, left, right, down wherever the move is legal.
 DIRECTIONS = ((S.U, -3), (S.L, -1), (S.R, 1), (S.D, 3))
@@ -40,7 +48,7 @@ DIRECTIONS = ((S.U, -3), (S.L, -1), (S.R, 1), (S.D, 3))
 #: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 55047786, maximum 55047980
 #: over 28 observations under `full-lane/218/workers=32`, so the re-pin owes
 #: it an envelope rather than a point
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
@@ -71,7 +79,17 @@ def _moves():
 
 def twin(m):
     """State the moves and queue laws, then exhaust the reachable state graph."""
-    m.add(*_moves())
+
+    @m.rules
+    def board():
+        """Twenty-four move equations, the example's own shape written once.
+
+        (= (move (___ $_2 $_3 $_4 $_5 $_6 $_7 $_8 $_9) R)
+           ($_2 ___ $_3 $_4 $_5 $_6 $_7 $_8 $_9)), and twenty-three more.
+        """
+        yield from _moves()
+
+    # !(import! &self (library lib_datastructures))
     m.fn["import!"](m, S.library(S["lib_datastructures"]))
 
     # The duplicate store is an ordinary space, and the Python variable IS its
@@ -79,43 +97,50 @@ def twin(m):
     # itself, which is what `add-unique-or-fail` receives.
     duplicates = metta.space()
 
-    # `empty-queue` is a function, so the base case tests the queue against
-    # what it produces rather than writing the call in the head, which would
-    # be a pattern matched structurally.
-    m += equation(BFS_LOOP(V.Q, V.N0)).to(
-        if_(V.Q.eq(S["empty-queue"]()), V.N0, fn.empty())
-    )
-    m += equation(BFS_LOOP(V.Q, V.N0)).to(
-        fn["let*"](  # rung: a let* over queue calls a compiled body cannot name (P14.4)
-            (
-                (V.Q1, fn.once(S.dequeue(V.S, V.Q))),
-                (
-                    V.Ln,
-                    fn.collapse(  # rung: a collapse INSIDE a stored body, where list() is a Python read (P14.4)
-                        fn["let*"](  # rung: the same let* (P14.4)
-                            (
-                                (V.Snew, S.move(V.S, V._)),
-                                (V.receipt, S["add-unique-or-fail"](duplicates, V.Snew)),
-                            ),
-                            V.Snew,
-                        )
-                    ),
-                ),
-                (V.Q2, fn.foldl(S.enqueue, V.Ln, V.Q1)),
-                (V.N1, V.N0 + 1),
-            ),
-            BFS_LOOP(V.Q2, V.N1),
-        )
-    )
-    m += equation(BFS_ALL(V.Start)).to(
-        fn["let*"](  # rung: the same let* (P14.4)
-            (
-                (V.receipt, S["add-unique-item-or-empty"](V.Start)),
-                (V.Q1, S.enqueue(V.Start, S["empty-queue"]())),
-            ),
-            BFS_LOOP(V.Q1, 0),
-        )
-    )
+    @m.define
+    def fresh_neighbour(state):
+        """One unseen state per legal move; the example inlines this let*."""
+        moved = S.move(state, V._)
+        _receipt = S.add_unique_or_fail(duplicates, moved)
+        return moved
 
-    start = (BLANK, 1, 2, 3, 4, 5, 6, 7, 8)
-    assert m.fn["bfs_all"](start).one() == 181441
+    @m.rules
+    def search(queue, seen, state, rest, neighbours, grown):  # noqa: PLR0917  -- a bundle's parameters ARE its equations' variables, not a call signature
+        """The two coexisting clauses: stop on an empty queue, or take one."""
+        # `empty-queue` is a function, so the base case tests the queue against
+        # what it produces rather than writing the call in the head, which
+        # would be a pattern matched structurally.
+        # (= (bfs_loop $Q $N0) (if (== $Q (empty-queue)) $N0 (empty)))
+        yield equation(BFS_LOOP(queue, seen)).to(
+            if_(S.eq(queue, S.empty_queue()), seen, S.empty())
+        )
+        # (= (bfs_loop $Q $N0)
+        #    (let* (($Q1 (once (dequeue $S $Q)))
+        #           ($Ln (collapse (let* (($Snew (move $S $_)) ...) $Snew)))
+        #           ($Q2 (foldl enqueue $Ln $Q1))
+        #           ($N1 (+ $N0 1)))
+        #          (bfs_loop $Q2 $N1)))
+        yield equation(BFS_LOOP(queue, seen)).to(
+            S["let*"](  # rung: a stored let* whose bindings are queue calls, and whose TAIL is the recursion this search needs (P14.4)
+                (
+                    (rest, S.once(S.dequeue(state, queue))),
+                    (neighbours, S.collapse(S.fresh_neighbour(state))),  # rung: `collapse` is list() (P14.4)
+                    (grown, S.foldl(S.enqueue, neighbours, rest)),
+                ),
+                BFS_LOOP(grown, seen + 1),
+            )
+        )
+
+    @m.define(name="bfs_all")
+    def bfs_all(start):
+        """Seed the duplicate store and the queue, then run the loop."""
+        # (= (bfs_all $Start)
+        #    (let* (($Pt (add-unique-item-or-empty $Start))
+        #           ($Q1 (enqueue $Start (empty-queue))))
+        #         (bfs_loop $Q1 0)))
+        _receipt = S.add_unique_item_or_empty(start)
+        queue = S.enqueue(start, S.empty_queue())
+        return S["bfs_loop"](queue, 0)
+
+    # !(test (let $x (bfs_all (___ 1 2 3 4 5 6 7 8)) $x) 181441)
+    assert bfs_all((BLANK, 1, 2, 3, 4, 5, 6, 7, 8)).one() == 181441

@@ -19,7 +19,7 @@ from metta import ground
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=e4c861a8c9e8e42b9e5ecb90d9ebf92a946e0163].
 BUDGET = 1
 
 
@@ -29,10 +29,15 @@ def twin(m):
 
     # A Windows path: every backslash is a backslash, doubled on the way out
     # and single again on the way back.
+    # !(test (parse (repr "C:\\Users\\bob")) "C:\\Users\\bob")
     assert read(str(ground("C:\\Users\\bob"))).one() == "C:\\Users\\bob"
+
     # Quotes inside the string, escaped by the printer and unescaped by
     # the reader.
+    # !(test (parse (repr "say \"hi\"")) "say \"hi\"")
     assert read(str(ground('say "hi"'))).one() == 'say "hi"'
+
     # Backslash-n as two characters, which survives because the printer
     # escapes the backslash rather than the n.
+    # !(test (parse (repr "a\\nb")) "a\\nb")
     assert read(str(ground("a\\nb"))).one() == "a\\nb"

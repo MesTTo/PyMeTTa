@@ -6,55 +6,65 @@ argument cannot reach a Type2 answer, so `(f T3in)` has no answer at all until
 `T3in` is also declared a Type2, at which point the Tdefault branch is
 acceptable and answers.
 
-The clause is written as an equation because its body compares with `=alpha`,
-which a compiled body has no name for, and because this file's own subject
-says why `=alpha` and not `==`: `(== T2in T1in)` compares two KNOWN and
+The two arrows are written as the atoms they are, because one Python signature
+cannot say two, and the def itself carries no annotations, so it publishes no
+third arrow of its own. Its body is Python's own `if` chain, which lowers to
+the example's nested conditional exactly; the comparison is `=alpha` and not
+`==` for this file's own reason: `(== T2in T1in)` compares two KNOWN and
 different types, which `==` refuses by name. Both references refuse the `==`
 spelling too, hyperon and the mechanised interpreter alike.
-Guarantees:
-  - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
 """
 
-from metta import Expression, S, V, arrow, equation, fn, if_, typed
+from metta import UNIT, S, arrow, fn, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=e4c861a8c9e8e42b9e5ecb90d9ebf92a946e0163].
 BUDGET = 1
 
 
 def twin(m):
     """Declare two arrows for one name, then watch the output type filter."""
-    alpha = fn["=alpha"]
-
+    # (: f (-> Type1 Type1)) (: f (-> Type2 Type2))
     m += typed(S.f, arrow(S.Type1, S.Type1))
     m += typed(S.f, arrow(S.Type2, S.Type2))
 
-    otherwise = if_(alpha(V.a, S.T2in), S.T2out, S.Tdefault)
-    m += equation(S.f(V.a)).to(if_(alpha(V.a, S.T1in), S.T1out, otherwise))
+    @m.define
+    def f(a):
+        """(= (f $a) (if (=alpha $a T1in) T1out (if (=alpha $a T2in) T2out Tdefault)))."""
+        if fn["=alpha"](a, S.T1in):
+            return S.T1out
+        if fn["=alpha"](a, S.T2in):
+            return S.T2out
+        return S.Tdefault
 
-    m += typed(S.T1in, S.Type1)
-    m += typed(S.T1out, S.Type1)
-    m += typed(S.T2in, S.Type2)
-    m += typed(S.T2out, S.Type2)
-    m += typed(S.T3in, S.Type1)
-    m += typed(S.Tdefault, S.Type2)
+    # (: T1in Type1) (: T1out Type1) (: T2in Type2) (: T2out Type2)
+    # (: T3in Type1) (: Tdefault Type2)
+    for name, declared in (
+        (S.T1in, S.Type1),
+        (S.T1out, S.Type1),
+        (S.T2in, S.Type2),
+        (S.T2out, S.Type2),
+        (S.T3in, S.Type1),
+        (S.Tdefault, S.Type2),
+    ):
+        m += typed(name, declared)
 
-    assert m.fn.f(S.T1in) == [S.T1out]
-    assert m.fn.f(S.T2in) == [S.T2out]
+    # !(test (f T1in) T1out)
+    assert f(S.T1in) == [S.T1out]
+    # !(test (f T2in) T2out)
+    assert f(S.T2in) == [S.T2out]
 
     # Type1 in, Type2 out: no signature admits that, so nothing answers.
     # This one is asked through collapse because a FLAT call at the Python
     # door skips the output-type filter the engine's own form applies and
-    # answers Tdefault (filed as friction, with the reproduction).
-    assert m.eval(fn.collapse(S.f(S.T3in))) == [Expression(())]  # rung: collapse is list(), but list() over the Python call door would collect an answer the engine does not give
+    # answers Tdefault (friction, P14.9, with the reproduction).
+    # !(test-no-answer (f T3in))
+    assert m.eval(fn.collapse(S.f(S.T3in))) == [UNIT]  # rung: collapse is list(), but list() over the Python call door would collect an answer the engine does not give
 
     # Declare T3in a Type2 as well and the Type2 signature admits it.
+    # (: T3in Type2)
+    # !(test (f T3in) Tdefault)
     m += typed(S.T3in, S.Type2)
-    assert m.fn.f(S.T3in) == [S.Tdefault]
+    assert f(S.T3in) == [S.Tdefault]

@@ -10,11 +10,12 @@ The nine `E` facts move one hole through the nine slots of a row, so the hole's
 position is the loop variable and the row is built by slicing the eight
 placeholders around it.
 
-The 29-conjunct join is Python's own conjunction door, the comma inside a
-subscript, and the answer is a row per solution, so the example's
-`(length (collapse (match ...)))` is `len()` over what the door already
-answers. The conjuncts keep the original's triangular layout, which is this
-file's documentation of the constraint graph.
+The 29-conjunct join is `space.match(...)`, whose varargs ARE the conjunction,
+and the answer is a row per solution, so the example's
+`(length (collapse (match ...)))` is `len()` over the view the door already
+answers, counted through the engine rather than pulled into Python. The
+conjuncts keep the original's triangular layout, which is this file's
+documentation of the constraint graph.
 """
 
 from metta import S, V
@@ -25,15 +26,15 @@ from metta import S, V
 #: The example's names are `$_1` and `___`, both of which carry a genuine
 #: underscore: the factory attribute door maps every underscore to a hyphen,
 #: so `V._1` would be `$-1` and these take the bracket, which is what rung 5
-#: is for.
-NE = S["!="]
+#: is for. `!=` has an operator word, so the head is `S.ne`.
+NE = S.ne
 HOLE = S["___"]
 SLOT = (V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"])
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
@@ -46,17 +47,22 @@ def twin(m):
     """State 65 facts, then join them into every permutation of nine."""
     # Every ordered pair of distinct positions, the original's four rows of
     # fourteen.
+    # (1 != 2) (1 != 3) ... (8 != 7)
     for left in range(1, 9):
         for right in range(1, 9):
             if left != right:
                 m += (left, NE, right)
 
     # One hole, moved through the nine slots of a row.
+    # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 1 (___ $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8))
+    # ... and eight more, the hole one place further along each time
     for slot in range(1, 10):
         m += S.E(*SLOT, slot, (*SLOT[: slot - 1], HOLE, *SLOT[slot - 1:]))
 
     # The triangular constraint graph: each new position differs from every
     # earlier one, and the ninth slot is where the hole may sit.
+    # !(test (length (collapse (match &self (, ($_1 != $_2) ... ) (state1 $state))))
+    #        362880)
     conjuncts = (
         ne(1, 2),
         ne(2, 3), ne(3, 1),
@@ -67,4 +73,4 @@ def twin(m):
         ne(7, 8), ne(8, 6), ne(8, 5), ne(8, 4), ne(8, 3), ne(8, 2), ne(8, 1),
         S.E(*SLOT, V.x, V.state),
     )
-    assert len(m[conjuncts]) == 362880
+    assert len(m.match(*conjuncts)) == 362880

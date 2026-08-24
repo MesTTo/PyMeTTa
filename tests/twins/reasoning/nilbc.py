@@ -13,21 +13,18 @@ The Metamath vocabulary gets Python functions for the same reason: `eq`, `plus`
 and `implies` turn a wall of angle brackets into readable logic, and `typed` is
 the exported builder for the declaration term the whole file is written in.
 
-Everything stays at the container door, and the reasons are in the clauses:
+Every head that destructures is a `@m.rules` bundle, the door for equations
+whose heads are structures or symbols: the six `bc` clauses destructure
+`(S $depth)` and `(: ($rule $p1 ...) $thm)`, and `fromNat`'s two clauses have a
+symbol head and a structural one. `fromNumber` is an ordinary compiled function
+whose declaration is its signature, and `Nat` is a Python class so the arrow
+can be built from Python types. The bundles' bodies are stored `let*`, `let`
+and `match` terms, and a rules body EXECUTES, so those three are built by
+naming their heads (friction, P14.4).
 
-- every `bc` clause destructures in the HEAD, `(S $depth)` and
-  `(: ($rule $p1 ...) $thm)`, and a compiled head pattern must be a literal;
-- `fromNat`'s two clauses have a SYMBOL head pattern (`Z`) and a structural one
-  (`(S $k)`), which a stacked Python clause's literal default cannot spell;
-- `fromNumber` would compile except for one collision: its body builds `(S ...)`
-  and a capitalised free name in a compiled body is a data constructor UNLESS it
-  is a module binding, which `S` is here because `S` is the symbol factory every
-  twin imports. The refusal is right, silently dropping a host value would be
-  worse, and the collision is real.
-
-Each is a residue entry against P14.4. The three knowledge bases are ordinary
-spaces, and the Python variable IS each one's binding, so none of them needs a
-name: a space crosses a term position as itself, which is what `bc` receives.
+The three knowledge bases are ordinary spaces, and the Python variable IS each
+one's binding, so none of them needs a name: a space crosses a term position as
+itself, which is what `bc` receives.
 
 The example's variables carry genuine underscores (`$knowledge_base`,
 `$premise_proof1`), and the factory attribute door maps every underscore to a
@@ -40,7 +37,12 @@ its arguments carry variables.
 """
 
 import metta
-from metta import S, V, equation, fn, if_, typed
+from metta import S, V, arrow, equation, typed
+
+
+class Nat:
+    """The MeTTa type `Nat`, which `fromNumber` answers and `fromNat` reads."""
+
 
 #: Metamath's vocabulary, as this example spells it.
 TERM, WFF, ZERO, TT = S["⟨term⟩"], S["⟨wff⟩"], S["⟨0⟩"], S["⟨t⟩"]
@@ -62,7 +64,7 @@ KB, RULE = V["knowledge_base"], V["proof_rule"]
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=67c9b9a4e7204e9537c018de6e8c23ddfe842bed].
 BUDGET = 1
 
 
@@ -91,7 +93,7 @@ def _chain(premises):
     """
     pairs = PREMISE[:1] if premises == 1 else PREMISE[1 : premises + 1]
     abstraction = typed(RULE,
-                        S["->"](*[typed(proof, kind) for proof, kind in pairs], V.theorem))
+                        arrow(*[typed(proof, kind) for proof, kind in pairs], V.theorem))
     recurse = [(abstraction, S.bc(KB, V.depth, abstraction))]
     recurse += [
         (typed(proof, kind), S.bc(KB, V.depth, typed(proof, kind)))
@@ -99,42 +101,64 @@ def _chain(premises):
     ]
     fulfilled = typed((RULE, *(proof for proof, _ in pairs)), V.theorem)
     return equation(S.bc(KB, S.S(V.depth), fulfilled)).to(
-        fn["let*"](tuple(recurse), fulfilled)  # rung: a let* whose bindings are proof-search calls (P14.4)
+        S["let*"](tuple(recurse), fulfilled)  # rung: a stored let* whose bindings are proof-search calls (P14.4)
     )
 
 
 def twin(m):
     """Three proof searches over three knowledge bases, and the proofs they build."""
     # Nat, and the casts between it and Number.
+    # (: Nat Type) (: Z Nat) (: S (-> Nat Nat))
     m += typed(S.Nat, S.Type)
-    m += typed(S.Z, S.Nat)
-    m += typed(S.S, S["->"](S.Nat, S.Nat))
-    m += typed(S.fromNumber, S["->"](S.Number, S.Nat))
-    m += equation(S.fromNumber(V.n)).to(
-        if_(fn["<="](V.n, 0), S.Z, S.S(S.fromNumber(V.n - 1)))
-    )
-    m += typed(S.fromNat, S["->"](S.Nat, S.Number))
-    m += equation(S.fromNat(S.Z)).to(0)
-    m += equation(S.fromNat(S.S(V.k))).to(1 + S.fromNat(V.k))
+    m += typed(S.Z, Nat)
+    m += typed(S.S, arrow(Nat, Nat))
+
+    @m.define(name="fromNumber")
+    def from_number(n: int) -> Nat:
+        """(: fromNumber (-> Number Nat)), counting down to Z.
+
+        Every claim below writes `(fromNumber n)` as a TERM inside `bc`'s
+        argument, exactly as the example does, so this name installs the
+        equation and is never called from Python.
+        """
+        # (= (fromNumber $n) (if (<= $n 0) Z (S (fromNumber (- $n 1)))))
+        if n <= 0:
+            return S.Z
+        return S.S(from_number(n - 1))
+
+    m += typed(S.fromNat, arrow(Nat, int))
+
+    @m.rules
+    def counting(step):
+        """(= (fromNat Z) 0) and (= (fromNat (S $k)) (+ 1 (fromNat $k)))."""
+        yield equation(S.fromNat(S.Z)).to(0)
+        yield equation(S.fromNat(S.S(step))).to(1 + S.fromNat(step))
 
     # The chainer: a knowledge base, a maximum depth, a query, an answer.
-    m += typed(S.bc, S["->"](V.a, S.Nat, V.b, V.b))
+    # (: bc (-> $a Nat $b $b))
+    m += typed(S.bc, arrow(V.a, Nat, V.b, V.b))
 
-    # Base case: the query is destructured in the BODY rather than the head,
-    # because a head parameter of the form (: $x $t) is an in-place type
-    # annotation and would ask the engine to check the proof's type.
-    m += equation(S.bc(KB, V._, V.query)).to(
-        fn.let(typed(V.proof, V.theorem),  # rung: a let whose PATTERN is a declaration term (P14.4)
-               V.query,
-               fn.match(KB, typed(V.proof, V.theorem), typed(V.proof, V.theorem)))  # rung: a match whose space is this clause's PARAMETER (P14.4)
-    )
-    for premises in range(1, 6):
-        m += _chain(premises)
+    @m.rules
+    def chainer():
+        """The base case, and the five clauses `_chain` writes from one shape."""
+        # Base case: the query is destructured in the BODY rather than the head,
+        # because a head parameter of the form (: $x $t) is an in-place type
+        # annotation and would ask the engine to check the proof's type.
+        # (= (bc $kb $_ $query)
+        #    (let (: $proof $theorem) $query
+        #         (match $kb (: $proof $theorem) (: $proof $theorem))))
+        yield equation(S.bc(KB, V._, V.query)).to(
+            S.let(typed(V.proof, V.theorem),  # rung: a stored let whose PATTERN is a declaration term (P14.4)
+                  V.query,
+                  S.match(KB, typed(V.proof, V.theorem), typed(V.proof, V.theorem)))  # rung: a stored match whose space is this clause's PARAMETER (P14.4)
+        )
+        for premises in range(1, 6):
+            yield _chain(premises)
 
     # EASY: term and wff are ignored, and Metamath implication is replaced by
     # the arrow type. Equality is right Euclidean, and zero is a right identity.
     kbe = metta.space()
-    kbe += typed(S.a1, S["->"](typed(V.ter, eq(V.t, V.r)),
+    kbe += typed(S.a1, arrow(typed(V.ter, eq(V.t, V.r)),
                                typed(V.tes, eq(V.t, V.s)),
                                eq(V.r, V.s)))
     kbe += typed(S.a2, eq(plus(V.t, ZERO), V.t))
@@ -147,12 +171,12 @@ def twin(m):
     # MEDIUM: the same, with the term and wff types used.
     kbm = metta.space()
     kbm += typed(ZERO, TERM)
-    kbm += typed(S["⟨+⟩"], S["->"](typed(V.t, TERM), typed(V.r, TERM), TERM))
-    kbm += typed(S["⟨=⟩"], S["->"](typed(V.t, TERM), typed(V.r, TERM), WFF))
-    kbm += typed(S.a1, S["->"](typed(V.t, TERM), typed(V.r, TERM), typed(V.s, TERM),
+    kbm += typed(S["⟨+⟩"], arrow(typed(V.t, TERM), typed(V.r, TERM), TERM))
+    kbm += typed(S["⟨=⟩"], arrow(typed(V.t, TERM), typed(V.r, TERM), WFF))
+    kbm += typed(S.a1, arrow(typed(V.t, TERM), typed(V.r, TERM), typed(V.s, TERM),
                                typed(V.ter, eq(V.t, V.r)), typed(V.tes, eq(V.t, V.s)),
                                eq(V.r, V.s)))
-    kbm += typed(S.a2, S["->"](typed(V.t, TERM), eq(plus(V.t, ZERO), V.t)))
+    kbm += typed(S.a2, arrow(typed(V.t, TERM), eq(plus(V.t, ZERO), V.t)))
     kbm += typed(TT, TERM)
 
     # Several proofs come back at this depth, so the claim is membership.
@@ -163,13 +187,13 @@ def twin(m):
     # first to speed the search up.
     kbh = metta.space()
     kbh += typed(ZERO, TERM)
-    kbh += typed(S["⟨+⟩"], S["->"](typed(V.t, TERM), typed(V.r, TERM), TERM))
-    kbh += typed(S["⟨=⟩"], S["->"](typed(V.t, TERM), typed(V.r, TERM), WFF))
-    kbh += typed(S["⟨->⟩"], S["->"](typed(V.P, WFF), typed(V.Q, WFF), WFF))
-    kbh += typed(S.a1, S["->"](typed(V.t, TERM), typed(V.r, TERM), typed(V.s, TERM),
+    kbh += typed(S["⟨+⟩"], arrow(typed(V.t, TERM), typed(V.r, TERM), TERM))
+    kbh += typed(S["⟨=⟩"], arrow(typed(V.t, TERM), typed(V.r, TERM), WFF))
+    kbh += typed(S["⟨->⟩"], arrow(typed(V.P, WFF), typed(V.Q, WFF), WFF))
+    kbh += typed(S.a1, arrow(typed(V.t, TERM), typed(V.r, TERM), typed(V.s, TERM),
                                implies(eq(V.t, V.r), implies(eq(V.t, V.s), eq(V.r, V.s)))))
-    kbh += typed(S.a2, S["->"](typed(V.t, TERM), eq(plus(V.t, ZERO), V.t)))
-    kbh += typed(S.mp, S["->"](typed(V.maj, implies(V.P, V.Q)),
+    kbh += typed(S.a2, arrow(typed(V.t, TERM), eq(plus(V.t, ZERO), V.t)))
+    kbh += typed(S.mp, arrow(typed(V.maj, implies(V.P, V.Q)),
                                typed(V.P, WFF), typed(V.Q, WFF), typed(V.min, V.P),
                                V.Q))
     kbh += typed(TT, TERM)

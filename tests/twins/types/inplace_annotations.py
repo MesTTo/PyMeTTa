@@ -10,92 +10,129 @@ reason with nothing added.
 
 Every clause here selects on a STRUCTURE in its head, so all of them are
 written as the equations they are: a compiled parameter list carries plain
-names and literal defaults, and `typed(V.x, S.Person)` is neither.
+names and literal defaults, and `typed(V.x, S.Person)` is neither. A declared
+parameter type, `def greet(x: Person)`, is the same acceptance said the other
+way round, but it cannot BIND the type to a variable, which is what the three
+clauses after `greet` do; the missing compiled head pattern is friction against
+P14.4.
+
+A lone equation goes through the write door as the atom it is; the two clauses
+of `list-length` are one relation, so they are one `@m.rules` bundle, which is
+the same write door taking a whole bundle and freshening its variables from the
+parameter list.
 
 The two gates that make the position rule work are claims too. A pattern that
 IS a colon expression stays structural, so the knowledge base still answers
 with the declarations somebody wrote; and only `(: $variable expected)` is an
 annotation, so `(: a tail)` and the tutorial's `::` list stay ordinary data.
-Guarantees:
-  - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
 """
 
 import metta
-from metta import Expression, S, V, equation, typed
+from metta import UNIT, S, V, equation, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=e4c861a8c9e8e42b9e5ecb90d9ebf92a946e0163].
 BUDGET = 1
 
 #: The tutorial's own cons constructor, which means nothing to the engine.
+#: `::` is not a Python identifier, so the name takes rung 5's bracket.
 CONS = S["::"]
 
 
 def twin(m):
     """Declare types, then prune with them in heads and in queries."""
+    # Reaching either relation's unmatched boundary must FAIL the search rather
+    # than answering the P3 residual-call dispatch value.
+    # !(add-atom &petta (dispatch-policy shape-of NoMatchEnum NoMatchFail))
     reflection = metta.reflection
-    reflection += S["dispatch-policy"](S["shape-of"], S.NoMatchEnum, S.NoMatchFail)
+    reflection += S.dispatch_policy(S.shape_of, S.NoMatchEnum, S.NoMatchFail)
 
+    # (: Ann Person) (: Ann Employee) (: Bob Person) (: Rex Dog)
     m += typed(S.Ann, S.Person)
     m += typed(S.Ann, S.Employee)
     m += typed(S.Bob, S.Person)
     m += typed(S.Rex, S.Dog)
 
     # Restrict a head parameter. Rex never reaches the body.
+    # (= (greet (: $x Person)) (hello $x))
     m += equation(S.greet(typed(V.x, S.Person))).to(S.hello(V.x))
+    # !(test (collapse (greet Ann)) ((hello Ann)))
     assert m.fn.greet(S.Ann) == [S.hello(S.Ann)]
+    # !(test (collapse (greet Rex)) ())
     assert m.fn.greet(S.Rex) == []
 
     # Bind the type to a variable instead, and a symbol with two declared
     # types gives a branch each, because nondeterminism is native.
-    m += equation(S["type-of"](typed(V.x, V.t))).to(V.t)
+    # (= (type-of (: $x $t)) $t)
+    m += equation(S.type_of(typed(V.x, V.t))).to(V.t)
+    # !(test (collapse (type-of Ann)) (Person Employee))
     assert m.fn.type_of(S.Ann) == [S.Person, S.Employee]
+    # !(test (collapse (type-of Rex)) (Dog))
     assert m.fn.type_of(S.Rex) == [S.Dog]
 
     # One type variable in two positions constrains them to agree.
-    m += equation(S["same-kind"](typed(V.x, V.t), typed(V.y, V.t))).to((V.x, V.y))
+    # (= (same-kind (: $x $t) (: $y $t)) ($x $y))
+    m += equation(S.same_kind(typed(V.x, V.t), typed(V.y, V.t))).to((V.x, V.y))
+    # !(test (collapse (same-kind Ann Bob)) ((Ann Bob)))
     assert m.fn.same_kind(S.Ann, S.Bob) == [S.Ann(S.Bob)]
+    # !(test (collapse (same-kind Ann Rex)) ())
     assert m.fn.same_kind(S.Ann, S.Rex) == []
 
     # A METATYPE restriction works for the same reason and needs nothing
     # extra: the acceptance falls through to the metatype when nobody
     # declared the symbol.
+    # (= (fmap $f (: $c Symbol)) ($f $c))
     m += equation(S.fmap(V.f, typed(V.c, S.Symbol))).to((V.f, V.c))
+    # !(test (collapse (fmap g sym)) ((g sym)))
     assert m.fn.fmap(S.g, S.sym) == [S.g(S.sym)]
+    # !(test (collapse (fmap g 42)) ())
     assert m.fn.fmap(S.g, 42) == []
 
     # And in a match query, which is where it prunes the search rather than
     # the call. Zeus is a God, so the restricted query does not reach him.
+    # (: Plato Human) (: Socrates Human) (: Zeus God)
+    # !(add-atom &self (knows Plato Socrates))
+    # !(add-atom &self (knows Plato Zeus))
     m += typed(S.Plato, S.Human)
     m += typed(S.Socrates, S.Human)
     m += typed(S.Zeus, S.God)
     m += S.knows(S.Plato, S.Socrates)
     m += S.knows(S.Plato, S.Zeus)
 
+    # !(test (collapse (match &self (knows (: $x Human) (: $y Human)) ($x $y)))
+    #        ((Plato Socrates)))
     humans = m[S.knows(typed(V.x, S.Human), typed(V.y, S.Human))]
     assert [(row.x, row.y) for row in humans] == [(S.Plato, S.Socrates)]
+    # !(test (collapse (match &self (knows (: $x $t) (: $y $t)) ($x $y $t)))
+    #        ((Plato Socrates Human)))
     agreeing = m[S.knows(typed(V.x, V.t), typed(V.y, V.t))]
     assert [(row.x, row.y, row.t) for row in agreeing] == [(S.Plato, S.Socrates, S.Human)]
 
     # GATE 1: the whole pattern is a colon expression, so this retrieves the
     # stored declaration rather than annotating anything.
+    # !(test (collapse (match &self (: Zeus $t) $t)) (God))
     assert m[typed(S.Zeus, V.t)].t == [S.God]
 
     # `::` means nothing special to the engine, which is the point of not
-    # having taken it. Here is the tutorial's own list program, verbatim.
-    m += equation(S["list-length"](Expression(()))).to(0)
-    m += equation(S["list-length"](CONS(V.x, V.xs))).to(1 + S["list-length"](V.xs))
-    assert m.fn.list_length(CONS(S.A, CONS(S.B, CONS(S.C, Expression(()))))) == [3]
+    # having taken it. Here is the tutorial's own list program, verbatim: two
+    # coexisting clauses of one relation, so they are one `@m.rules` bundle
+    # and its parameters are their variables.
+    @m.rules
+    def length(x, rest):
+        """(= (list-length ()) 0) and (= (list-length (:: $x $xs)) ...)."""
+        yield equation(S.list_length(UNIT)).to(0)
+        yield equation(S.list_length(CONS(x, rest))).to(1 + S.list_length(rest))
+
+    # !(test (list-length (:: A (:: B (:: C ())))) 3)
+    assert m.fn.list_length(CONS(S.A, CONS(S.B, CONS(S.C, UNIT)))) == [3]
 
     # GATE 2: the annotation position must hold a VARIABLE, or the form stays
     # structural and nothing looks inside it.
-    m += equation(S["shape-of"](typed(S.a, V.rest))).to(V.rest)
+    # (= (shape-of (: a $rest)) $rest)
+    m += equation(S.shape_of(typed(S.a, V.rest))).to(V.rest)
+    # !(test (collapse (shape-of (: a tail))) (tail))
     assert m.fn.shape_of(typed(S.a, S.tail)) == [S.tail]
+    # !(test (collapse (shape-of (: z tail))) ())
     assert m.fn.shape_of(typed(S.z, S.tail)) == []

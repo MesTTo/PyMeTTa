@@ -20,7 +20,7 @@ from metta import S
 #: PREVIOUS PIN WAS AN EMPIRICAL ENVELOPE, minimum 94568, maximum 94700 over
 #: 28 observations under `full-lane/218/workers=32`, so the re-pin owes it an
 #: envelope rather than a point
-#: [assumed: 1 is a placeholder rather than a measurement; commit=69ac4ed4182746f952374a5d2cba3aecf97d867b].
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
 BUDGET = 1
 
 
@@ -31,6 +31,7 @@ def _rows(pairs):
 
 def twin(m):
     """Import the measure algebra and check its deterministic and sampled faces."""
+    # !(import! &self (library lib_measure))
     m.fn["import!"](m, S.library(S["lib_measure"]))
 
     ws_total = m.fn.ws_total
@@ -45,6 +46,8 @@ def twin(m):
     ws_sample = m.fn.ws_sample
     ws_choose = m.fn.ws_choose
 
+    # The measure algebra over weighted alternatives: (weight value) pairs.
+    # !(test (ws-total ((0.5 a) (0.25 b) (0.25 c))) 1.0), and seven more
     assert ws_total(((0.5, S.a), (0.25, S.b), (0.25, S.c))).one() == 1.0
     assert _rows(ws_normalize(((2.0, S.a), (2.0, S.b))).one()) == (
         (0.5, S.a),
@@ -68,11 +71,13 @@ def twin(m):
         (0.4, S.dog),
     )
 
+    # Softmax with temperature: cold sharpens toward the argmax, hot flattens.
     @m.define
     def first_weight(pairs):
-        """Return the first pair's weight through Python sequence indexing."""
+        """(= (first-weight $ps) (index-atom (car-atom $ps) 0)), as indexing."""
         return pairs[0][0]
 
+    # !(test (ws-best (ws-softmax ((1.0 low) (3.0 high)) 0.1)) high), and three more
     cold = ws_softmax(((1.0, S.low), (3.0, S.high)), 0.1).one()
     assert ws_best(cold).one() == S.high
     sharp = ws_softmax(((1.0, S.a), (3.0, S.b)), 0.1).one()
@@ -82,12 +87,16 @@ def twin(m):
     spread = ws_softmax(((2.0, S.a), (5.0, S.b), (1.0, S.c)), 0.7).one()
     assert abs(ws_total(spread).one() - 1.0) < 1.0e-9
 
+    # Sampling draws only values the superposition carries, every time.
+    # !(test (is-member (ws-sample! ((0.5 heads) (0.5 tails))) (heads tails)) true)
+    # ... and two more
     assert ws_sample(((0.5, S.heads), (0.5, S.tails))).one() in (S.heads, S.tails)
     assert ws_sample(((1.0, S.sure),)).one() == S.sure
     assert ws_sample(((0.1, S.a), (0.2, S.b), (0.7, S.c))).one() in (S.a, S.b, S.c)
 
     # The nondeterministic reading: alternatives with their measure as data,
     # one answer each, which is what iterating the answers gives.
+    # !(test (collapse (ws-choose ((0.6 yes) (0.4 no)))) ((0.6 yes) (0.4 no)))
     assert _rows(ws_choose(((0.6, S.yes), (0.4, S.no)))) == (
         (0.6, S.yes),
         (0.4, S.no),
