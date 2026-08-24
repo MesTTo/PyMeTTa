@@ -136,6 +136,7 @@ def _space_valued(value: Atom) -> bool:
         return True
     if isinstance(value, Expression) and value.children:
         head = value.children[0]
+        # policy-inventory-exempt: mechanism-internal; reason=the two heads that mint or read a space in a compiled binding decide the += write-door reading and are not a value vocabulary; evidence=bindings/python/metta/_define_statements.py:_space_valued
         return isinstance(head, Symbol) and head.name in {"context-space", "new-space"}
     return False
 
