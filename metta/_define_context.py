@@ -57,6 +57,7 @@ class CompilerContext:
     runtime_ops: set[str]
     hazards: set[str]
     scope: dict[str, str]
+    space_locals: set[str]
     known: Callable[[str], bool]
     returns_bool: Callable[[str], bool]
     used: set[str]

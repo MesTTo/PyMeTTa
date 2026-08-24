@@ -654,10 +654,12 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         m.run("!(add-one 5)")       # [[6]]
         add_one.py(5)               # 6, ordinary Python
 
-    The equation's name is the Python name, verbatim. Hyphens are the
-    MeTTa convention and Python cannot spell one, so a hyphenated name is
-    asked for rather than inferred: @m.define(name="add-one"). Nothing is
-    rewritten behind the author's back.
+    The equation's name is the Python name through the one total map the
+    whole surface uses: underscores become hyphens, so ``def add_one``
+    installs ``add-one``, exactly as ``fn.add_one`` reaches it (the
+    host-convention law, ruled 2026-08-24). A name the map cannot spell
+    is asked for exactly: ``@m.define(name="add.one!")`` preserves every
+    authored character.
 
     A generator compiles to nondeterminism (each yield one answer), a
     lambda to the engine's own |->, a comprehension to map-atom and

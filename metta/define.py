@@ -681,6 +681,7 @@ class _Compiler(
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
+        space_locals: set[str] | None = None,
     ):
         self.name = name
         # The Python spelling of the definition's own name, for recursion
@@ -725,6 +726,11 @@ class _Compiler(
         # mentions them, or the enclosing recursion loses its state.
         self.closer_names: list[str] = []
         self._annotation_resolver = annotation_resolver
+        # Local names currently bound to a SPACE value: (context-space),
+        # (new-space ...) or a closure handle. += and -= on one of these
+        # are the write doors, never arithmetic; forks copy the set the
+        # way they copy scope, since an arm's binding must not leak.
+        self.space_locals: set[str] = _provided(space_locals, set())
 
     def annotation_atom(self, node: ast.expr) -> Atom:
         if self._annotation_resolver is None:
@@ -788,6 +794,7 @@ class _Compiler(
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
+            space_locals=self.space_locals.copy(),
         )
         nested.closer_names = self.closer_names.copy()
         return nested

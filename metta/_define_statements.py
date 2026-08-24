@@ -38,6 +38,20 @@ from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError
 
 
+def _space_valued(value: Atom) -> bool:
+    """Whether a compiled binding value is a SPACE.
+
+    A handle, or a term whose head mints or reads one; decides whether +=
+    on the bound name means the write door or arithmetic.
+    """
+    if isinstance(value, Handle):
+        return True
+    if isinstance(value, Expression) and value.children:
+        head = value.children[0]
+        return isinstance(head, Symbol) and head.name in {"context-space", "new-space"}
+    return False
+
+
 def _is_generator(node: ast.FunctionDef) -> bool:
     """Whether THIS function yields: a nested def's yields are its own."""
     stack: list[ast.AST] = list(node.body)
@@ -240,26 +254,67 @@ class StatementCompilerMixin(CompilerContext):
         The value compiles BEFORE the target rebinds, so `x = x + 1` reads
         the old x on the right and writes a fresh variable on the left.
         """
+        value: Atom
         if isinstance(head, ast.AugAssign):
-            # x += e is x = x <op> e; the desugared node lowers identically.
             target_name = _name_of(head.target, head.lineno)
-            value = self._x_BinOp(
-                ast.BinOp(
-                    left=ast.copy_location(ast.Name(id=target_name, ctx=ast.Load()), head),
-                    op=head.op,
-                    right=head.value,
-                    lineno=head.lineno,
-                    col_offset=head.col_offset,
-                )
-            )
             if target_name not in self.scope:
-                msg = f"{target_name!r} is augmented before it is bound"
+                held = self.host_value(target_name)
+                if isinstance(held, Handle):
+                    msg = (
+                        f"{target_name!r} is a space held outside this body, "
+                        f"and += cannot rebind a closure (Python's own rule); "
+                        f"write the door itself, "
+                        f"fn.add_atom({target_name}, <atom>), or take the "
+                        f"space as a parameter"
+                    )
+                else:
+                    msg = f"{target_name!r} is augmented before it is bound"
                 raise CompileError(
                     msg,
                     construct="augmented assignment",
                     line=head.lineno,
                 )
-            target = target_name
+            if target_name in self.space_locals:
+                # On a space, += and -= ARE the write doors, never
+                # arithmetic: the miscompile stored (+ $s atom), answered
+                # True, and wrote nothing. The write executes under a
+                # throwaway binding and the space name keeps its variable.
+                doors = {ast.Add: "add-atom", ast.Sub: "remove-atom"}
+                door = doors.get(type(head.op))
+                if door is None:
+                    op_word = type(head.op).__name__
+                    msg = (
+                        f"{target_name!r} holds a space, which takes += "
+                        f"(add-atom) and -= (remove-atom); {op_word} has no "
+                        f"space meaning"
+                    )
+                    raise CompileError(
+                        msg,
+                        construct="augmented assignment",
+                        line=head.lineno,
+                    )
+                value = Expression(
+                    [
+                        Symbol(door),
+                        Variable(self.scope[target_name]),
+                        self.expression(head.value),
+                    ]
+                )
+                target = "_"
+            else:
+                # x += e is x = x <op> e; the desugared node lowers identically.
+                value = self._x_BinOp(
+                    ast.BinOp(
+                        left=ast.copy_location(
+                            ast.Name(id=target_name, ctx=ast.Load()), head
+                        ),
+                        op=head.op,
+                        right=head.value,
+                        lineno=head.lineno,
+                        col_offset=head.col_offset,
+                    )
+                )
+                target = target_name
         elif isinstance(head, ast.AnnAssign):
             if head.value is None:
                 msg = "an annotation without a value binds nothing"
@@ -273,6 +328,15 @@ class StatementCompilerMixin(CompilerContext):
         else:
             target = _single_target(head)
             value = self.expression(head.value)
+        if not isinstance(head, ast.AugAssign):
+            spacey = _space_valued(value) or (
+                isinstance(head.value, ast.Name)
+                and head.value.id in self.space_locals
+            )
+            if spacey:
+                self.space_locals.add(target)
+            else:
+                self.space_locals.discard(target)
         variable: Atom = Variable(self._bind(target))
         if isinstance(head, ast.AnnAssign):
             claim = Expression([Symbol(":"), variable, self.annotation_atom(head.annotation)])

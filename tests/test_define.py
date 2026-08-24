@@ -1033,3 +1033,79 @@ def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D
         )
     finally:
         m.run("!(undeclare-pre-add! &p12-witness-pool)")
+
+
+def test_augmented_assignment_on_a_space_is_the_write_door(metta):
+    """+= and -= on a space-bound local compile to add-atom and remove-atom.
+
+    The miscompile this pins against stored (+ $s atom), answered True and
+    wrote nothing, silently. Space provenance follows context-space and
+    new-space bindings and plain aliases; the space name keeps its binding
+    while the write executes under a throwaway one.
+    """
+    import pytest
+
+    from metta import S, V
+    from metta.errors import CompileError
+
+    with metta._new_space() as m:
+
+        @m.define
+        def note(tag):
+            space = S.context_space()
+            space += S.ran(tag)
+            return True
+
+        assert "(add-atom $space (ran $tag))" in str(note.bodies[0])
+        assert m.eval("(note logged)") == [True]
+        assert [str(r.t) for r in m.match(S.ran(V.t))] == ["logged"]
+
+        @m.define
+        def unnote(tag):
+            space = S.context_space()
+            also = space
+            also -= S.ran(tag)
+            return True
+
+        assert m.eval("(unnote logged)") == [True]
+        assert not list(m.match(S.ran(V.t)))
+
+        @m.define
+        def accumulate(x):
+            total = 0
+            total += x
+            return total
+
+        assert m.eval("(accumulate 5)") == [5]
+
+        with pytest.raises(CompileError, match="has no space meaning"):
+
+            @m.define
+            def scaled(tag):
+                space = S.context_space()
+                space *= S.ran(tag)
+                return True
+
+        # A nested-function local: += makes the name local (Python's own
+        # rule), so no closure cell exists and the generic refusal is the
+        # honest one.
+        outside = m
+        with pytest.raises(CompileError, match="augmented before it is bound"):
+
+            @m.define
+            def closured(x):
+                outside += S.saw(x)  # noqa: F823, F841  -- the unbound augmentation IS the scenario
+                return x
+
+        # A module-global space IS visible to the compiler, so the refusal
+        # names the space and the write door.
+        globals()["outside_space"] = m
+        try:
+            with pytest.raises(CompileError, match="held outside this body"):
+
+                @m.define
+                def closured_global(x):
+                    outside_space += S.saw(x)  # noqa: F821, F841  -- planted module global, removed below; the refused write is the scenario
+                    return x
+        finally:
+            del globals()["outside_space"]
