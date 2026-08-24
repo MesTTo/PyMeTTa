@@ -119,6 +119,11 @@
 %     rather than only its callable registry [tested:
 %     test_builtins_equals_the_union_of_functions_and_special_forms;
 %     commit=bcf80e727923cce0e034f716d7eef01f9395c490]
+%   - petta_py_catalogue_member/1 answers membership in exactly that union
+%     as a point probe, so the bound namespace resolves an attribute
+%     without rebuilding the catalogue after a definition [tested:
+%     test_catalogue_membership_answers_the_builtins_union;
+%     commit=WORKTREE]
 %   - py-eq and py-truthy are decided without a host crossing for variables,
 %     booleans, numbers, strings, symbols, and recursively for expressions;
 %     opaque grounded objects, including None and objects with __eq__ or
@@ -2474,6 +2479,18 @@ petta_py_special_form_names(Names) :-
 petta_py_is_function(Name0) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     fun(Name).
+
+%Point membership in the catalogue petta_py_builtins/1 lists: one indexed
+%fun/1 probe, then the special-form heads, instead of materializing and
+%string-converting the whole catalogue. The bound namespace asks this on
+%every attribute resolution, and the full read it replaces measured 1,347
+%inferences on the first access after any definition where this probe is
+%double digits [measured 2026-08-24; consumer _FunctionNamespace._known].
+petta_py_catalogue_member(Name0) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    ( fun(Name) -> true
+    ; once(metta_special_form_head(Name))
+    ).
 
 %Whether a function ANSWERS from this space: it has clauses its module can
 %see, its own or inherited from user. Another space's equations live in that

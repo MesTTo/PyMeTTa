@@ -2256,6 +2256,10 @@ class Space(Handle):
         _require_name(name, "is_function")
         return bool(self._rt.once("petta_py_is_function(Name)", Name=name))
 
+    def _is_catalogued(self, name: str) -> bool:
+        """Point membership in the builtins catalogue, no list build."""
+        return bool(self._rt.once("petta_py_catalogue_member(Name)", Name=name))
+
     def is_function_here(self, name: str) -> bool:
         """Whether a function would answer from THIS space: it has clauses
         this space's module sees, its own or the shared ones in user.

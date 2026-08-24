@@ -1011,7 +1011,11 @@ class _FunctionNamespace:
         self._space = space
 
     def _known(self, name: str) -> bool:
-        return name in self._space.builtins() or self._space.is_function_here(name)
+        # A point probe, not the catalogue list: the list rebuild after any
+        # definition measured 1,347 inferences on the next attribute access
+        # (the whole of one twin's band overrun); membership is double
+        # digits and answers the same union.
+        return self._space._is_catalogued(name) or self._space.is_function_here(name)
 
     def _resolve(self, name: str, *, attribute: str | None = None) -> _EngineFunction:
         resolved = name
