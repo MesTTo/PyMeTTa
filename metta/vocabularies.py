@@ -12,9 +12,9 @@ runtime escape hatch at every consuming door.
 Guarantees:
   - every class here exactly matches its catalog vocabulary row, values in
     declared order
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
   - every member encodes as its MeTTa symbol
-    [tested: test_every_vocabulary_member_crosses_as_its_symbol; commit=WORKTREE]
+    [tested: test_every_vocabulary_member_crosses_as_its_symbol; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
 Open Obligations:
   To Do: None
   Hacks: None

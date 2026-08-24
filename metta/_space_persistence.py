@@ -15,7 +15,7 @@ Guarantees:
   - save validation consumes the generated SaveFormat vocabulary class rather
     than owning a second closed list [tested:
     test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
-    commit=WORKTREE]
+    commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
   - text and fast loads apply a scoped stack byte bound through the /6 seam
     while preserving the established guard path otherwise [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

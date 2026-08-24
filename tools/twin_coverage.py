@@ -248,7 +248,7 @@ DECLARATION_CALLS = frozenset({
 #: onto members [measured 2026-08-24: every member of every StrEnum class in
 #: metta.vocabularies is a bare word, and `Space.image`'s words are the
 #: generated ImageMode; ai-python-conventions.md "Strings are text" lists
-#: option values under never-strings; commit=WORKTREE].
+#: option values under never-strings; commit=4d01efe426a5a3b79d404afd993f3260e23a210c].
 #:
 #: A word, and nothing else: `reaction("(Job $n)", op)` still reports, because
 #: a program carries a parenthesis, a space or a dollar and a vocabulary word

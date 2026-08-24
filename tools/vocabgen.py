@@ -15,18 +15,18 @@ Assumes:
     which is how every gate lane already runs it
 Guarantees:
   - the checked-in module equals what this produces, gated on every run
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
   - output is deterministic: vocabularies sorted by name, values kept in
     their declared order
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
   - a catalog name that already uses CamelCase keeps that spelling in its
     Python class [tested: test_generated_alias_preserves_declared_camel_case;
-    commit=WORKTREE]
+    commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
   - every generated member encodes as its MeTTa symbol [tested:
-    test_every_vocabulary_member_crosses_as_its_symbol; commit=WORKTREE]
+    test_every_vocabulary_member_crosses_as_its_symbol; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
   - a value that spells a Python keyword takes a trailing underscore as its
     member name and keeps the bare word as its value [tested:
-    test_a_keyword_value_takes_a_trailing_underscore; commit=WORKTREE]
+    test_a_keyword_value_takes_a_trailing_underscore; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
 Decides: the on-error-mode vocabulary is exported as OnError, the design
   record's own spelling for the enum beside `Space.on_error`
   (ai-python-first-revamp-discussion.md, the de-stringify ruling:
@@ -68,9 +68,9 @@ runtime escape hatch at every consuming door.
 Guarantees:
   - every class here exactly matches its catalog vocabulary row, values in
     declared order
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
   - every member encodes as its MeTTa symbol
-    [tested: test_every_vocabulary_member_crosses_as_its_symbol; commit=WORKTREE]
+    [tested: test_every_vocabulary_member_crosses_as_its_symbol; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
 Open Obligations:
   To Do: None
   Hacks: None
