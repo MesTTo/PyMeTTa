@@ -2,14 +2,14 @@
 
 Two spaces import the same file. Each gets its own copy of what the file
 defines, exactly once, and the space that did the importing gets nothing: in
-`&self` the imported name stays data, an unreduced term answering itself.
+its own space the imported name stays data, an unreduced term answering itself.
 
-`bind! (new-space)` is `metta.space(name)` plus a Python name binding, which is
-what a token was for. Everything the claims ask goes through the handle:
+`(bind! &import-space-a (new-space))` is `metta.space(name)` plus a Python name
+binding, which is what a token was for, and the name is an ATOM rather than
+text: `metta.space` takes one, and the ampersand belongs to the door rather
+than to the author. Everything the claims ask goes through the handle:
 `space[pattern]` matches it and `space.eval(term)` evaluates in it, which is
-what the example spells `(metta term %Undefined% &space)`. `import!` takes the
-handle too, as a grounded operand, so no space here is named as a symbol; what
-stays below the top rung is that `import!` has no Python door of its own.
+what the example spells `(metta term %Undefined% &space)`.
 """
 
 import metta
@@ -26,8 +26,8 @@ FUNCTION = S["import-space-function"]()
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
 BUDGET = 1
 
 
@@ -37,9 +37,11 @@ def twin(m):
     # rides the process-DEFAULT context rather than the one holding `m`. The
     # two reach the same store only because the SWI runtime is process-wide,
     # so the perfect spelling for a twin handed its own handle is a creation
-    # door ON that handle's context [measured 2026-08-23: metta.engine() is
-    # not the twin's MeTTa object, and their runtimes are the same object].
-    a, b = metta.space("&import-space-a"), metta.space("&import-space-b")
+    # door ON that handle's context. `MeTTa.space` is that door one level up
+    # and a twin never sees the runtime object [measured 2026-08-24].
+    a = metta.space(S["import-space-a"])       # (bind! &import-space-a (new-space))
+    b = metta.space(S["import-space-b"])       # (bind! &import-space-b (new-space))
+
     # Known issue: `import!` has no Python door on the handle. The perfect
     # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
     # library (appendix stamp 1), and neither exists yet, so the directive is
@@ -52,7 +54,7 @@ def twin(m):
     assert len(b[MARKER]) == 1
 
     # And each ran its own copy of the definition, once.
-    assert a.eval(FUNCTION) == [S["one-result"]]
+    assert a.eval(FUNCTION) == [S["one-result"]]   # (metta (import-space-function) %Undefined% &import-space-a)
     assert b.eval(FUNCTION) == [S["one-result"]]
 
     # The caller imported nothing, so here the name is still data.

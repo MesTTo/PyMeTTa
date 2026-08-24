@@ -1,64 +1,79 @@
-"""Purpose: exercise forward and bidirectional translator-rule declarations.
+"""examples/translation/translatorrule_direction.metta in Python: which way a rule fires.
 
-Assumes:
-  - the rule metadata and six claims mirror the direction example
-    [source: examples/translation/translatorrule_direction.metta lines 8-46; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Guarantees:
-  - the inverse fires only while its bidirectional declaration is installed
-    [measured: twin completed; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/translation/translatorrule_direction.metta; fixture=fresh isolated process; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+A rule is left-to-right by default and saying so explicitly changes nothing. A
+BIDIRECTIONAL rule is one declaration from which the engine derives the inverse
+equation and registers the head it is rooted at, so nobody writes it twice.
+Both sides are then rewritable, and what decides a given call is the form's
+COST: a rewrite fires only when it lowers the node count.
+
+Both rules are laws with structured heads, `(celsius (degrees $c))` and
+`(unpack (wrap (box $x)))`, so both are `@m.rules` bundles: the head is the
+pattern it looks like, the parameters ARE the equations' variables, and the
+inverse the engine derives is rooted at the head the author wrote rather than
+at whatever a lowered body would have left there. Their type declarations are
+data for the same reason, since a bundle has no signature to annotate.
+
+A bundle body EXECUTES rather than lowering, and the arithmetic on a rule
+variable builds, so `c + 273` there is the term `(+ $c 273)`.
 """
 
-from metta import Expression, S, V, equation
+from typing import Any
+
+from metta import Atom, Expression, S, arrow, equation, typed
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=8fd49997be43f7909c3582062138c5011df7e811].
 BUDGET = 1
 
 
 def twin(m):
     """Register both direction policies, exercise them, then withdraw one."""
-    m += S[":"](S.celsius, S["->"](S.Atom, S["%Undefined%"]))
-    m += equation(S.celsius(S.degrees(V.c))).to(
-        S.noeval(S.kelvin(V.c + 273))
-    )
+    m += typed(S.celsius, arrow(Atom, Any))     # (: celsius (-> Atom %Undefined%))
+
+    @m.rules
+    def scale(c):                               # (= (celsius (degrees $c))
+        yield equation(S.celsius(S.degrees(c))).to(
+            S.noeval(S.kelvin(c + 273)))        #    (noeval (kelvin (+ $c 273))))
+
     m.fn.add_translator_rule(S.celsius, Expression((S.direction(S.forward),)))
 
-    assert m.fn.celsius(S.degrees(27)).one() == S.kelvin(300)
+    assert m.fn.celsius(S.degrees(27)).one() == S.kelvin(300)   # (kelvin 300)
 
-    m += S[":"](S.unpack, S["->"](S.Atom, S["%Undefined%"]))
-    m += equation(S.unpack(S.wrap(S.box(V.x)))).to(
-        S.noeval(S.twin(V.x, V.x))
-    )
+    m += typed(S.unpack, arrow(Atom, Any))      # (: unpack (-> Atom %Undefined%))
+
+    @m.rules
+    def unwrapping(x):                          # (= (unpack (wrap (box $x)))
+        yield equation(S.unpack(S.wrap(S.box(x)))).to(
+            S.noeval(S.twin(x, x)))             #    (noeval (twin $x $x)))
+
     m.fn.add_translator_rule(S.unpack, Expression((S.direction(S.bidirectional),)))
 
-    small = S.twin(1, 1)
-    small_unpack = S.unpack(S.wrap(S.box(1)))
+    small, small_unpack = S.twin(1, 1), S.unpack(S.wrap(S.box(1)))
     large = S.a(S.b, S.c)
-    large_twin = S.twin(large, large)
-    large_unpack = S.unpack(S.wrap(S.box(large)))
+    large_twin, large_unpack = S.twin(large, large), S.unpack(S.wrap(S.box(large)))
 
+    # Four nodes against three, so this call goes forwards.
     assert m.eval(small_unpack) == [small]
+    # Seven against six, because the argument is written twice on one side and
+    # once on the other, so this one goes back.
     assert m.eval(large_twin) == [large_unpack]
 
-    # The example writes these two as `(test (twin 1 1) (twin 1 1))` and
-    # `(test (unpack (wrap (box (a b c)))) (unpack (wrap (box (a b c)))))`,
-    # reading them as a form already at its cheapest being left alone. `test`
-    # evaluates BOTH sides, so a rewrite of the expected side cancels out of
-    # the comparison; an `assert` compares an evaluated left against a LITERAL
-    # right, and the small form is in fact carried the other way. Known issue,
-    # for whoever owns the extractor: `(twin 1 1)` is three nodes and
-    # `(unpack (wrap (box 1)))` is four, so this rewrite RAISES the cost the
-    # example's own prose says decides the direction.
+    # The original writes the next two as a form already at its cheapest being
+    # left alone, `(test (twin 1 1) (twin 1 1))`. `test` evaluates BOTH sides,
+    # so a rewrite of the expected side cancels out of the comparison; an
+    # assert compares an evaluated left against a LITERAL right, and the small
+    # form is in fact carried the other way. Known issue, for whoever owns the
+    # extractor: `(twin 1 1)` is three nodes and `(unpack (wrap (box 1)))` is
+    # four, so this rewrite RAISES the cost the example's own prose says
+    # decides the direction.
     assert m.eval(small) == [small_unpack]
     assert m.eval(large_unpack) == [large_unpack]
 
-    m.fn.remove_translator_rule(S.unpack)
+    # Withdrawing the rule withdraws the derived equation with it, so the
+    # inverse never outlives the declaration that produced it.
+    m.fn.remove_translator_rule(S.unpack)       # (remove-translator-rule! unpack)
 
     assert m.eval(large_twin) == [large_twin]

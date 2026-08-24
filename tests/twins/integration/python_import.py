@@ -9,22 +9,25 @@ cannot look at a symbol any other way. Here the answer is an atom, so the claim
 names it: a Python string comes back from `py-call` as a SYMBOL, which is
 upstream's conversion and is exactly what the claim now says.
 
-The path is written from the repository root, because a Python program has no
-importing file to resolve a relative import against: that is the residue this
-file carries. The space is the handle itself, which crosses into the built term
-as a grounded operand.
+The file is a host path, so it is a `pathlib.Path`, and only its rendering
+crosses: `import!` reads the path as an atom rather than as a Python object,
+so a `Path` handed over whole raises at the seam (friction, P14.13). Resolving
+it against the importing FILE is what a MeTTa program gets for free and a
+Python-authored one does not, so the path is written from the repository root.
 """
+
+from pathlib import Path
 
 from metta import S, ground
 
-#: The file the import reads, a host path carried whole.
-FIXTURE = ground("examples/integration/_fixtures/python_import_file.py")
+#: The file the import reads. A path is a Path, and the door takes its text.
+FIXTURE = Path("examples/integration/_fixtures/python_import_file.py")
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
 BUDGET = 1
 
 
@@ -34,9 +37,9 @@ def twin(m):
     # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
     # library (appendix stamp 1), and neither exists yet, so the directive is
     # reached by its own bang name, which performs it where it is written.
-    m.fn["import!"](m, FIXTURE)
+    m.fn["import!"](m, ground(str(FIXTURE)))
 
     py = m.fn.py_call
     greeting = py(S["python_import_file.greet"](ground("PeTTa User")))
     assert greeting.one() == S["Hello, PeTTa User from Python!"]
-    assert py(S["python_import_file.add"](10, 20)).one() == 30
+    assert py(S["python_import_file.add"](10, 20)).one() == 30   # [30]

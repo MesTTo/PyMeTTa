@@ -7,23 +7,27 @@ than an error, so the call carries on down the dispatch chain and the next
 equation gets its turn, and the words the rule gave are published where a
 program can read them.
 
+Both equations select on STRUCTURE, `(dose $n)` and `(unit mg)`, and both must
+coexist in the order the rule tries them, which is the pair `@m.rules` exists
+for. A bundle body EXECUTES, so its comparison is built by the word door,
+`S.gt(n, 1000)`, where a lowered body would write `n > 1000`; the arithmetic
+builds either way, so `n / 1000` there is the term `(/ $n 1000)`.
+
 Which is why the last claim is an ordinary query: the reason lands in the
 reflection space as a fact, so asking why a rewrite did not happen is
 `reflection[pattern]` like any other question.
-
-Both equations are terms: their heads select on STRUCTURE, `(dose $n)` and
-`(unit mg)`, where a compiled head pattern is a literal default (residue,
-P14.4).
 """
 
+from typing import Any
+
 import metta
-from metta import S, V, equation, ground, if_
+from metta import Atom, S, V, arrow, equation, ground, if_, typed
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=8fd49997be43f7909c3582062138c5011df7e811].
 BUDGET = 1
 
 #: The words the rule declines with, which are its own.
@@ -32,19 +36,18 @@ TOO_STRONG = ground("a dose above 1000 is not a milligram strength")
 
 def twin(m):
     """Register a rule that declines above a threshold, then cross it."""
-    m += S[":"](S.strength, S["->"](S.Atom, S.Atom, S["%Undefined%"]))
+    m += typed(S.strength, arrow(Atom, Atom, Any))   # (: strength (-> Atom Atom %Undefined%))
 
-    # (= (strength (dose $n) (unit mg))
-    #    (if (> $n 1000) (refuse "...") (noeval (mg $n))))
-    m += equation(S.strength(S.dose(V.n), S.unit(S.mg))).to(
-        # The `if` is the stored BODY of an equation, so it is data rather than
-        # control flow, and `>` is named because Python's own orders atoms.
-        if_(S[">"](V.n, 1000), S.refuse(TOO_STRONG), S.noeval(S.mg(V.n)))
-    )
-    # A refusal is a decline, so a rule with another equation tries that one.
-    m += equation(S.strength(S.dose(V.n), S.unit(S.mg))).to(
-        S.noeval(S.grams(V.n / 1000))
-    )
+    @m.rules
+    def dosing(n):
+        # (= (strength (dose $n) (unit mg))
+        #    (if (> $n 1000) (refuse "...") (noeval (mg $n))))
+        yield equation(S.strength(S.dose(n), S.unit(S.mg))).to(
+            if_(S.gt(n, 1000), S.refuse(TOO_STRONG), S.noeval(S.mg(n))))
+        # A refusal is a decline, so a rule with another equation tries that one.
+        yield equation(S.strength(S.dose(n), S.unit(S.mg))).to(
+            S.noeval(S.grams(n / 1000)))       # (= ... (noeval (grams (/ $n 1000))))
+
     # The directive's MeTTa name ends in `!`, so calling it is the whole of
     # performing it and the statement needs no forcing read.
     m.fn.add_translator_rule(S.strength)
@@ -55,7 +58,5 @@ def twin(m):
     assert m.fn.strength(S.dose(5000), S.unit(S.mg)).one() == S.grams(5)
 
     # And the words are the rule's own, published where a program can ask.
-    reflection = metta.reflection
-    assert [
-        row.why for row in reflection[S["translator-rule-refusal"](S.strength, V.why)]
-    ] == [TOO_STRONG]
+    assert [row.why for row in
+            metta.reflection[S["translator-rule-refusal"](S.strength, V.why)]] == [TOO_STRONG]

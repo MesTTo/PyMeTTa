@@ -7,10 +7,13 @@ the first bound.
 
 That sequencing has to happen in one engine call, which is why this file is one
 term rather than three Python statements: the first goal binds `$x` and the
-second reads it, and a Python variable cannot hold a binding the engine has not
-finished making (residue, P14.10). Everything else is ordinary: the term is
-built at the `S.` door and the sequence is CALLED, `m.fn.progn(...)`, which
-answers what the last goal left even though `$x` and `$z` are the caller's own
+second reads it, and a Python name cannot hold a binding the engine has not
+finished making (friction, P14.10).
+
+Everything else is ordinary. The two goals are built at the naming door, where
+`is` takes the bracket because Python's grammar has the word and `+` because
+Python's grammar has no name for it at all, and the sequence is CALLED. It
+answers what the last goal left, even though `$x` and `$z` are the caller's own
 variables: their bindings are the parallel row face on the same view.
 """
 
@@ -19,14 +22,17 @@ from metta import S, V
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=8fd49997be43f7909c3582062138c5011df7e811].
 BUDGET = 1
 
 
 def twin(m):
     """Run two Prolog goals in sequence, and read what the second bound."""
     translate = S.translatePredicate
-    assert m.fn.progn(
-        translate(S["is"](V.x, 2)), translate(S["+"](V.x, 40, V.z)), V.z
-    ) == [42]
+
+    assert m.fn.progn(                        # (progn
+        translate(S["is"](V.x, 2)),           #   (translatePredicate (is $x 2))
+        translate(S["+"](V.x, 40, V.z)),      #   (translatePredicate (+ $x 40 $z))
+        V.z,                                  #   $z)
+    ).one() == 42                             # [42]

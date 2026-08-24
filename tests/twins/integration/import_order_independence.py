@@ -1,33 +1,28 @@
-"""Purpose: prove that an import may use a function defined by a later import.
+"""examples/integration/import_order_independence.metta in Python: a callee that arrives second.
 
-The space the import writes is the handle itself, which crosses into the
-built term as a grounded operand. What stays below the top rung is `import!`
-having no Python door of its own, which the residue records.
+The index the example imports loads a file that USES a function before it loads
+the file that DEFINES it, and then calls the result. So the one claim is that
+an import may be written before the import it depends on, and the caller still
+answers.
 
-Assumes:
-  - the imported index loads uses before defines and then calls the resulting
-    function [source: examples/integration/_fixtures/imports/import_order/index.metta lines 1-4; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Guarantees:
-  - twin performs the import and checks its caller after the fixture's own
-    claim succeeds [measured 2026-08-23: twin completed; command=python bindings/python/tools/twin_coverage.py examples/integration/import_order_independence.metta; fixture=fresh isolated process; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+The space the import writes is the handle itself, which crosses into the built
+term as a grounded operand. What stays below the top rung is that `import!` has
+no Python door of its own, which the residue records.
 """
 
 from metta import S
 
+#: The index the example imports, written from the repository root: a Python
+#: program has no importing file to resolve a relative import against. A module
+#: name is a NAME, so it is minted at the naming factory.
+INDEX = S["examples/integration/_fixtures/imports/import_order/index"]
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
 BUDGET = 1
-
-#: The index the example imports, written from the repository root: a Python
-#: program has no importing file to resolve a relative import against.
-INDEX = S["examples/integration/_fixtures/imports/import_order/index"]
 
 
 def twin(m):

@@ -1,56 +1,49 @@
-"""Purpose: examples/translation/translatorrule.metta in Python: when the cons happens.
+"""examples/translation/translatorrule.metta in Python: when the cons happens.
 
-Three definitions of one computation, differing only in WHEN. `runtime42` has
-no translator rule, so its call runs at run time. `compileeval42` has one, so
-the compiler expands the call and then evaluates the expansion. `compile42`
-wraps its body in `noeval`, so the expansion is handed back as data.
+Three definitions of one computation, differing only in WHEN it runs.
+`runtime42` has no translator rule, so its call runs at run time.
+`compileeval42` has one, so the compiler expands the call and then evaluates
+the expansion. `compile42` wraps its body in `noeval`, so the expansion is
+handed back as data.
 
-All three are computations, so all three are Python functions: `cons` and
-`noeval` are engine functions under exactly those names, and a compiled body
-resolves a free name against the engine's registry, so a body reaches both.
-Binding them with `m.fn` first is what keeps the Python valid to read and
-runnable as a twin; the equations the decorator emits are the same either way.
+All three are ordinary compiled functions, and `cons` and `noeval` are reached
+at the static function namespace, which is what that namespace is for: a
+compiled body resolves those names against the engine's catalog, and writing
+them as attributes keeps the file readable by a linter and by a reader.
 
 Registering a rule has no Python declaration door yet, so it is the engine's
-own function under its MeTTa name (residue, P14.10).
-Guarantees:
-  - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
-Open Obligations:
-  To Do: None
-  Hacks: None
-  Future Enhancements: None.
+own function under its MeTTa name. That name ends in `!`, so the call performs
+where it is written and needs no forcing read.
 """
 
-from metta import Expression, S
+from metta import Expression, S, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-23: unpriced placeholder, re-pinned by the
-#: integrator; commit=b5991d9d4c20f3459fae529e13e0d26331b82ee2].
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=8fd49997be43f7909c3582062138c5011df7e811].
 BUDGET = 1
 
 
 def twin(m):
     """Write one computation three ways, and see which of them runs when."""
-    cons, noeval = m.fn.cons, m.fn.noeval
 
     @m.define
-    def runtime42(arg):
-        return cons(42, arg)
+    def runtime42(arg):                   # (= (runtime42 $arg) (cons 42 $arg))
+        return fn.cons(42, arg)
 
     @m.define
-    def compileeval42(arg):
-        return cons(42, arg)
+    def compileeval42(arg):               # (= (compileeval42 $arg) (cons 42 $arg))
+        return fn.cons(42, arg)
 
     @m.define
-    def compile42(arg):
-        return noeval(cons(42, arg))
+    def compile42(arg):                   # (= (compile42 $arg) (noeval (cons 42 $arg)))
+        return fn.noeval(fn.cons(42, arg))
 
-    m.fn.add_translator_rule(S.compileeval42)
-    m.fn.add_translator_rule(S.compile42)
+    m.fn.add_translator_rule(S.compileeval42)   # (add-translator-rule! compileeval42)
+    m.fn.add_translator_rule(S.compile42)       # (add-translator-rule! compile42)
 
-    assert runtime42((43,)).one() == Expression((42, 43))
-    assert compileeval42((43,)).one() == Expression((42, 43))
-    assert compile42((43,)).one() == Expression((42, 43))
+    assert runtime42((43,)).one() == Expression((42, 43))       # [(42 43)]
+    assert compileeval42((43,)).one() == Expression((42, 43))   # [(42 43)]
+    assert compile42((43,)).one() == Expression((42, 43))       # [(42 43)]
