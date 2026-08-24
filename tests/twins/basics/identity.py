@@ -52,7 +52,14 @@ is Python's own `assert`.
 #: path here never paid the removed walk; the walk removal itself is proved
 #: by translator.plt's own depth-linearity unit, which passes on this tree.
 #: The pin is the merged tree's reading.
-BUDGET = 2258
+#: RE-PINNED 2026-08-24, 2258 to 2208, at the segments merge: DOWN, and layout
+#: rather than work. Adding INERT kind/2 declaration rows to engine/ext_points.pl
+#: moves this same reading 2208/2218/2218/2240 for 0/1/2/4 rows, reproducing the
+#: 2210..2250 band recorded above; the branch's file-by-file bisect shows the new
+#: unit alone +20 and two declaration facts -10, and a declaration cannot do work.
+#: [measured 2026-08-24, min-of-3 identical on the merged tree; the inert-row
+#: evidence is ai-report-p14-segments.md section 3].
+BUDGET = 2208
 
 
 def twin(m):
