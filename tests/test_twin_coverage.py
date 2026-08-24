@@ -1454,3 +1454,30 @@ def test_an_operator_word_keeps_its_bracket(tmp_path):
     assert not any('"add"' in f for f in findings), findings
     assert not any('"neg"' in f for f in findings), findings
     assert any('S["plain"] is S.plain' in f for f in findings), findings
+
+
+def test_the_bracket_door_is_exact_at_a_compiled_call(tmp_path):
+    """S["eq"](a, b) inside a lowered body is the data symbol eq, not the
+    operator: only the attribute door consults the word table, exactly as
+    the compiler does (agents A and F both measured the undistinguished
+    rule misreporting the exact door).
+    """  # noqa: D205  -- the rule and its ground are one sentence
+    import twin_coverage as lane
+
+    twin = tmp_path / "exact.py"
+    twin.write_text(
+        "from metta import S\n"
+        "def twin(m):\n"
+        "    @m.define\n"
+        "    def wants_eq_data(a, b):\n"
+        "        return S[\"eq\"](a, b)\n"
+        "    @m.define\n"
+        "    def spells_the_operator(a, b):\n"
+        "        return S.eq(a, b)\n",
+        encoding="utf-8",
+    )
+    findings = lane.idiom(twin)
+    bracket = [f for f in findings if '"eq"' in f]
+    attribute = [f for f in findings if "Python operator writes" in f and '"eq"' not in f]
+    assert not bracket, findings
+    assert attribute, findings

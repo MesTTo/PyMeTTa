@@ -1061,11 +1061,15 @@ def idiom(twin: Path) -> list[str]:
             called = reached[1] if reached is not None else None
             # An operator WORD written at a factory call resolves to its head
             # before the operator rule, so `S.eq(a, b)` in a compiled body
-            # reports as the transliteration of `a == b` it now stores. The
-            # two composite words raise in the table; the compiler refuses
-            # them itself, so the lane treats a raise as no resolution.
+            # reports as the transliteration of `a == b` it now stores. Only
+            # the ATTRIBUTE door consults, exactly as the compiler does:
+            # `S["eq"](a, b)` is the exact door for the data symbol `eq`,
+            # which the word table took from the attribute spelling, and
+            # agents A and F both measured the undistinguished form
+            # misreporting it. The two composite words raise in the table;
+            # the compiler refuses them itself, so a raise is no resolution.
             spoken = called
-            if called is not None:
+            if called is not None and isinstance(node.func, ast.Attribute):
                 try:
                     spoken = operator_attribute_target(called) or called
                 except AttributeError:
