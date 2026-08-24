@@ -59,7 +59,18 @@ is Python's own `assert`.
 #: unit alone +20 and two declaration facts -10, and a declaration cannot do work.
 #: [measured 2026-08-24, min-of-3 identical on the merged tree; the inert-row
 #: evidence is ai-report-p14-segments.md section 3].
-BUDGET = 2208
+#: RE-PINNED 2026-08-24, 2208 to 2221, at the metatype-conformance merge:
+#: inside the 2210..2250 band above. The measured decomposition on that
+#: branch: an ordinary added equation compiles for +3 (the mask read), an
+#: equation whose body compiles to NO goals costs +144 more for its result
+#: continuation, and the first m.define in a process pays +42 one-time in two
+#: petta_py_add calls of the three-element contract atoms, where the same
+#: adds measured directly in Prolog are 15 cheaper on that tree; a single
+#: inert clause in any compiled engine file moves the reading +-10
+#: [measured 2026-08-24, min-of-3 through tools/twin_coverage.py --measure
+#: on the merged tree at 5a2d96f4; decomposition ai-report-p14-metatype.md
+#: section 9].
+BUDGET = 2221
 
 
 def twin(m):
