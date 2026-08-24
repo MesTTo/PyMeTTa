@@ -19,9 +19,11 @@ answers the `Empty` atom, where `(collapse ...)` is what PRUNES it, so
 other: it is an instruction inside `function` rather than a function of its
 own, so the namespace has nothing to resolve.
 
-`return` and `collapse` take the `S` door because Python's grammar keeps the
-first word and the dissolution table takes the second, and
-`minimal_metta_lib` takes the bracket because that library name really has
+Every name here descends the ladder exactly as far as it has to. Hyphenated
+heads take the attribute door, `S.mm_switch` and `S.collapse_bind`, because
+rung 4's map is total. The bracket is kept only for what Python's grammar
+cannot say: the keywords `return` and `else`, the punctuation heads `:=`,
+`...` and `<-`, and `minimal_metta_lib`, whose MeTTa name really does have
 underscores.
 Open Obligations:
   To Do: None
@@ -29,7 +31,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import FALSE, TRUE, Expression, S, V, equation, if_
+from metta import FALSE, TRUE, Expression, S, V, equation
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree. This one
@@ -37,7 +39,7 @@ from metta import FALSE, TRUE, Expression, S, V, equation, if_
 #: 204 inferences over the concurrent lane's own observations, because
 #: the shared engine's scheduling changes what a concurrent round costs
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 #: Until it is measured again, this file's own distribution-budget residue
 #: entry, retired 2026-08-22 because the twin declared an envelope, is
 #: unbacked: a point budget is not the envelope that retired it.
@@ -49,7 +51,7 @@ def twin(m):
     m.fn["import!"](m, S.library(S["minimal_metta_lib"]))
 
     assert m.fn.function(S["return"](42)) == [42]
-    assert m.fn.function(S.chain(S["+"](1, 2), V.x, S["return"](V.x))) == [3]
+    assert m.fn.function(S.chain(S.add(1, 2), V.x, S["return"](V.x))) == [3]
 
     returned = S["return"](7)
     assert m.eval(returned) == [returned]  # rung: `return` is an instruction of `function`, not a function of its own
@@ -77,18 +79,20 @@ def twin(m):
     assert m.fn.mm_switch(S.p(5), ((S.p(V.x), S.got(V.x)),)) == [S.got(5)]
 
     # No case matches, so the switch answers Empty and the collapse prunes it.
-    unmatched = S["mm-switch"](9, cases)
+    unmatched = S.mm_switch(9, cases)
     assert m.eval(S.collapse(unmatched)) == [Expression(())]  # rung: `collapse` is what drops the Empty marker, and a Python list does not
 
-    step_down = S["step-down"]
-    m += equation(step_down(V.n)).to(
-        # rung: lowercase `done` is data in a stored equation and cannot be returned by a compiled body yet
-        if_(S[">"](V.n, 0), step_down(V.n - 1), S.done)
-    )
+    @m.define
+    def step_down(n):
+        # (= (step-down $n) (if (> $n 0) (step-down (- $n 1)) done))
+        return step_down(n - 1) if n > 0 else S.done
 
-    assert m.fn.mm_reduce(step_down(3), V.x, V.x) == [S.done]
-    assert m.fn.mm_reduce(step_down(3), V.x, S.wrapped(V.x)) == [S.wrapped(S.done)]
-    assert m.fn.mm_reduce(S["+"](1, 2), V.y, V.y) == [3]
+    # The reduction loop is HANDED the call rather than making it, so these two
+    # write `S.step_down(3)`: calling the Symbol builds where calling the
+    # definition would evaluate.
+    assert m.fn.mm_reduce(S.step_down(3), V.x, V.x) == [S.done]
+    assert m.fn.mm_reduce(S.step_down(3), V.x, S.wrapped(V.x)) == [S.wrapped(S.done)]
+    assert m.fn.mm_reduce(S.add(1, 2), V.y, V.y) == [3]
 
     m += S.edge(S.a, S.b)
     m += S.edge(S.a, S.c)
@@ -103,9 +107,9 @@ def twin(m):
     assert m.fn.superpose_bind(rows) == [S.found(S.b), S.found(S.c)]
 
     restored = S.chain(
-        S["collapse-bind"](matched_edges),
+        S.collapse_bind(matched_edges),
         V.c,
-        S.chain(S["superpose-bind"](V.c), V.x, (V.x, V.y)),
+        S.chain(S.superpose_bind(V.c), V.x, (V.x, V.y)),
     )
     assert m.eval(S.collapse(restored)) == [  # rung: `collapse` gathers the two answers into ONE atom, which the example's own claim compares against
         Expression(((S.found(S.b), S.b), (S.found(S.c), S.c)))

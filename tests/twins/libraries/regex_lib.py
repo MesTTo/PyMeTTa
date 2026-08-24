@@ -21,7 +21,7 @@ from metta import Expression, G, S
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 BUDGET = 1
 
 

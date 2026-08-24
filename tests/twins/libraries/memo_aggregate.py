@@ -10,6 +10,10 @@ What this twin does state is the half that does hold: the mode is accepted and
 readable, and setting it back to `none` restores the default for whatever runs
 next in the same process, which is why the example ends the way it does.
 
+Three equations share one head, so they are three ALTERNATIVES of one function
+rather than three definitions, and `yield` is what says that: each independent
+yield stores one equation, and `match` sees all three.
+
 A call through the function namespace is LAZY unless its resolved MeTTa name
 ends in `!`, the effect marker, and `config-memoize` carries none: creating
 the answer view performs no engine work, so `config(S.aggregate(S.sum))`
@@ -18,13 +22,13 @@ would read the old mode. Both calls therefore state the `True` they answer,
 which both pulls them and says what they answered.
 """
 
-from metta import S, equation, rules
+from metta import S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 BUDGET = 1
 
 
@@ -35,13 +39,13 @@ def twin(m):
     config = m.fn.config_memoize
     assert config(S.aggregate(S.sum)) == [True]
 
-    @rules
+    @m.define
     def choices(x):
-        yield equation(S.choices(x)).to(x)
-        yield equation(S.choices(x)).to(x + 1)
-        yield equation(S.choices(x)).to(x + 2)
+        # (= (choices $x) $x), then (+ $x 1), then (+ $x 2)
+        yield x
+        yield x + 1
+        yield x + 2
 
-    m += choices
     m.eval(S.memoize(S.choices))
 
     read_config = m.fn.get_memoize_config
@@ -53,3 +57,9 @@ def twin(m):
     assert config(S.aggregate(S.none)) == [True]
     [restored] = read_config()
     assert S.aggregate(S.none) in restored
+
+    # The fold the cache would do is what Python cannot reach, so the three
+    # alternatives answer separately here. Pinning that is the declined claim
+    # written down: when the dispatch hook reaches Python this line goes red,
+    # which is when the residue entry retires and the claim becomes 18.
+    assert sorted(choices(5)) == [5, 6, 7]

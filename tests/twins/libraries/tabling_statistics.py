@@ -19,7 +19,7 @@ the function namespace and `m.answers` alike, answers all five counters as
 zero where `m.eval` answers `(tables 1) (answers 1) (complete-call 1)` for the
 same subgoal, inside a `m.stats()` scope and outside one: a lazy pull runs on
 the held cursor's own SWI engine and SWI's tabling statistics are per-engine
-[measured 2026-08-23; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95]. So the counters come back through
+[measured again 2026-08-24; commit=1e264c186c531e69acde5ad03ff6a79210626df4]. So the counters come back through
 `eval`, the term door.
 
 A second thing does have to be forced: a call is LAZY, so `reach(S.a, V.y)` on
@@ -29,23 +29,23 @@ it, and `list(...)` is that collapse.
 
 `reach` is written by `@m.define` and tabled by hand rather than by `@m.cache`,
 whose `cache_info()` is this counter set under Python's own name, for the
-reason tabling_space_write gives: the compiled `match(...)` has to name its
-space, and caching refuses the two-argument form that would let it stay silent.
+reason tabling_space_write gives: the compiled `match(...)` names its space,
+and caching refuses the two-argument form that would let it stay silent.
 """
 
-from metta import S, V
+from metta import S, V, match
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 BUDGET = 1
 
 #: One call, one answer, nothing invalidated: what the first three claims all
 #: expect, because the two writes between them are writes the subgoal never read.
 UNTOUCHED = [
-    S.tables(1), S.answers(1), S["complete-call"](1),
+    S.tables(1), S.answers(1), S.complete_call(1),
     S.invalidated(0), S.reevaluated(0),
 ]
 
@@ -58,10 +58,11 @@ def twin(m):
 
     @m.define
     def reach(x, y):
-        return match(m, edge(x, y), y)  # noqa: F821  -- match reads its pattern as syntax: `edge` is the relation symbol and `x`, `y` are the parameters
+        # (= (reach $x $y) (match &self (edge $x $y) $y))
+        return match(m, S.edge(x, y), y)
 
     m.eval(S.tabled(S.reach(V.x, V.y)))
-    subgoal = S["table-stats"](S.reach(V.x, V.y))
+    subgoal = S.table_stats(S.reach(V.x, V.y))
 
     # Nothing has happened yet: one call, one answer, no invalidation.
     assert list(reach(S.a, V.y)) == [S.b]
@@ -84,16 +85,16 @@ def twin(m):
     m += S.edge(S.a, S.c)
     [counted] = m.eval(subgoal)
     assert list(counted) == [
-        S.tables(1), S.answers(1), S["complete-call"](1),
+        S.tables(1), S.answers(1), S.complete_call(1),
         S.invalidated(1), S.reevaluated(0),
     ]
 
     # Re-evaluation is on demand, so it takes a call. reevaluated LOWER than
     # invalidated would be SWI deciding a dependency changed without changing
     # this table's answers, which is the incremental win rather than a rebuild.
-    assert sorted(reach(S.a, V.y), key=str) == [S.b, S.c]
+    assert sorted(reach(S.a, V.y)) == [S.b, S.c]
     [counted] = m.eval(subgoal)
     assert list(counted) == [
-        S.tables(1), S.answers(2), S["complete-call"](3),
+        S.tables(1), S.answers(2), S.complete_call(3),
         S.invalidated(1), S.reevaluated(1),
     ]

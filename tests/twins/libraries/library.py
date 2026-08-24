@@ -5,6 +5,10 @@ function under test and `(+ 1)` is a partial application, which Python spells
 with `functools.partial` over host callables and not over an engine function.
 So the twin names both and states the answer as an ordinary comparison.
 
+The partial takes the operator's WORD, `S.add(1)`: a fixed table maps every
+operator symbol to `operator`'s own name for it, so `S.add` IS `+` and the
+bracket stays the exact door for a head literally named `add`.
+
 The import hands its target over as the HANDLE it is. `import!` takes that
 space as an ARGUMENT, and a space crosses a term position as a grounded
 operand, so no space is named as a symbol here. The library's own name keeps
@@ -18,7 +22,7 @@ from metta import Expression, S
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 BUDGET = 1
 
 
@@ -26,4 +30,5 @@ def twin(m):
     """Import lib_roman, then map (+ 1) over three numbers."""
     m.fn["import!"](m, S.library(S["lib_roman"]))
 
-    assert m.fn.map_flat(S["+"](1), (1, 2, 3)) == [Expression((2, 3, 4))]
+    # (map-flat (+ 1) (1 2 3))
+    assert m.fn.map_flat(S.add(1), (1, 2, 3)) == [Expression((2, 3, 4))]

@@ -3,7 +3,9 @@
 `mix` answers at one and at two arguments, and each arity carries its own
 cache: memoizing one leaves the other alone, which is what `is-memoized`
 reports here five times. The two clauses are STACKED decorations of one MeTTa
-name, dispatched by arity, for the reason memo_per_arity gives.
+name, dispatched by arity, for the reason memo_per_arity gives, and each arity
+is called by its own Python name because a decorated definition answers a
+callable.
 
 `is-memoized` answers a boolean, so the claims compare against `[True]` and
 `[False]` rather than against the symbols the example prints.
@@ -15,7 +17,7 @@ from metta import S
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 BUDGET = 1
 
 
@@ -39,14 +41,13 @@ def twin(m):
     assert memoized(S.mix, 1) == [True]
     assert memoized(S.mix, 2) == [False]
 
-    mixed = m.fn.mix
-    assert mixed(5) == [6]
-    assert mixed(5) == [6]
+    assert mix(5) == [6]
+    assert mix(5) == [6]
 
-    assert mixed(3, 4) == [7]
-    assert mixed(3, 4) == [7]
+    assert mix_2(3, 4) == [7]
+    assert mix_2(3, 4) == [7]
 
     m.eval(S.memoize(S.mix, 2))
     assert memoized(S.mix, 2) == [True]
-    assert mixed(8, 9) == [17]
-    assert mixed(8, 9) == [17]
+    assert mix_2(8, 9) == [17]
+    assert mix_2(8, 9) == [17]

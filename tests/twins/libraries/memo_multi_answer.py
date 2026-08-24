@@ -1,23 +1,29 @@
 """examples/libraries/memo_multi_answer.metta in Python: caching a function that answers twice.
 
 Two equations share one head, so they are two ALTERNATIVES rather than a
-redefinition, and `@rules` is the door that says that: the generator's
-parameter IS the equations' variable, and the bundle lands through the ordinary
-write door.
+redefinition, and `yield` is the door that says so: each independent yield in a
+compiled body stores one equation, which is exactly the pair of atoms the
+example writes.
 
 The answers are compared as a sorted multiset rather than in clause order.
 `memoize` recompiles by removing each equation and adding it back, which
 reverses the order the clauses answer in, and answer order is unspecified while
 multiplicity is not, so the set is what the claim can be about.
+
+Sorting takes a key here where the other twins in this folder need none. Atoms
+carry the engine's standard order, but one of these two answers is the number
+7, which the answer view decodes to a Python int, and comparing an int with an
+Expression REFUSES in both directions by the same rule that makes `V.x < 2`
+raise. `str` is the ordering that spans both kinds.
 """
 
-from metta import S, equation, rules
+from metta import S
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=bf25e468a4b2ec6fb0c4666e4f841fbd8e2a5ccf].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 BUDGET = 1
 
 #: Both answers for `(choose 7)`, in the order `sorted(key=str)` puts them.
@@ -28,14 +34,13 @@ def twin(m):
     """Two answers for one call, before and after the cache."""
     m.fn["import!"](m, S.library(S["lib_memo"]))
 
-    @rules
+    @m.define
     def choose(x):
-        yield equation(S.choose(x)).to(x)
-        yield equation(S.choose(x)).to(S.Pair(x, x))
+        # (= (choose $x) $x), then (= (choose $x) (Pair $x $x))
+        yield x
+        yield S.Pair(x, x)
 
-    m += choose
     m.eval(S.memoize(S.choose))
 
-    answers = m.fn.choose
-    assert sorted(answers(7), key=str) == BOTH
-    assert sorted(answers(7), key=str) == BOTH
+    assert sorted(choose(7), key=str) == BOTH
+    assert sorted(choose(7), key=str) == BOTH
