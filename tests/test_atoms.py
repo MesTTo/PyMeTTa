@@ -447,8 +447,24 @@ def test_the_intern_cache_evicts_in_constant_time(monkeypatch):
 
     Timed rather than asserted structurally, because which container
     delivers the property is an implementation detail and the cost is the
-    claim. Minimum of three rounds per arm, and the threshold sits at 1.6x
-    between the measured 3.13x defect and the 1.14x fix.
+    claim. Process CPU time, not wall time, because the churn loop and the
+    tombstone-scan defect are both pure CPU work, while wall time charges
+    the scheduler's other tenants to whichever arm they preempt: under a
+    load-20 box this test failed twice on wall-clock rounds. The arms are
+    INTERLEAVED per round, min of three rounds each, lib_memo.plt's own
+    race discipline, so between-arm load drift cannot skew a ratio.
+
+    Two ratios, each discriminating against the scan defect without the
+    memory-hierarchy confound. At a bound of 8,192 both arms' working sets
+    sit in cache, so 8,192/512 < 1.6 is a TIGHT eviction-cost claim: the
+    scan defect reads ~16x there (cost tracks the bound), the O(1) form
+    measured 0.99..1.10x. At 65,536 the working set leaves cache and the
+    healthy plateau measured 1.28..1.59x on this box, load included, so
+    the guard is 2.4x, between that plateau and the defect's measured
+    3.13x [measured 2026-08-24, five-bound sweep 512/4,096/8,192/65,536/
+    262,144 reading 1.0x/1.04-1.10x/0.99-1.06x/1.28-1.43x/1.54-1.97x,
+    flat through 8,192 and rising only with working-set size, which is
+    the cache curve and not the scan's linear growth].
 
     Also checks the one invariant the O(1) form introduces: the key order
     that bounds the cache holds exactly the cache's keys. Two structures
@@ -456,29 +472,36 @@ def test_the_intern_cache_evicts_in_constant_time(monkeypatch):
     """
     churn = 30_000
 
-    def nanoseconds_per_miss(bound, tag):
+    def one_round_nanoseconds(bound, prefix):
         monkeypatch.setattr(_core, "_WIRE_CACHE_MAX", bound)
-        best = None
-        for round_index in range(3):
-            _core._wire_intern_clear()
-            prefix = f"{tag}-{round_index}"
-            for index in range(bound):
-                wire.from_wire(["s", f"{prefix}-fill-{index}"])
-            start = time.perf_counter()
-            for index in range(churn):
-                wire.from_wire(["s", f"{prefix}-churn-{index}"])
-            elapsed = time.perf_counter() - start
-            if best is None or elapsed < best:
-                best = elapsed
-        return best / churn * 1e9
+        _core._wire_intern_clear()
+        for index in range(bound):
+            wire.from_wire(["s", f"{prefix}-fill-{index}"])
+        start = time.process_time()
+        for index in range(churn):
+            wire.from_wire(["s", f"{prefix}-churn-{index}"])
+        return (time.process_time() - start) / churn * 1e9
 
     try:
-        small = nanoseconds_per_miss(512, "small")
-        large = nanoseconds_per_miss(65_536, "large")
-        assert large < small * 1.6, (
-            f"interning a fresh name costs {large:.0f} ns at a bound of 65,536 "
-            f"against {small:.0f} ns at 512, {large / small:.2f}x: eviction is "
-            f"growing with the cache"
+        rounds = {512: [], 8_192: [], 65_536: []}
+        for round_index in range(3):
+            for bound, samples in rounds.items():
+                samples.append(
+                    one_round_nanoseconds(bound, f"b{bound}-{round_index}")
+                )
+        small = min(rounds[512])
+        mid = min(rounds[8_192])
+        large = min(rounds[65_536])
+        assert mid < small * 1.6, (
+            f"interning a fresh name costs {mid:.0f} ns at a bound of 8,192 "
+            f"against {small:.0f} ns at 512, {mid / small:.2f}x with both "
+            f"working sets in cache: eviction is growing with the cache"
+        )
+        assert large < small * 2.4, (
+            f"interning a fresh name costs {large:.0f} ns at a bound of "
+            f"65,536 against {small:.0f} ns at 512, {large / small:.2f}x, "
+            f"past the 1.28..1.59x cache plateau: eviction is growing with "
+            f"the cache"
         )
         assert len(_WIRE_SYMS) == len(_core._WIRE_SYM_ORDER) == 65_536
         assert set(_WIRE_SYMS) == set(_core._WIRE_SYM_ORDER)
