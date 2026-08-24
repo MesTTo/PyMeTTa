@@ -123,7 +123,7 @@
 %     as a point probe, so the bound namespace resolves an attribute
 %     without rebuilding the catalogue after a definition [tested:
 %     test_catalogue_membership_answers_the_builtins_union;
-%     commit=WORKTREE]
+%     commit=d70c8de55092a0ee9b61668810e2f2b906fc1371]
 %   - py-eq and py-truthy are decided without a host crossing for variables,
 %     booleans, numbers, strings, symbols, and recursively for expressions;
 %     opaque grounded objects, including None and objects with __eq__ or
