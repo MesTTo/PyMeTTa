@@ -1376,3 +1376,57 @@ def test_a_failing_assertion_is_a_finding(tmp_path):
         encoding="utf-8",
     )
     assert coverage.run_twin(twin).outcome.error is None
+
+
+def test_a_manual_hyphen_spelling_is_a_finding(tmp_path):
+    """Rung 4's map is total both ways, so the bracket keeps only what an
+    identifier cannot spell (user ruling, 2026-08-24).
+    """  # noqa: D205  -- the rule and its ground are one sentence
+    import twin_coverage as lane
+
+    twin = tmp_path / "hyphens.py"
+    twin.write_text(
+        "from metta import S, fn\n"
+        "def twin(m):\n"
+        "    a = S[\"foo-bar\"](1)\n"          # redundant: S.foo_bar reaches it
+        "    b = fn[\"mixed-under_score\"]\n"  # no round trip: stays exact
+        "    c = S[\"prime?\"]\n"              # unspellable: stays exact
+        "    d = S[\"==\"]\n"                  # punctuation: stays exact
+        "    return a, b, c, d\n",
+        encoding="utf-8",
+    )
+    findings = lane.idiom(twin)
+    assert any('S["foo-bar"] is S.foo_bar' in f for f in findings), findings
+    assert not any("mixed-under_score" in f for f in findings), findings
+    assert not any("prime?" in f for f in findings), findings
+    assert not any('"=="' in f for f in findings), findings
+
+
+def test_a_restated_define_name_is_a_finding(tmp_path):
+    """name= carries only what the identifier cannot: the map's own output
+    and the identifier itself are findings, an unreachable name is not.
+    """  # noqa: D205  -- the rule and its ground are one sentence
+    import twin_coverage as lane
+
+    twin = tmp_path / "names.py"
+    twin.write_text(
+        "def twin(m):\n"
+        "    @m.define(name=\"find-divisor\")\n"   # what the map already says
+        "    def find_divisor(n):\n"
+        "        return n\n"
+        "    @m.define(name=\"helper\")\n"          # the identifier itself
+        "    def helper(n):\n"
+        "        return n\n"
+        "    @m.define(name=\"prime?\")\n"          # unreachable: load-bearing
+        "    def prime(n):\n"
+        "        return n\n"
+        "    @m.define(name=\"facF\")\n"            # mixed case: load-bearing
+        "    def fac_f(n):\n"
+        "        return n\n",
+        encoding="utf-8",
+    )
+    findings = lane.idiom(twin)
+    assert any('name="find-divisor" is what def find_divisor' in f for f in findings), findings
+    assert any('name="helper" is what def helper' in f for f in findings), findings
+    assert not any("prime?" in f for f in findings), findings
+    assert not any("facF" in f for f in findings), findings

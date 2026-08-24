@@ -130,7 +130,10 @@ from pathlib import Path
 # tools/ on sys.path rather than the package parent, so the parent is
 # inserted first.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from metta._name_mapping import operator_attribute_target  # noqa: I001  -- the path insert above is what makes the import resolve in script mode, so this line cannot join a sorted block
+from metta._name_mapping import (  # noqa: I001  -- the path insert above is what makes the import resolve in script mode, so this line cannot join a sorted block
+    attribute_name,
+    operator_attribute_target,
+)
 
 import example_parity as parity
 
@@ -886,7 +889,7 @@ def _rung_reason(tree: ast.Module) -> str | None:
     return None
 
 
-def _subscripted_name(node: ast.Subscript) -> tuple[str, str] | None:
+def _subscripted_name(node: ast.Subscript) -> tuple[str, str, str] | None:
     """The namespace and name a redundant `S["foo"]` subscript spells.
 
     Redundant means attribute access reaches THE SAME atom. Rung 4's map is
@@ -903,13 +906,46 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str] | None:
     if reached is None or reached[0] not in MINTING_NAMESPACES:
         return None
     namespace, name = reached
-    redundant = (
-        name.isidentifier()
-        and name.isascii()
-        and not keyword.iskeyword(name)
-        and "_" not in name
-    )
-    return (namespace, name) if redundant else None
+    if name.isidentifier() and name.isascii() and not keyword.iskeyword(name) and "_" not in name:
+        return (namespace, name, name)
+    # The map is total the OTHER way too: `S["foo-bar"]` is `S.foo_bar`,
+    # because every attribute underscore becomes a hyphen. A name mixing
+    # hyphens WITH underscores does not round-trip and keeps its bracket,
+    # as does anything an identifier cannot spell (user, 2026-08-24: the
+    # manual hyphen form where the map already serves is a finding).
+    if "-" in name and "_" not in name:
+        candidate = name.replace("-", "_")
+        if (
+            candidate.isidentifier()
+            and candidate.isascii()
+            and not keyword.iskeyword(candidate)
+        ):
+            return (namespace, name, candidate)
+    return None
+
+
+def _restated_define_names(node: ast.FunctionDef) -> list[tuple[int, str]]:
+    """An explicit name= restating what the identifier already maps to.
+
+    The manual half of rung 4 (user, 2026-08-24): `def find_divisor` IS
+    `find-divisor`, so `name="find-divisor"` (or restating the identifier
+    itself) is dropped. A name the map cannot reach, `name="prime?"` or
+    mixed case, stays load-bearing.
+    """
+    return [
+        (
+            decorator.lineno,
+            f'name="{word.value.value}" is what '
+            f"def {node.name} already names; drop it",
+        )
+        for decorator in node.decorator_list
+        if isinstance(decorator, ast.Call)
+        for word in decorator.keywords
+        if word.arg == "name"
+        and isinstance(word.value, ast.Constant)
+        and isinstance(word.value.value, str)
+        and word.value.value in {node.name, attribute_name(node.name)}
+    ]
 
 
 def _symbol_head(node: ast.expr) -> str | None:
@@ -979,6 +1015,8 @@ def idiom(twin: Path) -> list[str]:
         if isinstance(node, (ast.Yield, ast.YieldFrom))
     ]
     for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            findings.extend(_restated_define_names(node))
         if isinstance(node, ast.Subscript):
             reached = _factory(node)
             # A MINTING factory only: the engine's own catalog holds function
@@ -998,9 +1036,9 @@ def idiom(twin: Path) -> list[str]:
                 ))
             redundant = _subscripted_name(node)
             if redundant is not None:
-                namespace, name = redundant
+                namespace, written, attribute = redundant
                 findings.append(
-                    (node.lineno, f'{namespace}["{name}"] is {namespace}.{name}')
+                    (node.lineno, f'{namespace}["{written}"] is {namespace}.{attribute}')
                 )
         elif isinstance(node, ast.Call):
             parts = _expression_parts(node)
