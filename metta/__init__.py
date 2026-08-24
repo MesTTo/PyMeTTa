@@ -304,6 +304,11 @@ def solve(pattern: _Any, subject: _Any):
     return engine().self.solve(pattern, subject)
 
 
+def doc(atom: _Any):
+    """Return the default context's structured get-doc answer."""
+    return engine().self.doc(atom)
+
+
 def define(*args: _Any, **kwargs: _Any):
     """Define a function or record in the default self space."""
     return engine().self.define(*args, **kwargs)
@@ -392,6 +397,7 @@ __all__ = [
     "current_space",
     "define",
     "derivation",
+    "doc",
     "drop",
     "engine",
     "equation",

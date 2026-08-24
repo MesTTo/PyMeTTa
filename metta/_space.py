@@ -2990,6 +2990,27 @@ class Space(Handle):
             raise EngineError(msg)
         return answers[0]
 
+    def doc(self, atom: Any) -> Atom:
+        """Return this space's structured ``get-doc`` answer for one subject.
+
+        The answer is the ``(@doc ...)`` atom the engine holds for the
+        subject, whether it was documented in MeTTa source or built from a
+        Python docstring:
+
+            m.doc(S.area)
+            # (@doc-formal (@item area) (@kind function) (@desc "Circle area.") ...)
+
+        A subject with no documentation raises, exactly as ``type`` raises
+        for a subject ``get-type`` cannot answer.
+        """
+        answers = self.eval(
+            Expression([Symbol("get-doc"), _to_atom(self), _to_atom(atom)])
+        )
+        if not answers or not isinstance(answers[0], Atom):
+            msg = f"get-doc returned no documentation for {atom!r}"
+            raise EngineError(msg)
+        return answers[0]
+
     @property
     def fn(self) -> _FunctionNamespace:
         """Functions visible here, as bound attribute or exact-name handles.

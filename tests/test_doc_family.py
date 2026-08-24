@@ -150,3 +150,32 @@ def test_get_doc_params_preserves_every_generated_position(parameter_count):  # 
     )
 
     assert MeTTa().self.run(source) == [[expected]]
+
+
+def test_the_doc_verb_answers_the_structured_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    import pytest
+
+    import metta as package
+    from metta import S
+    from metta.errors import EngineError
+
+    with metta._new_space() as m:
+        m.run(
+            """
+            (: verbed-atom Number)
+            (@doc verbed-atom (@desc "the verb reads this"))
+            """
+        )
+        answer = m.doc(S["verbed-atom"])
+        assert answer == parse(
+            '(@doc-formal (@item verbed-atom) (@kind atom) (@type Number) '
+            '(@desc "the verb reads this"))'
+        )
+        assert m.doc("verbed-atom") == answer
+        with pytest.raises(EngineError, match="no documentation"):
+            m.doc(S["never-documented-here"])
+    # The module-level door reads the default context's self space, exactly
+    # as metta.match and metta.eval do.
+    package.run('(@doc ambient-doc-verb (@desc "ambient"))')
+    ambient = package.doc(S["ambient-doc-verb"])
+    assert '(@desc "ambient")' in str(ambient)

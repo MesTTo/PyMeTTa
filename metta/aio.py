@@ -1229,6 +1229,10 @@ class AsyncMeTTa:
         """Return this space's first get-type answer on the worker."""
         return await self.call(lambda m: m.type(atom))
 
+    async def doc(self, atom: Any, /) -> Atom:
+        """Return this space's structured get-doc answer on the worker."""
+        return await self.call(lambda m: m.doc(atom))
+
     async def register_prolog(
         self,
         source: str | None = None,

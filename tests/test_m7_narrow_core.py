@@ -54,8 +54,9 @@ FINAL_METTA_METHODS = 20
 # followed by the five newly surfaced module-tier verbs (trace replaces its
 # satellite module at the same name, so it does not change the count); +1 for
 # seg, the named segment builder, whose anonymous twin is Python's own `...`
-# and therefore needs no name.
-FINAL_METTA_EXPORTS = 89
+# and therefore needs no name; +1 for doc, the get-doc receiver verb on the
+# default context, landing beside match and eval.
+FINAL_METTA_EXPORTS = 90
 
 SATELLITES = {
     "aio",
