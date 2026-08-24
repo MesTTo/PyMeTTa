@@ -13,6 +13,11 @@ atoms in the program's space, so iterating that space finds only what the
 program itself declared. And a program's own declaration is answered AHEAD of
 the engine's, without taking the operation away: after `(: car-atom MyOverride)`
 the builtin still answers, and `get-type` answers both.
+
+`map-atom` likewise has two declared arrows, one for each callable surface;
+`sort-atom` and `repr` take evaluated values and therefore use `%Undefined%`
+parameters rather than evaluation-masking metatypes.
+[source: examples/types/engine_surface.metta:22; commit=WORKTREE]
 """
 
 from typing import Any
@@ -39,7 +44,10 @@ def twin(m):
     assert m.type(fn.collapse) == arrow(Atom, Atom)
     assert m.type(fn.superpose) == arrow(Expression, Any)
     assert m.type(fn.match) == arrow(S.SpaceType, Atom, Atom, Any)
-    assert m.type(fn.map_atom) == arrow(Expression, Variable, Atom, Expression)
+    assert m.fn.get_type(fn.map_atom) == [
+        arrow(Expression, Variable, Atom, Expression),
+        arrow(Expression, Expression, Expression),
+    ]
 
     # Expression structure, from the reference corelib dump.
     # !(test (get-type car-atom) (-> Expression %Undefined%)), and four more
@@ -50,10 +58,10 @@ def twin(m):
     assert m.type(fn.index_atom) == arrow(Expression, int, Atom)
 
     # PeTTa's own, with no dump entry to take.
-    # !(test (get-type sort-atom) (-> Expression Expression)), and three more
-    assert m.type(fn.sort_atom) == arrow(Expression, Expression)
+    # !(test (get-type sort-atom) (-> %Undefined% Expression)), and three more
+    assert m.type(fn.sort_atom) == arrow(Any, Expression)
     assert m.type(fn.is_var) == arrow(Atom, bool)
-    assert m.type(fn.repr) == arrow(Atom, str)
+    assert m.type(fn.repr) == arrow(Any, str)
     assert m.type(fn.current_time) == arrow(int)
 
     # The state cell is a VALUE and its type says what it holds.

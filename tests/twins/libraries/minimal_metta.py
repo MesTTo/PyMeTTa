@@ -17,7 +17,10 @@ line. `collapse` is one: at the call door `mm-switch` with no matching case
 answers the `Empty` atom, where `(collapse ...)` is what PRUNES it, so
 `list()` would collect an answer the engine does not give. `return` is the
 other: it is an instruction inside `function` rather than a function of its
-own, so the namespace has nothing to resolve.
+own, so the namespace has nothing to resolve. The partial-function refusal is
+also collapsed because `Empty` means no answer, making the empty answer set the
+claim rather than the literal marker.
+[source: examples/libraries/minimal_metta.metta:125; commit=WORKTREE]
 
 Every name here descends the ladder exactly as far as it has to. Hyphenated
 heads take the attribute door, `S.mm_switch` and `S.collapse_bind`, because
@@ -130,4 +133,4 @@ def twin(m):
     assert m.fn.mm_move(((1,), 0, (2,)), 9, S.N) == [Expression(((1,), 9, (2,)))]
 
     assert m.fn.if_partial(TRUE, S.yes) == [S.yes]
-    assert m.fn.if_partial(FALSE, S.yes) == [S.Empty]
+    assert m.eval(S.collapse(S.if_partial(FALSE, S.yes))) == [Expression(())]  # rung: collapse prunes Empty into one empty Expression; list() would materialise zero Python answers

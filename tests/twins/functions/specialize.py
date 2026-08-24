@@ -18,6 +18,10 @@ The bodies name rule-bundle heads through the underscore map and call bound
 decorated functions directly. A `Defined` value mentioned in term position
 encodes as its installed MeTTa head, including `higher-order-fun`.
 
+Each recursive list rebuild names the applied head and recursive tail before
+calling `cons`, matching the examples' nested `let` sequence.
+[source: examples/functions/specialize.metta:9; commit=WORKTREE]
+
 Two heads Python's punctuation does not reach. The partial applications
 `(+ 1)`, `(* 1)`, `(+ 2)` and `(+ 4)` have no operator spelling, because `+`
 needs both operands to be an operator at all, so they are written by CALLING
@@ -36,7 +40,7 @@ Open Obligations:
 
 from typing import Any
 
-from metta import Atom, Expression, S, arrow, equation, fn, if_, typed
+from metta import Atom, Expression, S, V, arrow, equation, fn, if_, typed
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
@@ -59,9 +63,19 @@ def twin(m):
         """The two `map-flat` equations: the function argument comes FIRST."""
         # (= (map-flat $f ()) ())
         yield equation(S.map_flat(f, ())).to(())
-        # (= (map-flat $f (cons $x $xs)) (cons ($f $x) (map-flat $f $xs)))
+        # (= (map-flat $f (cons $x $xs))
+        #    (let $head ($f $x)
+        #      (let $rest (map-flat $f $xs) (cons $head $rest))))
         yield equation(S.map_flat(f, fn.cons(x, xs))).to(
-            fn.cons((f, x), S.map_flat(f, xs))
+            S.let(  # rung: this rules generator builds the stored let where no Python statement position exists
+                V.head,
+                (f, x),
+                S.let(  # rung: the recursive value must be named before cons receives its Expression-typed tail
+                    V.rest,
+                    S.map_flat(f, xs),
+                    S.cons(V.head, V.rest),
+                ),
+            )
         )
 
     assert m.eval(S.map_flat(ADD_ONE, (1, 2, 3))) == [Expression((2, 3, 4))]
@@ -71,9 +85,19 @@ def twin(m):
         """The two `map-flat2` equations: the function argument comes LAST, inside a pair."""
         # (= (map-flat2 (() $f)) ())
         yield equation(S.map_flat2(((), f))).to(())
-        # (= (map-flat2 ((cons $x $xs) $f)) (cons ($f $x) (map-flat2 ($xs $f))))
+        # (= (map-flat2 ((cons $x $xs) $f))
+        #    (let $head ($f $x)
+        #      (let $rest (map-flat2 ($xs $f)) (cons $head $rest))))
         yield equation(S.map_flat2((fn.cons(x, xs), f))).to(
-            fn.cons((f, x), S.map_flat2((xs, f)))
+            S.let(  # rung: this rules generator builds the stored let where no Python statement position exists
+                V.head,
+                (f, x),
+                S.let(  # rung: the recursive value must be named before cons receives its Expression-typed tail
+                    V.rest,
+                    S.map_flat2((xs, f)),
+                    S.cons(V.head, V.rest),
+                ),
+            )
         )
 
     assert m.eval(S.map_flat2(((1, 2, 3), ADD_ONE))) == [Expression((2, 3, 4))]
@@ -88,9 +112,19 @@ def twin(m):
         """The two `map-flat3` equations: the function argument leads a pair."""
         # (= (map-flat3 ($f ())) ())
         yield equation(S.map_flat3((f, ()))).to(())
-        # (= (map-flat3 ($f (cons $x $xs))) (cons ($f $x) (map-flat3 ($f $xs))))
+        # (= (map-flat3 ($f (cons $x $xs)))
+        #    (let $head ($f $x)
+        #      (let $rest (map-flat3 ($f $xs)) (cons $head $rest))))
         yield equation(S.map_flat3((f, fn.cons(x, xs)))).to(
-            fn.cons((f, x), S.map_flat3((f, xs)))
+            S.let(  # rung: this rules generator builds the stored let where no Python statement position exists
+                V.head,
+                (f, x),
+                S.let(  # rung: the recursive value must be named before cons receives its Expression-typed tail
+                    V.rest,
+                    S.map_flat3((f, xs)),
+                    S.cons(V.head, V.rest),
+                ),
+            )
         )
 
     @m.define
@@ -109,9 +143,18 @@ def twin(m):
         # (= (map-flat4 ($v ($f ()))) ())
         yield equation(S.map_flat4((v, (f, ())))).to(())
         # (= (map-flat4 ($v ($f (cons $x $xs))))
-        #    (cons ($f $x) (map-flat4 ($v ($f $xs)))))
+        #    (let $head ($f $x)
+        #      (let $rest (map-flat4 ($v ($f $xs))) (cons $head $rest))))
         yield equation(S.map_flat4((v, (f, fn.cons(x, xs))))).to(
-            fn.cons((f, x), S.map_flat4((v, (f, xs))))
+            S.let(  # rung: this rules generator builds the stored let where no Python statement position exists
+                V.head,
+                (f, x),
+                S.let(  # rung: the recursive value must be named before cons receives its Expression-typed tail
+                    V.rest,
+                    S.map_flat4((v, (f, xs))),
+                    S.cons(V.head, V.rest),
+                ),
+            )
         )
 
     assert m.eval(S.map_flat4((S.x, S.p1((1, 2))))) == [Expression((2, 3))]
