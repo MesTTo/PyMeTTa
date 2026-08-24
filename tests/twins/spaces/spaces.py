@@ -4,27 +4,22 @@
 example's point is the ordering: `let*` binds both writes before the match
 reads the space, so the match sees them.
 
-The whole equation compiles. A statement sequence inside a compiled body IS
-`let*`, so the two writes bind and the match reads afterwards, in the source
-order the example depends on; `fn.add_atom` and `fn.match` name the engine's
-own functions through the mention door, which spells the hyphen the Python
-grammar cannot; and `fn.context_space()` is `&self`, the space the equation is
-being written into, without naming a space as a symbol. Calling the definition
-and reading its answers are ordinary Python.
-
-One line names a head Python already spells. `match` dissolves into
-`space[pattern]`, and the subscript is a Python-side query a compiled body
-cannot perform, so the body names the engine's own head. PERFECT: the subscript
-lowers inside a compiled body the way the other structure operations do.
+The whole equation compiles, and every part of it is a Python spelling now. A
+statement sequence inside a compiled body IS `let*`, so the two writes bind and
+the match reads afterwards, in the source order the example depends on;
+the local handle returned by `context-space` takes ordinary `+=` writes; and
+`match(space, pattern, template)` is the ask itself, the same word Python reads
+at three positions. Calling the definition and reading its answers are
+ordinary Python.
 """
 
-from metta import S, V, fn
+from metta import S, V, fn, match
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 
@@ -37,8 +32,9 @@ def twin(m):
     #          (match &self (foo $1) (bar $1))))
     @m.define
     def matchtrickery():
-        _first = fn.add_atom(fn.context_space(), S.foo(S.a))
-        _second = fn.add_atom(fn.context_space(), S.foo(S.b))
-        return fn.match(fn.context_space(), S.foo(V.x), S.bar(V.x))  # rung: inside a compiled body the space door is the engine's own match; the subscript is a Python-side query
+        space = fn.context_space()
+        space += S.foo(S.a)
+        space += S.foo(S.b)
+        return match(space, S.foo(V.x), S.bar(V.x))
 
     assert matchtrickery() == [S.bar(S.a), S.bar(S.b)]

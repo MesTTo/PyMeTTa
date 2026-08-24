@@ -7,63 +7,65 @@ wrapped in a transaction whose branch fails, which rolls the removal back.
 Five protected increments run at once and 37 becomes 42.
 
 `m.hyperpose(*targets)` is the parallel door under the language's own name, so
-running the five branches is one Python call. All three definitions are terms,
-and the shared body says why in one place: the outer two name `with_mutex` and
-`transaction`, which are translator forms rather than registry functions, so
-`is_function` answers False and a compiled body naming either is refused
-(residue, P14.4). PERFECT: `with_mutex` and `transaction` join the function
-registry, so a `@m.define`d body names them like any other callee.
+running the five branches is one Python call, and reading the aftermath is the
+container door, `list(space)`.
 
-`sloppyinc` alone would compile, and it stays beside its siblings for a second
-gap worth stating. A compiled body refuses a host value, "closing over a host
-value would pin it to this process", so the only space spellings inside one are
-`fn.context_space()` for the ambient space, a PARAMETER, and `S["&temp"]` as a
-symbol; a nullary definition writing into a NAMED space has to take that last
-one, which is the spelling the space family rules out. PERFECT: a compiled body
-carries a handle the way a term does, since a handle is already a grounded atom.
-Until then the three equations read as one body, with one space, at one door.
+All three definitions are one body under three wrappers, which is why they are
+one Python builder and three writes. The outer two name `with_mutex` and
+`transaction`, translator forms rather than registry functions, so `is_function`
+answers False and a compiled body naming either is refused (residue, P14.4)
+[measured 2026-08-24: `fn.with_mutex` and `fn.transaction` inside a compiled
+body are both refused with "names no target function in this space's catalog";
+commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT: `with_mutex` and `transaction` join the function
+registry, so a `@m.define`d body names them like any other callee. `sloppyinc`
+alone would compile now, because a compiled body carries a handle the way a
+term does; it stays here so that the body the three share is written once.
 
-Reading the aftermath is the container door, `list(space)`.
+The liked unwrapped definition exposes one compiler defect. Writing the
+source's inner let as `fn.add_atom(temp, S.cnt(inc := V.x + 1))` hoists the
+walrus outside the `match` that binds `x`; calling the installed definition
+then refuses because `+` sees two unknowns (residue, P14.4). The exact equation
+therefore remains a term beside the two translator wrappers, which are not
+registry functions either.
 """
 
 import metta
-from metta import S, V, equation
+from metta import S, V, equation, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships. This file is also the one in its folder whose counter is not
 #: point-deterministic, because hyperpose schedules five OS threads; the
-#: re-pin pass owns that decision too [assumed 2026-08-23: the number is a
-#: placeholder, not a measurement; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: re-pin pass owns that decision too [assumed 2026-08-24: the number is a
+#: placeholder, not a measurement; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
-
-
-def increment(temp, *tail):
-    """The read-modify-write all three definitions share.
-
-    `(match &temp (cnt $x) ((remove-atom &temp (cnt $x))
-                            (let $inc (+ $x 1) (add-atom &temp (cnt $inc)))))`,
-    with anything in `tail` appended to the template.
-    """
-    take = S["remove-atom"](temp, S.cnt(V.x))  # rung: an equation body is one term, where the container doors are Python statements
-    put = S.let(V.inc, V.x + 1, S["add-atom"](temp, S.cnt(V.inc)))  # rung: as above
-    return S.match(temp, S.cnt(V.x), (take, put, *tail))  # rung: as above
 
 
 def twin(m):
     """Increment a shared counter five times at once, then roll one back."""
-    temp = metta.space("&temp")
+    temp = metta.space(S.temp)
     temp += (S.cnt, 37)
 
+    def increment(*tail):
+        """The read-modify-write all three definitions share.
+
+        `(match &temp (cnt $x) ((remove-atom &temp (cnt $x))
+                                (let $inc (+ $x 1) (add-atom &temp (cnt $inc)))))`,
+        with anything in `tail` appended to the template.
+        """
+        take = fn.remove_atom(temp, S.cnt(V.x))
+        put = S.let(V.inc, V.x + 1, fn.add_atom(temp, S.cnt(V.inc)))  # rung: the two translator wrappers remain stored equation terms
+        return S.match(temp, S.cnt(V.x), (take, put, *tail))  # rung: an equation body is one term, where the container doors are Python statements
+
     # This only works predictably single-threaded, else there is a data race.
-    m += equation(S.sloppyinc()).to(increment(temp))
+    m += equation(S.sloppyinc()).to(increment())
     # The mutex is what makes concurrent increments safe: every place that
     # modifies (cnt $n) takes the same one.
-    m += equation(S.mutexinc()).to(S["with_mutex"](S.testmutex, increment(temp)))
+    m += equation(S.mutexinc()).to(S["with_mutex"](S.testmutex, increment()))
     # A transaction undoes the removal when the branch inside it fails.
     rollback = S["Transaction_rollback_fail_to_inc"]
-    m += equation(rollback()).to(S.transaction(increment(temp, S.empty())))
+    m += equation(rollback()).to(S.transaction(increment(S.empty())))
 
     m.hyperpose(*(S.mutexinc() for _ in range(5)))
     assert list(temp) == [S.cnt(42)]

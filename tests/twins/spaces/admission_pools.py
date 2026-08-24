@@ -1,26 +1,51 @@
 """Purpose: spell the admission-pool differential specification in Python.
 
+`(admits <pool> <type>)` and `(capacity <pool> <n>)` are data, and a pool is a
+space whose write door is claimed by a judge over them. The engine ships that
+judge as a Prolog-bodied builtin; this file is its executable specification,
+the same judge written in the surface language, claimed through the same
+general hook, refusing and accepting the same atoms, with a differential
+asserting the two agree verdict for verdict.
+
+The whole judge is ordinary Python now. Every part of the original's chain has
+a spelling inside a compiled body: `if`/`else` for the branches, `==` for the
+empty test, `types[0]` and `types[1:]` for `car-atom` and `cdr-atom`, `<` for
+the bound, `match(space, pattern, template)` for the two catalog reads, and
+`accept`/`refuse` for the verdicts. The four definitions are written
+bottom-upwards, because a compiled body calls a sibling by the Python name it
+is already bound to and a name has to exist before it is called.
+
+The Atom masks are the annotations. `atom: Atom` emits
+`(: metta-admission-typed (-> %Undefined% Atom %Undefined% %Undefined%))`, the
+declaration the original writes by hand, and it is load-bearing: it keeps the
+offered atom unreduced the whole way down, so a pool judges the atom AS ITSELF
+[measured 2026-08-24: the annotation's own emission read back from the space;
+commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
+
+Both spaces the judge talks about are HANDLES, in the stored equations as well
+as at the call sites: a space is an ordinary term operand, and a compiled body
+carries one the way a term does. The contract rows go into the reflection space
+through `+=` rather than through `pool.admits(...)`, because the receiver
+method also CLAIMS the pool's write door for the shipped builtin, which is the
+one thing this example may not do: the claim under test is its own.
+
 Assumes:
   - the custom judge, pool setup, and seven claims mirror the source example
-    [source: examples/spaces/admission_pools.metta lines 9-72; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
+    [source: examples/spaces/admission_pools.metta lines 9-72; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Guarantees:
   - the custom and builtin judges agree before, at, and after the declared
-    capacity boundary [measured 2026-08-23: the twin runs to completion under
+    capacity boundary [measured 2026-08-24: the twin runs to completion under
     the lane, which is what proves every assert it states;
     command=python bindings/python/tools/twin_coverage.py
-    examples/spaces/admission_pools.metta; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
+    examples/spaces/admission_pools.metta; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-
-Both spaces the judge talks about are HANDLES here, in the stored equations as
-well as at the call sites: a space is an ordinary term operand, so nothing has
-to read a name back out of a handle to put it in a term.
 """
 
 import metta
-from metta import Expression, S, V, equation
+from metta import Atom, S, V, accept, fn, match, refuse, typed
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -28,159 +53,89 @@ from metta import Expression, S, V, equation
 #: ships. This file's previous pin was an empirical envelope rather than a
 #: point, because its judge runs engine-time matching whose count moves with
 #: the lane's own scheduling; the re-pin pass owns that decision too
-#: [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
-RUNG = "the custom judge embeds engine-time matching, branching, and sequence traversal"
 
 
 def twin(m):
-    """Install the MeTTa-bodied judge, claim one pool, and compare verdicts."""
+    """Install the surface-written judge, claim one pool, and compare verdicts."""
     reflection = metta.reflection
-    pool = metta.space("&metta-pool")
+    pool = metta.space(S.metta_pool)
 
-    admission_verdict = S["metta-admission-verdict"]
-    admission_typed = S["metta-admission-typed"]
-    admission_bounded = S["metta-admission-bounded"]
-    admission_within = S["metta-admission-within"]
+    # space-atom-count is the store's own clause bookkeeping, a property read
+    # per add rather than an enumeration of everything the pool holds.
+    @m.define
+    def metta_admission_within(pool_, limits):
+        if limits == ():
+            return accept()
+        if fn.space_atom_count(pool_) < limits[0]:
+            return accept()
+        return refuse(S.pool_at_capacity(limits[0]))
 
-    m += S[":"](
-        admission_verdict,
-        S["->"](S["%Undefined%"], S.Atom, S["%Undefined%"]),
-    )
-    m += equation(admission_verdict(V.pool, V.atom)).to(
-        admission_typed(
-            V.pool,
-            V.atom,
-            S.collapse(
-                S["match"](  # rung: a stored definition embeds a query against another space
-                    reflection,
-                    S.admits(V.pool, V.type),
-                    V.type,
-                )
-            ),
-        )
-    )
+    @m.define
+    def metta_admission_bounded(pool_):
+        return metta_admission_within(pool_, S.collapse(match(reflection, S.capacity(pool_, V.limit), V.limit)))  # rung: a compiled body has no spelling for list()
 
-    m += S[":"](
-        admission_typed,
-        S["->"](
-            S["%Undefined%"],
-            S.Atom,
-            S["%Undefined%"],
-            S["%Undefined%"],
-        ),
-    )
-    m += equation(admission_typed(V.pool, V.atom, V.types)).to(
-        S["if"](
-            V.types.eq(Expression(())),
-            admission_bounded(V.pool),
-            S["if"](
-                S["has-declared-type"](
-                    V.atom,
-                    S["car-atom"](V.types),  # rung: the value is an engine-time variable
-                ),
-                admission_typed(
-                    V.pool,
-                    V.atom,
-                    S["cdr-atom"](V.types),  # rung: the value is an engine-time variable
-                ),
-                S.refuse(
-                    S["does-not-carry"](
-                        S["car-atom"](V.types),  # rung: the value is an engine-time variable
-                    )
-                ),
-            ),
-        )
-    )
+    # Every declared admits type must be carried, the witness reading: an atom
+    # whose type nothing declares is not evidence that it is one of these, and
+    # a judge that let it in would admit everything a program never got round
+    # to declaring.
+    @m.define
+    def metta_admission_typed(pool_, atom: Atom, types):
+        if types == ():
+            return metta_admission_bounded(pool_)
+        if fn.has_declared_type(atom, types[0]):
+            return metta_admission_typed(pool_, atom, types[1:])
+        return refuse(S.does_not_carry(types[0]))
 
-    m += equation(admission_bounded(V.pool)).to(
-        admission_within(
-            V.pool,
-            S.collapse(
-                S["match"](  # rung: a stored definition embeds a query against another space
-                    reflection,
-                    S.capacity(V.pool, V.limit),
-                    V.limit,
-                )
-            ),
-        )
-    )
-    m += equation(admission_within(V.pool, V.limits)).to(
-        S["if"](
-            V.limits.eq(Expression(())),
-            S.accept(),
-            S["if"](
-                # The comparison names its head, like every other comparison
-                # in this judge: `<`, `>`, `<=` and `>=` all carry the
-                # engine's total atom ORDER, so none of the four builds a
-                # term and a guard a stored definition holds is written at
-                # the naming door
-                # [source: bindings/python/metta/_atoms_core.py:1353-1365].
-                S["<"](
-                    S["space-atom-count"](V.pool),
-                    S["car-atom"](V.limits),  # rung: the value is an engine-time variable
-                ),
-                S.accept(),
-                S.refuse(
-                    S["pool-at-capacity"](
-                        S["car-atom"](V.limits),  # rung: the value is an engine-time variable
-                    )
-                ),
-            ),
-        )
-    )
+    @m.define
+    def metta_admission_verdict(pool_, atom: Atom):
+        return metta_admission_typed(pool_, atom, S.collapse(match(reflection, S.admits(pool_, V.type), V.type)))  # rung: as above
 
+    # Contract atoms for one pool: Ticket-typed members, at most two of them.
     reflection += S.admits(pool, S.Ticket)
     reflection += S.capacity(pool, 2)
-    m += S[":"](S.ticket(S.a), S.Ticket)
-    m += S[":"](S.ticket(S.b), S.Ticket)
+    m += typed(S.ticket(S.a), S.Ticket)
+    m += typed(S.ticket(S.b), S.Ticket)
 
-    guard = S["metta-pool-guard"]
-    m += equation(guard(V.incoming)).to(admission_verdict(pool, V.incoming))
-    m.fn["declare-pre-add!"](pool, guard).one()
+    # The guard is one line, and the claim is the ordinary general hook:
+    # nothing about admission is special-cased in the engine's write path.
+    @pool.pre_add
+    @m.define
+    def metta_pool_guard(incoming):
+        return metta_admission_verdict(pool, incoming)
 
+    # A typed atom enters; an untyped one is refused naming the missing type.
     pool += S.ticket(S.a)
     assert [row.x for row in pool[S.ticket(V.x)]] == [S.a]
 
     stowaway = S.stowaway(1)
-    refused_stowaway = S.Error(
-        S["petta_add_refused"](
-            pool,
-            stowaway,
-            S["does-not-carry"](S.Ticket),
-        ),
-        S.none,
-    )
-    assert m.eval(
-        S.catch(
-            S["add-atom"](pool, stowaway)  # rung: catch keeps this failure as aggregate data
+    assert m.eval(fn.catch(fn.add_atom(pool, stowaway))) == [  # rung: catch keeps this failure as aggregate data, which is what the example claims about
+        S.Error(
+            S["petta_add_refused"](pool, stowaway, S.does_not_carry(S.Ticket)),
+            S.none,
         )
-    ) == [refused_stowaway]
+    ]
 
+    # The bound holds: the second ticket fills the pool and the third is
+    # refused.
     pool += S.ticket(S.b)
-    refused_capacity = S.Error(
-        S["petta_add_refused"](
-            pool,
-            S.ticket(S.a),
-            S["pool-at-capacity"](2),
-        ),
-        S.none,
-    )
-    assert m.eval(
-        S.catch(
-            S["add-atom"](  # rung: catch keeps this failure as aggregate data
-                pool,
-                S.ticket(S.a),
-            )
+    assert m.eval(fn.catch(fn.add_atom(pool, S.ticket(S.a)))) == [  # rung: as above
+        S.Error(
+            S["petta_add_refused"](pool, S.ticket(S.a), S.pool_at_capacity(2)),
+            S.none,
         )
-    ) == [refused_capacity]
+    ]
 
-    builtin = m.fn["space-admission-verdict"]
-    custom = m.fn["metta-admission-verdict"]
-    assert builtin(pool, stowaway).one() == custom(pool, stowaway).one()
-    assert builtin(pool, S.ticket(S.a)).one() == custom(pool, S.ticket(S.a)).one()
+    # The differential, across the judge's three verdict classes: the shipped
+    # builtin and the surface-written chain answer the same verdict for the
+    # same pool and atom, which is what licenses the Prolog body as an
+    # implementation choice.
+    builtin = m.fn.space_admission_verdict
+    assert builtin(pool, stowaway).one() == metta_admission_verdict(pool, stowaway).one()
+    assert builtin(pool, S.ticket(S.a)).one() == metta_admission_verdict(pool, S.ticket(S.a)).one()
 
     reflection -= S.capacity(pool, 2)
-    assert builtin(pool, S.ticket(S.a)).one() == custom(pool, S.ticket(S.a)).one()
+    assert builtin(pool, S.ticket(S.a)).one() == metta_admission_verdict(pool, S.ticket(S.a)).one()
     assert builtin(pool, S.ticket(S.a)).one() == S.accept()

@@ -2,9 +2,9 @@
 
 A pre-add hook claims the write door of one space for one function of one
 argument, the incoming atom. Every write consults it first, and the handler
-answers one of four verdicts: `(accept)` lets the atom in as offered,
-`(accept <atom>)` lets a TRANSFORMED atom in instead, `(refuse <words>)` throws
-carrying the handler's own words, and `(drop)` skips the write silently while
+answers one of four verdicts: `accept()` lets the atom in as offered,
+`accept(atom)` lets a TRANSFORMED atom in instead, `refuse(words)` throws
+carrying the handler's own words, and `drop()` skips the write silently while
 the caller sees success.
 
 So the writes here are ordinary `space += atom`, and what the example proves is
@@ -12,21 +12,23 @@ what happens on the other side of that operator. A refusal is an exception with
 the handler's sentence in it, which is the loud spelling `catch` and `repr`
 reach in the original; a drop is a write that leaves the space unchanged.
 
-The handler's own equations are at the container door, and one blocker is left
-of the two this file used to carry. Each head matches a literal SHAPE,
-`(guard (secret $x))`, and the compiled subset spells a head pattern only as a
-literal default, so a symbol default is refused with "a default here is a head
-pattern, so it must be a literal" (residue, P14.4). PERFECT:
-`@m.define def guard(atom=S.secret(V.x))`, a head pattern the decorator admits.
-What is no longer a
-blocker is the body: the mention door reads `S.refuse` and `S.accept` as the
-data they are. Claiming and releasing the hook still go through the engine's
-own functions, because the claim has no Python door yet (residue, P14.10), and
-the pool goes into both calls as the handle it is.
+The handler is one compiled definition where the original writes four
+equations, and the door picked the form: four literal head patterns at one
+arity would overlap if they were written as bare coexisting equations, so a
+Python `match` statement is the spelling and it lowers to MeTTa's own case
+tower. The tower has no fallback arm, exactly as the four equations have no
+catch-all, which is what leaves `(uncovered 9)` a stuck state that says so.
+`@pool.pre_add` above `@m.define` is the claim itself, so the handler keeps the
+module that owns its equations and the space keeps its write door.
+
+Releasing the claim is the one line that still names an engine function.
+`undeclare-pre-add!` has no Python door (residue, P14.10); PERFECT is a
+`space.pre_add` that answers something releasable, the way the ops scopes
+release theirs.
 
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,21 +36,21 @@ Open Obligations:
 """
 
 import metta
-from metta import S, V, equation, ground
+from metta import S, V, accept, drop, refuse
 from metta.errors import EngineError
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 #: The three sentences this file's refusals print. Each is the Python door's
 #: own wording rather than the Error atom the original reads with `repr`, and
 #: each prints the offered atom in the wire's list form, `[secret,1]` where
-#: engine-exact text would say `(secret 1)` [measured 2026-08-23: unchanged
-#: under the handle operand; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: engine-exact text would say `(secret 1)` [measured 2026-08-24: unchanged
+#: under the compiled judge and the pre_add claim door; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 NO_SECRETS = "&pool refused [secret,1]: no secrets in this pool"
 UNCOVERED = (
     "the pre-add hook on &pool is claimed by guard, whose equations do not "
@@ -64,14 +66,24 @@ CLAIMED = (
 
 def twin(m):
     """Claim a space's write door, then write four atoms it judges."""
-    pool = metta.space("&pool")
+    pool = metta.space(S.pool)
 
-    m += equation(S.guard(S.secret(V.x))).to(S.refuse(ground("no secrets in this pool")))
-    m += equation(S.guard(S.raw(V.x))).to(S.accept(S.cooked(V.x)))
-    m += equation(S.guard(S.dup(V.x))).to(S.drop())
-    m += equation(S.guard(S.plain(V.x))).to(S.accept())
-
-    m.fn["declare-pre-add!"](pool, S.guard).one()
+    # (= (guard (secret $x)) (refuse "no secrets in this pool"))
+    # (= (guard (raw $x))    (accept (cooked $x)))
+    # (= (guard (dup $x))    (drop))
+    # (= (guard (plain $x))  (accept))
+    @pool.pre_add
+    @m.define
+    def guard(atom):
+        match atom:
+            case (S.secret, _):
+                return refuse("no secrets in this pool")
+            case (S.raw, x):
+                return accept(S.cooked(x))
+            case (S.dup, _):
+                return drop()
+            case (S.plain, _):
+                return accept()
 
     # An accepted atom lands as offered.
     pool += (S.plain, 1)
@@ -107,15 +119,18 @@ def twin(m):
 
     # One claimant per name, checked when the claim is made: a second claimant
     # is refused with both named, never raced at call time.
-    m += equation(S["other-guard"](V.a)).to(S.accept())
+    @m.define
+    def other_guard(_atom):
+        return accept()
+
     conflict = None
     try:
-        m.fn["declare-pre-add!"](pool, S["other-guard"]).one()
+        pool.pre_add(other_guard)
     except EngineError as error:
         conflict = error
     assert str(conflict) == CLAIMED
 
     # Undeclaring is explicit and frees the claim; the space is direct again.
-    m.fn["undeclare-pre-add!"](pool).one()
+    m.fn.undeclare_pre_add(pool).one()
     pool += (S.uncovered, 10)
     assert [row.x for row in pool[S.uncovered(V.x)]] == [10]

@@ -14,19 +14,19 @@ rather than either half of it. Python's attribute assignment is a statement
 that answers nothing, and the walrus does not rescue it: PEP 572 excludes
 attribute and subscript targets, and CPython says so in as many words,
 `state.value := S.active` refusing with "cannot use assignment expressions with
-attribute" [measured 2026-08-23: ast.parse on this interpreter; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
-So the perfect spelling is a setter that answers its subject, the way
-`change-state!` does:
+attribute" [measured 2026-08-24: ast.parse on this interpreter;
+commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. So the perfect spelling is a setter that answers its subject,
+the way `change-state!` does:
 
     assert state.set(S.active).value == S.active
 
-Until one exists the composition is the engine's own, which is what the line
-below asks for, and the ordinary read after it is the handle's. Either
-evaluation door says it: the held engine the lazy view runs on shares its
-state cells with the main one, so a `change-state!` performed through
-`m.answers(...).one()` is what the handle reads afterwards [measured
-2026-08-23: the cell reads `active` after the answer-view composition and
-after the bound `m.fn["change-state!"]`; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
+Until one exists the composition is the engine's own, named through the mention
+door: `fn.change_state` is `change-state!`, rung 4 stripping the bang the way it
+strips a hyphen. Either evaluation door says it: the held engine the lazy view
+runs on shares its state cells with the main one, so a `change-state!`
+performed through `m.answers(...).one()` is what the handle reads afterwards
+[measured 2026-08-24: the cell reads `active` after the answer-view
+composition; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 
 Where the walrus DOES reach is the closing claim, which is about a cell needing
 no name at all: binding in expression position is `let`, so the cell is built,
@@ -36,13 +36,13 @@ written and read on two lines instead of three.
 calls rather than named heads.
 """
 
-from metta import S, State, ground
+from metta import S, State, fn, ground
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 
@@ -54,7 +54,7 @@ def twin(m):
     assert state.value == S.rest
 
     # The write composes with the read, in the engine, for the reason above.
-    assert m.answers(S["get-state"](S["change-state!"](state, S.active))).one() == S.active  # rung: no Python expression writes an attribute
+    assert m.answers(fn.get_state(fn.change_state(state, S.active))).one() == S.active  # rung: no Python expression writes an attribute
     # And the name still denotes the same cell, so the handle reads it too.
     assert state.value == S.active
 

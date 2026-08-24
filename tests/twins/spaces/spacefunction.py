@@ -14,8 +14,8 @@ from metta import S, V, equation
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 
