@@ -30,14 +30,13 @@ Open Obligations:
 import metta
 from metta import Expression, S, V
 
-#: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
-#: single re-pin pass prices the whole corpus on the merged tree, because a
-#: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships. The earlier pin was kept while this file gated the pytest lane; that
-#: protection is retracted, so it is a placeholder like every other twin's
-#: [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
-BUDGET = 1
+#: Inferences this twin spends, its own tripwire. INTERIM PIN 2026-08-24,
+#: identity.py's own precedent: this file gates the pytest lane, so it is
+#: priced ahead of the corpus-wide pass and re-priced there with everything
+#: else. Min-of-3 on the integration merge of the Stage C branch, three
+#: identical readings [measured 2026-08-24 through the end-to-end twin test
+#: on the merged tree at 5a5054ca].
+BUDGET = 234
 
 
 def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the default handle stays untouched
