@@ -15,8 +15,10 @@ comprehension is the map and the filter, calling the named function where the
 
 The last form folds expressions rather than numbers, with `append` reached at
 the function namespace, where rung 4's map turns the underscore back into the
-hyphen the engine holds. Every definition here is nullary except that one, so
-no stacking question arises anywhere in the file.
+hyphen the engine holds. The original writes it as a bare runnable over one
+literal, so the twin names it and passes the parts in. Every definition here is
+nullary or takes plain names, so no stacking question arises anywhere in the
+file.
 """
 
 import functools
@@ -75,8 +77,9 @@ def twin(m):
         return fn.append(a, b)
 
     @m.define
-    def joined(parts):                    # (foldl-atom ((1 2) (3 4) (5 6)) ()
-        return functools.reduce(lambda acc, x: fn.append(acc, x), parts, ())  # $acc $x (append $acc $x))
+    def joined(parts):                    # the bare runnable, named:
+        # (foldl-atom ((1 2) (3 4) (5 6)) () $acc $x (append $acc $x))
+        return functools.reduce(lambda acc, x: fn.append(acc, x), parts, ())
 
     assert f1a().one() == 10                          # [10]
     assert f2a().one() == Expression((2, 3, 4))       # [(2 3 4)]

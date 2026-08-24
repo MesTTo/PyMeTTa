@@ -65,7 +65,8 @@ def twin(m):
     assert fold(S.merge, S.g(V.x)) == 5       # (foldall merge (g $x) 0)
 
     # The same folds with a lambda. `(let $agglambda <lambda> ...)` is this
-    # local: a let that only names a value is Python's own assignment.
+    # local: a let that only names a value is Python's own assignment. The
+    # original states the third of these twice, so this does too.
     assert fold(add, S.f()) == 5
     assert fold(add, S.g(V.z)) == 5
     assert fold(add, S.g(V.z)) == 5
