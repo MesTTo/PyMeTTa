@@ -11,33 +11,31 @@ dissolves into, and it is expensive at this size for the reason matespace.py
 measures beside this file: every atom crosses the seam to be counted and thrown
 away. The cost is named there and is the library's to close (residue, P14.7).
 
-Every definition is a term because its body names `case` or `once`, neither of
-which is in the engine's function registry (residue, P14.4); PERFECT is
-matespace.py's, Python's own `match` statement plus `once` in the registry. The
-space is no
-longer part of that: a handle is an ordinary term operand, so `m` itself sits
-in every space position below.
+The three definitions whose bodies name `case` or `once` remain terms
+(residue, P14.4). `rewriteK` and the driver compile: sequencing is assignment,
+the driver's ambient handle comes from `context-space`, and its seed write is
+`space +=`.
 """
 
-from metta import S, V, equation
+from metta import S, V, equation, fn, if_, match
 
 #: Why this twin sits below the top rung, stated once for the whole file.
 RUNG = (
-    "every definition here is built as a term: their bodies name case and "
-    "once, neither of which a compiled body reaches (residue, P14.4)"
+    "expand, mate and add-atom-no-duplicate are built as terms: their bodies "
+    "name case or once, neither of which a compiled body reaches (residue, P14.4)"
 )
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Run eighty expand-and-mate rounds, then count what the space holds."""
-    nodup = S["add-atom-no-duplicate"]
+    nodup = S.add_atom_no_duplicate
 
     # (= (add-atom-no-duplicate $Space $Atom)
     #    (if (== () (collapse (once (match $Space $Atom $Atom))))
@@ -45,7 +43,7 @@ def twin(m):
     #        (empty)))
     seen = S.collapse(S.once(S.match(V.space, V.atom, V.atom)))
     m += equation(nodup(V.space, V.atom)).to(
-        S["if"](S["=="]((), seen), S["add-atom"](V.space, V.atom), S.empty())
+        if_(S.eq((), seen), S.add_atom(V.space, V.atom), S.empty())
     )
 
     # (= (expand) (case (superpose (collapse (match &self (num $t) $t))) ...))
@@ -70,23 +68,21 @@ def twin(m):
 
     # (= (rewriteK $n) (if (== $n 0) done (let* (($temp1 (expand)) ($temp2 (mate)))
     #                                           (rewriteK (- $n 1)))))
-    m += equation(S.rewriteK(V.n)).to(
-        S["if"](
-            S["=="](V.n, 0),
-            S.done,
-            S["let*"](
-                ((V.grown, S.expand()), (V.mated, S.mate())), S.rewriteK(V.n - 1)
-            ),
-        )
-    )
+    @m.define(name="rewriteK")  # camelCase is outside the underscore map
+    def rewrite_k(n):
+        if fn.eq(n, 0):
+            return S.done
+        _grown = fn.expand()
+        _mated = fn.mate()
+        return rewrite_k(n - 1)
 
     # (= (mate-space-demo $K) (let* (($s (add-atom ...)) ($g (rewriteK $K)))
     #                               (match &self (num $1) (num $1))))
-    m += equation(S["mate-space-demo"](V.k)).to(
-        S["let*"](
-            ((V.seed, S["add-atom"](m, S.num(S.Z))), (V.done, S.rewriteK(V.k))),
-            S.match(m, S.num(V.x), S.num(V.x)),
-        )
-    )
+    @m.define
+    def mate_space_demo(k):
+        space = fn.context_space()
+        space += S.num(S.Z)
+        _done = fn.rewriteK(k)
+        return match(space, S.num(V.x), S.num(V.x))
 
-    assert len(m.fn["mate-space-demo"](80)) == 1297533
+    assert len(m.fn.mate_space_demo(80)) == 1297533

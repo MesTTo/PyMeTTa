@@ -6,14 +6,16 @@ one. `space.eval(term)` IS evalc, to the letter: its signature is a term plus a
 space, and the space is the handle it hangs off. So the whole example reads as
 two handles and the same term asked of each.
 
-`bind! &metric (new-space)` is `metta.space("&metric")`, because binding a name
+`bind! &metric (new-space)` is `metta.space(S.metric)`, because binding a name
 to a space is Python's own name binding and a space exists from its first
-write. All three definitions arrive through the decorator, and the third is the
-one that used to need the container door: `(= (preferred-space) &metric)`
-answers a bare space name, which the mention door now spells as
-`S["&metric"]`. The removal is `-=` on the equation atom, and it takes the
-compiled clause with it, so the last question sees the inherited `&self`
-answer.
+write. All three definitions arrive through the decorator, the third included:
+`(= (preferred-space) &metric)` answers a space, and a compiled body reads a
+Python name bound to one as the grounded atom a handle already is, so the
+equation stores `&metric` without any symbol spelling of a space
+[measured 2026-08-24: a `@m.define`d body returning a handle stores the space
+operand itself; commit=WORKTREE]. The removal is `-=` on the equation atom, and
+it takes the compiled clause with it, so the last question sees the inherited
+`&self` answer.
 
 Three terms here are arithmetic over two GROUND operands, `(+ 5 5)` twice and
 `(+ 1 1)` once, and each is written with the guide's lift: one grounded operand
@@ -21,7 +23,7 @@ STAGES its operator, so `G(5) + 5` is the term `(+ 5 5)` rather than 10.
 
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,19 +37,21 @@ from metta.errors import MettaOperationError
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Give one name two meanings, one per space, and ask each of them."""
-    metric = metta.space("&metric")
-    evalc = m.fn["evalc"]
+    metric = metta.space(S.metric)
 
-    @metric.define(name="distance")
-    def metric_distance(x):
+    @metric.define
+    def distance(x):
         return x * 1000
+
+    assert distance(2) == [2000]
+    del distance
 
     @m.define
     def distance(x):
@@ -60,7 +64,7 @@ def twin(m):
     # &self names the ambient space, so evalc there is eval, and the two doors
     # say so: this handle's own eval, and the engine's `eval` by name.
     assert m.eval(G(5) + 5) == [10]
-    assert m.fn["eval"](G(5) + 5).one() == 10
+    assert m.fn.eval(G(5) + 5).one() == 10
 
     # The expression is handed over unevaluated. Were it not, it would already
     # have been reduced here before the space argument could select another.
@@ -68,22 +72,22 @@ def twin(m):
 
     # context-space, read inside evalc, reports the space evalc selected, and
     # it answers the HANDLE, so the claim compares handles rather than names.
-    assert m.fn["context-space"]().one() == m
-    assert metric.fn["context-space"]().one() == metric
+    assert m.fn.context_space().one() == m
+    assert metric.fn.context_space().one() == metric
 
-    # The space argument is evaluated, so a function answering a space name can
-    # name it, and that call is not a handle: it goes to `evalc` by name.
+    # The space argument is evaluated, so a function answering a space can name
+    # it, and that call is not a handle: it goes to `evalc` by name.
     @m.define
     def preferred_space():
-        return S["&metric"]  # rung: the example's subject is a function that answers a space NAME, where a handle is a host value a body cannot close over
+        return metric
 
-    assert evalc(S.distance(2), S["preferred-space"]()).one() == 2000
+    assert m.fn.evalc(S.distance(2), S.preferred_space()).one() == 2000
 
     # A space is an atom beginning with &; anything else is refused with a
     # sentence rather than read as a silently empty space.
     refusal = None
     try:
-        evalc(S.distance(2), 7).one()
+        m.fn.evalc(S.distance(2), 7).one()
     except MettaOperationError as error:
         refusal = error
     assert str(refusal) == "evalc: SpaceType expected, found 7"

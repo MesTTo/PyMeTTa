@@ -10,11 +10,19 @@ every definition arrives through a write, and `@m.define` is the definitional
 door for a computation, so the distinction the original draws has nothing to
 draw it against here.
 
-`with-pragma!` has no with-block spelling yet. `m.limits()` is the modes door
-and carries `inferences=` and `timeout=`, not the stack bound this needs, so
-the pragma is a term (residue, P14.10). PERFECT:
-`with m.limits(stack=100_000_000): assert fib(30) == [832040]`, the mode family
-carrying the pragma vocabulary the way it carries the other two bounds.
+The pragma itself is a TERM, named through the mention door: `fn.with_pragma`
+is `with-pragma!`, rung 4 stripping the bang the way it strips a hyphen, and
+`S.max_stack_depth` is the key. The modes door does not reach this bound. It
+gained `stack=` in the P14 wave, but that is SWI's per-thread BYTE ceiling,
+where `max-stack-depth` is the evaluator's branch-local reduction fuel, and the
+two are different quantities the engine states separately (residue, P14.14)
+[measured 2026-08-24: a 60,000-deep compiled recursion answers
+`(Error 10002 StackOverflow)` inside `with metta.limits(stack=100_000_000)`
+exactly as it does outside one; source: engine/metta.pl:194-196, "stack-limit
+scopes SWI's per-thread byte ceiling ... max-stack-depth remains branch-local
+reduction fuel"; commit=WORKTREE]. PERFECT:
+`with m.limits(reductions=100_000_000): assert fib(30) == [832040]`, the mode
+family carrying the branch allowance beside the two bounds it already carries.
 """
 
 from metta import S
@@ -22,8 +30,8 @@ from metta import S
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -34,5 +42,5 @@ def twin(m):
     def fib(n):
         return n if n < 2 else fib(n - 1) + fib(n - 2)
 
-    raised = ((S["max-stack-depth"], 100_000_000),)
-    assert m.answers(S["with-pragma!"](raised, S.fib(30))).one() == 832040
+    raised = (S.max_stack_depth(100_000_000),)
+    assert m.fn.with_pragma(raised, S.fib(30)).one() == 832040

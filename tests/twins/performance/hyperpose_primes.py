@@ -29,7 +29,7 @@ from metta import fn
 #: ships. Form 0 runs on real threads besides, so its count is not identical
 #: across fresh processes and the re-pin pass owns that decision too
 #: [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -40,13 +40,13 @@ def twin(m):
     def find_divisor(n, test_divisor):
         if test_divisor * test_divisor > n:
             return n
-        if fn["=="](0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
+        if fn.eq(0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
             return test_divisor
         return find_divisor(n, test_divisor + 1)
 
     @m.define(name="prime?")
     def prime(n):
-        return fn["=="](n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
+        return fn.eq(n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
 
     # hyperpose takes its branches through a variable as happily as inline, and
     # the answers come back in whatever order the threads finish.

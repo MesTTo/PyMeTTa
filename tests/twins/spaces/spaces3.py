@@ -7,12 +7,20 @@ enumerating the space already gives you. The example's template argument has no
 counterpart here: a query answers BINDINGS, and building a term out of a
 binding is ordinary Python.
 
+Every ask is the subscript now. The one-element expression pattern used to have
+no subscript spelling at all, because Python cannot tell `space[(a, b)]` from
+`space[a, b]` and the door read every tuple as a conjunction; the one-pattern
+law settled it, so `wuspace[(V.x,)]` is the one-element expression `($x)` and a
+conjunction is written with the receiver method's varargs
+[measured 2026-08-24: `wuspace[(V.x,)]` answers one row binding x to the single
+child, agreeing with `wuspace.match(Expression((V.x,)))`; commit=WORKTREE].
+
 `sorted(atoms)` is `msort`, because atoms carry the engine's own elementwise
 order, so the two claims the original sorts read the same way here.
 
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -25,36 +33,22 @@ from metta import Expression, S, V
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
-#: INTERIM PIN 2026-08-23, min-of-3 on the wave-merged tree (359 against the example's 8573): this file gates the pytest lane, so it is priced ahead of the corpus-wide pass that follows the library fixes, the guide update, and the marked-site sweep, and it is re-priced there with everything else.
-#: RE-PINNED 2026-08-23, 359 to 234, at the p14-library-fixes-2 merge. The
-#: reduction appears exactly at item 3 (f71a7eb325a0360ea1270498a74d635fcefddf0f):
-#: this twin's one-result query now stops and closes a resumable cursor
-#: instead of constructing the complete petta_py_query_all aggregate list, so
-#: the unused answer/list work disappears. Three identical merged-tree
-#: readings [measured 2026-08-23, min-of-3 through tools/twin_coverage.run_twin].
-BUDGET = 234
+#: ships. The earlier pin was kept while this file gated the pytest lane; that
+#: protection is retracted, so it is a placeholder like every other twin's
+#: [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
+BUDGET = 1
 
 
 def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the default handle stays untouched
     """Write two atoms, then ask four questions about them."""
-    wuspace = metta.space("&wuspace")
+    wuspace = metta.space(S.wuspace)
     wuspace += S.wu()
     wuspace += (S.wu, 42)
 
     # `($x)` is an expression of one element, so only `(wu)` matches it, and
     # $x binds to that element rather than to the whole atom.
-    #
-    # GAP: the subscript door cannot say this pattern. Python cannot tell
-    # `space[(a, b)]` from `space[a, b]`, so the subscript reads every tuple as
-    # a CONJUNCTION while query reads the same tuple as an expression:
-    # `m[(V.x,)]` answers two rows binding x to whole atoms and
-    # `m.match((V.x,))` answers one row binding x to the single child
-    # [measured 2026-08-22]. PERFECT: `wuspace[(V.x,)]`. Residue P14.4; until
-    # it lands the one-element expression is spelled at the ( ) door and asked
-    # through query, which agree.
-    one = wuspace.match(Expression((V.x,)))
+    one = wuspace[(V.x,)]
     # Both answer containers project the same way, so the whole column comes
     # off the ask door by attribute just as it does off a call.
     assert one.x == [S.wu]
@@ -62,6 +56,6 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
     assert [S.hu(row.x) for row in one] == [S.hu(S.wu)]
 
     # A bare variable matches every atom, which is what iterating a space is.
-    every = [row.x for row in wuspace.match(V.x)]
+    every = [row.x for row in wuspace[V.x]]
     assert sorted(every) == sorted(wuspace)
     assert sorted(S.wu(child) for child in every) == [S.wu(S.wu()), S.wu(S.wu(42))]

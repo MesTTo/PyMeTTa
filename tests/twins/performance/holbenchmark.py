@@ -14,7 +14,7 @@ empty-expression base case is Python's `()`.
 subset still has: each is two clauses that destructure in the HEAD, `()` and
 `(cons $x $xs)`, and a compiled head pattern may only be a LITERAL default, so
 a structural default is refused with "a default here is a head pattern, so it
-must be a literal" [measured 2026-08-23; commit=133aaa81396e8587d496a1e31b78c38741dbd2f4]. PERFECT: two
+must be a literal" [measured 2026-08-24; commit=WORKTREE]. PERFECT: two
 `@m.define`s whose parameters carry the patterns, the way the equations do.
 Residue P14.4.
 
@@ -26,53 +26,54 @@ to `py-eq`, so every level of these million-step recursions spends reductions
 the original does not.
 """
 
-from metta import S, V, equation, fn
+from metta import S, V, equation, fn, if_
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: commit=WORKTREE].
 BUDGET = 1
 
 #: `(+ 1)`, the partially applied increment all four kernels are driven with. A
 #: one-argument application has no operator spelling, so it is the tuple MeTTa
 #: writes it as.
-INC = (S["+"], 1)
+INC = S.add(1)
 
 #: The branch allowance these million-step kernels state above the evaluator's
 #: 100000 default. `m.limits` bounds inferences and time, not stack depth.
-DEEP = (S["max-stack-depth"](100_000_000),)
+DEEP = (S.max_stack_depth(100_000_000),)
 
 
 def twin(m):
     """Four higher-order kernels, each run to a million steps."""
     # A map that flattens as it goes, over a cons list built by counting down.
-    m += equation(S["map-flat"](V.f, ())).to(())  # rung: a compiled head pattern may only be a literal default
-    m += equation(S["map-flat"](V.f, S.cons(V.x, V.xs))).to(  # rung: as above
-        S.cons((V.f, V.x), S["map-flat"](V.f, V.xs))
+    m += equation(S.map_flat(V.f, ())).to(())  # rung: a compiled head pattern may only be a literal default
+    m += equation(S.map_flat(V.f, S.cons(V.x, V.xs))).to(  # rung: as above
+        S.cons((V.f, V.x), S.map_flat(V.f, V.xs))
     )
 
     # The define door applies rung 4's underscore map like every other door,
     # so a hyphenated MeTTa name needs nothing said twice. This one still
     # takes `name=`: `range` is a Python builtin, so the def carries rung 2's
     # trailing underscore, which the map would turn into a trailing hyphen.
+    # `def range` would consume the gate's zero A-family headroom and report
+    # `P0.13 suppression burn-down increased (observed, maximum): {'N': (37,
+    # 35), 'A': (9, 8)}`; it would also redirect recursion to `py-range`.
     @m.define(name="range")
     def range_(n):
         if n == 0:
             return ()
         return S.cons(n, range_(n - 1))
 
-    assert m.eval(
-        S["with-pragma!"](DEEP, S.length(S["map-flat"](INC, S.range(1_000_000))))
-    ) == [1_000_000]
+    assert m.fn.with_pragma(DEEP, S.length(S.map_flat(INC, S.range(1_000_000)))).one() == 1_000_000
 
     # A fold that recurses into nested expressions rather than over them.
-    m += equation(S["fold-nested"](V.f, V.init, ())).to(V.init)  # rung: as above
-    m += equation(S["fold-nested"](V.f, V.init, S.cons(V.x, V.xs))).to(  # rung: as above
-        S["if"](S["is-expr"](V.x),  # rung: the stored body of an equation the decorator cannot compile
-                S["fold-nested"](V.f, S["fold-nested"](V.f, V.init, V.x), V.xs),
-                S["fold-nested"](V.f, (V.f, V.init, V.x), V.xs)))
+    m += equation(S.fold_nested(V.f, V.init, ())).to(V.init)  # rung: as above
+    m += equation(S.fold_nested(V.f, V.init, S.cons(V.x, V.xs))).to(  # rung: as above
+        if_(S.is_expr(V.x),  # rung: the stored body of an equation the decorator cannot compile
+            S.fold_nested(V.f, S.fold_nested(V.f, V.init, V.x), V.xs),
+            S.fold_nested(V.f, (V.f, V.init, V.x), V.xs)))
 
     @m.define
     def deep_nest(n):
@@ -80,9 +81,9 @@ def twin(m):
             return ()
         return S.cons(fn.range(50), deep_nest(n - 1))
 
-    assert m.eval(
-        S["with-pragma!"](DEEP, S["fold-nested"](S["+"], 0, S["deep-nest"](20_000)))
-    ) == [25_500_000]
+    assert m.fn.with_pragma(
+        DEEP, S.fold_nested(S.add, 0, S.deep_nest(20_000))
+    ).one() == 25_500_000
 
     # A hundred thousand applications of one function to one value.
     @m.define
@@ -91,7 +92,7 @@ def twin(m):
             return x
         return apply_many(f, n - 1, f(x))
 
-    assert m.eval(S["with-pragma!"](DEEP, S["apply-many"](INC, 100_000, 0))) == [100_000]
+    assert m.fn.with_pragma(DEEP, S.apply_many(INC, 100_000, 0)).one() == 100_000
 
     # And a polynomial sum, which applies the parameter inside an addition.
     @m.define
@@ -100,4 +101,4 @@ def twin(m):
             return 0
         return f(n) + poly(f, n - 1)
 
-    assert m.eval(S["with-pragma!"](DEEP, S.poly(INC, 1_000_000))) == [500_001_500_000]
+    assert m.fn.with_pragma(DEEP, S.poly(INC, 1_000_000)).one() == 500_001_500_000

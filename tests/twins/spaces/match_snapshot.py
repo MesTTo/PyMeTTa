@@ -12,26 +12,25 @@ found before the first `-=` runs, and the comprehension at the bottom pulls
 both `item` rows before the first `visit` call removes the other one. Nothing
 about that is special pleading: it is what `for row in rows` means.
 
-The two `visit` equations are at the container door, and one blocker is left of
-the two this file used to carry. Each head fixes a literal symbol,
-`(visit alpha)`, where a compiled head pattern is a literal DEFAULT and a
-symbol default is refused with "a default here is a head pattern, so it must be
-a literal" (residue, P14.4). PERFECT: `@m.define def visit(x=S.alpha)`, a head
-pattern the decorator admits. What is no longer a blocker is the body: the
-mention door spells `fn.remove_atom` and `S.alpha`, so neither the hyphen nor
-the bare lowercase symbol needs the term door any more.
+`visit` is one compiled definition where the original writes two equations, and
+the door picked the form: two literal heads at one arity would overlap if they
+were written as bare coexisting equations, so a Python `match` statement is the
+spelling and it lowers to MeTTa's own case tower, exclusivity structural inside
+one equation. The removals inside it are the engine's own `remove-atom` through
+the mention door, with the snapshot space itself as the operand, because a
+compiled body carries a handle the way a term does.
 """
 
 from collections import Counter
 
 import metta
-from metta import S, V, equation
+from metta import S, V, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
 BUDGET = 1
 
 #: Upstream's own example, verbatim: three links form a loop, the fourth does
@@ -59,21 +58,23 @@ def twin(m):
     # The single-pattern case, reduced to its detector: two rows, and each
     # template removes the OTHER one. A lazy query would lose the row it had
     # not reached yet and answer once.
-    snapshot = metta.space("&snapshot")
+    snapshot = metta.space(S.snapshot)
     snapshot += S.item(S.alpha)
     snapshot += S.item(S.beta)
 
-    def visit(removed, answered):
-        """`(= (visit X) (let () (remove-atom &snapshot (item Y)) X))`."""
-        drop = S["remove-atom"](snapshot, S.item(removed))  # rung: an equation body is one term, where the container doors are Python statements
-        return S.let((), drop, answered)  # rung: as above
+    # (= (visit alpha) (let () (remove-atom &snapshot (item beta)) alpha))
+    # (= (visit beta)  (let () (remove-atom &snapshot (item alpha)) beta))
+    @m.define
+    def visit(item):
+        match item:
+            case S.alpha:
+                _gone = fn.remove_atom(snapshot, S.item(S.beta))
+                return S.alpha
+            case S.beta:
+                _gone = fn.remove_atom(snapshot, S.item(S.alpha))
+                return S.beta
 
-    m += equation(S.visit(S.alpha)).to(visit(S.beta, S.alpha))
-    m += equation(S.visit(S.beta)).to(visit(S.alpha, S.beta))
-
-    assert [
-        m.answers(S.visit(row.x)).one() for row in snapshot[S.item(V.x)]
-    ] == [S.alpha, S.beta]
+    assert [visit(row.x).one() for row in snapshot[S.item(V.x)]] == [S.alpha, S.beta]
 
     # Both removals happened, so the space is empty: each row's template ran,
     # and ran against the space the other row's template had written to.

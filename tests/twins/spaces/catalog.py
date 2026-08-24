@@ -13,7 +13,7 @@ point made in Python. `metta.reflection` is the handle itself, not a name.
 
 `&rows` appears inside a declaration as the context the freshness claim is
 about, and it appears there as the HANDLE: a space is an ordinary term operand,
-so `metta.space("&rows")` goes straight into the row it is the subject of.
+so `metta.space(S.rows)` goes straight into the row it is the subject of.
 """
 
 import metta
@@ -22,8 +22,8 @@ from metta import S, V
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -40,7 +40,7 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
     # The handles kind row is the shape every (handles ...) declaration fits.
     assert [
         row.claim for row in reflection[S.kind(S.handles, V.ctx, V.entry, V.claim, V.det)]
-    ] == [S["one-of"](S.fidelity)]
+    ] == [S.one_of(S.fidelity)]
 
     # Orderedness is a claim on a semiring value, which is what (top k ...)
     # consults rather than a word list compiled into the engine.
@@ -48,15 +48,9 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 
     # A third-party kind is the same machinery: declare its vocabulary and its
     # shape, and the same checker guards it.
-    rows = metta.space("&rows")
-    reflection += (S.vocabulary, S["freshness-level"], S.live, S.cached, S.stale)
-    reflection += (
-        S.kind,
-        S.freshness,
-        S.symbol,
-        S.pattern,
-        S["one-of"](S["freshness-level"]),
-    )
+    rows = metta.space(S.rows)
+    reflection += (S.vocabulary, S.freshness_level, S.live, S.cached, S.stale)
+    reflection += (S.kind, S.freshness, S.symbol, S.pattern, S.one_of(S.freshness_level))
     reflection += (S.freshness, rows, S.edge(V.a, V.b), S.cached)
 
     assert [
@@ -65,5 +59,5 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 
     # (routed-by-shape head) gives the kind the SAME router the shipped
     # handles declarations use, inherited rather than reimplemented.
-    reflection += (S["routed-by-shape"], S.freshness)
-    assert S["routed-by-shape"](S.freshness) in reflection
+    reflection += (S.routed_by_shape, S.freshness)
+    assert S.routed_by_shape(S.freshness) in reflection

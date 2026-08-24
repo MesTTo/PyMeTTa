@@ -30,7 +30,7 @@ from metta import S, V, fn
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: commit=WORKTREE].
 BUDGET = 1
 
 
@@ -44,7 +44,8 @@ def twin(m):
     def expand_k(expression, n):
         if n == 0:
             return S.done
-        _written = fn.add_atom(fn.context_space(), S.num(expression))
+        space = fn.context_space()
+        space += S.num(expression)
         return expand_k(S.S(expression), n - 1)
 
     @m.define

@@ -473,7 +473,16 @@
       "missing": "a compiled body naming with_mutex or transaction",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "HALF CLOSED, re-anchored 2026-08-23. `add-atom` and `remove-atom` are spellable in a compiled body now, through the mention door, and the sloppyinc equation compiles on its own [measured 2026-08-23]. `with_mutex` and `transaction` are still translator forms rather than registry functions, so `is_function` answers False and a body naming either is refused. All three equations stay at the container door together, which is also what keeps the space a HANDLE in all three: see the separate entry for a compiled body's lack of any spelling for a non-ambient space."
+      "detail": "RE-ANCHORED 2026-08-24. The closed-over Handle is no longer a blocker. `with_mutex` and `transaction` remain translator forms rather than registry functions, so `is_function` answers False and a body naming either is refused with `names no target function in this space's catalog`. The two wrapped equations stay at the container door for this reason."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": null,
+      "missing": "a walrus whose value depends on a variable bound by the surrounding match template",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "MEASURED DEFECT 2026-08-24. The liked form first, `fn.add_atom(temp, S.cnt(inc := V.x + 1))` inside compiled `sloppyinc`, stores `(let* (($inc (+ $x 1))) (match &temp (cnt $x) ...))`: the walrus is hoisted outside the match that binds `$x`. Calling it refuses exactly `+: + ran backwards with more than one unknown, and what the constraint leaves has no finite domain to search, so there is no answer to enumerate.` The exact source equation therefore keeps its inner `S.let(...)` at the container door."
     },
     {
       "kind": "friction",
@@ -491,7 +500,7 @@
       "missing": "a NAMED restricted space",
       "row": "P14.10",
       "section": "§9d, the one space-creation door",
-      "detail": "new_space(restricted=True) and new_space(restricted=True, grants=[...]) create the right space but over a name the engine picks (&pyspace_1). The example NAMES its spaces, and the answer of a `!(new-space &locked (restricted))` form IS that name: the group is (&locked). A symbol is not a variable, so the two answers are not alpha-equal and no handle-door spelling can carry these forms; both creations stay terms and the twin takes its handles from m.space(\"&locked\") afterwards. petta.space(name, restricted=, grants=) would close it."
+      "detail": "`metta.space(restricted=True)` and `metta.space(restricted=True, grants=[SpaceCapability.file])` create the right spaces but over names the engine picks. The example names its spaces. The liked form first, `metta.space(S.locked, restricted=True)`, refuses exactly `inherits, restricted, and grants apply only to anonymous space()`, so the twin keeps anonymous handles while preserving every behavioral claim. Applying the creation options to a named space would close this."
     },
     {
       "kind": "friction",
@@ -500,43 +509,25 @@
       "missing": "a NAMED inheriting space",
       "row": "P14.10",
       "section": "§9d, the one space-creation door",
-      "detail": "Same shape as restricted_spaces: new_space(inherits=parent) creates the right space over an engine-picked name, while the form's answer is the name it created, (&family-child). The creation stays a term; every one of the six writes around it does go through `space += fact`. petta.space(name, inherits=) would close it."
+      "detail": "Same shape as restricted_spaces. The liked form first, `metta.space(S.family_child, inherits=parent)`, refuses exactly `inherits, restricted, and grants apply only to anonymous space()`. The twin keeps the anonymous child Handle and all six writes use `space += fact`; applying inheritance to a named space would close this."
     },
     {
       "kind": "friction",
       "example": "examples/spaces/parametric_spaces.metta",
       "form": null,
-      "missing": "a space handle for a space named by a ground EXPRESSION",
-      "row": "P14.10",
-      "section": "§9c primitive 2, the space wearing Python's container protocols",
-      "detail": "This is the one file in the folder where every form stays a term, and one gap causes it. A ground expression is a legal space name, `(cache &primary-kb 100)`, and petta.space() refuses anything that does not begin with & : \"a space name starts with &, as in &self or &kb; got '(cache &primary-kb 100)'\". With no handle there is no +=, no .eval and no [pattern], so all eleven forms are terms. A space door that accepts an ATOM as the name would close it, and would also give evalc's parametric spaces a Python face."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/pre_add_hooks.metta",
-      "form": null,
-      "missing": "a compiled body with a nested literal head pattern",
+      "missing": "a compiled body destructuring a ground-expression space name",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "HALF CLOSED, re-anchored 2026-08-23. The verdict symbols are the mention door's job now, `S.refuse(...)` and `S.accept()` reading as the data they are. The heads are what is left: each matches a nested literal PATTERN, (guard (secret $x)), and the compiled subset spells a head pattern only as a literal DEFAULT, refusing a symbol default with \"a default here is a head pattern, so it must be a literal\" [measured 2026-08-23]. All five equations stay at the container door, in first-match order."
+      "detail": "RE-ANCHORED 2026-08-24. Atom-valued space names landed: `metta.space(S.cache(PRIMARY, 100))` returns a Handle and the twin uses `+=`, `[pattern]`, `.eval(term)` and `.type(atom)` directly. What remains is the equation `(let (cache $base $limit) (context-space) ...)`: the assignment target is a pattern rather than a name. The liked expression-position call `solve(S.cache(V.base, V.limit), fn.context_space())` is refused exactly `'solve' is not a parameter of cache-config, not a function the engine knows`, so that one equation remains a term."
     },
     {
       "kind": "friction",
       "example": "examples/spaces/pre_add_hooks.metta",
       "form": null,
-      "missing": "a Python door for the pre-add hook claim",
+      "missing": "a Python scope or releasable token for a pre-add hook claim",
       "row": "P14.10",
       "section": "§9j, the general pre/post hook",
-      "detail": "declare-pre-add! and undeclare-pre-add! have no Python spelling, so the claim and its release stay terms. §9j designs the door as `@space.pre_add` over an @m.define-compiled handler, with `with m.ops(...)`-shaped scoping for the release. The four ordinary writes in this file DO go through `pool += atom`, which is what proves the hook fires on the write door rather than on a particular spelling of it: the transform, the drop and the plain accept all behave identically under +=."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/match_snapshot.metta",
-      "form": null,
-      "missing": "a compiled body with a literal head argument",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "HALF CLOSED, re-anchored 2026-08-23. `remove-atom` and the bare lowercase answers are the mention door's job now. The heads are what is left: the two visit equations head on a literal argument, (visit alpha), which the compiled subset spells only as a literal default, and a symbol default is refused [measured 2026-08-23]. The twin writes both at the container door; the four link facts and both snapshot items go through the container protocol."
+      "detail": "RE-ANCHORED 2026-08-24. `@pool.pre_add` over the compiled match-statement judge is the claim and every ordinary `pool += atom` proves it fires. Only release lacks a Python scope or token, so the twin calls the engine's `undeclare-pre-add!` through `m.fn.undeclare_pre_add(pool).one()`."
     },
     {
       "kind": "friction",
@@ -545,7 +536,7 @@
       "missing": "a compiled body naming case or once",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "HALF CLOSED, re-anchored 2026-08-23, over the 390-doubling variant. `add-atom` is spellable in a compiled body now and a handle is an ordinary term operand, so add-atom-no-duplicate's space PARAMETER is no longer a blocker either. `case` and `once` are still translator forms rather than registry functions, so `is_function` answers False for both and every definition here stays at the container door [measured 2026-08-23]."
+      "detail": "RE-ANCHORED 2026-08-24 over the 390-doubling variant. `expandK` and `mate-space-demo` compile; the driver writes through a local context-space Handle with `+=`. `case` and `once` remain translator forms rather than registry functions, so `add-atom-no-duplicate`, `expand` and `mate` stay at the container door."
     },
     {
       "kind": "friction",
@@ -554,7 +545,7 @@
       "missing": "a compiled body naming case or once",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "HALF CLOSED, re-anchored 2026-08-23, over the interleaved expand-and-mate variant. `add-atom` is spellable in a compiled body now and a handle is an ordinary term operand, so add-atom-no-duplicate's space PARAMETER is no longer a blocker either. `case` and `once` are still translator forms rather than registry functions, so `is_function` answers False for both and every definition here stays at the container door [measured 2026-08-23]."
+      "detail": "RE-ANCHORED 2026-08-24 over the interleaved variant. `rewriteK` and `mate-space-demo` compile; the driver writes through a local context-space Handle with `+=`. `case` and `once` remain translator forms rather than registry functions, so `add-atom-no-duplicate`, `expand` and `mate` stay at the container door."
     },
     {
       "kind": "friction",
@@ -563,7 +554,7 @@
       "missing": "a compiled recursion that reaches the depth the built one does",
       "row": "P14.24",
       "section": "§4 surface gaps",
-      "detail": "RE-ANCHORED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a). The py-truthy half is closed by fix 20: a condition whose head is declared `(-> ... Bool)` is emitted bare, so `fn[\"==\"](n, 0)` in a compiled `if` stores `(if (== $n 0) ...)`. The depth half is not. A compiled rewriteK and mate-space-demo run correctly at depth 3, writing and counting 22 atoms, and at depth 19 the same pair answers 1 atom where the built equations answer 1,572,862, so the built door stays."
+      "detail": "RE-ANCHORED 2026-08-24. The driver now compiles and uses a local context-space Handle plus `+=`; only recursive `rewriteK` remains a term. Compiling that recursion runs correctly at depth 3 but reaches StackOverflow before depth 19, where the built equation answers 1,572,862 atoms, so the built recursive equation stays."
     },
     {
       "kind": "friction",
@@ -581,25 +572,7 @@
       "missing": "a compiled head pattern that destructures",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "MOSTLY CLOSED, re-anchored 2026-08-23. Applying a parameter is Python's own call syntax now: `f(x)` in a compiled body lowers to ($f $x), so `apply-many` and `poly` are ordinary decorated functions, and so are the two list builders whose base case is Python's `()` [measured 2026-08-23]. MeTTa's own `==` is reachable as `fn[\"==\"]` and is re-anchored to P14.24 under superpose_primes. What is left is the head: `map-flat` and `fold-nested` each destructure in the HEAD, `()` and `(cons $x $xs)`, and a compiled head pattern may only be a literal DEFAULT, so a structural default is refused with \"a default here is a head pattern, so it must be a literal\". Those two stay at the container door."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces3.metta",
-      "form": null,
-      "missing": "a one-element expression pattern at the SUBSCRIPT door: `space[(V.x,)]` reads the tuple as a conjunction",
-      "row": "P14.29",
-      "section": "§9b: `kb[p1, p2]` is the conjunction join door, and a tuple is also an expression",
-      "detail": "Python cannot tell `space[(a, b)]` from `space[a, b]`, so the subscript reads every tuple as a conjunction while `space.query(...)` reads the same tuple as an expression. Measured 2026-08-22: `m[(V.x,)]` answers two rows binding x to whole atoms, `m.query((V.x,))` answers one row binding x to the single child, and neither raises. The twin uses `query` plus `expr(V.x)` because they agree."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces3.metta",
-      "form": null,
-      "missing": "`==` between a Python tuple and the Expression it encodes to",
-      "row": "P14.28",
-      "section": "§9j: a plain Python tuple ENCODES to the same expression through the conversion table",
-      "detail": "A tuple is an expression at every door that takes one, `+=`, patterns and nesting included, but not at the comparison door: measured 2026-08-22, `(S.wu,) == S.wu()` is False in both directions and the hashes disagree, because Expr.__eq__ answers NotImplemented for anything that is not an Expr and the hash carries an 'expr' tag. So an assertion about an expression cannot be written as a tuple. The hazard to respect when closing it: Gnd((1, 2)) is an OPAQUE grounded tuple and must not become equal to the transparent Expr((1, 2))."
+      "detail": "RE-ANCHORED 2026-08-24. Applying a parameter is Python's own call syntax now: `f(x)` lowers to `($f $x)`, so four kernels compile. What remains is the head: `map-flat` and `fold-nested` each destructure `()` or `(cons $x $xs)` in the HEAD, and a compiled head pattern may only be a literal default, refusing the structural pattern with `a default here is a head pattern, so it must be a literal`."
     },
     {
       "kind": "friction",
@@ -635,7 +608,7 @@
       "missing": "a with-block spelling for a pragma bound",
       "row": "P14.10",
       "section": "§9b: control and modes, modes are with-blocks",
-      "detail": "m.limits() is the modes door and carries inferences= and timeout= only, so `(with-pragma! ((max-stack-depth 100000000)) (fib 30))` is built as a term. The mode family is the natural home for the pragma vocabulary, and this example is the one that needs it: fib(30) exceeds the default stack bound."
+      "detail": "`m.fn.with_pragma((S.max_stack_depth(100000000),), S.fib(30)).one()` is the liked function call and avoids every manual hyphen spelling. What remains missing is the mode-family with-block: `m.limits()` carries inferences and timeout but no stack-depth knob."
     },
     {
       "kind": "friction",
@@ -653,7 +626,7 @@
       "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
       "row": "P14.14",
       "section": "§9b control and modes are with-blocks",
-      "detail": "`m.limits(timeout=, inferences=)` is the shipped mode block and it does not carry the branch allowance, so `(with-pragma! ((max-stack-depth 1000000)) ...)` stays a term. It is not decorative: without it these four divisor searches answer `(Error (find-divisor 54734431 2988) StackOverflow)` at 451,784 inferences [measured 2026-08-22]. holbenchmark.metta needs the same allowance four times."
+      "detail": "`m.fn.with_pragma((S.max_stack_depth(1000000),), searches).one()` is the liked function call and avoids every manual hyphen spelling. What remains missing is the mode-family with-block: `m.limits()` has no stack-depth knob. Without the allowance the four searches reach StackOverflow."
     },
     {
       "kind": "friction",
@@ -662,16 +635,7 @@
       "missing": "a Python spelling for a scoped `max-stack-depth`, the way `m.limits` scopes inferences and time",
       "row": "P14.14",
       "section": "§9b control and modes are with-blocks",
-      "detail": "Same wall as superpose_primes.metta: all four million-step kernels state the allowance above the evaluator's 100000 default and `m.limits` cannot."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/mutex_and_transaction.metta",
-      "form": null,
-      "missing": "a compiled body spelling for a space handle that is not the ambient one",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "A compiled body refuses a host value, \"closing over a host value would pin it to this process\", so the only space spellings inside one are `fn.context_space()` for the ambient space, a PARAMETER, and `S[\"&name\"]` as a symbol. A nullary definition that writes into a named space therefore has to name that space as a symbol, which is the one thing the space family rules out: the container door takes the handle itself [measured 2026-08-23]. It is why sloppyinc, which is otherwise compilable, stays beside its two blocked siblings at the container door. PERFECT: a compiled body carries a handle the way a term does, since a handle is already a grounded atom."
+      "detail": "Same wall as superpose_primes.metta. All four million-step kernels use the liked `m.fn.with_pragma(DEEP, term).one()` call; `m.limits` still has no stack-depth knob."
     },
     {
       "kind": "friction",
@@ -2286,6 +2250,66 @@
     }
   ],
   "retired": [
+    {
+      "kind": "friction",
+      "example": "examples/spaces/parametric_spaces.metta",
+      "form": null,
+      "missing": "a space handle for a space named by a ground EXPRESSION",
+      "row": "P14.10",
+      "section": "§9c primitive 2, the space wearing Python's container protocols",
+      "detail": "A ground expression is a legal space name, `(cache &primary-kb 100)`, but the former string-only space door refused it, leaving every form as a term.",
+      "retired": "2026-08-24: atom-valued space names landed; the twin uses metta.space(S.cache(PRIMARY, 100)) and every Handle door"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/pre_add_hooks.metta",
+      "form": null,
+      "missing": "a compiled body with a nested literal head pattern",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "The four literal-head equations formerly stayed at the container door.",
+      "retired": "2026-08-24: one compiled match statement stores the exclusive case tower"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/match_snapshot.metta",
+      "form": null,
+      "missing": "a compiled body with a literal head argument",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "The two literal-head visit equations formerly stayed at the container door.",
+      "retired": "2026-08-24: one compiled match statement stores the exclusive case tower"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces3.metta",
+      "form": null,
+      "missing": "a one-element expression pattern at the SUBSCRIPT door: `space[(V.x,)]` reads the tuple as a conjunction",
+      "row": "P14.29",
+      "section": "§9b: `kb[p1, p2]` is the conjunction join door, and a tuple is also an expression",
+      "detail": "The former subscript reader treated every tuple as a conjunction.",
+      "retired": "2026-08-24: the one-pattern law makes space[(V.x,)] the single expression pattern and reserves receiver varargs for conjunction"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces3.metta",
+      "form": null,
+      "missing": "`==` between a Python tuple and the Expression it encodes to",
+      "row": "P14.28",
+      "section": "§9j: a plain Python tuple ENCODES to the same expression through the conversion table",
+      "detail": "The old twin needed tuple-to-Expression equality to state its one-element pattern claim.",
+      "retired": "2026-08-24: the claim now constructs Expression((row.x,)) explicitly, so no cross-representation equality is needed"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": null,
+      "missing": "a compiled body spelling for a space handle that is not the ambient one",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "A closed-over Handle formerly refused as a host value, keeping sloppyinc at the container door.",
+      "retired": "2026-08-24: Handles cross compiled bodies as grounded atoms; sloppyinc's surviving blocker is the separately recorded match-scoped walrus defect"
+    },
     {
       "kind": "declined",
       "example": "examples/libraries/datastructures_fingertree.metta",

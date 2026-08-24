@@ -9,8 +9,10 @@ The original names the child `&family-child` so its later forms can address it.
 Nothing here needs the name: `metta.space(inherits=parent)` answers the HANDLE,
 and every door the example uses hangs off that handle, so the anonymous space
 is not a compromise but the point (the named form has no Python door, residue
-P14.10). PERFECT: `metta.space("&family-child", inherits=parent)`, the creation
-options applying to a named space as well as an anonymous one.
+P14.10). PERFECT: `metta.space(S.family_child, inherits=parent)`, the creation
+options applying to a named space as well as an anonymous one
+[measured 2026-08-24: the pair still refuses, "inherits, restricted, and grants
+apply only to anonymous space()"; commit=WORKTREE].
 
 One claim keeps the engine's own function. `len(space)` and iterating it both
 answer the whole READ CHAIN, six atoms here, where `(space-atom-count ...)`
@@ -29,21 +31,21 @@ from metta import S, V
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
-#: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=133aaa81396e8587d496a1e31b78c38741dbd2f4].
+#: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
+#: commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Fill a parent and a child, then read the chain from both ends."""
-    parent = metta.space("&family-parent")
+    parent = metta.space(S.family_parent)
     parent += S.edge(S.a, S.b)
-    parent += S["parent-only"](S.kept)
+    parent += S.parent_only(S.kept)
     parent += S.layer(S.parent)
 
     child = metta.space(inherits=parent)
     child += S.edge(S.b, S.c)
-    child += S["child-only"](S.local)
+    child += S.child_only(S.local)
     child += S.layer(S.child)
 
     # One conjunction joins a parent fact to a child fact, because each
@@ -55,10 +57,10 @@ def twin(m):
     # Same-shaped facts pin child-first reads without relying on clause order
     # across different arities.
     assert [row.x for row in child[S.layer(V.x)]] == [S.child, S.parent]
-    assert m.fn["space-atom-count"](child).one() == 3
+    assert m.fn.space_atom_count(child).one() == 3
 
     # Writes never mutate an ancestor: the parent keeps what it had, the child
     # can read it, and the parent cannot read the child.
-    assert [row.x for row in parent[S["parent-only"](V.x)]] == [S.kept]
-    assert [row.x for row in child[S["parent-only"](V.x)]] == [S.kept]
-    assert not parent[S["child-only"](V.x)]
+    assert [row.x for row in parent[S.parent_only(V.x)]] == [S.kept]
+    assert [row.x for row in child[S.parent_only(V.x)]] == [S.kept]
+    assert not parent[S.child_only(V.x)]
