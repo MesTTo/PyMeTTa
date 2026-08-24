@@ -891,6 +891,10 @@ class _EngineFunction:
         self.__name__ = name
         self.__qualname__ = f"{space.name}.{name}"
 
+    def __metta__(self) -> Symbol:
+        """A bound function in term position mentions as its own head symbol."""
+        return Symbol(self._name)
+
     def _term(self, args: tuple) -> Expression:
         return Expression([Symbol(self._name), *(_encode(a) for a in args)])
 

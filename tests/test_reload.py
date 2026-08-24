@@ -356,3 +356,35 @@ def test_a_reload_replaces_the_file_in_every_space_that_holds_it(metta, source):
 
     assert [str(a) for a in first.atoms()] == [f"({fact} second)"]
     assert [str(a) for a in second.atoms()] == [f"({fact} second)"]
+
+
+def test_a_fresh_python_name_redefining_a_head_is_refused_by_name(metta):
+    """A second Python function claiming an installed head refuses loudly.
+
+    The clause records key on the MeTTa head while twin dispatchers key on
+    the Python name, so this used to escape the collision guard and die as
+    a bare IndexError deep in the twin store; now the refusal names the
+    collision and the three remedies.
+    """
+    import pytest
+
+    from metta.errors import CompileError
+
+    with metta._new_space() as m:
+
+        @m.define(name="contested-head")
+        def first_owner(x):
+            return x
+
+        with pytest.raises(CompileError, match="different Python function"):
+
+            @m.define(name="contested-head")
+            def second_owner(x):
+                return 2 * x
+
+        # The original owner still replaces its own definition cleanly.
+        @m.define(name="contested-head")
+        def first_owner(x):  # noqa: F811  -- the re-definition IS the scenario
+            return 3 * x
+
+        assert m.eval("(contested-head 2)") == [6]

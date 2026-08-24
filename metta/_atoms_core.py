@@ -1239,14 +1239,14 @@ def _operator_method(
         symbol = Symbol(entry.form)
         if entry.arity == 1:
 
-            def unary_symbol(self: Atom, _symbol: Symbol = symbol) -> Expression:
+            def unary_symbol(self: Atom, *, _symbol: Symbol = symbol) -> Expression:
                 return _expression_atoms((_symbol, self))
 
             operator: Callable[..., Expression] = unary_symbol
         elif reflected:
 
             def reflected_symbol(
-                self: Atom, other: Any, _symbol: Symbol = symbol
+                self: Atom, other: Any, *, _symbol: Symbol = symbol
             ) -> Expression:
                 return _expression_atoms((_symbol, encode(other), self))
 
@@ -1254,7 +1254,7 @@ def _operator_method(
         else:
 
             def binary_symbol(
-                self: Atom, other: Any, _symbol: Symbol = symbol
+                self: Atom, other: Any, *, _symbol: Symbol = symbol
             ) -> Expression:
                 return _expression_atoms((_symbol, self, encode(other)))
 

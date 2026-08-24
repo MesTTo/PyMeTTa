@@ -72,6 +72,7 @@ from typing import Any
 from . import ops as _ops_module
 from ._define_twins import (
     append_twin_clause,
+    dispatcher_owns_clause,
     replace_twin_clause,
     select_clause_twin,
     twin_dispatcher,
@@ -707,6 +708,18 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     duplicate, replaced = _locate_clause(
         earlier, patterns, len(params), canonical, name
     )
+    if replaced is not None and not dispatcher_owns_clause(dispatcher, replaced):
+        msg = (
+            f"{name!r} is already defined here by a different Python "
+            f"function; re-run that function to change the definition, "
+            f"remove it first, or put the extra clauses under the one "
+            f"function, where pattern= clauses and generator bodies "
+            f"store one equation each"
+        )
+        raise CompileError(
+            msg,
+            construct="name collision",
+        )
     if duplicate:
         # A re-run cell or module reload must not duplicate answers.
         if replaced is None:

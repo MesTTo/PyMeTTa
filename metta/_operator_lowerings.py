@@ -86,6 +86,10 @@ OPERATOR_LOWERINGS: tuple[OperatorLowering, ...] = (
         "__neg__", None, "-x", "template", ("-", 0, "$value"), arity=1
     ),
     OperatorLowering("__abs__", None, "abs(x)", "symbol", "abs-math", arity=1),
+    OperatorLowering("__floor__", None, "math.floor(x)", "symbol", "floor-math", arity=1),
+    OperatorLowering("__ceil__", None, "math.ceil(x)", "symbol", "ceil-math", arity=1),
+    OperatorLowering("__trunc__", None, "math.trunc(x)", "symbol", "trunc-math", arity=1),
+    OperatorLowering("__round__", None, "round(x)", "symbol", "round-math", arity=1),
     OperatorLowering("__eq__", None, "x == y", "taken", "==", method="eq"),
     OperatorLowering(
         "__ne__",

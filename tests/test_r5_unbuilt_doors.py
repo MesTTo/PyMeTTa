@@ -340,3 +340,25 @@ def test_eval_keeps_unreduced_guarded_head_and_status(metta):
         assert metta.eval(call) == []
     finally:
         catalog.remove(policy)
+
+
+def test_the_unary_math_protocol_builds_terms():
+    """math.floor/ceil/trunc and round on an atom BUILD the math term.
+
+    Before this, Grounded.__float__ let math.floor silently coerce, the one
+    quiet row in a protocol whose rule is that atoms refuse coercion and
+    build; round had no hook at all and raised a bare TypeError.
+    """
+    import math
+
+    import pytest
+
+    from metta import G, V
+
+    assert str(math.floor(G(5.8))) == "(floor-math 5.8)"
+    assert str(math.ceil(G(5.2))) == "(ceil-math 5.2)"
+    assert str(math.trunc(G(-5.8))) == "(trunc-math -5.8)"
+    assert str(round(G(5.4))) == "(round-math 5.4)"
+    assert str(math.floor(V.n)) == "(floor-math $n)"
+    with pytest.raises(TypeError):
+        round(G(5.4), 2)

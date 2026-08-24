@@ -272,6 +272,16 @@ class Defined[**P, R]:
         "space",
     )
 
+    def __metta__(self) -> Symbol:
+        """Mentioning a function is holding its symbol (guide 3.1).
+
+        A Defined placed in term position encodes as its own head, so
+        ``S.memoize(add, 2)`` builds ``(memoize add 2)`` rather than boxing
+        the callable; ``G(add)`` stays the explicit spelling for the live
+        object.
+        """
+        return Symbol(self.name)
+
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
         name: str,

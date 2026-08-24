@@ -237,3 +237,16 @@ def replace_twin_clause(
     """Replace one clause atomically for concurrent twin calls."""
     with _TWIN_LOCK:
         dispatcher._clauses[position] = clause
+
+
+def dispatcher_owns_clause(dispatcher: TwinDispatcher, position: int) -> bool:
+    """Whether this dispatcher installed the clause at the given position.
+
+    Space clause records key on the MeTTa head while dispatchers key on the
+    Python name, so a fresh Python function redefining an existing head
+    arrives with an empty dispatcher; the install path asks this before
+    replacing, and refuses with the collision named instead of the bare
+    IndexError the mismatch used to raise.
+    """
+    with _TWIN_LOCK:
+        return 0 <= position < len(dispatcher._clauses)

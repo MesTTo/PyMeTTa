@@ -374,3 +374,28 @@ def test_operator_words_reach_compiled_bodies():
         @m.define
         def word_neg(a):
             return S.neg(a)
+
+
+def test_a_defined_and_a_bound_function_mention_as_their_head():
+    """Mentioning a function is holding its symbol.
+
+    Guide 3.1: a Defined or a bound engine function in term position
+    encodes as its own head rather than boxing the callable; G() stays
+    the explicit box.
+    """
+    from metta import G, MeTTa, S
+    from metta.atoms import Grounded
+
+    m = MeTTa().self
+
+    @m.define
+    def mentioned_head(x):
+        return x
+
+    term = S.memoize(mentioned_head, 2)
+    assert str(term) == "(memoize mentioned-head 2)"
+    bound = m.fn["mentioned-head"]
+    assert str(S.tabled(bound)) == "(tabled mentioned-head)"
+    boxed = G(mentioned_head)
+    assert isinstance(boxed, Grounded)
+    assert boxed.value is mentioned_head

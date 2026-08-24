@@ -99,15 +99,16 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
 
 
 def test_the_operator_table_is_generated_from_one_source_with_no_holes():
-    """Prove the immutable 22-entry table is the single source from which every operator method is generated."""
+    """Prove the immutable 26-entry table is the single source from which every operator method is generated."""
     expected = {
-        "__abs__", "__add__", "__and__", "__eq__", "__floordiv__",
-        "__ge__", "__gt__", "__invert__", "__le__", "__lshift__",
-        "__lt__", "__matmul__", "__mod__", "__mul__", "__ne__",
-        "__neg__", "__or__", "__pow__", "__rshift__", "__sub__",
-        "__truediv__", "__xor__",
+        "__abs__", "__add__", "__and__", "__ceil__", "__eq__",
+        "__floor__", "__floordiv__", "__ge__", "__gt__", "__invert__",
+        "__le__", "__lshift__", "__lt__", "__matmul__", "__mod__",
+        "__mul__", "__ne__", "__neg__", "__or__", "__pow__",
+        "__round__", "__rshift__", "__sub__", "__truediv__",
+        "__trunc__", "__xor__",
     }
-    assert len(OPERATOR_LOWERINGS) == 22
+    assert len(OPERATOR_LOWERINGS) == 26
     assert {entry.dunder for entry in OPERATOR_LOWERINGS} == expected
     assert {entry.kind for entry in OPERATOR_LOWERINGS} == {
         "absent", "provided", "symbol", "taken", "template"

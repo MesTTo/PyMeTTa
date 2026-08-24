@@ -1682,6 +1682,12 @@ class Space(Handle):
         inferences= still overrides, which is the whole ladder: one
         block replaces the parameter forest, and the forest remains
         for whoever wants per-call control.
+
+        stack= is SWI's combined stack ceiling in BYTES, the bound a
+        runaway recursion hits as a StackOverflow error atom. It is NOT
+        MeTTa's reduction depth: that is the max-stack-depth pragma,
+        `(with-pragma! ((max-stack-depth N)) expr)`, which counts
+        reduction steps and is scoped in the program text.
         """  # noqa: D415  -- the first line deliberately introduces the indented example that follows
         return ScopedLimits(timeout, inferences, stack)
 

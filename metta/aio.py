@@ -1104,7 +1104,6 @@ class AsyncMeTTa:
     async def image(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         type_name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=the three modes by which one Python type crosses one context boundary, forwarded unchanged to the synchronous declaration door that owns them; evidence=bindings/python/metta/_space.py:image
         setting: ImageMode,
     ) -> Atom:
         return await self.call(
@@ -1764,6 +1763,12 @@ class _AsyncEngineFunction:
         self._name = name
         self.__name__ = name
         self.__qualname__ = f"{am.name}.{name}"
+
+    def __metta__(self) -> Atom:
+        """An async bound function in term position mentions as its head symbol."""
+        from .atoms import Symbol  # noqa: PLC0415  -- aio deliberately defers atom imports
+
+        return Symbol(self._name)
 
     async def __call__(self, *args: Any) -> Any:
         return await self.one(*args)
