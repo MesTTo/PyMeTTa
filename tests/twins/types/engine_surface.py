@@ -17,7 +17,7 @@ the builtin still answers, and `get-type` answers both.
 `map-atom` likewise has two declared arrows, one for each callable surface;
 `sort-atom` and `repr` take evaluated values and therefore use `%Undefined%`
 parameters rather than evaluation-masking metatypes.
-[source: examples/types/engine_surface.metta:22; commit=WORKTREE]
+[source: examples/types/engine_surface.metta:22; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 """
 
 from typing import Any

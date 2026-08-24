@@ -21,7 +21,7 @@ Residue P14.4.
 The recursive list builders name every value before passing it to `cons`.
 Rules-bundle bodies build the stored `let` terms; compiled bodies use plain
 assignment, which lowers to `let*`.
-[source: examples/performance/holbenchmark.metta:1; commit=WORKTREE]
+[source: examples/performance/holbenchmark.metta:1; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 
 Each claim states its own branch allowance above the evaluator's 100000
 default, which is a term because `m.limits` bounds inferences and time and not

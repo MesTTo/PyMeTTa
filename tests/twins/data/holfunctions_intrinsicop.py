@@ -8,7 +8,7 @@ Both clauses select on the SHAPE of the second argument, which is Python's
 The recursive clause names the applied head and mapped tail before rebuilding
 the cons cell. Plain assignments in a compiled body are the Python spelling of
 the example's nested `let` sequence.
-[source: examples/data/holfunctions_intrinsicop.metta:9; commit=WORKTREE]
+[source: examples/data/holfunctions_intrinsicop.metta:9; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 
 The claim is that a builtin and a defined function behave the same when either
 is handed to `mymap` half applied. `(== 1)` is equality with one argument, and

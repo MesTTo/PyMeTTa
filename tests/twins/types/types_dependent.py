@@ -18,7 +18,7 @@ reason: each comparison crosses KNOWN and different types, which `==` refuses
 by name, and `=alpha` is the comparison that takes anything. Because its Atom
 parameters hold their operands, each computed value is named by `let` before
 the comparison receives it.
-[source: examples/types/types_dependent.metta:6; commit=WORKTREE]
+[source: examples/types/types_dependent.metta:6; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 """
 
 from metta import UNIT, Expression, S, V, equation, fn, if_

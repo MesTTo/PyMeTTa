@@ -20,7 +20,7 @@ encodes as its installed MeTTa head, including `higher-order-fun`.
 
 Each recursive list rebuild names the applied head and recursive tail before
 calling `cons`, matching the examples' nested `let` sequence.
-[source: examples/functions/specialize.metta:9; commit=WORKTREE]
+[source: examples/functions/specialize.metta:9; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 
 Two heads Python's punctuation does not reach. The partial applications
 `(+ 1)`, `(* 1)`, `(+ 2)` and `(+ 4)` have no operator spelling, because `+`

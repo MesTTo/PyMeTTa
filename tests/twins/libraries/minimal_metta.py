@@ -20,7 +20,7 @@ other: it is an instruction inside `function` rather than a function of its
 own, so the namespace has nothing to resolve. The partial-function refusal is
 also collapsed because `Empty` means no answer, making the empty answer set the
 claim rather than the literal marker.
-[source: examples/libraries/minimal_metta.metta:125; commit=WORKTREE]
+[source: examples/libraries/minimal_metta.metta:125; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 
 Every name here descends the ladder exactly as far as it has to. Hyphenated
 heads take the attribute door, `S.mm_switch` and `S.collapse_bind`, because

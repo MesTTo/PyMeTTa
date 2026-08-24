@@ -6,7 +6,7 @@ that argument arrives unrun, then its `%Undefined%` result re-enters evaluation.
 `wu1b` changes only the result to `Atom`, so its answer stays as produced.
 `wu2` is `Number` throughout and adds; `wu3` answers a plain expression on one
 branch and a number on the other, which `%Undefined%` allows.
-[source: examples/types/functiontypes.metta:15; commit=WORKTREE]
+[source: examples/types/functiontypes.metta:15; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 
 All four say their types as ANNOTATIONS, which is the whole declaration: `int`
 is Number, `Atom` is the Atom metatype, and `Any` is `%Undefined%`, all through
