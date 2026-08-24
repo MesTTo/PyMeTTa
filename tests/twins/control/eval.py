@@ -7,15 +7,17 @@ evaluation door takes the atom out of one and reduces it.
 
 Both equations are compiled. `f` is an ordinary computation. `evalCustom`
 writes to a space from inside an equation, which is the thing a compiled body
-had no spelling for: `space += atom` is a Python STATEMENT over a handle, and
-a body is pure atoms, so the write is the head itself over
-`(context-space)`, the space the equation is running in. What is still missing
-is the STATEMENT spelling, `space += atom` inside a body, which stays filed
-against control/and_then_or_else.metta, where the space is neither a parameter
-nor the context space and so cannot be reached at all.
+has no spelling for: `space += atom` is a Python STATEMENT over a handle, and
+a body is pure atoms, so the write is the head itself over `(context-space)`,
+the space the equation is running in. The statement spelling does not merely
+refuse there, it MISCOMPILES to arithmetic, which is why naming the head is
+the right rung and not a shortcut [measured 2026-08-24: `space += atom` inside
+a compiled body stores `(+ $space $atom)` and writes nothing; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
+That stays filed against control/and_then_or_else.metta, where the space is
+neither a parameter nor the context space and so cannot be reached at all.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,7 +28,7 @@ from metta import Expression, S, V, equation, fn
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
@@ -52,13 +54,14 @@ def twin(m):
         #           ($r   (remove-atom &self (= (myfunc) $body))))
         #          $res))
         # The top rung is the write door itself, as a body statement:
-        #     here = S["context-space"]()
+        #     here = S.context_space()
         #     here += equation(S.myfunc()).to(body)
         # A compiled body is pure atoms, so `+=` and `equation(...)` have no
-        # image there and the heads are written out. Residue: P14.4.
-        _a = S["add-atom"](S["context-space"](), S["="](S.myfunc(), body))  # rung: `space += atom` is a Python statement over a handle, and a compiled body is pure atoms
+        # image there; worse, `+=` COMPILES, to `(+ $here $atom)`, and stores
+        # nothing. Residue: P14.4.
+        _a = S.add_atom(S.context_space(), S["="](S.myfunc(), body))  # rung: `space += atom` is a Python statement over a handle, and a compiled body is pure atoms
         res = S.reduce(S.myfunc())
-        _r = S["remove-atom"](S["context-space"](), S["="](S.myfunc(), body))  # rung: `space -= atom` the same way
+        _r = S.remove_atom(S.context_space(), S["="](S.myfunc(), body))  # rung: `space -= atom` the same way
         return res
 
     # !(test (evalCustom (match &self (= (f (42) 40.7 2) $x) $x))

@@ -13,25 +13,26 @@ and compiles.
 The lambdas are terms. A Python lambda inside a compiled body does lower to
 the engine's own `|->`, but a definition whose BODY is a lambda cannot hand
 one out as data: the lambda's parameter folds into the head's arity, so
-`(below 2)` answers `(partial below (2))` and `arities("below")` is `[3]`.
-Measured 2026-08-23; filed as residue against P14.4. So the two lambdas are
-built at the term door, once each, and the `let` and `let*` that bind them are
-Python name bindings, which is what a `let` is.
+`(below 2)` answers `(partial below (2))` and `arities("below")` is `[3]`
+[re-measured 2026-08-24; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. Filed as residue against P14.4. So
+the two lambdas are built at the term door, once each, and the `let` and `let*`
+that bind them are Python name bindings, which is what a `let` is.
 
-The comparison inside a built lambda is `S["<"](...)` rather than `V.v < 2`,
+The comparison inside a built lambda is built by its WORD, `S.lt(V.v, limit)`,
 because Python's four rich comparisons are the engine's total ORDER over two
-atoms: none of them builds a term, and one against a Python int raises.
+atoms: none of them builds a term, and one against a Python int raises. The
+wrapped check is `if_`, the keyword builder for stored code, which has the
+arity the engine's `if` has.
 Guarantees:
-  - TRUE, FALSE, UNIT, and HERE used here are package values rather
-    than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+  - TRUE used here is a package value rather than a local reconstruction
+    [tested: test_the_canonical_atoms_are_public_values; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import TRUE, S, V, equation, rules
+from metta import TRUE, S, V, equation, if_, rules
 
 #: `(|-> ($x) (g $x))`, the generator lambda the original writes inline.
 GENERATOR = S["|->"]((V.x,), S.g(V.x))
@@ -41,7 +42,7 @@ SCALED = S["|->"]((V.x,), 100 * S.g(V.x))
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
@@ -57,13 +58,13 @@ def below(limit):
 
     Neither works. The four rich comparisons are the engine's total ORDER
     over two atoms, so `V.v < 2` raises `'<' not supported between instances
-    of 'Variable' and 'int'` instead of building `(< $v 2)`, and a comparison
-    TERM comes from the naming door instead. And a
-    definition whose body IS a lambda folds the lambda's parameter into the
-    head's arity, so `(below 2)` answers `(partial below (2))` and
-    `arities("below")` is `[3]`. Residue: P14.4.
+    of 'Variable' and 'int'` instead of building `(< $v 2)`, and the term is
+    built by its operator WORD instead. And a definition whose body IS a
+    lambda folds the lambda's parameter into the head's arity, so `(below 2)`
+    answers `(partial below (2))` and `arities("below")` is `[3]`.
+    Residue: P14.4.
     """
-    return S["|->"]((V.v,), S["<"](V.v, limit))
+    return S["|->"]((V.v,), S.lt(V.v, limit))
 
 
 def twin(m):
@@ -76,10 +77,10 @@ def twin(m):
     #     def f_two(): return 2
     #
     # A literal DEFAULT is what makes stacked clauses stack, so two clauses
-    # fixing nothing have no `@m.define` spelling at all. Measured 2026-08-23:
-    # rebinding one Python name under one MeTTa name stores only the LAST
-    # equation, and two different Python functions carrying one `name=` raise
-    # `IndexError: list assignment index out of range` from
+    # fixing nothing have no `@m.define` spelling at all. Re-measured
+    # 2026-08-24: rebinding one Python name under one MeTTa name stores only
+    # the LAST equation, and two different Python functions carrying one
+    # `name=` raise `IndexError: list assignment index out of range` from
     # `metta/_define_twins.py` `replace_twin_clause`. The crash is a defect on
     # its own. `@rules` is the door that writes a clause set without deriving a
     # first-match guard; what it cannot do is take Python SYNTAX for its
@@ -94,7 +95,9 @@ def twin(m):
 
     # A literal default is the head PATTERN for that position, so the
     # parameter itself never appears in the equation and the underscore says
-    # so to a Python reader as well.
+    # so to a Python reader as well. Both clauses name the head, because one
+    # head with two clauses needs two Python functions and only one of them
+    # could carry the name implicitly.
     @m.define(name="g")
     def g_one(_n=1):
         # (= (g 1) 1)
@@ -105,6 +108,13 @@ def twin(m):
         # (= (g 2) 2)
         return 2
 
+    # The def's own name IS the head, so `name=` is for heads Python cannot
+    # spell, and a CAPITALISED function head is one of them here: `def P`
+    # trips the N family, whose burn-down maximum is full, so the identifier
+    # this repository's gate accepts is the lowercase one and the head is
+    # named [measured 2026-08-24: `GATE_ONLY=1 sh check.sh` failed with
+    # "P0.13 suppression burn-down increased (observed, maximum): {'N': (37, 35)}";
+    # commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
     @m.define(name="P")
     def below_two(x):
         # (= (P $X) (< $X 2))
@@ -147,8 +157,8 @@ def twin(m):
     assert m.eval(S.forall((GENERATOR, V.z), below(20))) == [True]
 
     # A lambda wrapped in a syntactic construct is still a lambda.
-    wrapped_2 = S["if"](TRUE, below(2), 42)  # rung: the wrapper IS the claim, so the `if` has to be the form the claim is about
-    wrapped_20 = S["if"](TRUE, below(20), 42)  # rung: the same wrapper, with the other bound
+    wrapped_2 = if_(TRUE, below(2), 42)
+    wrapped_20 = if_(TRUE, below(20), 42)
     # !(test (forall ((|-> ($x) (g $x)) $z) (if True (|-> ($v) (< $v 2)) 42)) false)
     assert m.eval(S.forall((GENERATOR, V.z), wrapped_2)) == [False]
     # !(test (forall ((|-> ($x) (g $x)) $z) (if True (|-> ($v) (< $v 20)) 42)) true)

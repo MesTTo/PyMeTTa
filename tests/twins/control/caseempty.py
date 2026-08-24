@@ -6,11 +6,16 @@
 whole file: `Empty` is about the absence of an answer, not about the value
 `()`.
 
-`f` is the one equation here that is a computation, so it is written as one.
-The two `case` equations are not: `Empty` asks whether the KEY HAS ANY
-ANSWERS, and Python's `if` asks about a value, of which there is none when
-there are no answers. Python's `match` statement has no lowering in the
-compiled subset either, so both are stated as terms and filed against P14.4.
+`wu2` is Python's `match` statement, which is what a `case` is, and the
+equation it stores is the case tower with the `Empty` arm intact. `wu` cannot
+be, and the reason is measurable rather than a missing lowering: the statement
+lowers its SUBJECT into a `let*` binding first, and a `let*` over a key with no
+answers prunes the whole form, so the compiled `wu` answers nothing where the
+example answers 42 [measured 2026-08-24: `match empty(): case 1: ...;
+case S.Empty: return 42` stores
+`(let* (($k (empty))) (case $k ((1 2) ($_ (case $k ((Empty 42) ...))))))` and
+answers `[]`; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. So `wu` is stated as the term it is, and the
+gap is filed against P14.4.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,35 +26,34 @@ from metta import S, equation
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
 def twin(m):
     """Take the `Empty` branch, then take an ordinary one instead."""
-    # The top rung compiles both equations, which needs two things the
-    # subset has not got: a `match` statement, and a pattern that asks
-    # whether the KEY ANSWERED AT ALL rather than what it answered.
-    #
-    #     @m.define
-    #     def wu():
-    #         match empty():          # `ast.Match` has no lowering
-    #             case 1: return 2
-    #             case Empty: return 42   # and `Empty` is not a value pattern
-    #
-    # Residue: P14.4.
+    # The top rung is the `match` statement `wu2` writes below. It answers
+    # nothing here, because the lowering binds the subject with a `let*` and a
+    # `let*` over a key with no answers prunes the form, which is the one
+    # thing `Empty` exists to catch. Residue: P14.4.
     # (= (wu) (case (empty) ((1 2) (Empty 42))))
-    m += equation(S.wu()).to(S.case(S.empty(), ((1, 2), (S.Empty, 42))))  # rung: `Empty` asks whether the key answered at all, which Python's `if` cannot ask
+    m += equation(S.wu()).to(S.case(S.empty(), ((1, 2), (S.Empty, 42))))  # rung: the compiled `match` binds its subject first, and a binding over a key with no answers prunes the whole form
 
     @m.define
     def f():
         # (= (f) 42)
         return 42
 
-    # (= (wu2) (case (f) ((42 ok) (Empty nok))))
-    m += equation(S.wu2()).to(S.case(S.f(), ((42, S.ok), (S.Empty, S.nok))))  # rung: the same `Empty` branch, with a key that does answer
+    @m.define
+    def wu2():
+        # (= (wu2) (case (f) ((42 ok) (Empty nok))))
+        match f():
+            case 42:
+                return S.ok
+            case S.Empty:
+                return S.nok
 
     # !(test (wu) 42)
     assert m.eval(S.wu()) == [42]
     # !(test (wu2) ok)
-    assert m.eval(S.wu2()) == [S.ok]
+    assert wu2() == [S.ok]

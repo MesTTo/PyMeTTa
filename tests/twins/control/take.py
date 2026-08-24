@@ -4,16 +4,20 @@
 between them there was nothing, while the space seam had the idea one level
 down all along in a provider's `match(pattern, limit=)`.
 
-"At most k of a stream" is Python's own slice, and answers are a lazy view, so
-every producer below is sliced, the endless one included, and the two match
-forms take `limit=`, which the engine applies inside the query rather than
-trimming afterwards.
+"At most k of a stream" is Python's own slice, and answers are a lazy view
+that slices back into one, so every producer below is sliced, the endless one
+included. `superpose(...)` is the expression-position door for the
+alternatives, at the top level where `with m:` names the space it runs in and
+inside `from`'s own equation where it is the fork the original writes; and the
+two match forms take `limit=`, which the engine applies inside the query rather
+than trimming afterwards.
 
 Slicing the endless producer answers the right four numbers and suspends
 the producer at the frontier the slice asked for, so the cost moves with k
 rather than driving a self-recursive superposition to a fixed internal bound
-[measured 2026-08-23 on the merged tree: 157 inferences to pull 4 and 234 to
-pull 8, where the same slices cost 1,500,141 each before; commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
+[measured 2026-08-24: 140 inferences to pull 4 and 210 to pull 8 from
+`(= (from $n) (superpose ($n (from (+ $n 1)))))`, where the same slices cost
+1,500,141 each before the lazy view landed; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 
 A refusal crosses the seam as a Python exception, so `catch` is `except` and
 the branch that reads what came back is Python's own.
@@ -23,35 +27,32 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import S, V
+from metta import S, V, superpose
 from metta.errors import EngineError
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
 def twin(m):
     """Bound a finite producer, an endless one, and two queries."""
-    letters = S.superpose((S.a, S.b, S.c, S.d, S.e))
-    pair = S.superpose((S.a, S.b))
+    with m:
+        # !(test (collapse (take 3 (superpose (a b c d e)))) (a b c))
+        assert list(superpose(S.a, S.b, S.c, S.d, S.e)[:3]) == [S.a, S.b, S.c]
 
-    # !(test (collapse (take 3 (superpose (a b c d e)))) (a b c))
-    assert list(m.answers(letters)[:3]) == [S.a, S.b, S.c]
-
-    # Fewer answers than the bound is not an error, and a bound of zero
-    # answers nothing, which is what "at most" means.
-    # !(test (collapse (take 9 (superpose (a b)))) (a b))
-    assert list(m.answers(pair)[:9]) == [S.a, S.b]
-    # !(test (collapse (take 0 (superpose (a b)))) ())
-    assert list(m.answers(pair)[:0]) == []
+        # Fewer answers than the bound is not an error, and a bound of zero
+        # answers nothing, which is what "at most" means.
+        # !(test (collapse (take 9 (superpose (a b)))) (a b))
+        assert list(superpose(S.a, S.b)[:9]) == [S.a, S.b]
+        # !(test (collapse (take 0 (superpose (a b)))) ())
+        assert list(superpose(S.a, S.b)[:0]) == []
 
     @m.define(name="from")
     def count_up(n):
         # (= (from $n) (superpose ($n (from (+ $n 1)))))
-        yield n
-        yield from count_up(n + 1)
+        return superpose(n, count_up(n + 1))
 
     # The bound is applied OUTSIDE the producer, so it cuts one that would not
     # stop on its own, and the slice is that bound.
@@ -63,7 +64,7 @@ def twin(m):
     # at your data.
     # !(test (car-atom (catch (take foo (superpose (a b))))) Error)
     try:
-        m.eval(S.take(S.foo, pair))
+        m.eval(S.take(S.foo, S.superpose((S.a, S.b))))
         refused = None
     except EngineError as error:
         refused = error

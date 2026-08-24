@@ -3,12 +3,12 @@
 The key 5 misses the literal branch 4 and meets the first variable pattern, so
 the answer is 44 and the third branch never runs at all.
 
-Two branches, one a literal and one matching anything, is a two-way question
-about the key, and Python's conditional expression asks it. The third branch is
-unreachable in either spelling. What is NOT reachable is a `case` whose
-branches are PATTERNS over structure: Python's `match` statement has no
-lowering in the compiled subset yet, which the residue table records against
-P14.4, and this file's `case` happens not to need one.
+A `case` IS Python's `match` statement, and the compiled subset lowers one to
+the other: a literal arm beside a catch-all is the shape the guide's own `rate`
+exemplar writes, and the equation stored is the case tower the source writes
+flat. The third branch has no Python spelling and needs none, because Python
+refuses a second irrefutable arm outright, which is the language saying what
+the comment on the original says.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,7 +17,7 @@ Open Obligations:
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
@@ -26,7 +26,11 @@ def twin(m):
     @m.define
     def casetest(x):
         # (= (casetest $x) (case $x ((4 42) ($otherpattern 44) ($otherother $45))))
-        return 42 if x == 4 else 44
+        match x:
+            case 4:
+                return 42
+            case _:
+                return 44
 
     # !(test (casetest 5) 44)
     assert casetest(5) == [44]

@@ -13,19 +13,24 @@ sit beside handed-over ones here on purpose, so writing half of them as Python
 assignments would break the pairing the file exists to show. Filed as residue
 against P14.4.
 
-Three things do move into Python: an answer set that is empty is an empty
-list, a refusal crosses the seam as a Python exception so `catch` is `except`,
-and `repr` of an atom is Python's own `str`.
+The type declaration is the one place where the same characters mean the same
+thing in both languages: `typed(...)` is the colon, `arrow(...)` is the result
+arrow, and `%Undefined%` is `typing.Any`, the unconstrained type Python already
+has a word for. Three more things move into Python: an answer set that is
+empty is an empty list, a refusal crosses the seam as a Python exception so
+`catch` is `except`, and `repr` of an atom is Python's own `str`.
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import S, V, equation
+from typing import Any
+
+from metta import Atom, S, V, arrow, equation, typed
 from metta.errors import MettaOperationError
 
 #: What the unapplied form prints as: expected printing is Python text.
@@ -36,7 +41,7 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
@@ -53,7 +58,7 @@ def twin(m):
     # (: mylet (-> Atom Atom %Undefined%))
     # The body has to reach the definition unevaluated for the bindings to
     # bind anything in it, and `Atom` is the metatype that says so.
-    m += S[":"](S.mylet, S["->"](S.Atom, S.Atom, S["%Undefined%"]))
+    m += typed(S.mylet, arrow(Atom, Atom, Any))
     # (= (mylet $bindings $body) (let* $bindings $body))
     m += equation(S.mylet(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
 
@@ -79,16 +84,16 @@ def twin(m):
     # this is the other way to hand bindings over: `noeval` carries them as
     # data, and the body is a variable the same call site wrote.
     # (= (mylet-evaluating $bindings $body) (let* $bindings $body))
-    m += equation(S["mylet-evaluating"](V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
+    m += equation(S.mylet_evaluating(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
 
     # !(test (mylet-evaluating (noeval (($x 1))) $x) 1)
-    assert m.eval(S["mylet-evaluating"](S.noeval(((V.x, 1),)), V.x)) == [1]
+    assert m.eval(S.mylet_evaluating(S.noeval(((V.x, 1),)), V.x)) == [1]
 
     # Bindings are checked when they arrive, because nothing after that point
     # can check them.
     # !(test (car-atom (catch (mylet-evaluating (noeval ((1 2 3))) done))) Error)
     try:
-        m.eval(S["mylet-evaluating"](S.noeval(((1, 2, 3),)), S.done))
+        m.eval(S.mylet_evaluating(S.noeval(((1, 2, 3),)), S.done))
         refused = None
     except MettaOperationError as error:
         refused = error

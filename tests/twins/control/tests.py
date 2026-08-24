@@ -5,50 +5,48 @@ three times, so the whole thing answers three times and the collapse gathers
 all three. The other three programs are the ways a `let` and a superposition
 can be stacked, and each has a Python statement that means it: `let` is
 assignment, `superpose` over written-out alternatives is the form itself, and
-`superpose` over a BOUND expression is `yield from`.
+`superpose` over a BOUND expression is `fn.superpose`, one rung down because
+the ruled `superpose(*xs)` refuses inside a body ["Starred has no MeTTa
+equivalent in the compiled subset", measured 2026-08-24; commit=028b41a056cfd706e516cd0b945cbf69ac066da7] and
+`superpose(xs)` is the other operation.
 
-`collapse` and `superpose` are names a compiled body reads as MeTTa and
-Python's own linter does not, so each carries the suppression the residue
-entry against P14.4 would delete; `list()` does not lower to `collapse` inside
-a compiled body either, which supercollapse records against the same row.
+`collapse` is the one name here Python's own linter cannot see: `superpose`
+and `match` are package exports now, `collapse` and `empty` are not, so a
+compiled body that gathers carries the suppression the residue entry against
+P14.4 would delete. `list()`, the dissolution table's spelling for `collapse`,
+does not lower inside a compiled body either, which supercollapse records
+against the same row.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import Expression
+from metta import Expression, fn, superpose
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=e59442d0e96847cf3a4a0a8bf9686e9f38fee2d1].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
 def twin(m):
     """Stack lets and superpositions four ways, then collapse the lot."""
-    # The top rung imports the two names, so Python's own linter sees them:
-    #     from metta import collapse, superpose
-    # The package exports neither, so each call carries an F821 suppression, and
-    # `list()`, the dissolution table's spelling for `collapse`, does not
-    # lower inside a compiled body. Residue: P14.4.
     @m.define
     def program1(y):
         # (= (program1 $Y) (let $X $Y (collapse (superpose (12 (+ $X 4))))))
         x = y
-        return collapse(superpose(12, x + 4))  # noqa: F821  -- names a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
+        return collapse(superpose(12, x + 4))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
 
     @m.define
     def program2(_y):
         # (= (program2 $Y) (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))
-        # Fanning an expression out and gathering it back gives that same
-        # expression, so the inner `let` is an ordinary binding and the outer
-        # `(superpose $list)` is `yield from`.
-        answers = (1, 2, 3)
-        yield from answers
+        values = (1, 2, 3)
+        answers = collapse(fn.superpose(values))  # noqa: F821  -- the same name
+        return fn.superpose(answers)
 
     @m.define
     def program3(x):
@@ -56,8 +54,11 @@ def twin(m):
         #    (if (== $x 2)
         #        (let $z (superpose ((if (< $x 10) (superpose ((42 43))) 43))) $z)
         #        (let $z 4 $z)))
+        # Python's `==` lowers to `py-eq`, its own equality rather than
+        # MeTTa's `==`; both answer the same here, and the `let`s that only
+        # name their own result are the identity a Python reader would drop.
         if x == 2:
-            return superpose(superpose((42, 43)) if x < 10 else 43)  # noqa: F821  -- the same name
+            return superpose(superpose((42, 43)) if x < 10 else 43)
         return 4
 
     @m.define
