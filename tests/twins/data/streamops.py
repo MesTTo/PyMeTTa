@@ -20,7 +20,7 @@ from metta import Expression, S
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
-#: integrator; commit=WORKTREE].
+#: integrator; commit=77e8bdc3dd822df05a2a6a9ec357c87fe1c3ac32].
 BUDGET = 1
 
 

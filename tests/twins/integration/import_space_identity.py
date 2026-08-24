@@ -27,7 +27,7 @@ FUNCTION = S["import-space-function"]()
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
-#: integrator; commit=WORKTREE].
+#: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
 BUDGET = 1
 
 
