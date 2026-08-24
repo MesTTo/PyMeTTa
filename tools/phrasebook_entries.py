@@ -36,8 +36,8 @@ from dataclasses import dataclass
 
 #: The manifest these rows were taken from.
 LEATTA_VERSION = "1.0.9"
-LEATTA_COMMIT = "e47c93f"
-LEATTA_ENTRY_COUNT = 379
+LEATTA_COMMIT = "9ea9f9d"
+LEATTA_ENTRY_COUNT = 381
 
 BUCKETS = {
     "dissolves": (
@@ -1400,8 +1400,22 @@ ENTRIES: list[Entry] = [
         metta="!(stratego-one id (f a b))", unrun="PeTTa leaves the call unreduced",
     ),
     Entry(
+        "stratego-some", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "absent",
+        "Stratego's `some(s)`, the third traversal primitive beside `all` and "
+        "`one`: apply the strategy to every immediate child it succeeds on, keep "
+        "each declining child as written, and fail when no child succeeded. The "
+        "non-emptiness guard is the whole content, since `all` composed with "
+        "`gtry` can never fail. A LeaTTa extension beyond corelib.",
+        metta="!(stratego-some id (f a b))", unrun="PeTTa leaves the call unreduced",
+    ),
+    Entry(
         "stratego-all-tail", ("(-> Atom Expression Expression)",), "Symbol", "strategies",
         "internal", "LeaTTa's internal tail recursion behind `stratego-all`.",
+    ),
+    Entry(
+        "stratego-some-walk", ("(-> Atom Expression Atom)",), "Symbol", "strategies",
+        "internal", "LeaTTa's internal tail walk behind `stratego-some`, pairing "
+        "the rebuilt tail with whether any member succeeded.",
     ),
     Entry(
         "eval-via-match", ("(-> Atom %Undefined%)",), "Symbol", "strategies", "absent",

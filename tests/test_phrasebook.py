@@ -48,7 +48,7 @@ def test_the_phrasebook_covers_every_leatta_name():
     """One row per declared name, with LeaTTa's own types, and no drift."""
     names = [entry.name for entry in ENTRIES]
     assert len(names) == len(set(names)), "a name carries more than one row"
-    assert len(names) == 377, f"377 distinct names were declared, the rows carry {len(names)}"
+    assert len(names) == 379, f"379 distinct names were declared, the rows carry {len(names)}"
     note, findings = book.drift(list(ENTRIES))
     assert findings == [], f"{note}: {findings}"
 

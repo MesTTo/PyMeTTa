@@ -6,7 +6,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 809,
+  "metta_inferences": 807,
   "python": [
    "2"
   ],
@@ -91,7 +91,7 @@
   "python_inferences": 0
  },
  "//": {
-  "leatta": "manifest 1.0.9, commit e47c93f",
+  "leatta": "manifest 1.0.9, commit 9ea9f9d",
   "oracle_measured": true,
   "what": "measured answers, one record per stdlib name; --learn rewrites it"
  },
@@ -132,7 +132,7 @@
   "python": [
    "2"
   ],
-  "python_inferences": 1233
+  "python_inferences": 1231
  },
  "=%": {
   "leatta": [
@@ -331,7 +331,7 @@
   "metta": [
    "ErrorType"
   ],
-  "metta_inferences": 1180,
+  "metta_inferences": 1178,
   "python": [
    "ErrorType"
   ],
@@ -688,7 +688,7 @@
   "metta": [
    "two"
   ],
-  "metta_inferences": 1135,
+  "metta_inferences": 1138,
   "python": [
    "two"
   ],
@@ -734,7 +734,7 @@
   "metta": [
    "(foo 3)"
   ],
-  "metta_inferences": 1145,
+  "metta_inferences": 1164,
   "python": [
    "(foo 3)"
   ],
@@ -747,7 +747,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 1582,
+  "metta_inferences": 1584,
   "python": [
    "2"
   ],
@@ -1013,7 +1013,7 @@
    "(@doc-formal (@item +) (@kind function) (@type (-> Number Number Number)) (@desc \"Sums two numbers\") (@params ((@param (@type Number) (@desc \"Addend\")) (@param (@type Number) (@desc \"Augend\")))) (@return (@type Number) (@desc \"Sum\")))"
   ],
   "metta": [],
-  "metta_inferences": 1476,
+  "metta_inferences": 1477,
   "python": [
    "\"Make a title into a slug.\""
   ],
@@ -1039,7 +1039,7 @@
   "metta": [
    "5"
   ],
-  "metta_inferences": 1200,
+  "metta_inferences": 1202,
   "python": [
    "5"
   ],
@@ -1175,7 +1175,7 @@
   "metta": [
    "a"
   ],
-  "metta_inferences": 8351,
+  "metta_inferences": 8379,
   "python": [
    "math"
   ],
@@ -1251,7 +1251,7 @@
   "metta": [
    "(b c)"
   ],
-  "metta_inferences": 1281,
+  "metta_inferences": 1279,
   "python": [
    "(b c)"
   ],
@@ -1303,7 +1303,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 959,
+  "metta_inferences": 961,
   "python": [
    "2"
   ],
@@ -1323,7 +1323,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 1170,
+  "metta_inferences": 1174,
   "python": [
    "3"
   ],
@@ -1378,7 +1378,7 @@
   "metta": [
    "1"
   ],
-  "metta_inferences": 2078,
+  "metta_inferences": 2081,
   "python": [
    "1"
   ],
@@ -1757,7 +1757,7 @@
   "metta": [
    "(\"a\" \"b\" \"c\")"
   ],
-  "metta_inferences": 908,
+  "metta_inferences": 910,
   "python": [
    "(\"a\" \"b\" \"c\")"
   ],
@@ -1787,6 +1787,13 @@
   "leatta": [
    "(f a b)",
    "(f a b)",
+   "(f a b)"
+  ],
+  "metta": null,
+  "python": null
+ },
+ "stratego-some": {
+  "leatta": [
    "(f a b)"
   ],
   "metta": null,
@@ -1851,7 +1858,7 @@
   "metta": [
    "two"
   ],
-  "metta_inferences": 1324,
+  "metta_inferences": 1326,
   "python": [
    "two"
   ],
@@ -1917,7 +1924,7 @@
   "metta": [
    "a"
   ],
-  "metta_inferences": 886,
+  "metta_inferences": 914,
   "python": [
    "a"
   ],
