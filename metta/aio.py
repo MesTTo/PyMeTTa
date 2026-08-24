@@ -98,6 +98,7 @@ from typing import Any, Final, Literal, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
+from ._name_mapping import operator_attribute_target
 from ._space import Space as MeTTa
 from .atoms import Atom
 from .errors import Interrupted, PettaError
@@ -1388,11 +1389,17 @@ class AsyncMeTTa:
         """Observe matching writes as the async-native event iterator."""
         return _AsyncSubscription(self, pattern, on, queue_max)
 
-    def fn(self, name: str) -> _AsyncEngineFunction:
-        """An engine function as an async callable: await f(3), with
-        .one, .first and .all carrying the same cardinality triple.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _AsyncEngineFunction(self, name)
+    @property
+    def fn(self) -> _AsyncFunctionNamespace:
+        """Engine functions as async callables, by attribute or exact name.
+
+        ``m.fn.car_atom`` transliterates underscores to hyphens and
+        ``m.fn["=="]`` preserves exact punctuation, the same two doors the
+        sync namespace has. Resolution is lazy: the worker is asked when the
+        function is awaited, so an unknown name raises there rather than at
+        access.
+        """
+        return _AsyncFunctionNamespace(self)
 
     # -------------------------------------------------------------- lifecycle
 
@@ -1722,6 +1729,28 @@ class _AsyncBatch:
         # ... and flush on the worker, where engine calls belong.
         if exc_type is None and pending:
             await self._am.call(lambda m: m.add(*pending))
+
+
+class _AsyncFunctionNamespace:
+    """Functions on one async engine, resolved when the call is awaited."""
+
+    __slots__ = ("_am",)
+
+    def __init__(self, am: AsyncMeTTa) -> None:
+        self._am = am
+
+    def __getattr__(self, name: str) -> _AsyncEngineFunction:
+        if name.startswith("_"):
+            raise AttributeError(name)
+        resolved = operator_attribute_target(name)
+        target = name.replace("_", "-") if resolved is None else resolved
+        return _AsyncEngineFunction(self._am, target)
+
+    def __getitem__(self, name: str) -> _AsyncEngineFunction:
+        if not isinstance(name, str):
+            msg = f"an exact function name is a string, got {type(name).__name__}"
+            raise TypeError(msg)
+        return _AsyncEngineFunction(self._am, name)
 
 
 class _AsyncEngineFunction:

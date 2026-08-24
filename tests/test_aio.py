@@ -707,8 +707,9 @@ def test_aio_structural_surface_behaves():
                 await bare.__anext__()
 
             await m.run("(= (aio-inc $x) (+ $x 1))")
-            inc = m.fn("aio-inc")
+            inc = m.fn["aio-inc"]
             assert await inc(41) == 42
+            assert await m.fn.aio_inc(41) == 42
             assert await inc.first(1) == 2
             assert await inc.all(2) == [3]
             assert inc.__qualname__.endswith(".aio-inc")

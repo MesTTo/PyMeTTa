@@ -391,6 +391,24 @@ for name in names:
         )
 
 
+def test_the_namespaces_are_not_callable():
+    """The retired call-form alias is gone: brackets are the exact door.
+
+    S("x"), V("x") and fn("car-atom") were synonyms for attribute access;
+    the ruled spellings are S.x / S["exact name"] and fn.car_atom /
+    fn["car-atom"], one mechanism per door and no aliases.
+    """
+    import pytest
+
+    from metta import S, V, fn
+
+    for namespace in (S, V, fn):
+        with pytest.raises(TypeError):
+            namespace("car-atom")
+    assert str(S["car-atom"]) == "car-atom"
+    assert fn.car_atom is not None
+
+
 def test_m7_space_factory_keeps_identity():
     """No physical submodule can overwrite the callable space factory."""
     factory = metta.space

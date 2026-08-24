@@ -204,9 +204,6 @@ class _Namespace:
             raise TypeError(msg)
         return self._resolve(name)
 
-    def __call__(self, name: str) -> Any:
-        return self.__getattr__(name)
-
     def __setattr__(self, *_: Any) -> None:
         msg = "namespaces are read-only"
         raise AttributeError(msg)
