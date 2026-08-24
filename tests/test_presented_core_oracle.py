@@ -36,7 +36,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 _ORACLE_ROOT = Path(os.environ.get("LEATTA_PATH", "/home/user/Dev/LeaTTa"))
@@ -164,12 +164,35 @@ _trees = st.recursive(
 )
 
 
+def _has_ambient_meaning(head: str, _memo: dict[str, bool] = {}) -> bool:  # noqa: B006 -- module-lifetime memo, one engine ask per distinct head
+    """Whether the SHARED engine already gives this head a meaning.
+
+    The suite's engine is process-global: a registration another test made
+    (test_adoptions registers `swap`) outlives its handle, so a drawn head
+    that collides answers `(partial swap ())` where the oracle's clean
+    world keeps `(swap)` inert. That is legitimate engine behavior, not a
+    divergence, so collided draws are assumed away. The catalogue member
+    door is the same fun/1-or-special-form union the lint lane asks
+    [measured 2026-08-24: the battery order with test_adoptions ahead of
+    this file failed the swap draw deterministically in ten of ten runs].
+    """
+    if head not in _memo:
+        from metta import _engine
+
+        runtime = _engine.active_runtime()
+        _memo[head] = runtime is not None and bool(
+            runtime.once(f"catch(petta_py_catalogue_member('{head}'), _, fail)")
+        )
+    return _memo[head]
+
+
 @needs_oracle
 @settings(max_examples=25, deadline=None)
 @given(head=_symbols, tail=st.lists(_trees, max_size=3))
 def test_random_structural_programs_agree_with_the_presented_core(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     minimal, head, tail
 ):
+    assume(not _has_ambient_meaning(head))
     program = "!(chain (cons-atom {} ({})) $x $x)".format(head, " ".join(tail))
     assert _engine_answers(minimal, program) == _oracle_answers(program)
 
