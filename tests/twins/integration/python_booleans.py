@@ -37,7 +37,7 @@ def twin(m):
     assert py(S.len((TRUE, FALSE, TRUE))).one() == 3
 
     # Python sees bool all the way down, so isinstance and bool() agree.
-    assert py(S.isinstance(TRUE, S["py-call"](S.type(FALSE)))).one() is True
+    assert py(S.isinstance(TRUE, S.py_call(S.type(FALSE)))).one() is True
     assert py(S.bool(1)).one() is True
     assert py(S.bool(0)).one() is False
 

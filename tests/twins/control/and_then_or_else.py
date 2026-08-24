@@ -18,17 +18,13 @@ relational `and`, so that one keeps MeTTa's name through the keyword builder
 is the engine's and which Python's conditional expression cannot spell.
 
 The original opens a second space to keep its two experiments apart. Python
-keeps them apart with a slice of the first, so `note2` records into the same
-space `note` does and the two equations really are the same equation twice,
-which is what the original's two are once the space is factored out.
+keeps them apart with a slice of the context space, so `note2` records beside
+`note` and the two equations really are the same equation twice, which is what
+the original's two are once the space is factored out.
 
-The write itself goes through a grounded operation. A compiled body reaches a
-space that is a PARAMETER or the context space, and `&ran` is neither: it is a
-host value the body would have to close over, which would pin the equation to
-this process. Worse, the statement spelling does not refuse there, it
-MISCOMPILES: `space += atom` inside a body lowers to `(+ $space $atom)`,
-arithmetic, and the equation then answers True while storing nothing
-[measured 2026-08-24; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. Filed as residue against P14.4.
+The write is the space container protocol inside a compiled body. Binding
+`S.context_space()` to a local and applying `+=` lowers to `add-atom`, so the
+equation stores its marker without a grounded host operation.
 Guarantees:
   - TRUE and FALSE used here are package values rather than local
     reconstructions [tested: test_the_canonical_atoms_are_public_values;
@@ -39,8 +35,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-import metta
-from metta import FALSE, TRUE, Atom, S, V, and_, if_
+from metta import FALSE, TRUE, S, V, and_, if_
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
@@ -50,41 +45,19 @@ BUDGET = 1
 
 def twin(m):
     """Skip a branch, take a branch, and prove which one ran."""
-    ran = metta.space("&ran")
-
-    # The top rung writes from inside the equation, with no operation at all:
-    #
-    #     @m.define
-    #     def note(tag):
-    #         ran += S.ran(tag)      # a body statement that lowers to add-atom
-    #         return True
-    #
-    # A compiled body is pure atoms and reaches a space that is a PARAMETER or
-    # `(context-space)`; `&ran` is neither, so closing over it would pin the
-    # equation to this process. control/unify and control/eval write over
-    # `(context-space)` and need no operation; this file cannot, because its
-    # two experiments must not share `&self`. Residue: P14.4.
-    @m.op
-    def record(tag: Atom) -> bool:
-        """Write the tag and answer True.
-
-        `ran += S.ran(tag)` is the write door and cannot be written here:
-        augmented assignment binds `ran` locally, so Python would raise
-        UnboundLocalError against the enclosing name. The method form is the
-        same door under Python's own scoping rule.
-        """
-        ran.add(S.ran(tag))
-        return True
-
     @m.define
     def note(tag):
         # (= (note $tag) (let $_ (add-atom &ran (ran $tag)) True))
-        return record(tag)
+        space = S.context_space()
+        space += S.ran(tag)
+        return True
 
     @m.define
     def note2(tag):
         # (= (note2 $tag) (let $_ (add-atom &ran2 (ran $tag)) True))
-        return record(tag)
+        space = S.context_space()
+        space += S.ran(tag)
+        return True
 
     @m.define
     def both(a, b):
@@ -139,26 +112,23 @@ def twin(m):
 
     # !(test (collapse (get-atoms &ran))
     #        ((ran taken-by-and-then) (ran taken-by-or-else)))
-    assert list(ran) == [S.ran(S.taken_by_and_then), S.ran(S.taken_by_or_else)]
+    assert m.match(S.ran(V.t)).t == [S.taken_by_and_then, S.taken_by_or_else]
 
     # The contrast, in one place: `and` does NOT skip, so its second argument
     # runs even though the first is False. Both forms are written the same way
     # so the pair stays comparable, and the relational `and` is the keyword
     # builder, PEP 8's own escape for a name Python's grammar has taken.
-    # The original opens `&ran2` to keep this experiment apart. The top rung
-    # would open a second space here too, `metta.space("&ran2")`, and `note2`
-    # would write into it; a compiled body cannot name either, so both
-    # equations route through the one operation and the experiments are kept
-    # apart by a slice of the same space instead. Residue: P14.4, the same
-    # entry as the write above.
-    already = len(ran)
+    # The original opens `&ran2` to keep this experiment apart. This twin
+    # keeps it apart by slicing the context-space matches after the first
+    # experiment.
+    already = len(m.match(S.ran(V.t)).t)
     # !(and False (note2 and-runs-it))
     m.eval(and_(FALSE, S.note2(S.and_runs_it)))
     # !(and-then False (note2 and-then-skips-it))
     m.eval(S.and_then(FALSE, S.note2(S.and_then_skips_it)))
 
     # !(test (collapse (get-atoms &ran2)) ((ran and-runs-it)))
-    assert list(ran)[already:] == [S.ran(S.and_runs_it)]
+    assert m.match(S.ran(V.t)).t[already:] == [S.and_runs_it]
 
     # And the other side of the trade: and-then cannot be solved backwards,
     # where `and` can. The one-armed `if_` is the engine's own filter arity,

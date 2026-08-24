@@ -30,7 +30,7 @@ def twin(m):
     def sq(x):
         return x * x
 
-    m.eval(S.memoize(S.sq))
+    m.eval(S.memoize(sq))
 
     assert sq(9) == [81]
     assert sq(9) == [81]

@@ -9,10 +9,9 @@ Both arities are CALLED by their Python names. A decorated definition answers
 a callable, so `add(3, 4)` is the call the example writes and no namespace sits
 between the two.
 
-The one name here that cannot take the attribute door is the memoize argument.
-`add` is one of the operator words, so `S.add` is the symbol `+`; the example
-caches the function it just defined, which is the head literally named `add`,
-and rung 5's bracket is the exact door for it.
+The memoize argument is the function this file just defined. Mentioning a
+`Defined` in term position carries that definition's head symbol, so the
+declaration reads `S.memoize(add, 2)` without re-spelling its name.
 
 `x + y + z` in the compiled body is Python's own left-associating addition, so
 it builds `(+ (+ $x $y) $z)` without a word about it.
@@ -42,7 +41,7 @@ def twin(m):
         # (= (add $x $y $z) (+ (+ $x $y) $z))
         return x + y + z
 
-    m.eval(S.memoize(S["add"], 2))
+    m.eval(S.memoize(add, 2))
 
     assert add(3, 4) == [7]
     assert add(3, 4) == [7]

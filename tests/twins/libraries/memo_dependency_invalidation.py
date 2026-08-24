@@ -26,7 +26,7 @@ def twin(m):
     def double(x):
         return x + x
 
-    m.eval(S.memoize(S.double))
+    m.eval(S.memoize(double))
 
     assert double(5) == [10]
     assert double(5) == [10]

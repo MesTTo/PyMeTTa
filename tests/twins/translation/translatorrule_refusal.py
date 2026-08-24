@@ -59,4 +59,4 @@ def twin(m):
 
     # And the words are the rule's own, published where a program can ask.
     assert [row.why for row in
-            metta.reflection[S["translator-rule-refusal"](S.strength, V.why)]] == [TOO_STRONG]
+            metta.reflection[S.translator_rule_refusal(S.strength, V.why)]] == [TOO_STRONG]

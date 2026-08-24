@@ -29,11 +29,13 @@ Guarantees:
     test_a_retired_module_import_is_a_finding,
     test_an_exact_bracket_spelling_is_not_the_attribute_one;
     commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
-  - a declaration takes its vocabulary word and nothing else, so the doors
-    that replaced the `declare_*` family are writable without opening a
-    source door on their `str | Atom` pattern parameters [tested:
-    test_a_declaration_takes_a_word_and_refuses_a_program,
-    test_the_declaration_vocabulary_is_the_librarys_own; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
+  - a declaration takes StrEnum members in typed option slots, reports a bare
+    wire word with the exact member spelling, and keeps non-option pattern and
+    name strings under the existing source-text rule [tested:
+    test_a_declaration_takes_members_and_refuses_a_program,
+    test_a_bare_declaration_word_names_the_exact_member,
+    test_non_declaration_vocabulary_text_keeps_the_existing_rules,
+    test_the_declaration_vocabulary_is_the_librarys_own; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7]
   - the operator heads the lane refuses inside a compiled body are the ones
     the TRANSLATOR emits, so `pow-math` and `py-eq` report while `floor-math`,
     which no operator reaches, does not [tested:
@@ -281,29 +283,31 @@ def test_a_host_operation_body_holds_python_text(tmp_path):
     assert coverage.definitions(planted) == 0
 
 
-def test_a_declaration_takes_a_word_and_refuses_a_program(tmp_path):
-    """The head-named declaration methods take a vocabulary WORD.
-
-    The guide rules option values as enum members, but the shipped vocabulary
-    is `typing.Literal` aliases, so a bare word is the only spelling those
-    doors take and refusing it would refuse the door. A word is all they take:
-    a `str | Atom` pattern parameter would otherwise be a sixth source door.
-    """
-    words = tmp_path / "words.py"
-    words.write_text(
-        '"""Words."""\n'
+def test_a_declaration_takes_members_and_refuses_a_program(tmp_path):
+    """Closed options are members; declaration pattern source stays refused."""
+    members = tmp_path / "members.py"
+    members.write_text(
+        '"""Members."""\n'
         "from metta import S, V\n"
+        "from metta.vocabularies import (\n"
+        "    AgendaPolicy, AnswerPolicy, Atomicity, Delivery, Determinism,\n"
+        "    EventOrder, Fidelity, ImageMode, OnError, SourceKind, World,\n"
+        ")\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
-        '    m.emits("best-first")\n'
-        '    m.writes("transactional")\n'
-        '    m.context("closed-world")\n'
-        '    m.events("at-least-once", "ordered")\n'
-        '    m.handles(S.user(V.n), "Exact", det="semidet")\n'
-        '    m.image(S.Tensor.name, "opaque")\n',
+        "    m.emits(AnswerPolicy.best_first)\n"
+        "    m.writes(Atomicity.transactional)\n"
+        "    m.context(World.closed_world)\n"
+        "    m.events(Delivery.at_least_once, EventOrder.ordered)\n"
+        "    m.handles(S.user(V.n), Fidelity.Exact, det=Determinism.semidet)\n"
+        "    m.image(S.Tensor.name, ImageMode.opaque)\n"
+        "    m.source(SourceKind.linear)\n"
+        "    m.agenda(AgendaPolicy.specificity)\n"
+        "    m.on_error(S.user(V.n), OnError.keep)\n"
+        "    m.merge(S.user(V.n), AnswerPolicy.fair)\n",
         encoding="utf-8",
     )
-    assert coverage.scan(words) == []
+    assert coverage.scan(members) == []
 
     program = tmp_path / "program.py"
     program.write_text(
@@ -316,9 +320,57 @@ def test_a_declaration_takes_a_word_and_refuses_a_program(tmp_path):
         encoding="utf-8",
     )
     findings = coverage.scan(program)
-    assert len(findings) == 2, findings
+    assert len(findings) == 3, findings
     assert "'(Job $n)' is neither a name nor ground() data" in findings[0]
-    assert "'(user $n $a)' is neither a name nor ground() data" in findings[1]
+    assert "AnswerPolicy.fair" in findings[1]
+    assert "'(user $n $a)' is neither a name nor ground() data" in findings[2]
+
+
+def test_a_bare_declaration_word_names_the_exact_member(tmp_path):
+    """Call and slot resolve exact members, including globally colliding words."""
+    words = tmp_path / "words.py"
+    words.write_text(
+        '"""Words."""\n'
+        "from metta import S, V\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        '    m.emits("best-first")\n'
+        '    m.handles(S.user(V.n), "Exact", det="det")\n'
+        '    m.events(delivery="at-most-once", order="ordered")\n'
+        '    m.on_error(S.user(V.n), "keep")\n',
+        encoding="utf-8",
+    )
+    findings = "\n".join(coverage.scan(words))
+    for exact in (
+        "AnswerPolicy.best_first",
+        "Fidelity.Exact",
+        "Determinism.det",
+        "Delivery.at_most_once",
+        "EventOrder.ordered",
+        "OnError.keep",
+    ):
+        assert exact in findings, exact
+    assert "OpKind.det" not in findings
+    assert findings.count("bare vocabulary word") == 6, findings
+
+
+def test_non_declaration_vocabulary_text_keeps_the_existing_rules(tmp_path):
+    """The admission flip changes declaration options and no other string."""
+    planted = tmp_path / "text.py"
+    planted.write_text(
+        '"""Text."""\n'
+        "from metta import ground\n"
+        "BUDGET = 1\n"
+        "def twin(m):\n"
+        '    print("best-first")\n'
+        '    assert ground("best-first") == ground("best-first")\n'
+        '    assert m.answers(identity("best-first"))\n',
+        encoding="utf-8",
+    )
+    findings = coverage.scan(planted)
+    assert len(findings) == 1, findings
+    assert "neither a name nor ground() data" in findings[0]
+    assert "bare vocabulary word" not in findings[0]
 
 
 def test_the_declaration_vocabulary_is_the_librarys_own():
@@ -332,18 +384,24 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
 
     from metta import vocabularies
 
-    declared = {
-        member.value
-        for name in vocabularies.__all__
-        if isinstance(cls := getattr(vocabularies, name), type)
-        and issubclass(cls, StrEnum)
-        for member in cls
+    mapped = {
+        cls
+        for positional, keywords in coverage.DECLARATION_VOCABULARIES.values()
+        for cls in (*positional.values(), *keywords.values())
+    } | {vocabularies.OnError}
+    assert mapped
+    assert all(issubclass(cls, StrEnum) for cls in mapped)
+    assert all(cls.__name__ in vocabularies.__all__ for cls in mapped)
+    declared = {member.value for cls in mapped for member in cls}
+    assert all(coverage.VOCABULARY_WORD.match(word) for word in declared)
+    enum_calls = set(coverage.DECLARATION_VOCABULARIES) | {"on_error"}
+    assert enum_calls == {
+        "agenda", "context", "emits", "events", "handles", "image",
+        "merge", "on_error", "source", "writes",
     }
-    assert declared, "the vocabulary satellite declares no option words"
-    assert all(isinstance(word, str) for word in declared), declared
-    assert all(coverage.VOCABULARY_WORD.match(word) for word in declared), sorted(
-        word for word in declared if not coverage.VOCABULARY_WORD.match(word)
-    )
+    assert coverage.DECLARATION_CALLS - enum_calls == {
+        "admits", "algebra", "annotations", "capacity", "reaction",
+    }
     # And the fifteen doors that take them are the fifteen the rewrite map
     # names, every one of them a live method on the handle.
     from metta import Space
@@ -382,6 +440,10 @@ LANDED_DOORS = (
     "    accept, and_, arrow, channel, drop, equation, every, ground, if_,\n"
     "    in_, limits, match, not_, or_, par_map, race, refuse, solve, spawn,\n"
     "    superpose, typed, view,\n"
+    ")\n"
+    "from metta.vocabularies import (\n"
+    "    AgendaPolicy, AnswerPolicy, Atomicity, Delivery, EventOrder, Fidelity,\n"
+    "    ImageMode, OnError, SourceKind, World,\n"
     ")\n"
     "BUDGET = 1\n"
     "def twin(m):\n"
@@ -429,17 +491,17 @@ LANDED_DOORS = (
     "    @kb.rules\n"
     "    def bounds(x):\n"
     '        yield equation(S.clamped(x)).to(S["<"](x, 0))\n'
-    "    kb.emits('best-first')\n"
-    "    kb.writes('transactional')\n"
-    "    kb.source('linear')\n"
-    "    kb.context('closed-world')\n"
-    "    kb.agenda('specificity')\n"
-    "    kb.events('at-least-once', 'ordered')\n"
+    "    kb.emits(AnswerPolicy.best_first)\n"
+    "    kb.writes(Atomicity.transactional)\n"
+    "    kb.source(SourceKind.linear)\n"
+    "    kb.context(World.closed_world)\n"
+    "    kb.agenda(AgendaPolicy.specificity)\n"
+    "    kb.events(Delivery.at_least_once, EventOrder.ordered)\n"
     "    kb.capacity(8)\n"
-    "    kb.handles(S.user(V.n, V.a), 'Exact')\n"
-    "    kb.on_error(S.user(V.n, V.a), 'keep')\n"
-    "    kb.merge(S.user(V.n, V.a), 'fair')\n"
-    "    kb.image(S.Tensor.name, 'opaque')\n"
+    "    kb.handles(S.user(V.n, V.a), Fidelity.Exact)\n"
+    "    kb.on_error(S.user(V.n, V.a), OnError.keep)\n"
+    "    kb.merge(S.user(V.n, V.a), AnswerPolicy.fair)\n"
+    "    kb.image(S.Tensor.name, ImageMode.opaque)\n"
     "    answers = m.answers(square(3))\n"
     "    assert answers.one() == 9\n"
     "    assert answers.one(default=UNIT) == 9\n"

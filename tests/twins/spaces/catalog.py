@@ -18,6 +18,7 @@ so `metta.space(S.rows)` goes straight into the row it is the subject of.
 
 import metta
 from metta import S, V
+from metta.vocabularies import Fidelity, Semiring
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -35,7 +36,12 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
     assert [
         (row.a, row.b, row.c, row.d)
         for row in reflection[S.vocabulary(S.fidelity, V.a, V.b, V.c, V.d)]
-    ] == [(S.Exact, S.Partial, S.Sound, S.Refuse)]
+    ] == [(
+        S[Fidelity.Exact],
+        S[Fidelity.Partial],
+        S[Fidelity.Sound],
+        S[Fidelity.Refuse],
+    )]
 
     # The handles kind row is the shape every (handles ...) declaration fits.
     assert [
@@ -44,7 +50,9 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
 
     # Orderedness is a claim on a semiring value, which is what (top k ...)
     # consults rather than a word list compiled into the engine.
-    assert [row.p for row in reflection[S.claim(S.semiring, S.ranked, V.p)]] == [S.ordered]
+    assert [
+        row.p for row in reflection[S.claim(S.semiring, S[Semiring.ranked], V.p)]
+    ] == [S.ordered]
 
     # A third-party kind is the same machinery: declare its vocabulary and its
     # shape, and the same checker guards it.

@@ -26,6 +26,7 @@ records the missing batch door against P14.4.
 """
 
 from metta import S
+from metta.vocabularies import MemoStrategy
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -50,8 +51,8 @@ def twin(m):
 
     # !(config-memoize (strategy wtinylfu) (unique-limit 100))
     # !(memoize energy)
-    m.eval(S.config_memoize(S.strategy(S.wtinylfu), S.unique_limit(100)))
-    m.eval(S.memoize(S.energy))
+    m.eval(S.config_memoize(S.strategy(S[MemoStrategy.wtinylfu]), S.unique_limit(100)))
+    m.eval(S.memoize(energy))
 
     # Base case: x*x.
     # !(test (energy 2.0 0) 4.0)

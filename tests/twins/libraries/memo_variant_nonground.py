@@ -32,7 +32,7 @@ def twin(m):
     m.fn["import!"](m, S.library(S["lib_memo"]))
 
     m += equation(S.shape_kind(S.Pair(V.x, V.y))).to(S.pair)
-    m.eval(S.memoize(S.shape_kind))
+    m.eval(S.memoize(m.fn.shape_kind))
 
     assert m.fn.shape_kind(S.Pair(V.a, 2)) == [S.pair]
     assert m.fn.shape_kind(S.Pair(V.b, 2)) == [S.pair]

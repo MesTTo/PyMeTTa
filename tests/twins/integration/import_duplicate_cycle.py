@@ -42,7 +42,7 @@ def twin(m):
         m.fn["import!"](m, target)
 
     # Loaded once, so the marker answers once.
-    assert m.fn.duplicate_import_result().one() == S["loaded-once"]
+    assert m.fn.duplicate_import_result().one() == S.loaded_once
 
     # Both halves of the cycle finished loading.
     assert m.fn.cycle_a().one() == S.a

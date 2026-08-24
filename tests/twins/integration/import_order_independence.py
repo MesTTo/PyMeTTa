@@ -33,4 +33,4 @@ def twin(m):
     # reached by its own bang name, which performs it where it is written.
     m.fn["import!"](m, INDEX)
 
-    assert m.fn.import_order_caller().one() == S["import-order-ok"]
+    assert m.fn.import_order_caller().one() == S.import_order_ok

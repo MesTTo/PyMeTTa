@@ -21,12 +21,11 @@ registry, so a `@m.define`d body names them like any other callee. `sloppyinc`
 alone would compile now, because a compiled body carries a handle the way a
 term does; it stays here so that the body the three share is written once.
 
-The liked unwrapped definition exposes one compiler defect. Writing the
-source's inner let as `fn.add_atom(temp, S.cnt(inc := V.x + 1))` hoists the
-walrus outside the `match` that binds `x`; calling the installed definition
-then refuses because `+` sees two unknowns (residue, P14.4). The exact equation
-therefore remains a term beside the two translator wrappers, which are not
-registry functions either.
+The exact equation keeps its inner `S.let(...)` at the built-term boundary.
+A walrus there is refused with a named `CompileError` because its value would
+depend on `$x`, which is bound only by the surrounding match template. The two
+translator wrappers remain equation terms because they are not registry
+functions.
 """
 
 import metta

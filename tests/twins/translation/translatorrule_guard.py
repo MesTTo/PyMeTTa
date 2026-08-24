@@ -32,6 +32,7 @@ from typing import Any
 
 import metta
 from metta import Atom, S, arrow, equation, fn, typed
+from metta.vocabularies import NoMatchEnum
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
@@ -43,18 +44,23 @@ BUDGET = 1
 
 def twin(m):
     """Register five guarded rules, and ask each of them a hit and a miss."""
-    metta.reflection += (S["dispatch-policy"], S["add-pairs"], S.NoMatchEnum, S.NoMatchFail)
+    metta.reflection += (
+        S.dispatch_policy,
+        S.add_pairs,
+        S.NoMatchEnum,
+        S[NoMatchEnum.NoMatchFail],
+    )
 
     # This rule rewrites a pair addition only when both arguments are pairs,
     # which is the shape the rewrite knows how to add.
-    m += typed(S["add-pairs"], arrow(Atom, Atom, Any))
+    m += typed(S.add_pairs, arrow(Atom, Atom, Any))
 
     @m.rules
     def summing(a, b, c, d):             # (= (add-pairs (pair $a $b) (pair $c $d))
-        yield equation(S["add-pairs"](S.pair(a, b), S.pair(c, d))).to(
+        yield equation(S.add_pairs(S.pair(a, b), S.pair(c, d))).to(
             S.noeval(S.pair(a + c, b + d)))      # (noeval (pair (+ $a $c) (+ $b $d))))
 
-    m.fn.add_translator_rule(S["add-pairs"])
+    m.fn.add_translator_rule(S.add_pairs)
 
     assert m.fn.add_pairs(S.pair(1, 2), S.pair(10, 20)).one() == S.pair(11, 22)
 
@@ -72,16 +78,16 @@ def twin(m):
     # To hand a miss back as DATA instead, write the identity as a second
     # equation. The rule tries them in order, so the guarded one still wins
     # where it fits, and `noeval` stops the expansion going round again.
-    m += typed(S["hold-pairs"], arrow(Atom, Atom, Any))
+    m += typed(S.hold_pairs, arrow(Atom, Atom, Any))
 
     @m.rules
     def holding(a, b, c, d):             # (= (hold-pairs (pair $a $b) (pair $c $d))
-        yield equation(S["hold-pairs"](S.pair(a, b), S.pair(c, d))).to(
+        yield equation(S.hold_pairs(S.pair(a, b), S.pair(c, d))).to(
             S.noeval(S.pair(a + c, b + d)))      # (noeval (pair (+ $a $c) (+ $b $d))))
-        yield equation(S["hold-pairs"](a, b)).to(       # (= (hold-pairs $a $b)
-            S.noeval(S.noeval(S["hold-pairs"](a, b))))  # (noeval (noeval (hold-pairs $a $b))))
+        yield equation(S.hold_pairs(a, b)).to(       # (= (hold-pairs $a $b)
+            S.noeval(S.noeval(S.hold_pairs(a, b))))  # (noeval (noeval (hold-pairs $a $b))))
 
-    m.fn.add_translator_rule(S["hold-pairs"])
+    m.fn.add_translator_rule(S.hold_pairs)
 
     assert m.fn.hold_pairs(S.pair(1, 2), S.pair(10, 20)).one() == S.pair(11, 22)
     # The original writes this claim as `(test (hold-pairs 1 2) (hold-pairs 1 2))`,
@@ -89,7 +95,7 @@ def twin(m):
     # same rule and the wrapper cancels out of the comparison. An assert
     # compares an evaluated left against a LITERAL right, so the wrapper that
     # stops the expansion going round again is visible here.
-    assert m.fn.hold_pairs(1, 2).one() == S.noeval(S["hold-pairs"](1, 2))
+    assert m.fn.hold_pairs(1, 2).one() == S.noeval(S.hold_pairs(1, 2))
 
     # The engine's own stream operations are written that way: `union` rewrites
     # two superpositions and hands anything else back as it was written.
@@ -112,13 +118,13 @@ def twin(m):
 
     # When NO clause applies, the whole rule declines and the call carries on
     # to ordinary dispatch, which here has no answer either.
-    m += typed(S["only-a"], arrow(Atom, Any))
+    m += typed(S.only_a, arrow(Atom, Any))
 
     @m.rules
     def only_a():
-        yield equation(S["only-a"](S.a)).to(S.empty())     # (= (only-a a) (empty))
+        yield equation(S.only_a(S.a)).to(S.empty())     # (= (only-a a) (empty))
 
-    m.fn.add_translator_rule(S["only-a"])
+    m.fn.add_translator_rule(S.only_a)
 
     assert m.fn.only_a(S.a) == []
 
@@ -126,7 +132,7 @@ def twin(m):
     # not: written as a plain function, the same two equations answer twice.
     @m.define
     def both_ways(_):                    # (= (both-ways $x) bw-one)
-        yield S["bw-one"]                # (= (both-ways $x) bw-two)
-        yield S["bw-two"]
+        yield S.bw_one                    # (= (both-ways $x) bw-two)
+        yield S.bw_two
 
-    assert both_ways(S.q) == [S["bw-one"], S["bw-two"]]
+    assert both_ways(S.q) == [S.bw_one, S.bw_two]

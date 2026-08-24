@@ -20,6 +20,7 @@ Guarantees:
 
 import metta
 from metta import TRUE, Expression, S, V, equation
+from metta.vocabularies import NoMatchEnum
 
 #: Six letters, each with the one before it.
 SUCCESSORS = ((S.b, S.a), (S.c, S.b), (S.d, S.c), (S.e, S.d), (S.f, S.e), (S.g, S.f))
@@ -38,8 +39,12 @@ def twin(m):
     # !(add-atom &petta (dispatch-policy successor NoMatchEnum NoMatchFail))
     # !(add-atom &petta (dispatch-policy later-in-alphabet NoMatchEnum NoMatchFail))
     reflection = metta.reflection
-    reflection += S.dispatch_policy(S.successor, S.NoMatchEnum, S.NoMatchFail)
-    reflection += S.dispatch_policy(S.later_in_alphabet, S.NoMatchEnum, S.NoMatchFail)
+    reflection += S.dispatch_policy(
+        S.successor, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
+    )
+    reflection += S.dispatch_policy(
+        S.later_in_alphabet, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
+    )
 
     @m.rules
     def alphabet():

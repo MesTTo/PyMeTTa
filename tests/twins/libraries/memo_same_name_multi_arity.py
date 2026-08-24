@@ -35,7 +35,7 @@ def twin(m):
         # (= (mix $x $y) (+ $x $y))
         return x + y
 
-    m.eval(S.memoize(S.mix, 1))
+    m.eval(S.memoize(mix, 1))
 
     memoized = m.fn.is_memoized
     assert memoized(S.mix, 1) == [True]
@@ -47,7 +47,7 @@ def twin(m):
     assert mix_2(3, 4) == [7]
     assert mix_2(3, 4) == [7]
 
-    m.eval(S.memoize(S.mix, 2))
+    m.eval(S.memoize(mix_2, 2))
     assert memoized(S.mix, 2) == [True]
     assert mix_2(8, 9) == [17]
     assert mix_2(8, 9) == [17]

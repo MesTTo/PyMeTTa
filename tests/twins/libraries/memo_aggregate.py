@@ -23,6 +23,7 @@ which both pulls them and says what they answered.
 """
 
 from metta import S
+from metta.vocabularies import MemoAggregate
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -37,7 +38,7 @@ def twin(m):
     m.fn["import!"](m, S.library(S["lib_memo"]))
 
     config = m.fn.config_memoize
-    assert config(S.aggregate(S.sum)) == [True]
+    assert config(S.aggregate(S[MemoAggregate.sum])) == [True]
 
     @m.define
     def choices(x):
@@ -46,17 +47,17 @@ def twin(m):
         yield x + 1
         yield x + 2
 
-    m.eval(S.memoize(S.choices))
+    m.eval(S.memoize(choices))
 
     read_config = m.fn.get_memoize_config
     [declared] = read_config()
-    assert S.aggregate(S.sum) in declared
+    assert S.aggregate(S[MemoAggregate.sum]) in declared
 
     # Restore the default mode: the counters and the configuration are
     # process-global, so a later run in the same process would inherit this one.
-    assert config(S.aggregate(S.none)) == [True]
+    assert config(S.aggregate(S[MemoAggregate.none])) == [True]
     [restored] = read_config()
-    assert S.aggregate(S.none) in restored
+    assert S.aggregate(S[MemoAggregate.none]) in restored
 
     # The fold the cache would do is what Python cannot reach, so the three
     # alternatives answer separately here. Pinning that is the declined claim

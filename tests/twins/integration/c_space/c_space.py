@@ -101,4 +101,4 @@ def twin(m):
     # `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and
     # whose store lives in C cannot reach it. The engine's own function is the
     # only route, and it does take the handle.
-    assert list(m.answers(S["check-space-provider"](store)).one()) == REPORT
+    assert list(m.answers(S.check_space_provider(store)).one()) == REPORT
