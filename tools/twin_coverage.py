@@ -938,9 +938,12 @@ def _restated_define_names(node: ast.FunctionDef) -> list[tuple[int, str]]:
     """An explicit name= restating what the identifier already maps to.
 
     The manual half of rung 4 (user, 2026-08-24): `def find_divisor` IS
-    `find-divisor`, so `name="find-divisor"` (or restating the identifier
-    itself) is dropped. A name the map cannot reach, `name="prime?"` or
-    mixed case, stays load-bearing.
+    `find-divisor`, so `name="find-divisor"` is dropped. A name the map
+    cannot reach stays load-bearing - including the SOURCE identifier
+    itself when it carries an underscore: `def h_old` installs `h-old`,
+    so `name="h_old"` OVERRIDES the map to preserve the written head and
+    is exactly the exact-name door working [measured 2026-08-24 by the
+    functions twins agent, whose source-head audit needs it].
     """
     return [
         (
@@ -954,7 +957,7 @@ def _restated_define_names(node: ast.FunctionDef) -> list[tuple[int, str]]:
         if word.arg == "name"
         and isinstance(word.value, ast.Constant)
         and isinstance(word.value.value, str)
-        and word.value.value in {node.name, attribute_name(node.name)}
+        and word.value.value == attribute_name(node.name)
     ]
 
 

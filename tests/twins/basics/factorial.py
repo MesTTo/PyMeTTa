@@ -8,12 +8,13 @@ Compiled-body equality now lowers to the engine's `==` relation, so the stored
 equation is the source equation rather than a host-equality approximation.
 """
 
-#: Inferences this twin spends, its own tripwire.
-#: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
-#: the integrator's single re-pin pass prices them all on the merged tree, so
-#: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
-BUDGET = 1
+#: Inferences this twin spends, its own tripwire. INTERIM PIN 2026-08-24,
+#: identity.py's and spaces3.py's own precedent: two lane tests fixture on
+#: this file's REAL point budget, so it is priced ahead of the corpus-wide
+#: pass and re-priced there with everything else. Min-of-3 on the Stage D
+#: integration merge, three identical readings [measured 2026-08-24 through
+#: twin_coverage --measure on the merged tree at 5e02a52d].
+BUDGET = 4788
 
 
 def twin(m):

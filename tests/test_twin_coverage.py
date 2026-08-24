@@ -1403,9 +1403,13 @@ def test_a_manual_hyphen_spelling_is_a_finding(tmp_path):
 
 
 def test_a_restated_define_name_is_a_finding(tmp_path):
-    """name= carries only what the identifier cannot: the map's own output
-    and the identifier itself are findings, an unreachable name is not.
-    """  # noqa: D205  -- the rule and its ground are one sentence
+    """name= carries only what the identifier cannot reach through the map.
+
+    The map's own output is a finding; an unreachable name is not - and
+    that includes the SOURCE identifier itself when it carries an
+    underscore, because `def h_old` installs `h-old`, so `name="h_old"`
+    is the override that preserves the written head.
+    """
     import twin_coverage as lane
 
     twin = tmp_path / "names.py"
@@ -1422,6 +1426,9 @@ def test_a_restated_define_name_is_a_finding(tmp_path):
         "        return n\n"
         "    @m.define(name=\"facF\")\n"            # mixed case: load-bearing
         "    def fac_f(n):\n"
+        "        return n\n"
+        "    @m.define(name=\"h_old\")\n"           # preserves the underscore head
+        "    def h_old(n):\n"
         "        return n\n",
         encoding="utf-8",
     )
@@ -1430,6 +1437,7 @@ def test_a_restated_define_name_is_a_finding(tmp_path):
     assert any('name="helper" is what def helper' in f for f in findings), findings
     assert not any("prime?" in f for f in findings), findings
     assert not any("facF" in f for f in findings), findings
+    assert not any("h_old" in f for f in findings), findings
 
 
 def test_an_operator_word_keeps_its_bracket(tmp_path):
