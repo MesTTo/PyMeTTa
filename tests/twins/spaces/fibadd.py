@@ -20,7 +20,7 @@ two are different quantities the engine states separately (residue, P14.14)
 `(Error 10002 StackOverflow)` inside `with metta.limits(stack=100_000_000)`
 exactly as it does outside one; source: engine/metta.pl:194-196, "stack-limit
 scopes SWI's per-thread byte ceiling ... max-stack-depth remains branch-local
-reduction fuel"; commit=WORKTREE]. PERFECT:
+reduction fuel"; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT:
 `with m.limits(reductions=100_000_000): assert fib(30) == [832040]`, the mode
 family carrying the branch allowance beside the two bounds it already carries.
 """
@@ -31,7 +31,7 @@ from metta import S
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

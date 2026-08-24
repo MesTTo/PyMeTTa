@@ -12,7 +12,7 @@ is all that is left of the two this file used to carry: `super` is a translator
 form rather than a registry function, so `is_function` answers False and a
 compiled body naming it is refused (residue, P14.4)
 [measured 2026-08-24: `fn.super` in a compiled body is refused with "names no
-target function in this space's catalog"; commit=WORKTREE]. PERFECT: `super`
+target function in this space's catalog"; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT: `super`
 joins the registry, so an override is `@guarded.define def store(atom)` with
 `fn.super` in its body.
 
@@ -32,7 +32,7 @@ from metta import S, V, equation, fn, if_
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

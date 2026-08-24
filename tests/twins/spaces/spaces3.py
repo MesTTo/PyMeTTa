@@ -13,14 +13,14 @@ no subscript spelling at all, because Python cannot tell `space[(a, b)]` from
 law settled it, so `wuspace[(V.x,)]` is the one-element expression `($x)` and a
 conjunction is written with the receiver method's varargs
 [measured 2026-08-24: `wuspace[(V.x,)]` answers one row binding x to the single
-child, agreeing with `wuspace.match(Expression((V.x,)))`; commit=WORKTREE].
+child, agreeing with `wuspace.match(Expression((V.x,)))`; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 
 `sorted(atoms)` is `msort`, because atoms carry the engine's own elementwise
 order, so the two claims the original sorts read the same way here.
 
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,7 +36,7 @@ from metta import Expression, S, V
 #: ships. The earlier pin was kept while this file gated the pytest lane; that
 #: protection is retracted, so it is a placeholder like every other twin's
 #: [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

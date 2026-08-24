@@ -25,7 +25,7 @@ from metta.vocabularies import SpaceCapability
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 #: The file the example asks about: a path, which is what pathlib is for.
@@ -37,7 +37,7 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
     # GAP: the original NAMES its spaces, `!(new-space &locked (restricted))`,
     # and the answer of that form IS the name it created. metta.space refuses
     # the pair: "inherits, restricted, and grants apply only to anonymous
-    # space()" [measured 2026-08-24, unchanged; commit=WORKTREE]. PERFECT:
+    # space()" [measured 2026-08-24, unchanged; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT:
     # `locked = metta.space(S.locked, restricted=True)`. Residue P14.10;
     # until it lands the handle carries every door instead.
     locked = metta.space(restricted=True)

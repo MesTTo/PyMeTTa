@@ -28,7 +28,7 @@ release theirs.
 
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -43,14 +43,14 @@ from metta.errors import EngineError
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 #: The three sentences this file's refusals print. Each is the Python door's
 #: own wording rather than the Error atom the original reads with `repr`, and
 #: each prints the offered atom in the wire's list form, `[secret,1]` where
 #: engine-exact text would say `(secret 1)` [measured 2026-08-24: unchanged
-#: under the compiled judge and the pre_add claim door; commit=WORKTREE].
+#: under the compiled judge and the pre_add claim door; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 NO_SECRETS = "&pool refused [secret,1]: no secrets in this pool"
 UNCOVERED = (
     "the pre-add hook on &pool is claimed by guard, whose equations do not "

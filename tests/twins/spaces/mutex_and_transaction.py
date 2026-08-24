@@ -16,7 +16,7 @@ one Python builder and three writes. The outer two name `with_mutex` and
 answers False and a compiled body naming either is refused (residue, P14.4)
 [measured 2026-08-24: `fn.with_mutex` and `fn.transaction` inside a compiled
 body are both refused with "names no target function in this space's catalog";
-commit=WORKTREE]. PERFECT: `with_mutex` and `transaction` join the function
+commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT: `with_mutex` and `transaction` join the function
 registry, so a `@m.define`d body names them like any other callee. `sloppyinc`
 alone would compile now, because a compiled body carries a handle the way a
 term does; it stays here so that the body the three share is written once.
@@ -38,7 +38,7 @@ from metta import S, V, equation, fn
 #: ships. This file is also the one in its folder whose counter is not
 #: point-deterministic, because hyperpose schedules five OS threads; the
 #: re-pin pass owns that decision too [assumed 2026-08-24: the number is a
-#: placeholder, not a measurement; commit=WORKTREE].
+#: placeholder, not a measurement; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

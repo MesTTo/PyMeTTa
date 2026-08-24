@@ -9,7 +9,7 @@ here. A compiled `if` wraps its condition in `py-truthy` and `==` lowers to
 `py-eq`, so every level spends reductions the original does not, and the evaluator's
 default 100,000 stack bound is reached long before nineteen levels: the
 compiled pair answers `(Error (rewriteK (M (W ...)) 2) StackOverflow)` at K=14
-where the built pair completes K=19 [measured 2026-08-24; commit=WORKTREE].
+where the built pair completes K=19 [measured 2026-08-24; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 `m.limits` bounds inferences and time and not stack depth, and the example
 states no pragma to copy. PERFECT: a compiled `if` that leaves an engine-Bool
 condition alone. Residue P14.4 and P14.14.
@@ -18,7 +18,7 @@ The count IS Python's, and it is the most expensive line in this folder.
 `len(answers)` is what `(length (collapse X))` dissolves into, and here the
 answers are 1,572,862 atoms: 295,442,370 inferences, 66 seconds and 5.3 GB of
 resident memory in one process, against the engine's own count which never
-materialises one [measured 2026-08-24; commit=WORKTREE]. It no longer FAILS,
+materialises one [measured 2026-08-24; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. It no longer FAILS,
 which it did when this twin was first written: the answer view streams where
 the old door built one Prolog list, so the wall moved from "cannot run" to
 "expensive". The missing door is the one peanofast.py names, a query that
@@ -35,7 +35,7 @@ from metta import S, V, equation, fn, if_, match
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

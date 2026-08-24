@@ -12,7 +12,7 @@ is not a compromise but the point (the named form has no Python door, residue
 P14.10). PERFECT: `metta.space(S.family_child, inherits=parent)`, the creation
 options applying to a named space as well as an anonymous one
 [measured 2026-08-24: the pair still refuses, "inherits, restricted, and grants
-apply only to anonymous space()"; commit=WORKTREE].
+apply only to anonymous space()"; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 
 One claim keeps the engine's own function. `len(space)` and iterating it both
 answer the whole READ CHAIN, six atoms here, where `(space-atom-count ...)`
@@ -32,7 +32,7 @@ from metta import S, V
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

@@ -29,7 +29,7 @@ from metta import fn
 #: ships. Form 0 runs on real threads besides, so its count is not identical
 #: across fresh processes and the re-pin pass owns that decision too
 #: [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

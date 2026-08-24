@@ -11,7 +11,7 @@ either is refused (residue, P14.4). PERFECT: `cut` and `once` join the function
 registry, so a `@m.define`d body names them like any other callee
 [measured 2026-08-24: `fn.once` and `fn.cut` in a compiled body are both
 refused with "names no target function in this space's catalog";
-commit=WORKTREE]. What is no longer a blocker is the space: a compiled `match`
+commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. What is no longer a blocker is the space: a compiled `match`
 takes its space through a PARAMETER, and through a handle in hand.
 
 The facts above them are ordinary tuples, and the two calls are terms the
@@ -24,7 +24,7 @@ from metta import S, V, equation
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

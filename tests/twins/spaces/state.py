@@ -15,7 +15,7 @@ that answers nothing, and the walrus does not rescue it: PEP 572 excludes
 attribute and subscript targets, and CPython says so in as many words,
 `state.value := S.active` refusing with "cannot use assignment expressions with
 attribute" [measured 2026-08-24: ast.parse on this interpreter;
-commit=WORKTREE]. So the perfect spelling is a setter that answers its subject,
+commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. So the perfect spelling is a setter that answers its subject,
 the way `change-state!` does:
 
     assert state.set(S.active).value == S.active
@@ -26,7 +26,7 @@ strips a hyphen. Either evaluation door says it: the held engine the lazy view
 runs on shares its state cells with the main one, so a `change-state!`
 performed through `m.answers(...).one()` is what the handle reads afterwards
 [measured 2026-08-24: the cell reads `active` after the answer-view
-composition; commit=WORKTREE].
+composition; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 
 Where the walrus DOES reach is the closing claim, which is about a cell needing
 no name at all: binding in expression position is `let`, so the cell is built,
@@ -42,7 +42,7 @@ from metta import S, State, fn, ground
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

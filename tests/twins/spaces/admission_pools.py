@@ -20,7 +20,7 @@ The Atom masks are the annotations. `atom: Atom` emits
 declaration the original writes by hand, and it is load-bearing: it keeps the
 offered atom unreduced the whole way down, so a pool judges the atom AS ITSELF
 [measured 2026-08-24: the annotation's own emission read back from the space;
-commit=WORKTREE].
+commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 
 Both spaces the judge talks about are HANDLES, in the stored equations as well
 as at the call sites: a space is an ordinary term operand, and a compiled body
@@ -31,13 +31,13 @@ one thing this example may not do: the claim under test is its own.
 
 Assumes:
   - the custom judge, pool setup, and seven claims mirror the source example
-    [source: examples/spaces/admission_pools.metta lines 9-72; commit=WORKTREE]
+    [source: examples/spaces/admission_pools.metta lines 9-72; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Guarantees:
   - the custom and builtin judges agree before, at, and after the declared
     capacity boundary [measured 2026-08-24: the twin runs to completion under
     the lane, which is what proves every assert it states;
     command=python bindings/python/tools/twin_coverage.py
-    examples/spaces/admission_pools.metta; commit=WORKTREE]
+    examples/spaces/admission_pools.metta; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -54,7 +54,7 @@ from metta import Atom, S, V, accept, fn, match, refuse, typed
 #: point, because its judge runs engine-time matching whose count moves with
 #: the lane's own scheduling; the re-pin pass owns that decision too
 #: [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

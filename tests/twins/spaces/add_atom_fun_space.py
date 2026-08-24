@@ -8,7 +8,7 @@ Python name bound to a space as the grounded atom a handle already is, so
 `return target` stores `(= (space) &my_space_name)` with no symbol spelling of
 a space anywhere in the file
 [measured 2026-08-24: a `@m.define`d body returning a handle stores the space
-operand itself; commit=WORKTREE].
+operand itself; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 
 The write does NOT go through `space += atom`. That door takes a handle in
 hand, and this example's whole subject is a target the program works out for
@@ -26,7 +26,7 @@ from metta import S
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

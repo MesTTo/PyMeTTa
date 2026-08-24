@@ -14,7 +14,7 @@ empty-expression base case is Python's `()`.
 subset still has: each is two clauses that destructure in the HEAD, `()` and
 `(cons $x $xs)`, and a compiled head pattern may only be a LITERAL default, so
 a structural default is refused with "a default here is a head pattern, so it
-must be a literal" [measured 2026-08-24; commit=WORKTREE]. PERFECT: two
+must be a literal" [measured 2026-08-24; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT: two
 `@m.define`s whose parameters carry the patterns, the way the equations do.
 Residue P14.4.
 
@@ -32,7 +32,7 @@ from metta import S, V, equation, fn, if_
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 #: `(+ 1)`, the partially applied increment all four kernels are driven with. A

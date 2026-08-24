@@ -10,7 +10,7 @@ dissolves into. It is expensive at this size, and the number belongs in the
 open rather than in a different spelling: 114,470,667 inferences, 23.5 seconds
 and 1.2 GB of resident memory in one process, against the engine's own count at
 26,313,301 and 5.9 seconds, because a million atoms cross the seam one at a
-time to be counted [measured 2026-08-24; commit=WORKTREE]. The missing door is
+time to be counted [measured 2026-08-24; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. The missing door is
 the one peanofast.py names, a query that projects or aggregates before it
 crosses (residue, P14.7); the cost of not having it is the library's.
 
@@ -32,7 +32,7 @@ RUNG = (
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

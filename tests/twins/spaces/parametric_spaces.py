@@ -11,7 +11,7 @@ the name, so a parameterised space has a handle like any other space and `+=`,
 `space[pattern]`, `space.eval(term)` and `space.type(atom)` all work here
 exactly as they work everywhere else
 [measured 2026-08-24: `metta.space(S.cache(S["&primary-kb"], 100))` answers a
-handle whose two instances stay isolated; commit=WORKTREE]. The two base names
+handle whose two instances stay isolated; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. The two base names
 stay symbols because that is what they are: `&primary-kb` is a PARAMETER of the
 space's name and never denotes a space of its own in this program.
 
@@ -22,7 +22,7 @@ Python's own assignment is what `let` becomes only when the target is a name
 inside a compiled body, the expression-position function the guide rules for
 exactly this case; measured 2026-08-24, a body naming `solve` is refused,
 "'solve' is not a parameter of cache-config, not a function the engine knows"
-[commit=WORKTREE].
+[commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 """
 
 import metta
@@ -32,7 +32,7 @@ from metta import S, V, equation, fn
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 #: The two base names, which are parameters of a space's name rather than

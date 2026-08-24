@@ -13,7 +13,7 @@ write. All three definitions arrive through the decorator, the third included:
 Python name bound to one as the grounded atom a handle already is, so the
 equation stores `&metric` without any symbol spelling of a space
 [measured 2026-08-24: a `@m.define`d body returning a handle stores the space
-operand itself; commit=WORKTREE]. The removal is `-=` on the equation atom, and
+operand itself; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. The removal is `-=` on the equation atom, and
 it takes the compiled clause with it, so the last question sees the inherited
 `&self` answer.
 
@@ -23,7 +23,7 @@ STAGES its operator, so `G(5) + 5` is the term `(+ 5 5)` rather than 10.
 
 Guarantees:
   - expected printed output in this twin remains Python str text
-    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=WORKTREE]
+    [tested: test_printing_text_is_not_forced_through_the_value_carrier; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -38,7 +38,7 @@ from metta.errors import MettaOperationError
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 

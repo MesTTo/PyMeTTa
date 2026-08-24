@@ -15,7 +15,7 @@ all, and a compiled `if` used to wrap any non-comparison condition in
 compiled `if` now emits it bare, and `fn.eq(0, n % test_divisor)` stores
 exactly the original's condition [measured 2026-08-23 on the merged tree, min
 of one fresh process each: 922,119 inferences with the Python operators and
-539,720 with the named head, against the example's 543,116; commit=WORKTREE].
+539,720 with the named head, against the example's 543,116; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 
 `with-pragma!` stays a term for the one gap left: the four searches overflow the
 evaluator's default stack depth without it, and `m.limits` bounds inferences
@@ -25,7 +25,7 @@ vocabulary the way it carries the other two bounds.
 
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -38,7 +38,7 @@ from metta import TRUE, Expression, S, fn
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
-#: commit=WORKTREE].
+#: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
 BUDGET = 1
 
 #: The branch allowance these searches state above the evaluator's 100000
