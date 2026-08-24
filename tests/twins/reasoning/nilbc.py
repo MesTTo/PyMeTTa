@@ -39,8 +39,6 @@ its arguments carry variables.
 import metta
 from metta import S, V, arrow, equation, typed
 
-#: Metamath's Peano type, as a Python class so the two casts can name it.
-
 
 class Nat:
     """The MeTTa type `Nat`, which `fromNumber` answers and `fromNat` reads."""
