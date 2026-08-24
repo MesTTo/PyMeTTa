@@ -154,7 +154,14 @@ def test_atom_comparisons_are_only_ordering() -> None:
 
 
 def test_builtin_discovery_is_cached() -> None:
-    """A second namespace lookup does not enumerate the engine catalogue."""
+    """No namespace lookup enumerates the engine catalogue.
+
+    The original contract let the FIRST access pay a full catalogue read
+    (about 1,350 inferences) and required the second to be under a tenth
+    of it. Resolution is a point membership probe now, so the claim
+    strengthens to an absolute bound on EVERY access: an enumeration
+    slipping back in costs over a thousand and trips either side.
+    """
     target = space()
     with target.stats() as first:
         first_handle = target.fn.car_atom
@@ -163,7 +170,8 @@ def test_builtin_discovery_is_cached() -> None:
 
     assert first_handle.__name__ == "car-atom"
     assert second_handle.__name__ == "cdr-atom"
-    assert second.inferences < first.inferences // 10
+    assert first.inferences < 400
+    assert second.inferences < 400
 
 
 def test_builtin_cache_invalidates_after_a_miss(tmp_path: Path) -> None:

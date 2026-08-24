@@ -399,3 +399,25 @@ def test_a_defined_and_a_bound_function_mention_as_their_head():
     boxed = G(mentioned_head)
     assert isinstance(boxed, Grounded)
     assert boxed.value is mentioned_head
+
+
+def test_catalogue_membership_answers_the_builtins_union(metta):
+    """The point probe and the catalogue list answer the same union.
+
+    The bound namespace resolves attributes by the probe (one indexed
+    fun/1 lookup plus the special-form heads) instead of rebuilding the
+    list after every definition, which measured 1,347 inferences on the
+    next access; the union must stay identical or names would vanish
+    from attribute resolution while dir() still showed them.
+    """
+    names = metta.builtins()
+    assert names
+    missing = [n for n in names if not metta._is_catalogued(n)]
+    assert missing == []
+    assert not metta._is_catalogued("no-such-catalogue-name-xyz")
+    # A special form resolves at the attribute door exactly as before.
+    assert metta.fn["collapse"] is not None
+    import pytest
+
+    with pytest.raises(AttributeError, match="no function"):
+        metta.fn.no_such_catalogue_name_xyz  # noqa: B018  -- the refusal at access IS the scenario
