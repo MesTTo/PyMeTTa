@@ -47,7 +47,7 @@ import types
 from collections.abc import Callable
 
 from ._callable_mentions import callable_arities, callable_mention
-from ._define_context import CompilerContext
+from ._define_context import CompilerContext, next_aux_serial
 from ._name_mapping import (
     attribute_name,
     operator_attribute_target,
@@ -101,6 +101,49 @@ _MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose")
 
 
 class ExpressionCompilerMixin(CompilerContext):
+    def _stage(self, head: str, *rest: Atom) -> Callable[[Atom], Atom]:
+        """One collection stage over a list this compiler will name for it.
+
+        The stage is built as a function of the name rather than of the source,
+        because `_piped` decides where the name comes from: a source that is
+        already a variable is used directly and one that is a call is bound
+        with `let` first.
+        """
+
+        def stage(held: Atom) -> Atom:
+            return Expression([Symbol(head), held, *rest])
+
+        return stage
+
+    def _piped(self, source: Atom, stages: list[Callable[[Atom], Atom]]) -> Atom:
+        """Compose collection stages over a source, naming the value between them.
+
+        map-atom, filter-atom and foldl-atom declare their list parameter
+        `Expression`, and an Expression parameter is the evaluation mask: the
+        operand crosses AS WRITTEN [source: LeaTTa
+        MettaHyperonFull/Core/Modifiers.lean, declaredTypeEvaluates]. A
+        comprehension's source, and each stage's own answer, is a call, so
+        writing one straight into the next stage's list position would fold
+        over the parts of the unrun call. Naming it with `let` is what the
+        reference's own stdlib does at every such site.
+
+        A source that is ALREADY a variable needs no name. The binder carries a
+        hyphen, which Python cannot spell, so it can never shadow a variable
+        the author wrote, and the serial is process-unique so nested
+        comprehensions do not collide
+        [tested tests/test_define.py::test_fstrings_str_round_range_slices,
+        tests/test_fuzz_define.py::test_collection_bridge_agrees].
+        """
+        if not stages:
+            return source
+        head, rest = stages[0], stages[1:]
+        if isinstance(source, Variable):
+            return self._piped(head(source), rest)
+        held = Variable(f"held-source-{next_aux_serial()}")
+        return Expression(
+            [Symbol("let"), held, source, self._piped(head(held), rest)]
+        )
+
     def expression(self, node: ast.expr) -> Atom:
         if isinstance(node, ast.Attribute):
             return self._attribute(node)
@@ -467,23 +510,27 @@ class ExpressionCompilerMixin(CompilerContext):
         # earlier clause's variable, but never its own.
         source = self.expression(gen.iter)
         inner = self._inner([var])
-        for condition in gen.ifs:
-            predicate = Expression(
-                [Symbol("|->"), Expression([Variable(var)]), inner._truthy(condition)]
+        stages = [
+            self._stage(
+                "filter-atom",
+                Expression(
+                    [Symbol("|->"), Expression([Variable(var)]), inner._truthy(condition)]
+                ),
             )
-            source = Expression([Symbol("filter-atom"), source, predicate])
+            for condition in gen.ifs
+        ]
         if len(generators) == 1:
             mapper = Expression([Symbol("|->"), Expression([Variable(var)]), inner.expression(elt)])
-            return Expression([Symbol("map-atom"), source, mapper])
+            return self._piped(source, [*stages, self._stage("map-atom", mapper)])
         nested = inner._comprehension(generators[1:], elt, line)
         mapper = Expression([Symbol("|->"), Expression([Variable(var)]), nested])
-        return Expression(
+        return self._piped(
+            source,
             [
-                Symbol("foldl-atom"),
-                Expression([Symbol("map-atom"), source, mapper]),
-                Expression([]),
-                Symbol("union-atom"),
-            ]
+                *stages,
+                self._stage("map-atom", mapper),
+                self._stage("foldl-atom", Expression([]), Symbol("union-atom")),
+            ],
         )
 
     def _x_GeneratorExp(self, node: ast.GeneratorExp) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
@@ -545,7 +592,7 @@ class ExpressionCompilerMixin(CompilerContext):
             and vars(owner).get(node.attr) is functools.reduce
         )
 
-    def _reduce_call(self, node: ast.Call) -> Expression:
+    def _reduce_call(self, node: ast.Call) -> Atom:
         """Lower Python's seeded left fold to foldl-atom's two forms."""
         if node.keywords or len(node.args) != 3:
             msg = "functools.reduce() compiles with a reducer, values, and an initial value"
@@ -567,18 +614,22 @@ class ExpressionCompilerMixin(CompilerContext):
                 raise CompileError(msg, construct="reduce lambda", line=reducer_node.lineno)
             accumulator, item = (argument.arg for argument in arguments.args)
             inner = self._inner([accumulator, item])
-            return Expression(
+            body = inner.expression(reducer_node.body)
+            return self._piped(
+                values,
                 [
-                    Symbol("foldl-atom"),
-                    values,
-                    initial,
-                    Variable(accumulator),
-                    Variable(item),
-                    inner.expression(reducer_node.body),
-                ]
+                    self._stage(
+                        "foldl-atom",
+                        initial,
+                        Variable(accumulator),
+                        Variable(item),
+                        body,
+                    )
+                ],
             )
-        return Expression(
-            [Symbol("foldl-atom"), values, initial, self._reduce_function(reducer_node)]
+        return self._piped(
+            values,
+            [self._stage("foldl-atom", initial, self._reduce_function(reducer_node))],
         )
 
     def _reduce_function(self, node: ast.expr) -> Atom:
@@ -747,7 +798,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 line=node.lineno,
             )
         start: Atom = args[1] if len(args) == 2 else Grounded(0)
-        return Expression([Symbol("foldl-atom"), args[0], start, Symbol("+")])
+        return self._piped(args[0], [self._stage("foldl-atom", start, Symbol("+"))])
 
     def _py_sorted(self, node: ast.Call) -> Atom:
         (xs,) = self._args(node, 1, "sorted")

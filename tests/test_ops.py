@@ -230,7 +230,12 @@ def test_a_python_op_is_a_higher_order_argument(metta):
     hof = unique("hof-map")
     metta.run(
         f"(= ({hof} $f ()) ())\n"
-        f"(= ({hof} $f (cons $x $xs)) (cons ($f $x) ({hof} $f $xs)))"
+        # cons is cons-atom's spelling and both its parameters carry the
+        # evaluation mask, so the applied head and the recursive tail are each
+        # NAMED before it reads them, left to right.
+        f"(= ({hof} $f (cons $x $xs))\n"
+        f"   (let $head ($f $x)\n"
+        f"     (let $rest ({hof} $f $xs) (cons $head $rest))))"
     )
     native = metta.run(f"!({hof} (+ 1) (1 2 3))")[-1]
     assert native == [Expression(2, 3, 4)]

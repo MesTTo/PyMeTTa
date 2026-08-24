@@ -43,6 +43,8 @@ class _FunctionNamespace:
     "asin-math: (-> Number Number)\n\n`math.asin`."
     atan_math: Symbol
     "atan-math: (-> Number Number)\n\n`math.atan`."
+    atom_subst: Symbol
+    "atom-subst: (-> Atom Variable Atom Atom)\n\nApplying a substitution to a template, which `Atom.map` does over the whole term. Section 9e wants the bindings object to carry it, `b.apply(template)`; `metta.Bindings` has no such method yet, so the walker is the spelling."
     atomically: Symbol
     bind: Symbol
     "bind!: (-> Symbol %Undefined% (->))\n\nA Python name binding. `space = metta.space(...)` is exactly what a token binding was for, and Python's own scoping rules then apply."

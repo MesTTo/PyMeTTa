@@ -39,6 +39,7 @@ import importlib
 import itertools
 import operator
 import threading
+from collections.abc import Iterable
 from typing import Any, Final, Literal, NewType, cast
 
 from . import integrate as _integrate
@@ -442,14 +443,20 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     op(squeeze, name="squeeze")
     op(tensor_index, name="t-index")
 
-    def cat_op(tensors: Expression, dim: int = 0) -> DLTensor:
+    # The tensor list is a VALUE these two decode member by member, so the
+    # parameter is annotated by what it iterates rather than by the MeTTa atom
+    # kind. `Expression` in a parameter position is the evaluation mask: it
+    # hands the operand over AS WRITTEN, and `(cat ((tensor ((1 2)))) 0)` then
+    # reaches the operation as two unrun `(tensor ...)` calls
+    # [source: LeaTTa MettaHyperonFull/Core/Modifiers.lean:118-124].
+    def cat_op(tensors: Iterable[Atom], dim: int = 0) -> DLTensor:
         parts = [_decode(c) for c in tensors]
         dimension = _decode(dim) if isinstance(dim, Atom) else dim
         return DLTensor(
             ground(namespace_of(parts[0]).concat(parts, axis=int(dimension)))
         )
 
-    def stack_op(tensors: Expression, dim: int = 0) -> DLTensor:
+    def stack_op(tensors: Iterable[Atom], dim: int = 0) -> DLTensor:
         parts = [_decode(c) for c in tensors]
         dimension = _decode(dim) if isinstance(dim, Atom) else dim
         return DLTensor(
