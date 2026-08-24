@@ -8,16 +8,15 @@ naming ladder's own underscore map, and nothing has to say that name twice.
 name that object was installed under, so the stored equation is the
 original's.
 
-`fib-tr`'s stored body differs from the original's in one place: a compiled
-body's `==` lowers to the prelude's `py-eq` where the original writes MeTTa's
-`(== $n 0)`. The residue table records that against P14.4.
+Compiled-body equality lowers to the engine's `==`, so `fib-tr`'s stored body
+matches the original equation as well.
 """
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 

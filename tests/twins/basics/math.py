@@ -13,24 +13,24 @@ Package-level `fn.<name>` is the STATIC one: its members are the symbols
 themselves, which is what a NESTED argument needs, since `(isnan-math
 (sqrt-math -1))` is one term to evaluate once rather than two crossings.
 
-One thing Python's own punctuation will not do here. `==` is Python's own
-structural equality on atoms, so MeTTa's `==` and `!=`, which compare NUMERIC
-VALUES across int and float, are named at the function-namespace door. The
-arithmetic terms whose refusals this file is about ARE written as operators:
-one grounded operand stages the term, so `G(7) / 0` builds `(/ 7 0)` rather
-than raising ZeroDivisionError.
+The bound function namespace's operator-word attributes name the relational
+comparisons and arithmetic calls. Python's numeric protocol reaches the four
+integral conversions directly: `math.floor(G(5.8))` builds `(floor-math 5.8)`
+and `round(G(5.6))` builds `(round-math 5.6)`.
 
 `min-atom` and `max-atom` dissolve: an expression is a sequence, so Python's
 own `min` and `max` read it with no engine crossing at all.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
+
+import math
 
 from metta import Expression, G, S, fn, ground
 
@@ -38,7 +38,7 @@ from metta import Expression, G, S, fn, ground
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 #: The six numbers `min-atom` and `max-atom` are asked about.
@@ -47,14 +47,11 @@ NUMBERS = Expression((2, 6, 7, 4, 9, 3))
 
 def twin(m):
     """Ask every numeric operation what it answers, refusals included."""
-    equal, unequal = m.fn["=="], m.fn["!="]
-    divide, remainder = m.fn["/"], m.fn["%"]
+    equal, unequal = m.fn.eq, m.fn.ne
+    divide, remainder = m.fn.truediv, m.fn.mod
     sqrt, power, log = m.fn.sqrt_math, m.fn.pow_math, m.fn.log_math
     isnan, isinf = m.fn.isnan_math, m.fn.isinf_math
     absolute = m.fn.abs_math
-    trunc, ceil, floor, rounded = (
-        m.fn.trunc_math, m.fn.ceil_math, m.fn.floor_math, m.fn.round_math
-    )
     sin, asin, cos, acos = (
         m.fn.sin_math, m.fn.asin_math, m.fn.cos_math, m.fn.acos_math
     )
@@ -101,11 +98,11 @@ def twin(m):
     assert sqrt(9) == [3.0]
     assert absolute(-5) == [5]
     assert log(10, 100) == [2.0]
-    assert trunc(5.6) == [5]
-    assert ceil(5.2) == [6]
-    assert floor(5.8) == [5]
-    assert rounded(5.4) == [5]
-    assert rounded(5.6) == [6]
+    assert m.eval(math.trunc(G(5.6))) == [5]
+    assert m.eval(math.ceil(G(5.2))) == [6]
+    assert m.eval(math.floor(G(5.8))) == [5]
+    assert m.eval(round(G(5.4))) == [5]
+    assert m.eval(round(G(5.6))) == [6]
     assert sin(0) == [0.0]
     assert asin(0) == [0.0]
     assert cos(0) == [1.0]

@@ -21,7 +21,7 @@ with the inversion door.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,7 +34,7 @@ from metta import Expression, S, V, fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -49,10 +49,10 @@ def twin(m):
     # The example's own head carries an underscore, which the naming ladder's
     # total underscore-to-hyphen map does not produce, so this one door takes
     # the exact name.
-    @m.define(name="h_old")
+    @m.define(name="h_old")  # rung: def h_old maps to h-old, while the source head is h_old
     def h_old(a, c):
         # (= (h_old $A $C) (if (= $A (myfunc (10) $B)) ($B $C) (empty)))
-        return S["if"](fn["="](a, myfunc((10,), V.b)), (V.b, c), fn.empty())  # rung: MeTTa's if over a unification
+        return (V.b, c) if fn["="](a, myfunc((10,), V.b)) else fn.empty()
 
     @m.define
     def h(a, c):

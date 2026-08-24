@@ -20,13 +20,13 @@ and this head carries two, so no annotation says it. The residue table records
 that against P14.9.
 """
 
-from metta import S, fn
+from metta import Atom, S, arrow, fn, typed
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -41,8 +41,8 @@ def twin(m):
     # (: f (-> Atom Number Atom)) and (: f (-> Atom String Atom))
     # rung: below the ANNOTATION door, both declarations: this head carries two
     #   arrows and a Python signature emits one (residue, P14.9)
-    m += S[":"](S.f, S["->"](S.Atom, S.Number, S.Atom))
-    m += S[":"](S.f, S["->"](S.Atom, S.String, S.Atom))
+    m += typed(S.f, arrow(Atom, int, Atom))
+    m += typed(S.f, arrow(Atom, str, Atom))
 
     @m.define
     def f(g, x):
@@ -56,5 +56,5 @@ def twin(m):
     assert f(S.g, 42).one() == S.repra(S.g(42))
 
     specialized = S["f_Spec_[g]"]
-    assert m[S[":"](specialized, S["->"](S.Atom, S.Number, S.Atom))]
-    assert m[S[":"](specialized, S["->"](S.Atom, S.String, S.Atom))]
+    assert m[typed(specialized, arrow(Atom, int, Atom))]
+    assert m[typed(specialized, arrow(Atom, str, Atom))]

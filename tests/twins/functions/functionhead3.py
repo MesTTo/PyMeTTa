@@ -8,8 +8,8 @@ The last form runs the whole relation backwards through a guard.
 Both definitions are decorated Python functions, and both need the descent
 ladder's bottom rung, each for its own reason. `in` is a Python KEYWORD, so no
 Python function can carry that name: `name="in"` gives the equation the name
-the example uses, and `S["in"]` is how `myplus`'s body then calls it, the
-quoted-name escape for a name Python's grammar will not take. `is-member` is
+the example uses, and the decorated `is_in` object carries that exact MeTTa
+head when another compiled body calls it. `is-member` is
 an engine function whose spelling is hyphenated, and `fn.is_member` is its
 mention door, rung 4's map applied at the factory.
 
@@ -31,7 +31,7 @@ from metta import TRUE, S, V, fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -49,9 +49,13 @@ def twin(m):
         #    (let $A (in $X (1 2 3))
         #      (let $B (in $Y (2 3))
         #        (in (+ $X $Y) (3 4 5)))))
-        return S.let(a, S["in"](V.x, (1, 2, 3)),  # rung: relational let
-                     S.let(b, S["in"](V.y, (2, 3)),  # rung: relational let, again
-                           S["in"](V.x + V.y, (3, 4, 5))))
+        return S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
+            a,
+            is_in(V.x, (1, 2, 3)),
+            S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
+                b, is_in(V.y, (2, 3)), is_in(V.x + V.y, (3, 4, 5))
+            ),
+        )
 
     # fine:
     assert myplus(1, 3) == [4]
@@ -64,5 +68,5 @@ def twin(m):
     # what can be reached when adding $X to $Y:
     assert myplus(V.x, V.y) == [3, 4, 4, 5, 5]
     # with which $x added to 2 can we reach values above 3?
-    guard = S[">"](S.myplus(V.x, 2), 3)
+    guard = S.gt(S.myplus(V.x, 2), 3)
     assert m.eval(S.let(TRUE, guard, V.x)) == [2, 3]  # rung: let as a guard

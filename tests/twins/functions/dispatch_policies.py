@@ -25,18 +25,19 @@ against P14.4 too.
 
 import metta
 from metta import S, equation
+from metta.vocabularies import NoMatchEnum
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Read one call under the default policy, the override, and the default again."""
-    only_a = S["only-a"]
+    only_a = S.only_a
 
     # (= (only-a A) hit)
     m += equation(only_a(S.A)).to(S.hit)  # rung: the head fixes a SYMBOL
@@ -45,7 +46,7 @@ def twin(m):
     assert m.eval(only_a(S.B)) == [only_a(S.B)]
 
     reflection = metta.reflection
-    policy = S["dispatch-policy"](only_a, S.NoMatchEnum, S.NoMatchFail)
+    policy = S.dispatch_policy(S.only_a, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail])
 
     reflection += policy
     assert m.eval(only_a(S.B)) == []

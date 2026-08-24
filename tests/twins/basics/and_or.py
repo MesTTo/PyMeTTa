@@ -1,55 +1,34 @@
 """Purpose: examples/basics/and_or.metta in Python: the boolean connectives.
 
 `(and true false)` is False, so `(or ... true)` is True and the original's
-`if` takes its first branch. The connectives are the engine's here and Python
-cannot spell them in a compiled body three ways over: `and` and `or` are
-Python KEYWORDS, so no body can name them the way `basics/xor` names `xor`;
-`&` and `|` build the terms at the term door but are refused inside a body;
-and Python's own `and` in a body lowers to `py-truthy` short-circuits rather
-than to MeTTa's connectives. So the engine reduces the connectives and
-Python's conditional expression picks the branch, which is what a conditional
-expression is for.
+`if` takes its first branch. The public `and_`, `or_`, and `if_` builders use
+Python's sanctioned trailing underscore for keywords and build the stored
+engine terms directly.
 
 `m.answers(term).one()` is the cardinality door: exactly one answer, decoded
 to the Python bool the conditional expression then reads.
 
-One operator does reach here. `|` builds `(or ... True)` because its left
-operand is a built term; `TRUE & FALSE` would not, because two GROUND
-operands make a Python operator that value's own arithmetic, and it answers
-Python's `False` before the engine sees anything.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import FALSE, TRUE, S
+from metta import FALSE, TRUE, and_, if_, or_
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 
 def twin(m):
     """Reduce the connectives in the engine, then choose in Python."""
     # (or (and true false) true)
-    #
-    # COST, recorded because the lane's band reports it and it is the
-    # library's to fix, not this twin's: the FIRST answer view a process
-    # creates sets up a held evaluation, and a later view costs only what its
-    # own evaluation costs. This file asks exactly one question, so the whole
-    # setup lands on it and the twin reads 5,446 against the example's 2,103,
-    # where the same question through m.eval costs 738. The cardinality door
-    # is the better spelling and the setup is what should get cheaper
-    # [measured 2026-08-23 with m.stats() around each: m.eval 738, the first
-    # m.answers(...).one() 4,885, a second one 175;
-    # commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
-    holds = m.answers(S["and"](TRUE, FALSE) | TRUE).one()
-    assert (1 if holds else 2) == 1
+    assert m.answers(if_(or_(and_(TRUE, FALSE), TRUE), 1, 2)).one() == 1

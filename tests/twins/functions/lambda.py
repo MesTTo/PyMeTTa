@@ -24,26 +24,27 @@ meaning from `apply`'s substitution rather than from anything in scope, and
 `V.x` is how a compiled body mints one.
 
 Two operator spellings worth naming, both in the fold that is applied where
-it stands. `(or (== 1 $e) $acc)` is `G(1).eq(V.e) | V.acc`: `|` builds `or`,
-because Python's `or` keyword cannot be overloaded, and `.eq` builds `==`,
-because the `==` operator is taken by Python's own structural equality.
+it stands. `(or (== 1 $e) $acc)` uses the public `or_` builder and `S.eq` word
+table entry, because Python's `or` and `==` operators have host meanings.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import FALSE, Expression, G, S, V, equation, fn
+from typing import Any
+
+from metta import FALSE, Atom, Expression, S, V, arrow, equation, fn, or_, typed
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -52,7 +53,7 @@ def twin(m):
     # (: apply (-> Atom %Undefined% %Undefined%))
     # rung: below the ANNOTATION door: the annotation door needs a decorated
     #   function, and `apply`'s head is a pattern (residue, P14.4)
-    m += S[":"](S.apply, S["->"](S.Atom, S["%Undefined%"], S["%Undefined%"]))
+    m += typed(S.apply, arrow(Atom, Any, Any))
 
     @m.rules
     def fake(var, body, arg):
@@ -85,7 +86,7 @@ def twin(m):
     assert increment_all((1, 2, 3)) == [Expression((2, 3, 4))]
 
     # Applied where it stands, which a compiled body will not do.
-    folding = S["|->"]((V.acc, V.e), G(1).eq(V.e) | V.acc)
+    folding = S["|->"]((V.acc, V.e), or_(S.eq(1, V.e), V.acc))
     assert m.eval((folding, FALSE, 1)) == [True]
 
     @m.define

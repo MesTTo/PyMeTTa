@@ -11,17 +11,17 @@ bundle lands.
 Assumes:
   - the four equations and two runnable claims mirror
     examples/functions/specializecyclic.metta in source order
-    [source: examples/functions/specializecyclic.metta lines 1-15; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    [source: examples/functions/specializecyclic.metta lines 1-15; commit=WORKTREE]
 Guarantees:
   - twin installs every equation and proves both runnable claims
-    [tested: test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    [tested: test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import Expression, S, equation
+from metta import Expression, S, equation, if_
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
@@ -31,9 +31,8 @@ from metta import Expression, S, equation
 #: minimum 26325, maximum 26409 over 28 observations under
 #: `full-lane/218/workers=32`, because its cost moves with the scheduler; the
 #: re-pin pass has to give it an envelope again rather than a point
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
-RUNG = "two mutually recursive pairs, so neither body can name the other at decoration time"
 
 
 def twin(m):
@@ -45,25 +44,21 @@ def twin(m):
         # (= (f1 $f $a) (if (< $a 0) ($f nevercalled 42)
         #                   (if (== $a 0) (f2 $f (- $a 1)) finish)))
         #
-        # The comparison names its head. `<`, `>`, `<=` and `>=` all carry the
-        # engine's total atom ORDER, so none of the four builds a term; `.eq`
-        # is the equality TERM for the same reason, `==` being Python's own
-        # structural equality.
         yield equation(S.f1(f, a)).to(
-            S["if"](
-                S["<"](a, 0),
+            if_(
+                S.lt(a, 0),
                 Expression((f, S.nevercalled, 42)),
-                S["if"](a.eq(0), S.f2(f, a - 1), S.finish),
+                if_(S.eq(a, 0), S.f2(f, a - 1), S.finish),
             )
         )
         # (= (f2 $f $a) (if (< $a 0) ($f nevercalled 42) (f1 $f $a)))
         yield equation(S.f2(f, a)).to(
-            S["if"](S["<"](a, 0), Expression((f, S.nevercalled, 42)), S.f1(f, a))
+            if_(S.lt(a, 0), Expression((f, S.nevercalled, 42)), S.f1(f, a))
         )
         # (= (f3 $f $n) (if (== $n 0) finish (f4 $f $n)))
-        yield equation(S.f3(f, n)).to(S["if"](n.eq(0), S.finish, S.f4(f, n)))
+        yield equation(S.f3(f, n)).to(if_(S.eq(n, 0), S.finish, S.f4(f, n)))
         # (= (f4 $f $n) (f3 $f (- $n 1)))
         yield equation(S.f4(f, n)).to(S.f3(f, n - 1))
 
-    assert m.eval(S.f1(S["+"], 2)) == [S.finish]
-    assert m.eval(S.f3(S["+"], 1)) == [S.finish]
+    assert m.eval(S.f1(S.add, 2)) == [S.finish]
+    assert m.eval(S.f3(S.add, 1)) == [S.finish]

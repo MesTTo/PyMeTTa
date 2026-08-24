@@ -24,14 +24,14 @@ The claims read through the answer view's cardinality doors, over answers that
 still carry rational bindings: `m.answers(where(half, fn.repr(V.x))).one()`
 answers `'1r2'`, because the view decodes a rational payload as a
 `fractions.Fraction` [measured 2026-08-23: probe over the merged tree;
-commit=3459d4f6fce103269ff5cdd575edec4bb9e4be95].
+commit=WORKTREE].
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=WORKTREE]
   - expected constraint reprs are plain Python text rather than grounded data
     [tested: test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +44,7 @@ from metta import TRUE, S, V, equation, fn, if_
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
 BUDGET = 1
 
 
@@ -78,12 +78,12 @@ def twin(m):
 
     # Entailment: is this constraint already implied by what has been posted?
     # That is the question a plain post cannot ask.
-    nonnegative = S[">="](V.a, 0)
+    nonnegative = S.ge(V.a, 0)
     assert m.answers(
-        where(S.clpq(nonnegative), S["clpq-entailed"](nonnegative))
+        where(S.clpq(nonnegative), S.clpq_entailed(nonnegative))
     ).one() is True
     assert m.answers(
-        where(S.clpq(S[">="](V.b, 0)), S["clpq-entailed"](S[">="](V.b, 5)))
+        where(S.clpq(S.ge(V.b, 0)), S.clpq_entailed(S.ge(V.b, 5)))
     ).one() is False
 
     # A contradiction fails rather than answering, which is how a constraint
@@ -105,8 +105,8 @@ def twin(m):
     # because a term holding `(>= $g 0)` would run as arithmetic on an
     # unbound variable.
     residuals = where(
-        S.clpq(S[">="](V.f, 0)),
-        where(S.clpq(S["=<"](V.f, 3)), fn.repr(S["residual-goals"](V.f))),
+        S.clpq(S.ge(V.f, 0)),
+        where(S.clpq(S["=<"](V.f, 3)), fn.repr(S.residual_goals(V.f))),
     )
     assert m.answers(residuals).one() == "(({} (, (>= $_0 0) (=< $_0 3))))"
 
@@ -115,7 +115,7 @@ def twin(m):
     # admissible counts and a list of variables, so a list here stays a list
     # rather than becoming an operator.
     exactly_one = where(
-        S.clpb(S.card((1,), (V.m, V.n))), S["clpb-labeling"]((V.m, V.n))
+        S.clpb(S.card((1,), (V.m, V.n))), S.clpb_labeling((V.m, V.n))
     )
     assert [tuple(pair) for pair in m.answers(exactly_one)] == [(0, 1), (1, 0)]
 
