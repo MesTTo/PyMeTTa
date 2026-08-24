@@ -19,7 +19,7 @@ the function namespace and `m.answers` alike, answers all five counters as
 zero where `m.eval` answers `(tables 1) (answers 1) (complete-call 1)` for the
 same subgoal, inside a `m.stats()` scope and outside one: a lazy pull runs on
 the held cursor's own SWI engine and SWI's tabling statistics are per-engine
-[measured again 2026-08-24; commit=WORKTREE]. So the counters come back through
+[measured again 2026-08-24; commit=1e264c186c531e69acde5ad03ff6a79210626df4]. So the counters come back through
 `eval`, the term door.
 
 A second thing does have to be forced: a call is LAZY, so `reach(S.a, V.y)` on
@@ -39,7 +39,7 @@ from metta import S, V, match
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=WORKTREE].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 BUDGET = 1
 
 #: One call, one answer, nothing invalidated: what the first three claims all

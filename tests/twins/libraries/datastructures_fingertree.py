@@ -26,7 +26,7 @@ from metta import Expression, S
 #: 264 inferences over the concurrent lane's own observations, because
 #: the shared engine's scheduling changes what a concurrent round costs
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=WORKTREE].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 #: Until it is measured again, this file's own distribution-budget residue
 #: entry, retired 2026-08-22 because the twin declared an envelope, is
 #: unbacked: a point budget is not the envelope that retired it.

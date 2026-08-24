@@ -45,7 +45,7 @@ from metta import Expression, S, V, channel, par_map, race, spawn
 #: the spin loop that proves a race really races is cut wherever the winning
 #: branch happens to be
 #: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=WORKTREE].
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
 #: Until it is measured again, this file's own distribution-budget residue
 #: entry, retired 2026-08-22 because the twin declared an envelope, is
 #: unbacked: a point budget is not the envelope that retired it.
