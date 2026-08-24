@@ -1096,7 +1096,7 @@ class Space(Handle):
     def peek(self, pattern: Any, *, deadline: float | None = None) -> Atom:
         """Wait for one matching atom and leave it in this space.
 
-        A finite deadline raises ``TimeoutError`` when no match arrives.
+        A finite deadline raises ``Timeout`` when no match arrives.
         """
         return self._wait_for_atom("peek-atom", pattern, deadline)
 
@@ -1145,7 +1145,11 @@ class Space(Handle):
                 f"no atom matching {pattern!r} arrived in {self._name} "
                 f"within {deadline} seconds"
             )
-            raise TimeoutError(msg)
+            # metta.Timeout, the same class the coordination family raises,
+            # so the guide's `except metta.Timeout` catches every deadline
+            # miss; it subclasses TimeoutError, so the builtin clause still
+            # works (agent A hit the split raising builtin TimeoutError here).
+            raise Timeout(msg)
         raise_error_answers(answers, space=self._space, target=target)
         if len(answers) != 1:
             msg = f"{operation} returned {len(answers)} answers, expected one"

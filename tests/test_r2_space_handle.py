@@ -172,3 +172,13 @@ def test_space_handles_are_term_operands_and_round_trip(  # noqa: D103  -- pytes
 def test_malformed_space_handle_wire_payloads_are_refused(wire_value):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="wire space payload"):
         wire.atom_from_wire(wire_value)
+
+
+def test_linda_deadline_misses_raise_the_package_timeout(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    import metta as package
+
+    _context, _host, target = spaces
+    with pytest.raises(package.Timeout):
+        target.take(S.job(V.state), deadline=0.001)
+    with pytest.raises(package.Timeout):
+        target.peek(S.job(V.state), deadline=0.001)
