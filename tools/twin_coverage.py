@@ -63,7 +63,7 @@ Guarantees:
     names the exact StrEnum member, while pattern and name strings at those
     doors remain governed by the source-text rule
     [tested: test_a_bare_declaration_word_names_the_exact_member,
-    test_a_declaration_takes_members_and_refuses_a_program; commit=WORKTREE]
+    test_a_declaration_takes_members_and_refuses_a_program; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the
@@ -253,13 +253,13 @@ DECLARATION_CALLS = frozenset({
 #: option [measured 2026-08-24: 0 bare option strings across all 218 twins
 #: after the corpus-wide normalization pass; every generated StrEnum member is
 #: a bare wire word; tested:
-#: test_a_declaration_takes_members_and_refuses_a_program; commit=WORKTREE].
+#: test_a_declaration_takes_members_and_refuses_a_program; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7].
 #:
 #: A word, and nothing else: `reaction("(Job $n)", op)` still reports, because
 #: a program carries a parenthesis, a space or a dollar and a vocabulary word
 #: carries none of them. That is what keeps a `str | Atom` pattern parameter
 #: from being a sixth source door
-#: [tested: test_a_declaration_takes_members_and_refuses_a_program; commit=WORKTREE].
+#: [tested: test_a_declaration_takes_members_and_refuses_a_program; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7].
 VOCABULARY_WORD = re.compile(r"[\w.-]+\Z")
 
 #: The typed option slots of the head-named declaration doors. Mapping the

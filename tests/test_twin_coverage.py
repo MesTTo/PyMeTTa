@@ -35,7 +35,7 @@ Guarantees:
     test_a_declaration_takes_members_and_refuses_a_program,
     test_a_bare_declaration_word_names_the_exact_member,
     test_non_declaration_vocabulary_text_keeps_the_existing_rules,
-    test_the_declaration_vocabulary_is_the_librarys_own; commit=WORKTREE]
+    test_the_declaration_vocabulary_is_the_librarys_own; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7]
   - the operator heads the lane refuses inside a compiled body are the ones
     the TRANSLATOR emits, so `pow-math` and `py-eq` report while `floor-math`,
     which no operator reaches, does not [tested:
