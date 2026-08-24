@@ -82,17 +82,19 @@ def probe_program(declared: str, call: str) -> tuple[str, str]:
 
 
 @pytest.mark.parametrize(("declared", "call", "expected"), MASK_ROWS)
-def test_a_declared_parameter_holds_or_reduces_as_the_arbiter_does(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_declared_parameter_holds_or_reduces_as_the_arbiter_does(
     declared, call, expected
 ):
+    """Each declared parameter type routes its argument as the arbiter measured."""
     program, name = probe_program(declared, call)
     assert answers(program) == [expected.replace("probe", name)]
 
 
 @pytest.mark.parametrize(("declared", "call", "expected"), REFUSAL_ROWS)
-def test_a_masked_parameter_still_refuses_an_argument_its_type_rules_out(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_masked_parameter_still_refuses_an_argument_its_type_rules_out(
     declared, call, expected
 ):
+    """A masked position holds its argument and still applies the type check."""
     program, name = probe_program(declared, call)
     assert answers(program) == [expected.replace("probe", name)]
 
@@ -137,7 +139,8 @@ FAMILY_ROWS = [
 
 
 @pytest.mark.parametrize(("call", "expected"), FAMILY_ROWS)
-def test_the_expression_family_answers_what_the_arbiter_answers(call, expected):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_the_expression_family_answers_what_the_arbiter_answers(call, expected):
+    """Each shipped expression-family call answers the arbiter's own answer."""
     assert answers(call) == [expected]
 
 
@@ -207,10 +210,12 @@ def test_a_python_comprehension_names_its_intermediate():
 
 
 def test_add_reduct_reduces_a_plain_atom_and_an_equation_body():
-    """It reduces what it stores, and a call nothing heads still reduces its
-    members: `(total (+ 1 2))` is stored `(total 3)`, which is what the arbiter
-    stores [measured 2026-08-24 against LeaTTa 9ea9f9d].
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """It reduces what it stores, a plain atom included.
+
+    A call nothing heads still reduces its members: `(total (+ 1 2))` is
+    stored `(total 3)`, which is what the arbiter stores
+    [measured 2026-08-24 against LeaTTa 9ea9f9d].
+    """
     assert answers(
         "!(let $s (new-space) (let $w (add-reduct $s (total (+ 1 2)))"
         " (collapse (get-atoms $s))))"
