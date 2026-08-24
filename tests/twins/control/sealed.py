@@ -21,12 +21,12 @@ table's `collapse` is `list()` does not hold: evaluating the match answers
 variable numbering, while collapsing it first answers
 `(($_1734 ok) ($_1716 ok))`, which is the distinctness the claim is about
 [re-measured 2026-08-24, all three spellings plus the subscript door in one
-fresh process; commit=WORKTREE]. So the gathering is named as its own compiled
+fresh process; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. So the gathering is named as its own compiled
 definition, where `collapse` and `match` are both names the subset reads as
 MeTTa. Filed as residue against P14.4.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -40,7 +40,7 @@ RUNG = "the `let`s here bind the variables whose identity is under test, which a
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

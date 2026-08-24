@@ -7,7 +7,7 @@ can be stacked, and each has a Python statement that means it: `let` is
 assignment, `superpose` over written-out alternatives is the form itself, and
 `superpose` over a BOUND expression is `fn.superpose`, one rung down because
 the ruled `superpose(*xs)` refuses inside a body ["Starred has no MeTTa
-equivalent in the compiled subset", measured 2026-08-24; commit=WORKTREE] and
+equivalent in the compiled subset", measured 2026-08-24; commit=028b41a056cfd706e516cd0b945cbf69ac066da7] and
 `superpose(xs)` is the other operation.
 
 `collapse` is the one name here Python's own linter cannot see: `superpose`
@@ -18,7 +18,7 @@ does not lower inside a compiled body either, which supercollapse records
 against the same row.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,7 +29,7 @@ from metta import Expression, fn, superpose
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

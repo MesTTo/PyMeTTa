@@ -15,7 +15,7 @@ it evaluated to whether or not its arguments carry the caller's variables, in
 a `stats()` scope and outside one, and the bindings those variables took are
 the parallel row face on the same view [re-measured 2026-08-24:
 `m.fn.unify(V.x, S.f(V.x), S.cyclic, S.sound)` answers `[sound]` either way and
-its `.rows` answers `[Row(x=$_70)]`; commit=WORKTREE].
+its `.rows` answers `[Row(x=$_70)]`; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -26,7 +26,7 @@ from metta import S, V, match
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

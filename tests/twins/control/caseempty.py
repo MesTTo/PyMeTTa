@@ -14,7 +14,7 @@ answers prunes the whole form, so the compiled `wu` answers nothing where the
 example answers 42 [measured 2026-08-24: `match empty(): case 1: ...;
 case S.Empty: return 42` stores
 `(let* (($k (empty))) (case $k ((1 2) ($_ (case $k ((Empty 42) ...))))))` and
-answers `[]`; commit=WORKTREE]. So `wu` is stated as the term it is, and the
+answers `[]`; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. So `wu` is stated as the term it is, and the
 gap is filed against P14.4.
 Open Obligations:
   To Do: None
@@ -26,7 +26,7 @@ from metta import S, equation
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

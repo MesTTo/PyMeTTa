@@ -12,12 +12,12 @@ a body is pure atoms, so the write is the head itself over `(context-space)`,
 the space the equation is running in. The statement spelling does not merely
 refuse there, it MISCOMPILES to arithmetic, which is why naming the head is
 the right rung and not a shortcut [measured 2026-08-24: `space += atom` inside
-a compiled body stores `(+ $space $atom)` and writes nothing; commit=WORKTREE].
+a compiled body stores `(+ $space $atom)` and writes nothing; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 That stays filed against control/and_then_or_else.metta, where the space is
 neither a parameter nor the context space and so cannot be reached at all.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -28,7 +28,7 @@ from metta import Expression, S, V, equation, fn
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

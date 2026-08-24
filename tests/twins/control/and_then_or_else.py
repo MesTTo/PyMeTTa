@@ -28,11 +28,11 @@ host value the body would have to close over, which would pin the equation to
 this process. Worse, the statement spelling does not refuse there, it
 MISCOMPILES: `space += atom` inside a body lowers to `(+ $space $atom)`,
 arithmetic, and the equation then answers True while storing nothing
-[measured 2026-08-24; commit=WORKTREE]. Filed as residue against P14.4.
+[measured 2026-08-24; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. Filed as residue against P14.4.
 Guarantees:
   - TRUE and FALSE used here are package values rather than local
     reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=WORKTREE]
+    commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +44,7 @@ from metta import FALSE, TRUE, Atom, S, V, and_, if_
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

@@ -12,7 +12,7 @@ a BOUND expression apart is `fn.superpose(x)`, because the ruled
 expression-position spelling `superpose(*x)` refuses with "Starred has no
 MeTTa equivalent in the compiled subset" and `superpose(x)` is the other
 operation, one alternative that happens to be `$x` [both measured 2026-08-24;
-commit=WORKTREE]. Both are filed against P14.4.
+commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. Both are filed against P14.4.
 
 Both heads are named rather than spelled, and each for a measured reason. A
 def's own name IS its head, so `name=` is for heads Python cannot spell:
@@ -21,11 +21,11 @@ the definition's own name, so `def range` compiles its own recursion to the
 builtin and answers `[1, (2 3 4)]`; and `TupleConcat` is a CapWords FUNCTION
 head, which `def TupleConcat` can spell only at the cost of an N-family
 suppression this repository's gate has no budget for
-[both measured 2026-08-24; commit=WORKTREE]. `()` is the empty tuple, which is
+[both measured 2026-08-24; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. `()` is the empty tuple, which is
 the empty expression, so the base case needs no spelling of its own.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -36,7 +36,7 @@ from metta import Expression, fn, superpose
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

@@ -22,15 +22,15 @@ filed against P14.4: collapsing gathers the answers into one ATOM, so the
 collapse of no answers is `()` while the list of no answers is `[]`, which is
 the distinction the first three claims are about; `Expression(answers)` is the
 ordered atom form, and the three assertions below are the check
-[tested: the first three asserts of twin(); commit=WORKTREE]. And
+[tested: the first three asserts of twin(); commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. And
 `(let $b (tx-body) (transaction $b))` binds the body so the special form sees a
 VARIABLE holding a value; substituting the term in Python instead would hand
 `transaction` the term itself, and it would run rather than come back unrun.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
   - UNIT used here is a package value rather than a local reconstruction
-    [tested: test_the_canonical_atoms_are_public_values; commit=WORKTREE]
+    [tested: test_the_canonical_atoms_are_public_values; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,7 +41,7 @@ from metta import UNIT, Expression, G, S, V, equation, fn, rules, superpose
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

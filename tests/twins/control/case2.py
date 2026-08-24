@@ -20,7 +20,7 @@ from metta import S, superpose
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
@@ -33,7 +33,7 @@ def twin(m):
     # `def compile` would cost a suppression the gate does not have
     # [measured 2026-08-24: `GATE_ONLY=1 sh check.sh` failed with
     # "P0.13 suppression burn-down increased (observed, maximum): {'A': (9, 8)}";
-    # commit=WORKTREE].
+    # commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
     @m.define(name="compile")
     def compiled(_stmt):
         # (= (compile $stmt) (case $stmt (($stmt (superpose (what what2))))))

@@ -14,7 +14,7 @@ The lambdas are terms. A Python lambda inside a compiled body does lower to
 the engine's own `|->`, but a definition whose BODY is a lambda cannot hand
 one out as data: the lambda's parameter folds into the head's arity, so
 `(below 2)` answers `(partial below (2))` and `arities("below")` is `[3]`
-[re-measured 2026-08-24; commit=WORKTREE]. Filed as residue against P14.4. So
+[re-measured 2026-08-24; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. Filed as residue against P14.4. So
 the two lambdas are built at the term door, once each, and the `let` and `let*`
 that bind them are Python name bindings, which is what a `let` is.
 
@@ -25,7 +25,7 @@ wrapped check is `if_`, the keyword builder for stored code, which has the
 arity the engine's `if` has.
 Guarantees:
   - TRUE used here is a package value rather than a local reconstruction
-    [tested: test_the_canonical_atoms_are_public_values; commit=WORKTREE]
+    [tested: test_the_canonical_atoms_are_public_values; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,7 +42,7 @@ SCALED = S["|->"]((V.x,), 100 * S.g(V.x))
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
@@ -114,7 +114,7 @@ def twin(m):
     # this repository's gate accepts is the lowercase one and the head is
     # named [measured 2026-08-24: `GATE_ONLY=1 sh check.sh` failed with
     # "P0.13 suppression burn-down increased (observed, maximum): {'N': (37, 35)}";
-    # commit=WORKTREE].
+    # commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
     @m.define(name="P")
     def below_two(x):
         # (= (P $X) (< $X 2))

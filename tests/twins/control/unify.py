@@ -21,7 +21,7 @@ expression", where the engine's `add-atom` takes it; the two doors disagreeing
 is filed as residue against P14.10.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -35,7 +35,7 @@ STRING_X, STRING_Y = ground("x"), ground("y")
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
@@ -117,7 +117,7 @@ def twin(m):
     # happen in the ENGINE, because `Empty` is what the branch answers and it
     # is the collapse that drops it [re-measured 2026-08-24: `m.eval` of the
     # unify answers `[Empty]` and `Expression(...)` over that is `(Empty)`,
-    # where collapsing it first answers `()`; commit=WORKTREE].
+    # where collapsing it first answers `()`; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
     # !(test (collapse (unify a b then Empty)) ())
     removed = S.unify(S.a, S.b, S.then, S.Empty)
     assert m.eval(S.collapse(removed)) == [Expression(())]  # rung: `collapse` is what drops the Empty marker, and a Python list does not

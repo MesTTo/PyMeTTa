@@ -12,14 +12,14 @@ whose branches are patterns over structure compiles; what refuses is the STAR
 in `case (h, *tail)`, which needs the engine's named segment variables:
 "star patterns need the engine's named segment variables; spell the fixed
 prefix today and use that segment-variable row when it lands"
-[measured 2026-08-24; commit=WORKTREE]. A fixed-arity arm, `case (h, _b, _c)`,
+[measured 2026-08-24; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]. A fixed-arity arm, `case (h, _b, _c)`,
 does compile, and it is a NARROWER claim than the original's cons pattern,
 which holds for a tail of any length. So the destructuring below stays, and the
 star arm is filed against P14.4 with P4.10, the sequence-variable row, as its
 prerequisite.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=WORKTREE]
+    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -30,7 +30,7 @@ from metta import Expression
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

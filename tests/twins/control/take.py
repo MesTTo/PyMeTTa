@@ -17,7 +17,7 @@ the producer at the frontier the slice asked for, so the cost moves with k
 rather than driving a self-recursive superposition to a fixed internal bound
 [measured 2026-08-24: 140 inferences to pull 4 and 210 to pull 8 from
 `(= (from $n) (superpose ($n (from (+ $n 1)))))`, where the same slices cost
-1,500,141 each before the lazy view landed; commit=WORKTREE].
+1,500,141 each before the lazy view landed; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 
 A refusal crosses the seam as a Python exception, so `catch` is `except` and
 the branch that reads what came back is Python's own.
@@ -32,7 +32,7 @@ from metta.errors import EngineError
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

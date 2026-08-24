@@ -26,7 +26,7 @@ carried scalars: `+` over a grounded atom STAGES `(+ ...)` rather than
 computing it, which is what makes `G(1) + 2` a term everywhere else in this
 corpus [source: bindings/python/metta/_atoms_core.py, Grounded.value;
 re-measured 2026-08-24: `sum(m.fn.gen())` builds `(+ (+ (+ 0 1) 2) 3)`;
-commit=WORKTREE].
+commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 
 `gen` has three clauses for one head. Stacked `@m.define` will not say that:
 stacking reads as first-match, so two clauses fixing no literal are a
@@ -35,7 +35,7 @@ directly, and `space += bundle` lands the clause set through the one write
 door.
 Guarantees:
   - UNIT used here is a package value rather than a local reconstruction
-    [tested: test_the_canonical_atoms_are_public_values; commit=WORKTREE]
+    [tested: test_the_canonical_atoms_are_public_values; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -47,7 +47,7 @@ from metta import UNIT, S, equation, rules, superpose
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 

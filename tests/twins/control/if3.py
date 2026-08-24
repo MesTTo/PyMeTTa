@@ -13,7 +13,7 @@ the answer is 42. A twin runs inside a `stats()` scope and the call answers the
 same either way, so nothing here depends on the scope; an earlier note in this
 file said the two doors diverged and they no longer do
 [re-measured 2026-08-24: `chosen(V.A)` answers `[42]` both inside and outside
-`m.stats()`; commit=WORKTREE].
+`m.stats()`; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,7 +24,7 @@ from metta import S, V, fn
 
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 BUDGET = 1
 
 
