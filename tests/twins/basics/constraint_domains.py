@@ -24,14 +24,14 @@ The claims read through the answer view's cardinality doors, over answers that
 still carry rational bindings: `m.answers(where(half, fn.repr(V.x))).one()`
 answers `'1r2'`, because the view decodes a rational payload as a
 `fractions.Fraction` [measured 2026-08-23: probe over the merged tree;
-commit=WORKTREE].
+commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=WORKTREE]
+    commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
   - expected constraint reprs are plain Python text rather than grounded data
     [tested: test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=WORKTREE]
+    commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +44,7 @@ from metta import TRUE, S, V, equation, fn, if_
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 

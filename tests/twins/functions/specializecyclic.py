@@ -11,10 +11,10 @@ bundle lands.
 Assumes:
   - the four equations and two runnable claims mirror
     examples/functions/specializecyclic.metta in source order
-    [source: examples/functions/specializecyclic.metta lines 1-15; commit=WORKTREE]
+    [source: examples/functions/specializecyclic.metta lines 1-15; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
 Guarantees:
   - twin installs every equation and proves both runnable claims
-    [tested: test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
+    [tested: test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,7 +31,7 @@ from metta import Expression, S, equation, if_
 #: minimum 26325, maximum 26409 over 28 observations under
 #: `full-lane/218/workers=32`, because its cost moves with the scheduler; the
 #: re-pin pass has to give it an envelope again rather than a point
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 

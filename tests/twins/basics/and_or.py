@@ -11,7 +11,7 @@ to the Python bool the conditional expression then reads.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=WORKTREE]
+    commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,7 +24,7 @@ from metta import FALSE, TRUE, and_, if_, or_
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 

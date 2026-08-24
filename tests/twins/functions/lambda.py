@@ -29,7 +29,7 @@ table entry, because Python's `or` and `==` operators have host meanings.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
-    commit=WORKTREE]
+    commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -44,7 +44,7 @@ from metta import FALSE, Atom, Expression, S, V, arrow, equation, fn, or_, typed
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=WORKTREE].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 
