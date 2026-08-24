@@ -37,7 +37,16 @@ import re
 #: reason beside the name.
 HOST_SERVICES = {
     "catch_recover/2",
-    "lift_pattern_modifiers/3",
+    # The modifier walk gained a fourth argument rather than a second walk:
+    # it now also answers whether the pattern carries a sequence variable,
+    # which the query door must know before it builds a candidate head, and
+    # asking separately would cost a walk per query [measured 2026-08-24].
+    "lift_pattern_modifiers/4",
+    # Its companion, and the ONLY new row: the plan a gap pattern is asked
+    # under. It is one call per gap query and none at all for a gap-free one,
+    # and the alternative is the host reimplementing the fragment classifier
+    # LeaTTa states and this engine already owns.
+    "petta_seq_query_plan/2",
     "match_foreign/5",
     "metta_host_load_file/3",
     "metta_host_read_forms/2",
@@ -128,7 +137,8 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: "host-choice" is a consult whose answer only the host can make.
 FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
-    "lift_pattern_modifiers/3": "door",
+    "lift_pattern_modifiers/4": "door",
+    "petta_seq_query_plan/2": "door",
     "match_foreign/5": "door",
     "metta_add_atoms/2": "door",
     "metta_assert_space_releasable/1": "door",

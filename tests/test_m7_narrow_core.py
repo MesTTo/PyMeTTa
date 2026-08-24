@@ -52,8 +52,10 @@ FINAL_METTA_METHODS = 20
 # R1 exported the static fn namespace at the root; +8 when R5 landed its
 # ruled doors (typed, arrow, the keyword builders, State and solve's kin),
 # followed by the five newly surfaced module-tier verbs (trace replaces its
-# satellite module at the same name, so it does not change the count).
-FINAL_METTA_EXPORTS = 88
+# satellite module at the same name, so it does not change the count); +1 for
+# seg, the named segment builder, whose anonymous twin is Python's own `...`
+# and therefore needs no name.
+FINAL_METTA_EXPORTS = 89
 
 SATELLITES = {
     "aio",
