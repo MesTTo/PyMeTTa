@@ -406,3 +406,21 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
     )
     with pytest.raises(pi.PettaError, match=r"duplicate.*p5-duplicate"):
         pi.discover(metta)
+
+
+def test_undefined_annotates_as_the_metatype_symbol():
+    """metta.Undefined in a type position IS the %Undefined% symbol.
+
+    The trap this pins: arrow(Atom, Atom, Undefined) built
+    (-> Atom Atom Undefined) and the metatype declaration silently did
+    nothing; typing.Any worked. Both spell the same row now.
+    """
+    from typing import Any
+
+    import metta
+    from metta import parse
+    from metta.atoms import Atom, Undefined
+
+    assert metta.arrow(Atom, Atom, Undefined) == parse("(-> Atom Atom %Undefined%)")
+    assert metta.arrow(Atom, Atom, Any) == metta.arrow(Atom, Atom, Undefined)
+    assert metta.typed(metta.S.f, Undefined) == parse("(: f %Undefined%)")

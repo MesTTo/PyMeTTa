@@ -39,7 +39,7 @@ from typing import Any
 from ._config import config
 from ._convert_registry import _lookup as _lookup_conversion
 from ._parameterized import hook_for as _parameterized_hook
-from .atoms import Atom, Expression, Grounded, S, Symbol, Variable, _encode, _expr
+from .atoms import Atom, Expression, Grounded, S, Symbol, Undefined, Variable, _encode, _expr
 
 _TYPE_NAMES: tuple[tuple[type, str], ...] = (
     (bool, "Bool"),
@@ -131,6 +131,14 @@ def annotation_atom_for(annotation: Any) -> Atom:
 
 def _direct_type_atoms(annotation: Any, origin: Any) -> list[Atom] | None:
     if annotation is inspect.Parameter.empty or annotation is Any:
+        return [S["%Undefined%"]]
+    if annotation is Undefined:
+        # The canonical table's own row: the class REPRESENTS %Undefined%,
+        # and mapping it by class NAME built the ordinary symbol Undefined,
+        # which the engine reads as a user type and the metatype declaration
+        # silently did nothing [measured 2026-08-24 by the libraries twins
+        # agent: arrow(Atom, Atom, metta.Undefined) stored (-> Atom Atom
+        # Undefined) and letstarcomputed's first claim answered []].
         return [S["%Undefined%"]]
     if annotation is object:
         return [S.Atom]
