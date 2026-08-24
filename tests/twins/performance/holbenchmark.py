@@ -18,6 +18,11 @@ must be a literal" [measured 2026-08-24; commit=8a8b75a1f4052c00c70c29e25e95e4d5
 `@m.define`s whose parameters carry the patterns, the way the equations do.
 Residue P14.4.
 
+The recursive list builders name every value before passing it to `cons`.
+Rules-bundle bodies build the stored `let` terms; compiled bodies use plain
+assignment, which lowers to `let*`.
+[source: examples/performance/holbenchmark.metta:1; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
+
 Each claim states its own branch allowance above the evaluator's 100000
 default, which is a term because `m.limits` bounds inferences and time and not
 stack depth (residue, P14.14). It is load-bearing for the compiled kernels
@@ -50,7 +55,15 @@ def twin(m):
     # A map that flattens as it goes, over a cons list built by counting down.
     m += equation(S.map_flat(V.f, ())).to(())  # rung: a compiled head pattern may only be a literal default
     m += equation(S.map_flat(V.f, S.cons(V.x, V.xs))).to(  # rung: as above
-        S.cons((V.f, V.x), S.map_flat(V.f, V.xs))
+        S.let(  # rung: this rules body has no Python statement position for the required binding
+            V.head,
+            (V.f, V.x),
+            S.let(  # rung: the recursive value must be named before cons receives its Expression-typed tail
+                V.rest,
+                S.map_flat(V.f, V.xs),
+                S.cons(V.head, V.rest),
+            ),
+        )
     )
 
     # The define door applies rung 4's underscore map like every other door,
@@ -64,7 +77,8 @@ def twin(m):
     def range_(n):
         if n == 0:
             return ()
-        return S.cons(n, range_(n - 1))
+        rest = range_(n - 1)
+        return S.cons(n, rest)
 
     assert m.fn.with_pragma(DEEP, S.length(S.map_flat(INC, S.range(1_000_000)))).one() == 1_000_000
 
@@ -79,7 +93,9 @@ def twin(m):
     def deep_nest(n):
         if n == 0:
             return ()
-        return S.cons(fn.range(50), deep_nest(n - 1))
+        row = fn.range(50)
+        rest = deep_nest(n - 1)
+        return S.cons(row, rest)
 
     assert m.fn.with_pragma(
         DEEP, S.fold_nested(S.add, 0, S.deep_nest(20_000))

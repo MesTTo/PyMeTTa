@@ -15,7 +15,10 @@ is for. `EvenNumber` and `EvenNumberList` are Python classes so that `f` and
 
 The comparison is `=alpha` and not `==` throughout, for the example's own
 reason: each comparison crosses KNOWN and different types, which `==` refuses
-by name, and `=alpha` is the comparison that takes anything.
+by name, and `=alpha` is the comparison that takes anything. Because its Atom
+parameters hold their operands, each computed value is named by `let` before
+the comparison receives it.
+[source: examples/types/types_dependent.metta:6; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 """
 
 from metta import UNIT, Expression, S, V, equation, fn, if_
@@ -42,8 +45,18 @@ def twin(m):
     # The body is a ONE-ARMED if, the filtering form that answers nothing
     # where its condition fails, which `if_` takes beside the three-armed
     # conditional. `%` on an atom builds the term Python's own operator means.
-    # (= (get-type $x) (catch (if (=alpha (% $x 2) 0) EvenNumber)))
-    m += equation(kind(V.x)).to(fn.catch(if_(alpha(V.x % 2, 0), S.EvenNumber)))
+    # (= (get-type $x)
+    #    (catch (let $remainder (% $x 2)
+    #             (if (=alpha $remainder 0) EvenNumber))))
+    m += equation(kind(V.x)).to(
+        fn.catch(
+            S.let(  # rung: this stored equation has no Python statement position for assignment
+                V.remainder,
+                V.x % 2,
+                if_(alpha(V.remainder, 0), S.EvenNumber),
+            )
+        )
+    )
 
     @m.define
     def f(x: EvenNumber, y: EvenNumber) -> EvenNumber:
@@ -57,11 +70,18 @@ def twin(m):
     def walk(head, tail):
         """The structured second clause: a list of even numbers, elementwise."""
         # (= (get-type (cons $head $tail))
-        #    (if (=alpha (get-type $head) EvenNumber)
-        #        (if (=alpha $tail ()) EvenNumberList (get-type $tail))))
+        #    (let $head-type (get-type $head)
+        #      (if (=alpha $head-type EvenNumber)
+        #          (if (=alpha $tail ()) EvenNumberList (get-type $tail)))))
         yield equation(kind(S.cons(head, tail))).to(
-            if_(alpha(kind(head), S.EvenNumber),
-                if_(alpha(tail, UNIT), S.EvenNumberList, kind(tail)))
+            S.let(  # rung: this rules generator builds the stored let where no Python statement position exists
+                V.head_type,
+                kind(head),
+                if_(
+                    alpha(V.head_type, S.EvenNumber),
+                    if_(alpha(tail, UNIT), S.EvenNumberList, kind(tail)),
+                ),
+            )
         )
 
     @m.define

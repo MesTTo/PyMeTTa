@@ -635,7 +635,7 @@
       "missing": "a structured subterm as a stacked-clause head pattern",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "Eight of this file's equations fix a head position with `()` or with `(cons $x $xs)` or with a nested pair such as `($v ($f (cons $x $xs)))`, and define._parameters accepts a literal default only. The twin uses the @rules shape for all of them; `p1`, `wrapper2` and `higher-order-fun` are the three that reach the function shape."
+      "detail": "RE-ANCHORED 2026-08-24. Ten equations across the four map families and `fold-nested` fix a head position with `()`, `(cons $x $xs)`, or a nested pair such as `($v ($f (cons $x $xs)))`; define._parameters accepts a literal default only, so all five bundles remain `@m.rules`. The four rewritten recursive map bodies build their stored nested `let` sequence explicitly because a rules generator executes as host Python. `p1`, `wrapper2`, and `higher-order-fun` are the three definitions that reach the function shape."
     },
     {
       "kind": "friction",

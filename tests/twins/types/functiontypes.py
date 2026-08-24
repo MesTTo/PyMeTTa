@@ -1,12 +1,14 @@
 """Purpose: examples/types/functiontypes.metta in Python: what a signature does.
 
-Three functions over one shape of body, and the declared signature decides what
+Four functions over one shape of body, and the declared signature decides what
 reaches it and what comes back. `wu1` takes its second argument as `Atom`, so
-that argument arrives unrun; `wu2` is `Number` throughout and adds; `wu3`
-answers a plain expression on one branch and a number on the other, which
-`%Undefined%` allows.
+that argument arrives unrun, then its `%Undefined%` result re-enters evaluation.
+`wu1b` changes only the result to `Atom`, so its answer stays as produced.
+`wu2` is `Number` throughout and adds; `wu3` answers a plain expression on one
+branch and a number on the other, which `%Undefined%` allows.
+[source: examples/types/functiontypes.metta:15; commit=f053d9d46aa43b9beec360eae30b9016ffbf231f]
 
-All three say their types as ANNOTATIONS, which is the whole declaration: `int`
+All four say their types as ANNOTATIONS, which is the whole declaration: `int`
 is Number, `Atom` is the Atom metatype, and `Any` is `%Undefined%`, all through
 the one conversion table, so each arrow is written once and the engine checks
 it. Inside the compiled bodies Python's own syntax is the MeTTa: `if a < 10`
@@ -37,11 +39,16 @@ BUDGET = 1
 
 
 def twin(m):
-    """Declare three signatures, then watch each one shape its call."""
+    """Declare four signatures, then watch each one shape its call."""
 
     @m.define
     def wu1(a: int, b: Atom) -> Any:
         """(: wu1 (-> Number Atom %Undefined%)), (= (wu1 $a $b) (42 $a $b))."""
+        return (42, a, b)
+
+    @m.define
+    def wu1b(a: int, b: Atom) -> Atom:
+        """(: wu1b (-> Number Atom Atom)), preserving the produced expression."""
         return (42, a, b)
 
     @m.define
@@ -56,10 +63,15 @@ def twin(m):
             return a + b
         return S.a(S.list, S["not"], S.a, S.number)
 
-    # The Atom-typed argument arrives unevaluated; the Number-typed one does
-    # not, so only the first of the two sums survives into the answer.
-    # !(test (wu1 (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
-    assert wu1(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, S.add(4, 2)))]
+    # The Atom-typed argument arrives unevaluated, but wu1's %Undefined% result
+    # re-enters evaluation and reduces the held sum in the produced expression.
+    # !(test (wu1 (+ 2 4) (+ 4 2)) (42 6 6))
+    assert wu1(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, 6))]
+    # An Atom result answers as produced, retaining the held argument.
+    # !(test (wu1b (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
+    assert wu1b(S.add(2, 4), S.add(4, 2)) == [
+        Expression((42, 6, S.add(4, 2)))
+    ]
     # !(test (wu2 (+ 2 4) (+ 4 2)) 12)
     assert wu2(S.add(2, 4), S.add(4, 2)) == [12]
 
