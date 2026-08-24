@@ -816,7 +816,6 @@ def _call_strings(node: ast.Call) -> set[int]:
             and isinstance(argument.value, str)
             and VOCABULARY_WORD.match(argument.value)
         )
-    permitted.update(id(word.value) for word in node.keywords if word.arg == "name")
     return permitted
 
 
