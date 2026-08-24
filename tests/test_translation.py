@@ -88,29 +88,49 @@ def test_an_equation_head_is_matched_not_called(m):
 
 
 # The derived forms the engine's prelude ships as translator rules, each with
-# the expansion the compiler clause it replaced used to build. `arity` is what
-# the rule's own equation takes; `guard` names the head every argument must
-# have for the rewrite to apply, which is what the set operations carried.
+# the expansion its own equation builds. `arity` is what the rule's equation
+# takes; `guard` names the head every argument must have for the rewrite to
+# apply, which is what the set operations carried.
+#
+# The five set operations NAME their collapsed operand before handing it over,
+# because unique-atom, alpha-unique-atom, union-atom, intersection-atom and
+# subtraction-atom all declare Expression parameters and an Expression
+# parameter holds its argument as written. Fused as
+# `(unique-atom (collapse $s))` the collapse never runs and the operation reads
+# the literal `(collapse $s)`
+# [source: LeaTTa MettaHyperonFull/Minimal/Interpreter.lean:1543-1546, the
+# groundedTokens rows for that family; measured 2026-08-24:
+# `!(subtraction-atom ((+ 1 2) b) (b))` answers `((+ 1 2))` there].
 DERIVED_FORMS = {
     ("and-then", 2): (None, "(if {0} {1} False)"),
     ("or-else", 2): (None, "(if {0} True {1})"),
     ("trace!", 2): (None, "(progn (println! {0}) {1})"),
-    ("unique", 1): (None, "(call (superpose (unique-atom (collapse {0}))))"),
+    ("unique", 1): (
+        None,
+        "(let $df-in (collapse {0})"
+        " (let $df-out (unique-atom $df-in) (superpose $df-out)))",
+    ),
     ("alpha-unique", 1): (
         None,
-        "(call (superpose (alpha-unique-atom (collapse {0}))))",
+        "(let $df-in (collapse {0})"
+        " (let $df-out (alpha-unique-atom $df-in) (superpose $df-out)))",
     ),
     ("union", 2): (
         "superpose",
-        "(call (superpose (union-atom (collapse {0}) (collapse {1}))))",
+        "(let $df-left (collapse {0}) (let $df-right (collapse {1})"
+        " (let $df-out (union-atom $df-left $df-right) (superpose $df-out))))",
     ),
     ("intersection", 2): (
         "superpose",
-        "(call (superpose (intersection-atom (collapse {0}) (collapse {1}))))",
+        "(let $df-left (collapse {0}) (let $df-right (collapse {1})"
+        " (let $df-out (intersection-atom $df-left $df-right)"
+        " (superpose $df-out))))",
     ),
     ("subtraction", 2): (
         "superpose",
-        "(call (superpose (subtraction-atom (collapse {0}) (collapse {1}))))",
+        "(let $df-left (collapse {0}) (let $df-right (collapse {1})"
+        " (let $df-out (subtraction-atom $df-left $df-right)"
+        " (superpose $df-out))))",
     ),
 }
 

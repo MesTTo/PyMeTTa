@@ -104,7 +104,17 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained): 
     first.run("(= (past-twice $f $x) ($f ($f $x)))")
     assert first.run("!(past-twice past-inc 5)") == [[7]]
     assert first.run("!((|-> ($x) (* $x 10)) 7)") == [[70]]
-    assert _execution_module_owns(drained, name) != []
+    owned = _execution_module_owns(drained, name)
+    assert owned != []
+    # The lambda's generated name is READ rather than written down. It comes
+    # from a process-global counter, so which number this life reaches depends
+    # on every lambda compiled before it in the same process; a name written
+    # down here is one an unrelated test can already own in the PARENT module,
+    # where the recycled space would inherit it and the hatch below would find
+    # something rather than nothing.
+    past_lambda = next(
+        entry.split("/")[0] for entry in owned if entry.startswith("lambda_")
+    )
     # Tabling instruments the compiled function, so it is declared after the
     # equation and with the call's own shape; `(tabled past-tabled)` on the
     # bare name is refused, loudly, by lib_tabling.
@@ -127,8 +137,8 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained): 
         # The raw-Prolog hatch is how a past life's lambda was reachable at
         # all, its generated name being one no MeTTa program writes. It has to
         # find nothing now, which for that hatch is a Prolog existence error.
-        with pytest.raises(PettaError, match="lambda_2"):
-            second.run("!(callPredicate (Predicate (lambda_2 5 $y)))")
+        with pytest.raises(PettaError, match=past_lambda):
+            second.run(f"!(callPredicate (Predicate ({past_lambda} 5 $y)))")
         # Unreduced, which is what a call to a function nothing defines
         # answers. A past life's value here would be the defect.
         assert second.run("!(past-life)") == [[S["past-life"]()]]

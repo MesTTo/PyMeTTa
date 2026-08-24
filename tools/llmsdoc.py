@@ -111,7 +111,10 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
         }
     derived = set(
         re.findall(
-            r"^!\(add-translator-rule!\s+([^\s)]+)\)",
+            # A registration may carry the rule's own declarations, so the
+            # name is read up to whatever follows it rather than requiring the
+            # closing paren immediately after.
+            r"^!\(add-translator-rule!\s+([^\s)]+)",
             (ROOT / "engine" / "prelude.metta").read_text(),
             re.MULTILINE,
         )

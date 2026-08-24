@@ -80,11 +80,19 @@ _ROWS = 2_000
 # seconds and costs 0.73 for that reason, and a 500-form program, whose graph is
 # small enough that the scan was cheap anyway, is unchanged at 82 microseconds a
 # form.
+# RE-PINNED 2026-08-24, plain +3/+3/+1/+5 and automatic +3/+3/+3/+3, by the
+# evaluation mask reaching WRITTEN builtin calls. The move is a COMPILE-time
+# constant and it does not grow with n: the workload's own forms each pay one
+# indexed `builtin_call_mask/2` failure at their builtin call site and one
+# goal-free-body test at their equation, which is how each learns whether an
+# operand is held back and whether the answer re-enters evaluation. The growth
+# ratios this test exists to assert are untouched, plain still multiplying by
+# roughly eight per three levels while automatic adds a constant.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 86_850, "automatic": 5_466},
-    15: {"plain": 688_998, "automatic": 6_549},
-    18: {"plain": 5_506_103, "automatic": 7_632},
-    20: {"plain": 22_021_848, "automatic": 8_354},
+    12: {"plain": 86_853, "automatic": 5_469},
+    15: {"plain": 689_001, "automatic": 6_552},
+    18: {"plain": 5_506_104, "automatic": 7_635},
+    20: {"plain": 22_021_853, "automatic": 8_357},
 }
 
 

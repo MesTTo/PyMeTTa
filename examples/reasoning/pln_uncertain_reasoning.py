@@ -19,10 +19,14 @@ m.run(
     "(: => (-> Atom Atom %Undefined% %Undefined%))\n"
     "(= (=> $A $C $stv)\n"
     "   (add-atom &self (= $C (Truth_ModusPonens $A $stv))))\n"
+    # unique-atom declares an Expression parameter, so it holds its argument
+    # as written; the collapse is named first and the variable handed over.
     "(: ? (-> Atom %Undefined%))\n"
     "(= (? $term)\n"
-    "   (unique-atom (collapse ($term (progn (reduce $term)\n"
-    "     (foldl-atom (collapse (reduce $term)) (stv 0.5 0.0) Truth_Revision))))))"
+    "   (let $found (collapse ($term (progn (reduce $term)\n"
+    "     (let $evidence (collapse (reduce $term))\n"
+    "       (foldl-atom $evidence (stv 0.5 0.0) Truth_Revision)))))\n"
+    "     (unique-atom $found)))"
 )
 m.run(
     "!(=> (smokes $x) (cancer $x) (stv 0.6 0.9))\n"

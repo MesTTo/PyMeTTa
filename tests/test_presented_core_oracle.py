@@ -66,6 +66,23 @@ CORPUS = [
     "!(superpose-bind ((a ())))",
     "!(unify (a $x) (a b) $x nope)",
     "!(unify 1 2 yes nope)",
+    # THE EVALUATION MASK, on the same fragment. Every row here carries a
+    # REDUCIBLE operand in a position the callee's declaration holds back, so a
+    # row that agreed only because both sides reduced everything cannot pass by
+    # accident. `cons-atom` and `decons-atom` declare `Atom` and `Expression`
+    # parameters and an `Atom` result, so the operand arrives as written and
+    # the answer is final; `cdr-atom`'s `Expression` result and `chain`'s
+    # `%Undefined%` one re-enter evaluation, which is where the sum finally
+    # reduces.
+    "!(cons-atom (+ 1 2) (b))",
+    "!(cons-atom a ((+ 1 2) c))",
+    "!(decons-atom ((+ 1 2) b))",
+    "!(cdr-atom (cdr-atom (a b c)))",
+    "!(chain (cons-atom (+ 1 2) (b)) $x $x)",
+    "!(chain (decons-atom ((+ 1 2) b)) $x $x)",
+    "!(chain (cons-atom a (b)) $x (cons-atom $x (c)))",
+    "!(unify (a $x) (a (+ 1 2)) $x nope)",
+    "!(function (return (+ 1 2)))",
 ]
 
 
