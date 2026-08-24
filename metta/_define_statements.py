@@ -38,6 +38,94 @@ from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError
 
 
+def _walrus_roots(head: ast.stmt) -> list[ast.expr]:
+    """The statement's once-evaluated expressions, where hoisting is lawful."""
+    if isinstance(head, ast.Return) and head.value is not None:
+        return [head.value]
+    if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+        return [] if head.value is None else [head.value]
+    if isinstance(head, ast.Expr):
+        return [head.value]
+    if isinstance(head, ast.If):
+        return [head.test]
+    if isinstance(head, ast.For):
+        return [head.iter]
+    if isinstance(head, ast.Match):
+        return [head.subject]
+    if isinstance(head, ast.While):
+        for sub in ast.walk(head.test):
+            if isinstance(sub, ast.NamedExpr):
+                msg = (
+                    "a walrus in a while test would rebind per iteration; "
+                    "bind inside the loop body instead"
+                )
+                raise CompileError(
+                    msg,
+                    construct="walrus",
+                    line=sub.lineno,
+                )
+    return []
+
+
+def _hoistable_walruses(head: ast.stmt) -> list[ast.NamedExpr]:
+    """Every walrus in the statement's hoistable expressions, in order.
+
+    Hoistable positions evaluate exactly once before the statement acts:
+    a return or yield value, a binding's right side, a bare expression, an
+    if test, a for iterable, a match subject. A while test re-evaluates
+    per iteration and a nested scope (lambda, def, comprehension) owns its
+    body, so a walrus there refuses with its own remedy instead of
+    hoisting wrongly.
+    """
+    roots = _walrus_roots(head)
+    found: list[ast.NamedExpr] = []
+
+    def collect(node: ast.AST) -> None:
+        # Postorder: children before parents, left to right, which is both
+        # sibling evaluation order and inner-before-container for nesting.
+        if isinstance(
+            node,
+            (ast.Lambda, ast.FunctionDef, ast.ListComp, ast.SetComp,
+             ast.DictComp, ast.GeneratorExp),
+        ):
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.NamedExpr):
+                    msg = (
+                        "a walrus inside a nested scope leaks its binding "
+                        "past what compiles here; bind before the "
+                        "expression instead"
+                    )
+                    raise CompileError(
+                        msg,
+                        construct="walrus",
+                        line=sub.lineno,
+                    )
+            return
+        for child in ast.iter_child_nodes(node):
+            collect(child)
+        if isinstance(node, ast.NamedExpr):
+            found.append(node)
+
+    for root in roots:
+        collect(root)
+    return found
+
+
+def _replace_walrus(head: ast.stmt, walrus: ast.NamedExpr, target: str) -> None:
+    """Swap one walrus node for a plain load of its bound name."""
+    load = ast.copy_location(ast.Name(id=target, ctx=ast.Load()), walrus)
+    for parent in ast.walk(head):
+        for field, child in ast.iter_fields(parent):
+            if child is walrus:
+                setattr(parent, field, load)
+                return
+            if isinstance(child, list):
+                for index, item in enumerate(child):
+                    if item is walrus:
+                        child[index] = load
+                        return
+
+
 def _space_valued(value: Atom) -> bool:
     """Whether a compiled binding value is a SPACE.
 
@@ -80,6 +168,10 @@ class StatementCompilerMixin(CompilerContext):
             msg = f"{self.name} has no body to compile"
             raise CompileError(msg, construct="body")
         head, rest = statements[0], statements[1:]
+
+        walruses = _hoistable_walruses(head)
+        if walruses:
+            return self._walrus_block(walruses, head, rest)
 
         if isinstance(head, ast.Return):
             return self._return_statement(head, rest)
@@ -128,6 +220,40 @@ class StatementCompilerMixin(CompilerContext):
                 line=head.lineno,
             )
         return self.expression(head.value)
+
+    def _walrus_block(
+        self,
+        walruses: list[ast.NamedExpr],
+        head: ast.stmt,
+        rest: list[ast.stmt],
+    ) -> Expression:
+        """Hoist `name := value` bindings ahead of their statement.
+
+        Python's own let expression: PEP 572 binds to the enclosing
+        function scope, which is exactly a let* chain around the
+        statement's continuation, so `(y := f(x)) + y` compiles as the
+        binding then the sum, and the name stays visible to the rest of
+        the block. Each walrus node is REPLACED IN PLACE by a plain name
+        load before the statement compiles.
+        """
+        pairs = []
+        for walrus in walruses:
+            target = walrus.target.id
+            value = self.expression(walrus.value)
+            spacey = _space_valued(value) or (
+                isinstance(walrus.value, ast.Name)
+                and walrus.value.id in self.space_locals
+            )
+            if spacey:
+                self.space_locals.add(target)
+            else:
+                self.space_locals.discard(target)
+            variable = Variable(self._bind(target))
+            pairs.append(Expression([variable, value]))
+            _replace_walrus(head, walrus, target)
+        return Expression(
+            [Symbol("let*"), Expression(pairs), self.block([head, *rest])]
+        )
 
     def _bound_block(
         self,

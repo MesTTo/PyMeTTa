@@ -1109,3 +1109,63 @@ def test_augmented_assignment_on_a_space_is_the_write_door(metta):
                     return x
         finally:
             del globals()["outside_space"]
+
+
+def test_walrus_bindings_hoist_as_let(metta):
+    """`name := value` is Python's own let expression and compiles as one.
+
+    PEP 572 binds to the enclosing function scope, which is a let* chain
+    around the statement's continuation: nesting binds inner-first,
+    siblings bind left to right, and an if-test walrus stays visible in
+    both branches. A while-test walrus (per-iteration rebinding) and a
+    walrus inside a nested scope refuse with their remedies.
+    """
+    import pytest
+
+    from metta.errors import CompileError
+
+    with metta._new_space() as m:
+
+        @m.define
+        def wsq(x):
+            return (y := x * x) + y
+
+        assert str(wsq.bodies[0]) == "(let* (($y (* $x $x))) (+ $y $y))"
+        assert m.eval("(wsq 3)") == [18]
+
+        @m.define
+        def nested(x):
+            return (y := (z := x + 1) * 2) + z + y
+
+        assert m.eval("(nested 3)") == [20]
+
+        @m.define
+        def sibs(a):
+            return (p := a + 1) * (q := p + 1) + q
+
+        assert m.eval("(sibs 1)") == [9]
+
+        @m.define
+        def guard(n):
+            if (doubled := n * 2) > 5:
+                return doubled
+            return 0
+
+        assert m.eval("(guard 4)") == [8]
+        assert m.eval("(guard 1)") == [0]
+
+        with pytest.raises(CompileError, match="while test"):
+
+            @m.define
+            def bad_while(n):
+                total = 0
+                while (k := n) > 0:
+                    total += k
+                    n = n - 1
+                return total
+
+        with pytest.raises(CompileError, match="nested scope"):
+
+            @m.define
+            def bad_comp(xs):
+                return [(w := v) for v in xs]  # noqa: F841  -- the refused binding IS the scenario
