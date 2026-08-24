@@ -34,19 +34,19 @@ def twin(m):
 
     @m.define
     def before_call():                  # (= (before-call) (call-before (call (fib 5))))
-        return S["call-before"](S.call(S.fib(5)))
+        return S.call_before(S.call(S.fib(5)))
 
     @m.define
     def before_quote():                 # (= (before-quote) (quote-before (quote (fib 5))))
-        return S["quote-before"](S.quote(S.fib(5)))
+        return S.quote_before(S.quote(S.fib(5)))
 
     @m.define
     def before_eval():                  # (= (before-eval) (eval-before (eval (fib 5))))
-        return S["eval-before"](S.eval(S.fib(5)))
+        return S.eval_before(S.eval(S.fib(5)))
 
     @m.define
     def before_reduce():                # (= (before-reduce) (reduce-before (reduce (fib 5))))
-        return S["reduce-before"](S.reduce(S.fib(5)))
+        return S.reduce_before(S.reduce(S.fib(5)))
 
     # With no fib to reduce, quote keeps its payload and the other two hand
     # theirs back unevaluated. `before-call` is left out because it errors,
@@ -54,12 +54,12 @@ def twin(m):
     # writes the two unevaluated payloads as `(noeval (fib 5))`, because `test`
     # evaluates its expected side too and `noeval` comes off there; an assert
     # compares against a literal, so the payload is written as it arrives.
-    assert m.eval(S["before-call-errors-ofc"](
-        S["before-quote"](), S["before-eval"](), S["before-reduce"]()
-    )) == [S["before-call-errors-ofc"](
-        S["quote-before"](S.quote(fib5)),
-        S["eval-before"](fib5),
-        S["reduce-before"](fib5),
+    assert m.eval(S.before_call_errors_ofc(
+        S.before_quote(), S.before_eval(), S.before_reduce()
+    )) == [S.before_call_errors_ofc(
+        S.quote_before(S.quote(fib5)),
+        S.eval_before(fib5),
+        S.reduce_before(fib5),
     )]
 
     @m.define
@@ -70,52 +70,52 @@ def twin(m):
             S.fib(V.n), V.n if V.n < 2 else S.fib(V.n - 1) + S.fib(V.n - 2)
         ))
         return (S.within(S.fib(5)),
-                S["call-within"](S.call(S.fib(5))),
-                S["quote-within"](S.quote(S.fib(5))),
-                S["eval-within"](S.eval(S.fib(5))),
-                S["reduce-within"](S.reduce(S.fib(5))))
+                S.call_within(S.call(S.fib(5))),
+                S.quote_within(S.quote(S.fib(5))),
+                S.eval_within(S.eval(S.fib(5))),
+                S.reduce_within(S.reduce(S.fib(5))))
 
     # The five inside were compiled before the add-atom ran, so `within` still
     # holds an unevaluated call while the four wrappers reduce.
     assert compilefib().one() == Expression((
         S.within(fib5),
-        S["call-within"](5),
-        S["quote-within"](S.quote(fib5)),
-        S["eval-within"](5),
-        S["reduce-within"](5),
+        S.call_within(5),
+        S.quote_within(S.quote(fib5)),
+        S.eval_within(5),
+        S.reduce_within(5),
     ))
 
     @m.define
     def after_call():                   # (= (after-call) (call-after (call (fib 5))))
-        return S["call-after"](S.call(S.fib(5)))
+        return S.call_after(S.call(S.fib(5)))
 
     @m.define
     def after_quote():                  # (= (after-quote) (quote-after (quote (fib 5))))
-        return S["quote-after"](S.quote(S.fib(5)))
+        return S.quote_after(S.quote(S.fib(5)))
 
     @m.define
     def after_eval():                   # (= (after-eval) (eval-after (eval (fib 5))))
-        return S["eval-after"](S.eval(S.fib(5)))
+        return S.eval_after(S.eval(S.fib(5)))
 
     @m.define
     def after_reduce():                 # (= (after-reduce) (reduce-after (reduce (fib 5))))
-        return S["reduce-after"](S.reduce(S.fib(5)))
+        return S.reduce_after(S.reduce(S.fib(5)))
 
     # fib exists now, so the four wrappers written BEFORE it reduce too.
     assert m.eval(Expression((
-        S["before-call"](), S["before-quote"](), S["before-eval"](), S["before-reduce"]()
+        S.before_call(), S.before_quote(), S.before_eval(), S.before_reduce()
     ))) == [Expression((
-        S["call-before"](5),
-        S["quote-before"](S.quote(fib5)),
-        S["eval-before"](5),
-        S["reduce-before"](5),
+        S.call_before(5),
+        S.quote_before(S.quote(fib5)),
+        S.eval_before(5),
+        S.reduce_before(5),
     ))]
 
     assert m.eval(Expression((
-        S["after-call"](), S["after-quote"](), S["after-eval"](), S["after-reduce"]()
+        S.after_call(), S.after_quote(), S.after_eval(), S.after_reduce()
     ))) == [Expression((
-        S["call-after"](5),
-        S["quote-after"](S.quote(fib5)),
-        S["eval-after"](5),
-        S["reduce-after"](5),
+        S.call_after(5),
+        S.quote_after(S.quote(fib5)),
+        S.eval_after(5),
+        S.reduce_after(5),
     ))]

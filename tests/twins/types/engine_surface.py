@@ -73,8 +73,8 @@ def twin(m):
     # P14.29).
     # (: program-own-type MyType)
     # !(test (collapse (match &self (: $n $t) $n)) (program-own-type))
-    m += typed(S["program-own-type"], S.MyType)
-    assert list(m) == [typed(S["program-own-type"], S.MyType)]
+    m += typed(S.program_own_type, S.MyType)
+    assert list(m) == [typed(S.program_own_type, S.MyType)]
 
     # And a program's own declaration is answered ahead of the engine's,
     # because the table is consulted last. The operation itself is untouched:

@@ -59,6 +59,11 @@ Guarantees:
     and `superpose`, `view()`, `@space.cache`, `limits(stack=)` and the
     standard-module mentions inside a compiled body
     [tested: test_the_landed_doors_read_clean; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
+  - a bare vocabulary word at a head-named declaration door is a finding that
+    names the exact StrEnum member, while pattern and name strings at those
+    doors remain governed by the source-text rule
+    [tested: test_a_bare_declaration_word_names_the_exact_member,
+    test_a_declaration_takes_members_and_refuses_a_program; commit=WORKTREE]
   - a twin stating fewer claims than its example is a finding, so a skip
     cannot be silent [tested: test_a_twin_that_claims_less_is_a_finding]
   - a false claim fails the twin, because a raised AssertionError leaves the
@@ -134,6 +139,7 @@ from metta._name_mapping import (  # noqa: I001  -- the path insert above is wha
     attribute_name,
     operator_attribute_target,
 )
+from metta import vocabularies
 
 import example_parity as parity
 
@@ -237,25 +243,48 @@ DECLARATION_CALLS = frozenset({
     "source", "writes",
 })
 
-#: What a declaration takes for its VALUE: one word from a closed vocabulary,
-#: `emits("best-first")` or `handles(pattern, "Exact")`. The guide rules these
-#: option values as enum members ("StrEnum members that ARE their wire
-#: string"), and the shipped vocabulary now IS StrEnum classes whose members
-#: equal their words (`Fidelity.Exact == "Exact"`), so a bare word and a
-#: member are the same value at every door. The admission below therefore
-#: still accepts the word; it retires into a finding ("the member is the
-#: spelling") in the corpus-wide normalization pass that rewrites the twins
-#: onto members [measured 2026-08-24: every member of every StrEnum class in
-#: metta.vocabularies is a bare word, and `Space.image`'s words are the
-#: generated ImageMode; ai-python-conventions.md "Strings are text" lists
-#: option values under never-strings; commit=4d01efe426a5a3b79d404afd993f3260e23a210c].
+#: A declaration's closed option value is a StrEnum member, never its bare
+#: wire string: `emits(AnswerPolicy.best_first)` and
+#: `handles(pattern, Fidelity.Exact)`. The runtime accepts the equal string as
+#: an escape hatch, but the authored corpus does not. The scanner keeps a bare
+#: word permitted as declaration text first, then emits the more useful member
+#: diagnostic for the typed option slots below; pattern and name strings do
+#: not become false source findings merely because the same door also takes an
+#: option [measured 2026-08-24: 0 bare option strings across all 218 twins
+#: after the corpus-wide normalization pass; every generated StrEnum member is
+#: a bare wire word; tested:
+#: test_a_declaration_takes_members_and_refuses_a_program; commit=WORKTREE].
 #:
 #: A word, and nothing else: `reaction("(Job $n)", op)` still reports, because
 #: a program carries a parenthesis, a space or a dollar and a vocabulary word
 #: carries none of them. That is what keeps a `str | Atom` pattern parameter
 #: from being a sixth source door
-#: [tested: test_a_declaration_takes_a_word_and_refuses_a_program; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
+#: [tested: test_a_declaration_takes_members_and_refuses_a_program; commit=WORKTREE].
 VOCABULARY_WORD = re.compile(r"[\w.-]+\Z")
+
+#: The typed option slots of the head-named declaration doors. Mapping the
+#: slot to the generated class makes the diagnostic use the library's own
+#: exact spelling rather than a copied word table. Doors absent here take
+#: names, patterns, numbers, or open user-defined vocabularies rather than a
+#: closed option. The two variable-arity doors are resolved in
+#: `_declaration_vocabulary_findings`.
+DECLARATION_VOCABULARIES = {
+    "agenda": ({0: vocabularies.AgendaPolicy}, {"policy": vocabularies.AgendaPolicy}),
+    "context": ({0: vocabularies.World}, {"world": vocabularies.World}),
+    "emits": ({0: vocabularies.AnswerPolicy}, {"policy": vocabularies.AnswerPolicy}),
+    "events": (
+        {0: vocabularies.Delivery, 1: vocabularies.EventOrder},
+        {"delivery": vocabularies.Delivery, "order": vocabularies.EventOrder},
+    ),
+    "handles": (
+        {1: vocabularies.Fidelity},
+        {"fidelity": vocabularies.Fidelity, "det": vocabularies.Determinism},
+    ),
+    "image": ({1: vocabularies.ImageMode}, {"setting": vocabularies.ImageMode}),
+    "merge": ({1: vocabularies.AnswerPolicy}, {"policy": vocabularies.AnswerPolicy}),
+    "source": ({0: vocabularies.SourceKind}, {"kind": vocabularies.SourceKind}),
+    "writes": ({0: vocabularies.Atomicity}, {"atomicity": vocabularies.Atomicity}),
+}
 
 #: The factories whose attribute or subscript spells a NAME rather than calling
 #: a library door: `S.f` and `S["+"]` name an atom, `V.x` a variable, and
@@ -341,15 +370,10 @@ DISSOLVED = {
     "bind!": "a Python name binding",
     "new-space": "metta.space(), the one space-creation door",
     "get-type": "space.type(atom)",
-    # NOT here, though section 9e assigns it: `get-doc`. The ledger DESIGNS
-    # `space.doc(atom)` and the surface has not shipped it, so naming the head
-    # is the only spelling a twin has and demanding another would be demanding
-    # a door that does not exist. `get-type` left this note when R5 shipped
-    # `Space.type(atom)` as the accessor and moved the class declaration onto
-    # `Space.define` [source: ai-report-p14-r5.md, built surface item 5;
-    # commit=8c057bb8055459cc13127d89b418deb634b90ae4] [measured 2026-08-24: neither `Space.doc` nor
-    # `metta.doc` exists on the merged P14 surface, so P14.25 is still the row
-    # that closes it; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
+    # The doc verb follows the same receiver/module pair as the type accessor:
+    # a handle asks its own space and the module helper asks the process-default
+    # space [tested: test_the_doc_verb_answers_the_structured_atom; commit=fa0a8c553b83af5a978fa8156c063bf41ded0eab].
+    "get-doc": "space.doc(atom), or metta.doc(atom)",
 }
 
 
@@ -800,9 +824,10 @@ def _call_strings(node: ast.Call) -> set[int]:
     print(); and a naming call takes names and marked data wherever they sit,
     keywords and nested containers included, so `space(grants=["file"])` names
     capabilities [found 2026-08-22 by the spaces agent, which had to write
-    `S.file.name` to get past this]. A declaration takes its vocabulary WORD,
-    and only a word: the value words are the door's whole argument and a
-    program is not one of them.
+    `S.file.name` to get past this]. A declaration may take one-word names and
+    patterns, so a word stays permitted here; `_declaration_vocabulary_findings`
+    separately rejects a bare word only in a typed option slot and names the
+    exact member. A program is not a word and remains a source finding.
     """
     permitted = _text_ids(word.value for word in node.keywords)
     called = _callee(node)
@@ -817,6 +842,73 @@ def _call_strings(node: ast.Call) -> set[int]:
             and VOCABULARY_WORD.match(argument.value)
         )
     return permitted
+
+
+def _member_finding(
+    node: ast.expr, enum_class: type
+) -> tuple[int, str] | None:
+    """Name the exact member replacing one bare option string."""
+    if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+        return None
+    try:
+        member = enum_class(node.value)
+    except ValueError:
+        return None
+    return (
+        node.lineno,
+        f"the bare vocabulary word {node.value!r} is "
+        f"{enum_class.__name__}.{member.name}; write the member",
+    )
+
+
+def _declaration_vocabulary_findings(node: ast.Call) -> list[tuple[int, str]]:
+    """Bare StrEnum wire words in a declaration door's typed option slots.
+
+    Slots matter: ``handles("Exact", Fidelity.Exact)`` may lawfully use the
+    first string as a pattern, and ``det`` belongs to both Determinism and
+    OpKind globally. The call and parameter position determine the member.
+    """
+    called = _callee(node)
+    if called not in DECLARATION_CALLS:
+        return []
+    positional, keywords = DECLARATION_VOCABULARIES.get(called, ({}, {}))
+    findings = [
+        finding
+        for index, argument in enumerate(node.args)
+        if (enum_class := positional.get(index)) is not None
+        if (finding := _member_finding(argument, enum_class)) is not None
+    ]
+    findings.extend(
+        finding
+        for keyword_argument in node.keywords
+        if keyword_argument.arg is not None
+        if (enum_class := keywords.get(keyword_argument.arg)) is not None
+        if (finding := _member_finding(keyword_argument.value, enum_class)) is not None
+    )
+    if called != "on_error":
+        return findings
+
+    mode_keyword = next(
+        (word for word in node.keywords if word.arg == "mode"), None
+    )
+    if mode_keyword is not None:
+        finding = _member_finding(mode_keyword.value, vocabularies.OnError)
+        return findings + ([finding] if finding is not None else [])
+    if len(node.args) >= 3:
+        finding = _member_finding(node.args[2], vocabularies.OnError)
+    elif len(node.args) >= 2:
+        finding = _member_finding(node.args[1], vocabularies.OnError)
+    else:
+        overloaded = next(
+            (word for word in node.keywords if word.arg == "pattern_or_mode"),
+            None,
+        )
+        finding = (
+            _member_finding(overloaded.value, vocabularies.OnError)
+            if overloaded is not None
+            else None
+        )
+    return findings + ([finding] if finding is not None else [])
 
 
 def _named_strings(tree: ast.Module) -> set[int]:
@@ -1151,6 +1243,8 @@ def scan(twin: Path) -> list[str]:
     permitted = _named_strings(tree)
     findings: list[tuple[int, str]] = []
     for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            findings.extend(_declaration_vocabulary_findings(node))
         if (
             isinstance(node, ast.Call)
             and _callee(node) in SOURCE_DOORS

@@ -50,16 +50,7 @@
       "missing": "stacked clauses sharing one head, where a second @m.define replaces the first instead of adding an alternative",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "RE-ANCHORED 2026-08-24. _locate_clause treats two clauses with equal head PATTERNS as the same clause, so the second decoration retires the first equation from the space: measured, a second `@space.define(name='pick')` under a fresh Python name raises `IndexError: list assignment index out of range`. Where the alternatives only need to answer together, YIELDS say it in one body and store one equation each, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as this file does, the container door is the only spelling, and the twin compiles the first clause and builds the second."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/libraries/memo_spaces.metta",
-      "form": null,
-      "missing": "a redefinition under a fresh Python function name, which addresses the new function's empty twin dispatcher and raises IndexError",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "The other face of the multi-arity defect above. This file redefines (= (shipping-cost $w) ...) partway through, which is exactly what re-decorating means, and a second @m.define(name='shipping-cost') under a fresh Python name raises the same IndexError while reusing the Python name would cost a `# noqa: F811` the file should not need. The twin therefore takes the old equation away and puts the new one in at the container door, `m -= equation(...)` then `m += equation(...)`, which says the replacement but says it as data rather than as a definition. The fix is for the replacement index to address the clause list the MeTTa name owns rather than the Python function's."
+      "detail": "RE-ANCHORED 2026-08-24. _locate_clause treats two clauses with equal head PATTERNS as the same clause, so a second `@space.define(name='pick')` under a fresh Python name is refused with `CompileError` naming the different Python owner and the lawful remedies. Where the alternatives only need to answer together, YIELDS say it in one body and store one equation each, which is what memo_multi_answer and memo_aggregate now do; where they must stay two ATOMS because the program removes one of them later, as this file does, the container door is the only spelling, and the twin compiles the first clause and builds the second."
     },
     {
       "kind": "friction",
@@ -171,15 +162,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/libraries/memo_per_arity.metta",
-      "form": null,
-      "missing": "a defined function MENTIONED in a term position, which should be its head symbol",
-      "row": "P14.4",
-      "section": "ai-python-conventions.md 3.1, the act is carried by the OBJECT",
-      "detail": "The guide's rule is that mentioning a function is holding its symbol, which is why the surface needs no quote operator. Measured 2026-08-24: a `Defined` mentioned in a term encodes as an opaque grounded box, `S.memoize(add, 2)` builds `(memoize <Defined> 2)` and the engine refuses it with `Domain error: 'function_symbol' expected, found '<py_Box>'`; the bound `m.fn['add']` mentions as `<_EngineFunction>` and fails the same way. So a declaration ABOUT a function the twin just defined has to re-spell its head, `S.memoize(S['add'], 2)`, and this file and memo_stats, memo_spaces, memo_multi_answer, memo_aggregate, memo_dependency_invalidation, memo_same_name_multi_arity and the two tabling files all do."
-    },
-    {
-      "kind": "friction",
       "example": "examples/control/letlet.metta",
       "form": null,
       "missing": "a destructuring assignment as a `let*` PATTERN binding",
@@ -194,7 +176,7 @@
       "missing": "a stacked @m.define spelling for two clauses whose heads are identical",
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
-      "detail": "A literal default is what makes stacked clauses stack (`def fib(n=0)` is the head pattern for that position), so two clauses that fix NOTHING have no `@m.define` spelling at all. Re-measured 2026-08-24 on the P14 integration tip, unchanged: rebinding one Python name under one MeTTa name stores only the LAST equation, and two DIFFERENT Python functions carrying one `name=` raise `IndexError: list assignment index out of range` from `metta/_define_twins.py` `replace_twin_clause`, because `_space_definitions._store_clause` computes `replaced` against the per-name clause records while the dispatcher is the new function's own empty one. A generator define writes one equation with a superpose body rather than two equations, so it is not the same knowledge either. `@rules` IS the door and these twins now use it: it writes a clause set without deriving a first-match guard, which `examples/basics/time_and_pragmas.metta` needs for `bounded-factorial` and `examples/control/forall.metta`, `examples/control/metta4_streams.metta` and `examples/control/thin_forms.metta` need for their identical-head sets. What remains missing is only the COMPILED half: `@rules` takes built terms, so a clause set whose bodies want to be Python syntax has no door. The crash stands on its own as a defect. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]"
+      "detail": "A literal default is what makes stacked clauses stack (`def fib(n=0)` is the head pattern for that position), so two clauses that fix NOTHING have no `@m.define` spelling at all. Re-measured 2026-08-24 on the P14 integration tip: rebinding one Python name under one MeTTa name stores only the LAST equation, and two DIFFERENT Python functions carrying one `name=` are refused with `CompileError` naming the different Python owner and the lawful remedies. A generator define writes one equation with a superpose body rather than two equations, so it is not the same knowledge either. `@rules` IS the door and these twins now use it: it writes a clause set without deriving a first-match guard, which `examples/basics/time_and_pragmas.metta` needs for `bounded-factorial` and `examples/control/forall.metta`, `examples/control/metta4_streams.metta` and `examples/control/thin_forms.metta` need for their identical-head sets. What remains missing is only the COMPILED half: `@rules` takes built terms, so a clause set whose bodies want to be Python syntax has no door. [measured 2026-08-24 on the p14 integration tree; commit=WORKTREE]"
     },
     {
       "kind": "friction",
@@ -249,15 +231,6 @@
       "row": "P14.4",
       "section": "§4 surface gaps",
       "detail": "Of the four names a compiled body reads as MeTTa that a twin actually writes, two landed and two did not. Measured 2026-08-24 on the P14 integration tip: `superpose` and `match` are in `metta.__all__`, so a body that fans or asks imports the name and ruff sees it; `metta.collapse` and `metta.empty` raise `AttributeError: module 'metta' has no attribute ...`. Seven control/ twins therefore carry an F821 suppression: `collapse` in control/tests, control/supercollapse, control/superpose_nested and control/sealed, and `empty` in control/casenew, control/empty and control/metta4_streams. The `empty` three are the ones the export buys most, because `empty()` stores `(empty)` where its two sugars store `(superpose ())`, so it is the spelling that reproduces the original's own equation and the only reason to reach for a suppressed name at all. Exporting the two removes the last suppressions in control/ at once. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/control/and_then_or_else.metta",
-      "form": null,
-      "missing": "a space write inside a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "`(= (note $tag) (let $_ (add-atom &ran (ran $tag)) True))`, the recorder both experiments hang on, writes to a NAMED space from inside an EQUATION. A compiled body reaches a space that is a parameter or `(context-space)`, and `&ran` is neither: it is a host value the body would have to close over, which would pin the equation to this process, and `S[\"&ran\"]` is refused by the lane's own rule that a space is a handle rather than a symbol. So the twin routes the effect through a grounded operation, `@m.op` plus a one-line `@m.define` that calls it, which is what a host effect is by the language's own design and costs one crossing per write. MEASURED 2026-08-24, and this is the part that makes the gap urgent: the statement spelling does not refuse inside a body, it MISCOMPILES. `space += atom` there is read as arithmetic, so `@m.define def note(tag): space = S.context_space(); space += S.ran(tag); return True` stores `(let* (($s (context-space))) (let* (($_ (+ $s (ran $tag)))) True))`; the call answers `[True]` and the space stays empty, with no error anywhere. What is missing is a body statement that lowers to `(add-atom <space> <atom>)`, and what is WRONG today is that the same syntax silently means `+`. control/unify and control/eval closed their own entries in this family by writing the head over `(context-space)`, which this file cannot, because its two experiments must not share `&self`. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]"
     },
     {
       "kind": "friction",
@@ -429,15 +402,6 @@
       "row": "P14.4",
       "section": "§4 surface gaps",
       "detail": "RE-ANCHORED 2026-08-24. The closed-over Handle is no longer a blocker. `with_mutex` and `transaction` remain translator forms rather than registry functions, so `is_function` answers False and a body naming either is refused with `names no target function in this space's catalog`. The two wrapped equations stay at the container door for this reason."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/mutex_and_transaction.metta",
-      "form": null,
-      "missing": "a walrus whose value depends on a variable bound by the surrounding match template",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the compiled subset",
-      "detail": "MEASURED DEFECT 2026-08-24. The liked form first, `fn.add_atom(temp, S.cnt(inc := V.x + 1))` inside compiled `sloppyinc`, stores `(let* (($inc (+ $x 1))) (match &temp (cnt $x) ...))`: the walrus is hoisted outside the match that binds `$x`. Calling it refuses exactly `+: + ran backwards with more than one unknown, and what the constraint leaves has no finite domain to search, so there is no answer to enumerate.` The exact source equation therefore keeps its inner `S.let(...)` at the container door."
     },
     {
       "kind": "friction",
@@ -1944,6 +1908,46 @@
     }
   ],
   "retired": [
+    {
+      "kind": "friction",
+      "example": "examples/libraries/memo_per_arity.metta",
+      "form": null,
+      "missing": "a defined function MENTIONED in a term position, which should be its head symbol",
+      "row": "P14.4",
+      "section": "ai-python-conventions.md 3.1, the act is carried by the OBJECT",
+      "detail": "AS FILED, superseded by the retirement line below. A Defined formerly encoded as an opaque box in term position, so the memoize declaration had to re-spell its head as S['add'].",
+      "retired": "2026-08-24: e265712c makes Defined and bound engine functions encode as their head symbols; S.memoize(add, 2) builds (memoize add 2), and all five claims pass"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/libraries/memo_spaces.metta",
+      "form": null,
+      "missing": "a redefinition under a fresh Python function name, which addresses the new function's empty twin dispatcher and raises IndexError",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "AS FILED, superseded by the retirement line below. A second definition for an installed head under a fresh Python function formerly indexed into an empty dispatcher and raised IndexError.",
+      "retired": "2026-08-24: e265712c replaces the raw IndexError with a named CompileError that identifies the different Python owner and the lawful replacement doors; the container replacement remains intentional and all sixteen claims pass"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/control/and_then_or_else.metta",
+      "form": null,
+      "missing": "a space write inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "AS FILED, superseded by the retirement line below. Space augmented assignment inside a compiled body formerly lowered as arithmetic and silently stored nothing.",
+      "retired": "2026-08-24: 85e77e82 tracks context-space and new-space locals and lowers space += atom to add-atom; both recorder definitions use the statement spelling and all nine claims pass"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/mutex_and_transaction.metta",
+      "form": null,
+      "missing": "a walrus whose value depends on a variable bound by the surrounding match template",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the compiled subset",
+      "detail": "AS FILED, superseded by the retirement line below. A walrus inside an S-built term formerly hoisted above the match template that supplied its variable.",
+      "retired": "2026-08-24: d99cb7d8 makes a walrus inside an S-built term a named CompileError that identifies the built-term boundary and both remedies; the exact inner S.let remains and both claims pass"
+    },
     {
       "kind": "friction",
       "example": "examples/spaces/parametric_spaces.metta",

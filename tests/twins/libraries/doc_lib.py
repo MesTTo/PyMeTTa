@@ -7,9 +7,11 @@ documentation. Both halves of that land in Python without a new mechanism. A
 forms are simply the docstrings of the two functions they document, and a
 Google-style docstring emits all four parts.
 
-`get-doc` and `undocumented` are lib_doc's own functions and the subject of
-every claim, so both stay named. There is no receiver door for either; naming
-the head is the whole of what a twin has here.
+The scoped formal `get-doc` is the receiver verb `m.doc(subject)`. This
+example instead imports lib_doc and tests that library's unary raw-document
+function: it returns the exact `(@doc ...)` atom and gives no answer for an
+undocumented subject. The rung comments keep that semantic distinction
+visible. `undocumented` remains lib_doc's own function and stays named.
 
 Neither function is ANNOTATED, and that is the example's own program rather
 than an omission: `(= (greet $who) $who)` declares no type, so each parameter's
@@ -67,7 +69,9 @@ def twin(m):
         return a + b
 
     # Retrieval answers the atom the docstring became.
-    assert m.fn.get_doc(S.greet) == [
+    assert m.fn.get_doc(  # rung: lib_doc's unary raw-document query, not scoped m.doc
+        S.greet
+    ) == [
         S["@doc"](
             S.greet,
             S["@kind"](S.function),
@@ -78,7 +82,9 @@ def twin(m):
 
     # @doc carries the kind, the summary and the parameters always, and the
     # return as well when the docstring says what comes back.
-    assert m.fn.get_doc(S.add_two) == [
+    assert m.fn.get_doc(  # rung: lib_doc's unary raw-document query, not scoped m.doc
+        S.add_two
+    ) == [
         S["@doc"](
             S.add_two,
             S["@kind"](S.function),
@@ -92,8 +98,12 @@ def twin(m):
     ]
 
     # An undocumented name answers nothing at all rather than an empty doc.
-    assert list(m.fn.get_doc(S.greet_nobody)) == []
-    assert list(m.fn.get_doc(S.missing)) == []
+    assert list(m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
+        S.greet_nobody
+    )) == []
+    assert list(m.fn.get_doc(  # rung: unary raw get-doc has an empty missing result
+        S.missing
+    )) == []
 
     # And a program can ask what it has NOT documented, which is the gap worth
     # closing in a real codebase. Both functions above are documented.

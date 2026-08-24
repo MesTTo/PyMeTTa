@@ -59,12 +59,12 @@ def twin(m):
     # first is the call the rule rewrites and the rest are matched against the
     # space, so a rule can look at the program around the call.
     m += [(S.unit, S.mass, S.kg), (S.unit, S.length, S.m)]
-    m += typed(S["unit-of"], arrow(Atom, Any))
+    m += typed(S.unit_of, arrow(Atom, Any))
 
     m.fn.add_translator_rule(            # (add-translator-rule! unit-of
-        S["unit-of"],                    #   ((left ((unit-of $q) (unit $q $u)))
+        S.unit_of,                       #   ((left ((unit-of $q) (unit $q $u)))
         Expression((                     #    (right (in $u))))
-            S.left(Expression((S["unit-of"](V.q), S.unit(V.q, V.u)))),
+            S.left(Expression((S.unit_of(V.q), S.unit(V.q, V.u)))),
             S.right(S["in"](V.u)),
         )),
     )
@@ -79,5 +79,5 @@ def twin(m):
     # The rule compiles to the equation an author would have written by hand,
     # with the conjuncts as a `match` chain: the engine's own conjunctive query
     # does the join.
-    compiled = m[equation(S["unit-of"](V.q)).to(V.body)]
+    compiled = m[equation(S.unit_of(V.q)).to(V.body)]
     assert [row.body[0] for row in compiled] == [S.match]

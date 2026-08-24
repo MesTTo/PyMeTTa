@@ -19,6 +19,7 @@ handles, because a space is an ordinary term operand.
 import metta
 from metta import S, V
 from metta.errors import EngineError
+from metta.vocabularies import AgendaPolicy, Delivery, EventOrder
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -37,10 +38,14 @@ def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; 
     assert [
         (row.a, row.b, row.c)
         for row in reflection[S.vocabulary(S.delivery, V.a, V.b, V.c)]
-    ] == [(S.at_most_once, S.at_least_once, S.per_write_exactly)]
+    ] == [(
+        S[Delivery.at_most_once],
+        S[Delivery.at_least_once],
+        S[Delivery.per_write_exactly],
+    )]
     assert [
         (row.a, row.b) for row in reflection[S.vocabulary(S.event_order, V.a, V.b)]
-    ] == [(S.ordered, S.unordered)]
+    ] == [(S[EventOrder.ordered], S[EventOrder.unordered])]
     assert [
         row.delivery for row in reflection[S.kind(S.events, V.ctx, V.delivery, V.order)]
     ] == [S.one_of(S.delivery)]
@@ -67,11 +72,17 @@ def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; 
     assert [
         (row.a, row.b, row.c, row.d, row.e)
         for row in reflection[S.vocabulary(S.agenda_policy, V.a, V.b, V.c, V.d, V.e)]
-    ] == [(S.declaration, S.recency, S.specificity, S.priority, S.user)]
+    ] == [(
+        S[AgendaPolicy.declaration],
+        S[AgendaPolicy.recency],
+        S[AgendaPolicy.specificity],
+        S[AgendaPolicy.priority],
+        S[AgendaPolicy.user],
+    )]
     assert [
         (row.knob, row.default)
         for row in reflection[S.policy(S.reaction_order, V.knob, V.default)]
-    ] == [(S.agenda, S.declaration)]
+    ] == [(S.agenda, S[AgendaPolicy.declaration])]
     assert [
         row.policy for row in reflection[S.kind(S.agenda, V.ctx, V.policy, V.fn)]
     ] == [S.one_of(S.agenda_policy)]

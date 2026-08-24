@@ -13,9 +13,9 @@ has to name a space at all, and the second space is created by ATOM,
 `metta.space(S.metric)`, since a name is a symbol and never text.
 
 The replacement equation goes to the container door. A second `@m.define` for a
-name the space already answers is a redefinition rather than an alternative and
-raises, which the residue table records; the write and read doors take the old
-equation away and put the new one in without ceremony.
+name owned by a different Python function is refused with a named
+`CompileError`; the write and read doors remove the old equation and put the
+new one in without ceremony.
 """
 
 import metta
@@ -50,7 +50,7 @@ def twin(m):
     assert memoized_there(S.shipping_cost) == [False]
 
     # Memoizing here caches this space's function and leaves the other alone.
-    m.eval(S.memoize(S.shipping_cost))
+    m.eval(S.memoize(shipping_cost))
 
     assert memoized(S.shipping_cost) == [True]
     assert memoized_there(S.shipping_cost) == [False]
@@ -62,7 +62,7 @@ def twin(m):
     assert there(3) == [27]
 
     # Memoizing the other space's function adds a second cache, not a shared one.
-    metric.eval(S.memoize(S.shipping_cost))
+    metric.eval(S.memoize(there))
 
     assert memoized_there(S.shipping_cost) == [True]
     assert there(3) == [27]

@@ -5,7 +5,7 @@ Real-valued math promotes integers, `pow-math` answers a Float while enforcing
 the signed-i32 bound only for integer exponents, and the nan/inf predicates are
 how a caller finds out.
 
-Two of the operations have a Python spelling and take it. `**` on a grounded
+Six of the operations have a Python spelling and take it. `**` on a grounded
 operand builds `(pow-math a b)` and `abs()` builds `(abs-math a)`, so those two
 claims are written with Python's own punctuation over the lift, `G(0) ** -1`
 [appendix 12: the math dunder split, protocol-backed names build live]. The
@@ -13,9 +13,9 @@ lift is what makes the second of them worth reading: Python raises
 ZeroDivisionError for `0 ** -1` where the engine answers inf, and the twin
 shows that difference instead of hiding it behind a head name.
 
-The rest of the family has no Python hook and takes rung 4 at the function
-namespace, `m.fn.sqrt_math(9)`, which is the guide's own answer for a
-hook-less math name in live position.
+`math.trunc`, `math.ceil`, `math.floor`, and both forms of `round` build the
+matching engine terms. The rest of the family has no Python hook and takes
+rung 4 at the function namespace, `m.fn.sqrt_math(9)`.
 
 The two nested claims nest the way Python nests calls. An answer view crossing
 into term position is an observation point, so a deterministic inner call
@@ -25,6 +25,8 @@ A name used more than once is bound once and called twice, the way a mention
 is bound once for reading. The two special float symbols are what the engine
 names them, `inf` and `nan`.
 """
+
+import math
 
 from metta import G, S
 
@@ -56,12 +58,11 @@ def twin(m):
     assert m.answers(abs(G(-5))) == [5]
     assert m.fn.log_math(10, 100) == [2.0]
 
-    assert m.fn.trunc_math(5.6) == [5]
-    assert m.fn.ceil_math(5.2) == [6]
-    assert m.fn.floor_math(5.8) == [5]
-    round_math = m.fn.round_math
-    assert round_math(5.4) == [5]
-    assert round_math(5.6) == [6]
+    assert m.eval(math.trunc(G(5.6))) == [5]
+    assert m.eval(math.ceil(G(5.2))) == [6]
+    assert m.eval(math.floor(G(5.8))) == [5]
+    assert m.eval(round(G(5.4))) == [5]
+    assert m.eval(round(G(5.6))) == [6]
 
     assert m.fn.sin_math(0) == [0.0]
     assert m.fn.asin_math(0) == [0.0]

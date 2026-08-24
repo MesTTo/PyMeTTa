@@ -38,6 +38,7 @@ Guarantees:
 
 import metta
 from metta import FALSE, TRUE, Atom, S, V, equation, fn, match
+from metta.vocabularies import NoMatchEnum
 
 #: The nine relations the example gives NoMatchFail, so a missing proof is
 #: relational failure instead of the P3 residual-call dispatch value.
@@ -337,7 +338,7 @@ def masking(m):
 
     # !(add-atom &petta (dispatch-policy mask-example-holds NoMatchEnum NoMatchFail))
     metta.reflection += S.dispatch_policy(
-        S.mask_example_holds, S.NoMatchEnum, S.NoMatchFail
+        S.mask_example_holds, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
     )
 
     # !(test (not-provable (mask-example-holds (mask-example-double 5))) True)
@@ -354,7 +355,9 @@ def twin(m):
     # !(add-atom &petta (dispatch-policy penguin NoMatchEnum NoMatchFail)), and eight more
     reflection = metta.reflection
     for relation in FALLIBLE:
-        reflection += S.dispatch_policy(relation, S.NoMatchEnum, S.NoMatchFail)
+        reflection += S.dispatch_policy(
+            relation, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
+        )
 
     defaults(m)
     defects(m)

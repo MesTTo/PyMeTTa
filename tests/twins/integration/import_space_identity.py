@@ -20,8 +20,8 @@ from metta import S
 PAYLOAD = S["examples/integration/_fixtures/imports/overhaul/space_payload"]
 
 #: What the payload puts in an importing space, and what it defines there.
-MARKER = S["import-space-marker"]()
-FUNCTION = S["import-space-function"]()
+MARKER = S.import_space_marker()
+FUNCTION = S.import_space_function()
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
@@ -39,8 +39,8 @@ def twin(m):
     # so the perfect spelling for a twin handed its own handle is a creation
     # door ON that handle's context. `MeTTa.space` is that door one level up
     # and a twin never sees the runtime object [measured 2026-08-24].
-    a = metta.space(S["import-space-a"])       # (bind! &import-space-a (new-space))
-    b = metta.space(S["import-space-b"])       # (bind! &import-space-b (new-space))
+    a = metta.space(S.import_space_a)       # (bind! &import-space-a (new-space))
+    b = metta.space(S.import_space_b)       # (bind! &import-space-b (new-space))
 
     # Known issue: `import!` has no Python door on the handle. The perfect
     # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
@@ -54,8 +54,8 @@ def twin(m):
     assert len(b[MARKER]) == 1
 
     # And each ran its own copy of the definition, once.
-    assert a.eval(FUNCTION) == [S["one-result"]]   # (metta (import-space-function) %Undefined% &import-space-a)
-    assert b.eval(FUNCTION) == [S["one-result"]]
+    assert a.eval(FUNCTION) == [S.one_result]   # (metta (import-space-function) %Undefined% &import-space-a)
+    assert b.eval(FUNCTION) == [S.one_result]
 
     # The caller imported nothing, so here the name is still data.
     assert m.eval(FUNCTION) == [FUNCTION]

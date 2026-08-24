@@ -57,8 +57,8 @@ def twin(m):
         return S.reduce(fib(myfunc()))
 
     inner = S.fib(S.myfunc())
-    assert m.answers(S["fib-call"](S["call-fib"]())).one() == S["fib-call"](5)
+    assert m.answers(S.fib_call(S.call_fib())).one() == S.fib_call(5)
     # quote keeps its wrapper AND the term under it, unreduced.
-    assert m.answers(S["fib-quote"](S["quote-fib"]())).one() == S["fib-quote"](S.quote(inner))
-    assert m.answers(S["fib-eval"](S["eval-fib"]())).one() == S["fib-eval"](5)
-    assert m.answers(S["fib-reduce"](S["reduce-fib"]())).one() == S["fib-reduce"](5)
+    assert m.answers(S.fib_quote(S.quote_fib())).one() == S.fib_quote(S.quote(inner))
+    assert m.answers(S.fib_eval(S.eval_fib())).one() == S.fib_eval(5)
+    assert m.answers(S.fib_reduce(S.reduce_fib())).one() == S.fib_reduce(5)

@@ -29,6 +29,7 @@ annotation, so `(: a tail)` and the tutorial's `::` list stay ordinary data.
 
 import metta
 from metta import UNIT, S, V, equation, typed
+from metta.vocabularies import NoMatchEnum
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -47,7 +48,9 @@ def twin(m):
     # than answering the P3 residual-call dispatch value.
     # !(add-atom &petta (dispatch-policy shape-of NoMatchEnum NoMatchFail))
     reflection = metta.reflection
-    reflection += S.dispatch_policy(S.shape_of, S.NoMatchEnum, S.NoMatchFail)
+    reflection += S.dispatch_policy(
+        S.shape_of, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
+    )
 
     # (: Ann Person) (: Ann Employee) (: Bob Person) (: Rex Dog)
     m += typed(S.Ann, S.Person)

@@ -15,8 +15,8 @@ against P14.4.
 
 The type declaration is the one place where the same characters mean the same
 thing in both languages: `typed(...)` is the colon, `arrow(...)` is the result
-arrow, and `%Undefined%` is `typing.Any`, the unconstrained type Python already
-has a word for. Three more things move into Python: an answer set that is
+arrow, and `%Undefined%` is `metta.Undefined`. Three more things move into
+Python: an answer set that is
 empty is an empty list, a refusal crosses the seam as a Python exception so
 `catch` is `except`, and `repr` of an atom is Python's own `str`.
 Guarantees:
@@ -28,9 +28,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from typing import Any
-
-from metta import Atom, S, V, arrow, equation, typed
+from metta import Atom, S, Undefined, V, arrow, equation, typed
 from metta.errors import MettaOperationError
 
 #: What the unapplied form prints as: expected printing is Python text.
@@ -58,7 +56,7 @@ def twin(m):
     # (: mylet (-> Atom Atom %Undefined%))
     # The body has to reach the definition unevaluated for the bindings to
     # bind anything in it, and `Atom` is the metatype that says so.
-    m += typed(S.mylet, arrow(Atom, Atom, Any))
+    m += typed(S.mylet, arrow(Atom, Atom, Undefined))
     # (= (mylet $bindings $body) (let* $bindings $body))
     m += equation(S.mylet(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
 

@@ -12,8 +12,8 @@ it writes to is the HANDLE, encoded into the equation at decoration time, so no
 space is ever named as a symbol. Binding that call to `_` and answering `x` is
 Python's own way of saying `(let $_ <effect> $x)`, which is the sequencing the
 example writes; `seen += S.saw(x)` is the write door everywhere else and a
-compiled body refuses it, because `+=` on a host object would close over this
-process.
+compiled nested body refuses it because Python's own augmented-assignment rule
+would make `seen` an unbound local rather than a closure cell.
 """
 
 import metta

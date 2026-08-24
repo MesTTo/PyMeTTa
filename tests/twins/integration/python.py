@@ -64,9 +64,9 @@ def twin(m):
     # Python-made types.SimpleNamespace, and a plain class instance]. The
     # chain therefore stays one term.
     stored = m.eval(S["let*"](  # rung: an engine-made object arrives back at py-call wrapped in a janus Box, so the sequence cannot become three Python statements
-        ((V.obj, S["make-object"]()),
-         (V.written, S["set-attribute"](V.obj, S.foo, S["math.pi"]()))),
-        S["get-attribute"](V.obj, S.foo),
+        ((V.obj, S.make_object()),
+         (V.written, S.set_attribute(V.obj, S.foo, S["math.pi"]()))),
+        S.get_attribute(V.obj, S.foo),
     ))
     assert stored == [math.pi]               # [3.141592653589793]
 

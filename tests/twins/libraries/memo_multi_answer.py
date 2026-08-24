@@ -40,7 +40,7 @@ def twin(m):
         yield x
         yield S.Pair(x, x)
 
-    m.eval(S.memoize(S.choose))
+    m.eval(S.memoize(choose))
 
     assert sorted(choose(7), key=str) == BOTH
     assert sorted(choose(7), key=str) == BOTH
