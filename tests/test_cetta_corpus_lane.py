@@ -71,3 +71,30 @@ def test_the_forward_corpus_lane_verifies_the_repinned_manifest(  # noqa: D103  
     assert name in broken.stdout, (
         "an entry off its pin must be NAMED:\n" + broken.stdout
     )
+
+    # The fork's OWN manifest (no --manifest) runs the generator's
+    # verify_manifest first, so an example the manifest does not pin
+    # refuses before any oracle replay. A byte-copy of the generator keeps
+    # the pinned generator sha and normalization contract intact; dropping
+    # one entry is what an unfrozen new example looks like from the
+    # manifest's side.
+    fork_copy = tmp_path / "fork"
+    (fork_copy / "scripts").mkdir(parents=True)
+    (fork_copy / "tests" / "petta" / "corpus").mkdir(parents=True)
+    real_fork = lane.checkout()
+    (fork_copy / "scripts" / "petta_corpus_manifest.py").write_bytes(
+        (real_fork / "scripts" / "petta_corpus_manifest.py").read_bytes()
+    )
+    truncated = dict(manifest)
+    truncated["entries"] = manifest["entries"][:-1]
+    (fork_copy / "tests" / "petta" / "corpus" / "manifest.json").write_text(
+        json.dumps(truncated), encoding="utf-8"
+    )
+    unfrozen = _run_lane(
+        repo_root, dict(os.environ, CETTA_PATH=str(fork_copy)), []
+    )
+    assert unfrozen.returncode == 1, unfrozen.stdout + unfrozen.stderr
+    assert "re-freeze the corpus in the fork" in unfrozen.stdout
+    assert "pinned entries replayed" not in unfrozen.stdout, (
+        "membership must refuse BEFORE any oracle replay:\n" + unfrozen.stdout
+    )
