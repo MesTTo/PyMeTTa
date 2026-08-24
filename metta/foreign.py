@@ -61,7 +61,7 @@ from typing import Any, ClassVar, Protocol, cast, runtime_checkable
 from .answer import Answer
 from .atoms import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _encode
 from .errors import PettaError, TransportFailure, is_transport_failure
-from .vocabularies import DELIVERY, EVENT_ORDER
+from .vocabularies import Delivery, EventOrder
 
 __all__ = [
     "CAPABILITIES",
@@ -659,14 +659,14 @@ def delivery_promise(provider: Any) -> tuple[str, str] | None:
     if (
         not isinstance(claimed, tuple)
         or len(claimed) != 2
-        or claimed[0] not in DELIVERY
-        or claimed[1] not in EVENT_ORDER
+        or claimed[0] not in Delivery
+        or claimed[1] not in EventOrder
     ):
         msg = (
             f"{type(provider).__name__}.delivers() answered {claimed!r}; it is "
             f"None for a space with no change events, or a pair "
-            f"(delivery, order) with delivery one of {', '.join(DELIVERY)} and "
-            f"order one of {', '.join(EVENT_ORDER)}"
+            f"(delivery, order) with delivery one of {', '.join(Delivery)} and "
+            f"order one of {', '.join(EventOrder)}"
         )
         raise PettaError(msg)
     return claimed

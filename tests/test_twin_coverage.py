@@ -328,16 +328,16 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
     admission to the shipped vocabulary: a word that stopped being one, or a
     new alias whose members are not bare words, breaks the rule's premise.
     """
-    import typing
+    from enum import StrEnum
 
     from metta import vocabularies
 
     declared = {
-        member
-        for name in dir(vocabularies)
-        if not name.startswith("_")
-        and typing.get_origin(getattr(vocabularies, name)) is typing.Literal
-        for member in typing.get_args(getattr(vocabularies, name))
+        member.value
+        for name in vocabularies.__all__
+        if isinstance(cls := getattr(vocabularies, name), type)
+        and issubclass(cls, StrEnum)
+        for member in cls
     }
     assert declared, "the vocabulary satellite declares no option words"
     assert all(isinstance(word, str) for word in declared), declared

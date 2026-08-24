@@ -240,14 +240,15 @@ DECLARATION_CALLS = frozenset({
 #: What a declaration takes for its VALUE: one word from a closed vocabulary,
 #: `emits("best-first")` or `handles(pattern, "Exact")`. The guide rules these
 #: option values as enum members ("StrEnum members that ARE their wire
-#: string"), which would make them names rather than text, but the shipped
-#: vocabulary is `typing.Literal` aliases, so a bare word is the only spelling
-#: the door takes and refusing it would refuse the door
-#: [measured 2026-08-24: every member of every Literal alias in
-#: metta.vocabularies is a bare word, 77 of them, and `Space.image`'s
-#: 'opaque'/'transparent'/'auto' is declared inline rather than exported;
-#: ai-python-conventions.md "Strings are text" lists option values under
-#: never-strings; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
+#: string"), and the shipped vocabulary now IS StrEnum classes whose members
+#: equal their words (`Fidelity.Exact == "Exact"`), so a bare word and a
+#: member are the same value at every door. The admission below therefore
+#: still accepts the word; it retires into a finding ("the member is the
+#: spelling") in the corpus-wide normalization pass that rewrites the twins
+#: onto members [measured 2026-08-24: every member of every StrEnum class in
+#: metta.vocabularies is a bare word, and `Space.image`'s words are the
+#: generated ImageMode; ai-python-conventions.md "Strings are text" lists
+#: option values under never-strings; commit=WORKTREE].
 #:
 #: A word, and nothing else: `reaction("(Job $n)", op)` still reports, because
 #: a program carries a parenthesis, a space or a dollar and a vocabulary word

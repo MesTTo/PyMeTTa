@@ -12,10 +12,10 @@ Guarantees:
     test_text_save_uses_utf8_for_plain_and_gzip_files; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the save format type admits exactly metta and fast [tested:
     test_canonical_context_types_replace_public_newtypes; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - save validation consumes the generated save-format catalog tuple rather
+  - save validation consumes the generated SaveFormat vocabulary class rather
     than owning a second closed list [tested:
     test_a_planted_closed_policy_list_is_reported_by_the_inventory_lane;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
   - text and fast loads apply a scoped stack byte bound through the /6 seam
     while preserving the established guard path otherwise [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -32,7 +32,6 @@ Open Obligations:
 from __future__ import annotations
 
 import gzip
-import importlib as _importlib
 import os
 import re
 import stat
@@ -44,6 +43,7 @@ from ._engine import Runtime
 from ._space_objects import _apply_limited, _limits
 from .atoms import Atom, Expression, Grounded, Symbol, _atom_from_wire
 from .errors import EngineError, ResourceLimitError
+from .vocabularies import SaveFormat
 
 _FAST_PREFIX = b"PETTA-CACHE\t"
 _FAST_ERRORS = (
@@ -188,13 +188,10 @@ def save_space(
     space: str,
     atoms: list[Atom],
     path: str | os.PathLike[str],
-    save_format: str,
+    save_format: SaveFormat,
 ) -> int:
     """Validate and atomically persist one enumerated space."""
-    save_formats = _importlib.import_module(
-        f"{__package__}.vocabularies"
-    ).SAVE_FORMAT
-    if save_format not in save_formats:
+    if save_format not in SaveFormat:
         msg = f"save format must be 'metta' or 'fast', got {save_format!r}"
         raise ValueError(msg)
     _validate_atoms(rt, space, atoms)

@@ -106,7 +106,7 @@ ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_COLON, "ImageDecl", "Type"),
     (_SUB, "ImageDecl", "Declaration"),
     (_COLON, "image", _CONTEXT_IMAGE_TYPE),
-    (_COLON, "image", _REGISTRY_IMAGE_TYPE),
+    (_COLON, "type-image", _REGISTRY_IMAGE_TYPE),
     (_COLON, "HandlesDecl", "Type"),
     (_SUB, "HandlesDecl", "Declaration"),
     (_COLON, "LoweringDecl", "Type"),
@@ -181,7 +181,7 @@ _SENTINEL = Expression([Symbol(_COLON), Symbol("Declaration"), Symbol("Type")])
 
 
 def _image_atom(registration) -> Expression:
-    return Expression([Symbol("image"), Symbol(registration.type_name), Symbol(registration.image)])
+    return Expression([Symbol("type-image"), Symbol(registration.type_name), Symbol(registration.image)])
 
 
 def _reflect_image(runtime, old, new) -> None:
@@ -194,7 +194,7 @@ def _reflect_image(runtime, old, new) -> None:
 def install(runtime) -> None:
     """Assert the ontology into &petta, once per engine, and keep the
     registry's explicit type images reflected there: one
-    (image TypeName registry-image) atom per register_type, retired on
+    (type-image TypeName registry-image) atom per register_type, retired on
     unregister. The registry stays engine-free; this listener is the whole
     coupling, and it hears the past (the snapshot) before the future.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

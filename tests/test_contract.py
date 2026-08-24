@@ -362,9 +362,9 @@ def test_register_type_reflects_an_image_atom(metta):  # noqa: D103  -- pytest d
         name="CtImaged",
     )
     petta_space = metta._at("&petta")
-    assert parse("(image CtImaged expression)") in petta_space
+    assert parse("(type-image CtImaged expression)") in petta_space
     convert.unregister_type(_CtImaged)
-    assert parse("(image CtImaged expression)") not in petta_space
+    assert parse("(type-image CtImaged expression)") not in petta_space
 
 
 def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -380,7 +380,7 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noq
         "class Early: pass\n"
         "convert.register_type(Early, image='handle', name='CtSnapshot')\n"
         "m = metta.MeTTa(petta_path='.')\n"
-        "print(parse('(image CtSnapshot handle)') in m.space('&petta'))\n"
+        "print(parse('(type-image CtSnapshot handle)') in m.space('&petta'))\n"
     )
     result = subprocess.run(
         [sys.executable, "-c", script],

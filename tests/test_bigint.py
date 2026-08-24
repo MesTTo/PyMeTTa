@@ -18,13 +18,12 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
-from typing import get_args
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from metta import parse
-from metta.vocabularies import NUMERIC_TYPE, NumericType
+from metta.vocabularies import NumericType
 
 I64_MIN = -(2**63)
 I64_MAX = 2**63 - 1
@@ -102,8 +101,8 @@ def test_numeric_types_are_published_from_the_catalog(metta):  # noqa: D103  -- 
         "!(match &petta (vocabulary numeric-type $first $second) "
         "($first $second))"
     ) == [[parse("(Number BigInt)")]]
-    assert NUMERIC_TYPE == ("Number", "BigInt")
-    assert get_args(NumericType) == NUMERIC_TYPE
+    assert tuple(NumericType) == ("Number", "BigInt")
+    assert "BigInt" in NumericType
 
 
 def test_janus_carries_bigint_losslessly(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

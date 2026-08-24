@@ -70,7 +70,7 @@ from typing import Any, Final, Self
 from .atoms import Atom, _atom_from_wire, _is_ground, _to_atom, unify
 from .errors import PettaError, SubscriberError
 from .structures import MatchIndex
-from .vocabularies import SUBSCRIPTION_EDGE
+from .vocabularies import SubscriptionEdge
 
 __all__ = ["STATELESS", "Event", "EventStream", "Fold", "publish", "stream"]
 
@@ -562,8 +562,8 @@ class EventStream:
         them, so a step may write back and an infinite add-triggers-add loop
         is the author's own.
         """
-        if on not in SUBSCRIPTION_EDGE:
-            msg = f"on must be one of {', '.join(SUBSCRIPTION_EDGE)}, not {on!r}"
+        if on not in SubscriptionEdge:
+            msg = f"on must be one of {', '.join(SubscriptionEdge)}, not {on!r}"
             raise ValueError(
                 msg
             )

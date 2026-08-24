@@ -16,7 +16,7 @@ Open Obligations:
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 import inspect
-from typing import Final, Literal, get_args, get_overloads, get_type_hints
+from typing import Final, get_args, get_overloads, get_type_hints
 
 import pytest
 
@@ -34,9 +34,10 @@ def test_canonical_context_types_replace_public_newtypes():
     assert "SpaceName" not in dir(metta)
     assert "MettaName" not in dir(metta)
     assert _api_types.__all__ == []
-    assert get_type_hints(Space.save)["format"] is str
-    assert get_type_hints(aio.AsyncMeTTa.save)["format"] == Literal["metta", "fast"]
-    assert SaveFormat == Literal["metta", "fast"]
+    assert get_type_hints(Space.save)["format"] is SaveFormat
+    assert get_type_hints(aio.AsyncMeTTa.save)["format"] is SaveFormat
+    assert issubclass(SaveFormat, str)
+    assert [member.value for member in SaveFormat] == ["metta", "fast"]
 
 
 def test_a_name_parameter_takes_a_plain_string():

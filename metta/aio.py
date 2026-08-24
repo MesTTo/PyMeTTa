@@ -108,9 +108,11 @@ from .vocabularies import (
     AnswerPolicy,
     Atomicity,
     Delivery,
+    Determinism,
     EventOrder,
     Fidelity,
-    OnErrorMode,
+    ImageMode,
+    OnError,
     SaveFormat,
     SourceKind,
     World,
@@ -656,7 +658,7 @@ class AsyncMeTTa:
             lambda m: m.load(path, timeout=timeout, inferences=inferences)
         )
 
-    async def save(self, path: str, format: SaveFormat = "metta") -> int:  # noqa: A002  -- format is the documented public save keyword and must remain compatible
+    async def save(self, path: str, format: SaveFormat = SaveFormat.metta) -> int:  # noqa: A002  -- format is the documented public save keyword and must remain compatible
         """Save this space and return the number of stored atoms."""
         return await self.call(lambda m: m.save(path, format=format))
 
@@ -1074,7 +1076,7 @@ class AsyncMeTTa:
     async def events(
         self,
         delivery: Delivery | None = None,
-        order: EventOrder = "unordered",
+        order: EventOrder = EventOrder.unordered,
     ) -> Any:
         """Return the event stream or declare this context's event promise.
 
@@ -1092,7 +1094,7 @@ class AsyncMeTTa:
         pattern: str | Atom,
         fidelity: Fidelity,
         *,
-        det: str | None = None,
+        det: Determinism | None = None,
     ) -> Atom:
         return await self.call(
             lambda m: m.handles(pattern, fidelity, det=det)
@@ -1102,7 +1104,7 @@ class AsyncMeTTa:
         self,
         type_name: str,
         # policy-inventory-exempt: mechanism-internal; reason=the three modes by which one Python type crosses one context boundary, forwarded unchanged to the synchronous declaration door that owns them; evidence=bindings/python/metta/_space.py:image
-        setting: Literal["opaque", "transparent", "auto"],
+        setting: ImageMode,
     ) -> Atom:
         return await self.call(
             lambda m: m.image(type_name, setting)
@@ -1117,7 +1119,7 @@ class AsyncMeTTa:
         self,
         subject_or_pattern: str | Atom,
         pattern_or_mode: str | Atom,
-        mode: OnErrorMode | None = None,
+        mode: OnError | None = None,
     ) -> Atom:
         return await self.call(
             lambda m: m.on_error(subject_or_pattern, pattern_or_mode, mode)

@@ -46,7 +46,7 @@ from .errors import EngineError, PettaError
 from .events import _REGISTRY, STATELESS, Event, Fold
 from .foreign import require_capability
 from .ops import _REFLECTION_SPACE, _reflect_add, _reflect_remove
-from .vocabularies import SUBSCRIPTION_EDGE
+from .vocabularies import SubscriptionEdge
 
 __all__ = ["Event", "Subscription", "bridge", "subscribe"]
 
@@ -216,8 +216,8 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
     *,
     queue_max: int = SUBSCRIPTION_QUEUE_MAX,
 ) -> Subscription:
-    if on not in SUBSCRIPTION_EDGE:
-        msg = f"on must be one of {', '.join(SUBSCRIPTION_EDGE)}, not {on!r}"
+    if on not in SubscriptionEdge:
+        msg = f"on must be one of {', '.join(SubscriptionEdge)}, not {on!r}"
         raise ValueError(
             msg
         )

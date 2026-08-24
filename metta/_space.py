@@ -188,6 +188,21 @@ from .results import (
     raise_error_answers,
     rows_into,
 )
+from .vocabularies import (
+    AgendaPolicy,
+    AnswerPolicy,
+    Atomicity,
+    Delivery,
+    Determinism,
+    EventOrder,
+    Fidelity,
+    ImageMode,
+    OnError,
+    SaveFormat,
+    SourceKind,
+    SpaceCapability,
+    World,
+)
 
 __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_space"]
 
@@ -258,11 +273,6 @@ _RUN_BINDINGS: ContextVar[dict[str, Any] | None] = ContextVar(
 def _satellite(name: str) -> Any:
     """Import one optional surface only when its handle verb is called."""
     return _importlib.import_module(f"{__package__}.{name}")
-
-
-def _policy(name: str) -> tuple[str, ...]:
-    """Read one generated vocabulary without loading the catalog eagerly."""
-    return cast(tuple[str, ...], getattr(_satellite("vocabularies"), name))
 
 
 def current_space(default: str = _DEFAULT_SPACE) -> _SpaceId:
@@ -384,7 +394,7 @@ def _checked_new_space_request(
     if any(not isinstance(capability, str) for capability in requested_grants):
         msg = "every space grant must be a string"
         raise TypeError(msg)
-    unknown = set(requested_grants) - {"file", "process", "network"}
+    unknown = set(requested_grants) - set(SpaceCapability)
     if unknown:
         msg = f"unknown space capabilities: {sorted(unknown)!r}"
         raise ValueError(msg)
@@ -955,7 +965,7 @@ class Space(Handle):
     def save(
         self,
         path: str | os.PathLike[str],
-        format: str = "metta",  # noqa: A002  -- format is the documented public save keyword
+        format: SaveFormat = SaveFormat.metta,  # noqa: A002  -- format is the documented public save keyword
     ) -> int:
         """Write every stored atom of this space, equations included, as
         MeTTa source by default, or as a version-pinned trusted cache with
@@ -3020,9 +3030,9 @@ class Space(Handle):
     def handles(
         self,
         pattern: str | Atom,
-        fidelity: str,
+        fidelity: Fidelity,
         *,
-        det: str | None = None,
+        det: Determinism | None = None,
     ) -> Atom:
         """Declare how faithfully a space answers queries of one shape.
 
@@ -3042,7 +3052,7 @@ class Space(Handle):
         that falls into their overlap. The atom is returned; removing it
         from &petta withdraws the declaration.
         """
-        fidelity_values = _policy("FIDELITY")
+        fidelity_values = Fidelity
         if fidelity not in fidelity_values:
             msg = (
                 f"fidelity is one of {', '.join(fidelity_values)}, "
@@ -3053,7 +3063,7 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        determinism_values = _policy("DETERMINISM")
+        determinism_values = Determinism
         if det is not None and det not in determinism_values:
             msg = (
                 f"det is one of {', '.join(determinism_values)}, not {det!r}: the "
@@ -3185,8 +3195,7 @@ class Space(Handle):
     def image(
         self,
         type_name: str,
-        # policy-inventory-exempt: mechanism-internal; reason=opaque transparent and auto are the three ways this door can carry one Python type across one context boundary, checked again in its body; evidence=bindings/python/metta/_space.py:image
-        setting: Literal["opaque", "transparent", "auto"],
+        setting: ImageMode,
     ) -> Atom:
         """Choose how one Python type crosses one context boundary.
 
@@ -3196,9 +3205,9 @@ class Space(Handle):
         replaces the earlier one, so an attached provider reads one policy.
         Use ``_`` as the type name for a context-wide fallback.
         """
-        if setting not in ("opaque", "transparent", "auto"):
+        if setting not in ImageMode:
             msg = (
-                "image setting is one of opaque, transparent, auto, "
+                f"image setting is one of {', '.join(ImageMode)}, "
                 f"not {setting!r}"
             )
             raise ValueError(msg)
@@ -3245,7 +3254,7 @@ class Space(Handle):
 
     def source(
         self,
-        kind: str,
+        kind: SourceKind,
     ) -> Atom:
         """Declare a space's consumption discipline.
 
@@ -3257,7 +3266,7 @@ class Space(Handle):
         source. peek promises reads do not consume, which the conformance
         kit checks by enumerating twice.
         """
-        source_kinds = _policy("SOURCE_KIND")
+        source_kinds = SourceKind
         if kind not in source_kinds:
             msg = f"kind is one of {', '.join(source_kinds)}, not {kind!r}"
             raise ValueError(
@@ -3279,7 +3288,7 @@ class Space(Handle):
         self,
         subject_or_pattern: str | Atom,
         pattern_or_mode: str | Atom,
-        mode: str | None = None,
+        mode: OnError | None = None,
     ) -> Atom:
         """Declare what a context's failure becomes, per query shape.
 
@@ -3295,15 +3304,14 @@ class Space(Handle):
         """
         name = self.name if mode is None else subject_or_pattern
         pattern = subject_or_pattern if mode is None else pattern_or_mode
-        mode = str(pattern_or_mode) if mode is None else mode
-        modes = _policy("ON_ERROR_MODE")
-        if mode not in modes:
-            msg = f"mode is one of {', '.join(modes)}, not {mode!r}"
+        chosen = str(pattern_or_mode) if mode is None else str(mode)
+        if chosen not in OnError:
+            msg = f"mode is one of {', '.join(OnError)}, not {chosen!r}"
             raise ValueError(
                 msg
             )
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
-        atom = Expression([Symbol("on-error"), Symbol(str(name)), shape, Symbol(mode)])
+        atom = Expression([Symbol("on-error"), Symbol(str(name)), shape, Symbol(chosen)])
         self._rt.must(
             "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
         )
@@ -3312,7 +3320,7 @@ class Space(Handle):
     def merge(
         self,
         pattern: str | Atom,
-        policy: str,
+        policy: AnswerPolicy,
     ) -> Atom:
         """Declare how the engine merges one query shape's answers
         ACROSS contexts, for the multi-context idiom
@@ -3324,7 +3332,7 @@ class Space(Handle):
         context declares (emits <ctx> best-first), and loudly refused
         without. Shapes route most-specific-first as everywhere.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        policies = _policy("ANSWER_POLICY")
+        policies = AnswerPolicy
         if policy not in policies:
             msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
             raise ValueError(
@@ -3339,7 +3347,7 @@ class Space(Handle):
 
     def context(
         self,
-        world: str,
+        world: World,
     ) -> Atom:
         """Record what a space's absence means.
 
@@ -3349,7 +3357,7 @@ class Space(Handle):
         an undeclared one refuses under negation loudly. Native spaces
         are the engine's own database and closed by construction.
         """
-        worlds = _policy("WORLD")
+        worlds = World
         if world not in worlds:
             msg = f"world is one of {', '.join(worlds)}, not {world!r}"
             raise ValueError(
@@ -3369,7 +3377,7 @@ class Space(Handle):
 
     def agenda(
         self,
-        policy: str,
+        policy: AgendaPolicy,
         function: str | None = None,
     ) -> Atom:
         """Declare which reaction fires first when several match one write.
@@ -3386,7 +3394,7 @@ class Space(Handle):
             alarms.reaction("(alert fire)", "(insert &log (fire))", priority=9)
             alarms.agenda("priority")
         """
-        policies = _policy("AGENDA_POLICY")
+        policies = AgendaPolicy
         if policy not in policies:
             msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
             raise ValueError(msg)
@@ -3504,7 +3512,7 @@ class Space(Handle):
 
     def writes(
         self,
-        atomicity: str,
+        atomicity: Atomicity,
     ) -> Atom:
         """Declare what a space's writes promise inside a transaction.
 
@@ -3516,7 +3524,7 @@ class Space(Handle):
         silently surviving a rolled-back transaction is the wrong answer
         the declaration exists to replace.
         """
-        atomicities = _policy("ATOMICITY")
+        atomicities = Atomicity
         if atomicity not in atomicities:
             msg = (
                 f"atomicity is one of {', '.join(atomicities)}, "
@@ -3539,7 +3547,7 @@ class Space(Handle):
 
     def emits(
         self,
-        policy: str,
+        policy: AnswerPolicy,
     ) -> Atom:
         """Declare the order a context emits its own answers in.
 
@@ -3548,7 +3556,7 @@ class Space(Handle):
         k best. Distinct from the (merge <pattern> <policy>) strategy,
         which is how the ENGINE merges answers across several contexts.
         """
-        policies = _policy("ANSWER_POLICY")
+        policies = AnswerPolicy
         if policy not in policies:
             msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
             raise ValueError(
@@ -3568,8 +3576,8 @@ class Space(Handle):
 
     def events(
         self,
-        delivery: str | None = None,
-        order: str = "unordered",
+        delivery: Delivery | None = None,
+        order: EventOrder = EventOrder.unordered,
     ) -> Atom | Any:
         """Return the event stream, or declare what this context promises.
 
@@ -3590,8 +3598,8 @@ class Space(Handle):
         """
         if delivery is None:
             return self._event_stream()
-        deliveries = _policy("DELIVERY")
-        event_orders = _policy("EVENT_ORDER")
+        deliveries = Delivery
+        event_orders = EventOrder
         if delivery not in deliveries:
             msg = f"delivery is one of {', '.join(deliveries)}, not {delivery!r}"
             raise ValueError(msg)
