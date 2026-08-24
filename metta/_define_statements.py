@@ -31,6 +31,7 @@ Open Obligations:
 from __future__ import annotations
 
 import ast
+from collections.abc import Callable
 
 from ._define_context import CompilerContext, next_aux_serial
 from ._define_expression import _name_of
@@ -67,7 +68,9 @@ def _walrus_roots(head: ast.stmt) -> list[ast.expr]:
     return []
 
 
-def _hoistable_walruses(head: ast.stmt) -> list[ast.NamedExpr]:
+def _hoistable_walruses(
+    head: ast.stmt, builder_rooted: Callable[[ast.AST], bool]
+) -> list[ast.NamedExpr]:
     """Every walrus in the statement's hoistable expressions, in order.
 
     Hoistable positions evaluate exactly once before the statement acts:
@@ -75,7 +78,12 @@ def _hoistable_walruses(head: ast.stmt) -> list[ast.NamedExpr]:
     if test, a for iterable, a match subject. A while test re-evaluates
     per iteration and a nested scope (lambda, def, comprehension) owns its
     body, so a walrus there refuses with its own remedy instead of
-    hoisting wrongly.
+    hoisting wrongly. A BUILT TERM is a third boundary: inside S.f(...)
+    the walrus value is data the term carries, so hoisting it into an
+    evaluating let ran (+ $x 1) with $x unbound where the term meant to
+    hold that expression [measured 2026-08-24 by the spaces twins agent:
+    the hoisted binding jumped the match that binds $x and the engine
+    refused "+ ran backwards"].
     """
     roots = _walrus_roots(head)
     found: list[ast.NamedExpr] = []
@@ -83,6 +91,22 @@ def _hoistable_walruses(head: ast.stmt) -> list[ast.NamedExpr]:
     def collect(node: ast.AST) -> None:
         # Postorder: children before parents, left to right, which is both
         # sibling evaluation order and inner-before-container for nesting.
+        if builder_rooted(node):
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.NamedExpr):
+                    msg = (
+                        "a walrus inside a built term is data the term "
+                        "carries, not a binding this statement can hoist; "
+                        "bind the value on its own line before the "
+                        "statement, or keep the engine's own let inside "
+                        "the term"
+                    )
+                    raise CompileError(
+                        msg,
+                        construct="walrus",
+                        line=sub.lineno,
+                    )
+            return
         if isinstance(
             node,
             (ast.Lambda, ast.FunctionDef, ast.ListComp, ast.SetComp,
@@ -170,7 +194,7 @@ class StatementCompilerMixin(CompilerContext):
             raise CompileError(msg, construct="body")
         head, rest = statements[0], statements[1:]
 
-        walruses = _hoistable_walruses(head)
+        walruses = _hoistable_walruses(head, self._builder_rooted)
         if walruses:
             return self._walrus_block(walruses, head, rest)
 
@@ -221,6 +245,27 @@ class StatementCompilerMixin(CompilerContext):
                 line=head.lineno,
             )
         return self.expression(head.value)
+
+    def _builder_rooted(self, node: ast.AST) -> bool:
+        """Whether this subtree BUILDS a term: an S-rooted call, whose
+        interior is quoted data and therefore the walrus boundary above.
+
+        Only S: a V-rooted call is a runtime higher-order APPLICATION
+        (`V.f(x)` applies whatever `$f` holds), and fn-rooted calls are
+        engine calls, so both evaluate their arguments and a walrus there
+        hoists lawfully.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if not isinstance(node, ast.Call):
+            return False
+        root = node.func
+        while isinstance(root, (ast.Attribute, ast.Subscript)):
+            root = root.value
+        return (
+            isinstance(root, ast.Name)
+            and root.id == "S"
+            and root.id in self.builders
+            and root.id not in self.scope
+        )
 
     def _walrus_block(
         self,

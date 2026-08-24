@@ -1169,3 +1169,13 @@ def test_walrus_bindings_hoist_as_let(metta):
             @m.define
             def bad_comp(xs):
                 return [(w := v) for v in xs]  # noqa: F841  -- the refused binding IS the scenario
+
+        # A walrus inside a BUILT TERM is data the term carries: hoisting
+        # it into an evaluating let ran (+ $x 1) with $x unbound (the
+        # spaces twins agent measured the engine refusing "+ ran
+        # backwards"), so the boundary refuses with the remedy.
+        with pytest.raises(CompileError, match="built term"):
+
+            @m.define
+            def bad_term(x):
+                return S.cnt(inc := x + 1)  # noqa: F841  -- the refused binding IS the scenario
