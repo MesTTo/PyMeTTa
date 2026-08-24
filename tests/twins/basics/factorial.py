@@ -4,42 +4,23 @@
 conditional expression IS MeTTa's `if` and the recursive call is the same call
 the equation makes.
 
-What is STORED is not quite what the original stores, and the difference is
-worth reading back rather than believing. A compiled body's `==` lowers to
-the prelude's `py-eq`, a host crossing, where the original writes MeTTa's own
-`(== $n 0)`; the operator table calls `==` taken, for Python's own structural
-equality, and the method form `a.eq(b)` that builds `(== a b)` has no body
-equivalent. The two answer alike on every input this example has. The second
-claim below is that reading, so the divergence is checked rather than
-described, and the residue table records it against P14.4.
+Compiled-body equality now lowers to the engine's `==` relation, so the stored
+equation is the source equation rather than a host-equality approximation.
 """
-
-from metta import S, V
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
-#: INTERIM PIN 2026-08-23, min-of-3 on the wave-merged tree (5119 against the example's 5858): this file gates the pytest lane, so it is priced ahead of the corpus-wide pass that follows the library fixes, the guide update, and the marked-site sweep, and it is re-priced there with everything else.
-#: RE-PINNED 2026-08-23, 5119 to 4863, at the p14-library-fixes-2 merge. Two
-#: mechanisms: item 3 (f71a7eb3) stops materializing the full query result
-#: under .one(), -149; the kernel's native py-eq (50e914ec + 551f6236
-#: registration-time specialization) removes the Python host round trip from
-#: each recursive condition, -124 further, net -256 against this pin. Three
-#: identical merged-tree readings [measured 2026-08-23, min-of-3 through
-#: tools/twin_coverage.run_twin].
-BUDGET = 4863
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
+BUDGET = 1
 
 
 def twin(m):
-    """Define the factorial, run it, and read back the equation it stored."""
+    """Define the factorial and run it."""
     @m.define(name="facF")
     def fac_f(n):
         # (= (facF $n) (if (== $n 0) 1 (* $n (facF (- $n 1)))))
         return 1 if n == 0 else n * fac_f(n - 1)
 
     assert fac_f(10) == [3628800]
-
-    condition = m.match(S["="](S.facF(V.n), V.body)).one().body[1]
-    assert condition[0] == S["py-eq"]

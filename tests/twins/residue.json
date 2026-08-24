@@ -684,60 +684,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/functions/specialize_recursive_wrap.metta",
-      "form": null,
-      "missing": "MeTTa's `==` inside a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps",
-      "detail": "`n == 0` in a compiled body compiles to `(py-eq $n 0)`, Python's equality through the prelude, which _compare_link does deliberately 'so mixed numeric types and containers answer exactly what Python answers'. The original writes MeTTa's `(== $n 0)`. Both answer True here and the twin is alpha-equal, but the equation STORED is not the equation the example stores, and the runnable form costs 3500 against 3495, +5 inferences. Same family as the recorded math_exp_random `and` entry. The operator that would mean MeTTa's `==` is taken by Python's own equality, which is why the term door spells it `.eq(...)`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/basics/factorial.metta",
-      "form": null,
-      "missing": "a compiled body that stores the equation the example stores, rather than one that only answers alike",
-      "row": "P14.4",
-      "section": "correction to what the twins lane proves",
-      "detail": "The lane compares ANSWERS up to alpha-equivalence and the SET OF HEADS a (= $head $body) match answers; it never compares the bodies, so a compiled body that lowers to a different equation than the example writes passes silently. Measured 2026-08-22 by dumping (= $h $b) from both sides in fresh processes and matching under alpha-equivalence (ai-tmp/equation_diff.py on the p14-twins-f worktree): SEVEN of the 69 examples in basics/, control/ and types/ store different equations, and only one of them, math_exp_random, had said so. Four lowerings account for all seven. (1) `==` and `!=` in a compiled body are `(py-eq a b)` and `(not (py-eq a b))`, the prelude's Python equality, where the originals write `(== a b)`: basics/factorial, basics/fibsmart, basics/xor and control/tests program3. The operator table calls `==` taken for exactly this reason and the method form `a.eq(b)` builds `(== a b)` at the TERM door, so what is missing is a body spelling, not a design decision. (2) A condition whose syntax is not boolean-valued wraps in `(py-truthy ...)`: basics/xor. (3) An assignment is a one-pair `let*` where the original writes `let`: control/eval and control/tests program1. (4) A generator body is a superposition of its yielded answers, so a single yielded form is wrapped in a ONE-element `(superpose (...))`: control/metta4_streams. That last one is a free elision, since a superposition over one alternative IS that alternative; the non-generator body `return superpose(k, counter(k + 1, n)) if k < n else empty()` stores the original's equation to the atom, and was measured doing so. All seven twins now say which of these they carry. The lane could catch the class by comparing stored bodies under alpha-equivalence as well as heads, which is what the measurement above does in forty lines. [measured: seven of 69 examples store equations that differ under alpha-equivalence; command=ai-tmp/equation_diff.py; fixture=the basics, control and types twins against their .metta originals in fresh processes; commit=ddaa528d0cc463d42efa5f86eb194fad77f860f8]"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/basics/and_or.metta",
-      "form": null,
-      "missing": "MeTTa's `and` and `or` inside a compiled body",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "Three doors and none of them opens. `and` and `or` are Python KEYWORDS, so a compiled body cannot name them the way basics/xor names `xor` (measured 2026-08-22: binding `conj = m.fn(\"and\")` does not help, because the compiler resolves the free NAME against engine functions and `conj` is not one). `&` and `|` build `(and ...)` and `(or ...)` at the term door but raise 'the operator BitAnd has no MeTTa function' inside a body. And Python's own `and` in a body is Python's, lowering to `(let* ...)` plus `(py-truthy ...)`. The twin reduces the connectives at the term door and picks the branch with Python's conditional expression, which is the honest split."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/basics/booleansolver.metta",
-      "form": null,
-      "missing": "connectives that run BACKWARDS from a compiled body, and the two-argument `if` that reads their solutions",
-      "row": "P14.4",
-      "section": "§4 surface gaps: operator holes",
-      "detail": "MeTTa's `and`/`or` are generate-and-test over two values, so an unbound variable in one is solved for. Python's `and` in a compiled body lowers to a `py-truthy` short circuit, which TESTS a value and never generates one: measured 2026-08-22, `def solutions(x, y): if (x or True) and y: yield (x, y)` compiles, and `solutions(V.x, V.y)` answers once with both variables still unbound where the term door answers ((True True) (False True)). The twin therefore builds `(if (and (or $x True) $y) ($x $y))`, and its two-argument `if` is the second half of the gap: it is the FILTER that turns a solved condition into the pair that solved it, and Python's conditional expression cannot mean it because it always has an else."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/basics/fib.metta",
-      "form": null,
-      "missing": "a Python door for the max-stack-depth bound",
-      "row": "P14.4",
-      "section": "§9b: control and modes, modes are with-blocks",
-      "detail": "`with m.limits(...)` is the with-block form of `with-pragma!` and carries `timeout` and `inferences` only, and the per-call keywords are the same two. The exponential fib needs `max-stack-depth` raised, which is a third bound with no Python spelling, so the twin sets it through `pragma!` built as the atom it is. Measured 2026-08-22: `m.eval(S[\"pragma!\"](S[\"max-stack-depth\"], 100000000))` then `fib(30)` answers 832040, and the whole twin costs 28,278,228 inferences against the example's 28,280,157, a ratio of 0.9999."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/basics/time_and_pragmas.metta",
-      "form": null,
-      "missing": "a Python door for `pragma!`, the process-wide interpreter setting",
-      "row": "P14.4",
-      "section": "§9b: control and modes, modes are with-blocks",
-      "detail": "`timeout` and `inferences` dissolve completely in this file: `(timeout 30 e)` is `m.eval(e, timeout=30)`, `(inferences 100000 e)` is `m.eval(e, inferences=100000)`, and `with-pragma!` is `with m.limits(...)`, all measured working 2026-08-22 including the fact that a bound does NOT collapse a superpose. The seven `pragma!` forms have no Python door at all, and two of the three keys they set (`max-stack-depth`, and clearing a bound with `none`) have no kwarg either, so they are built as atoms."
-    },
-    {
-      "kind": "friction",
       "example": "examples/basics/constraint_domains.metta",
       "form": null,
       "missing": "a POSTING scope: `(let True <constraint> <question>)` inside one derivation",
@@ -761,7 +707,7 @@
       "missing": "a compiled body that binds a variable it never reads, to force evaluation",
       "row": "P14.4",
       "section": "§4 surface gaps: bare equations and rewrite rules",
-      "detail": "(= (only $C $X) (let $constraint $C $X)) evaluates its first argument for effect and answers the second. Python's assignment is the dissolution of let, but a compiled body's assignment mints its own name and stores let*, so the stored equation would not be the one the example stores. The twin writes S.let(V.constraint, c, x) inside an ordinary @m.define body, which R1's V. door makes possible; what is still missing is a Python STATEMENT that means the one-pair let rather than let*."
+      "detail": "RE-ANCHORED 2026-08-24. The liked form is ordinary assignment: `_constraint = c; return x`, and the twin now uses it. The compiler stores that statement sequence as `(let* (($_constraint $c)) $x)`, while the source stores the relational one-pair `(let $constraint $C $X)`. The walrus ships too but deliberately hoists to the same let* chain. What remains missing is a Python statement whose compiled atom is relational `let`; `solve(pattern, subject)` is the Python door at the call boundary and is refused inside a compiled body because `solve` is neither a parameter nor an engine function."
     },
     {
       "kind": "declined",
@@ -5364,6 +5310,66 @@
       "section": "§4 surface gaps",
       "detail": "fromNumber's body builds (S (fromNumber (- $n 1))). A capitalised free name in a compiled body IS a data constructor, but _constructor_symbol first refuses any name that is a module binding, to avoid silently dropping a host value, and `S` is a module binding in every twin because `S` is the symbol factory they import. The refusal is right and the collision is real, so the equation is written at the term door. fromNat and every bc clause are separately blocked by literal-symbol and structural head patterns.",
       "retired": "2026-08-24: the factory attribute says it. Measured, `S.S(from_number(n - 1))` inside `@m.define` stores `(S (fromNumber (- $n 1)))`; only a BARE `S` was ever ambiguous, and `fromNumber` is a compiled function now."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/functions/specialize_recursive_wrap.metta",
+      "form": null,
+      "missing": "MeTTa's `==` inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps",
+      "detail": "AS FILED, superseded by the retirement line below. `n == 0` previously compiled to `(py-eq $n 0)` instead of the source's `(== $n 0)`.",
+      "retired": "2026-08-24: e265712c routes compiled-body equality through the engine-native `==` head; the source equation and its recursive specialization claim now run through the ordinary Python conditional"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/factorial.metta",
+      "form": null,
+      "missing": "a compiled body that stores the equation the example stores, rather than one that only answers alike",
+      "row": "P14.4",
+      "section": "correction to what the twins lane proves",
+      "detail": "AS FILED, superseded by the retirement line below. Compiled-body equality previously stored `py-eq` where the factorial source stores `==`.",
+      "retired": "2026-08-24: e265712c gives compiled-body equality the engine-native protocol; `return 1 if n == 0 else n * fac_f(n - 1)` stores and runs the source equation"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/and_or.metta",
+      "form": null,
+      "missing": "MeTTa's `and` and `or` inside a compiled body",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "AS FILED, superseded by the retirement line below. The source has no definition and only asks one built boolean term, so requiring a compiled-body spelling was the wrong boundary.",
+      "retired": "2026-08-24: the keyword builders are the direct source spelling; `if_(or_(and_(TRUE, FALSE), TRUE), 1, 2)` proves the claim without a compiled body or a quoted head"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/booleansolver.metta",
+      "form": null,
+      "missing": "connectives that run BACKWARDS from a compiled body, and the two-argument `if` that reads their solutions",
+      "row": "P14.4",
+      "section": "§4 surface gaps: operator holes",
+      "detail": "AS FILED, superseded by the retirement line below. The source's only runnable is already stored code at the term boundary rather than a function definition.",
+      "retired": "2026-08-24: `if_(and_(or_(V.x, TRUE), V.y), (V.x, V.y))` is the public two-argument filtering form and preserves both relational solutions"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/fib.metta",
+      "form": null,
+      "missing": "a Python door for the max-stack-depth bound",
+      "row": "P14.4",
+      "section": "§9b: control and modes, modes are with-blocks",
+      "detail": "AS FILED, superseded by the retirement line below. The old twin set `max-stack-depth` process-wide because `m.limits` has no stack setting.",
+      "retired": "2026-08-24: the function namespace supplies the exact scoped door; `m.fn.with_pragma(((S.max_stack_depth, 100_000_000),), S.fib(30))` answers 832040 and restores the prior setting"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/basics/time_and_pragmas.metta",
+      "form": null,
+      "missing": "a Python door for `pragma!`, the process-wide interpreter setting",
+      "row": "P14.4",
+      "section": "§9b: control and modes, modes are with-blocks",
+      "detail": "AS FILED, superseded by the retirement line below. The old twin built `pragma!` as a symbol term.",
+      "retired": "2026-08-24: trailing-bang resolution makes `m.fn.pragma` the effectful Python call; all seven settings, including `none` clearing and the rejected negative stack depth, pass through it"
     }
   ]
 }

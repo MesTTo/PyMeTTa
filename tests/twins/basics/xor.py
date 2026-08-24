@@ -7,12 +7,9 @@ P14.4, so the body names `xor` through the static function namespace instead,
 `fn.xor`, which is the mention door for an engine function and which reads and
 autocompletes without the engine having to be running.
 
-Two more places where the stored equation is not the original's, both
-lowerings rather than choices. A compiled body's `==` becomes `(py-eq ...)`,
-and a condition whose syntax is not boolean-valued wraps in `(py-truthy ...)`,
-so `(if (xor (== $s $d) (> $s $d)) 42 0)` is stored as
-`(if (py-truthy (xor (py-eq $s $d) (> $s $d))) 42 0)`. The answers agree; the
-residue table records the divergence against P14.4.
+The static function mention is already an engine boolean function, so the
+conditional consumes it directly. Equality and ordering lower to the source's
+engine relations.
 """
 
 from metta import fn
@@ -21,7 +18,7 @@ from metta import fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 
@@ -32,7 +29,7 @@ def twin(m):
     # included, turns a Python underscore into a hyphen, so `@m.define` alone
     # would store `check-xor` and the example's head would go unmatched. An
     # exact non-mechanical name is what `name=` is for.
-    @m.define(name="check_xor")
+    @m.define(name="check_xor")  # rung: def check_xor maps to check-xor, while the source head is check_xor
     def check_xor(source, destination):
         # (= (check_xor $source $destination)
         #    (if (xor (== $source $destination) (> $source $destination)) 42 0))

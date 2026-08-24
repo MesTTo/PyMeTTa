@@ -11,10 +11,8 @@ to its own result, which is variable-head application (`r(r(g))` compiles to
 recursive call passes `twice(r)`, a PARTIAL application of a two-parameter
 function. Neither needs a MeTTa spelling: the subset already reads both.
 
-One divergence to know about: `n == 0` compiles to `(py-eq $n 0)`, Python's
-own equality through the prelude, where the original writes MeTTa's
-`(== $n 0)`. Both answer True here and the residue table records the lowering
-against P14.4.
+Python's `n == 0` is the source-faithful spelling: compiled-body equality
+lowers to the engine's `==` relation rather than host structural comparison.
 """
 
 from metta import S
@@ -23,7 +21,7 @@ from metta import S
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 

@@ -14,21 +14,18 @@ functions: each head fixes a SYMBOL (`(living garfield)`), a stacked clause
 fixes a head position with a literal DEFAULT, and a literal is a bool, int,
 float or str, never a symbol.
 
-The three relations that follow are ordinary decorated functions. Two of them
-mint a variable no parameter supplies, which `V.` says inside a body:
-`only` binds the constraint's result to `$constraint` and never reads it,
-which is how it forces evaluation, and `cat` unifies its own argument against
-what `animal` produces, where `$X` is the hole unification fills. `living` and
-`being` are named as bare calls, the descent ladder's rung 4, because nothing
-in Python binds those spellings and a compiled body resolves a free name
-against the engine's own registry.
+The three relations that follow are ordinary decorated functions. `only`
+forces its constraint with an ordinary assignment, which the compiler stores
+as a `let*`; `cat` uses relational `let`, where `$X` is the hole unification
+fills. The fact relations are explicit symbol calls because they are data
+heads in this file, not Python definitions.
 
 The claim dissolves twice over: `collapse` is the list an evaluation already
 answers, and `msort` is Python's own `sorted`.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,6 +34,7 @@ Open Obligations:
 
 import metta
 from metta import TRUE, S, V, equation
+from metta.vocabularies import NoMatchEnum
 
 #: The knowledge, as the table it is: each animal and what holds of it, in the
 #: original's own order.
@@ -51,13 +49,15 @@ FACTS = {
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 
 def twin(m):
     """Filter ten facts through two chained relations."""
-    metta.reflection += S["dispatch-policy"](S.small, S.NoMatchEnum, S.NoMatchFail)
+    metta.reflection += S.dispatch_policy(
+        S.small, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
+    )
 
     # (= (living garfield) True) ... (= (small cat42) True)
     # rung: each head fixes a SYMBOL, and a stacked clause's literal default is a
@@ -66,20 +66,20 @@ def twin(m):
 
     @m.define
     def only(c, x):
-        # (= (only $C $X) (let $constraint $C $X)): the body binds $constraint,
-        # a variable it never reads, which is how it forces evaluation. An
-        # assignment would mint the name and store `let*` instead.
-        return S.let(V.constraint, c, x)  # rung: let as a force
+        # (= (only $C $X) (let* (($constraint $C)) $X))
+        _constraint = c
+        return x
 
     @m.define
     def animal(x):
         # (= (animal $X) (only ((living $X) (being $X)) $X))
-        return only((living(x), being(x)), x)  # noqa: F821  -- `living` and `being` are engine relations, and a compiled body resolves a free name against the engine's registry
+        return only((S.living(x), S.being(x)), x)
 
     @m.define
     def cat(a):
         # (= (cat $A) (let $A (animal $X) (only (small $X) $X)))
-        return S.let(a, animal(V.x),  # rung: relational let
-                     only(small(V.x), V.x))  # noqa: F821  -- `small` is an engine relation, the same way
+        return S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
+            a, animal(V.x), only(S.small(V.x), V.x)
+        )
 
-    assert sorted(m.eval(S.cat(V.X)), key=str) == [S.cat42, S.garfield]
+    assert sorted(m.eval(S.cat(V.X))) == [S.cat42, S.garfield]

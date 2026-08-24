@@ -7,13 +7,9 @@ call. A nested call is BUILT with the static `fn` namespace and evaluated
 once, so `(log-math e (exp-math 3.0))` is one term rather than two crossings,
 which is the crossing rule as well as the spelling.
 
-The one thing that does not translate literally is `and`. The original writes
-`(and (<= $lo $x) (<= $x $hi))`, MeTTa's own connective. Python's `and` in a
-compiled body is PYTHON's `and`, short-circuiting on truthiness, and the
-chained comparison written here lowers to a nested `if` instead; `&`, the
-operator that would mean MeTTa's, is refused inside a body, and `and` itself
-is a Python keyword no body can name. The answers agree for the booleans this
-equation compares, and the residue table records the hole against P14.4.
+The original's `and` is a Python keyword, so the compiled body takes the exact
+static-function escape, `fn["and"]`, while each comparison uses Python's
+operator spelling and lowers to the corresponding engine relation.
 """
 
 from metta import fn
@@ -25,7 +21,7 @@ E = 2.718281828459045
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 
@@ -42,7 +38,7 @@ def twin(m):
     @m.define
     def in_range(lo, hi, x):
         # (= (in-range $lo $hi $x) (and (<= $lo $x) (<= $x $hi)))
-        return lo <= x <= hi
+        return fn["and"](lo <= x, x <= hi)  # rung: & is refused inside a compiled body, and `and` is a keyword
 
     # The random generators answer inside their bounds, every draw.
     assert in_range(1, 6, fn.random_int(1, 6)) == [True]

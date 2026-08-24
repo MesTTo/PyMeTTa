@@ -19,7 +19,7 @@ three times.
 
 Two spellings Python's operators cannot give. A PARTIAL application of an
 operator, `(+ 1)`, has no operator spelling, because `+` needs both operands
-to be an operator at all; it is written by CALLING the symbol, `S["+"](1)`,
+to be an operator at all; it is written by CALLING the symbol, `S.add(1)`,
 which is what builds an expression out of a head and its arguments. And
 `(+ 1 2 3)` is the same story from the other side, because Python's
 `1 + 2 + 3` left-associates into `(+ (+ 1 2) 3)` and would compute 6 before
@@ -33,10 +33,10 @@ one door states the exact name.
 Guarantees:
   - expected printed output in this twin remains Python str text
     [tested: test_printing_text_is_not_forced_through_the_value_carrier;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -49,7 +49,7 @@ from metta import Expression, S, fn
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 
@@ -85,14 +85,14 @@ def twin(m):
 
     # (map-atom (1 2 3) (+ 1)): a comprehension builds the applications and
     # one evaluation runs them.
-    add_one = S["+"](1)
+    add_one = S.add(1)
     assert m.eval(tuple((add_one, x) for x in (1, 2, 3))) == [Expression((2, 3, 4))]
 
     # Too many arguments are an error, both for compiled and for
     # runtime-dispatched calls, and the error is an ANSWER: no catch stands
     # between the call and it. A head nothing TYPES is left as written
     # instead, because there is no arity to be wrong about.
-    too_many = S["+"](1, 2, 3)
+    too_many = S.add(1, 2, 3)
     wrong_count = S.Error(too_many, S.IncorrectNumberOfArguments)
     assert m.eval(too_many) == [wrong_count]
     assert m.eval(S.reduce(too_many)) == [wrong_count]
@@ -109,6 +109,6 @@ def twin(m):
     def overloaded_curry_3(a, b, c):
         return a + (b + c)
 
-    assert m.fn.repr(S["overloaded-curry"](1, 2)) == [
+    assert m.fn.repr(S.overloaded_curry(1, 2)) == [
         "(partial overloaded-curry (1 2))"
     ]

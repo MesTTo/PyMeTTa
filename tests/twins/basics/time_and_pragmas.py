@@ -4,8 +4,8 @@ Three of the four bounding forms have a Python door and take it. `timeout` and
 `inferences` are per-call keywords, so `(timeout 30 (spin 100))` is
 `m.eval(S.spin(100), timeout=30)`; `with-pragma!` scopes settings to a region,
 so it is `with m.limits(...)`, which is the same shape and the same undo. The
-fourth, `pragma!`, sets a process-wide interpreter setting and has no Python
-door at all, so it is built as the atom it is. `car-atom` dissolves as well:
+fourth, `pragma!`, sets a process-wide interpreter setting and is the bound
+`m.fn.pragma` effect call. `car-atom` dissolves as well:
 `elapsed` answers `(Value Seconds)` and Python reads the value as `[0]`.
 
 `metta/3` takes the space as an operand and a space HANDLE is a grounded atom,
@@ -24,20 +24,20 @@ bound decorator writes the bundle and lands it in one act.
 Guarantees:
   - TRUE, FALSE, UNIT, and HERE used here are package values rather
     than local reconstructions [tested: test_the_canonical_atoms_are_public_values;
-    commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4]
+    commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import UNIT, S, V, equation
+from metta import UNIT, S, V, equation, fn
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
-#: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+#: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
 BUDGET = 1
 
 
@@ -51,7 +51,7 @@ def twin(m):
 
     # A bound that is not reached is invisible.
     assert m.eval(S.spin(100), timeout=30) == [S.done]
-    assert m.eval(S["+"](1, 2), timeout=30) == [3]
+    assert m.eval(S.add(1, 2), timeout=30) == [3]
 
     # Bounding an expression does NOT collapse it to one answer: the whole
     # answer set computes under the bound.
@@ -68,42 +68,42 @@ def twin(m):
     # metta/3 interprets an atom in a space it is HANDED; PeTTa's evalc
     # already is that, since PeTTa's eval is full evaluation rather than one
     # rewriting step, so the two agree.
-    assert m.eval(S.metta(S["+"](1, 2), S["%Undefined%"], m)) == [3]
-    assert m.eval(S["+"](1, 2)) == [3]
+    assert m.eval(S.metta(S.add(1, 2), S["%Undefined%"], m)) == [3]
+    assert m.eval(S.add(1, 2)) == [3]
 
     # Pragmas. Each answers the unit value, the way add-atom and print do.
     # Every key must be in the interpreter registry, and a bound's value is
     # checked before it replaces a working setting.
-    pragma = S["pragma!"]
-    assert m.eval(pragma(S["max-time"], 30)) == [UNIT]
-    assert m.eval(pragma(S["max-inferences"], 100000000)) == [UNIT]
+    pragma = m.fn.pragma
+    assert pragma(S.max_time, 30) == [UNIT]
+    assert pragma(S.max_inferences, 100_000_000) == [UNIT]
     # Passing none clears a bound again.
-    assert m.eval(pragma(S["max-time"], S.none)) == [UNIT]
-    assert m.eval(pragma(S["max-inferences"], S.none)) == [UNIT]
+    assert pragma(S.max_time, S.none) == [UNIT]
+    assert pragma(S.max_inferences, S.none) == [UNIT]
 
     # max-stack-depth answers its own error rather than raising: the count it
     # requires is checked in the answer, so the program that wrote it runs on.
-    assert m.eval(pragma(S["max-stack-depth"], 0)) == [UNIT]
-    assert m.eval(pragma(S["max-stack-depth"], -1)) == [
-        S.Error(pragma(S["max-stack-depth"], -1), S.UnsignedIntegerIsExpected)
+    assert pragma(S.max_stack_depth, 0) == [UNIT]
+    assert pragma(S.max_stack_depth, -1) == [
+        S.Error(fn.pragma(S.max_stack_depth, -1), S.UnsignedIntegerIsExpected)
     ]
-    assert m.eval(pragma(S["max-stack-depth"], S.none)) == [UNIT]
+    assert pragma(S.max_stack_depth, S.none) == [UNIT]
 
     # A positive stack-depth setting caps the evaluator's branch-local fuel,
     # and a finite sibling survives when an overlapping recursive branch runs
     # out.
-    m.eval(pragma(S["max-stack-depth"], 20))
+    pragma(S.max_stack_depth, 20).one()
 
     @m.rules
     def bounded_factorial(n):
         # (= (bounded-factorial 0) 1)
-        yield equation(S["bounded-factorial"](0)).to(1)
+        yield equation(S.bounded_factorial(0)).to(1)
         # (= (bounded-factorial $n) (* $n (bounded-factorial (- $n 1))))
-        yield equation(S["bounded-factorial"](n)).to(n * S["bounded-factorial"](n - 1))
+        yield equation(S.bounded_factorial(n)).to(n * S.bounded_factorial(n - 1))
 
-    assert m.eval(S["bounded-factorial"](5)) == [120, S.Error(-3, S.StackOverflow)]
+    assert m.eval(S.bounded_factorial(5)) == [120, S.Error(-3, S.StackOverflow)]
 
-    m.eval(pragma(S["max-stack-depth"], S.none))
+    pragma(S.max_stack_depth, S.none).one()
 
     # (inferences $n $expr) is timeout's deterministic twin: the bound stops
     # at the same step on every machine, and it is the same keyword.
@@ -113,7 +113,7 @@ def twin(m):
     # with-pragma! scopes settings to ONE expression; a with-block scopes them
     # to a region, and the previous values come back on every exit path.
     with m.limits(inferences=100000):
-        assert m.eval(S["+"](20, 22)) == [42]
+        assert m.eval(S.add(20, 22)) == [42]
     with m.limits(timeout=30, inferences=100000):
         assert m.eval(S.spin(100)) == [S.done]
     assert m.eval(S.spin(2000)) == [S.done]
