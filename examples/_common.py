@@ -8,12 +8,16 @@ Guarantees:
   - the OK line an example prints means at least one check ran since the
     previous OK, and every one of them held
     [tested test_an_example_that_checks_nothing_is_not_OK]
+  - claim() binds runtime emission and execution to adjacent checked comments,
+    while doctest() verifies emitted examples in both languages
+    [tested: test_every_gallery_program_runs; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
 
+import inspect
 import os
 import sys
 from pathlib import Path
@@ -31,7 +35,14 @@ def _find_repo(start: Path) -> Path:
 
 REPO = _find_repo(Path(__file__))
 sys.path.insert(0, str(REPO / "bindings" / "python"))
+sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
 os.environ.setdefault("PETTA_PATH", str(REPO))
+
+from executable_docs import (  # noqa: E402  -- checkout paths must be installed first
+    render_answers,
+    verify_claim,
+    verify_defined_examples,
+)
 
 
 class CheckFailed(Exception):
@@ -50,16 +61,46 @@ class CheckFailed(Exception):
 _VERIFIED: list[str] = []
 
 
+def _record(label, got):
+    """Record and print one result after its checker has accepted it."""
+    _VERIFIED.append(label)
+    print(f"  {label}: {got}")
+
+
 def check(label, got, expected=None):
-    """Print one result and verify it: an example is a claim, so it verifies
-    itself the way a test would, and a wrong output fails loudly."""
+    """Print one result and verify it: a claim must check itself."""
     if expected is not None:
         if got != expected:
             raise CheckFailed(f"{label}: expected {expected!r}, got {got!r}")
     elif not got:
         raise CheckFailed(f"{label}: expected a truthy result, got {got!r}")
-    _VERIFIED.append(label)
-    print(f"  {label}: {got}")
+    _record(label, got)
+
+
+def claim(label, emitted, execute):
+    """Execute one emitted atom and check its adjacent source comments."""
+    frame = inspect.currentframe()
+    caller = frame.f_back if frame is not None else None
+    if caller is None:
+        raise RuntimeError("claim cannot locate its caller's source span")
+    try:
+        answers = verify_claim(
+            emitted,
+            execute,
+            path=caller.f_code.co_filename,
+            line=caller.f_lineno,
+        )
+    finally:
+        del frame
+    _record(label, render_answers(answers))
+    return list(answers)
+
+
+def doctest(label, defined):
+    """Verify every emitted @example through its MeTTa and Python sides."""
+    count = verify_defined_examples(defined)
+    _record(label, f"{count} bilingual example(s)")
+    return count
 
 
 def skip(reason):

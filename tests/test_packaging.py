@@ -7,6 +7,11 @@ Guarantees:
   - the Python gate uses the fixed load-tested worker protocol
     [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the blocking NetworkX and NumPy gallery has installable dependencies in
+    both test extras and the minimal-version matrix [tested:
+    test_optional_integrations_have_installable_extras,
+    test_minimal_version_matrix_installs_blocking_gallery_dependency;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -76,7 +81,17 @@ def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pyte
     assert "orjson" not in extras
     assert "pytest-xdist>=3.8,<4" in extras["test"]
     assert "pytest-xdist>=3.8,<4" in extras["checks"]
+    assert "networkx>=3.6,<4" in extras["test"]
+    assert "networkx>=3.6,<4" in extras["checks"]
+    assert "numpy" in extras["test"]
+    assert "numpy" in extras["checks"]
     assert "pylint>=3.3,<4" in extras["checks"]
+
+
+def test_minimal_version_matrix_installs_blocking_gallery_dependency():
+    """The all-tests version matrix cannot skip or miss the gallery package."""
+    workflow = (ROOT / ".github" / "workflows" / "checks.yml").read_text(encoding="utf-8")
+    assert "janus_swi pytest hypothesis 'networkx>=3.6,<4' numpy" in workflow
 
 
 def test_the_pytest_lane_is_deterministic_under_load_protocol():

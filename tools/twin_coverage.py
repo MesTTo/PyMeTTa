@@ -71,6 +71,10 @@ Guarantees:
   - a twin's definitions are visible to `match` where the original's are, so a
     Python-authored definition cannot pass by hiding in Python-side state
     [tested: test_a_hidden_definition_is_a_finding]
+  - answer groups compare as alpha-equivalent multisets, so renaming and
+    enumeration order are irrelevant while duplicate counts remain semantic
+    [tested: test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;
+    commit=WORKTREE]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,
@@ -140,12 +144,36 @@ from metta._name_mapping import (  # noqa: I001  -- the path insert above is wha
     operator_attribute_target,
 )
 from metta import vocabularies
+from metta.atoms import Atom, _alpha_eq, _encode
 
 import example_parity as parity
 
 REPO = parity.REPO
 TWINS = REPO / "bindings" / "python" / "tests" / "twins"
 RESIDUE = TWINS / "residue.json"
+
+
+def answer_multiset_diff(
+    left: Iterable[object], right: Iterable[object]
+) -> tuple[list[Atom], list[Atom]]:
+    """Return unmatched answers under alpha equivalence and multiplicity.
+
+    Enumeration order is deliberately absent from the comparison. Matching
+    removes one occurrence at a time, so two copies never compare equal to one.
+    """
+    left_atoms = [_encode(value) for value in left]
+    remaining = [_encode(value) for value in right]
+    left_only: list[Atom] = []
+    for atom in left_atoms:
+        matched = next(
+            (index for index, other in enumerate(remaining) if _alpha_eq(atom, other)),
+            None,
+        )
+        if matched is None:
+            left_only.append(atom)
+        else:
+            remaining.pop(matched)
+    return left_only, remaining
 
 #: One inference count, and the heads the space answers a `(= $head $body)`
 #: match with, on their own marker lines beside the answer groups.
