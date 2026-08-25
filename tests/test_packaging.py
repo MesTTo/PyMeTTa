@@ -11,7 +11,7 @@ Guarantees:
     both test extras and the minimal-version matrix [tested:
     test_optional_integrations_have_installable_extras,
     test_minimal_version_matrix_installs_blocking_gallery_dependency;
-    commit=WORKTREE]
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
 Open Obligations:
   To Do: None
   Hacks: None

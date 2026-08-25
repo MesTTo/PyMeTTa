@@ -7,7 +7,7 @@ Assumes:
 Guarantees:
   - stored edge atoms project through the common space seam, NetworkX computes
     the route, and that route returns to the same space as queryable knowledge
-    [tested: test_every_gallery_program_runs; commit=WORKTREE]
+    [tested: test_every_gallery_program_runs; commit=8bfe05c3850776543ece25a85038242f10b1d841]
 Owns resources: one named space and one read-only operation registration;
   unregister_op() and drop() release them after the result is written back,
   while process exit releases them after an earlier failed claim.

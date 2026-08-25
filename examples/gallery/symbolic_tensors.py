@@ -4,7 +4,7 @@ Assumes: NumPy is installed by the blocking ``test`` and ``checks`` extras.
 Guarantees:
   - the declared top-down lowering rewrites ``MM(T(T(x)), y)`` to one matmul
     call, and tropical ``under=`` carries the checked numeric result
-    [tested: test_every_gallery_program_runs; commit=WORKTREE]
+    [tested: test_every_gallery_program_runs; commit=8bfe05c3850776543ece25a85038242f10b1d841]
 Owns resources: one named space plus one pure operation registration; an
   explicit unregister call and drop() release them after evaluation, while
   process exit releases the process-local lowering registry after failure.

@@ -3,7 +3,7 @@
 Guarantees:
   - two successor worlds leave their base untouched, expose an exact multiset
     diff, and only the selected world lands as one post-commit observed change
-    [tested: test_every_gallery_program_runs; commit=WORKTREE]
+    [tested: test_every_gallery_program_runs; commit=8bfe05c3850776543ece25a85038242f10b1d841]
 Owns resources: two named native spaces and one subscription; cancel() and
   drop() release them after the selected branch commits, while process exit
   releases them after an earlier failed claim.

@@ -4,7 +4,7 @@ Guarantees:
   - the gallery is exactly six runnable programs with 45 source-span claims;
     every program verifies one emitted doctest bilingually and prints its own
     checked OK receipt [tested: test_every_gallery_program_runs;
-    commit=WORKTREE]
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
 """
 
 from __future__ import annotations

@@ -8,7 +8,7 @@ Guarantees:
   - shared answer comparison ignores order and alpha-renaming while preserving
     multiplicity [tested:
     test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;
-    commit=WORKTREE]
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - point budgets remain two-sided with the deterministic tolerance stated
     separately [tested: test_a_budget_is_two_sided; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - empirical envelopes are asymmetric, protocol-scoped, and falsified by

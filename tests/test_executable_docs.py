@@ -6,12 +6,12 @@ Guarantees:
     test_source_spans_bind_translation_and_output_comments_to_one_call,
     test_unmappable_checked_comment_is_rejected,
     test_translation_drift_is_rejected,
-    test_shown_output_drift_is_rejected; commit=WORKTREE]
+    test_shown_output_drift_is_rejected; commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - emitted doctests execute in both languages with order-insensitive,
     multiplicity-preserving comparison [tested:
     test_emitted_doctests_run_in_both_languages_as_alpha_multisets,
     test_bilingual_doctests_reject_a_python_side_multiplicity_drift;
-    commit=WORKTREE]
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
 """
 
 from __future__ import annotations

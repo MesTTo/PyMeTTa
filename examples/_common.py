@@ -4,13 +4,15 @@ small helpers that make each example self-verifying rather than a printout
 to trust.
 Guarantees:
   - a wrong value stops the example under `python -O` as well as without it
-    [tested test_a_wrong_value_fails_under_O_too]
+    [tested: test_a_wrong_value_fails_under_optimization_too;
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - the OK line an example prints means at least one check ran since the
     previous OK, and every one of them held
-    [tested test_an_example_that_checks_nothing_is_not_OK]
+    [tested: test_an_example_that_checks_nothing_does_not_report_success;
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - claim() binds runtime emission and execution to adjacent checked comments,
     while doctest() verifies emitted examples in both languages
-    [tested: test_every_gallery_program_runs; commit=WORKTREE]
+    [tested: test_every_gallery_program_runs; commit=8bfe05c3850776543ece25a85038242f10b1d841]
 Open Obligations:
   To Do: None
   Hacks: None

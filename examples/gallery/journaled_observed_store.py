@@ -3,7 +3,7 @@
 Guarantees:
   - rejected writes leave no journal entry, observers see only the complete
     committed delta, and reopening replays exactly that delta
-    [tested: test_every_gallery_program_runs; commit=WORKTREE]
+    [tested: test_every_gallery_program_runs; commit=8bfe05c3850776543ece25a85038242f10b1d841]
 Owns resources: a temporary journal, one audit space, two sequential journal
   handles, and one subscription; context managers, cancel(), and drop()
   release each one, while process exit releases any failed-path remainder.

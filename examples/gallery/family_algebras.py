@@ -5,7 +5,7 @@ Assumes: answer order is unspecified, so each shown bag is sorted without
 Guarantees:
   - all four ground/free direction combinations run under counting, tropical,
     provenance, ranking, and probability carriers
-    [tested: test_every_gallery_program_runs; commit=WORKTREE]
+    [tested: test_every_gallery_program_runs; commit=8bfe05c3850776543ece25a85038242f10b1d841]
 Owns resources: one named family space; drop() releases it after all carrier
   queries complete, while process exit releases it after a failed claim.
 """

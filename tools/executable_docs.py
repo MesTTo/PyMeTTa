@@ -12,12 +12,12 @@ Guarantees:
     [tested: test_source_spans_bind_translation_and_output_comments_to_one_call,
     test_unmappable_checked_comment_is_rejected,
     test_translation_drift_is_rejected,
-    test_shown_output_drift_is_rejected; commit=WORKTREE]
+    test_shown_output_drift_is_rejected; commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - emitted ``@example`` atoms run through both the owning MeTTa space and the
     compiled function's Python twin, comparing all three answer bags with the
     twins lane's alpha-equivalent multiset relation
     [tested: test_emitted_doctests_run_in_both_languages_as_alpha_multisets;
-    commit=WORKTREE]
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
 Fails when: a claim cannot be mapped to adjacent comments, an answer drifts,
   or a documented call cannot be executed in either language.
 """

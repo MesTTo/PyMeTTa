@@ -74,7 +74,7 @@ Guarantees:
   - answer groups compare as alpha-equivalent multisets, so renaming and
     enumeration order are irrelevant while duplicate counts remain semantic
     [tested: test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;
-    commit=WORKTREE]
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,
