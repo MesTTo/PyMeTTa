@@ -89,8 +89,13 @@ def test_a_thrown_reason_travels_as_a_produced_error() -> None:
     assert _answers(metta, "!(if-error (control-guard -1) caught missed)") == [
         "caught"
     ]
+    # return-on-error is the reference's double-return frame: at top level one
+    # return instruction remains for an enclosing function frame, and the
+    # arbiter answers this exact shape [measured 2026-08-25 against the LeaTTa
+    # binary: !(return-on-error (Error 5 BadType) 6) is (return (Error 5
+    # BadType)) while the value case answers 6].
     assert _answers(metta, "!(return-on-error (control-guard -1) fallback)") == [
-        raised
+        f"(return {raised})"
     ]
     assert _answers(metta, "!(collapse (control-guard -1))") == [f"({raised})"]
 

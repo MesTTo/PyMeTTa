@@ -70,7 +70,15 @@ is Python's own `assert`.
 #: [measured 2026-08-24, min-of-3 through tools/twin_coverage.py --measure
 #: on the merged tree at 5a2d96f4; decomposition ai-report-p14-metatype.md
 #: section 9].
-BUDGET = 2221
+#: RE-PINNED 2026-08-25, 2221 to 2824, at conformance increment 2: the
+#: NotReducible application boundary prices every compiled equation call in
+#: this twin's define-and-run workload, the same per-call classification the
+#: benchmark lanes attribute (op-raw about +1 per operation). The example
+#: itself reads 3246 on the same tree, so the twin stays cheaper at ratio
+#: 0.87, and the growth class of the workload is unchanged
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: examples/basics/identity.metta on the conformance-2 tree].
+BUDGET = 2824
 
 
 def twin(m):

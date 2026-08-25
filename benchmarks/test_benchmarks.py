@@ -88,11 +88,33 @@ _ROWS = 2_000
 # operand is held back and whether the answer re-enters evaluation. The growth
 # ratios this test exists to assert are untouched, plain still multiplying by
 # roughly eight per three levels while automatic adds a constant.
+# RE-PINNED 2026-08-24, plain 86853/689001/5506104/22021853 to
+# 136050/1082276/8652001/34605310 and automatic 5469/6552/7635/8357 to
+# 5632/6742/7852/8592, by the NotReducible application boundary.  A compiled
+# equation now distinguishes a value from the bare control marker before its
+# caller may consume the result.  The uncached tree pays that fixed boundary
+# per visited node, so both old and new samples still multiply by about eight
+# per three levels; the cached tree visits one state per level and still adds
+# about 370 inferences per level.  Fresh-process size probes at n=8/12/16 read
+# 6152/86805/1377097 before and 9267/136002/2163602 after, while the accepted
+# 12/15/18/20 minima are the four rows below.
+# RE-PINNED 2026-08-25, plain +3/+3/+3/+5 and automatic +3 at every
+# size, after petta_function_eval/3 became an emitted helper available in each
+# execution module.  The change is fixed setup and final program-layout cost:
+# both growth classes are unchanged, and only the n=20 plain floor exceeds the
+# four-inference allowance.
+# RE-PINNED again 2026-08-25 by the takeover's correctness fixes
+# (retained-answer guard, arrow-arity refusal precedence, reserved-name
+# shadow-repair guards, dynamic-call purity classification): plain +3/+3/+5
+# and automatic +3 at every size, another fixed cost, while the n=20 plain
+# reading 34,605,313 stays under its standing pin.  Growth classes unchanged:
+# plain still multiplies by about eight per three levels and automatic still
+# adds a constant per level.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 86_853, "automatic": 5_469},
-    15: {"plain": 689_001, "automatic": 6_552},
-    18: {"plain": 5_506_104, "automatic": 7_635},
-    20: {"plain": 22_021_853, "automatic": 8_357},
+    12: {"plain": 136_053, "automatic": 5_635},
+    15: {"plain": 1_082_279, "automatic": 6_745},
+    18: {"plain": 8_652_006, "automatic": 7_855},
+    20: {"plain": 34_605_315, "automatic": 8_595},
 }
 
 

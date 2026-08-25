@@ -1603,11 +1603,12 @@ petta_py_cast(Space, ValueW, TypeW, Out) :-
 petta_py_eval(Space, Tagged, Encoded) :-
     petta_py_target_term(Space, Tagged, Term),
     petta_py_module(Space, Module),
-    ( petta_py_direct_goal(Module, Term, Goal, Out)
+    ( petta_py_direct_goal(Module, Term, Goal, Produced)
       -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
-    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
+    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Produced),
                                    call_delays(petta_py_call_goals(Module, Goals),
                                                Delays) )) ),
+    translator:petta_boundary_result(Term, Produced, Out),
     petta_py_encode_truth(Out, Delays, Encoded).
 
 petta_py_encode_truth(Out, Delays, Encoded) :-
@@ -1782,11 +1783,12 @@ petta_py_eval_count(Space, Target, Pairs, Count) :-
 
 petta_py_eval_solution(Space, Term, Out) :-
     petta_py_module(Space, Module),
-    ( petta_py_direct_goal(Module, Term, Goal, Out)
+    ( petta_py_direct_goal(Module, Term, Goal, Produced)
       -> petta_py_in_module(Module, call_delays(call(Module:Goal), _))
-    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
+    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Produced),
                                    call_delays(petta_py_call_goals(Module, Goals),
-                                               _) )) ).
+                                               _) )) ),
+    translator:petta_boundary_result(Term, Produced, Out).
 
 %A direct compiled predicate that fails can mean either that its written head
 %did not match or that a matching body's answer set was empty. Only the first
@@ -1797,7 +1799,8 @@ petta_py_preserve_unmatched(Space, [F|Args], Encoded) :-
     petta_py_module(Space, Module),
     translator:fun_meta_module(Module, F, _),
     \+ translator:dispatch_any_head_matches(Module, F, Args),
-    translator:dispatch_no_match_result(F, Args, Out),
+    translator:dispatch_no_match_result(F, Args, Produced),
+    translator:petta_boundary_result([F|Args], Produced, Out),
     petta_py_encode(Out, Encoded).
 
 petta_py_eval_term_bounded(Space, Term, Encoded) :-
@@ -1807,11 +1810,12 @@ petta_py_eval_term_bounded(Space, Term, Encoded) :-
 
 petta_py_eval_term(Space, Term, Encoded) :-
     petta_py_module(Space, Module),
-    ( petta_py_direct_goal(Module, Term, Goal, Out)
+    ( petta_py_direct_goal(Module, Term, Goal, Produced)
       -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
-    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Out),
+    ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Produced),
                                    call_delays(petta_py_call_goals(Module, Goals),
                                                Delays) )) ),
+    translator:petta_boundary_result(Term, Produced, Out),
     petta_py_encode_truth(Out, Delays, Encoded).
 
 %Which of PeTTa's own evaluation paths produced each answer, reported without
@@ -2673,6 +2677,21 @@ petta_py_solve_(_,
         Tree = [builtin(dispatch_policy_execute(Module, Fun, Args, Goal, Out))],
         Status = complete
     ).
+
+%Application/result protocol helpers only classify the value the preceding
+%goal produced.  They are transparent proof steps: retaining a call or exposing
+%NotReducible is not another premise and must not turn a recursive MeTTa call
+%into an opaque builtin leaf.
+petta_py_solve_(M, petta_application_result(Written, Produced, Out), _,
+                [], complete, _) :- !,
+    call(M:petta_application_result(Written, Produced, Out)).
+petta_py_solve_(M,
+                petta_application_result(Source, Runtime, Produced, Out), _,
+                [], complete, _) :- !,
+    call(M:petta_application_result(Source, Runtime, Produced, Out)).
+petta_py_solve_(M, petta_boundary_result(Written, Produced, Out), _,
+                [], complete, _) :- !,
+    call(M:petta_boundary_result(Written, Produced, Out)).
 
 %A clause compiled from a MeTTa equation is a step worth showing, and its body
 %is walked further. Everything else, engine machinery and space facts alike, is

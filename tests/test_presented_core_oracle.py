@@ -36,7 +36,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 _ORACLE_ROOT = Path(os.environ.get("LEATTA_PATH", "/home/user/Dev/LeaTTa"))
@@ -153,7 +153,7 @@ def test_the_presented_core_agrees_with_the_engine_on_the_shared_fragment(  # no
 
 
 _symbols = st.text(alphabet=string.ascii_lowercase, min_size=1, max_size=3).map(
-    lambda s: "s" + s
+    lambda s: "oracle-data-" + s
 )
 _trees = st.recursive(
     _symbols,
@@ -170,6 +170,20 @@ _trees = st.recursive(
 def test_random_structural_programs_agree_with_the_presented_core(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     minimal, head, tail
 ):
+    # This property is explicitly about data constructors. A prior test may
+    # have imported a library into the shared process, so reject any generated
+    # leaf that has become a function name there. `send` from lib_thread was
+    # the concrete counterexample: the engine correctly re-read `(send)` as a
+    # partial application while the fresh oracle process read it as data.
+    leaves = [
+        head,
+        *[
+            word
+            for tree in tail
+            for word in tree.replace("(", " ").replace(")", " ").split()
+        ],
+    ]
+    assume(all(not minimal.is_function(leaf) for leaf in leaves))
     program = "!(chain (cons-atom {} ({})) $x $x)".format(head, " ".join(tail))
     assert _engine_answers(minimal, program) == _oracle_answers(program)
 
