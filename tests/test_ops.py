@@ -936,8 +936,8 @@ def test_a_tuple_defaults_to_data_and_grounded_retains_a_handle(metta):
     assert grounded.metatype == "Grounded"
     assert isinstance(grounded.value, tuple)
     assert grounded.value == (1, 2)
-    assert type(grounded.value) is not tuple, "Janus eagerly converted the tuple"
-    # Bridge application unwraps the retained exact tuple before Python sees it.
+    assert type(grounded.value) is tuple
+    # The decoder removes Janus's private carrier before Python sees the value.
     assert metta.run(
         '!(py-dot (py-dot (py-atom "(1, 2)" Grounded) __class__) __name__)'
     ) == [["tuple"]]

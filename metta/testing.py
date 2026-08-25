@@ -24,6 +24,10 @@ Guarantees:
   - minted-space conformance recognizes decoded Space handles in provider
     answers [tested: test_fabricated_space_identities_are_refused;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - numpy_scalars generates non-primitive scalar objects whose identity and
+    numeric dispatch survive an engine round trip [tested:
+    test_numpy_scalar_strategy_round_trips_through_the_engine;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -159,7 +163,10 @@ def numbers():
 
 
 def numpy_scalars():
-    """NumPy integer and real scalar values accepted by PeTTa's Number type.
+    """Generate NumPy integer and real scalar values.
+
+    These retain identity while PeTTa accepts them as Number operands and
+    dispatches through Python operators.
 
     NumPy is optional. Install ``pymetta[arrays,test]`` before requesting this
     strategy.

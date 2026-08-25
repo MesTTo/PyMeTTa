@@ -41,6 +41,8 @@
 :- use_module(library(crypto), [crypto_data_hash/3]).
 
 :- multifile seam:grounded_apply/3.
+:- multifile seam:grounded_numeric/1.
+:- multifile seam:grounded_numeric_operation/3.
 :- multifile seam:grounded_structure/2.
 :- multifile seam:grounded_text/2.
 
@@ -71,9 +73,11 @@ petta_py_bridge :- petta_py_dir(Dir),
 
 %Everything crosses as an OBJECT. That is the whole policy of this surface and
 %it is why it composes: resolving gives an atom, applying an atom gives an atom,
-%and a program says when it wants MeTTa data by asking for it. janus converts
-%None, True, False, int, float, str and tuple regardless of this flag, so a
-%scalar answer is still a scalar [measured 2026-08-16].
+%and a program says when it wants MeTTa data by asking for it. Current Janus
+%converts None and only exact bool, int, float, str and tuple values under this
+%option; primitive subclasses remain references, which is the identity law
+%this bridge requires [tested: bindings/python/tests/test_identity_wire.py;
+%commit=WORKTREE].
 petta_py_opts([py_object(true), py_string_as(string)]).
 
 petta_py(Call, Goal, Result) :-
@@ -405,6 +409,21 @@ seam:grounded_class_type(X, T) :-
     py_call(metta_py:class_names(X), Names, [py_string_as(string)]),
     member(Name, Names),
     ( atom(Name) -> T = Name ; atom_string(T, Name) ).
+
+%The standard numeric tower is the admission rule, rather than an MRO class
+%name: numpy.int64 is a Number without inheriting builtins.int. Execution goes
+%through one guarded bridge call so Python owns reflected-operator selection and
+%the result remains a reference under petta_py_opts/1.
+seam:grounded_numeric(X) :-
+    python_object_blob(X),
+    petta_py_bridge,
+    py_call(metta_py:is_numeric(X), @true).
+
+seam:grounded_numeric_operation(Operation, Arguments, Result) :-
+    member(Operand, Arguments),
+    python_object_blob(Operand), !,
+    petta_py([Operation|Arguments],
+             numeric_operation(Operation, Arguments), Result).
 
 petta_py_resolve(Spec, Result) :-
     (   string(Spec)

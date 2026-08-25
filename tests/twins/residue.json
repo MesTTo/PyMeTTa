@@ -1755,15 +1755,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/integration/py_numpy.metta",
-      "form": null,
-      "missing": "a Python view of a grounded value's own Python type, and a keyword-argument spelling for a MeTTa-side call",
-      "row": "P14.15",
-      "section": "§9f host-bound operations",
-      "detail": "Two halves. A numpy SCALAR does not survive the crossing back into Python: inside the engine `(py-dot (np-abs -5) __class__)` says int64, which is the tutorial's own point, while `m.eval` and the answer view both hand Python an ordinary `int` (Grounded(5), value type int), so that claim can only be asked engine-side. An ndarray DOES survive, by reference, which is why the array claim is plain `isinstance`. And `Kwargs` remains the seam's own spelling for keyword arguments in a MeTTa-side call, with no Python-authored alternative that still crosses; §8c filed the design decision and nothing has landed. (Re-measured 2026-08-23 on the narrow core.)"
-    },
-    {
-      "kind": "friction",
       "example": "examples/integration/git_import.metta",
       "form": null,
       "missing": "a Python import door on the space handle",

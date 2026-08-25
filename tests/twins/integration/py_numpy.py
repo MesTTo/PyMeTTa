@@ -7,21 +7,17 @@ is what a token was for: `np_abs = ground(np.absolute)` names the object itself
 rather than parsing its dotted path, and applying it is an ordinary tuple whose
 head IS the function.
 
-Where Python has the concept it wins, and here that means most of the file:
-`(py-iter ...)` under a `collapse` is `.tolist()`, and asking what class an
-answer belongs to is `isinstance`. Two claims resist, and the reason is
-measured rather than stylistic: a numpy SCALAR does not survive the crossing
-back into Python, arriving as an ordinary `int`, so `np.absolute(-5)` staying
-`np.int64` is a fact only the engine can be asked about. An ndarray DOES
-survive, by reference, which is why the third claim is plain Python.
+Where Python has the concept it wins: `(py-iter ...)` under a `collapse` is
+`.tolist()`, and the scalar and ndarray answers both cross by reference. The
+numeric operator boundary calls Python for a held scalar, so the tutorial's
+addition remains `np.int64` on the Python side too.
 
 `__class__` and `__name__` take the bracket door, which is what rung 5 is for:
 inside a class body Python's own compiler mangles a leading double underscore,
 so those names have no attribute spelling at any factory.
 
-`Kwargs` stays. It is the seam's own spelling for keyword arguments in a
-MeTTa-side call and the Python surface has no other, which is the friction this
-file carries beside the scalar crossing.
+`Kwargs` is the stored MeTTa spelling for a Python call's keyword arguments;
+calling the held object with Python keywords builds that spelling directly.
 """
 
 import numpy as np
@@ -56,32 +52,52 @@ np_random = np.random
 #: so the corpus re-pins once on the exact shipping tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 on the final tree].
-BUDGET = 3113
+#: RE-PINNED 2026-08-25, 3113 to 3140, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+#: RE-PINNED 2026-08-25, 3140 to 3921, for identity-preserving
+#: Python numeric dispatch and concrete Number admission: the twin now reads
+#: the retained scalar and exercises the tutorial addition through Python's
+#: operator seam. The 3140 starting point is the integration pricing pass
+#: immediately preceding this branch [measured 2026-08-25 through
+#: tools/twin_coverage.py
+#: examples/integration/py_numpy.metta].
+#: RE-PINNED 2026-08-25, 3921 to 3932, after the numeric seam's admission
+#: gate was restricted to ground host operands. The eleven-inference movement
+#: is the failure-boundary check that keeps a free operand as a MeTTa term
+#: instead of sending an insufficiently-instantiated call through Janus
+#: [measured 2026-08-25 through tools/twin_coverage.py
+#: examples/integration/py_numpy.metta].
+BUDGET = 3932
 
 
 def twin(m):
     """Hold four numpy objects, apply them in the engine, read the answers."""
-    # A numpy scalar stays a numpy object INSIDE the engine, which is the
-    # tutorial's own point.
-    #
-    # The scalar's Python identity dies at a NAMED seam line, not in this
-    # library: janus converts None, True, False, int, float, str and tuple
-    # regardless of py_object(true) (bridge.pl, petta_py_opts/1's own
-    # comment), and np.int64 IS an int, so the by-value coercion takes it at
-    # the first crossing. Preserving it needs a protocol carrier PLUS an
-    # engine-side arithmetic unwrap, else `(+ (np-abs -5) 1)` stops
-    # computing for every numeric py result; that trade is a seam design of
-    # its own, recorded in the known-issues ledger. An ndarray is not a
-    # primitive subclass, so it survives by reference, which is why the
-    # array claim below is plain `isinstance`. This one question is asked
-    # engine-side, where the object is whole.
+    # A numpy scalar stays the same Python object through the answer seam, and
+    # Python's addition keeps the library result class. The engine-side class
+    # question mirrors the tutorial while the direct assertions pin the
+    # Python view that used to be lost.
     scalar = (np_abs, -5)
     class_of = S.py_dot(scalar, S["__class__"])
     assert m.fn.py_dot(class_of, S["__name__"]) == [ground("int64")]
+    scalar_answer = m.answers(scalar).one()
+    assert type(scalar_answer) is np.int64
 
     # An applied bound method: the HEAD is itself a term, which no name at the
     # function namespace can spell, so this one is asked as the term it is.
     assert m.eval((S.py_dot(scalar, S.item),)) == [5]
+
+    addition = m.answers(S["+"](scalar, 10)).one()
+    assert type(addition) is np.int64
+    assert addition == np.int64(15)
 
     # An array crosses by reference, so Python can ask about it directly. The
     # example's `(py-atom "[1, 2, 3]")` evaluates Python source text; a Python
