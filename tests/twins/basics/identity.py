@@ -84,7 +84,15 @@ is Python's own `assert`.
 #: budget is a two-sided band, so the drop repins rather than passes
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure with
 #: engine/reader.so present].
-BUDGET = 2774
+#: RE-PINNED 2026-08-25, 2774 to 2784, at the masked-escape boundary: a
+#: non-masking call's compound result tests the b_getval escape flag and
+#: answers directly where it ran the reducibility walk, one guard per such
+#: boundary in this define-and-run workload. The walk elision that guard
+#: buys is the asymptotic half: tilepuzzle's per-iteration whole-queue walk
+#: is gone and the example corpus stays 224/224
+#: [measured 2026-08-25, the twin reading 2784 stable across the suite run
+#: and a direct re-run on the fixed tree].
+BUDGET = 2784
 
 
 def twin(m):
