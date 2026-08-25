@@ -7,10 +7,10 @@ basis into a space with ``m += metta.lib.strategy`` before evaluating them.
 Guarantees:
   - every export is a Symbol and importing this module neither creates an
     engine nor registers a callback [tested:
-    test_strategy_exports_are_reified_atoms; commit=WORKTREE]
+    test_strategy_exports_are_reified_atoms; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - ``try_`` is the exact ``try`` atom, following the keyword-collision spelling
     rule, and the two Stratego aliases keep their hyphenated atom names [tested:
-    test_python_strategy_terms_use_the_shipped_basis; commit=WORKTREE]
+    test_python_strategy_terms_use_the_shipped_basis; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Open Obligations:
   To Do: None
   Hacks: None

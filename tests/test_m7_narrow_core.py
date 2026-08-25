@@ -2,7 +2,7 @@
 Guarantees:
   - the renamed package surface has 93 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=WORKTREE]
+    commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every retired root, context, and atom name is absent rather than aliased
@@ -19,7 +19,7 @@ Guarantees:
   - the strategies namespace is one lazy root satellite while its fifteen
     reified constructors stay inside that namespace [tested:
     test_m7_narrow_core_surface and
-    test_m7_satellites_are_lazy_and_identity_stable; commit=WORKTREE]
+    test_m7_satellites_are_lazy_and_identity_stable; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Owns:
   - subprocesses used for clean import-order probes are waited synchronously
     by ``subprocess.run(check=True)`` [tested:

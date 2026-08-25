@@ -22,7 +22,7 @@ Guarantees:
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - strategy rows import lib_strategy only on PeTTa and may name an equivalent
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
-    [tested: python bindings/python/tools/phrasebook.py --gate; commit=WORKTREE]
+    [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

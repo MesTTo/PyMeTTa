@@ -4,10 +4,10 @@ Assumes: ``m += lib.strategy`` imports ``lib/lib_strategy.metta`` through the
 normal library door.
 Guarantees:
   - the satellite exports fifteen Symbols and no grounded callback
-    [tested: test_strategy_exports_are_reified_atoms; commit=WORKTREE]
+    [tested: test_strategy_exports_are_reified_atoms; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - a Python-built plan remains queryable as stored data and executes through
     strategy-apply with the library's left-biased composition semantics
-    [tested: test_python_strategy_terms_use_the_shipped_basis; commit=WORKTREE]
+    [tested: test_python_strategy_terms_use_the_shipped_basis; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Open Obligations:
   To Do: None
   Hacks: None

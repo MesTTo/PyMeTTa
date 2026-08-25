@@ -23,7 +23,7 @@ Guarantees:
     - the naming burn-down prices the two exact Stratego public atoms whose
       language names shadow Python builtins [tested:
       test_the_ruff_configuration_enables_every_family_or_records_why_not;
-      commit=WORKTREE]
+      commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Open Obligations:
   To Do: None
   Hacks: None

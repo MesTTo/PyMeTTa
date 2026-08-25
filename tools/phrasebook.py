@@ -73,7 +73,7 @@ Guarantees:
     test_the_phrasebook_page_is_up_to_date]
   - a row may run a PeTTa-only setup and an explicitly recorded equivalent
     LeaTTa form; neither is silently sent to the other engine [tested:
-    python bindings/python/tools/phrasebook.py --gate; commit=WORKTREE]
+    python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Fails when:
   - a row's MeTTa form depends on answer ORDER: answers are compared as
     sequences, the reading `example_parity` already takes, so a genuinely
@@ -178,7 +178,7 @@ def _one(value: Any) -> str:
 #: recursive traversal equations before evaluating the small witness
 #: [measured: 2026-08-26, 11079816; command=python bindings/python/tools/phrasebook.py
 #: --learn --markdown --gate;
-#: fixture=bottomup row after ten prior strategy imports; commit=WORKTREE].
+#: fixture=bottomup row after ten prior strategy imports; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa].
 FUEL = 2_000_000
 SECONDS = 10.0
 

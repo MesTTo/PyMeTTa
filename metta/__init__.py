@@ -43,7 +43,7 @@ Guarantees:
   - ``strategies`` is a lazy satellite whose exports are reified Symbols rather
     than promoted root callbacks [tested:
     test_m7_satellites_are_lazy_and_identity_stable and
-    test_strategy_exports_are_reified_atoms; commit=WORKTREE]
+    test_strategy_exports_are_reified_atoms; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Open Obligations:
   To Do: None
   Hacks: None
