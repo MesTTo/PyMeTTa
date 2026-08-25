@@ -18,7 +18,31 @@ from metta import equation as eq
 #: Inferences this twin spends, its own tripwire.
 #: PRICED 2026-08-25 on landing, tools/twin_coverage.py on the pair;
 #: the release measure re-prices with the corpus.
-BUDGET = 63350
+#: RE-PINNED 2026-08-25, 63350 to 63326, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+#: ENVELOPED 2026-08-25 by the observe pass: this twin's count is
+#: intrinsically multi-valued (allocation-timing jitter moves GC
+#: work between runs; ten serial runs of one such twin answered six
+#: distinct counts), so a point pin with the +-4 tolerance is a
+#: false claim here. Bounds are the exact extrema of 10
+#: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
+#: is a real finding, and a new mode discovered later extends the
+#: envelope with its observation count rather than widening blind.
+BUDGET = {
+    # Widened to 63326..63370 by a second ten-round full-lane
+    # observe pass; observations count both passes.
+    "minimum": 63326,
+    "maximum": 63370,
+    "observations": 20,
+    "protocol": "full-lane/219/workers=32",
+}
 
 
 def twin(m):

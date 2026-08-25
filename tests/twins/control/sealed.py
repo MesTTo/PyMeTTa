@@ -70,7 +70,16 @@ RUNG = "the `let`s here bind the variables whose identity is under test, which a
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 13409
+#: RE-PINNED 2026-08-25, 13409 to 13398, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+BUDGET = 13398
 
 
 def twin(m):

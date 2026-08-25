@@ -61,15 +61,21 @@ from metta import Expression, S, V, fn
 #: full-lane observations under 'full-lane/218/workers=32'; a cost outside them
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
+#: ENVELOPED 2026-08-25 by the observe pass: this twin's count is
+#: intrinsically multi-valued (allocation-timing jitter moves GC
+#: work between runs; ten serial runs of one such twin answered six
+#: distinct counts), so a point pin with the +-4 tolerance is a
+#: false claim here. Bounds are the exact extrema of 10
+#: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
+#: is a real finding, and a new mode discovered later extends the
+#: envelope with its observation count rather than widening blind.
 BUDGET = {
-    # Widened to 102480..102608 by a second ten-round full-lane
+    # Widened to 102445..102625 by a second ten-round full-lane
     # observe pass; observations count both passes.
-    "minimum": 102480,
-    # Extended 102584 -> 102608: the second post-envelope full-lane check
-    # sampled it; the bound extends with its observation.
-    "maximum": 102608,
-    "observations": 21,
-    "protocol": "full-lane/218/workers=32",
+    "minimum": 102445,
+    "maximum": 102625,
+    "observations": 20,
+    "protocol": "full-lane/219/workers=32",
 }
 
 

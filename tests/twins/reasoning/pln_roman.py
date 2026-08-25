@@ -56,7 +56,16 @@ from metta import S, equation, lib
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 30628694
+#: RE-PINNED 2026-08-25, 30628694 to 30628539, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+BUDGET = 30628539
 
 #: How strongly each concept holds on its own, in the example's own order.
 STRENGTHS = ((S.A, 0.5), (S.B, 0.25), (S.C, 0.25), (S.D, 0.5))

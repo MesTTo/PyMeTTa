@@ -57,7 +57,16 @@ from metta import S, V, equation, fn, if_
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 189781263
+#: RE-PINNED 2026-08-25, 189781263 to 189781236, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+BUDGET = 189781236
 
 #: `(+ 1)`, the partially applied increment all four kernels are driven with. A
 #: one-argument application has no operator spelling, so it is the tuple MeTTa

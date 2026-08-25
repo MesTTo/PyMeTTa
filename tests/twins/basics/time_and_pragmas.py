@@ -67,7 +67,16 @@ from metta import UNIT, S, V, equation, fn
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 48026
+#: RE-PINNED 2026-08-25, 48026 to 48036, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+BUDGET = 48036
 
 
 def twin(m):

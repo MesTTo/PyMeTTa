@@ -69,7 +69,16 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 11267
+#: RE-PINNED 2026-08-25, 11267 to 11263, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+BUDGET = 11263
 
 
 def twin(m):

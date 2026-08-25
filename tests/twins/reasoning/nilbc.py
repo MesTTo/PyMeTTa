@@ -94,7 +94,21 @@ KB, RULE = V["knowledge_base"], V["proof_rule"]
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 128021311
+#: RE-PINNED 2026-08-25, 128021311 to 130075530, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration]. This
+#: twin's +1.6% is the numeric-admission test at the arithmetic
+#: FAILURE boundary: a backtracking search fails comparisons by the
+#: million, and each failed op now asks once whether an operand is a
+#: host numeric object before refusing - the price of (+ np-scalar 1)
+#: computing, constant per failed op, zero on the success path.
+BUDGET = 130075530
 
 
 def eq(left, right):
