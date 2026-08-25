@@ -96,8 +96,7 @@ Guarantees:
     commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
   - ``Space.cast`` preserves the inherited one-argument atom cast while its
     two-argument form keeps explicit context-relative casting [tested:
-    test_atom_cast_delegates_to_the_ambient_space;
-    commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
+    test_atom_cast_delegates_to_the_ambient_space; commit=WORKTREE]
   - callable doors cache live deprecation declarations until the next write
     and issue the catalog's since/remedy warning [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
@@ -261,7 +260,6 @@ __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_spa
 _CastT = TypeVar("_CastT")
 _R = TypeVar("_R")
 _P = ParamSpec("_P")
-_CAST_TARGET_OMITTED = object()
 
 _BUILTINS_CACHE_LOCK = threading.RLock()
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
@@ -1346,7 +1344,7 @@ class Space(Handle):
     # shape and adds the explicit-context form. An overload implementation must
     # accept every advertised input shape. [source:
     # https://github.com/python/typing/blob/44f42629df028aebb783917a393172e4234ad2e7/docs/spec/overload.rst#L150-L160;
-    # commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
+    # commit=WORKTREE]
     @overload
     def cast(self, type_: _builtins.type[_CastT], /) -> _CastT: ...
 
@@ -1359,14 +1357,14 @@ class Space(Handle):
     @overload
     def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
 
-    def cast(self, value: Any, type_: Any = _CAST_TARGET_OMITTED, /) -> Any:
+    def cast(self, value: Any, type_: Any = ..., /) -> Any:
         """Cast this space atom ambiently with one argument, or answer value
         narrowed by this space's type discipline with two arguments. The
         explicit form has the same acceptance a typed call compiles, ':'
         declarations here and &self in scope, protocol types included. A
         refusal raises metta.CastError naming the value's actual types.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if type_ is _CAST_TARGET_OMITTED:
+        if type_ is ...:
             return super().cast(value)
         return _satellite("casting").cast(self, value, type_)
 
