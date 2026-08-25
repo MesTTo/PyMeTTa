@@ -32,8 +32,7 @@ from typing import Annotated, Generic, TypeVar
 import pytest
 
 import metta as metta_package
-from metta import Answer, Expression, S, V, ground
-from metta import catalog
+from metta import Answer, Expression, S, V, catalog, ground
 from metta.atoms import Grounded, Variable
 from metta.ops import referenced_classes, type_atoms_for
 
