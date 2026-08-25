@@ -23,6 +23,12 @@ Guarantees:
     Double.equals so collections of values stay coherent
     [tested: test_python_equality_is_engine_equality,
     test_atom_equality_is_engine_unification; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - raw tuples are transparent Expression values with symmetric equality and
+    identical hashes; explicit Grounded(tuple) remains opaque identity data
+    [tested: test_a_tuple_equals_the_expression_it_encodes_to,
+    test_an_opaque_grounded_tuple_is_not_its_transparent_expression,
+    test_expression_tuple_equality_is_symmetric_and_hash_coherent;
+    commit=WORKTREE]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
   - Expression is a complete immutable Sequence with iterative equality and hashing
@@ -746,6 +752,12 @@ class Grounded(Atom):
             return _ground_identical(self.value, other.value)
         if isinstance(other, Atom):
             return False
+        # A raw tuple is the transparent Expression spelling at every Python
+        # value door. Explicit Grounded(tuple) is the opaque spelling; letting
+        # it equal the same raw tuple would make that tuple equal both an
+        # Expression and an unequal Grounded atom, violating transitivity.
+        if isinstance(other, tuple):
+            return False
         # Raw Python value on the other side, the ergonomic comparison:
         # the engine's == operator, numeric tower included.
         return _ground_equal(self.value, other)
@@ -1087,21 +1099,24 @@ class Expression(Atom):
         _set_hash(self, None)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Expression):
+        if not isinstance(other, (Expression, tuple)):
             return NotImplemented
         # Iterative: nested tuple equality would recurse to the term's
-        # depth, and depth is data here.
-        stack: list[tuple[Expression, Expression]] = [(self, other)]
+        # depth, and depth is data here. Compare raw tuple leaves directly
+        # instead of re-encoding them: an explicit host conversion such as
+        # Path -> Symbol need not preserve the host value's equality or hash.
+        stack: list[tuple[Expression, Expression | tuple[Any, ...]]] = [(self, other)]
         while stack:
             a, b = stack.pop()
             if a is b:
                 continue
-            if len(a.children) != len(b.children):
+            b_children = b.children if isinstance(b, Expression) else b
+            if len(a.children) != len(b_children):
                 return False
-            for x, y in zip(a.children, b.children, strict=True):
+            for x, y in zip(a.children, b_children, strict=True):
                 if x is y:
                     continue
-                if isinstance(x, Expression) and isinstance(y, Expression):
+                if isinstance(x, Expression) and isinstance(y, (Expression, tuple)):
                     stack.append((x, y))
                 elif x != y:
                     return False
@@ -1121,7 +1136,9 @@ class Expression(Atom):
                 stack.extend(c for c in node.children if isinstance(c, Expression) and c._hash is None)
         for node in reversed(order):
             if node._hash is None:
-                value = hash(("expr", tuple(hash(child) for child in node.children)))
+                # Expression is the transparent tuple representation, so its
+                # cached structural hash is exactly Python's tuple hash.
+                value = hash(node.children)
                 _set_hash(node, value)
         return cast(int, self._hash)
 

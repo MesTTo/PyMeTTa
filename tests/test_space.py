@@ -36,6 +36,12 @@ Guarantees:
   - ``Expression(space)`` snapshots the space's assembly-order listing
     [tested: test_expression_of_a_space_is_an_assembly_order_snapshot;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``Space +=`` keeps one Expression atomic, streams every promised iterable
+    one item per atom, and admits the same scalar atoms as engine add-atom
+    [tested: test_adding_an_iterable_of_atoms_writes_one_atom_each,
+    test_the_write_doors_accept_the_same_atoms,
+    test_the_write_door_reads_each_dataframe_row_as_one_atom;
+    commit=WORKTREE]
   - wide query projection preserves order, sharing, and values across lazy,
     limited, guarded, prepared, and cursor answer doors [tested:
     test_wide_query_projection_is_identical_through_every_answer_door;
@@ -427,9 +433,10 @@ def test_ior_refuses_the_operands_add_would_lift(m):  # noqa: D103  -- pytest di
         m |= b"ab"
     with pytest.raises(TypeError, match="none of"):
         m |= 3.5
-    # += keeps add()'s lifted reading: one expression atom, not two.
+    # += is the fact-stream door; explicit add(list_value) is the one-expression
+    # spelling when a list itself is intended as transparent structure.
     m += [1, 2]
-    assert m.atoms() == [Expression(1, 2)]
+    assert m.atoms() == [Grounded(1), Grounded(2)]
 
 
 def test_space_names_lists_the_registered_spaces(metta, m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -602,16 +609,153 @@ def test_match_patterns_are_structural(m):
     assert m.run("!(collapse (match (context-space) (pair (sz-here) $v) $v))") == [[Expression()]]
 
 
-def test_bare_atoms_are_refused_loudly(m):
-    """A stored atom is a non-empty expression; anything else must error,
-    never vanish: the silent write was a real bug this pins.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with pytest.raises(TypeError):
-        m.add(S.bare)
-    with pytest.raises(TypeError):
-        m.add(7)
-    with pytest.raises(TypeError, match="non-empty expression"):
-        m.add(Expression())
+def test_adding_an_iterable_of_atoms_writes_one_atom_each(m):
+    """Semantic atoms are scalar; fact streams are consumed exactly once."""
+    one = S.edge(S.a, S.b)
+    m += one
+    assert m.atoms() == [one]
+
+    m.clear()
+    listed = [S.edge(S.a, S.b), S.edge(S.b, S.c)]
+    m += listed
+    assert m.atoms() == listed
+    assert len(m) == 2
+
+    m.clear()
+    generated = (atom for atom in listed)
+    m += generated
+    assert m.atoms() == listed
+    assert len(m) == 2
+
+    m.clear()
+    grounded = [Grounded(7), Grounded(8)]
+    m += grounded
+    assert m.atoms() == grounded
+    assert len(m) == 2
+
+    m.clear()
+    bare = Grounded(9)
+    m += bare
+    assert m.atoms() == [bare]
+    assert len(m) == 1
+
+    m.clear()
+    rows = ((S.edge, S.a, S.b), (S.edge, S.b, S.c))
+    m += rows
+    assert m.atoms() == listed
+    assert len(m) == 2
+
+    m.clear()
+    m += []
+    assert m.atoms() == []
+    assert len(m) == 0
+
+    m += iter(())
+    assert m.atoms() == []
+    assert len(m) == 0
+
+    m += ()
+    assert m.atoms() == []
+    assert len(m) == 0
+
+
+def test_write_door_scalar_kinds_are_never_mistaken_for_fact_streams(m):
+    """Explicit atoms, text, and mappings remain one encoded atom each."""
+    source = (value for value in (S.never, S.consumed))
+    opaque_generator = Grounded(source)
+    mapping = {"left": 1, "right": 2}
+
+    m += opaque_generator
+    m += "text"
+    m += mapping
+
+    assert m.atoms() == [opaque_generator, S.text, Grounded(mapping)]
+    assert next(source) is S.never
+    assert len(m) == 3
+
+
+def test_write_door_uses_the_iteration_protocol_not_only_the_iterable_abc(m):
+    """Legacy sequence iteration is a fact stream even without __iter__."""
+
+    class LegacyRows:
+        def __getitem__(self, index):
+            rows = (S.legacy(1), S.legacy(2))
+            if index >= len(rows):
+                raise IndexError
+            return rows[index]
+
+    m += LegacyRows()
+
+    assert m.atoms() == [S.legacy(1), S.legacy(2)]
+    assert len(m) == 2
+
+
+def test_the_write_doors_accept_the_same_atoms(metta):
+    """Python add and engine add-atom share scalar storage acceptance."""
+    python_space = metta._new_space()
+    engine_space = metta._new_space()
+    accepted = (S.bare, Grounded(7), Expression())
+    try:
+        for atom in accepted:
+            python_space.add(atom)
+            metta.eval(S["add-atom"](engine_space, atom))
+
+        assert python_space.atoms() == list(accepted)
+        assert engine_space.atoms() == list(accepted)
+        assert len(python_space) == len(engine_space) == 3
+
+        with pytest.raises(EngineError, match="sufficiently instantiated"):
+            python_space.add(V.unbound)
+        with pytest.raises(EngineError, match="sufficiently instantiated"):
+            metta.eval(S["add-atom"](engine_space, V.unbound))
+    finally:
+        python_space.drop()
+        engine_space.drop()
+
+
+def test_the_write_door_reads_each_dataframe_row_as_one_atom(m):
+    """A DataFrame is a row source, not an iterable of column names."""
+    polars = pytest.importorskip("polars")
+    frame = polars.DataFrame(
+        {"head": ["edge", "edge"], "left": ["a", "b"], "right": ["b", "c"]}
+    )
+
+    m += frame
+
+    assert m.atoms() == [
+        Expression("edge", "a", "b"),
+        Expression("edge", "b", "c"),
+    ]
+    assert len(m) == 2
+
+    class RowProtocolFrame:
+        def __iter__(self):
+            raise AssertionError
+
+        def iter_rows(self):
+            return iter(((S.edge, S.c, S.d), (S.edge, S.d, S.e)))
+
+    m.clear()
+    m += RowProtocolFrame()
+    assert m.atoms() == [S.edge(S.c, S.d), S.edge(S.d, S.e)]
+    assert len(m) == 2
+
+    class TupleProtocolFrame:
+        def __iter__(self):
+            raise AssertionError
+
+        def itertuples(self, *, index):
+            assert index is False
+            return iter(((S.edge, S.e, S.f), (S.edge, S.f, S.g)))
+
+    m.clear()
+    m += TupleProtocolFrame()
+    assert m.atoms() == [S.edge(S.e, S.f), S.edge(S.f, S.g)]
+    assert len(m) == 2
+
+
+def test_empty_expression_remove_is_refused_loudly(m):
+    """The remove pattern guard stays narrower than the repaired write door."""
     with pytest.raises(TypeError, match="non-empty expression"):
         m.remove(Expression())
 

@@ -24,11 +24,11 @@ class _FunctionNamespace:
     add: Symbol
     "+: (-> Number Number Number)\n\nPython's own operator. On atoms the same operator builds `(+ ...)` instead of computing, which is how a compiled body reaches the MeTTa function."
     add_atom: Symbol
-    "add-atom: (-> SpaceType Atom (->))\n\n`space += atom`, the container protocol. A plain Python tuple encodes to an expression on the way in, so a fact needs no builder ceremony."
+    "add-atom: (-> SpaceType Atom (->))\n\n`space += atom`, the container protocol. A plain Python tuple encodes to an expression on the way in, so a fact needs no builder ceremony. Bare symbols, grounded values, and empty expressions cross when engine `add-atom` accepts them too."
     add_atoms: Symbol
-    "add-atoms: (-> SpaceType Expression (->))\n\nThe same `+=` door, once per fact: anything that yields tuples is a fact stream. One friction, measured: a LIST on the `+=` door writes one atom holding the list rather than one atom per element, so the row loops [measured 2026-08-22: `space += [(S.f, 1), (S.f, 2)]` stores `((f 1) (f 2))`; `space.add(a, b)` is the varargs door that does write both]."
+    "add-atoms: (-> SpaceType Expression (->))\n\nThe same `+=` door, once per fact: anything that yields tuples is a fact stream. Lists, outer tuples of rows, generators, SQL cursors, and dataframe row iterators each write one atom per yielded item; a built Expression is always one atom."
     add_reduct: Symbol
-    "add-reduct: (-> SpaceType %Undefined% (->))\n\nThere is no second door: `+=` adds what you give it, so adding a REDUCT is explicit composition, `space += m.eval(term)[0]`. The row wraps the sum because PeTTa's write door REFUSES a bare grounded atom that its own MeTTa door accepts [measured 2026-08-22: `space += metta.ground(3)` raises `a stored atom is a non-empty expression`, while `!(add-reduct &pb (+ 1 2))` stores `3`]."
+    "add-reduct: (-> SpaceType %Undefined% (->))\n\nThere is no second door: `+=` adds what you give it, so adding a REDUCT is explicit composition, `space += m.eval(term)[0]`. Bare grounded answers use that door directly; this row wraps the evaluated sum only to retain its `total` relation head."
     add_reducts: Symbol
     "add-reducts: (-> SpaceType %Undefined% (->))\n\nThe plural of the same composition: evaluate, then write the answers."
     add_translator_rule: Symbol
