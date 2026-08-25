@@ -37,7 +37,7 @@ Guarantees:
     test_seg_builds_a_named_segment; commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
   - fresh() mints process-independent variable names for library-authored
     patterns, so helper-local holes never capture caller names [tested:
-    test_fresh_variables_keep_library_patterns_hygienic; commit=WORKTREE]
+    test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
   - two-argument unify is symmetric and returns one normalized substitution
     over variables from either operand [tested:
     test_unify_binds_a_ground_term_and_pattern_in_both_orders,

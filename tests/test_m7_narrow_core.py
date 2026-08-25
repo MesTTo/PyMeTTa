@@ -2,7 +2,7 @@
 Guarantees:
   - the renamed package surface has 102 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=WORKTREE]
+    commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - every retired root, context, and atom name is absent rather than aliased

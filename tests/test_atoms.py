@@ -22,7 +22,7 @@ Guarantees:
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - fresh variables are unique library-pattern holes that do not capture a
     caller's conventional variable names [tested:
-    test_fresh_variables_keep_library_patterns_hygienic; commit=WORKTREE]
+    test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
 Owns:
   - test_atom_identity_caches_are_thread_safe joins every cache worker
     before checking identity [tested test_atom_identity_caches_are_thread_safe]

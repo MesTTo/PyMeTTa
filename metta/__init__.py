@@ -59,7 +59,7 @@ Guarantees:
   - ``catalog`` names the queryable ``&petta`` space and ``fresh()`` supplies
     hygienic variables for helper-authored patterns [tested:
     test_catalog_is_the_root_queryable_reflection_space and
-    test_fresh_variables_keep_library_patterns_hygienic; commit=WORKTREE]
+    test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
 Open Obligations:
   To Do: None
   Hacks: None

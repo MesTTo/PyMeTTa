@@ -32,7 +32,7 @@ Guarantees:
   - the Python-first table teaches the concise atom cast, root catalog, and
     hygienic variable doors
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
