@@ -57,8 +57,8 @@ Guarantees:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async function handles consume the synchronous Answers surface on their
-    owning worker [tested: test_aio_structural_surface_behaves;
-    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+    owning worker, including the composite ``neg`` operator word [tested:
+    test_aio_structural_surface_behaves; commit=WORKTREE]
   - async operation registration requires and forwards the canonical effect
     argument [tested: test_aio_declare_and_register_delegations_land;
     commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
@@ -112,7 +112,7 @@ from typing import Any, Final, Literal, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
-from ._name_mapping import operator_attribute_target
+from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space import Space as MeTTa
 from ._space import _creation_site
 from ._under import _UNSET
@@ -1824,10 +1824,12 @@ class _AsyncFunctionNamespace:
     def __init__(self, am: AsyncMeTTa) -> None:
         self._am = am
 
-    def __getattr__(self, name: str) -> _AsyncEngineFunction:
+    def __getattr__(self, name: str) -> _AsyncEngineFunction | _AsyncCompositeEngineFunction:
         if name.startswith("_"):
             raise AttributeError(name)
         resolved = operator_attribute_target(name)
+        if isinstance(resolved, OperatorRecipe):
+            return _AsyncCompositeEngineFunction(self._am, resolved)
         target = name.replace("_", "-") if resolved is None else resolved
         return _AsyncEngineFunction(self._am, target)
 
@@ -1873,6 +1875,34 @@ class _AsyncEngineFunction:
 
     def __repr__(self) -> str:
         return f"<async engine function {self._name} on {self._am.name}>"
+
+
+class _AsyncCompositeEngineFunction:
+    """Async callable for a word represented by a composite term recipe."""
+
+    def __init__(self, am: AsyncMeTTa, recipe: OperatorRecipe) -> None:
+        self._am = am
+        self._recipe = recipe
+        self.__name__ = recipe.word
+        self.__qualname__ = f"{am.name}.{recipe.word}"
+
+    async def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return await self.one(*args, **kwargs)
+
+    async def one(self, *args: Any, **kwargs: Any) -> Any:
+        recipe = self._recipe
+        return await self._am.call(lambda m: m.answers(recipe(*args, **kwargs)).one())
+
+    async def first(self, *args: Any, **kwargs: Any) -> Any:
+        recipe = self._recipe
+        return await self._am.call(lambda m: m.answers(recipe(*args, **kwargs)).first())
+
+    async def all(self, *args: Any, **kwargs: Any) -> list:
+        recipe = self._recipe
+        return await self._am.call(lambda m: list(m.answers(recipe(*args, **kwargs))))
+
+    def __repr__(self) -> str:
+        return f"<async composite engine function {self._recipe.word} on {self._am.name}>"
 
 
 async def connect(

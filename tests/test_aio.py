@@ -26,6 +26,9 @@ Guarantees:
   - async match and sample mirror the algebra carrier doors on their owning
     worker [tested: test_aio_covers_the_whole_synchronous_surface;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - async bound ``fn.neg`` evaluates the shared composite operator recipe on
+    the engine worker [tested: test_aio_structural_surface_behaves;
+    commit=WORKTREE]
   - async reification, world evaluation, and commit stay on the owning worker
     and preserve immutable branching [tested:
     test_async_worlds_stay_on_the_owning_worker; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
@@ -743,6 +746,7 @@ def test_aio_structural_surface_behaves():
             inc = m.fn["aio-inc"]
             assert await inc(41) == 42
             assert await m.fn.aio_inc(41) == 42
+            assert await m.fn.neg(4) == -4
             assert await inc.first(1) == 2
             assert await inc.all(2) == [3]
             assert inc.__qualname__.endswith(".aio-inc")

@@ -12,8 +12,8 @@ Guarantees:
     test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - operator word aliases are generated from the same fixed vocabulary as
-    both runtime fn doors [tested:
-    test_operator_words_precede_the_mechanical_name_map; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    both runtime fn doors, including composite ``neg`` [tested:
+    test_operator_words_precede_the_mechanical_name_map; commit=WORKTREE]
   - executable phrasebook rows supply inert runtime and stub documentation
     without starting the engine [tested: test_generated_fn_help_is_offline;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -41,6 +41,8 @@ from phrasebook_entries import (  # noqa: E402  -- sibling generator rows are th
 )
 
 from metta._name_mapping import (  # noqa: E402  -- derive the source root before importing it
+    OPERATOR_WORDS,
+    OperatorRecipe,
     generated_aliases,
 )
 
@@ -99,7 +101,7 @@ Guarantees:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - generated operator word attributes resolve through the shared fixed table
     [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    commit=WORKTREE]
   - documented catalog rows remain available to help() before an engine starts
     [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
@@ -149,7 +151,13 @@ def stub_text(names: list[str], documentation: dict[str, str] | None = None) -> 
     documentation = documentation or {}
     rows = []
     for alias, target in aliases.items():
-        row = f"    {alias}: Symbol"
+        target_kind = OPERATOR_WORDS.get(alias)
+        annotation = (
+            "Callable[[object], Expression]"
+            if isinstance(target_kind, OperatorRecipe)
+            else "Symbol"
+        )
+        row = f"    {alias}: {annotation}"
         if alias[:1].islower() and alias != alias.lower():
             row += "  # noqa: N815"
         if target in documentation:
@@ -162,7 +170,7 @@ def stub_text(names: list[str], documentation: dict[str, str] | None = None) -> 
 #     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 #   - operator word aliases are explicit members generated from the runtime
 #     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
-#     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+#     commit=WORKTREE]
 #   - catalog-row documentation is attached to explicit members for static
 #     help [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 # Open Obligations:
@@ -170,9 +178,10 @@ def stub_text(names: list[str], documentation: dict[str, str] | None = None) -> 
 #   Hacks: None
 #   Future Enhancements: None.
 
+from collections.abc import Callable
 from typing import Final
 
-from .atoms import Symbol
+from .atoms import Expression, Symbol
 
 class _FunctionNamespace:
 {members}

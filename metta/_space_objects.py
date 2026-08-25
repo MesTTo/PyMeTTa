@@ -17,8 +17,9 @@ Guarantees:
     access [tested: test_bound_function_namespace_validates_at_access;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - bound function attributes consult the operator word table before the
-    mechanical map [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    mechanical map and evaluate composite ``neg`` through its canonical term
+    [tested: test_operator_words_precede_the_mechanical_name_map;
+    commit=WORKTREE]
   - a resolved bang call completes before the call returns while retaining a
     replayable answer view [tested: test_resolved_bang_call_is_eager;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -47,7 +48,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._engine import Runtime
-from ._name_mapping import operator_attribute_target
+from ._name_mapping import OperatorRecipe, operator_attribute_target
 from .atoms import (
     Atom,
     Expression,
@@ -1019,6 +1020,24 @@ class _EngineFunction:
         return f"<engine function {self._name} on {self._space.name}>"
 
 
+class _CompositeEngineFunction:
+    """One bound word whose public call expands to a composite MeTTa term."""
+
+    __slots__ = ("__name__", "__qualname__", "_recipe", "_space")
+
+    def __init__(self, space: MeTTa, recipe: OperatorRecipe) -> None:
+        self._space = space
+        self._recipe = recipe
+        self.__name__ = recipe.word
+        self.__qualname__ = f"{space.name}.{recipe.word}"
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self._space.answers(self._recipe(*args, **kwargs))
+
+    def __repr__(self) -> str:
+        return f"<composite engine function {self._recipe.word} on {self._space.name}>"
+
+
 class _FunctionNamespace:
     """Functions visible to one space, resolved when an attribute is read.
 
@@ -1050,10 +1069,12 @@ class _FunctionNamespace:
                 raise AttributeError(msg)
         return _EngineFunction(self._space, resolved)
 
-    def __getattr__(self, name: str) -> _EngineFunction:
+    def __getattr__(self, name: str) -> _EngineFunction | _CompositeEngineFunction:
         if name.startswith("_"):
             raise AttributeError(name)
         resolved = operator_attribute_target(name)
+        if isinstance(resolved, OperatorRecipe):
+            return _CompositeEngineFunction(self._space, resolved)
         target = name.replace("_", "-") if resolved is None else resolved
         return self._resolve(target, attribute=name)
 
@@ -1069,6 +1090,11 @@ class _FunctionNamespace:
             for name in self._space.builtins()
             if name and name.replace("-", "_").removesuffix("!").isidentifier()
         }
+        names.update(
+            name
+            for name in ("neg",)
+            if isinstance(operator_attribute_target(name), OperatorRecipe)
+        )
         return sorted(set(super().__dir__()) | names)
 
     def __repr__(self) -> str:

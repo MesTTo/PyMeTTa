@@ -15,6 +15,9 @@ Guarantees:
     callees ask for exact, hyphenated, then banged catalog spellings [tested:
     test_compiled_bodies_reach_all_four_mention_families,
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - the composite operator word ``neg`` lowers to ``(- 0 x)`` at both S and
+    fn call doors [tested: test_compiled_operator_word_calls_preserve_composite_images;
+    commit=WORKTREE]
   - a host-bound Defined mention lowers to the sibling's declared MeTTa name
     [tested: test_compiled_body_calls_renamed_defined_sibling;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -57,6 +60,7 @@ from collections.abc import Callable
 from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext, next_aux_serial
 from ._name_mapping import (
+    OperatorRecipe,
     attribute_name,
     operator_attribute_target,
     resolve_known_name,
@@ -233,15 +237,15 @@ class ExpressionCompilerMixin(CompilerContext):
         return Symbol(resolved)
 
     @staticmethod
-    def _operator_word_target(node: ast.Attribute) -> str | None:
+    def _operator_word_target(node: ast.Attribute) -> str | OperatorRecipe | None:
         """Resolve one operator word at an S/fn attribute mention.
 
         The word table first, exactly as _atom_namespace consults it, so
         S.eq is == at the live factory AND inside a compiled body, and
         fn.eq resolves through the catalog's own ==. The bracket door stays
         exact by construction (only the attribute branch consults), V never
-        consults (V.eq is the variable $eq), and the two composite words
-        refuse here as a CompileError the way every other refusal does.
+        consults (V.eq is the variable $eq), and an unsettled composite word
+        refuses here as a CompileError the way every other refusal does.
         """
         try:
             return operator_attribute_target(node.attr)
@@ -288,7 +292,18 @@ class ExpressionCompilerMixin(CompilerContext):
             # V never consults the word table: V.eq is the variable $eq.
             return Variable(target)
         if isinstance(node, ast.Attribute):
-            target = self._operator_word_target(node) or target
+            operator_target = self._operator_word_target(node)
+            if isinstance(operator_target, OperatorRecipe):
+                msg = (
+                    f"{ast.unparse(node)} is the composite image "
+                    f"{operator_target.image}; call it with one operand"
+                )
+                raise CompileError(
+                    msg,
+                    construct="operator word",
+                    line=node.lineno,
+                )
+            target = operator_target or target
         if root.id == "fn":
             resolved = resolve_known_name(
                 target,
@@ -574,6 +589,9 @@ class ExpressionCompilerMixin(CompilerContext):
     def _x_Call(self, node: ast.Call) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
         if self._is_functools_reduce(node.func):
             return self._reduce_call(node)
+        composite = self._composite_operator_call(node)
+        if composite is not None:
+            return composite
         if node.keywords:
             msg = (
                 "a call in a compiled body passes positional arguments; MeTTa "
@@ -603,6 +621,25 @@ class ExpressionCompilerMixin(CompilerContext):
             return _PYBUILTIN_CALLS[func.id](self, node)
         callee = self._x_Name(func)
         return Expression([callee, *(self.expression(a) for a in node.args)])
+
+    def _composite_operator_call(self, node: ast.Call) -> Atom | None:
+        """Lower an unshadowed S/fn call whose operator image is a recipe."""
+        func = node.func
+        if not (
+            isinstance(func, ast.Attribute)
+            and isinstance(func.value, ast.Name)
+            and func.value.id in {"S", "fn"}
+            and func.value.id not in self.scope
+            and func.value.id in self.builders
+        ):
+            return None
+        target = self._operator_word_target(func)
+        if not isinstance(target, OperatorRecipe):
+            return None
+        if node.keywords or len(node.args) != 1:
+            msg = f"{ast.unparse(func)} compiles with exactly one positional operand"
+            raise CompileError(msg, construct="operator word", line=node.lineno)
+        return target(self.expression(node.args[0]))
 
     def _is_functools_reduce(self, node: ast.expr) -> bool:
         """Recognize the imported callable by identity, including an alias."""

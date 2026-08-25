@@ -4,7 +4,7 @@
 #     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 #   - operator word aliases are explicit members generated from the runtime
 #     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
-#     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+#     commit=WORKTREE]
 #   - catalog-row documentation is attached to explicit members for static
 #     help [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 # Open Obligations:
@@ -12,9 +12,10 @@
 #   Hacks: None
 #   Future Enhancements: None.
 
+from collections.abc import Callable
 from typing import Final
 
-from .atoms import Symbol
+from .atoms import Expression, Symbol
 
 class _FunctionNamespace:
     abs_math: Symbol
@@ -213,6 +214,7 @@ class _FunctionNamespace:
     mul: Symbol
     "*: (-> Number Number Number)\n\nPython's own operator."
     ne: Symbol
+    neg: Callable[[object], Expression]
     new_space: Symbol
     "new-space: (-> SpaceType)\n\n`metta.space()`. A constructor call is Python's own spelling for `make me a fresh one`, and the row asks the fresh space for its atoms because the NAME a space gets differs per engine."
     new_state: Symbol

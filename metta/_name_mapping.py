@@ -6,9 +6,10 @@ Guarantees:
   - generated aliases are identifiers, non-keywords, NFKC-stable, and unique
     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - Symbol attribute doors consult Python's operator word vocabulary before
-    the mechanical name map, while composite operators refuse with their
-    explicit images [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    the mechanical name map, and ``neg`` builds its canonical composite image
+    through the same generated roster [tested:
+    test_operator_words_precede_the_mechanical_name_map;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -19,12 +20,47 @@ from __future__ import annotations
 
 import keyword
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from typing import Final
 
-# Python's operator module owns these public words. ``neg`` and ``floordiv``
-# are intentionally absent because each needs more than one engine head.
-# [source: https://docs.python.org/3.14/library/operator.html; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-OPERATOR_WORDS: Final[dict[str, str]] = {
+
+@dataclass(frozen=True)
+class OperatorRecipe:
+    """A Python operator word whose MeTTa image has more than one child."""
+
+    word: str
+    head: str
+    leading: tuple[object, ...]
+    image: str
+
+    def __call__(self, *args: object, **kwargs: object):
+        """Build the canonical term while retaining a normal callable door."""
+        if kwargs:
+            names = ", ".join(sorted(kwargs))
+            msg = f"operator word {self.word!r} takes no keyword arguments: {names}"
+            raise TypeError(msg)
+        if len(args) != 1:
+            msg = f"operator word {self.word!r} takes exactly one operand"
+            raise TypeError(msg)
+        from .atoms import (  # noqa: PLC0415  -- avoids the atom namespace import cycle
+            Expression,
+            Symbol,
+        )
+
+        return Expression(Symbol(self.head), *self.leading, args[0])
+
+    def __repr__(self) -> str:
+        return f"<operator word {self.word}: {self.image}>"
+
+
+_NEG: Final = OperatorRecipe("neg", "-", (0,), "(- 0 x)")
+
+# Python's operator module owns these public words. A word maps to a single
+# engine head when it has one and to an immutable recipe when its settled
+# image is composite. ``floordiv`` remains refused because its requested word
+# door has not been settled. [source:
+# https://docs.python.org/3.14/library/operator.html; commit=WORKTREE]
+OPERATOR_WORDS: Final[dict[str, str | OperatorRecipe]] = {
     "eq": "==",
     "ne": "!=",
     "lt": "<",
@@ -37,16 +73,16 @@ OPERATOR_WORDS: Final[dict[str, str]] = {
     "mod": "%",
     "pow": "pow-math",
     "truediv": "/",
+    "neg": _NEG,
 }
 
 _COMPOSITE_OPERATOR_IMAGES: Final[dict[str, str]] = {
-    "neg": "(- 0 x)",
     "floordiv": "floor-math over /",
 }
 
 
-def operator_attribute_target(identifier: str) -> str | None:
-    """Resolve one operator word, refusing words without one target head."""
+def operator_attribute_target(identifier: str) -> str | OperatorRecipe | None:
+    """Resolve one operator word, refusing unsettled composite spellings."""
     image = _COMPOSITE_OPERATOR_IMAGES.get(identifier)
     if image is not None:
         msg = (
@@ -128,8 +164,8 @@ def generated_aliases(names: Iterable[str]) -> dict[str, str]:
         raise ValueError(msg)
     aliases = {alias: targets[0] for alias, targets in sorted(candidates.items())}
     aliases.update(
-        (word, target)
+        (word, word if isinstance(target, OperatorRecipe) else target)
         for word, target in OPERATOR_WORDS.items()
-        if target in catalog
+        if isinstance(target, OperatorRecipe) or target in catalog
     )
     return dict(sorted(aliases.items()))

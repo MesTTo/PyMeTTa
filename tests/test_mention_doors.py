@@ -11,9 +11,11 @@ Guarantees:
     catalog snapshot [tested: test_the_fn_namespace_is_generated;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - the S, static fn, and bound fn attribute doors share Python's operator
-    word vocabulary while bracket access remains exact and composite
-    operators refuse with their honest images [tested:
-    test_operator_words_precede_the_mechanical_name_map; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    word vocabulary while bracket access remains exact and composite ``neg``
+    keeps its canonical image [tested:
+    test_operator_words_precede_the_mechanical_name_map,
+    test_compiled_operator_word_calls_preserve_composite_images;
+    commit=WORKTREE]
   - mapped generator calls remain nondeterministic in definition effects
     [tested: test_mapped_nondeterministic_calls_keep_their_call_role;
     commit=WORKTREE]
@@ -198,8 +200,12 @@ def test_operator_words_precede_the_mechanical_name_map(m):
     assert S.eq(V.x, 2) == S["=="](V.x, 2)
     assert S["eq"] != S.eq
     assert m.fn.add(1, 2).one() == 3
-    with pytest.raises(AttributeError, match=r"neg.*\(- 0 x\)"):
-        _ = S.neg
+    assert S.neg(V.x) == fn.neg(V.x) == S["-"](0, V.x) == -V.x
+    assert m.fn.neg(4).one() == -4
+    assert "neg" in dir(S)
+    assert "neg" in dir(fn)
+    assert "neg" in dir(m.fn)
+    assert S["neg"] != S.neg
     with pytest.raises(AttributeError, match=r"floordiv.*floor-math.* /"):
         _ = m.fn.floordiv
 
@@ -326,12 +332,13 @@ def test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door():
     from metta._name_mapping import generated_aliases
 
     assert generated_aliases(["same-name", "same_name", "mixedCase", "pragma!"]) == {
+        "neg": "neg",
         "pragma": "pragma!",
         "same_name": "same-name",
     }
 
 
-def test_operator_words_reach_compiled_bodies():
+def test_compiled_operator_word_calls_preserve_composite_images():
     """S.eq and fn.eq inside a compiled body store the operator's own head.
 
     The live factory consulted the word table and the body translator did
@@ -339,13 +346,10 @@ def test_operator_words_reach_compiled_bodies():
     at the factory built `(== a b)` while a compiled body stored `(eq a b)`,
     the guide's rule-D critical pair. The translator now consults the same
     table after the V branch (V.eq stays the variable `$eq`), the bracket
-    door stays exact by construction, and the two composite words refuse as
-    CompileError naming their images.
+    door stays exact by construction. The settled composite neg word expands
+    to its canonical image at both call doors.
     """
-    import pytest
-
     from metta import MeTTa, S, V, fn
-    from metta.errors import CompileError
 
     m = MeTTa().space()
 
@@ -376,11 +380,18 @@ def test_operator_words_reach_compiled_bodies():
         "word-exact": "eq",
     }
 
-    with pytest.raises(CompileError, match="its image is"):
+    @m.define
+    def word_neg(a):
+        return S.neg(a)
 
-        @m.define
-        def word_neg(a):
-            return S.neg(a)
+    @m.define
+    def word_fn_neg(a):
+        return fn.neg(a)
+
+    assert word_neg.body == S["-"](0, V.a)
+    assert word_fn_neg.body == S["-"](0, V.a)
+    assert word_neg(7) == [-7]
+    assert word_fn_neg(7) == [-7]
 
 
 def test_a_defined_and_a_bound_function_mention_as_their_head():

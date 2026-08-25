@@ -31,9 +31,9 @@ Guarantees:
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - the Python-first table teaches the concise atom cast, root catalog,
     hygienic variable, pattern-instantiation, compiled reader-pattern,
-    anonymous provenance, and ``reacts`` declaration doors
+    anonymous provenance, ``reacts`` declaration, and composite operator-word doors
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -123,6 +123,11 @@ class PublicFace:
 
 
 PUBLIC_FACES: tuple[PublicFace, ...] = (
+    PublicFace(
+        "S.neg(atom), fn.neg(atom), space.fn.neg(atom)",
+        "build or evaluate unary negation through its canonical (- 0 atom) image",
+        "term = S.neg(V.x)\nassert term == S['-'](0, V.x)",
+    ),
     PublicFace(
         "atom.cast(type_)",
         "admit an atom through the ambient space's type discipline",
