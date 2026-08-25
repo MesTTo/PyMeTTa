@@ -16,7 +16,7 @@ Guarantees:
     test_automatic_caching_preserves_multiplicity_and_answer_limit;
     commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
 Fails when: read as coverage of explicit SWI tabling, whose set semantics are
-  separately pinned by test_a_cached_definition_normalises_duplicate_answers_away.
+  separately pinned by test_explicit_tabling_takes_precedence_over_automatic_memoization.
 """
 
 from collections import Counter

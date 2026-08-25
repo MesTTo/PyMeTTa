@@ -61,6 +61,11 @@ Guarantees:
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the returned staging wrapper carries its registration identity through
+    functools.wraps chains so mutually exclusive definition doors can refuse
+    before mutation [tested:
+    test_cache_over_an_operation_refuses_before_definition_registration;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -115,6 +120,8 @@ __all__ = [
     "type_atoms_for",
     "unregister",
 ]
+
+_OPERATION_REGISTRATION = "__metta_operation_registration__"
 
 
 #: The library's own space. Everything Python registers reflects here as
@@ -851,7 +858,21 @@ def register[**P, R](
                 return Expression([Symbol(metta_name), *encoded])
         return fn(*args, **kwargs)
 
+    setattr(_staging_aware, _OPERATION_REGISTRATION, operation)
     return _staging_aware
+
+
+def _registered_operation(fn: Callable[..., Any]) -> Operation | None:
+    """Return the live registration owned by this callable or wrapper chain."""
+    operation = getattr(fn, _OPERATION_REGISTRATION, None)
+    if isinstance(operation, Operation):
+        return operation
+    source = inspect.unwrap(fn)
+    for candidate in REGISTRY.values():
+        registered = candidate.fn
+        if fn is registered or source is inspect.unwrap(registered):
+            return candidate
+    return None
 
 
 def unregister(runtime, name: str) -> None:

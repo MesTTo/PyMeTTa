@@ -7,8 +7,9 @@ Guarantees:
   - raw and encoded operation cases select one named transport mode [tested:
     test_raw_operation, test_encoded_operation; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - automatic bag-preserving memoization changes a doubly recursive family's
-    inference growth from exponential to linear [tested:
-    test_automatic_tabling_growth; commit=9e7d5dc2cad810940e5386d52636ac6946df279d]
+    inference growth from exponential to linear, with both improvements and
+    regressions pinned to the measured floor [tested:
+    test_automatic_tabling_growth; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -117,11 +118,18 @@ _ROWS = 2_000
 #: automatic +22,306/+22,324/+22,356/+22,386 across n=12..20, while both
 #: growth classes stay exactly what the lane exists to pin: plain
 #: exponential, automatic linear in n.
+#: RE-PINNED 2026-08-26 on the exact-bag `@metta.cache` landing. The shared
+#: memo dispatch now distinguishes the decorator's exact policy from manual
+#: and automatic policies. The automatic arm pays that indexed policy choice
+#: on each linear-state memo call (+477/+497/+513/+525), while the refused
+#: plain arm moves by a fixed -48/-48/-46/-48 from the same lib_memo clause
+#: layout. Minima across three fresh-process min-of-three rounds on the
+#: reader.so-bearing tree; both directions are pinned under +-4.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 145_041, "automatic": 27_941},
-    15: {"plain": 1_091_285, "automatic": 29_069},
-    18: {"plain": 8_661_040, "automatic": 30_211},
-    20: {"plain": 34_614_379, "automatic": 30_981},
+    12: {"plain": 144_993, "automatic": 28_418},
+    15: {"plain": 1_091_237, "automatic": 29_566},
+    18: {"plain": 8_660_994, "automatic": 30_724},
+    20: {"plain": 34_614_331, "automatic": 31_506},
 }
 
 
@@ -167,7 +175,7 @@ def test_automatic_tabling_growth() -> None:
     observed = _automatic_tabling_observations()
     for n, modes in observed.items():
         for mode, inferences in modes.items():
-            assert inferences <= _AUTOMATIC_TABLING_PINS[n][mode] + 4, observed
+            assert abs(inferences - _AUTOMATIC_TABLING_PINS[n][mode]) <= 4, observed
 
     assert observed[15]["plain"] >= 7 * observed[12]["plain"]
     assert observed[18]["plain"] >= 7 * observed[15]["plain"]

@@ -47,6 +47,10 @@ Guarantees:
   - ordinary Defined calls keep the held evaluation cursor inside a stats
     scope, so a bounded view suspends an endless producer [tested:
     test_function_calls_suspend_endless_producers; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - cached definitions enter the compiled-call dispatch seam and expose their
+    bag-preserving memo store through cache_clear/cache_info
+    [tested: test_a_cached_definition_preserves_duplicate_answers;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -102,9 +106,18 @@ def _unknown_effect(_name: str) -> EffectClass:
     return EffectClass.oracleIO
 
 
-def _deferred_main_engine_answers(space: Any, term: Expression):
-    """Delay one eager main-engine evaluation until the first answer pull."""
-    yield from space.eval(term)
+def _deferred_memoized_answers(
+    space: Any,
+    name: str,
+    args: tuple[Any, ...],
+):
+    """Enter the source runner whose compiled calls own memo dispatch."""
+    binding_names = [f"__petta_cache_arg_{index}" for index in range(len(args))]
+    term = Expression([Symbol(name), *(Symbol(item) for item in binding_names)])
+    with space.bind(dict(zip(binding_names, args, strict=True))):
+        groups = space.run(f"!{term}")
+    if groups:
+        yield from groups[0]
 
 
 def _builtins_namespace() -> dict[str, Any]:
@@ -264,8 +277,8 @@ class Defined[**P, R]:
     __slots__ = (
         "__name__",
         "__wrapped__",
+        "_memoized",
         "_py",
-        "_uses_main_engine",
         "bodies",
         "body",
         "doc",
@@ -308,8 +321,8 @@ class Defined[**P, R]:
         self.patterns = dict(patterns or {})
         self.body = body
         self.bodies = () if body is None else (bodies or (body,))
+        self._memoized = False
         self._py = py
-        self._uses_main_engine = False
         self.space = space
         self.doc = inspect.getdoc(py)
         # The prelude operations the equations lean on: empty means the
@@ -341,15 +354,9 @@ class Defined[**P, R]:
             if len(folded) == 1:
                 return _encode(folded[0])
             return term
-        if self._uses_main_engine:
-            # SWI answer tables belong to the main engine. A child engine is
-            # the right suspension mechanism for ordinary lazy evaluation,
-            # but a cached definition must populate the table cache_info()
-            # subsequently reads [tested:
-            # test_a_cached_definition_tables_and_answers_from_its_trie;
-            # commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
+        if self._memoized:
             return Answers(
-                _deferred_main_engine_answers(self.space, term),
+                _deferred_memoized_answers(self.space, self.name, args),
                 space=self.space.name,
                 target=term,
             )
@@ -396,24 +403,16 @@ class Defined[**P, R]:
         return "\n".join(f"(= {self.head} {body})" for body in self.bodies)
 
     def cache_clear(self) -> None:
-        """Drop this definition's table, functools.lru_cache's own name.
-
-        The table is the engine's, so this is `(table-clear <head>)` and
-        nothing more; calling it on a definition that was never cached is the
-        engine's answer to that, not an error invented here.
-        """
-        self.space.eval(Expression([Symbol("table-clear"), self.head]))
+        """Drop this definition's memo entries without disabling it."""
+        self.space.eval(
+            Expression([Symbol("invalidate-memoize"), Symbol(self.name)])
+        )
 
     def cache_info(self) -> dict[str, int]:
-        """The table's counters, functools.lru_cache's own name.
-
-        The keys are the engine's, not lru_cache's, because they are what a
-        TABLE has and a fixed-size cache does not: `tables`, `answers`,
-        `complete-call`, `invalidated` and `reevaluated`. Borrowing hits and
-        misses for them would be a translation nobody asked for
-        [source: lib/lib_tabling.pl, metta_table_statistics].
-        """
-        answers = self.space.eval(Expression([Symbol("table-stats"), self.head]))
+        """Count this definition's live memo entries and cached answers."""
+        answers = self.space.eval(
+            Expression([Symbol("get-memoize-stats"), Symbol(self.name)])
+        )
         if not answers:
             return {}
         return {
