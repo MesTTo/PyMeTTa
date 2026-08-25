@@ -75,6 +75,10 @@ Guarantees:
     table, including explicit templates and named refusals [tested:
     test_the_operator_table_is_generated_from_one_source_with_no_holes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``atom.cast(type_)`` delegates to the ambient ``Space.cast`` door, so
+    declarations remain space-relative while the atom owns the concise
+    spelling [tested: test_atom_cast_delegates_to_the_ambient_space;
+    commit=WORKTREE]
   - symbolic operator rows specialize into direct constructors once at import,
     so term-operators costs 660489697 instructions:u, 27.86% below its
     915593600 baseline [measured: minimum of 660489757, 660489704,
@@ -108,7 +112,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from fractions import Fraction
 from functools import singledispatch
 from pathlib import PurePath
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import TYPE_CHECKING, Any, Self, cast, overload
 
 from ._callable_mentions import callable_mention
 from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
@@ -524,6 +528,18 @@ class Atom:
         from .atoms import unify  # noqa: PLC0415  -- atoms owns unification
 
         return unify(self, other)
+
+    @overload
+    def cast[CastT](self, type_: type[CastT], /) -> CastT: ...
+
+    @overload
+    def cast(self, type_: Atom | str, /) -> Any: ...
+
+    def cast(self, type_: Any, /) -> Any:
+        """Cast this atom through the ambient space's type discipline."""
+        from . import _ambient_space  # noqa: PLC0415  -- root owns ambient scope
+
+        return _ambient_space().cast(self, type_)
 
     def __setattr__(self, _name: str, _value: Any, /) -> None:
         msg = "atoms are immutable"
