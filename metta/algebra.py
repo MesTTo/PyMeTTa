@@ -57,7 +57,7 @@ from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from numbers import Real
 from types import ModuleType
-from typing import Any, Final, Literal
+from typing import Any, Final
 
 from ._space import Space
 from .atoms import (
@@ -74,7 +74,7 @@ from .atoms import (
     substitute,
 )
 from .errors import PettaError
-from .vocabularies import EffectClass
+from .vocabularies import EffectClass, Semiring, SemiringOrder
 
 __all__ = [
     "AlgebraDeclarationError",
@@ -174,7 +174,7 @@ class DeclaredAlgebra:
     laws: frozenset[str]
     carrier: tuple[Atom, ...]
     requires: frozenset[str]
-    order: Literal["ascending", "descending"] | None = None
+    order: SemiringOrder | None = None
 
     def operation(self, metta: Space, name: str, left: Atom, right: Atom) -> Atom:
         """Apply a declared binary operation and require one answer."""
@@ -194,6 +194,7 @@ class DeclaredAlgebra:
                     return _encode(min(left_value, right_value))
                 if name == "max":
                     return _encode(max(left_value, right_value))
+        # policy-inventory-exempt: mechanism-internal; reason=the two role names a declaration coins for its own combine and extend operations, which _register_operation spells as <algebra>-<role>; evidence=bindings/python/metta/algebra.py:_operation_name
         if name in {"plus", "times"}:
             return Expression((Symbol(name), left, right))
         answers = metta.eval(Expression((Symbol(name), left, right)))
@@ -370,7 +371,7 @@ def _preset(
     *,
     laws: frozenset[str] = _SEMIRING_LAWS,
     requires: Iterable[str] = (),
-    order: Literal["ascending", "descending"] | None = None,
+    order: SemiringOrder | None = None,
 ) -> DeclaredAlgebra:
     return DeclaredAlgebra(
         name,
@@ -392,14 +393,14 @@ _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     "set": _preset(
         "set", "max", "*", 0, 1, laws=_SEMIRING_LAWS | {"combine-idempotent"}
     ),
-    "ranked": _preset("ranked", "max", "*", 0, 1, order="descending"),
+    "ranked": _preset("ranked", "max", "*", 0, 1, order=SemiringOrder.descending),
     "tropical": _preset(
-        "tropical", "min", "+", Symbol("infinity"), 0, order="ascending"
+        "tropical", "min", "+", Symbol("infinity"), 0, order=SemiringOrder.ascending
     ),
-    "prob": _preset("prob", "+", "*", 0, 1, order="descending"),
+    "prob": _preset("prob", "+", "*", 0, 1, order=SemiringOrder.descending),
     "prov": _preset("prov", "plus", "times", Symbol("zero"), Symbol("one")),
     "budget": _preset(
-        "budget", "min", "+", Symbol("infinity"), 0, order="ascending"
+        "budget", "min", "+", Symbol("infinity"), 0, order=SemiringOrder.ascending
     ),
     "amplitude": _preset(
         "amplitude",
@@ -514,19 +515,24 @@ def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
 
 def _catalog_order(
     metta: Space, name: str
-) -> Literal["ascending", "descending"] | None:
+) -> SemiringOrder | None:
     """Read the direction attached to an ordered semiring claim."""
     expected = (Symbol("claim"), Symbol("semiring"), Symbol(name), Symbol("ordered"))
     for atom in Space("&petta", _runtime=metta.runtime).atoms():
         if not isinstance(atom, Expression) or atom.children[:4] != expected:
             continue
         if len(atom.children) < 5 or not isinstance(atom.children[4], Symbol):
-            return "descending"
-        direction = atom.children[4].name
-        if direction == "ascending":
-            return "ascending"
-        if direction == "descending":
-            return "descending"
+            # A bare `ordered` claim with no direction: the shipped rows all
+            # carry one, so this is a claim written by hand, and counting
+            # down from the best is what ordered meant before the direction
+            # joined the row.
+            return SemiringOrder.descending
+        try:
+            return SemiringOrder(atom.children[4].name)
+        except ValueError:
+            # A direction outside the declared vocabulary is not this claim's
+            # direction; keep looking rather than inventing one.
+            continue
     return None
 
 
@@ -764,7 +770,7 @@ def declare(
     laws: Iterable[str] = (),
     carrier: Iterable[Any] = (),
     requires: Iterable[str] = (),
-    order: Literal["ascending", "descending"] | None = None,
+    order: SemiringOrder | None = None,
 ) -> Atom:
     """Check and add one algebra catalog atom, without replacing an old one."""
     if not name or not isinstance(name, str):
@@ -779,7 +785,7 @@ def declare(
     if not extend or not isinstance(extend, str):
         msg = f"algebra_operation_invalid({name}, extend)"
         raise AlgebraDeclarationError(msg)
-    if order not in {None, "ascending", "descending"}:
+    if order is not None and order not in set(SemiringOrder):
         msg = f"algebra_order_invalid({name}, {order!r})"
         raise AlgebraDeclarationError(msg)
     declaration = DeclaredAlgebra(
@@ -1020,7 +1026,13 @@ def _headed_tag(atom: Atom, name: str) -> bool:
 
 def _carrier_input(declaration: DeclaredAlgebra, trace: _Trace) -> Atom:
     """Map one universal source node into a carrier's generator value."""
-    if declaration.name in {"bool", "bag", "set", "counting"}:
+    # policy-inventory-exempt: mechanism-internal; reason=the carriers whose generator value is the semiring one, named by their declared vocabulary members so a catalog rename breaks here rather than drifting; evidence=bindings/python/metta/vocabularies.py:Semiring
+    if declaration.name in {
+        Semiring.bool,
+        Semiring.bag,
+        Semiring.set,
+        Semiring.counting,
+    }:
         return declaration.one
     if declaration.name == "prov":
         if not trace.is_rule and _headed_tag(trace.raw, "src"):
@@ -1070,7 +1082,7 @@ def _order_answers(
     return sorted(
         answers,
         key=key,
-        reverse=declaration.order == "descending",
+        reverse=declaration.order == SemiringOrder.descending,
     )
 
 
@@ -1290,7 +1302,7 @@ def _construct(
     laws: Iterable[str] = (),
     carrier: Iterable[Any] = (),
     requires: Iterable[str] = (),
-    order: Literal["ascending", "descending"] | None = None,
+    order: SemiringOrder | None = None,
 ) -> DeclaredAlgebra:
     """Implement the functional and class-decorator constructor forms."""
     from . import engine  # noqa: PLC0415 -- the callable module stays lazy
@@ -1351,7 +1363,7 @@ class _AlgebraModule(ModuleType):
         laws: Iterable[str] = (),
         carrier: Iterable[Any] = (),
         requires: Iterable[str] = (),
-        order: Literal["ascending", "descending"] | None = None,
+        order: SemiringOrder | None = None,
     ) -> Any:
         if subject is None:
             def decorate(cls: type) -> DeclaredAlgebra:

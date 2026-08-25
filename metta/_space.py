@@ -228,6 +228,7 @@ from .vocabularies import (
     ImageMode,
     OnError,
     SaveFormat,
+    SemiringOrder,
     SourceKind,
     SpaceCapability,
     World,
@@ -3569,7 +3570,7 @@ class Space(Handle):
         laws: _abc.Iterable[str] = (),
         carrier: _abc.Iterable[Any] = (),
         requires: _abc.Iterable[str] = (),
-        order: Literal["ascending", "descending"] | None = None,
+        order: SemiringOrder | None = None,
     ) -> Atom:
         """Declare operations and checked laws for an arbitrary atom carrier.
 

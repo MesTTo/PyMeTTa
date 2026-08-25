@@ -128,6 +128,7 @@ __all__ = [
     "RouteKey",
     "SaveFormat",
     "Semiring",
+    "SemiringOrder",
     "SourceKind",
     "SpaceCapability",
     "SubscriptionEdge",
@@ -315,6 +316,12 @@ class Semiring(_AtomStrEnum):
     tropical = "tropical"
     prob = "prob"
     prov = "prov"
+
+#: (vocabulary semiring-order ascending descending)
+class SemiringOrder(_AtomStrEnum):
+    """Typed values of the semiring-order vocabulary."""
+    ascending = "ascending"
+    descending = "descending"
 
 #: (vocabulary source-kind linear repeated peek)
 class SourceKind(_AtomStrEnum):

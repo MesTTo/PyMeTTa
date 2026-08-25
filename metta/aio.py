@@ -127,6 +127,7 @@ from .vocabularies import (
     ImageMode,
     OnError,
     SaveFormat,
+    SemiringOrder,
     SourceKind,
     World,
 )
@@ -1039,7 +1040,7 @@ class AsyncMeTTa:
         laws: Sequence[str] = (),
         carrier: Sequence[Any] = (),
         requires: Sequence[str] = (),
-        order: Literal["ascending", "descending"] | None = None,
+        order: SemiringOrder | None = None,
     ) -> Atom:
         """Declare one checked value algebra on the owning engine thread."""
         return await self.call(
