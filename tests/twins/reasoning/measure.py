@@ -12,7 +12,7 @@ cardinality door for the single answer each of these calls has, and
 sequence it is.
 """
 
-from metta import S
+from metta import S, lib
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -21,7 +21,49 @@ from metta import S
 #: 28 observations under `full-lane/218/workers=32`, so the re-pin owes it an
 #: envelope rather than a point
 #: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 194271 to 194711, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 194711 to 193890, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 193890 to 193905, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+#: ENVELOPED 2026-08-25 by the observe pass: this twin's count is
+#: intrinsically multi-valued (allocation-timing jitter moves GC
+#: work between runs; ten serial runs of one such twin answered six
+#: distinct counts), so a point pin with the +-4 tolerance is a
+#: false claim here. Bounds are the exact extrema of 10
+#: full-lane observations under 'full-lane/218/workers=32'; a cost outside them
+#: is a real finding, and a new mode discovered later extends the
+#: envelope with its observation count rather than widening blind.
+BUDGET = {
+    "minimum": 193823,
+    "maximum": 193946,
+    "observations": 20,
+    "protocol": "full-lane/218/workers=32",
+}
 
 
 def _rows(pairs):
@@ -32,7 +74,7 @@ def _rows(pairs):
 def twin(m):
     """Import the measure algebra and check its deterministic and sampled faces."""
     # !(import! &self (library lib_measure))
-    m.fn["import!"](m, S.library(S["lib_measure"]))
+    m += lib.measure
 
     ws_total = m.fn.ws_total
     ws_normalize = m.fn.ws_normalize
@@ -48,12 +90,12 @@ def twin(m):
 
     # The measure algebra over weighted alternatives: (weight value) pairs.
     # !(test (ws-total ((0.5 a) (0.25 b) (0.25 c))) 1.0), and seven more
-    assert ws_total(((0.5, S.a), (0.25, S.b), (0.25, S.c))).one() == 1.0
+    assert ws_total(((0.5, S.a), (0.25, S.b), (0.25, S.c))) == [1.0]
     assert _rows(ws_normalize(((2.0, S.a), (2.0, S.b))).one()) == (
         (0.5, S.a),
         (0.5, S.b),
     )
-    assert ws_best(((0.2, S.low), (0.7, S.high), (0.1, S.mid))).one() == S.high
+    assert ws_best(((0.2, S.low), (0.7, S.high), (0.1, S.mid))) == [S.high]
     assert _rows(ws_top(((0.2, S.low), (0.7, S.high), (0.1, S.mid)), 2).one()) == (
         (0.7, S.high),
         (0.2, S.low),
@@ -62,7 +104,7 @@ def twin(m):
         (0.5, S.x),
         (0.4, S.y),
     )
-    assert ws_expect(((0.5, 10), (0.5, 20))).one() == 15.0
+    assert ws_expect(((0.5, 10), (0.5, 20))) == [15.0]
     assert _rows(ws_filter(((0.9, S.keep), (0.05, S.drop)), 0.1).one()) == (
         (0.9, S.keep),
     )
@@ -79,7 +121,7 @@ def twin(m):
 
     # !(test (ws-best (ws-softmax ((1.0 low) (3.0 high)) 0.1)) high), and three more
     cold = ws_softmax(((1.0, S.low), (3.0, S.high)), 0.1).one()
-    assert ws_best(cold).one() == S.high
+    assert ws_best(cold) == [S.high]
     sharp = ws_softmax(((1.0, S.a), (3.0, S.b)), 0.1).one()
     assert first_weight(sharp).one() > 0.0
     flat = ws_softmax(((1.0, S.a), (3.0, S.b)), 1000.0).one()
@@ -91,7 +133,7 @@ def twin(m):
     # !(test (is-member (ws-sample! ((0.5 heads) (0.5 tails))) (heads tails)) true)
     # ... and two more
     assert ws_sample(((0.5, S.heads), (0.5, S.tails))).one() in (S.heads, S.tails)
-    assert ws_sample(((1.0, S.sure),)).one() == S.sure
+    assert ws_sample(((1.0, S.sure),)) == [S.sure]
     assert ws_sample(((0.1, S.a), (0.2, S.b), (0.7, S.c))).one() in (S.a, S.b, S.c)
 
     # The nondeterministic reading: alternatives with their measure as data,

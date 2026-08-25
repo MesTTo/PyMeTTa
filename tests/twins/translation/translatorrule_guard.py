@@ -39,7 +39,35 @@ from metta.vocabularies import NoMatchEnum
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=8fd49997be43f7909c3582062138c5011df7e811].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 21974 to 0, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, at the P14.32 gate closing the fast path: the
+#: rule-path claim moved to the bare written call (the prelude's own
+#: double-noeval hand-back idiom; the pre-gate fast path had pinned the
+#: equation-path answer), and the corpus reprice had recorded this twin's
+#: failed run as 0 [measured 2026-08-25, tools/twin_coverage.py, min-of-2
+#: identical at 22742 on the final tree].
+#: RE-PINNED 2026-08-25, 22742 to 22682, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 22682
 
 
 def twin(m):
@@ -62,7 +90,7 @@ def twin(m):
 
     m.fn.add_translator_rule(S.add_pairs)
 
-    assert m.fn.add_pairs(S.pair(1, 2), S.pair(10, 20)).one() == S.pair(11, 22)
+    assert m.fn.add_pairs(S.pair(1, 2), S.pair(10, 20)) == [S.pair(11, 22)]
 
     # A call the rule does not match is not an error: it carries on to ordinary
     # dispatch, so a miss has no answer.
@@ -89,18 +117,21 @@ def twin(m):
 
     m.fn.add_translator_rule(S.hold_pairs)
 
-    assert m.fn.hold_pairs(S.pair(1, 2), S.pair(10, 20)).one() == S.pair(11, 22)
+    assert m.fn.hold_pairs(S.pair(1, 2), S.pair(10, 20)) == [S.pair(11, 22)]
     # The original writes this claim as `(test (hold-pairs 1 2) (hold-pairs 1 2))`,
-    # and `test` evaluates BOTH sides, so its expected value goes through the
-    # same rule and the wrapper cancels out of the comparison. An assert
-    # compares an evaluated left against a LITERAL right, so the wrapper that
-    # stops the expansion going round again is visible here.
-    assert m.fn.hold_pairs(1, 2).one() == S.noeval(S.hold_pairs(1, 2))
+    # and the answer really is the bare written call: a rule's expansion is a
+    # FORM, so the double noeval is the prelude's own hand-it-back idiom (the
+    # engine's `(noeval (noeval (union $a $b)))`), one layer consumed by the
+    # rule's guard and one by the compiled noeval form. The equation WITHOUT
+    # the rule keeps one wrapper (the arbiter's Atom-return law); this twin
+    # once pinned that equation answer here because the pre-P14.32 fast path
+    # skipped the rule's translated route entirely.
+    assert m.fn.hold_pairs(1, 2) == [S.hold_pairs(1, 2)]
 
     # The engine's own stream operations are written that way: `union` rewrites
     # two superpositions and hands anything else back as it was written.
     assert m.fn.union(S.superpose((1, 2)), S.superpose((2, 3))) == [1, 2, 2, 3]
-    assert m.fn.union(S.foo, S.bar).one() == S.union(S.foo, S.bar)
+    assert m.fn.union(S.foo, S.bar) == [S.union(S.foo, S.bar)]
 
     # A RULE'S BODY IS ITS CONDITION: a body with no answer declines, and the
     # next clause is tried, so `(pick a)` is rewritten by the SECOND equation.
@@ -113,8 +144,8 @@ def twin(m):
 
     m.fn.add_translator_rule(S.pick)
 
-    assert m.fn.pick(S.a).one() == S.picked(S.a)
-    assert m.fn.pick(S.b).one() == S.picked(S.b)
+    assert m.fn.pick(S.a) == [S.picked(S.a)]
+    assert m.fn.pick(S.b) == [S.picked(S.b)]
 
     # When NO clause applies, the whole rule declines and the call carries on
     # to ordinary dispatch, which here has no answer either.

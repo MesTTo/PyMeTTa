@@ -38,14 +38,43 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import TRUE, S, V, equation, fn, if_
+from metta import TRUE, S, V, equation, fn, if_, lib
 
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
 #: [assumed: unmeasured here, deliberately; commit=d4e4f9cf0500c00c8f1201a60cbcf54de7c3fa84].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 74898 to 74953, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 74953 to 74962, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 74962 to 74964, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 74964
 
 
 def twin(m):
@@ -62,10 +91,9 @@ def twin(m):
         """
         return S.let(TRUE, condition, answer)  # rung: let as a guard
 
-    # (import! &self (library lib_constraints)): the space is the handle
-    # itself, and the library's MeTTa name really does carry an underscore,
-    # so it takes the exact bracket rather than the attribute's hyphen map.
-    m.fn["import!"](m, (S.library, S["lib_constraints"]))
+    # (import! &self (library lib_constraints)): the receiver is the target,
+    # and the lib namespace joins with underscores kept, never the hyphen map.
+    m += lib.constraints
 
     # ---------------------------------------------------------------- CLP(Q)
     # Exact rationals: clpfd has no answer to this at all, because 1/2 is not
@@ -73,8 +101,8 @@ def twin(m):
     # through repr, because the reader has no rational literal to write 1r2
     # as: it would read back as a symbol and compare unequal to the number.
     half = S.clpq(equation(2 * V.x).to(1))
-    assert m.answers(where(half, fn.repr(V.x))).one() == "1r2"
-    assert m.answers(where(half, 2 * V.x)).one() == 1
+    assert m.answers(where(half, fn.repr(V.x))) == ["1r2"]
+    assert m.answers(where(half, 2 * V.x)) == [1]
 
     # Entailment: is this constraint already implied by what has been posted?
     # That is the question a plain post cannot ask.
@@ -108,7 +136,7 @@ def twin(m):
         S.clpq(S.ge(V.f, 0)),
         where(S.clpq(S["=<"](V.f, 3)), fn.repr(S.residual_goals(V.f))),
     )
-    assert m.answers(residuals).one() == "(({} (, (>= $_0 0) (=< $_0 3))))"
+    assert m.answers(residuals) == ["(({} (, (>= $_0 0) (=< $_0 3))))"]
 
     # ---------------------------------------------------------------- CLP(B)
     # `(card (1) ($p $q))` is "exactly one of these is true": a list of

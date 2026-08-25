@@ -58,7 +58,18 @@ HANDLE_LOADER_PL = Path("examples/integration/c_extension/handle_loader.pl")
 #: so the corpus re-pins once on the exact shipping tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 on the final tree].
-BUDGET = 76570
+#: RE-PINNED 2026-08-25, 76570 to 76549, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 76549
 
 
 def twin(m):

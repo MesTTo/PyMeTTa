@@ -21,7 +21,7 @@ one term, and the missing spelling is filed as friction.
 
 import math
 
-from metta import S, fn, ground
+from metta import G, S, fn, ground
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
@@ -46,11 +46,29 @@ from metta import S, fn, ground
 #: so the corpus re-pins once on the exact shipping tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 on the final tree].
-BUDGET = 24078
+#: RE-PINNED 2026-08-25, 24078 to 23323, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+#: RE-PINNED 2026-08-25, 23323 to 25691, as the example grows its
+#: three integration rows (keyword arguments on a bound callable,
+#: an opaque dict read by method, type reflection), mirrored here
+#: [measured 2026-08-25 through tools/twin_coverage.py on the
+#: extended pair].
+BUDGET = 25691
 
 
 def twin(m):
-    """Wrap the seam five ways, then use it three times."""
+    """Wrap the seam five ways, then use it: objects, methods, keywords,
+    an opaque collection, and reflection.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     @m.define
     def make_object():                       # (= (make-object)
@@ -85,3 +103,21 @@ def twin(m):
     py = m.fn.py_call
     assert py(S[".upper"](ground("abc"))) == [S.ABC]   # (py-call (.upper "abc")) is ABC
     assert py(S[".__add__"](5, 3)) == [8]   # (py-call (.__add__ 5 3)) is 8
+
+    # Keyword arguments ride a bound callable, and Python's own keyword
+    # syntax builds the seam's (Kwargs ...) form at the call: applying the
+    # handle splits it into Python keywords, while py-call itself keeps
+    # upstream's plain positional semantics.
+    py_round, = m.eval(S.py_atom(S.round))          # (bind! py-round (py-atom round))
+    assert m.eval(py_round(3.14159, ndigits=2)) == [3.14]
+
+    # A Python collection stays ONE object on this surface: the dict is held
+    # whole, and reading it is asking it, the same method-call shape as above.
+    prefs, = m.eval(S.py_atom(ground("dict(colour='green', size=7)")))
+    assert py(S[".get"](prefs, S.size)) == [7]
+
+    # The object loop closes with reflection: type answers the class, and the
+    # class is an object with attributes like any other.
+    cls, = py(S.type(S.make_object()))
+    named, = m.eval(S.py_dot(cls, S["__name__"]))
+    assert named == G("SimpleNamespace")

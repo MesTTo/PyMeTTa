@@ -24,7 +24,26 @@ from metta import S
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=8fd49997be43f7909c3582062138c5011df7e811].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 49843 to 49790, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 49790 to 49720, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 49720
 
 
 def twin(m):
@@ -57,8 +76,8 @@ def twin(m):
         return S.reduce(fib(myfunc()))
 
     inner = S.fib(S.myfunc())
-    assert m.answers(S.fib_call(S.call_fib())).one() == S.fib_call(5)
+    assert m.answers(S.fib_call(S.call_fib())) == [S.fib_call(5)]
     # quote keeps its wrapper AND the term under it, unreduced.
-    assert m.answers(S.fib_quote(S.quote_fib())).one() == S.fib_quote(S.quote(inner))
-    assert m.answers(S.fib_eval(S.eval_fib())).one() == S.fib_eval(5)
-    assert m.answers(S.fib_reduce(S.reduce_fib())).one() == S.fib_reduce(5)
+    assert m.answers(S.fib_quote(S.quote_fib())) == [S.fib_quote(S.quote(inner))]
+    assert m.answers(S.fib_eval(S.eval_fib())) == [S.fib_eval(5)]
+    assert m.answers(S.fib_reduce(S.reduce_fib())) == [S.fib_reduce(5)]

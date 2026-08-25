@@ -39,7 +39,36 @@ from metta.errors import MettaOperationError
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
 #: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 9484 to 9730, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 9730 to 9744, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 9744 to 9692, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 9692
 
 
 def twin(m):
@@ -64,7 +93,7 @@ def twin(m):
     # &self names the ambient space, so evalc there is eval, and the two doors
     # say so: this handle's own eval, and the engine's `eval` by name.
     assert m.eval(G(5) + 5) == [10]
-    assert m.fn.eval(G(5) + 5).one() == 10
+    assert m.fn.eval(G(5) + 5) == [10]
 
     # The expression is handed over unevaluated. Were it not, it would already
     # have been reduced here before the space argument could select another.
@@ -72,8 +101,8 @@ def twin(m):
 
     # context-space, read inside evalc, reports the space evalc selected, and
     # it answers the HANDLE, so the claim compares handles rather than names.
-    assert m.fn.context_space().one() == m
-    assert metric.fn.context_space().one() == metric
+    assert m.fn.context_space() == [m]
+    assert metric.fn.context_space() == [metric]
 
     # The space argument is evaluated, so a function answering a space can name
     # it, and that call is not a handle: it goes to `evalc` by name.
@@ -81,7 +110,7 @@ def twin(m):
     def preferred_space():
         return metric
 
-    assert m.fn.evalc(S.distance(2), S.preferred_space()).one() == 2000
+    assert m.fn.evalc(S.distance(2), S.preferred_space()) == [2000]
 
     # A space is an atom beginning with &; anything else is refused with a
     # sentence rather than read as a silently empty space.

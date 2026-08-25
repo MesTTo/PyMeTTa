@@ -26,7 +26,38 @@ from metta import S, V, equation
 #: the integrator's single re-pin pass prices them all on the merged tree, so
 #: a figure measured in this worktree would price a tree that never ships
 #: [assumed: unmeasured here, deliberately; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass after the conformance
+#: answer updates: tools/twin_coverage.py --measure min-of-3, identical
+#: across two fresh rounds on p14-integration at the store-wave merge.
+#: RE-PINNED 2026-08-25, 15690 to 15749, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 15749 to 15760, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 15760 to 15696, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 15696
 
 
 def twin(m):
@@ -57,4 +88,8 @@ def twin(m):
     assert m.eval(S.f(S.g)) == [42]
 
     m -= const
-    assert m.fn.reduce(S.f(S.g)) == [S.f(S.g)]
+    # !(test (collapse (f g)) ((f g))) — with every equation removed the
+    # call is retained as written, the boundary protocol's own answer;
+    # `reduce` now retains its OWN written frame, so the plain eval is the
+    # spelling that mirrors the example's collapse row.
+    assert m.eval(S.f(S.g)) == [S.f(S.g)]

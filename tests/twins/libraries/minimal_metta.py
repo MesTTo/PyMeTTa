@@ -34,7 +34,7 @@ Open Obligations:
   Future Enhancements: None.
 """
 
-from metta import FALSE, TRUE, Expression, S, V, equation
+from metta import FALSE, TRUE, Expression, S, V, equation, lib
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree. This one
@@ -46,21 +46,61 @@ from metta import FALSE, TRUE, Expression, S, V, equation
 #: Until it is measured again, this file's own distribution-budget residue
 #: entry, retired 2026-08-22 because the twin declared an envelope, is
 #: unbacked: a point budget is not the envelope that retired it.
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass after the conformance
+#: answer updates: tools/twin_coverage.py --measure min-of-3, identical
+#: across two fresh rounds on p14-integration at the store-wave merge.
+#: RE-PINNED 2026-08-25, 192201 to 192591, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 192591 to 192578, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 192578 to 192538, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 192538
 
 
 def twin(m):
     """Run the minimal evaluator, binding carrier, reducer, and machine."""
-    m.fn["import!"](m, S.library(S["minimal_metta_lib"]))
+    m += lib["minimal_metta_lib"]
 
     assert m.fn.function(S["return"](42)) == [42]
-    assert m.fn.function(S.chain(S.add(1, 2), V.x, S["return"](V.x))) == [3]
+    # The chain binder receives the WRITTEN atom at this instruction
+    # boundary: LeaTTa 9ea9f9d answers the exact form with (+ 1 2), not 3,
+    # which is the example's own noeval-pinned row.
+    assert m.fn.function(S.chain(S.add(1, 2), V.x, S["return"](V.x))) == [
+        S.add(1, 2)
+    ]
 
     returned = S["return"](7)
     assert m.eval(returned) == [returned]  # rung: `return` is an instruction of `function`, not a function of its own
 
     failed_body = S.foo(S.bar)
-    assert m.fn.function(failed_body) == [S.Error(failed_body, S.NoReturn)]
+    # The diagnostic carries the ORIGINAL function frame, not the bare
+    # body: LeaTTa 9ea9f9d answers this exact form the same way.
+    assert m.fn.function(failed_body) == [
+        S.Error(S.function(failed_body), S.NoReturn)
+    ]
 
     otherwise = S["else"]
     assert m.fn.unify_mod(V.a, S.Empty, S.then, otherwise) == [S.then]

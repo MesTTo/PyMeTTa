@@ -30,7 +30,36 @@ from metta import Expression, S, V, ground
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=77e8bdc3dd822df05a2a6a9ec357c87fe1c3ac32].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 26270 to 26631, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 26631 to 26632, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 26632 to 26670, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 26670
 
 
 def twin(m):
@@ -55,20 +84,20 @@ def twin(m):
     assert list(e[1:]) == [2, 3]                              # (cdr-atom (1 2 3))
     assert e[1] == 2                                          # (index-atom (1 2 3) 1)
 
-    assert m.fn.id(5).one() == 5
+    assert m.fn.id(5) == [5]
     assert S.Father(V.X).alpha_eq(S.Father(V.Y))              # (=alpha ...) is True
     assert not S.Father(V.X).alpha_eq(S.Son(V.X))
-    assert m.fn.first_from_pair(pair).one() == S.A
-    assert m.fn.second_from_pair(pair).one() == S.B
+    assert m.fn.first_from_pair(pair) == [S.A]
+    assert m.fn.second_from_pair(pair) == [S.B]
 
     # An argument the operation cannot use is ANSWERED, not raised.
-    assert m.fn.index_atom(e, 5).one() == nothing             # past the end
-    assert m.fn.index_atom(e, S.a).one() == nothing           # not an index at all
-    assert m.fn.size_atom(5).one() == nothing
-    assert m.fn.sort_atom(5).one() == nothing
-    assert m.fn.unique_atom(5).one() == nothing
-    assert m.fn.alpha_unique_atom(5).one() == nothing
-    assert m.fn.intersection_atom(5, S.a()).one() == nothing
+    assert m.fn.index_atom(e, 5) == [nothing]   # past the end
+    assert m.fn.index_atom(e, S.a) == [nothing]   # not an index at all
+    assert m.fn.size_atom(5) == [nothing]
+    assert m.fn.sort_atom(5) == [nothing]
+    assert m.fn.unique_atom(5) == [nothing]
+    assert m.fn.alpha_unique_atom(5) == [nothing]
+    assert m.fn.intersection_atom(5, S.a()) == [nothing]
 
     # Two answer an Error that QUOTES the call, so each head is built as data
     # to say what the answer must contain. An error stays data while it is

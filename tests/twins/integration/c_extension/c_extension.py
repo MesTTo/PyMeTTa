@@ -24,11 +24,11 @@ or as `ground()` data, so the example's `println!` has no image here.
 
 from pathlib import Path
 
-from metta import S
+from metta import lib
 
 #: The two engine libraries the example opens, spelled with their real
 #: underscores.
-LIB_IMPORT, LIB_FILE = S["lib_import"], S["lib_file"]
+LIB_IMPORT, LIB_FILE = lib["lib_import"], lib.file
 
 #: The build artefact and the Prolog file that loads it, as host paths for a
 #: Python door.
@@ -40,21 +40,48 @@ LOADER_PL = Path("examples/integration/c_extension/loader.pl")
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 69812 to 69869, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 69869 to 69878, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 69878 to 69886, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 69886
 
 
 def twin(m):
     """Load the C predicate, then call it."""
-    # Known issue: `import!` has no Python door on the handle. The perfect
-    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
-    # library (appendix stamp 1), and neither exists yet, so the directive is
-    # reached by its own bang name, which performs it where it is written.
+    # (import! &self (library lib_import)) and (library lib_file): the write
+    # door imports, and the receiver is the target space.
     for library in (LIB_IMPORT, LIB_FILE):
-        m.fn["import!"](m, S.library(library))
+        m += library
 
     if not CBUMP_SO.exists():
         # The example prints its skip here. A twin has no door for prose.
         return
 
     m.register_prolog(path=LOADER_PL, names=["c-bump"])
-    assert m.fn.c_bump(41).one() == 42     # (test (eval (c-bump 41)) 42)
+    assert m.fn.c_bump(41) == [42]   # (test (eval (c-bump 41)) 42)

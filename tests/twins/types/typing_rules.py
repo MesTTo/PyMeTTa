@@ -13,24 +13,51 @@ is data rather than a call.
 
 Both directives are performed rather than built, because their engine names end
 in `!` and a banged name on the BOUND namespace performs on the line that
-writes it. The refusal itself is read through `collapse`, because a flat call
-of a compiled function at the Python door takes a fast path that never runs the
-argument check, so it answers `(seen unknown-demo)` where the engine's own form
-answers the Error. That divergence is friction against P14.9; every other
-spelling of the same call, nested, let-bound or collapsed, agrees with the
-engine.
+writes it. The refusal is read through the flat call itself: a declared head's
+flat call runs the same call-site typed dispatch the engine's own form runs
+(petta_py_typed_dispatch_applies/2), which retired this file's P14.9 residue
+row on 2026-08-25; the collapse spelling it once needed is gone.
 Guarantees:
-  - every ordered atom assembled in this file passes one iterable to
-    Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
+  - the flat call, the eval door, and the engine's own form agree on the
+    refusal [tested: test_a_typing_rule_refuses_a_flat_python_call]
 """
 
-from metta import Atom, Expression, S, fn
+from metta import Atom, S
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
 #: [assumed: 1 is a placeholder rather than a measurement; commit=e4c861a8c9e8e42b9e5ecb90d9ebf92a946e0163].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 5158 to 6697, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 6697 to 6687, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 6687 to 6658, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 6658
 
 #: The unconstrained type, as the rule's own argument spells it. `Any` is
 #: its image where a declaration is being BUILT; here it is being named.
@@ -66,8 +93,7 @@ def twin(m):
     refusal = S.BadArgType(1, S.DemoPayload, UNDEFINED,
                            S.TypingRuleRefusal(rule, words))
     demo = S.typing_rule_demo(payload)
-    refused = m.eval(fn.collapse(demo))  # rung: collapse is list(), but a FLAT call at the Python door skips the argument check this claim is about
-    assert refused == [Expression((S.Error(demo, refusal),))]
+    assert typing_rule_demo(payload) == [S.Error(demo, refusal)]
 
     # !(remove-typing-rule! deny-unknown-demo)
     # !(test (typing-rule-demo unknown-demo) (seen unknown-demo))

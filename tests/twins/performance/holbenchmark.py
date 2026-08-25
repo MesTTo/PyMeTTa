@@ -38,7 +38,26 @@ from metta import S, V, equation, fn, if_
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-23: the number is a placeholder, not a measurement;
 #: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 189781420 to 189781298, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 189781298 to 189781263, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 189781263
 
 #: `(+ 1)`, the partially applied increment all four kernels are driven with. A
 #: one-argument application has no operator spelling, so it is the tuple MeTTa
@@ -80,7 +99,7 @@ def twin(m):
         rest = range_(n - 1)
         return S.cons(n, rest)
 
-    assert m.fn.with_pragma(DEEP, S.length(S.map_flat(INC, S.range(1_000_000)))).one() == 1_000_000
+    assert m.fn.with_pragma(DEEP, S.length(S.map_flat(INC, S.range(1_000_000)))) == [1_000_000]
 
     # A fold that recurses into nested expressions rather than over them.
     m += equation(S.fold_nested(V.f, V.init, ())).to(V.init)  # rung: as above
@@ -108,7 +127,7 @@ def twin(m):
             return x
         return apply_many(f, n - 1, f(x))
 
-    assert m.fn.with_pragma(DEEP, S.apply_many(INC, 100_000, 0)).one() == 100_000
+    assert m.fn.with_pragma(DEEP, S.apply_many(INC, 100_000, 0)) == [100_000]
 
     # And a polynomial sum, which applies the parameter inside an addition.
     @m.define
@@ -117,4 +136,4 @@ def twin(m):
             return 0
         return f(n) + poly(f, n - 1)
 
-    assert m.fn.with_pragma(DEEP, S.poly(INC, 1_000_000)).one() == 500_001_500_000
+    assert m.fn.with_pragma(DEEP, S.poly(INC, 1_000_000)) == [500_001_500_000]

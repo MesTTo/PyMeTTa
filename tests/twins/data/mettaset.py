@@ -17,7 +17,8 @@ from metta import S, V
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=77e8bdc3dd822df05a2a6a9ec357c87fe1c3ac32].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+BUDGET = 259
 
 
 def twin(m):

@@ -17,19 +17,48 @@ units rather than six trues, and Python says the same thing with `print`, whose
 return is None, the unit's Python spelling.
 """
 
-from metta import G, S
+from metta import G, lib
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
 #: [assumed: this twin's inference cost is unmeasured on this branch;
 #: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 4532 to 4627, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 4627 to 4638, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 4638 to 4580, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 4580
 
 
 def twin(m):
     """Evaluate a call, a term, a chain, and a print over six items."""
-    m.fn["import!"](m, S.library(S["lib_he"]))
+    m += lib.he
 
     @m.define
     def double(x):
@@ -42,7 +71,7 @@ def twin(m):
     # chain binds one instruction's result and runs the continuation, which is
     # what an assignment and the next statement already are.
     summed = m.answers(G(2) + 3).one()
-    assert m.answers(G(summed) * 2).one() == 10
+    assert m.answers(G(summed) * 2) == [10]
 
     # Printing answers the unit value, once per item.
     printed = [print(item) for item in (1, 3, 5, 62, 2, 5)]

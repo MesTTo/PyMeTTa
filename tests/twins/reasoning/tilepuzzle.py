@@ -28,7 +28,7 @@ matchable.
 """
 
 import metta
-from metta import S, V, equation, if_
+from metta import S, V, equation, if_, lib
 
 #: The search head, whose MeTTa name carries a genuine underscore, so the
 #: attribute door cannot say it: rung 4's map would make it `bfs-loop`.
@@ -49,7 +49,36 @@ DIRECTIONS = ((S.U, -3), (S.L, -1), (S.R, 1), (S.D, 3))
 #: over 28 observations under `full-lane/218/workers=32`, so the re-pin owes
 #: it an envelope rather than a point
 #: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 197554387 to 197554425, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 197554425 to 197554239, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 197554239 to 197554208, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 197554208
 
 
 def _legal(blank, direction):
@@ -90,7 +119,7 @@ def twin(m):
         yield from _moves()
 
     # !(import! &self (library lib_datastructures))
-    m.fn["import!"](m, S.library(S["lib_datastructures"]))
+    m += lib.datastructures
 
     # The duplicate store is an ordinary space, and the Python variable IS its
     # binding, so it needs no name: the handle crosses a term position as
@@ -143,4 +172,4 @@ def twin(m):
         return S["bfs_loop"](queue, 0)
 
     # !(test (let $x (bfs_all (___ 1 2 3 4 5 6 7 8)) $x) 181441)
-    assert bfs_all((BLANK, 1, 2, 3, 4, 5, 6, 7, 8)).one() == 181441
+    assert bfs_all((BLANK, 1, 2, 3, 4, 5, 6, 7, 8)) == [181441]

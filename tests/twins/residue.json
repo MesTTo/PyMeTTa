@@ -360,33 +360,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/spaces/spaces_find.metta",
-      "form": null,
-      "missing": "a Python door for the import! directive",
-      "row": "P14.13",
-      "section": "§4 surface gaps: directives",
-      "detail": "import! is a directive rather than a value door, and there is no Python spelling for it; the term builder covers it, m.eval(S[\"import!\"](here, S.library(S.lib_spaces))), which resolves correctly here because a (library ...) name resolves against the library path rather than against an importing file. Same family as the basics/fibsmartimport entry, without its resolution problem."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_succeedspredicate.metta",
-      "form": null,
-      "missing": "a Python door for the import! directive",
-      "row": "P14.13",
-      "section": "§4 surface gaps: directives",
-      "detail": "Same as spaces_find: the lib_spaces import stays a term because import! has no Python door."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/spaces/spaces_removeallatoms.metta",
-      "form": null,
-      "missing": "a Python door for the import! directive",
-      "row": "P14.13",
-      "section": "§4 surface gaps: directives",
-      "detail": "Same as spaces_find: the lib_spaces import stays a term because import! has no Python door. It is also where this file's cost lives, on both sides."
-    },
-    {
-      "kind": "friction",
       "example": "examples/spaces/spaces_removeallatoms.metta",
       "form": null,
       "missing": "a clear() that answers remove-all-atoms' per-atom units",
@@ -581,7 +554,7 @@
       "missing": "a module name that resolves without an importing file",
       "row": "P14.13",
       "section": "§4 surface gaps: directives",
-      "detail": "import! has no dedicated Python door, which the term builder covers: m.eval(S[\"import!\"](S[\"&self\"], S.fibsmart)) is a legal zero-string spelling. What it cannot do is RESOLVE: a bare module name resolves relative to the importing FILE, and a Python-authored program has no file, so the engine answers `source_sink fibsmart does not exist`. The twin names the path, S[\"examples/basics/fibsmart\"]."
+      "detail": "The door half landed 2026-08-25 (`m += lib(path)`), leaving the resolution half this entry names. What it cannot do is RESOLVE: a bare module name resolves relative to the importing FILE, and a Python-authored program has no file, so the engine answers `source_sink fibsmart does not exist`. The twin names the path, S[\"examples/basics/fibsmart\"]."
     },
     {
       "kind": "friction",
@@ -936,39 +909,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/types/builin_types.metta",
-      "form": null,
-      "missing": "an import VERB on the space handle, so a library import is a call rather than an evaluated directive term",
-      "row": "P14.13",
-      "section": "§4 surface gaps: declarations that are directives (import!, bind!, pragmas)",
-      "detail": "NARROWED 2026-08-23. R2 closed the term-position half: a space is an atom, so `m.eval(fn['import!'](m, S.library(S['lib_builtin_types'])))` hands the import its own handle and the twin writes no `&self` symbol and needs no rung line. What remains is that importing a library is still an evaluated DIRECTIVE rather than a verb: the guide's own spelling is `space += lib.he` with `lib` a catalog-generated namespace, which is appendix stamp 1 and unbuilt. Note the library's file name is `lib_builtin_types`, a genuine underscore, so it takes the bracket at the factory door."
-    },
-    {
-      "kind": "friction",
       "example": "examples/types/engine_surface.metta",
       "form": null,
       "missing": "a subscript door that reads a wholly-variable (: $n $t) pattern the way the engine's own match reads it",
       "row": "P14.29",
       "section": "§9 risks: two sources of truth (the twins stay differential)",
       "detail": "Measured 2026-08-22 on one atom, `(: program-own-type MyType)`, in a fresh engine: `m.eval(S.match(S[\"&self\"], S[\":\"](V.n, V.t), V.n))` answers `program-own-type`, the STRUCTURAL reading the example asserts and translator.pl's gate 1 implements (\"a pattern that IS a colon expression stays structural, so `(match &self (: $x Human) $x)` still retrieves stored declarations\", translator.pl:616), while `m.query(S[\":\"](V.n, V.t))` answers one row binding `n` to the WHOLE atom and `t` to %Undefined%, the in-place ANNOTATION reading. The two doors disagree on the same pattern and the same space. Both agree when either slot is concrete: `(: Zeus $t)` answers God through both, and `(knows (: $x Human) (: $y Human))` prunes by type through both. The cause is where gate 1 lives: the translator decides it while translating a match form, and the Python door hands a decoded pattern straight to match/4 (shim.pl:1299, petta_py_match_goal/3), which never sees the gate. The twin reads the space by iterating it instead. Sibling of P14.29's tuple divergence and probably wants its own row."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/typing_rules.metta",
-      "form": null,
-      "missing": "a Python calling door that runs the argument type check the engine's own `!` form runs",
-      "row": "P14.9",
-      "section": "§9 risks: two sources of truth (the twins stay differential)",
-      "detail": "Measured 2026-08-22, one program, four spellings of one call, two answers. After `(add-typing-rule! deny-unknown-demo ordinary %Undefined% DemoPayload (refuse ...))`, `m.run(\"!(typing-rule-demo unknown-demo)\")` answers the `(Error ... (BadArgType 1 DemoPayload %Undefined% (TypingRuleRefusal ...)))` the example asserts, and so do `m.eval(S[\"let\"](V.r, demo(payload), V.r))` and `m.eval(S.collapse(demo(payload)))` and `m.eval(demo(S.id(payload)))`; but `m.eval(demo(payload))` and `m.fn(\"typing-rule-demo\")(payload)` answer `(seen unknown-demo)`, with no check run at all. The discriminator is the shape of the call, which points straight at the fast path: shim.pl:1476 takes `petta_py_direct_goal/4` for \"a flat call of a compiled function whose arguments are all plain data\" and calls it without translating, and translation is what inserts the type-directed acceptance. So the doors a Python user reaches for all day are exactly the ones that skip the checker. The twin reads the refusal through `collapse` and says so on the line."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/types/types_nondet.metta",
-      "form": null,
-      "missing": "a Python calling door that applies the declared OUTPUT type filter",
-      "row": "P14.9",
-      "section": "§9 risks: two sources of truth (the twins stay differential)",
-      "detail": "The same defect as the typing_rules entry, seen from the output side and measured 2026-08-22 on this example's own program: with `(: f (-> Type1 Type1))` and `(: f (-> Type2 Type2))` declared and `T3in` a Type1 only, the engine's own form answers nothing (`m.run(\"!(f T3in)\")` is `[]`, and `m.load` of the file answers `[]` for that form, which is what `test-no-answer` asserts), while `m.eval(S.f(S.T3in))` and `m.fn(\"f\").all(S.T3in)` answer `Tdefault`. Wrapping the same call in `collapse` restores the engine's answer, `()`. A twin that used the calling door here would pin the WRONG behaviour as a passing claim, which is the failure mode the differential exists to catch."
     },
     {
       "kind": "friction",
@@ -1104,15 +1050,6 @@
       "row": "P14.4",
       "section": "§4 surface gaps: the compiled subset",
       "detail": "The runnable form's let* pairs DESTRUCTURE, (($x1 $it1) (iter-next $it)), and a compiled body binds plain names only (_name_of: \"a compiled body binds plain names; destructuring and attribute assignment have no let* form\"), so that form stays at the term door. The definitions themselves compile: assignment in iter-next's body IS the let* the original writes."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_duplicate_cycle.metta",
-      "form": null,
-      "missing": "an import path that resolves relative to a Python-authored program",
-      "row": "P14.13",
-      "section": "§4 surface gaps: directives",
-      "detail": "A Python twin has no importing file, so relative imports must be rewritten from the repository root. The same friction occurs in import_order_independence, import_relative_nested, import_space_identity and python_import."
     },
     {
       "kind": "declined",
@@ -1710,33 +1647,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/integration/python_import.metta",
-      "form": null,
-      "missing": "an import path that resolves relative to a Python-authored program",
-      "row": "P14.13",
-      "section": "§4 declarations that are directives",
-      "detail": "The example writes \"_fixtures/python_import_file.py\", relative to its own .metta file. A Python program has no importing file for the engine to resolve against, so the twin writes the repository-relative path instead. Same wall as examples/integration/import_duplicate_cycle.metta."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_relative_nested.metta",
-      "form": null,
-      "missing": "an import path that resolves relative to a Python-authored program",
-      "row": "P14.13",
-      "section": "§4 declarations that are directives",
-      "detail": "Same wall as import_duplicate_cycle: the example's `_fixtures/imports/relative/root` resolves against its own .metta file, and the twin writes the repository-relative path."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_space_identity.metta",
-      "form": null,
-      "missing": "an import path that resolves relative to a Python-authored program",
-      "row": "P14.13",
-      "section": "§4 declarations that are directives",
-      "detail": "Same wall as import_duplicate_cycle, for `_fixtures/imports/overhaul/space_payload` imported into two named spaces."
-    },
-    {
-      "kind": "friction",
       "example": "examples/translation/translatorrule.metta",
       "form": null,
       "missing": "a Python declaration door for the rewrite seam",
@@ -1764,87 +1674,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/integration/git_import.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_duplicate_cycle.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_error_surface.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_relative_nested.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_space_identity.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/python_import.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/c_extension/c_extension.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/c_extension/handle.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/c_space/c_space.metta",
-      "form": null,
-      "missing": "a Python import door on the space handle",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist."
-    },
-    {
-      "kind": "friction",
       "example": "examples/integration/c_space/c_space.metta",
       "form": null,
       "missing": "a compliance kit that reaches a Prolog or C provider, not only a Python one",
@@ -1860,15 +1689,6 @@
       "row": "P14.5",
       "section": "§9d the concept map, \"the Python CLASS of an atom to its metatype\"",
       "detail": "The design's rule is that the Python class of an atom IS its metatype, so `isinstance(a, Grounded)` should answer what `(get-metatype a)` answers. It does not for a native handle: `Handle.__mro__` is (Handle, Atom, object), `issubclass(Handle, Grounded)` is False, and the engine still says Grounded [re-measured 2026-08-23 on the narrow core]. Separately `atom.metatype` answers the STRING 'Grounded' rather than `S.Grounded`, so the claim reads `vector.metatype == S.Grounded.name`."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_space_identity.metta",
-      "form": null,
-      "missing": "a space-creation door on the handle's OWN context, not the process default",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `petta.space(name)`, which rides `petta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`petta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it."
     },
     {
       "kind": "friction",
@@ -1899,12 +1719,48 @@
     },
     {
       "kind": "friction",
+      "example": "examples/integration/import_duplicate_cycle.metta",
+      "form": null,
+      "missing": "an import path that resolves relative to a Python-authored program",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "A Python twin has no importing file, so relative imports must be rewritten from the repository root. The same friction occurs in import_order_independence, import_relative_nested, import_space_identity and python_import."
+    },
+    {
+      "kind": "friction",
       "example": "examples/integration/python_import.metta",
       "form": null,
-      "missing": "an import door that takes a pathlib.Path",
+      "missing": "an import path that resolves relative to a Python-authored program",
       "row": "P14.13",
-      "section": "§9n minimise strings: a path is a Path, never text",
-      "detail": "The guide lists paths under never-strings, and `import!` reads its target as an atom: measured 2026-08-24, `m.fn[\"import!\"](m, ground(Path(...)))` raises `atom_string/2: Type error: 'atom' expected, found <py_Box>`, while the same path as `ground(str(path))` or as `S[\"...\"]` loads. So the twin keeps the path as a `Path` and renders it at the door, and the sibling import twins mint a module NAME at the `S` factory, which is what a module name is."
+      "section": "§4 declarations that are directives",
+      "detail": "The example writes \"_fixtures/python_import_file.py\", relative to its own .metta file. A Python program has no importing file for the engine to resolve against, so the twin writes the repository-relative path instead. Same wall as examples/integration/import_duplicate_cycle.metta."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_relative_nested.metta",
+      "form": null,
+      "missing": "an import path that resolves relative to a Python-authored program",
+      "row": "P14.13",
+      "section": "§4 declarations that are directives",
+      "detail": "Same wall as import_duplicate_cycle: the example's `_fixtures/imports/relative/root` resolves against its own .metta file, and the twin writes the repository-relative path."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_space_identity.metta",
+      "form": null,
+      "missing": "an import path that resolves relative to a Python-authored program",
+      "row": "P14.13",
+      "section": "§4 declarations that are directives",
+      "detail": "Same wall as import_duplicate_cycle, for `_fixtures/imports/overhaul/space_payload` imported into two named spaces."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_space_identity.metta",
+      "form": null,
+      "missing": "a space-creation door on the handle's OWN context, not the process default",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `petta.space(name)`, which rides `petta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`petta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it."
     }
   ],
   "retired": [
@@ -5374,6 +5230,166 @@
       "section": "§9b: control and modes, modes are with-blocks",
       "detail": "AS FILED, superseded by the retirement line below. The old twin built `pragma!` as a symbol term.",
       "retired": "2026-08-24: trailing-bang resolution makes `m.fn.pragma` the effectful Python call; all seven settings, including `none` clearing and the rejected negative stack depth, pass through it"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/typing_rules.metta",
+      "form": null,
+      "missing": "a Python calling door that runs the argument type check the engine's own `!` form runs",
+      "row": "P14.9",
+      "section": "§9 risks: two sources of truth (the twins stay differential)",
+      "detail": "AS FILED, superseded by the retirement line below. Measured 2026-08-22, one program, four spellings of one call, two answers. After `(add-typing-rule! deny-unknown-demo ordinary %Undefined% DemoPayload (refuse ...))`, `m.run(\"!(typing-rule-demo unknown-demo)\")` answers the `(Error ... (BadArgType 1 DemoPayload %Undefined% (TypingRuleRefusal ...)))` the example asserts, and so do `m.eval(S[\"let\"](V.r, demo(payload), V.r))` and `m.eval(S.collapse(demo(payload)))` and `m.eval(demo(S.id(payload)))`; but `m.eval(demo(payload))` and `m.fn(\"typing-rule-demo\")(payload)` answer `(seen unknown-demo)`, with no check run at all. The discriminator is the shape of the call, which points straight at the fast path: shim.pl:1476 takes `petta_py_direct_goal/4` for \"a flat call of a compiled function whose arguments are all plain data\" and calls it without translating, and translation is what inserts the type-directed acceptance. So the doors a Python user reaches for all day are exactly the ones that skip the checker. The twin reads the refusal through `collapse` and says so on the line.",
+      "retired": "2026-08-25: petta_py_typed_dispatch_applies/2 closes the direct fast path for any head with a declaration in scope, so the flat call and m.fn both answer the rule's TypingRuleRefusal; the twin's collapse workaround is gone and tests/test_typed_flat_calls.py pins the flat door's refusal, its removal, and the undeclared fast path staying open"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/types_nondet.metta",
+      "form": null,
+      "missing": "a Python calling door that applies the declared OUTPUT type filter",
+      "row": "P14.9",
+      "section": "§9 risks: two sources of truth (the twins stay differential)",
+      "detail": "AS FILED, superseded by the retirement line below. The same defect as the typing_rules entry, seen from the output side and measured 2026-08-22 on this example's own program: with `(: f (-> Type1 Type1))` and `(: f (-> Type2 Type2))` declared and `T3in` a Type1 only, the engine's own form answers nothing (`m.run(\"!(f T3in)\")` is `[]`, and `m.load` of the file answers `[]` for that form, which is what `test-no-answer` asserts), while `m.eval(S.f(S.T3in))` and `m.fn(\"f\").all(S.T3in)` answer `Tdefault`. Wrapping the same call in `collapse` restores the engine's answer, `()`. A twin that used the calling door here would pin the WRONG behaviour as a passing claim, which is the failure mode the differential exists to catch.",
+      "retired": "2026-08-25: the same gate routes the declared flat call through call-site typed dispatch, and the conformance-2 rewrite had already moved the example's own answer: LeaTTa 9ea9f9d answers Tdefault for (f T3in), so the engine form and the calling door now agree on Tdefault and the no-answer divergence this entry measured no longer exists on either side"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_find.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "AS FILED, superseded by the retirement line below. import! is a directive rather than a value door, and there is no Python spelling for it; the term builder covers it, m.eval(S[\"import!\"](here, S.library(S.lib_spaces))), which resolves correctly here because a (library ...) name resolves against the library path rather than against an importing file. Same family as the basics/fibsmartimport entry, without its resolution problem.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_succeedspredicate.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "AS FILED, superseded by the retirement line below. Same as spaces_find: the lib_spaces import stays a term because import! has no Python door.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/spaces/spaces_removeallatoms.metta",
+      "form": null,
+      "missing": "a Python door for the import! directive",
+      "row": "P14.13",
+      "section": "§4 surface gaps: directives",
+      "detail": "AS FILED, superseded by the retirement line below. Same as spaces_find: the lib_spaces import stays a term because import! has no Python door. It is also where this file's cost lives, on both sides.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/types/builin_types.metta",
+      "form": null,
+      "missing": "an import VERB on the space handle, so a library import is a call rather than an evaluated directive term",
+      "row": "P14.13",
+      "section": "§4 surface gaps: declarations that are directives (import!, bind!, pragmas)",
+      "detail": "AS FILED, superseded by the retirement line below. NARROWED 2026-08-23. R2 closed the term-position half: a space is an atom, so `m.eval(fn['import!'](m, S.library(S['lib_builtin_types'])))` hands the import its own handle and the twin writes no `&self` symbol and needs no rung line. What remains is that importing a library is still an evaluated DIRECTIVE rather than a verb: the guide's own spelling is `space += lib.he` with `lib` a catalog-generated namespace, which is appendix stamp 1 and unbuilt. Note the library's file name is `lib_builtin_types`, a genuine underscore, so it takes the bracket at the factory door.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/git_import.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_duplicate_cycle.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_error_surface.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_relative_nested.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_space_identity.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/python_import.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_extension/c_extension.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_extension/handle.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_space/c_space.metta",
+      "form": null,
+      "missing": "a Python import door on the space handle",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "AS FILED, superseded by the retirement line below. Two halves, one narrowed and one new. NARROWED 2026-08-23: the half that said `import!` must name its space as a SYMBOL is closed by R2's handle-as-operand encoding, and every import-bearing twin in this folder now passes the handle (`m.eval(S[\"import!\"](m, target))`, measured). What survives is that `import!` has no Python door of its own: the design's spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped library under appendix stamp 1, and neither exists. NEW, measured 2026-08-23: the generic call door cannot stand in for it, because `_EngineFunction.__call__` answers a LAZY `Answers` view and `m.fn[\"import!\"](m, target)` written as a statement imports NOTHING until something pulls it; the same swallows `add-translator-rule!` and every other directive reached through the function namespace. A side-effecting call has to run at statement level, which is what the style guide's `!(expr)` row means. NARROWED 2026-08-23 on the p14 library-fixes merge (cf2c0e5a): the EAGER call door half is closed by fix 1, so `m.fn[\"import!\"](m, target)` as a statement performs the import where it is written, and every twin in this folder now writes it that way. What survives is that `import!` has no Python door on the handle: `m.import_(target)` and `m += lib.<name>` do not exist.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/python_import.metta",
+      "form": null,
+      "missing": "an import door that takes a pathlib.Path",
+      "row": "P14.13",
+      "section": "§9n minimise strings: a path is a Path, never text",
+      "detail": "AS FILED, superseded by the retirement line below. The guide lists paths under never-strings, and `import!` reads its target as an atom: measured 2026-08-24, `m.fn[\"import!\"](m, ground(Path(...)))` raises `atom_string/2: Type error: 'atom' expected, found <py_Box>`, while the same path as `ground(str(path))` or as `S[\"...\"]` loads. So the twin keeps the path as a `Path` and renders it at the door, and the sibling import twins mint a module NAME at the `S` factory, which is what a module name is.",
+      "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
     }
   ]
 }

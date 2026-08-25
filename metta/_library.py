@@ -16,8 +16,13 @@ Guarantees:
     which no library answers) [tested: test_the_attribute_map_is_the_family_prefix]
   - `lib["minimal_metta_lib"]` is the exact-name door for a library
     outside the family, `lib.x.part` is the two-argument
-    `(library x part)` form, and `lib(path)` is the exact-module-form
-    escape for a path import [tested: test_the_exact_doors_build_the_engine_forms]
+    `(library x part)` form, and `lib(S["path/to/module"])` is the
+    exact-module-form escape for a path import: the path is an ATOM the
+    engine resolves by its own rules (the importing file, the repo root
+    for a host program), never against the host's working directory, so
+    it takes the same S[...] bracket every unspeakable name takes
+    (user-ruled 2026-08-25); str and os.PathLike stay accepted one rung
+    down [tested: test_the_exact_doors_build_the_engine_forms]
   - a handle refuses every atom position: encoding one raises with the
     import spelling as the remedy, so a library can never silently become
     an opaque grounded box inside a stored term
@@ -132,8 +137,8 @@ def _(value: Library) -> Atom:
 class _LibraryNamespace:
     """`lib.he` is the shipped library `lib_he`; brackets and calls are the
     exact doors, one rung down each: `lib["minimal_metta_lib"]` for an exact
-    library name outside the `lib_` family, `lib(path)` for an exact module
-    form such as a source path.
+    library name outside the `lib_` family, `lib(S["path/to/module"])` for
+    an exact module form such as a source path, named by its atom.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     __slots__ = ()

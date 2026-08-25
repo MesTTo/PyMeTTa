@@ -16,7 +16,7 @@ and this does not (friction, P14.13). The space is the handle itself, which
 crosses into the built term as a grounded operand.
 """
 
-from metta import S
+from metta import S, lib
 
 #: The same file twice: once by module name, once with `./` and `.` segments
 #: and a suffix. Written from the repository root, where the lane runs.
@@ -29,21 +29,48 @@ CYCLE = S["examples/integration/_fixtures/imports/overhaul/cycle_a"]
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 7330 to 7444, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 7444 to 7445, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 7445 to 7457, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 7457
 
 
 def twin(m):
     """Import one file twice and a cycle once, then read all three."""
-    # Known issue: `import!` has no Python door on the handle. The perfect
-    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
-    # library (appendix stamp 1), and neither exists yet, so the directive is
-    # reached by its own bang name, which performs it where it is written.
+    # (import! &self <target>), once per spelling of the duplicate and once
+    # for the cycle; the write door imports, the engine decides the skips.
     for target in (DUPLICATE, DUPLICATE_METTA, CYCLE):
-        m.fn["import!"](m, target)
+        m += lib(target)
 
     # Loaded once, so the marker answers once.
-    assert m.fn.duplicate_import_result().one() == S.loaded_once
+    assert m.fn.duplicate_import_result() == [S.loaded_once]
 
     # Both halves of the cycle finished loading.
-    assert m.fn.cycle_a().one() == S.a
-    assert m.fn.cycle_b().one() == S.b
+    assert m.fn.cycle_a() == [S.a]
+    assert m.fn.cycle_b() == [S.b]

@@ -13,28 +13,55 @@ UNIT PER REMOVED ATOM, and the example's own claim is about that answer
 own on cardinality, so the pair can be taught side by side the way `-=` and
 `del kb[pattern]` are. Reading the aftermath is the container door, `len(space)`.
 
-`import!` is a directive with no Python door yet, so the library arrives
-through the engine's own function, with the handle in the space position
-(residue, P14.13). PERFECT: `m += lib.lib_spaces`, a library landing through
-the one write door because a library IS knowledge. Its name keeps the
-underscore MeTTa gives it, at both doors: `S.lib_spaces` would be the atom
-`lib-spaces` and `fn.import_` would be `import-`, so each takes the bracket
-that spells the name exactly.
+The library arrives through the write door, `m += lib.spaces`, because a
+library IS knowledge and the receiver is the target space. The lib
+namespace joins its `lib_` family prefix with underscores kept, which is
+why no bracket spelling is needed for a name MeTTa writes as
+`lib_spaces`.
 """
 
-from metta import S
+from metta import S, lib
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
 #: ships [assumed 2026-08-24: the number is a placeholder, not a measurement;
 #: commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 13527 to 13565, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 13565 to 13576, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 13576 to 13512, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 13512
 
 
 def twin(m):
     """Fill a space, empty it, then see what is left to answer with."""
-    m.fn["import!"](m, S.library(S["lib_spaces"])).one()  # rung: import! is a directive, and no Python door claims it
+    m += lib.spaces
 
     m += (S.friend, S.tim, S.tom)
 
@@ -46,6 +73,6 @@ def twin(m):
 
     # The function was imported into this space, so it left with everything
     # else: a second call has nothing to reduce it and answers itself.
-    assert m.answers(S.remove_all_atoms(m)).one() == S.remove_all_atoms(m)
-    assert m.answers(S.f(42)).one() == S.f(42)
+    assert m.answers(S.remove_all_atoms(m)) == [S.remove_all_atoms(m)]
+    assert m.answers(S.f(42)) == [S.f(42)]
     assert len(m) == 0

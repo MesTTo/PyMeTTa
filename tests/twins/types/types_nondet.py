@@ -15,13 +15,44 @@ different types, which `==` refuses by name. Both references refuse the `==`
 spelling too, hyperon and the mechanised interpreter alike.
 """
 
-from metta import UNIT, S, arrow, fn, typed
+from metta import S, arrow, fn, typed
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
 #: [assumed: 1 is a placeholder rather than a measurement; commit=e4c861a8c9e8e42b9e5ecb90d9ebf92a946e0163].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass after the conformance
+#: answer updates: tools/twin_coverage.py --measure min-of-3, identical
+#: across two fresh rounds on p14-integration at the store-wave merge.
+#: RE-PINNED 2026-08-25, 11306 to 13718, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 13718 to 13724, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 13724 to 13689, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+BUDGET = 13689
 
 
 def twin(m):
@@ -56,12 +87,14 @@ def twin(m):
     # !(test (f T2in) T2out)
     assert f(S.T2in) == [S.T2out]
 
-    # Type1 in, Type2 out: no signature admits that, so nothing answers.
-    # This one is asked through collapse because a FLAT call at the Python
-    # door skips the output-type filter the engine's own form applies and
-    # answers Tdefault (friction, P14.9, with the reproduction).
-    # !(test-no-answer (f T3in))
-    assert m.eval(fn.collapse(S.f(S.T3in))) == [UNIT]  # rung: collapse is list(), but list() over the Python call door would collect an answer the engine does not give
+    # (: T3in Type1) — and the arbiter (LeaTTa 9ea9f9d) selects the Type2
+    # result path and answers Tdefault, the conformance-2 rewrite of this
+    # example's own row; the old no-answer pin went with it, and the flat
+    # call runs the same output-typed dispatch the engine's form runs, so
+    # the collapse wrapper this line once needed is gone too.
+    # !(test (f T3in) Tdefault)
+    m += typed(S.T3in, S.Type1)
+    assert f(S.T3in) == [S.Tdefault]
 
     # Declare T3in a Type2 as well and the Type2 signature admits it.
     # (: T3in Type2)
