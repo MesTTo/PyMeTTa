@@ -90,5 +90,10 @@ class _HostIsland:
                 continue
         locals_.update(zip(self.runtime_names, values, strict=True))
         # Evaluating arbitrary host syntax is the explicit purpose of py(...):
-        # the unmarked compiler path continues to refuse it statically.
-        return eval(self._code, self._globals, locals_)  # noqa: S307
+        # the unmarked compiler path continues to refuse it statically. The
+        # code object was compiled from the marker's own source span inside
+        # the user's own function, so it is their expression running in their
+        # process, not input crossing a boundary. ast.literal_eval cannot
+        # stand in: an island is an expression, not a literal.
+        # pylint: disable-next=eval-used
+        return eval(self._code, self._globals, locals_)  # noqa: S307  # nosec B307

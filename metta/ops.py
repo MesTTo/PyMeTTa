@@ -881,8 +881,8 @@ def _registered_operation(fn: Callable[..., Any]) -> Operation | None:
         return operation
     source = inspect.unwrap(fn)
     for candidate in REGISTRY.values():
-        registered = candidate.fn
-        if fn is registered or source is inspect.unwrap(registered):
+        behind = candidate.fn
+        if fn is behind or source is inspect.unwrap(behind):
             return candidate
     return None
 
