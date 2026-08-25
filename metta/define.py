@@ -56,6 +56,10 @@ Guarantees:
     the live door and inside compiled bodies [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
+  - a live Defined call reads the shared deprecation catalog after staging
+    has finished and warns with its since/remedy declaration [tested:
+    test_deprecation_catalog_rows_drive_warnings_and_explanations;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -353,6 +357,7 @@ class Defined[**P, R]:
             if len(folded) == 1:
                 return _encode(folded[0])
             return term
+        self.space._warn_deprecated(self.name, stacklevel=3)
         if self._uses_main_engine:
             # SWI answer tables belong to the main engine. A child engine is
             # the right suspension mechanism for ordinary lazy evaluation,

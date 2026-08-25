@@ -33,9 +33,9 @@ Guarantees:
     hygienic variable, pattern-instantiation, compiled reader-pattern,
     anonymous provenance, ``reacts`` declaration, composite operator words,
     compiled assertion/removal statements, signature-bound call keywords, and
-    per-ask theory/interpreter selection
+    per-ask theory/interpreter selection plus catalog-driven deprecation
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=0d49980b03d507f9bae0354786ab826a146c20df]
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -125,6 +125,11 @@ class PublicFace:
 
 
 PUBLIC_FACES: tuple[PublicFace, ...] = (
+    PublicFace(
+        "metta.catalog.add(S.deprecated(name, since, remedy))",
+        "warn at callable doors and carry the same retirement into explain",
+        "metta.catalog.add(S.deprecated(S.old, S['0.2.0'], S.use(S.new)))",
+    ),
     PublicFace(
         "space.answers(term, theory=laws); space.answers(term, interpreter=interpret)",
         "select a complete theory value or full interpreter for one ask",

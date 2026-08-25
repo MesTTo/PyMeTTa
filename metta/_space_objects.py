@@ -29,6 +29,10 @@ Guarantees:
     operation signature [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
+  - direct and composite callable doors warn from the shared deprecation
+    catalog with the declared since/remedy [tested:
+    test_deprecation_catalog_rows_drive_warnings_and_explanations;
+    commit=WORKTREE]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -941,6 +945,7 @@ class _EngineFunction:
             if parameters is None:
                 raise refuse_unknown_keywords(self._name, tuple(kwargs))
             args = bind_positional_call(self._name, parameters, args, kwargs)
+        self._space._warn_deprecated(self._name, stacklevel=3)
         answers = self._space.answers(self._term(args))
         if self._name.endswith("!"):
             answers._materialize()
@@ -1045,6 +1050,7 @@ class _CompositeEngineFunction:
         self.__qualname__ = f"{space.name}.{recipe.word}"
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        self._space._warn_deprecated(self._recipe.word, stacklevel=3)
         return self._space.answers(self._recipe(*args, **kwargs))
 
     def __repr__(self) -> str:

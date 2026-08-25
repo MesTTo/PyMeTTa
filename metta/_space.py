@@ -94,6 +94,10 @@ Guarantees:
     an explicit full-interpreter head without mutating the receiver [tested:
     test_answers_selects_a_theory_or_interpreter_per_ask;
     commit=0d49980b03d507f9bae0354786ab826a146c20df]
+  - callable doors cache live deprecation declarations until the next write
+    and issue the catalog's since/remedy warning [tested:
+    test_deprecation_catalog_rows_drive_warnings_and_explanations;
+    commit=WORKTREE]
   - builtin discovery is cached per logical space, with namespace reads
     comparing the engine's function generation and explicit Python mutation
     doors retaining eager invalidation [tested:
@@ -136,6 +140,7 @@ import os
 import re as _re
 import sys
 import threading
+import warnings
 import weakref
 from collections import abc as _abc
 from collections.abc import Callable, Iterable, Iterator
@@ -257,6 +262,9 @@ _BUILTINS_CACHE_LOCK = threading.RLock()
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
     Runtime, tuple[int, int, dict[str, tuple[str, ...]]]
 ] = weakref.WeakKeyDictionary()
+_DEPRECATION_CACHE: weakref.WeakKeyDictionary[
+    Runtime, dict[str, tuple[str, str] | None]
+] = weakref.WeakKeyDictionary()
 
 
 def _invalidate_builtins_cache(rt: Runtime) -> None:
@@ -264,6 +272,31 @@ def _invalidate_builtins_cache(rt: Runtime) -> None:
     with _BUILTINS_CACHE_LOCK:
         epoch, function_generation, _ = _BUILTINS_CACHE.get(rt, (0, -1, {}))
         _BUILTINS_CACHE[rt] = (epoch + 1, function_generation, {})
+        _DEPRECATION_CACHE.pop(rt, None)
+
+
+def _catalog_text(value: Any) -> str:
+    """Render a catalog term the way its MeTTa source reads."""
+    if isinstance(value, list):
+        return f"({' '.join(_catalog_text(child) for child in value)})"
+    return str(value)
+
+
+def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
+    """Read one live declaration and cache it until the next explicit write."""
+    with _BUILTINS_CACHE_LOCK:
+        cache = _DEPRECATION_CACHE.setdefault(rt, {})
+        if name in cache:
+            return cache[name]
+    row = rt.once("petta_deprecation(Name, Since, Remedy)", Name=name)
+    declaration = (
+        None
+        if not row
+        else (_catalog_text(row["Since"]), _catalog_text(row["Remedy"]))
+    )
+    with _BUILTINS_CACHE_LOCK:
+        _DEPRECATION_CACHE.setdefault(rt, {})[name] = declaration
+    return declaration
 
 
 def _function_generation(rt: Runtime) -> int:
@@ -2808,6 +2841,18 @@ class Space(Handle):
     def _invalidate_builtins(self) -> None:
         """Discard cached catalogues after an engine-side mutation."""
         _invalidate_builtins_cache(self._rt)
+
+    def _warn_deprecated(self, name: str, *, stacklevel: int) -> None:
+        """Warn from the caller's frame when the catalog retires ``name``."""
+        declaration = _deprecation(self._rt, name)
+        if declaration is None:
+            return
+        since, remedy = declaration
+        warnings.warn(
+            f"{name} is deprecated since {since}; {remedy}",
+            DeprecationWarning,
+            stacklevel=stacklevel,
+        )
 
     def is_function(self, name: str) -> bool:
         """Report whether a function is visible from this space."""
