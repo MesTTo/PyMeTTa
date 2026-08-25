@@ -47,6 +47,11 @@ Guarantees:
   - ordinary Defined calls keep the held evaluation cursor inside a stats
     scope, so a bounded view suspends an endless producer [tested:
     test_function_calls_suspend_endless_producers; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - a parameter whose resolved annotation names ``Space`` enters statement
+    lowering as a space handle, so its augmented removal cannot become
+    arithmetic [tested:
+    test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -577,6 +582,13 @@ def compile_function(
     def host_value(identifier: str) -> Any:
         return namespace.get(identifier, _MISSING_HOST)
 
+    annotation_resolver = _annotation_resolver(fn)
+    space_parameters = {
+        argument.arg
+        for argument in definition.args.args
+        if argument.annotation is not None
+        and annotation_resolver(argument.annotation) == Symbol("SpaceType")
+    }
     compiler = _Compiler(
         metta_name or fn.__name__,
         scope,
@@ -588,7 +600,8 @@ def compile_function(
         builders=builders,
         host_value=host_value,
         defined_name=defined_name,
-        annotation_resolver=_annotation_resolver(fn),
+        annotation_resolver=annotation_resolver,
+        space_locals=space_parameters,
     )
     generator = _is_generator(definition)
     body: Atom
@@ -610,6 +623,7 @@ def compile_function(
         first_line=first_line,
         known=known,
         effect=_provided(effect, _unknown_effect),
+        space_locals=compiler.space_locals,
     )
     twin = _python_twin(fn, patterns)
     twin.__doc__ = facts.doc

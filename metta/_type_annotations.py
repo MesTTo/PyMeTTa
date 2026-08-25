@@ -20,6 +20,10 @@ Guarantees:
     type continues to determine arrow types and runtime conversion [tested:
     test_two_values_of_one_base_type_are_distinguishable_by_their_metadata;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the public Space handle annotation denotes the engine's ``SpaceType``
+    instead of declaring an unrelated user type [tested:
+    test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -64,6 +68,14 @@ def metta_type_for(annotation: Any) -> str:
         return "%Undefined%"
     if annotation in _METATYPE_NAMES:
         return _METATYPE_NAMES[annotation]
+    if (
+        isinstance(annotation, type)
+        and annotation.__module__ == "metta._space"
+        and annotation.__name__ == "Space"
+    ):
+        # Importing Space here would close the define -> annotations -> Space
+        # cycle. Its defining module and class name are the stable identity.
+        return "SpaceType"
     for python_type, name in _TYPE_NAMES:
         if annotation is python_type:
             return name

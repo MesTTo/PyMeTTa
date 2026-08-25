@@ -31,9 +31,10 @@ Guarantees:
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - the Python-first table teaches the concise atom cast, root catalog,
     hygienic variable, pattern-instantiation, compiled reader-pattern,
-    anonymous provenance, ``reacts`` declaration, and composite operator-word doors
+    anonymous provenance, ``reacts`` declaration, composite operator words,
+    and compiled assertion/removal statements
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -123,6 +124,16 @@ class PublicFace:
 
 
 PUBLIC_FACES: tuple[PublicFace, ...] = (
+    PublicFace(
+        "assert condition, reason",
+        "continue on truth or answer (Error condition reason) from a compiled body",
+        "@space.define\ndef positive(x):\n    assert x > 0, 'positive'\n    return x",
+    ),
+    PublicFace(
+        "del space[pattern]; space -= atom",
+        "remove every pattern match or one exact occurrence inside a compiled body",
+        "del target[S.edge(V.x, V.y)]\ntarget -= S.marker",
+    ),
     PublicFace(
         "S.neg(atom), fn.neg(atom), space.fn.neg(atom)",
         "build or evaluate unary negation through its canonical (- 0 atom) image",
