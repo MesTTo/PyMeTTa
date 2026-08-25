@@ -11,6 +11,10 @@ Guarantees:
     answers false to fun/1 [tested test_a_special_form_is_a_known_head]
   - malformed engine arity rows raise EngineError instead of changing a
     diagnosis [tested test_registry_queries_are_native_and_cached_per_name]
+  - operation effects are read from the reflected ``op`` and ``effect`` facts,
+    so crossing diagnostics consume the lattice instead of recreating it
+    [tested: test_known_map_filter_and_fold_111x_shapes_are_linted;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -77,6 +81,7 @@ class EngineRegistry:
         "_arities",
         "_functions",
         "_known",
+        "_operations",
         "_runtime",
         "_special",
         "_tabled",
@@ -90,6 +95,7 @@ class EngineRegistry:
         self._arities: dict[str, frozenset[int]] = {}
         self._tabled: frozenset[str] | None = None
         self._known: frozenset[str] | None = None
+        self._operations: dict[str, str | None] = {}
         self._types: dict[str, str] = {}
 
     def tabled(self) -> frozenset[str]:
@@ -157,6 +163,24 @@ class EngineRegistry:
         result = frozenset(raw)
         self._arities[name] = result
         return result
+
+    def operation_effect(self, name: str) -> str | None:
+        """Return one Python operation's published effect, or None."""
+        if name in self._operations:
+            return self._operations[name]
+        row = self._runtime.once(
+            "findall(_E, ('get-atoms'('&petta', [op, F, _A, _K]), "
+            "             'get-atoms'('&petta', [effect, F, _E])), L)",
+            F=name,
+        )
+        raw = row.get("L")
+        effects = {str(effect) for effect in raw} if isinstance(raw, (list, tuple)) else set()
+        if len(effects) > 1:
+            msg = f"operation effect registry returned conflicting ranks for {name!r}: {effects!r}"
+            raise EngineError(msg)
+        effect = next(iter(effects), None)
+        self._operations[name] = effect
+        return effect
 
     def known_names(self) -> frozenset[str]:
         """Every name fun/1 enumerates, once per pass: the pool a typo

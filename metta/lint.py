@@ -2,6 +2,9 @@
 Guarantees:
   - public Finding records retain the metta.lint pickle identity [tested:
     test_finding_retains_public_pickle_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a lint invocation records and applies exact ``# metta: ok(kind)`` source
+    intents without changing the space or executing findings [tested:
+    test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -16,6 +19,7 @@ import os
 import pathlib
 
 from ._lint_analysis import analyze
+from ._lint_events import prepare_lint
 from ._lint_model import EngineRegistry, Finding
 from ._source_forms import positioned_forms
 from .atoms import _alpha_eq, parse
@@ -34,7 +38,13 @@ def lint(space) -> list[Finding]:
     observability page maps the family.
     """
     require_capability(space.name, "enumerate", "lint")
-    return analyze(space, space.atoms(), EngineRegistry(space.runtime))
+    invocation = prepare_lint(space)
+    return analyze(
+        space,
+        space.atoms(),
+        EngineRegistry(space.runtime),
+        invocation,
+    )
 
 
 def lint_file(path: str | os.PathLike[str], *, m=None) -> list[Finding]:

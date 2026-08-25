@@ -76,6 +76,10 @@ Guarantees:
   - ``Space.limits(stack=bytes)`` scopes a positive stack byte count beside
     time and inference bounds [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - synchronous run, match, eval, and answers calls made directly in an async
+    body remain legal and record an AsyncMeTTa lint [tested:
+    test_a_sync_engine_call_inside_async_def_is_linted_not_refused;
+    commit=WORKTREE]
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -142,6 +146,7 @@ from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._atom_wire import _remember_space_name
 from ._engine import Runtime, bridge, runtime, started
 from ._library import Library, import_library
+from ._lint_events import record_sync_engine_call as _record_sync_engine_call
 from ._rules import Rules as _Rules
 from ._rules import rules as _collect_rules
 from ._space_definitions import (
@@ -862,6 +867,7 @@ class Space(Handle):
         eval_status() reports the same paths without refusing anything.
         """
         _require_source(source, "run")
+        _record_sync_engine_call(self, "run", sys._getframe(1))
         if strict_enabled():
             self._refuse_unreduced(
                 run_status(self._rt, self._space, source, timeout, inferences)
@@ -1350,6 +1356,7 @@ class Space(Handle):
         """Remove everything stored here, compiled equations included."""
         _refuse_in_batch(self._space, "clear")
         clear_definitions(self)
+        _satellite("_lint_events").clear(self)
         _invalidate_builtins_cache(self._rt)
 
     # A handle mutates its store while an atom's + constructs a term.
@@ -1361,7 +1368,10 @@ class Space(Handle):
         (S.Edge, b, c)]`` adds two. The explicit ``add(list_value)`` door
         remains available when the list itself is intended as one expression.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if isinstance(atom, _Rules) or (
+        if isinstance(atom, _Rules):
+            self.add(*atom)
+            _satellite("_lint_events").register_rule_events(self, atom)
+        elif (
             isinstance(atom, list)
             and all(isinstance(item, (Expression, tuple)) for item in atom)
         ):
@@ -1551,6 +1561,7 @@ class Space(Handle):
 
             m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """
+        _record_sync_engine_call(self, "match", sys._getframe(1))
         _validate_limit(limit)
         carrier = _selected_under(under)
         if carrier is not None:
@@ -2059,6 +2070,7 @@ class Space(Handle):
         In a `strict()` scope an unreduced term raises StrictError while a
         genuinely empty branch still returns no answers.
         """
+        _record_sync_engine_call(self, "eval", sys._getframe(1))
         if strict_enabled():
             statuses = evaluate_status(
                 self._rt,
@@ -2107,6 +2119,7 @@ class Space(Handle):
         its prefix. A surrounding ``metta.under(carrier)`` is used only when
         this call does not pass an explicit carrier.
         """
+        _record_sync_engine_call(self, "answers", sys._getframe(1))
         carrier = _selected_under(under)
         if carrier is None:
             return evaluate_answers(

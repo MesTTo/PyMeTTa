@@ -42,7 +42,7 @@ def test_a_healthy_space_answers_no_findings(m):  # noqa: D103  -- pytest discov
         "(: well-fn (-> Number Number))"
         "(= (well-fn $x) (+ $x 1))"
         "(= (well-caller) (well-fn 41))"
-        "(stored fact)"
+        "(Stored fact)"
     )
     assert m.lint() == []
 

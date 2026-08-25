@@ -16,6 +16,11 @@ Guarantees:
     Space.rules lands the same bundle immediately [tested:
     test_a_rules_generator_scopes_its_variables_to_its_parameters;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
+  - construction records variable-staged operation crossings and ground
+    effectful calls without changing either result [tested:
+    test_a_staged_operation_in_a_law_is_linted_not_refused,
+    test_an_effectful_ground_operation_at_rule_construction_is_linted;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -28,16 +33,18 @@ import contextlib
 import contextvars
 import inspect
 import types
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ._lint_events import LintEvent, event_at_frame
 from .atoms import Expression, Symbol, Variable, _encode
 
 __all__ = ["Rules", "equation", "rules"]
 
-_STAGING_DEFINED_CALLS: contextvars.ContextVar[bool] = contextvars.ContextVar(
+_STAGING_DEFINED_CALLS: contextvars.ContextVar[list[LintEvent] | None] = contextvars.ContextVar(
     "petta_staging_defined_calls",
-    default=False,
+    default=None,
 )
 
 
@@ -61,15 +68,39 @@ def equation[T](lhs: T) -> _Equation[T]:
 
 def _defined_calls_are_staged() -> bool:
     """Whether calling a Defined object should build rather than evaluate."""
-    return _STAGING_DEFINED_CALLS.get()
+    return _STAGING_DEFINED_CALLS.get() is not None
+
+
+def _record_rule_operation(
+    operation: Any, *, staged: bool, frame: types.FrameType
+) -> None:
+    """Retain one op call in the active rule collector, if there is one."""
+    collector = _STAGING_DEFINED_CALLS.get()
+    if collector is None:
+        return
+    if staged:
+        kind = "operation-staged-in-law"
+    elif operation.effect.value != "pureStructural":
+        kind = "effectful-operation-at-construction"
+    else:
+        return
+    collector.append(
+        event_at_frame(
+            kind,
+            str(operation.name),
+            frame,
+            effect=operation.effect.value,
+        )
+    )
 
 
 @contextlib.contextmanager
-def _stage_defined_calls() -> Iterator[None]:
+def _stage_defined_calls() -> Iterator[list[LintEvent]]:
     """Keep eager Defined calls staged for exactly one rules execution."""
-    token = _STAGING_DEFINED_CALLS.set(True)
+    collector: list[LintEvent] = []
+    token = _STAGING_DEFINED_CALLS.set(collector)
     try:
-        yield
+        yield collector
     finally:
         _STAGING_DEFINED_CALLS.reset(token)
 
@@ -82,10 +113,24 @@ class Rules(tuple[Expression, ...]):
     """
 
     name: str
+    lint_events: tuple[LintEvent, ...]
+    source_line: int
+    source_path: str | None
 
-    def __new__(cls, name: str, equations: Iterator[Expression] | list[Expression]):
+    def __new__(
+        cls,
+        name: str,
+        equations: Iterator[Expression] | list[Expression],
+        *,
+        lint_events: Iterable[LintEvent] = (),
+        source_path: str | None = None,
+        source_line: int = 0,
+    ):
         bundle = tuple.__new__(cls, equations)
         bundle.name = name
+        bundle.lint_events = tuple(lint_events)
+        bundle.source_path = source_path
+        bundle.source_line = source_line
         return bundle
 
     def lower(self, strategy: Any, *, requires: Any, space: Any = None) -> Any:
@@ -106,6 +151,9 @@ class Rules(tuple[Expression, ...]):
             if lhs.head not in heads:
                 heads.append(lhs.head)
         space.add(*self)
+        from ._lint_events import register_rule_events  # noqa: PLC0415 -- lint is a satellite
+
+        register_rule_events(space, self)
         declarations = [
             Expression(
                 [
@@ -152,7 +200,7 @@ def rules(fn: Callable[..., Iterator[Expression]]) -> Rules:
         else:
             msg = "rules parameters are named variables; *args and **kwargs have no rule scope"
             raise TypeError(msg)
-    with _stage_defined_calls():
+    with _stage_defined_calls() as lint_events:
         yielded: list[Any] = list(fn(*positional, **keywords))
     for index, atom in enumerate(yielded, start=1):
         if not (
@@ -162,7 +210,16 @@ def rules(fn: Callable[..., Iterator[Expression]]) -> Rules:
         ):
             msg = f"rules yield {index} is not equation(lhs).to(rhs): {atom!r}"
             raise TypeError(msg)
-    return Rules(fn.__name__, yielded)
+    path = inspect.getsourcefile(fn) or inspect.getfile(fn)
+    if not (path.startswith("<") and path.endswith(">")):
+        path = str(Path(path).resolve())
+    return Rules(
+        fn.__name__,
+        yielded,
+        lint_events=lint_events,
+        source_path=path,
+        source_line=fn.__code__.co_firstlineno,
+    )
 
 
 if TYPE_CHECKING:
