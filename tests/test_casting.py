@@ -8,7 +8,7 @@ ducks through protocol types registered on the integrate surface.
 Guarantees:
   - ``atom.cast(type_)`` uses the ambient space and agrees with the explicit
     ``space.cast(atom, type_)`` spelling [tested:
-    test_atom_cast_delegates_to_the_ambient_space; commit=49c43f86fa17a20ecebf9f9dbb5514de4762297d]
+    test_atom_cast_delegates_to_the_ambient_space; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -98,6 +98,7 @@ def test_atom_cast_delegates_to_the_ambient_space(metta):
         declared.run("(: Bob Person)")
         with declared:
             assert S.Bob.cast("Person") is declared.cast(S.Bob, "Person")
+            assert declared.cast("Atom") is declared
         with undeclared, pytest.raises(CastError):
             S.Bob.cast("Person")
 

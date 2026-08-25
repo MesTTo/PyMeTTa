@@ -93,7 +93,10 @@ Guarantees:
   - ``Space.answers`` can evaluate one ask against a theory value or through
     an explicit full-interpreter head without mutating the receiver [tested:
     test_answers_selects_a_theory_or_interpreter_per_ask;
-    commit=0d49980b03d507f9bae0354786ab826a146c20df]
+    commit=WORKTREE]
+  - ``Space.cast`` preserves the inherited one-argument atom cast while its
+    two-argument form keeps explicit context-relative casting [tested:
+    test_atom_cast_delegates_to_the_ambient_space; commit=WORKTREE]
   - callable doors cache live deprecation declarations until the next write
     and issue the catalog's since/remedy warning [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
@@ -257,6 +260,7 @@ __all__ = ["Cursor", "EngineProfile", "MeTTa", "Prepared", "Space", "current_spa
 _CastT = TypeVar("_CastT")
 _R = TypeVar("_R")
 _P = ParamSpec("_P")
+_CAST_TARGET_OMITTED = object()
 
 _BUILTINS_CACHE_LOCK = threading.RLock()
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
@@ -1337,20 +1341,32 @@ class Space(Handle):
             raise EngineError(msg)
         return answer
 
+    # Space is an Atom subtype, so its overload family retains every base call
+    # shape and adds the explicit-context form. An overload implementation must
+    # accept every advertised input shape. [source:
+    # https://github.com/python/typing/blob/44f42629df028aebb783917a393172e4234ad2e7/docs/spec/overload.rst#L150-L160;
+    # commit=WORKTREE]
+    @overload
+    def cast(self, type_: _builtins.type[_CastT], /) -> _CastT: ...
+
+    @overload
+    def cast(self, type_: Atom | str, /) -> Any: ...
+
     @overload
     def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
 
     @overload
     def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
 
-    def cast(self, value: Any, type_: Any, /) -> Any:
-        """Answer value, narrowed to its Python-most spelling, when this
-        space's type discipline admits it as type_: the same acceptance
-        a typed call compiles, ':' declarations in this space and &self
-        in scope, protocol types included. A refused cast raises
-        metta.CastError naming the value's actual types, the loud
-        spelling of what a typed call does silently.
+    def cast(self, value: Any, type_: Any = _CAST_TARGET_OMITTED, /) -> Any:
+        """Cast this space atom ambiently with one argument, or answer value
+        narrowed by this space's type discipline with two arguments. The
+        explicit form has the same acceptance a typed call compiles, ':'
+        declarations here and &self in scope, protocol types included. A
+        refusal raises metta.CastError naming the value's actual types.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if type_ is _CAST_TARGET_OMITTED:
+            return super().cast(value)
         return _satellite("casting").cast(self, value, type_)
 
     def trace(self, source: str, max_events: int = 1_000_000):
@@ -2381,14 +2397,21 @@ class Space(Handle):
                 atoms = self._theory_atoms(theory)
                 if atoms:
                     scratch.add(*atoms)
-                options = {
-                    "using": using,
-                    "timeout": timeout,
-                    "inferences": inferences,
-                }
-                if carrier is not None:
-                    options["under"] = carrier
-                inner = scratch.answers(target, **options)
+                if carrier is None:
+                    inner = scratch.answers(
+                        target,
+                        using=using,
+                        timeout=timeout,
+                        inferences=inferences,
+                    )
+                else:
+                    inner = scratch.answers(
+                        target,
+                        using=using,
+                        timeout=timeout,
+                        inferences=inferences,
+                        under=carrier,
+                    )
                 yield from inner._items()
             finally:
                 if inner is not None:
