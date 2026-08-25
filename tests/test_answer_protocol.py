@@ -662,6 +662,41 @@ def test_a_transactional_provider_commits_with_the_engine(metta):  # noqa: D103 
     assert str(hits[0][0]) == "(hit)"
 
 
+def test_a_file_transaction_enlists_and_commits_a_foreign_provider(
+    metta, tmp_path
+):
+    """A source load commits writes to its enlisted foreign provider."""
+    store = _TxStore()
+    metta._register_space(store, "&tx-file-ok")
+    metta._at("&tx-file-ok").writes("transactional")
+    source = tmp_path / "foreign_transaction_commit.metta"
+    source.write_text("!(transaction (add-atom &tx-file-ok (edge a b)))\n")
+
+    metta.load(source)
+
+    assert [str(row) for row in store.rows] == ["(edge a b)"]
+    assert store.calls == ["begin", "commit"]
+
+
+def test_a_failed_file_transaction_rolls_a_foreign_provider_back(
+    metta, tmp_path
+):
+    """A failed source load rolls its foreign-provider writes back."""
+    store = _TxStore()
+    metta._register_space(store, "&tx-file-rb")
+    metta._at("&tx-file-rb").writes("transactional")
+    source = tmp_path / "foreign_transaction_rollback.metta"
+    source.write_text(
+        "!(transaction (let $written (add-atom &tx-file-rb (edge a b)) "
+        "(match &self (tx-file-no-such $x) $x)))\n"
+    )
+
+    metta.load(source)
+
+    assert store.rows == []
+    assert store.calls == ["begin", "rollback"]
+
+
 def test_a_failed_transaction_rolls_both_stores_back(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-rb")

@@ -35,8 +35,10 @@ def test_the_tree_partitions_by_seam():
     # out of it: a path mention starts a word, an arity slash ends one.
     seat_path = re.compile(r"(?<![\w])(bindings|hosts)/")
     offenders = []
+    # Sources only: engine/reader.so is a built artifact beside its .c and
+    # has no lines to hold to the rule.
     for source in sorted((REPO / "engine").iterdir()):
-        if not source.is_file():
+        if not source.is_file() or source.suffix not in {".pl", ".metta", ".c"}:
             continue
         comment_lead = ";" if source.suffix == ".metta" else "%"
         for lineno, line in enumerate(source.read_text().splitlines(), 1):

@@ -107,11 +107,7 @@ def test_a_symbol_parameter_evaluates_its_argument():
         "(= mask-foo mask-bar)\n"
         "!(probe-symbol mask-foo)"
     )
-    # PeTTa hands a bare symbol argument over without evaluating it, where the
-    # arbiter answers `(quote bar)`. The mask is not the reason, and this row
-    # pins the engine's own answer so the divergence is visible rather than
-    # silent; see ai-report-p14-metatype.md, the adjacent-divergence list.
-    assert answers(program) == ["(quote mask-foo)"]
+    assert answers(program) == ["(quote mask-bar)"]
 
 
 # The shipped family, whose declarations are already arbiter-identical. Each

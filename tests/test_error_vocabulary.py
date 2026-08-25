@@ -176,8 +176,11 @@ def test_the_error_vocabulary_answers_what_the_arbiter_answers() -> None:
         "caught"
     ]
     assert _answers(metta, "!(return-on-error 5 6)") == ["6"]
+    # The error side keeps one return instruction for an enclosing function
+    # frame, the reference's own double-return shape [measured 2026-08-25
+    # against the LeaTTa binary on this exact form].
     assert _answers(metta, '!(return-on-error (vocab-needs-number (+ 1 "bad")) 6)') == [
-        produced
+        f"(return {produced})"
     ]
 
     # A collapse keeps the error as an ordinary answer.

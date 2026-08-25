@@ -143,10 +143,18 @@ def test_a_bounded_conjunctive_match_stops_at_the_bound(metta):
         assert large <= small + 4, f"{source} still walks the join: {small} then {large}"
 
     # Unbounded is untouched: it answers every row, so it pays for every row.
+    # Compare the workload-dependent increment rather than a ratio against the
+    # fixed runnable boundary.  Minimal-MeTTa result normalization adds the
+    # same fixed cost at both sizes; the 390-row increase remains 18,722
+    # inferences, against 17,550 before that boundary was implemented
+    # [measured: 18722; command=pytest -q -p no:benchmark
+    # tests/test_match_snapshot.py::test_a_bounded_conjunctive_match_stops_at_the_bound;
+    # fixture=10 and 400 edge chains; commit=b77e3ce5233e5f6032cfc8546ff83ecf4dc3de87].
     unbounded = "!(match &self (, (edge $x $y) (edge $y $z)) (path $x $z))"
     _bounded_join_cost(metta, 4, unbounded)
-    assert _bounded_join_cost(metta, 400, unbounded) > 10 * _bounded_join_cost(
-        metta, 10, unbounded
+    assert (
+        _bounded_join_cost(metta, 400, unbounded)
+        > _bounded_join_cost(metta, 10, unbounded) + 10_000
     )
 
     space = metta._new_space()

@@ -64,6 +64,8 @@ class _FunctionNamespace:
     "change-state!: (-> (StateMonad $tcso) $tcso (StateMonad $tcso))\n\nAssigning `state.value` writes the same typed engine cell and reading it back returns the replacement."
     collapse: Symbol
     "collapse: (-> Atom Atom)\n\n`list()` is the everyday spelling, materialising the answers; `tuple()` is the same act when you want MeTTa's own `( )` atom back, which is what collapse answers."
+    collapse_bind: Symbol
+    "collapse-bind: (-> Atom Expression)\ncollapse-bind: (TU Expression)\n\nThe deep-tier collapse that keeps each alternative's BINDINGS, `((a (bindings ...)) ...)`. It belongs to the bindings-carrying tier, never to the surface; PeTTa's engine has the bindings carrier (`answer_bindings`) but not this instruction."
     cons: Symbol
     cons_atom: Symbol
     "cons-atom: (-> Atom Expression Atom)\n\nConstruction: call the head, or rebuild from head and tail with `*`."
@@ -110,6 +112,8 @@ class _FunctionNamespace:
     format_args: Symbol
     "format-args: (-> String Expression String)\n\nAn f-string. MeTTa's `{}` holes are Python's own interpolation."
     format_time: Symbol
+    function: Symbol
+    "function: (-> Atom Atom)\n\nThe core's function frame, which `return` closes. PeTTa's compiled definitions do not go through this instruction and it is not implemented."
     ge: Symbol
     ">=: (-> Number Number Bool)\n\nPython's own operator."
     get_atoms: Symbol
@@ -154,6 +158,8 @@ class _FunctionNamespace:
     index_atom: Symbol
     "index-atom: (-> Expression Number Atom)\n\nIndexing again, with the index you want."
     inferences: Symbol
+    interpret: Symbol
+    "interpret: (-> Atom Type SpaceType Atom)\n\nLeaTTa's typed interpreter, written in MeTTa: `interpret` and the equations that implement it. This is the machinery that makes LeaTTa an oracle rather than a second implementation, and PeTTa writes its interpreter in Prolog, so none of these names is on either surface"
     intersection: Symbol
     "intersection: (-> Atom Atom %Undefined%)\n\n`collections.Counter` IS the multiset algebra, and `&` is its intersection."
     intersection_atom: Symbol
@@ -194,6 +200,7 @@ class _FunctionNamespace:
     member: Symbol
     metta: Symbol
     "metta: (-> Atom Type SpaceType Atom)\n\nThe full interpreter, which is what CALLING does: a defined object called from Python evaluates, and `m.eval` on a built term is the same act."
+    metta_thread: Symbol
     min: Symbol
     min_atom: Symbol
     "min-atom: (-> %Undefined% Number)\n\nPython's builtin `min` over the children."
@@ -297,6 +304,8 @@ class _FunctionNamespace:
     super: Symbol
     superpose: Symbol
     "superpose: (-> Expression %Undefined%)\n\nNondeterminism has no primitive of its own because Python's iteration IS it: a list of values is a multiset of answers, and `yield` is the same act inside a compiled body."
+    superpose_bind: Symbol
+    "superpose-bind: (-> Expression Atom)\n\nThe inverse of `collapse-bind`: it restores each alternative WITH its recorded bindings, which is a different operation from `superpose`."
     switch: Symbol
     "switch: (-> %Undefined% Expression %Undefined%)\n\nPython's `match` statement again. `switch` differs from `case` only in evaluating its subject first, which a Python expression does anyway."
     take: Symbol

@@ -36,8 +36,8 @@ from dataclasses import dataclass
 
 #: The manifest these rows were taken from.
 LEATTA_VERSION = "1.0.9"
-LEATTA_COMMIT = "9ea9f9d"
-LEATTA_ENTRY_COUNT = 381
+LEATTA_COMMIT = "c0ed0df"
+LEATTA_ENTRY_COUNT = 382
 
 BUCKETS = {
     "dissolves": (
@@ -788,6 +788,12 @@ ENTRIES: list[Entry] = [
         "A module's own space without its dependencies. Same module story.",
         metta="!(module-space-no-deps (new-space))",
         unrun="PeTTa leaves the call unreduced",
+    ),
+    Entry(
+        "get-deps", ("(-> Atom Atom)",), "Grounded", "spaces", "absent",
+        "A loaded module's direct dependency names. Same module story: PeTTa's "
+        "module story is Python packaging, so the name has no image here.",
+        metta="!(get-deps stdlib)", unrun="PeTTa leaves the call unreduced",
     ),
     # ---------------------------------------------------------------- types
     Entry(
