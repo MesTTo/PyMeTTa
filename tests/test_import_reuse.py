@@ -17,7 +17,10 @@ FORMAT_DATE_CALL = '!(format-date 1735689600 "%B")'
 
 def _format_date_clause_count(metta) -> int:
     row = metta.runtime.once(
-        "space_module(Space, _M), functor(_H, 'format-date', 3), "
+        # Deferred translation holds a source's clauses until first use, so
+        # the count is read through the engine's own force door.
+        "space_module(Space, _M), metta_ensure_compiled('format-date'), "
+        "functor(_H, 'format-date', 3), "
         "aggregate_all(count, clause(_M:_H, _), N)",
         Space=metta.name,
     )

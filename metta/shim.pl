@@ -1864,6 +1864,9 @@ petta_py_eval_status_term(Space, Term, Results) :-
 
 petta_py_eval_status(Module, [F|Args], 'not-reducible') :-
     atom(F),
+    %A deferred function has no fun_meta rows until its equations
+    %translate, and this door's whole question is about those rows.
+    spaces:metta_ensure_compiled(F),
     translator:fun_meta_module(Module, F, _),
     \+ translator:dispatch_any_head_matches(Module, F, Args),
     !.
@@ -2529,6 +2532,9 @@ petta_py_equations(Space, Name0, Encoded) :-
 %compiled, and the Python side turns that into its own refusal.
 petta_py_disassemble(Space, Name0, Text) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    %The listing below is a read, so a deferred function would show nothing
+    %and register no arity; the disassembly IS the demand.
+    spaces:metta_ensure_compiled(Name),
     findall(A, arity(Name, A), As0),
     As0 \== [],
     sort(As0, As),
@@ -2722,6 +2728,15 @@ petta_py_solve_(M, Goal, _, [builtin(Goal)], complete, _) :-
 %match_native/5 is spaces' own and a base module lends only what it exports
 %[measured 2026-08-22, on every test in tests/test_derivation.py].
 petta_py_solve_clause(M, Goal, D, Tree, Status, Barrier) :-
+    %clause/2 is a read, not a call, so the undefined-predicate net never
+    %fires for a deferred callee and the proof walk saw zero clauses where
+    %evaluation answers. Force the name at every step: the tree descends
+    %into callees the running program may never have reached.
+    (   Goal =.. [Predicate|_],
+        translator:compiled_function_name(Fun, Predicate)
+    ->  spaces:metta_ensure_compiled(Fun)
+    ;   true
+    ),
     petta_py_clause_owner(M, Goal, Owner),
     catch_recover(clause(Owner:Goal, Body, Ref), fail),
     ( translated_from(Ref, Source)

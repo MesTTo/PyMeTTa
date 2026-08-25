@@ -100,7 +100,12 @@ is Python's own `assert`.
 #: sites (matespacefast 39.3s to 9.4s)
 #: [measured 2026-08-25, 2814 stable across the suite run and a direct
 #: re-run].
-BUDGET = 2814
+#: RE-PINNED 2026-08-25, 2814 to 2845, at the store wave: deferred
+#: translation prices this workload's define-and-first-call shape about
+#: +15 per equation at its first reach, the same shape the wave's own
+#: branch measured as +20 per equation. Stable across the suite run and a
+#: direct re-run.
+BUDGET = 2845
 
 
 def twin(m):
