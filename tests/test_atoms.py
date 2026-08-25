@@ -20,6 +20,9 @@ Guarantees:
     test_unify_treats_nesting_depth_as_data_during_normalization,
     test_unify_path_compresses_long_alias_chains;
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+  - fresh variables are unique library-pattern holes that do not capture a
+    caller's conventional variable names [tested:
+    test_fresh_variables_keep_library_patterns_hygienic; commit=WORKTREE]
 Owns:
   - test_atom_identity_caches_are_thread_safe joins every cache worker
     before checking identity [tested test_atom_identity_caches_are_thread_safe]
@@ -49,6 +52,7 @@ from metta import (
     V,
     Variable,
     _engine,
+    fresh,
     ground,
     integrate,
     parse,
@@ -725,6 +729,16 @@ def test_atom_from_wire_rejects_undefined_truth():  # noqa: D103  -- pytest disc
 def test_anonymous_variable_is_fresh_per_occurrence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert unify(S.pair(V._, V._), S.pair(S.a, S.b)) == {}
     assert unify(S.pair(V._, V._), S.pair(S.a, S.a)) == {}
+
+
+def test_fresh_variables_keep_library_patterns_hygienic():
+    """A helper-local hole stays distinct from caller-authored names."""
+    private = fresh()
+    assert isinstance(private, Variable)
+    assert private != fresh()
+    pattern = S.pair(private, V.x)
+    bindings = unify(pattern, S.pair(S.first, S.second))
+    assert bindings == {private.name: S.first, "x": S.second}
 
 
 # The explicit key and Atom.__lt__ expose the same engine order. Keep this

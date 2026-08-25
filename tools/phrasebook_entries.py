@@ -29,9 +29,10 @@ Guarantees:
   - strategy rows import lib_strategy only on PeTTa and may name an equivalent
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
-  - the Python-first table teaches the concise ambient atom cast door
+  - the Python-first table teaches the concise atom cast, root catalog, and
+    hygienic variable doors
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=49c43f86fa17a20ecebf9f9dbb5514de4762297d]
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -125,6 +126,16 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
         "atom.cast(type_)",
         "admit an atom through the ambient space's type discipline",
         "with space:\n    person = S.Ann.cast('Person')",
+    ),
+    PublicFace(
+        "fresh()",
+        "mint a helper-local variable that cannot capture a caller's names",
+        "private = fresh()\npattern = S.edge(private, V.value)",
+    ),
+    PublicFace(
+        "metta.catalog",
+        "query the runtime catalog as the ordinary &petta space",
+        "rows = metta.catalog.match(S.op(V.name, V.arity, V.kind))",
     ),
     PublicFace(
         "metta.speculate()",

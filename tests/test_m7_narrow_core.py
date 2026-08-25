@@ -1,11 +1,8 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the renamed package surface has 100 names and keeps ``record`` and
+  - the renamed package surface has 102 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
-  - the renamed package surface has  and keeps ``record`` and
-    ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+    commit=WORKTREE]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - every retired root, context, and atom name is absent rather than aliased
@@ -75,7 +72,10 @@ FINAL_METTA_METHODS = 20
 # the lazy strategies namespace. P14.11 and the design ledger at
 # ai-python-first-revamp-discussion.md:2921-2933 require the namespace but keep
 # each combinator as a reified term rather than another root callable.
-FINAL_METTA_EXPORTS = 100
+# +2 for ``catalog`` and ``fresh``: the exact public doors required by
+# ai-python-conventions.md:1811-1814 and
+# ai-python-first-revamp-discussion.md:3742-3748.
+FINAL_METTA_EXPORTS = 102
 
 SATELLITES = {
     "aio",
