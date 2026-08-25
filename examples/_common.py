@@ -4,10 +4,11 @@ small helpers that make each example self-verifying rather than a printout
 to trust.
 Guarantees:
   - a wrong value stops the example under `python -O` as well as without it
-    [tested test_a_wrong_value_fails_under_O_too]
+    [tested: test_a_wrong_value_fails_under_optimization_too; commit=WORKTREE]
   - the OK line an example prints means at least one check ran since the
     previous OK, and every one of them held
-    [tested test_an_example_that_checks_nothing_is_not_OK]
+    [tested: test_an_example_that_checks_nothing_does_not_report_success;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
