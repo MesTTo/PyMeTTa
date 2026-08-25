@@ -1,0 +1,1571 @@
+{
+  "cases": {
+    "atom-reclamation": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns atom-reclamation in a fresh process",
+          "post_gc_atom_count is selected by minimum of repetitions",
+          "the intended complexity family is constant",
+          "RE-MEASURED 2026-08-26 on the merged tree: [7, 7, 7, 7] with +/-0 noise remains [7, 7, 7, 7] with +/-0 noise; atom reclamation is still constant because every size returns to the same seven-atom process floor"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "constant",
+      "fit": {
+        "best_model": "constant",
+        "last_ratio": 1.0,
+        "models": {
+          "capped_linear": {
+            "intercept": 7.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "constant": {
+            "intercept": 7.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 7.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "log_n": {
+            "intercept": 7.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "n_log_n": {
+            "intercept": 7.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "quadratic": {
+            "intercept": 7.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          }
+        },
+        "power_exponent": 0.0
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "post_gc_atom_count",
+      "representative": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "compiled-equations": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns compiled-equations in a fresh process",
+          "compiled_predicate_bytes is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [1408, 19488, 184960, 2044480] +/-0 to [3088, 36288, 352960, 3724480] +/-0 after mainline's 5655d253 deferred-translation store and typed-dispatch metadata became part of each first-forced compiled predicate; bytes remain linear in equation count"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 10.552130553037172,
+        "models": {
+          "capped_linear": {
+            "intercept": -6812.973113054759,
+            "nrms": 0.0021173995907672618,
+            "slope": 373.0034106617659
+          },
+          "constant": {
+            "intercept": 1029204.0,
+            "nrms": 0.4197620513930036,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": -6812.973113054759,
+            "nrms": 0.0021173995907672618,
+            "slope": 373.0034106617659
+          },
+          "log_n": {
+            "intercept": -1841008.0,
+            "nrms": 0.2392227774261127,
+            "slope": 498606.8933969985
+          },
+          "n_log_n": {
+            "intercept": 30785.71308057627,
+            "nrms": 0.007377044450979971,
+            "slope": 40.139555902837614
+          },
+          "quadratic": {
+            "intercept": 117968.62519614468,
+            "nrms": 0.03277266222915072,
+            "slope": 0.036084921203081884
+          }
+        },
+        "power_exponent": 1.0232127522417698
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "compiled_predicate_bytes",
+      "representative": [
+        3088,
+        36288,
+        352960,
+        3724480
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "hyperpose-branches": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns hyperpose-branches in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [8357, 12840, 51933, 421848] +/-31 to [9706, 14259, 53907, 429234] +/-29 after mainline's typed-dispatch and result-boundary work added fixed setup and bounded per-branch checks; the measured curve remains linear in branch count"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 7.96249095664756,
+        "models": {
+          "capped_linear": {
+            "intercept": 10402.769679300283,
+            "nrms": 0.0023711499670660127,
+            "slope": 418.9873278873077
+          },
+          "constant": {
+            "intercept": 126776.5,
+            "nrms": 0.4182511855242593,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 10402.769679300283,
+            "nrms": 0.0023711499670660127,
+            "slope": 418.9873278873077
+          },
+          "log_n": {
+            "intercept": -67958.29999999999,
+            "nrms": 0.2350200967573367,
+            "slope": 56381.49938302224
+          },
+          "n_log_n": {
+            "intercept": 16077.301187718273,
+            "nrms": 0.01489297694679204,
+            "slope": 59.907851956741396
+          },
+          "quadratic": {
+            "intercept": 24509.63242263772,
+            "nrms": 0.03707353778494231,
+            "slope": 0.40497679965612265
+          }
+        },
+        "power_exponent": 0.5514517579958054
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 29,
+        "relative_max": 0.000537963529782774,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        9706,
+        14259,
+        53907,
+        429234
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "join-projection": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns join-projection in a fresh process",
+          "instructions is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [1316028, 6748655, 87766743, 1486937473] +/-1385 to [3487245, 13554620, 162524726, 1573221052] +/-321667 after d1421012's indexed 64-column decoder was composed with mainline's Segments query pipeline and the controlled workload was ported to materialize lazy Space.match Answers inside the measured interval; the fit improves from n_log_n to linear and the instruction curve stays O(rows times projected columns)"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 9.679887428328906,
+        "models": {
+          "capped_linear": {
+            "intercept": 1579781.850340128,
+            "nrms": 0.0016942319382688466,
+            "slope": 1571978.861924968
+          },
+          "constant": {
+            "intercept": 438196910.75,
+            "nrms": 0.41938655079362874,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 1579781.850340128,
+            "nrms": 0.0016942319382688466,
+            "slope": 1571978.861924968
+          },
+          "log_n": {
+            "intercept": -290528818.29999995,
+            "nrms": 0.23697022419780506,
+            "slope": 210987708.63155946
+          },
+          "n_log_n": {
+            "intercept": 22837020.893565536,
+            "nrms": 0.013874680923323465,
+            "slope": 224783.18774902425
+          },
+          "quadratic": {
+            "intercept": 54430375.51660472,
+            "nrms": 0.03619066954620546,
+            "slope": 1519.7154947214003
+          }
+        },
+        "power_exponent": 0.9041753962825029
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 321667,
+        "relative_max": 0.00020446395602898403,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "instructions",
+      "representative": [
+        3487245,
+        13554620,
+        162524726,
+        1573221052
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "join-shared": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns join-shared in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [82, 433, 3403, 33103] +/-0 to [100, 492, 3822, 37122] +/-0 after the workload moved onto mainline's lazy Space.match and deferred-store join path; the added bridge setup does not change the linear growth in shared-width conjuncts"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 9.712715855572998,
+        "models": {
+          "capped_linear": {
+            "intercept": 100.78522837706623,
+            "nrms": 0.000637868094614954,
+            "slope": 37.0232755053931
+          },
+          "constant": {
+            "intercept": 10384.0,
+            "nrms": 0.41879909169252594,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 100.78522837706623,
+            "nrms": 0.000637868094614954,
+            "slope": 37.0232755053931
+          },
+          "log_n": {
+            "intercept": -6775.399999999998,
+            "nrms": 0.23673943615102408,
+            "slope": 4968.15515518044
+          },
+          "n_log_n": {
+            "intercept": 600.8290590687739,
+            "nrms": 0.012952595234668659,
+            "slope": 5.294426361573428
+          },
+          "quadratic": {
+            "intercept": 1343.7583292717318,
+            "nrms": 0.035151961238900846,
+            "slope": 0.035799357374077516
+          }
+        },
+        "power_exponent": 0.8599219679162567
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        100,
+        492,
+        3822,
+        37122
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "live-spaces": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns live-spaces in a fresh process",
+          "live_module_bytes is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [3624, 36240, 362400, 3624000] +/-0 to [7104, 71040, 710400, 7104000] +/-0 after mainline made each live space own deferred translation, support, and execution-module lifecycle state; the exact per-space byte coefficient changes while growth remains linear"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 10.0,
+        "models": {
+          "capped_linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 7104.0
+          },
+          "constant": {
+            "intercept": 1973136.0,
+            "nrms": 0.41920338109080324,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 7104.0
+          },
+          "log_n": {
+            "intercept": -1316371.1999999997,
+            "nrms": 0.23743054807048097,
+            "slope": 952409.8834273444
+          },
+          "n_log_n": {
+            "intercept": 95895.77125884197,
+            "nrms": 0.012566074341080867,
+            "slope": 1015.9190935191069
+          },
+          "quadratic": {
+            "intercept": 238379.19535452547,
+            "nrms": 0.03483067252846592,
+            "slope": 6.869637015092449
+          }
+        },
+        "power_exponent": 1.0
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "live_module_bytes",
+      "representative": [
+        7104,
+        71040,
+        710400,
+        7104000
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "load-fast": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns load-fast in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [1404, 2762, 16248, 151284] +/-0 to [1476, 2838, 16332, 151344] +/-0 after the mainline handle/store split added a bounded load receipt and lifecycle step; the delta is fixed to low-double-digit setup and the curve remains linear in loaded atoms"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 9.266715650257163,
+        "models": {
+          "capped_linear": {
+            "intercept": 1331.5471331389708,
+            "nrms": 2.822734815243833e-05,
+            "slope": 15.001243156385609
+          },
+          "constant": {
+            "intercept": 42997.5,
+            "nrms": 0.4191877715131778,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 1331.5471331389708,
+            "nrms": 2.822734815243833e-05,
+            "slope": 15.001243156385609
+          },
+          "log_n": {
+            "intercept": -72777.0,
+            "nrms": 0.2374112611056586,
+            "slope": 20112.09059804321
+          },
+          "n_log_n": {
+            "intercept": 2848.1934581108144,
+            "nrms": 0.009454038596584616,
+            "slope": 1.6141284224378247
+          },
+          "quadratic": {
+            "intercept": 6365.304024024743,
+            "nrms": 0.03482873661977266,
+            "slope": 0.00145063497515497
+          }
+        },
+        "power_exponent": 0.6792663532038911
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        1476,
+        2838,
+        16332,
+        151344
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "load-metta": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns load-metta in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [3906, 34067, 351784, 3690907] +/-0 to [953, 2845, 21743, 210751] +/-0 because b77e3ce5's engine/reader.so is present and shipped-mode parses now execute outside SWI's inference counter; every size uses that stamped C-reader configuration and the remaining load work is linear"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 9.69282067791933,
+        "models": {
+          "capped_linear": {
+            "intercept": 743.4243602202769,
+            "nrms": 4.659553093517492e-06,
+            "slope": 21.000747305051206
+          },
+          "constant": {
+            "intercept": 59073.0,
+            "nrms": 0.41920231327174823,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 743.4243602202769,
+            "nrms": 4.659553093517492e-06,
+            "slope": 21.000747305051206
+          },
+          "log_n": {
+            "intercept": -103000.0,
+            "nrms": 0.2374307724764537,
+            "slope": 28154.963826202293
+          },
+          "n_log_n": {
+            "intercept": 2866.6163596845945,
+            "nrms": 0.009450209494346384,
+            "slope": 2.2596734332539863
+          },
+          "quadratic": {
+            "intercept": 7790.326566324358,
+            "nrms": 0.03482756966062903,
+            "slope": 0.0020307938882814943
+          }
+        },
+        "power_exponent": 0.7917267425214388
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        953,
+        2845,
+        21743,
+        210751
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "mork-join-width": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns mork-join-width in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [457, 1580, 23807, 418019] +/-0 to [341, 1446, 18579, 291291] +/-0 after f1dffa91's demand-grown bridge buffers were rebuilt against MORK dd224fd7 and PathMap 4c84a8b4 and composed with the current join door; the fitted power exponent is 0.9904, so the n_log_n numerical fit remains within the declared linear growth bound"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "n_log_n",
+        "last_ratio": 15.678507992895204,
+        "models": {
+          "capped_linear": {
+            "intercept": -3884.3556851312023,
+            "nrms": 0.014420203264151098,
+            "slope": 294.50443090956327
+          },
+          "constant": {
+            "intercept": 77914.25,
+            "nrms": 0.42414551420993374,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": -3884.3556851312023,
+            "nrms": 0.014420203264151098,
+            "slope": 294.50443090956327
+          },
+          "log_n": {
+            "intercept": -55583.20000000001,
+            "nrms": 0.25087764272340374,
+            "slope": 38651.47058877018
+          },
+          "n_log_n": {
+            "intercept": 11.756558362947544,
+            "nrms": 0.0017566319666228766,
+            "slope": 42.159031810850145
+          },
+          "quadratic": {
+            "intercept": 5794.117135569759,
+            "nrms": 0.02087037874635878,
+            "slope": 0.2855957289991011
+          }
+        },
+        "power_exponent": 0.9903572104188906
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        341,
+        1446,
+        18579,
+        291291
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "mork-space-reclamation": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns mork-space-reclamation in a fresh process",
+          "retained_atom_count is selected by minimum of repetitions",
+          "the intended complexity family is constant",
+          "RE-MEASURED 2026-08-26 after rebuilding the MORK provider: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; every named provider life releases all retained atoms at every size"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "constant",
+      "fit": {
+        "best_model": "constant",
+        "last_ratio": null,
+        "models": {
+          "capped_linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "constant": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "log_n": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "n_log_n": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "quadratic": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          }
+        },
+        "power_exponent": null
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "retained_atom_count",
+      "representative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "object-reclamation": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns object-reclamation in a fresh process",
+          "post_drop_live_objects is selected by minimum of repetitions",
+          "the intended complexity family is constant",
+          "RE-MEASURED 2026-08-26 through the current metta object surface: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; dropping the handle releases every tracked object independently of size"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "constant",
+      "fit": {
+        "best_model": "constant",
+        "last_ratio": null,
+        "models": {
+          "capped_linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "constant": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "log_n": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "n_log_n": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "quadratic": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          }
+        },
+        "power_exponent": null
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "post_drop_live_objects",
+      "representative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "query-eager": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns query-eager in a fresh process",
+          "python_peak_bytes is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [272610, 272642, 380545, 3629282] +/-45 to [272739, 272798, 272753, 1682644] +/-73 after the workload was ported from the removed eager query door to lazy Space.match and explicitly materializes inside the measured callback; the fitted power exponent is 0.2371 and the tenfold-size last step grows 6.17x, both below a linear bound despite the four-point least-squares model naming quadratic; this Python-allocation lane remains advisory"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "quadratic",
+        "last_ratio": 6.169112713700674,
+        "models": {
+          "capped_linear": {
+            "intercept": 222068.1972789116,
+            "nrms": 0.040028237286018876,
+            "slope": 145.15402438203003
+          },
+          "constant": {
+            "intercept": 625233.5,
+            "nrms": 0.4330052288686834,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 222068.1972789116,
+            "nrms": 0.040028237286018876,
+            "slope": 145.15402438203003
+          },
+          "log_n": {
+            "intercept": -432184.00000000023,
+            "nrms": 0.27385383326364326,
+            "slope": 183692.23412717273
+          },
+          "n_log_n": {
+            "intercept": 235932.49696343194,
+            "nrms": 0.0303364839272162,
+            "slope": 15.651124963497576
+          },
+          "quadratic": {
+            "intercept": 268031.9080702762,
+            "nrms": 0.004079876571049322,
+            "slope": 0.014145183181868895
+          }
+        },
+        "power_exponent": 0.23706633463148752
+      },
+      "gated": false,
+      "noise": {
+        "absolute_max": 73,
+        "relative_max": 0.0002676414191594593,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "python_peak_bytes",
+      "representative": [
+        272739,
+        272798,
+        272753,
+        1682644
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "query-stream": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns query-stream in a fresh process",
+          "python_peak_bytes is selected by minimum of repetitions",
+          "the intended complexity family is constant",
+          "RE-PINNED 2026-08-26 from [272597, 272610, 272551, 272642] +/-59 to [272798, 272798, 272753, 272830] +/-45 after the port uses Space._stream and consumes only the declared prefix; the 77-byte range and 0.000012 power exponent preserve constant memory despite the numerical best-model tie naming quadratic"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "constant",
+      "fit": {
+        "best_model": "quadratic",
+        "last_ratio": 1.0002823067024011,
+        "models": {
+          "capped_linear": {
+            "intercept": 272782.43245869776,
+            "nrms": 7.393264382120858e-05,
+            "slope": 0.0044347583446391284
+          },
+          "constant": {
+            "intercept": 272794.75,
+            "nrms": 0.00010050384018865144,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 272782.43245869776,
+            "nrms": 7.393264382120858e-05,
+            "slope": 0.0044347583446391284
+          },
+          "log_n": {
+            "intercept": 272782.0,
+            "nrms": 9.830628469354241e-05,
+            "slope": 2.2149018577065855
+          },
+          "n_log_n": {
+            "intercept": 272782.59354258777,
+            "nrms": 7.239770334002017e-05,
+            "slope": 0.000488727829078492
+          },
+          "quadratic": {
+            "intercept": 272782.9434425829,
+            "nrms": 6.804347828791294e-05,
+            "slope": 4.675396783918063e-07
+          }
+        },
+        "power_exponent": 8.117713978192137e-06
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 45,
+        "relative_max": 0.00016498443646815984,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "python_peak_bytes",
+      "representative": [
+        272798,
+        272798,
+        272753,
+        272830
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "save-fast": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns save-fast in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [2869, 11149, 93953, 921983] +/-0 to [2842, 10854, 90956, 891986] +/-0 after 5655d253's bulk store door removed repeated per-atom save traversal; the saving scales with atoms and the resulting curve remains linear"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 9.806785698579533,
+        "models": {
+          "capped_linear": {
+            "intercept": 1952.7709750566864,
+            "nrms": 6.79403913084365e-07,
+            "slope": 89.00332278125772
+          },
+          "constant": {
+            "intercept": 249159.5,
+            "nrms": 0.4192030013634471,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 1952.7709750566864,
+            "nrms": 6.79403913084365e-07,
+            "slope": 89.00332278125772
+          },
+          "log_n": {
+            "intercept": -437724.0,
+            "nrms": 0.23743007213535905,
+            "slope": 119323.88550415692
+          },
+          "n_log_n": {
+            "intercept": 10951.112641706743,
+            "nrms": 0.009453034650434044,
+            "slope": 9.57672651449008
+          },
+          "quadratic": {
+            "intercept": 31818.396511242754,
+            "nrms": 0.03483063814261714,
+            "slope": 0.008606707784221864
+          }
+        },
+        "power_exponent": 0.8413443429104328
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        2842,
+        10854,
+        90956,
+        891986
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "save-metta": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns save-metta in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [1845, 5265, 39467, 381479] +/-0 to [1846, 5266, 39468, 381482] +/-0 after the merged lifecycle adds one fixed receipt boundary around text save; the +1/+1/+1/+3 movement is layout-scale and the curve remains linear"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 9.6656025134286,
+        "models": {
+          "capped_linear": {
+            "intercept": 1466.0654356980958,
+            "nrms": 5.47016168178226e-07,
+            "slope": 38.00159660280897
+          },
+          "constant": {
+            "intercept": 107015.5,
+            "nrms": 0.4192033259484639,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 1466.0654356980958,
+            "nrms": 5.47016168178226e-07,
+            "slope": 38.00159660280897
+          },
+          "log_n": {
+            "intercept": -186262.0,
+            "nrms": 0.23743021135494374,
+            "slope": 50947.519966552376
+          },
+          "n_log_n": {
+            "intercept": 5308.074496171117,
+            "nrms": 0.009453498498352466,
+            "slope": 4.088958450812214
+          },
+          "quadratic": {
+            "intercept": 14217.750103741084,
+            "nrms": 0.03483118233066357,
+            "slope": 0.003674790932639762
+          }
+        },
+        "power_exponent": 0.7820491327237439
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        1846,
+        5266,
+        39468,
+        381482
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "space-reuse": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns space-reuse in a fresh process",
+          "second_cycle_module_delta is selected by minimum of repetitions",
+          "the intended complexity family is constant",
+          "RE-MEASURED 2026-08-26 with f1dffa91's named-drop door composed with the current anonymous pool: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; a second allocation cycle retains no module bytes at any size"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "constant",
+      "fit": {
+        "best_model": "constant",
+        "last_ratio": null,
+        "models": {
+          "capped_linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "constant": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "log_n": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "n_log_n": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "quadratic": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          }
+        },
+        "power_exponent": null
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "second_cycle_module_delta",
+      "representative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "stored-atoms-mork": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns stored-atoms-mork in a fresh process",
+          "private_steady_bytes is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [507904, 655360, 2129920, 29437952] +/-8192 to [462848, 614400, 2768896, 30019584] +/-77824 after rebuilding f1dffa91's bounded MORK allocations against MORK dd224fd7 and PathMap 4c84a8b4; allocator-page noise widens, while the fitted power exponent remains below one and the provider-memory lane remains advisory"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "n_log_n",
+        "last_ratio": 10.841715976331361,
+        "models": {
+          "capped_linear": {
+            "intercept": 192825.13767411746,
+            "nrms": 0.008230351091688412,
+            "slope": 2978.796350072325
+          },
+          "constant": {
+            "intercept": 8466432.0,
+            "nrms": 0.42214063935763674,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 192825.13767411746,
+            "nrms": 0.008230351091688412,
+            "slope": 2978.796350072325
+          },
+          "log_n": {
+            "intercept": -14239744.0,
+            "nrms": 0.245294278882236,
+            "slope": 3944466.7767696204
+          },
+          "n_log_n": {
+            "intercept": 490478.47193128243,
+            "nrms": 0.0012915807557919855,
+            "slope": 320.65842213904347
+          },
+          "quadratic": {
+            "intercept": 1180590.1244859863,
+            "nrms": 0.026900370912963153,
+            "slope": 0.28851934115554834
+          }
+        },
+        "power_exponent": 0.6089754271514993
+      },
+      "gated": false,
+      "noise": {
+        "absolute_max": 77824,
+        "relative_max": 0.008849557522123894,
+        "resolution_bytes": 4096
+      },
+      "primary_metric": "private_steady_bytes",
+      "representative": [
+        462848,
+        614400,
+        2768896,
+        30019584
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "stored-atoms-native": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns stored-atoms-native in a fresh process",
+          "storage_module_bytes is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-MEASURED 2026-08-26 through the 5655d253 native store: [2232, 13752, 128952, 1280952] with +/-0 noise remains byte-for-byte [2232, 13752, 128952, 1280952] with +/-0 noise; native storage remains linear"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 9.93355667225014,
+        "models": {
+          "capped_linear": {
+            "intercept": 952.0,
+            "nrms": 0.0,
+            "slope": 128.0
+          },
+          "constant": {
+            "intercept": 356472.0,
+            "nrms": 0.41920338109080324,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 952.0,
+            "nrms": 0.0,
+            "slope": 128.0
+          },
+          "log_n": {
+            "intercept": -631367.9999999998,
+            "nrms": 0.2374305480704809,
+            "slope": 171605.38440132327
+          },
+          "n_log_n": {
+            "intercept": 13892.951224435528,
+            "nrms": 0.00945299784690556,
+            "slope": 13.77275542688198
+          },
+          "quadratic": {
+            "intercept": 43903.20637018478,
+            "nrms": 0.03483067252846592,
+            "slope": 0.012377724351517927
+          }
+        },
+        "power_exponent": 0.9248578216135458
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "storage_module_bytes",
+      "representative": [
+        2232,
+        13752,
+        128952,
+        1280952
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "support-drop-one": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns support-drop-one in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [2798, 6576, 44382, 422270] +/-0 to [3564, 5769, 27821, 248329] +/-0 after 93cc9c9's module-forget algorithm was adapted to mainline's hashed supports/4 and adjacent symbol indexes; the fixed index-priming cost rises at size one while avoiding the prior whole-graph work, and growth remains linear"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 8.925955213687502,
+        "models": {
+          "capped_linear": {
+            "intercept": 3319.2811791383283,
+            "nrms": 1.8050137726874005e-06,
+            "slope": 245.00978873397543
+          },
+          "constant": {
+            "intercept": 71370.75,
+            "nrms": 0.41920300249929293,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 3319.2811791383283,
+            "nrms": 1.8050137726874005e-06,
+            "slope": 245.00978873397543
+          },
+          "log_n": {
+            "intercept": -42081.3,
+            "nrms": 0.23742914911135574,
+            "slope": 32847.73285040788
+          },
+          "n_log_n": {
+            "intercept": 6626.637662774636,
+            "nrms": 0.012567818929430267,
+            "slope": 35.038019593496855
+          },
+          "quadratic": {
+            "intercept": 11540.760192458409,
+            "nrms": 0.03483241662850276,
+            "slope": 0.2369267620071323
+          }
+        },
+        "power_exponent": 0.6212541430204246
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        3564,
+        5769,
+        27821,
+        248329
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "support-drop-spaces": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns support-drop-spaces in a fresh process",
+          "inferences is selected by minimum of repetitions",
+          "the intended complexity family is linear",
+          "RE-PINNED 2026-08-26 from [2798, 26858, 267390, 2672236] +/-0 to [3564, 34706, 346118, 3460244] +/-0 after 93cc9c9's linear module teardown was composed with 5655d253's larger hashed support, memo, and deferred-translation ownership set; the coefficient increases for the additional per-module state but every tenfold size still costs tenfold work"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "linear",
+      "fit": {
+        "best_model": "linear",
+        "last_ratio": 9.997295719956778,
+        "models": {
+          "capped_linear": {
+            "intercept": 104.16326530615333,
+            "nrms": 7.995175405838928e-08,
+            "slope": 3460.1398262275206
+          },
+          "constant": {
+            "intercept": 961158.0,
+            "nrms": 0.4192033430596254,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 104.16326530615333,
+            "nrms": 7.995175405838928e-08,
+            "slope": 3460.1398262275206
+          },
+          "log_n": {
+            "intercept": -641059.7999999998,
+            "nrms": 0.2374305097550431,
+            "slope": 463889.5662314453
+          },
+          "n_log_n": {
+            "intercept": 46812.042117394856,
+            "nrms": 0.012566060436492768,
+            "slope": 494.82293340680195
+          },
+          "quadratic": {
+            "intercept": 116211.33186019317,
+            "nrms": 0.03483065109452863,
+            "slope": 3.3459888392935233
+          }
+        },
+        "power_exponent": 0.9960326709773426
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "inferences",
+      "representative": [
+        3564,
+        34706,
+        346118,
+        3460244
+      ],
+      "sizes": [
+        1,
+        10,
+        100,
+        1000
+      ]
+    },
+    "table-reclamation": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns table-reclamation in a fresh process",
+          "table_bytes_after_clear is selected by minimum of repetitions",
+          "the intended complexity family is constant",
+          "RE-MEASURED 2026-08-26 with untabling ordered before provider and predicate cleanup: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; cleared spaces retain no table bytes at any size"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "constant",
+      "fit": {
+        "best_model": "constant",
+        "last_ratio": null,
+        "models": {
+          "capped_linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "constant": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "log_n": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "n_log_n": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          },
+          "quadratic": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 0.0
+          }
+        },
+        "power_exponent": null
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "table_bytes_after_clear",
+      "representative": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "sizes": [
+        10,
+        100,
+        1000,
+        10000
+      ]
+    },
+    "wire-intern-symbols": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns wire-intern-symbols in a fresh process",
+          "wire_symbol_cache_entries is selected by minimum of repetitions",
+          "the intended complexity family is capped_linear",
+          "RE-MEASURED 2026-08-26 after the metta atoms-core port: [101, 1001, 10001, 65536] with +/-0 noise remains [101, 1001, 10001, 65536] with +/-0 noise; symbol interning is linear until the unchanged 65536-entry cap"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "capped_linear",
+      "fit": {
+        "best_model": "capped_linear",
+        "last_ratio": 6.552944705529447,
+        "models": {
+          "capped_linear": {
+            "intercept": 1.0534923191808048,
+            "nrms": 9.468583340880584e-07,
+            "slope": 0.9999841592818425
+          },
+          "constant": {
+            "intercept": 19159.75,
+            "nrms": 0.4134442063434937,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 1240.266277939747,
+            "nrms": 0.0210817627097623,
+            "slope": 0.6451659305872278
+          },
+          "log_n": {
+            "intercept": -52697.0,
+            "nrms": 0.2188242721533421,
+            "slope": 8916.282860714711
+          },
+          "n_log_n": {
+            "intercept": 1777.6175949638127,
+            "nrms": 0.028523107608957984,
+            "slope": 0.05558883790293752
+          },
+          "quadratic": {
+            "intercept": 3472.225083449701,
+            "nrms": 0.055315883857434696,
+            "slope": 6.212259929076518e-06
+          }
+        },
+        "power_exponent": 0.9436085020320713
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "wire_symbol_cache_entries",
+      "representative": [
+        101,
+        1001,
+        10001,
+        65536
+      ],
+      "sizes": [
+        100,
+        1000,
+        10000,
+        100000
+      ]
+    },
+    "wire-intern-variables": {
+      "cause": {
+        "chain": [
+          "bench.py --memory-scale spawns wire-intern-variables in a fresh process",
+          "wire_variable_cache_entries is selected by minimum of repetitions",
+          "the intended complexity family is capped_linear",
+          "RE-MEASURED 2026-08-26 after the metta atoms-core port: [100, 1000, 10000, 65536] with +/-0 noise remains [100, 1000, 10000, 65536] with +/-0 noise; variable interning is linear until the unchanged 65536-entry cap"
+        ],
+        "commit": "WORKTREE"
+      },
+      "expected": "capped_linear",
+      "fit": {
+        "best_model": "capped_linear",
+        "last_ratio": 6.5536,
+        "models": {
+          "capped_linear": {
+            "intercept": 0.0,
+            "nrms": 0.0,
+            "slope": 1.0
+          },
+          "constant": {
+            "intercept": 19159.0,
+            "nrms": 0.4134444373003218,
+            "slope": 0.0
+          },
+          "linear": {
+            "intercept": 1239.2303206997094,
+            "nrms": 0.021080828859204797,
+            "slope": 0.6451762260774182
+          },
+          "log_n": {
+            "intercept": -52698.8,
+            "nrms": 0.21882508523995256,
+            "slope": 8916.413149059283
+          },
+          "n_log_n": {
+            "intercept": 1776.589492904055,
+            "nrms": 0.028522179143089476,
+            "slope": 0.05558972728577962
+          },
+          "quadratic": {
+            "intercept": 3471.2217275209096,
+            "nrms": 0.055314976424288786,
+            "slope": 6.2123602580253225e-06
+          }
+        },
+        "power_exponent": 0.9449439791871097
+      },
+      "gated": true,
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0,
+        "resolution_bytes": 1
+      },
+      "primary_metric": "wire_variable_cache_entries",
+      "representative": [
+        100,
+        1000,
+        10000,
+        65536
+      ],
+      "sizes": [
+        100,
+        1000,
+        10000,
+        100000
+      ]
+    }
+  },
+  "repetitions": 3,
+  "repin_rule": "A changed pin must name the first causal code or dependency change, carry the old and new raw samples and noise bands, and explain why the new curve still matches its declared complexity. Never re-pin to hide an unexplained move.",
+  "schema": 1
+}

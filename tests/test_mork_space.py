@@ -37,8 +37,7 @@ pytestmark = pytest.mark.skipif(
 def mork(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = metta._at("&mork")
     yield space
-    for atom in space.atoms():
-        space.remove(atom)
+    space.clear()
 
 
 def test_writes_queue_and_reads_see_them(mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -159,8 +158,7 @@ def named_pair(metta):  # noqa: D103  -- pytest discovers or injects this callab
     beta = metta._at("&mork:iso-beta")
     yield alpha, beta
     for space in (alpha, beta):
-        for atom in space.atoms():
-            space.remove(atom)
+        space.clear()
 
 
 def test_named_mork_spaces_are_isolated(named_pair, mork):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -241,5 +239,54 @@ else:
             space.add(atom)
             assert atom in list(space.atoms())
         finally:
-            for stored in space.atoms():
-                space.remove(stored)
+            space.clear()
+
+
+def test_clear_reclaims_named_mork_content(metta):
+    """Clear is provider-owned reclamation, not an enumeration-only facade."""
+    space = metta._at("&mork:clear-reclaims")
+    space.add(S.kept(S.one), S.kept(S.two))
+    space.clear()
+    assert space.atoms() == []
+    space.add(S.kept(S.new))
+    assert [str(atom) for atom in space.atoms()] == ["(kept new)"]
+    space.clear()
+
+
+def test_a_recycled_mork_name_inherits_nothing(metta):
+    """A dropped MORK life leaves neither provider data nor generated code."""
+    name = "&mork:recycled-life"
+    old = metta._at(name)
+    old.add(parse("(= (past-life) inherited)"))
+    assert old.eval("(past-life)") == [S.inherited]
+    old.drop()
+
+    recycled = metta._at(name)
+    assert recycled.atoms() == []
+    assert recycled.eval("(past-life)") == [parse("(past-life)")]
+    recycled.drop()
+
+
+@pytest.mark.parametrize("width", [62, 63, 100])
+def test_join_width_uses_mork_only_within_its_representation(metta, width):
+    """The width boundary preserves answers and never reaches MORK's abort."""
+    space = metta._at(f"&mork:width-{width}")
+    try:
+        atoms = [S[f"r{i}"](S.one) for i in range(width)]
+        patterns = [S[f"r{i}"](V.x) for i in range(width)]
+        space.add(*atoms)
+        rows = space.match(*patterns)
+        assert len(rows) == 1
+        assert rows.one().x == S.one
+    finally:
+        space.drop()
+
+
+def test_mork_refuses_an_expression_beyond_its_arity_encoding(metta):
+    """An arity-64 value raises an engine error instead of aborting Rust."""
+    space = metta._at("&mork:too-wide-value")
+    try:
+        with pytest.raises(EngineError, match=r"at most 63 children"):
+            space.add(S.wide(*[S.x for _ in range(63)]))
+    finally:
+        space.drop()

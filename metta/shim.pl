@@ -43,6 +43,10 @@
 %     declarations aligned with anonymous-name reuse [tested:
 %     test_a_recycled_child_name_may_choose_a_different_parent;
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+%   - petta_py_drop_space/1 ends a named space life without admitting that
+%     public name to the anonymous pool [tested:
+%     test_a_named_space_drop_never_enters_the_anonymous_pool;
+%     commit=WORKTREE]
 %   - petta_py_open_atom_space/2 decodes and declares a ground expression
 %     identity once for Python space handles [tested:
 %     test_python_space_factory_accepts_atom_valued_names; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -146,6 +150,11 @@
 %     Atom through the shared decoder [tested:
 %     test_a_registered_token_class_parses_like_a_shipped_one;
 %     commit=2c741dda928a30d0ce1c7e1fcf0b263b4d1bb97b]
+%   - query decoding and projection use one name index once a row reaches 64
+%     columns, while eager, limited, guarded, prepared, and cursor answer doors
+%     preserve first-appearance column order and variable sharing [tested:
+%     test_wide_query_projection_is_identical_through_every_answer_door;
+%     commit=WORKTREE]
 %   - a converted Python tuple encodes as its structural MeTTa expression,
 %     while an explicitly Grounded tuple remains an object reference
 %     [tested: test_a_python_tuple_answers_the_same_through_both_doors;
@@ -176,6 +185,7 @@
 :- use_module(library(janus)).
 :- use_module(library(lists)).
 :- use_module(library(apply)).
+:- use_module(library(hashtable), [ht_get/3, ht_new/1, ht_put/3]).
 :- use_module(library(time)).
 :- use_module(library(prolog_profile)).
 :- use_module(library(wfs)).
@@ -399,6 +409,12 @@ petta_py_decode_shared_([T0|Rest], Term, B0, B) :-
 %Only v and e differ from the plain decode: one shares a variable by name and
 %the other has to thread the bindings through its elements. Every leaf below
 %them carries no bindings, so it is the plain decode with B unchanged.
+petta_py_decode_shared_tagged(v, [Name0], Var,
+                              indexed(B0, Index), indexed(B, Index)) :- !,
+    ( string(Name0) -> atom_string(Name, Name0) ; atom(Name0), Name = Name0 ),
+    ( Name == '_' -> Var = _, B = B0
+    ; ht_get(Index, Name, Shared) -> Var = Shared, B = B0
+    ; ht_put(Index, Name, Var), B = [Name-Var|B0] ).
 petta_py_decode_shared_tagged(v, [Name0], Var, B0, B) :- !,
     petta_py_shared_table(B0, Table),
     %The atom branch carries the payload check with it: a name arriving as
@@ -434,6 +450,13 @@ petta_py_shared_table(variables_of(Args), Table) :- !,
     term_variables(Args, Variables),
     maplist(petta_py_named_variable, Variables, Table).
 petta_py_shared_table(Table, Table).
+
+% A wide query retains first-appearance pairs for acyclicity and answer
+% semantics while using a backtrackable hash table for variable identity and
+% projection lookup.
+petta_py_decode_indexed(Tagged, Term, Bindings) :-
+    ht_new(Index),
+    petta_py_decode_shared_(Tagged, Term, indexed([], Index), Bindings).
 
 %%%%%%%%%% The explicit answer form %%%%%%%%%%
 %
@@ -1321,13 +1344,19 @@ petta_py_space_releasable(Name0) :-
     ; Name = Name0 ),
     metta_assert_space_releasable(Name).
 
-%Release a space: everything cleared, inheritance unlinked, the execution
-%base forgotten, and only then the name pooled for reuse.
+% Drop a named life without putting its public name in the anonymous pool.
+petta_py_drop_space(Name0) :-
+    ( atom(Name0) -> Name = Name0
+    ; string(Name0) -> atom_string(Name, Name0)
+    ; Name = Name0 ),
+    metta_release_space(Name).
+
+% Release an anonymous life: drop first, then pool the minted atom name.
 petta_py_release_space(Name0) :-
     ( atom(Name0) -> Name = Name0
     ; string(Name0) -> atom_string(Name, Name0)
     ; Name = Name0 ),
-    metta_release_space(Name),
+    petta_py_drop_space(Name),
     ( atom(Name) -> petta_py_pool_space(Name) ; true ).
 
 %%%%%%%%%% Query %%%%%%%%%%
@@ -1335,6 +1364,27 @@ petta_py_release_space(Name0) :-
 % A query is a list of patterns run as one conjunction through the engine's own
 % match/4, its native [','|Patterns] form, so joins are the matcher's joins.
 % VarNames selects which variables come back, as one row per answer.
+
+petta_py_query(Space, PatternsTagged, VarNames, Row) :-
+    VarNames = [
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _ | _
+    ],
+    !,
+    petta_py_decode_indexed(["e", PatternsTagged], Patterns, Bindings),
+    petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
+    petta_py_match_goal(Segments, Space, PlainPatterns, Goal),
+    (   Modifiers == []
+    ->  call(Goal)
+    ;   call(Goal), petta_py_call_modifiers(Modifiers)
+    ),
+    petta_py_row(VarNames, Bindings, Row).
 
 petta_py_query(Space, PatternsTagged, VarNames, Row) :-
     petta_py_decode_shared(["e", PatternsTagged], Patterns, Bindings),
@@ -1468,6 +1518,32 @@ petta_py_render_origin(refused(Refusing), Text) :-
 %them. Translating inside the enumeration would recompile per candidate
 %row, which measured at ~500ms per 2000-row guarded query.
 petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
+    VarNames = [
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _ | _
+    ],
+    !,
+    petta_py_decode_indexed(["e", [GuardTagged | PatternsTagged]],
+                            [Guard | Patterns], Bindings),
+    petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
+    petta_py_match_goal(Segments, Space, PlainPatterns, Goal),
+    petta_py_module(Space, Module),
+    petta_py_in_module(Module, translate_expr(Guard, Goals, Out)),
+    (   Modifiers == []
+    ->  call(Goal)
+    ;   call(Goal), petta_py_call_modifiers(Modifiers)
+    ),
+    petta_py_call_goals(Module, Goals),
+    Out == true,
+    petta_py_row(VarNames, Bindings, Row).
+
+petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
     petta_py_decode_shared(["e", [GuardTagged | PatternsTagged]], [Guard | Patterns], Bindings),
     petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
     petta_py_match_goal(Segments, Space, PlainPatterns, Goal),
@@ -1507,6 +1583,31 @@ petta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
     ).
 
 petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
+    VarNames = [
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _,
+        _, _, _, _, _, _, _, _ | _
+    ],
+    !,
+    petta_py_decode_indexed(["e", [PatternTagged]], [Pattern], Bindings),
+    petta_py_prepare_patterns([Pattern], [PlainPattern], Modifiers, Segments),
+    (   Segments == true
+    ->  petta_seq_query_plan(PlainPattern, Asked),
+        match(Space, Asked, answered, answered),
+        ( Modifiers == [] -> true ; petta_py_call_modifiers(Modifiers) )
+    ;   Modifiers == []
+    ->  match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered)
+    ;   match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered),
+        petta_py_call_modifiers(Modifiers)
+    ),
+    petta_py_row(VarNames, Bindings, Row).
+
+petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
     petta_py_decode_shared(["e", [PatternTagged]], [Pattern], Bindings),
     petta_py_prepare_patterns([Pattern], [PlainPattern], Modifiers, Segments),
     %A gap pattern is not a shape a provider was handed a bound for: its arity
@@ -1536,6 +1637,9 @@ petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
 %stack overflow. Same semantics as match/4: the cyclic candidate FAILS
 %this row and enumeration continues. Guarded once per row, not per
 %column.
+petta_py_row(Names, indexed(Bindings, Index), Row) :- !,
+    acyclic_term(Bindings),
+    petta_py_row_indexed(Names, Index, Row).
 petta_py_row(Names, Bindings, Row) :-
     acyclic_term(Bindings),
     petta_py_row_columns(Names, Bindings, Row).
@@ -1546,6 +1650,13 @@ petta_py_row_columns([Name0|Names], Bindings, [Value|Values]) :-
     ( memberchk(Name-V, Bindings) -> petta_py_encode(V, Value)
     ; Value = ["v", Name0] ),
     petta_py_row_columns(Names, Bindings, Values).
+
+petta_py_row_indexed([], _, []).
+petta_py_row_indexed([Name0|Names], Index, [Value|Values]) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    ( ht_get(Index, Name, V) -> petta_py_encode(V, Value)
+    ; Value = ["v", Name0] ),
+    petta_py_row_indexed(Names, Index, Values).
 
 %%%%%%%%%% Space modules %%%%%%%%%%
 %

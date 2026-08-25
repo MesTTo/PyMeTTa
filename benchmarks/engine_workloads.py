@@ -13,6 +13,10 @@ Guarantees:
   - source loading reaches sort and findall [source: engine/filereader.pl:136]
   - method dispatch reaches sub_atom and term construction [source: engine/metta.pl:428]
   - space-name recognition reaches atom_concat [source: engine/metta.pl:327]
+  - join_width_case keeps setup outside perf's controlled interval and checks
+    the one-row shared and distinct-column results before reporting completion
+    [tested: test_instruction_join_workload_checks_both_projection_shapes;
+    commit=WORKTREE]
 Decides:
   - default sizes keep each measured engine operation above 0.1 seconds on
     the gate workstation [measured 2026-08-15: 0.101-0.254 seconds]
@@ -30,9 +34,9 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Callable
-from typing import Any, TypeAlias
+from typing import Any, Literal, TypeAlias
 
-from metta import Expression, MeTTa, S, V
+from metta import Expression, MeTTa, S, Space, V
 
 ALPHA_TERMS = 50_000
 DIGEST_ATOMS = 20_000
@@ -54,14 +58,15 @@ METHOD_CALLS = 10_000
 SORT_TERMS = 100_000
 SOURCE_FORMS = 1_000
 SPACE_NAME_CALLS = 30_000
+JOIN_WIDTH_QUERIES = 10
 
 _BIGNUM = 10**40
 _LET_ROW = Expression([_BIGNUM + index for index in range(LET_ROW_ELEMENTS)])
 
-EngineCase: TypeAlias = tuple[MeTTa, Callable[[], int]]
+EngineCase: TypeAlias = tuple[Space, Callable[[], int]]
 
 
-def _space() -> MeTTa:
+def _space() -> Space:
     return MeTTa().space()
 
 
@@ -70,7 +75,7 @@ def close_engine_case(state: EngineCase) -> None:
     state[0].drop()
 
 
-def let_space() -> MeTTa:
+def let_space() -> Space:
     """Create a space containing the recursive let workload."""
     space = _space()
     try:
@@ -88,7 +93,7 @@ def let_space() -> MeTTa:
     return space
 
 
-def let_heavy(space: MeTTa, iterations: int = LET_ITERATIONS) -> int:
+def let_heavy(space: Space, iterations: int = LET_ITERATIONS) -> int:
     """Evaluate one let binding a compound and one bignum addition per iteration.
 
     The bound value is a compound on purpose. A let emits its occurs check
@@ -224,11 +229,51 @@ def space_name_case(calls: int = SPACE_NAME_CALLS) -> EngineCase:
     return space, operation
 
 
+def join_width_case(
+    width: int,
+    *,
+    projection: bool,
+    queries: int = JOIN_WIDTH_QUERIES,
+) -> EngineCase:
+    """Build a fixed-output join whose requested column width is selectable."""
+    if width < 1 or queries < 1:
+        raise ValueError("join width and query count must be positive")
+    space = _space()
+    patterns = []
+    facts = []
+    for index in range(width):
+        relation = S[f"msj{index:08x}"]
+        variable = V[f"column_{index:08x}"] if projection else V.shared
+        facts.append(relation(S.only))
+        patterns.append(relation(variable))
+    try:
+        space.add(*facts)
+    except BaseException:
+        space.drop()
+        raise
+
+    expected_columns = width if projection else 1
+
+    def operation() -> int:
+        rows = None
+        for _ in range(queries):
+            rows = space.match(*patterns)
+            list(rows)
+        if rows is None or len(rows) != 1 or len(rows.columns) != expected_columns:
+            raise AssertionError(
+                f"width-{width} join returned {rows!r}, expected one row "
+                f"with {expected_columns} columns"
+            )
+        return queries
+
+    return space, operation
+
+
 TYPED_CALLS = 500_000
 TYPED_SLOPE_SMALL = 50_000
 
 
-def typed_space() -> MeTTa:
+def typed_space() -> Space:
     """Create a space holding a DECLARED function and a driver that calls it.
 
     The argument arrives through a let rather than as a literal, because a
@@ -253,7 +298,7 @@ def typed_space() -> MeTTa:
     return space
 
 
-def typed_call(space: MeTTa, calls: int = TYPED_CALLS) -> int:
+def typed_call(space: Space, calls: int = TYPED_CALLS) -> int:
     """Run one declared call per iteration, argument type unknown until run time.
 
     This case exists because the INFERENCE counter cannot see what it measures,
@@ -293,6 +338,7 @@ def typed_call(space: MeTTa, calls: int = TYPED_CALLS) -> int:
 __all__ = [
     "ALPHA_TERMS",
     "DIGEST_ATOMS",
+    "JOIN_WIDTH_QUERIES",
     "LET_ITERATIONS",
     "LET_SLOPE_SMALL",
     "METHOD_CALLS",
@@ -304,6 +350,7 @@ __all__ = [
     "alpha_unique_case",
     "close_engine_case",
     "digest_case",
+    "join_width_case",
     "let_heavy",
     "let_space",
     "py_method_case",
@@ -318,7 +365,7 @@ __all__ = [
 SAVE_LOAD_ATOMS = 20_000
 
 
-def save_load_case(format: str, atoms: int = SAVE_LOAD_ATOMS) -> EngineCase:
+def save_load_case(format: Literal["fast", "metta"], atoms: int = SAVE_LOAD_ATOMS) -> EngineCase:
     """Round-trip a whole space through a file, which is byte work.
 
     The inference counter cannot see byte copying: `string-join` once moved 4x
@@ -365,7 +412,7 @@ def save_load_case(format: str, atoms: int = SAVE_LOAD_ATOMS) -> EngineCase:
 # file lives in. Keyed on the source space's name because EngineCase carries
 # exactly one space and one operation, and widening it would touch every
 # workload for the benefit of this one.
-_SAVE_LOAD_HELD: dict[str, tuple[MeTTa, Any]] = {}
+_SAVE_LOAD_HELD: dict[str, tuple[Space, Any]] = {}
 
 
 def close_save_load_case(state: EngineCase) -> None:

@@ -5,6 +5,9 @@ Guarantees:
     test_benchmark_cli_spawns_each_case; commit=dcfc20be4933c19140ccb5759291401d13058301]
   - unknown names fail through argparse and --list reports every case
     [tested: test_benchmark_cli_lists_and_rejects_case_names; commit=dcfc20be4933c19140ccb5759291401d13058301]
+  - --memory-scale composes the same spawned-process timeout and cleanup
+    discipline with structural, Python-allocation, and Linux process-memory
+    curves [tested: test_memory_scale_cli_runs_fresh_workers; commit=WORKTREE]
 Owns resources:
   - main joins each benchmark process and terminates one that exceeds its
     explicit limit [tested: test_benchmark_cli_spawns_each_case; commit=dcfc20be4933c19140ccb5759291401d13058301]
@@ -76,6 +79,14 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("names", nargs="*")
     parser.add_argument("--list", action="store_true", dest="list_cases")
     parser.add_argument("--counter-only", action="store_true")
+    parser.add_argument(
+        "--memory-scale",
+        action="store_true",
+        help="run memory and scaling curves instead of pytest benchmark cases",
+    )
+    parser.add_argument("--memory-repetitions", type=int, default=3)
+    parser.add_argument("--memory-quick", action="store_true")
+    parser.add_argument("--memory-cause-commit", default=os.environ.get("PETTA_MEMORY_CAUSE_COMMIT", "WORKTREE"))
     parser.add_argument("--update-baseline", action="store_true")
     parser.add_argument("--compare-wall", action="store_true")
     parser.add_argument("--json", type=Path)
@@ -102,6 +113,21 @@ def _run_case(pytest_arguments: list[str], *, update: bool) -> None:
     result = pytest.main(pytest_arguments)
     if result:
         raise SystemExit(int(result))
+
+
+def _finish_process(process: Any, timeout: float) -> str | None:
+    """Join one spawned worker and reap it on every timeout path."""
+    process.join(timeout)
+    if process.is_alive():
+        process.terminate()
+        process.join(5.0)
+        if process.is_alive():
+            process.kill()
+            process.join()
+        return f"process exceeded its {timeout:g} second limit"
+    if process.exitcode != 0:
+        return f"process exited with status {process.exitcode}"
+    return None
 
 
 def _arguments_for(
@@ -184,6 +210,44 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps
     """Run the requested benchmark cases through isolated pytest processes."""
     parser = _parser()
     arguments = parser.parse_args(argv)
+    if arguments.memory_repetitions < 1:
+        parser.error("--memory-repetitions must be positive")
+    if arguments.memory_scale:
+        from benchmarks.memory_scale import CASES as MEMORY_CASES  # noqa: PLC0415
+        from benchmarks.memory_scale import run_suite  # noqa: PLC0415
+
+        if arguments.list_cases:
+            print("\n".join(sorted(MEMORY_CASES)))
+            return 0
+        unknown = sorted((set(arguments.names) | set(arguments.skip)) - MEMORY_CASES.keys())
+        if unknown:
+            parser.error(
+                f"unknown memory-scale benchmark {', '.join(unknown)}; "
+                "use --memory-scale --list for valid names"
+            )
+        selected = [
+            name
+            for name in (arguments.names or sorted(MEMORY_CASES))
+            if name not in set(arguments.skip)
+        ]
+        if not selected:
+            parser.error("every selected memory-scale benchmark was skipped")
+        if arguments.skip:
+            print(f"skipping {', '.join(sorted(set(arguments.skip)))}")
+        directory = Path(__file__).resolve().parent
+        return run_suite(
+            names=selected,
+            repetitions=arguments.memory_repetitions,
+            timeout=arguments.timeout,
+            quick=arguments.memory_quick,
+            output=arguments.json,
+            baseline_path=directory / "benchmarks" / "memory-scale-baseline.json",
+            update_baseline=arguments.update_baseline,
+            cause_commit=arguments.memory_cause_commit,
+            keep_going=arguments.keep_going,
+            context=multiprocessing.get_context("spawn"),
+            finish_process=_finish_process,
+        )
     if arguments.list_cases:
         print("\n".join(sorted(CASES)))
         return 0
@@ -229,21 +293,12 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps
                 name=f"petta-benchmark-{name}",
             )
             process.start()
-            process.join(arguments.timeout)
-            if process.is_alive():
-                process.terminate()
-                process.join(5.0)
-                if process.is_alive():
-                    process.kill()
-                    process.join()
-                message = f"benchmark {name} exceeded its {arguments.timeout:g} second limit"
+            process_failure = _finish_process(process, arguments.timeout)
+            if process_failure is not None:
+                message = f"benchmark {name} {process_failure}"
                 if not arguments.keep_going:
-                    raise TimeoutError(message)
-                failures.append(message)
-                continue
-            if process.exitcode != 0:
-                message = f"benchmark {name} process exited with status {process.exitcode}"
-                if not arguments.keep_going:
+                    if "exceeded" in process_failure:
+                        raise TimeoutError(message)
                     raise RuntimeError(message)
                 failures.append(message)
                 continue
