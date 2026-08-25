@@ -127,6 +127,7 @@ def test_python_first_world_faces_are_in_the_phrasebook():
     """Supplemental faces stay exact without entering manifest coverage."""
     spellings = {face.spelling for face in PUBLIC_FACES}
     assert spellings == {
+        "@metta.op(effect=...)",
         "metta.speculate()",
         "space.reify()",
         "world.eval(target)",

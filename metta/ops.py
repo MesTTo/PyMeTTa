@@ -865,7 +865,7 @@ def register[**P, R](
 def _registered_operation(fn: Callable[..., Any]) -> Operation | None:
     """Return the live registration owned by this callable or wrapper chain."""
     operation = getattr(fn, _OPERATION_REGISTRATION, None)
-    if isinstance(operation, Operation):
+    if isinstance(operation, Operation) and REGISTRY.get(operation.name) is operation:
         return operation
     source = inspect.unwrap(fn)
     for candidate in REGISTRY.values():

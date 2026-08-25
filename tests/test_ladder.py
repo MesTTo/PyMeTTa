@@ -3,9 +3,11 @@ default engine (M1), scoped limits (M3), into= row shaping (M4), the batch
 block (M5), the shipped pytest fixtures (M6), and the exported strategies
 (L4). Every rung is tested as sugar for the rung below.
 Guarantees:
-  - module define/cache/stats/limits/strict/trace verbs defer to one lazy
-    default engine [tested: test_module_tier_exposes_the_mode_and_definition_family;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - module define/cache/op/stats/limits/strict/trace verbs defer to one lazy
+    default engine, and op forwards its receiver result without another
+    wrapper [tested: test_module_tier_exposes_the_mode_and_definition_family,
+    test_module_tier_op_forwards_identity_to_the_default_receiver;
+    commit=WORKTREE]
   - scoped stack bounds retain an explicit byte count for
     ``petta_py_limited/6`` [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -82,6 +84,62 @@ def test_module_tier_exposes_the_mode_and_definition_family() -> None:
     assert callable(metta.trace)
 
 
+def test_module_tier_op_forwards_identity_to_the_default_receiver(monkeypatch) -> None:
+    """The root door returns exactly what the default receiver returns."""
+    sentinel = object()
+    calls = []
+
+    class Receiver:
+        def op(self, *args, **kwargs):
+            calls.append((args, kwargs))
+            return sentinel
+
+    class Context:
+        self = Receiver()
+
+    monkeypatch.setattr(metta, "engine", Context)
+
+    def host(value):
+        return value
+
+    assert metta.op(host, name="root-op-forwarding", effect="pureStructural") is sentinel
+    assert calls == [
+        ((host,), {"name": "root-op-forwarding", "effect": "pureStructural"})
+    ]
+
+
+def test_module_tier_op_registration_precedes_definition_compilation() -> None:
+    """A root operation is known when the following root definition compiles."""
+
+    @metta.op(name="root-op-definition-order", effect="pureStructural")
+    def root_op_definition_order(value):
+        return value * 2
+
+    try:
+
+        @metta.define
+        def root_definition_after_op(value):
+            return root_op_definition_order(value) + 1
+
+        assert root_definition_after_op(4) == [9]
+        assert root_op_definition_order.__wrapped__(4) == 8
+    finally:
+        metta.engine().self.unregister_op("root-op-definition-order")
+
+
+def test_module_tier_op_requires_effect_before_registration() -> None:
+    """The root door inherits the receiver's required effect metadata."""
+
+    def root_op_without_effect(value):
+        return value
+
+    with pytest.raises(TypeError, match=r"requires effect=.*pureStructural.*oracleIO"):
+        metta.op(root_op_without_effect, name="root-op-without-effect")
+    assert metta.run(
+        "!(match &petta (op root-op-without-effect $arity $kind) $kind)"
+    ) == [[]]
+
+
 def test_module_tier_speculate_discards_default_space_writes() -> None:
     """The guide-exact root spelling is sugar over the default receiver."""
     with metta.speculate():
@@ -98,7 +156,7 @@ def test_module_tier_verbs_are_inert_until_called() -> None:
         "import metta\n"
         "assert not _engine.started()\n"
         "assert all(callable(getattr(metta, name)) for name in "
-        "('define', 'cache', 'stats', 'limits', 'strict', 'speculate', 'trace'))\n"
+        "('define', 'cache', 'op', 'stats', 'limits', 'strict', 'speculate', 'trace'))\n"
         "assert not _engine.started()\n"
     )
     subprocess.run(

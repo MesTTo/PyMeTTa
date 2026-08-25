@@ -44,6 +44,11 @@ Guarantees:
   - module define/cache/stats/limits/strict/trace verbs defer engine creation
     until called and target the default self space [tested:
     test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``op`` forwards unchanged to the lazy default receiver and therefore keeps
+    its required five-rank ``effect=`` contract [tested:
+    test_module_tier_op_forwards_identity_to_the_default_receiver,
+    test_module_tier_op_registration_precedes_definition_compilation;
+    commit=WORKTREE]
   - under scopes an algebra through ContextVar state and the exact counting,
     tropical, probability, provenance, and ranking carriers stay lazy root
     exports [tested:
@@ -379,6 +384,11 @@ def cache(*args: _Any, **kwargs: _Any):
     return engine().self.cache(*args, **kwargs)
 
 
+def op(*args: _Any, **kwargs: _Any):
+    """Register a host operation in the default self space."""
+    return engine().self.op(*args, **kwargs)
+
+
 def stats():
     """Measure engine counters across a default-context block."""
     return engine().self.stats()
@@ -494,6 +504,7 @@ __all__ = [
     "manifest",
     "match",
     "not_",
+    "op",
     "or_",
     "par_map",
     "parallel",
