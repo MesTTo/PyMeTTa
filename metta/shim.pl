@@ -15,11 +15,11 @@
 %     yielded occurrence [tested:
 %     test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
 %     test_sparse_relational_dict_candidates_bind_parameter_names;
-%     commit=WORKTREE]
+%     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 %   - the repeatability bridge fails closed on an ordinary classifier refusal
 %     but preserves every engine control exception [tested:
 %     python_repeatability_control:the_bridge_preserves_inference_limits;
-%     commit=WORKTREE]
+%     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 %   - petta_py_declare_handles/3 writes the declaration and checks the
 %     context's critical pairs in one transaction, so a conflicting entry
 %     rolls back and never becomes queryable

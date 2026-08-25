@@ -5,7 +5,7 @@ Guarantees:
   - the scan oracle uses directional pattern matching, so a variable in a
     stored event does not make a literal watching pattern match [tested:
     test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None

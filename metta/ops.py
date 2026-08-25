@@ -35,7 +35,7 @@ Guarantees:
   - generator signatures supply positional and sparse-dict relation row names
     after injected engine parameters are removed [tested:
     test_sparse_relational_dict_candidates_bind_parameter_names;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - every documented operation owns its portable @doc atom in the
     declaration space, independent of type annotations, under the same transactional
     lifecycle and reference count as type declarations [tested:

@@ -15,7 +15,7 @@ Guarantees:
   - the four-argument unify control form is pure while its branch calls are
     still visited and classified [tested:
     test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None

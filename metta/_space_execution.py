@@ -32,7 +32,7 @@ Guarantees:
   - lazy evaluation uses a second engine for cardinality only when the
     translated goal is effect-safe [tested:
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -388,7 +388,7 @@ def evaluate_answers(
     so list() cannot execute an effect once for its length hint and again for
     its values [tested:
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
-    commit=WORKTREE].
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723].
     """
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     columns = [] if isinstance(target, str) else _column_names((_to_atom(target),))

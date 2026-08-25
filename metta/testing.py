@@ -478,7 +478,7 @@ def _joined(pattern, atom):
     variables are named petta-check-*, so a collision would need a stored
     $petta-check-* variable.
     [source: bindings/python/metta/atoms.py:unify and
-    engine/spaces/bounded_matching.pl:petta_match_atoms/2; commit=WORKTREE]
+    engine/spaces/bounded_matching.pl:petta_match_atoms/2; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     bindings: dict = {}
     stack = [(_encode(pattern), _encode(atom))]

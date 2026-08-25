@@ -25,7 +25,7 @@ Guarantees:
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
   - four-argument unify is called directly at expression position and lowers
     from a compiled body [tested: bindings/python/tools/twin_coverage.py
-    examples/control/unify.metta; commit=WORKTREE]
+    examples/control/unify.metta; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -75,7 +75,7 @@ STRING_X, STRING_Y = ground("x"), ground("y")
 #: [measured: 13701 inferences; command=python
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/control/unify.metta; fixture=minimum of three serial runs;
-#: commit=WORKTREE].
+#: commit=6917bef7ca902671999eafcae3a7a86db8f69723].
 BUDGET = 13701
 
 

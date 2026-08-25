@@ -21,7 +21,7 @@ Guarantees:
   - provider queries and bridge declarations retain directional pattern
     matching after public ``unify`` becomes symmetric [tested:
     test_mapped_repeated_variable_pattern_stays_sound;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None

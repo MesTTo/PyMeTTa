@@ -19,7 +19,7 @@ Guarantees:
     test_unify_binds_variables_from_both_operands,
     test_unify_treats_nesting_depth_as_data_during_normalization,
     test_unify_path_compresses_long_alias_chains;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Owns:
   - test_atom_identity_caches_are_thread_safe joins every cache worker
     before checking identity [tested test_atom_identity_caches_are_thread_safe]

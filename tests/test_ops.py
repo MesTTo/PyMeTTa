@@ -19,7 +19,7 @@ Guarantees:
     test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
     test_sparse_relational_dict_candidates_bind_parameter_names,
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None

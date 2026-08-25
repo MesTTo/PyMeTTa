@@ -5,7 +5,7 @@ Guarantees:
     [tested: this module; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a ground algebra goal cannot bind a variable inside a stored candidate
     [tested: test_algebra_patterns_do_not_bind_variables_inside_stored_candidates;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None

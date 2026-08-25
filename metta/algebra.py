@@ -27,7 +27,7 @@ Guarantees:
   - rule premises and evaluation goals retain directional pattern matching
     after public ``unify`` becomes symmetric [tested:
     test_algebra_patterns_do_not_bind_variables_inside_stored_candidates;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.

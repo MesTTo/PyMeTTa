@@ -72,7 +72,7 @@ Guarantees:
     bindings in every call direction [tested:
     test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
     test_sparse_relational_dict_candidates_bind_parameter_names;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - ``Space.answers`` and bound ``Space.fn`` expose lazy, replayable
     evaluation, with unknown function attributes rejected at access [tested:
     test_bound_function_namespace_validates_at_access,

@@ -47,7 +47,7 @@ Guarantees:
   - a count source may decline a second evaluation, in which case len
     materializes the held cursor once [tested:
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - one(default=) distinguishes absence from multiplicity for both eager and
     lazy faces, while first without a default never returns None [tested:
     test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

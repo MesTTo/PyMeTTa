@@ -7,7 +7,7 @@ modulo variable renaming.
 Assumes:
   - metta.atoms._match is the private directional primitive every lookup
     here wants: stored patterns are the pattern side and probes are the atom
-    side [source: bindings/python/metta/atoms.py:_match; commit=WORKTREE]
+    side [source: bindings/python/metta/atoms.py:_match; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Guarantees:
   - PatternMap's ground keys behave exactly like dict keys, the no-tax
     rule [tested test_patternmap_ground_keys_are_dict_keys]

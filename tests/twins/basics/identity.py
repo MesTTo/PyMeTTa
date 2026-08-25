@@ -148,7 +148,7 @@ is Python's own `assert`.
 #: the classification once during its answer comparison [measured: 2840
 #: inferences; command=python bindings/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/basics/identity.metta; fixture=minimum of three serial
-#: runs; commit=WORKTREE].
+#: runs; commit=6917bef7ca902671999eafcae3a7a86db8f69723].
 BUDGET = 2840
 
 

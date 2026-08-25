@@ -52,7 +52,7 @@ Guarantees:
   - event delivery binds only the watching pattern and never variables stored
     in an event atom [tested:
     test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Guarded by:
   - _FoldRegistry._lock protects fold state, the active runtime, delivery
     counts, and engine subscription snapshots [tested

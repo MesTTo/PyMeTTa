@@ -18,7 +18,7 @@ Guarantees:
     conditional overloads, and compiled definitions lower the latter directly
     [tested:
     test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - ``Space.pre_add`` installs one compiled judge whose package verdict
     builders preserve, transform, refuse, or silently drop each offered atom
     [tested: test_pre_add_compiles_the_four_verdict_judge; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

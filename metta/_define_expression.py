@@ -33,7 +33,7 @@ Guarantees:
   - a four-argument bare unify call lowers to the engine's protected special
     form rather than resolving as a host closure [tested:
     test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None

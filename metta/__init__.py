@@ -31,7 +31,7 @@ Guarantees:
   - ``unify`` keeps the symmetric two-atom matcher at arity two and evaluates
     the engine's conditional form at arity four [tested:
     test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - ``view`` lazily opens a live provider space over Python mappings, sets,
     and sequences [tested: test_view_is_a_live_queryable_space;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

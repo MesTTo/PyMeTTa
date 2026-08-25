@@ -39,7 +39,7 @@ Guarantees:
     over variables from either operand [tested:
     test_unify_binds_a_ground_term_and_pattern_in_both_orders,
     test_unify_binds_variables_from_both_operands,
-    test_unify_path_compresses_long_alias_chains; commit=WORKTREE]
+    test_unify_path_compresses_long_alias_chains; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None

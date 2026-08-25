@@ -37,7 +37,7 @@ Guarantees:
     them [tested:
     test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
     test_sparse_relational_dict_candidates_bind_parameter_names;
-    commit=WORKTREE]
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
