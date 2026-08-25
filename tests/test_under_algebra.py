@@ -183,7 +183,7 @@ def test_ranked_and_tropical_slices_are_stable_best_prefixes(metta):
         for value, annotation in rows:
             yield Answer(value=value, k=annotation)
 
-    metta.op(scored_call, name="under-scored-call")
+    metta.op(scored_call, name="under-scored-call", effect="nondeterministicReadOnly")
     with metta._new_space() as program:
         best = program.answers(S.under_scored_call(S.query), under=ranked)[:2]
         assert [answer.value for answer in best] == [S.best_a, S.best_b]

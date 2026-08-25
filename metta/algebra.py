@@ -74,6 +74,7 @@ from .atoms import (
     substitute,
 )
 from .errors import PettaError
+from .vocabularies import EffectClass
 
 __all__ = [
     "AlgebraDeclarationError",
@@ -1268,7 +1269,12 @@ def _operation_name(
     def binary(left: Any, right: Any) -> Any:
         return operation(left, right)
 
-    metta.op(binary, name=name)
+    # An algebra's combine and extend are arithmetic over two carrier values:
+    # they read nothing and write nothing, which is rank 0. The declaration
+    # is required at registration, and a semiring whose operator claimed a
+    # higher rank would make every annotation join that used it look
+    # effectful to the plan join.
+    metta.op(binary, name=name, effect=EffectClass.pureStructural)
     return name
 
 

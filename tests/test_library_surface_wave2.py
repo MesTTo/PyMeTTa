@@ -195,8 +195,15 @@ def test_expression_position_unify_uses_the_engine_conditional_in_both_contexts(
     assert list(describe(S.Place(S.Ann))) == [S.Unknown]
     assert describe.pure is True
 
-    @target.op(name="libfix_unify_observe")
+    # The branch call is what this half measures, so the operation carries a
+    # real observable effect rather than a rank chosen to make the assertion
+    # pass: the four-argument control form is structural, and the definition
+    # around it inherits the join of what its branches actually do.
+    observed = []
+
+    @target.op(name="libfix_unify_observe", effect="writesState")
     def libfix_unify_observe(value):
+        observed.append(value)
         return value
 
     @target.define
@@ -204,6 +211,8 @@ def test_expression_position_unify_uses_the_engine_conditional_in_both_contexts(
         return unify(value, A, libfix_unify_observe(value), Nope)  # noqa: F821 -- capitalized names are compiled-body data constructors
 
     assert impure_describe.pure is False
+    assert list(impure_describe(S.A)) == [S.A]
+    assert observed == [S.A], "the taken branch's operation did not run"
 
     with pytest.raises(TypeError, match="exactly 2 or 4 arguments"):
         unify(S.a, S.b, S.c)
