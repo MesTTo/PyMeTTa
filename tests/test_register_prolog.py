@@ -461,10 +461,12 @@ def test_a_provider_only_file_registers_no_functions_and_is_accepted(space, tmp_
     """
     source = tmp_path / "rp_provider.pl"
     source.write_text(
-        ":- metta_extension(rp_provider_demo, []).\n"
+        ":- metta_extension(rp_provider_demo, [spaces(['&rp-provider-demo'])]).\n"
         ":- multifile seam:foreign_space/1.\n"
+        ":- multifile seam:foreign_capability/2.\n"
         ":- multifile seam:foreign_atoms/2.\n"
         "seam:foreign_space('&rp-provider-demo').\n"
+        "seam:foreign_capability('&rp-provider-demo', enumerate).\n"
         "seam:foreign_atoms('&rp-provider-demo', [fact, a]).\n"
     )
     try:

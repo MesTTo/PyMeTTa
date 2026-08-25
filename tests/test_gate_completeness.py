@@ -103,7 +103,13 @@ RUFF_FAMILY_BURN_DOWN = {
     # when it lands. Measured on the merged tree, after the last merge.
     # 2151 after the startup-perf merge, which added `metta/__main__.py` and
     # its test. Measured on the merged tree, after the last merge.
-    "D": 2151,
+    # 2172 as the library import door (`metta/_library.py`, its test file),
+    # the flat-door typed-dispatch tests, the Handle-species test, and the
+    # conformance kit's Space-handle dispatch test land: every new site is
+    # the repository's own D205 one-invariant form or a D103 test-function
+    # suppression, the two idioms the ceiling already prices. Measured
+    # after the last edit of the landing set.
+    "D": 2172,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a

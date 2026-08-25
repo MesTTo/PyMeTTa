@@ -35,9 +35,10 @@ from __future__ import annotations
 from types import GeneratorType
 
 from ._codec_kit import CodecDriver, check_codec, codec_corpus, codec_plan
+from ._library import lib
 from ._optional import require_module
 from ._space import Space
-from .atoms import Expression, Grounded, Symbol, Variable, _alpha_eq, _encode
+from .atoms import Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode
 from .atoms import parse as atoms_parse
 from .benchmarking import (
     BenchmarkBaseline,
@@ -293,16 +294,31 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
 
     Raises AssertionError on the first violation, naming the provider class,
     the operation and the atom.
+
+    THE DOOR IS UNIVERSAL: a provider is any foreign substrate, not only a
+    Python object, and every substrate sits behind the space seam. Handed a
+    ``Space`` handle, this runs the engine's own checker
+    (lib/lib_conformance.pl's ``check-space-provider``), which holds the
+    same laws — capability reachability, the match pattern family, the
+    declared source discipline, the canary round trip, the pushdown claim —
+    asked through the seam, so a provider written in Prolog, C, or anything
+    else is held to one contract. The object form stays the
+    pre-registration half for Python authors; ``source=`` applies to it
+    alone, because a registered space carries its declared ``(source ...)``
+    class and the engine checker reads that instead of trusting a claim.
     """
+    if isinstance(provider, Space):
+        return _check_space_through_the_seam(provider)
     if source not in ("linear", "repeated", "peek"):
         msg = f"source is linear, repeated or peek, not {source!r}"
         raise ValueError(msg)
     name = type(provider).__name__
     if not isinstance(provider, SpaceProvider):
         msg = (
-            f"{name} is not a SpaceProvider: register_provider checks this too, "
-            f"and without the base class every operation dies inside an engine "
-            f"callback on a missing can_run"
+            f"{name} is not a SpaceProvider, and it is not a Space handle: "
+            f"pass the provider object for the pre-registration half, or "
+            f"the registered space's handle to run the engine's own checker "
+            f"through the seam, whatever the provider's substrate"
         )
         raise AssertionError(msg)  # noqa: TRY004  -- the harness is checking its own invariant, so AssertionError is the intended contract
     ran = _check_declared_capabilities(provider, name)
@@ -341,6 +357,19 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
         *_check_match_contract(provider, name, stored),
         *_check_pushdown_claim(provider, name, stored),
     ]
+
+
+def _check_space_through_the_seam(space: Space) -> list[str]:
+    """The engine's checker, reached from the handle: lib.conformance is
+    imported into a scratch sibling of the space's own context, so the
+    subject space is inspected and never touched, and the answers cross
+    back as the check strings the Prolog kit reports.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    scratch = space.metta.space()
+    scratch += lib.conformance
+    checks, = scratch.answers(S.check_space_provider(space))
+    return [str(check.value) if isinstance(check, Grounded) else str(check)
+            for check in checks]
 
 
 def _check_round_trip(name: str, atoms_to_store, stored) -> list[str]:

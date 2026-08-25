@@ -12,37 +12,45 @@ here names a space as a symbol.
 The provider file is consulted through `m.register_prolog(path=)`, the Python
 door for what the example spells `(let "cstore.pl" (consult_global) provider)`.
 
-Two things do not dissolve. The Python compliance kit, `metta.testing`, reaches
-only Python providers, so a provider whose clauses live in Prolog and whose
-store lives in C is checkable only through the engine's own
-`check-space-provider`. And the concurrent-writer form is DECLINED: `hyperpose`
-runs its branches on real threads and the completion schedule moves the
-inference count, which the residue records against P14.14.
+One thing does not dissolve. The concurrent-writer form is DECLINED:
+`hyperpose` runs its branches on real threads and the completion schedule
+moves the inference count, which the residue records against P14.14. The
+conformance check DOES dissolve now: with `lib.conformance` imported,
+`check-space-provider` is this space's own function and the store handle
+is its grounded operand, the example's call exactly, so this
+Prolog-clause, C-store provider is held to the same contract as a Python
+object. The import-free universal door,
+`metta.testing.check_space_provider` handed the same handle, runs the
+same engine checker and is pinned by test_conformance.py.
 """
 
 from pathlib import Path
 
-import metta
-from metta import S, V, ground
+from metta import G, S, V, lib
 
 #: The three engine libraries the example opens, spelled with their real
 #: underscores: `S.lib_file` would name `lib-file`, which the tree does not ship.
-LIBRARIES = (S["lib_import"], S["lib_file"], S["lib_conformance"])
+LIBRARIES = (lib["lib_import"], lib.file, lib.conformance)
 
 #: The build artefact and the provider that loads it, as host paths for a
 #: Python door.
 CSTORE_SO = Path("examples/integration/c_space/cstore.so")
 CSTORE_PL = Path("examples/integration/c_space/cstore.pl")
 
-#: What a healthy provider reports about itself, in the engine's own prose.
+#: What a healthy provider reports about itself, in the engine's own prose:
+#: the capability inventory, the match family, the declared source
+#: discipline, the canary round trip through the provider's own C-backed
+#: writes, the pushdown claim, and the plan split.
 REPORT = [
-    ground("enumerate: declared, seam:foreign_atoms/2 has clauses"),
-    ground("add: declared, seam:foreign_add/2 has clauses"),
-    ground("remove: declared, seam:foreign_remove/3 has clauses"),
-    ground("clear: declared, seam:foreign_clear/1 has clauses"),
-    ground("match: over-approximation holds over 1 atoms"),
-    ground("pushdown: 0 of 1 patterns claimed exact, and are"),
-    ground("plan: not declared, so a conjunction takes the engine's split"),
+    G("enumerate: declared, seam:foreign_atoms/2 has clauses"),
+    G("add: declared, seam:foreign_add/2 has clauses"),
+    G("remove: declared, seam:foreign_remove/3 has clauses"),
+    G("clear: declared, seam:foreign_clear/1 has clauses"),
+    G("match: over-approximation holds over 1 atoms and their pattern families"),
+    G("source: repeated, two enumerations agree"),
+    G("round trip: add then enumerate answers the atom, and remove takes it back"),
+    G("pushdown: 0 of 1 patterns claimed exact, and are"),
+    G("plan: not declared, so a conjunction takes the engine's split"),
 ]
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
@@ -50,28 +58,43 @@ REPORT = [
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 99307 to 99945, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 99945 to 99958, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+BUDGET = 99958
 
 
 def twin(m):
     """Write into C, read back out of it, and prove the provider."""
-    # Known issue: `import!` has no Python door on the handle. The perfect
-    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
-    # library (appendix stamp 1), and neither exists yet, so the directive is
-    # reached by its own bang name, which performs it where it is written.
+    # (import! &self (library <name>)) three times: the write door imports,
+    # and the receiver is the target space.
     for library in LIBRARIES:
-        m.fn["import!"](m, S.library(library))
+        m += library
 
     if not CSTORE_SO.exists():
         # The example prints its skip here. A twin has no door for prose.
         return
 
     m.register_prolog(path=CSTORE_PL)
-    # Known issue: `metta.space(name)` rides the process-DEFAULT context, not
-    # the one holding `m`; the two reach the same store only because the SWI
-    # runtime is process-wide. A creation door on the handle's own context is
-    # the perfect spelling [measured 2026-08-24].
-    store = metta.space(S.cstore)
+    # The creation door on the handle's OWN context: `m.metta` answers the
+    # owning evaluation context, so the store is a sibling of `m` by
+    # construction rather than by the accident of a process-wide runtime.
+    store = m.metta.space(S.cstore)
 
     # Writes and reads cross into C; the engine keeps unification for itself.
     store += [(S.edge, S.a, S.b), (S.edge, S.a, S.c), (S.edge, S.b, S.c)]
@@ -93,12 +116,13 @@ def twin(m):
     store -= S.dup(1)
     assert len(store[S.dup(V.n)]) == 0
 
-    # Every declared capability has clauses behind it, match over-approximates,
-    # and no pushdown claim overreaches. It raises on a violation.
-    #
-    # Known issue: the perfect spelling is the Python compliance kit,
-    # `metta.testing.check_space_provider(provider)`, and it takes a Python
-    # `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and
-    # whose store lives in C cannot reach it. The engine's own function is the
-    # only route, and it does take the handle.
-    assert list(m.answers(S.check_space_provider(store)).one()) == REPORT
+    # Every declared capability has clauses behind it, match over-approximates
+    # over the whole pattern family, the declared source discipline holds, a
+    # canary round-trips through the provider's own writes, and no pushdown
+    # claim overreaches. The call mirrors the example exactly: the kit is
+    # imported here, so `check-space-provider` is this space's own function
+    # and the store handle is its grounded operand. The same checker is
+    # reachable with NO import through `metta.testing.check_space_provider`,
+    # whose Space-handle dispatch test_conformance.py pins.
+    [checked] = m.fn.check_space_provider(store)
+    assert list(checked) == REPORT

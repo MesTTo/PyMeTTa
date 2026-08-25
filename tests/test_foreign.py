@@ -640,8 +640,10 @@ def test_a_prolog_only_provider_answers_a_bounded_query(metta, tmp_path):
     source.write_text(
         ":- multifile seam:foreign_space/1.\n"
         ":- multifile seam:foreign_match/3.\n"
+        ":- multifile seam:foreign_capability/2.\n"
         ":- multifile seam:foreign_pushdown/3.\n"
         "seam:foreign_space('&prolog-only-test').\n"
+        "seam:foreign_capability('&prolog-only-test', match).\n"
         "seam:foreign_match('&prolog-only-test', P, _) :-\n"
         "    member(P, [[fact, 1], [fact, 2], [fact, 3]]).\n"
         "seam:foreign_pushdown('&prolog-only-test', _, exact).\n"

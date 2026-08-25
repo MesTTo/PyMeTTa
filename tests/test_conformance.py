@@ -22,7 +22,7 @@ Open Obligations:
 
 import pytest
 
-from metta import testing
+from metta import MeTTa, Space, testing
 from metta.atoms import Expression, Variable, parse
 from metta.foreign import SpaceProvider
 
@@ -284,3 +284,31 @@ def test_a_faithful_store_passes_the_round_trip_law():  # noqa: D103  -- pytest 
         Keeping(), atoms_to_store=[parse("(fact (f $x) $x)")]
     )
     assert "round-trip: 1 stored atoms recovered intact" in report
+
+
+def test_a_space_handle_dispatches_to_the_engine_checker(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # The universal half of the door: handed an engine Space rather than a
+    # Python object, the kit runs lib_conformance's checker through the seam,
+    # in a scratch sibling so the subject space is never modified. The rows
+    # name the seam's own hooks, which no Python-side lint ever does, so this
+    # is the proof the ENGINE checker ran. The provider is the same shipped
+    # fixture the conformance example opens, absolute because the engine
+    # resolves a source path against the process working directory.
+    m = MeTTa().space()
+    m.register_prolog(
+        path=repo_root / "examples" / "libraries" / "_fixtures" / "demo_provider.pl"
+    )
+    try:
+        demo = m.metta.space("&demo_provider")
+        assert isinstance(demo, Space)
+        report = testing.check_space_provider(demo)
+        assert "match: declared, seam:foreign_match/3 has clauses" in report
+        assert (
+            "match: over-approximation holds over 2 atoms and their pattern families"
+            in report
+        )
+        assert "source: repeated, two enumerations agree" in report
+    finally:
+        # The registration is engine-global and outlives the handle; a later
+        # test enumerating foreign spaces must not meet this fixture.
+        m.unregister_prolog("demo_provider")
