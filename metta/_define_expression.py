@@ -45,7 +45,7 @@ Guarantees:
     applications, while unknown heads refuse with a positional remedy [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments,
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
-    commit=WORKTREE]
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
 Open Obligations:
   To Do: None
   Hacks: None

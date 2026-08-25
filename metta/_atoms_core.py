@@ -82,7 +82,7 @@ Guarantees:
   - Grounded heads preserve keyword arguments for the py-call seam, while a
     signature-free Symbol refuses keywords it cannot position [tested:
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
-    commit=WORKTREE]
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
   - symbolic operator rows specialize into direct constructors once at import,
     so term-operators costs 660489697 instructions:u, 27.86% below its
     915593600 baseline [measured: minimum of 660489757, 660489704,

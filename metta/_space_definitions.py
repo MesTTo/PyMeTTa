@@ -30,11 +30,11 @@ Guarantees:
   - source spans, AST documentation, free variables, and derived effect joins
     replace atomically across clause replacement and leave reflection on
     clear [tested: test_a_definition_joins_every_called_operations_effect;
-    commit=WORKTREE]
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
   - compiled and bound calls share exact parameter names for each unambiguous
     definition or operation arity [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
-    commit=WORKTREE]
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
   - generated class-method operations declare their Atom delivery policy in
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;

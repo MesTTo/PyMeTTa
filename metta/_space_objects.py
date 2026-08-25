@@ -28,7 +28,7 @@ Guarantees:
   - bound functions place call-site keywords against their exact definition or
     operation signature [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
-    commit=WORKTREE]
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested

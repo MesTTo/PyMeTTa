@@ -56,7 +56,7 @@ Guarantees:
   - every registration publishes exactly one canonical five-rank effect and
     missing metadata refuses before engine mutation [tested:
     test_unclassified_operation_refuses_with_all_five_effect_remedies,
-    test_every_effect_rank_registers_and_reflects; commit=WORKTREE]
+    test_every_effect_rank_registers_and_reflects; commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
   - the first Python owner refuses to adopt a source-owned declaration, while
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;

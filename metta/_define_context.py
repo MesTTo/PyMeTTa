@@ -22,7 +22,7 @@ Guarantees:
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - expression lowering can request exact parameter names for a known call
     shape [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments;
-    commit=WORKTREE]
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
