@@ -4,7 +4,10 @@ Guarantees:
   - exact opposite paths cancel inside the finite, contractive, staged
     fragment and any missing fence capability is refused by name [tested:
     test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
+  - ``match(..., under="amplitude")`` is the public evaluation carrier
+    [tested: test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -39,16 +42,14 @@ def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta)
             AlgebraRequirementError,
             match="amplitude_fragment_refused",
         ):
-            program.evaluate_algebra(S.detect(S.dark_port), algebra="amplitude")
+            list(program.match(S.detect(S.dark_port), under="amplitude"))
 
         program.annotations(
             program.name,
             "amplitude",
             capabilities=("finite", "contractive", "staged"),
         )
-        evaluation = program.evaluate_algebra(
-            S.detect(S.dark_port), algebra="amplitude"
-        )
-        assert len(evaluation.answers) == 1
-        assert wire.decode(evaluation.answers[0].tag) == Amplitude(0)
-        assert evaluation.plan[0].applied is True
+        answers = list(program.match(S.detect(S.dark_port), under="amplitude"))
+        assert len(answers) == 1
+        assert wire.decode(answers[0].tag) == Amplitude(0)
+        assert answers[0].plan[0].applied is True

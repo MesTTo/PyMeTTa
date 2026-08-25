@@ -486,30 +486,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/spaces/matespace.metta",
-      "form": null,
-      "missing": "a size-aware statement of the collapse-is-list() row",
-      "row": "P14.21",
-      "section": "§5 the performance model: cross per collection, never per element",
-      "detail": "RE-ANCHORED 2026-08-23, and the twin now TAKES the dissolved spelling. `(collapse X)` dissolves into `list()`, and at a million answers that dissolution costs 114,470,667 inferences, 23.5 seconds and 1.2 GB of resident memory in one process against the engine's own (length (collapse ...)) at 26,313,301 and 5.9 seconds [measured 2026-08-23]. The atoms cross one at a time to be counted and thrown away. The row is right for answer sets a program READS and expensive for answer sets a program only MEASURES, and the docs should say where the line is; peanofast's entry names the door that would close it."
-    },
-    {
-      "kind": "friction",
       "example": "examples/spaces/fibadd.metta",
       "form": null,
       "missing": "a with-block spelling for a pragma bound",
       "row": "P14.10",
       "section": "§9b: control and modes, modes are with-blocks",
       "detail": "`m.fn.with_pragma((S.max_stack_depth(100000000),), S.fib(30)).one()` is the liked function call and avoids every manual hyphen spelling. What remains missing is the mode-family with-block: `m.limits()` carries inferences and timeout but no stack-depth knob."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/performance/peanofast.metta",
-      "form": null,
-      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
-      "row": "P14.7",
-      "section": "§9e the performance note; §5 the three lanes",
-      "detail": "STILL OPEN, re-anchored 2026-08-23, and the twin now TAKES the Python door rather than working around it. The dissolution table makes `(length (collapse (match ...)))` into `len(space[pattern])`, and on deep answers that is asymptotically wrong. Counting 2500 Peano terms of depth up to K: the Python query door costs 251,831 inferences at K=250, 1,003,611 at 500, 4,007,233 at 1000 and 16,014,711 at 2000, quadrupling per doubling, against the engine's own collapse-and-length at 1,308 / 2,058 / 3,558 / 6,558, which is linear; at K=2000 that is 2,442x [measured 2026-08-22, ai-tmp/probe/f_query_scaling.py]. This twin's own count costs 25,127,999 inferences against the example's 76,961 [measured 2026-08-23]. Pushing a small TEMPLATE down restores linearity, which is what MeTTa's own `match` template does and the Python door has no spelling for."
     },
     {
       "kind": "friction",
@@ -1737,6 +1719,26 @@
     }
   ],
   "retired": [
+    {
+      "kind": "friction",
+      "example": "examples/spaces/matespace.metta",
+      "form": null,
+      "missing": "a size-aware statement of the collapse-is-list() row",
+      "row": "P14.21",
+      "section": "§5 the performance model: cross per collection, never per element",
+      "detail": "RE-ANCHORED 2026-08-23, and the twin now TAKES the dissolved spelling. `(collapse X)` dissolves into `list()`, and at a million answers that dissolution costs 114,470,667 inferences, 23.5 seconds and 1.2 GB of resident memory in one process against the engine's own (length (collapse ...)) at 26,313,301 and 5.9 seconds [measured 2026-08-23]. The atoms cross one at a time to be counted and thrown away. The row is right for answer sets a program READS and expensive for answer sets a program only MEASURES, and the docs should say where the line is; peanofast's entry names the door that would close it.",
+      "retired": "2026-08-26: `match(pattern, under=counting).one()` states the measurement explicitly and uses the engine aggregate without materializing answer rows"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/performance/peanofast.metta",
+      "form": null,
+      "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
+      "row": "P14.7",
+      "section": "§9e the performance note; §5 the three lanes",
+      "detail": "STILL OPEN, re-anchored 2026-08-23, and the twin now TAKES the Python door rather than working around it. The dissolution table makes `(length (collapse (match ...)))` into `len(space[pattern])`, and on deep answers that is asymptotically wrong. Counting 2500 Peano terms of depth up to K: the Python query door costs 251,831 inferences at K=250, 1,003,611 at 500, 4,007,233 at 1000 and 16,014,711 at 2000, quadrupling per doubling, against the engine's own collapse-and-length at 1,308 / 2,058 / 3,558 / 6,558, which is linear; at K=2000 that is 2,442x [measured 2026-08-22, ai-tmp/probe/f_query_scaling.py]. This twin's own count costs 25,127,999 inferences against the example's 76,961 [measured 2026-08-23]. Pushing a small TEMPLATE down restores linearity, which is what MeTTa's own `match` template does and the Python door has no spelling for.",
+      "retired": "2026-08-26: `match(pattern, under=counting).one()` performs the bag-preserving count inside the engine and crosses one scalar"
+    },
     {
       "kind": "friction",
       "example": "examples/libraries/memo_per_arity.metta",

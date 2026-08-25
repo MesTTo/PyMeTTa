@@ -2,7 +2,7 @@
 
 Guarantees:
   - the required P4.20 names exercise only public PeTTa surfaces
-    [tested: this module; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [tested: this module; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -87,15 +87,13 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
     with metta._new_space() as lawless:
         lawless.add(parse("(fact first (choice same))"))
         lawless.add(parse("(fact second (choice same))"))
-        evaluation = lawless.evaluate_algebra(
-            S.choice(S.same), algebra="p4-lawless-order"
-        )
-        assert [str(answer.tag) for answer in evaluation.answers] == [
+        answers = list(lawless.match(S.choice(S.same), under="p4-lawless-order"))
+        assert [str(answer.tag) for answer in answers] == [
             "first",
             "second",
         ]
-        assert evaluation.plan[0].applied is False
-        assert evaluation.plan[0].missing_laws == ("combine-associative",)
+        assert answers[0].plan[0].applied is False
+        assert answers[0].plan[0].missing_laws == ("combine-associative",)
 
     metta.algebra(
         "p4-handwritten-bisim",
@@ -121,14 +119,14 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
             S.parent(V.x, V.y),
             S.parent(V.y, V.z),
         )
-        manual = handwritten.evaluate_algebra(
-            S.grandparent(S.tom, S.ann), algebra="p4-handwritten-bisim"
+        manual = handwritten.match(
+            S.grandparent(S.tom, S.ann), under="p4-handwritten-bisim"
         )
-        compiled = generated.evaluate_algebra(
-            S.grandparent(S.tom, S.ann), algebra="p4-handwritten-bisim"
+        compiled = generated.match(
+            S.grandparent(S.tom, S.ann), under="p4-handwritten-bisim"
         )
-        assert [(str(row.value), str(row.tag)) for row in manual.answers] == [
-            (str(row.value), str(row.tag)) for row in compiled.answers
+        assert [(str(row.value), str(row.tag)) for row in manual] == [
+            (str(row.value), str(row.tag)) for row in compiled
         ] == [("(grandparent tom ann)", "6")]
 
 

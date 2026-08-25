@@ -465,7 +465,7 @@ petta_py_answer_form([Tag, Theta, Residue, K, Value], Theta, Residue, K,
 %context never declared.
 petta_py_answer_kappa('@'(none), _) :- !.
 petta_py_answer_kappa(K0, Ctx) :-
-    (   petta_annotations(Ctx, Semiring),
+    (   petta_effective_algebra(Ctx, Semiring),
         Semiring \== bool
     ->  (   K0 = [_|_]
         ->  petta_py_decode_shared(K0, K, _)
@@ -798,6 +798,13 @@ petta_py_speculative(Pred, Ins, Out) :-
 %idle time between pulls cannot count.
 petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf,
                      prolog(Engine)) :-
+    petta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
+                         Row, Goal),
+    petta_py_cursor_bounded(Goal, Inf, Bounded),
+    engine_create(Row, Bounded, Engine).
+
+petta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
+                     Row, Goal) :-
     (   GuardTagged == [], Limit > 0,
         PatternsTagged = [PatternTagged], seam:foreign_space(Space)
     ->  Goal0 = petta_py_bounded_query(Space, PatternTagged, VarNames,
@@ -807,15 +814,55 @@ petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf,
     ;   Goal0 = petta_py_query_guarded(Space, PatternsTagged, GuardTagged,
                                        VarNames, Row)
     ),
-    ( Limit > 0 -> Goal = limit(Limit, Goal0) ; Goal = Goal0
-    ),
+    ( Limit > 0 -> Goal = limit(Limit, Goal0) ; Goal = Goal0 ).
+
+petta_py_cursor_bounded(Goal, Inf, Bounded) :-
     ( Inf < 0 -> Bounded = Goal
     ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
                   ( Result == inference_limit_exceeded
                     -> petta_py_raise(inference_limit, Inf)
                   ; true ) )
+    ).
+
+%The annotation-returning cursor is a separate wire so the ordinary hot path
+%keeps its one Row. The override lives INSIDE the held engine goal, because
+%engine_create defers execution until the first pull. Ordered carriers collect
+%and stably sort in the engine; Answers slicing then reads a genuine best
+%prefix rather than sorting a Python materialisation [tested:
+%bindings/python/tests/test_under_algebra.py; commit=WORKTREE].
+petta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
+                           Limit, Inf, Algebra, Direction, prolog(Engine)) :-
+    (   Direction \== none
+    ->  petta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, 0,
+                             Row, Producer),
+        Core = petta_py_ordered_under_query(Space, Direction, Producer, Row, K),
+        ( Limit > 0 -> Goal = limit(Limit, Core) ; Goal = Core )
+    ;   petta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames,
+                             Limit, Row, Producer),
+        Goal = petta_py_under_query(Space, Producer, K)
     ),
-    engine_create(Row, Bounded, Engine).
+    Scoped = petta_with_under(Algebra, Goal),
+    Encoded = ( Scoped, petta_py_encode(K, KWire) ),
+    petta_py_cursor_bounded(Encoded, Inf, Bounded),
+    engine_create([Row, KWire], Bounded, Engine).
+
+petta_py_under_query(Space, Producer, K) :-
+    petta_algebra_one(Space, One),
+    b_setval('$petta_answer_k', One),
+    call(Producer),
+    b_getval('$petta_answer_k', K).
+
+petta_py_ordered_under_query(Space, Direction, Producer, Row, K) :-
+    findall(K0-Row,
+            petta_py_under_query(Space, Producer, K0),
+            Pairs),
+    petta_py_ordered_pairs(Direction, Pairs, Ordered),
+    member(K-Row, Ordered).
+
+petta_py_ordered_pairs(ascending, Pairs, Ordered) :- !,
+    sort(1, @=<, Pairs, Ordered).
+petta_py_ordered_pairs(_, Pairs, Ordered) :-
+    sort(1, @>=, Pairs, Ordered).
 
 %[] is exhaustion, [Row] one answer, so Python needs no sentinel value.
 petta_py_cursor_next(Engine, Answer) :-
@@ -1337,6 +1384,10 @@ petta_py_release_space(Name0) :-
 % VarNames selects which variables come back, as one row per answer.
 
 petta_py_query(Space, PatternsTagged, VarNames, Row) :-
+    petta_py_query_match(Space, PatternsTagged, Bindings),
+    petta_py_row(VarNames, Bindings, Row).
+
+petta_py_query_match(Space, PatternsTagged, Bindings) :-
     petta_py_decode_shared(["e", PatternsTagged], Patterns, Bindings),
     petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
     petta_py_match_goal(Segments, Space, PlainPatterns, Goal),
@@ -1345,8 +1396,7 @@ petta_py_query(Space, PatternsTagged, VarNames, Row) :-
     (   Modifiers == []
     ->  call(Goal)
     ;   call(Goal), petta_py_call_modifiers(Modifiers)
-    ),
-    petta_py_row(VarNames, Bindings, Row).
+    ).
 
 %A path marker occupies the root handle's position while Python builds the
 %pattern. Before matching, it becomes one fresh variable and its structural
@@ -1408,22 +1458,79 @@ petta_py_match_goal(true, Space, Ps, match(Space, Asked, answered, answered)) :-
 petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
     findall(Row, petta_py_query(Space, PatternsTagged, VarNames, Row), Rows).
 
-%Count without encoding or crossing answer rows. GuardTagged=[] selects the
-%unguarded query, and Limit=0 means unbounded, matching the eager query doors.
-petta_py_query_count(Space, PatternsTagged, GuardTagged, VarNames, Limit, Count) :-
+%Count without constructing, encoding, or crossing caller rows. The count-only
+%match cores retain shared pattern/guard bindings but skip petta_py_row/3, so
+%answers whose terms grow with input depth stay linear instead of paying to
+%walk every bound term again [tested:
+%test_counting_inference_growth_is_linear_when_answers_grow_in_depth;
+%commit=WORKTREE]. GuardTagged=[] selects the unguarded query, and Limit=0
+%means unbounded, matching the eager query doors.
+petta_py_query_count(Space, PatternsTagged, GuardTagged, _VarNames, Limit, Count) :-
     (   GuardTagged == [], Limit > 0,
         PatternsTagged = [PatternTagged], seam:foreign_space(Space)
-    ->  Query = petta_py_bounded_query(Space, PatternTagged, VarNames,
-                                       Limit, _)
+    ->  Query = petta_py_bounded_match(Space, PatternTagged, Limit, _)
     ;   GuardTagged == []
-    ->  Query = petta_py_query(Space, PatternsTagged, VarNames, _)
-    ;   Query = petta_py_query_guarded(Space, PatternsTagged, GuardTagged,
-                                       VarNames, _)
+    ->  Query = petta_py_query_match(Space, PatternsTagged, _)
+    ;   Query = petta_py_query_guarded_match(Space, PatternsTagged,
+                                             GuardTagged, _)
     ),
     (   Limit > 0
     ->  aggregate_all(count, limit(Limit, Query), Count)
     ;   aggregate_all(count, Query, Count)
     ).
+
+petta_py_query_count_under(Space, PatternsTagged, GuardTagged, VarNames,
+                           Limit, Algebra, Count) :-
+    petta_with_under(
+        Algebra,
+        petta_py_query_count(Space, PatternsTagged, GuardTagged, VarNames,
+                             Limit, Count)).
+
+%The generic tagged facts and rules remain ordinary atoms. Counting is their
+%semiring homomorphism that maps every source and rule coefficient to one, so
+%the engine enumerates proof trees and aggregate_all/3 keeps the bag cardinality
+%without returning any tree or row to Python [tested:
+%test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
+%commit=WORKTREE].
+petta_py_has_tagged_program(Space, Target, Has) :-
+    petta_py_eval_target(Space, Target, [], Query, _),
+    (   once(( 'get-atoms'(Space, Atom),
+               copy_term(Atom, Stored),
+               petta_py_tagged_conclusion(Stored, Conclusion),
+               unifiable(Query, Conclusion, _) ))
+    ->  Has = true
+    ;   Has = false
+    ).
+
+petta_py_tagged_conclusion([fact, _Tag, Proposition], Proposition).
+petta_py_tagged_conclusion([rule, _Tag, Head, [premises|_]], Head).
+
+petta_py_tagged_count(Space, Target, MaxDepth, Limit, Count) :-
+    petta_py_eval_target(Space, Target, [], Query, _),
+    findall(Atom, 'get-atoms'(Space, Atom), Atoms),
+    Goal = petta_py_tagged_prove(Atoms, Query, MaxDepth),
+    (   Limit > 0
+    ->  aggregate_all(count, limit(Limit, Goal), Count)
+    ;   aggregate_all(count, Goal, Count)
+    ).
+
+petta_py_tagged_prove(Atoms, Query, _) :-
+    member(Stored, Atoms),
+    copy_term(Stored, [fact, _Tag, Proposition]),
+    unify_with_occurs_check(Query, Proposition).
+petta_py_tagged_prove(Atoms, Query, Depth) :-
+    Depth > 0,
+    member(Stored, Atoms),
+    copy_term(Stored, [rule, _Tag, Head, [premises|Premises]]),
+    unify_with_occurs_check(Query, Head),
+    NextDepth is Depth - 1,
+    petta_py_tagged_premises(Premises, Atoms, NextDepth),
+    ground(Head).
+
+petta_py_tagged_premises([], _, _).
+petta_py_tagged_premises([Premise|Premises], Atoms, Depth) :-
+    petta_py_tagged_prove(Atoms, Premise, Depth),
+    petta_py_tagged_premises(Premises, Atoms, Depth).
 
 %The seam's own decision for this query, shown without running it, is the
 %engine's metta_host_explain_match/3; this renders its term report as the
@@ -1468,6 +1575,10 @@ petta_py_render_origin(refused(Refusing), Text) :-
 %them. Translating inside the enumeration would recompile per candidate
 %row, which measured at ~500ms per 2000-row guarded query.
 petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
+    petta_py_query_guarded_match(Space, PatternsTagged, GuardTagged, Bindings),
+    petta_py_row(VarNames, Bindings, Row).
+
+petta_py_query_guarded_match(Space, PatternsTagged, GuardTagged, Bindings) :-
     petta_py_decode_shared(["e", [GuardTagged | PatternsTagged]], [Guard | Patterns], Bindings),
     petta_py_prepare_patterns(Patterns, PlainPatterns, Modifiers, Segments),
     petta_py_match_goal(Segments, Space, PlainPatterns, Goal),
@@ -1478,8 +1589,7 @@ petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row) :-
     ;   call(Goal), petta_py_call_modifiers(Modifiers)
     ),
     petta_py_call_goals(Module, Goals),
-    Out == true,
-    petta_py_row(VarNames, Bindings, Row).
+    Out == true.
 
 petta_py_query_guarded_all(Space, PatternsTagged, GuardTagged, VarNames, Limit, Rows) :-
     Query = petta_py_query_guarded(Space, PatternsTagged, GuardTagged, VarNames, Row),
@@ -1507,6 +1617,10 @@ petta_py_query_limit_all(Space, PatternsTagged, VarNames, Limit, Rows) :-
     ).
 
 petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
+    petta_py_bounded_match(Space, PatternTagged, Limit, Bindings),
+    petta_py_row(VarNames, Bindings, Row).
+
+petta_py_bounded_match(Space, PatternTagged, Limit, Bindings) :-
     petta_py_decode_shared(["e", [PatternTagged]], [Pattern], Bindings),
     petta_py_prepare_patterns([Pattern], [PlainPattern], Modifiers, Segments),
     %A gap pattern is not a shape a provider was handed a bound for: its arity
@@ -1521,8 +1635,7 @@ petta_py_bounded_query(Space, PatternTagged, VarNames, Limit, Row) :-
     ->  match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered)
     ;   match_foreign(Space, PlainPattern, [limit(Limit)], answered, answered),
         petta_py_call_modifiers(Modifiers)
-    ),
-    petta_py_row(VarNames, Bindings, Row).
+    ).
 
 %A row holds one encoded value per requested name; a variable the answer left
 %unbound comes back as itself:
@@ -1785,13 +1898,41 @@ petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :
              petta_py_eval_term_bounded(Space, Term, Encoded),
              petta_py_row(VarNames, Bindings, Row),
              statistics(inferences, Now), Used is Now - Before ),
-    ( Inf < 0 -> Bounded = Goal
-    ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
-                  ( Result == inference_limit_exceeded
-                    -> petta_py_raise(inference_limit, Inf)
-                  ; true ) )
-    ),
+    petta_py_cursor_bounded(Goal, Inf, Bounded),
     engine_create([Encoded, Row, Used], Bounded, Engine).
+
+petta_py_eval_cursor_open_under(Space, Target, Pairs, VarNames, Inf, Algebra,
+                                Direction, prolog(Engine)) :-
+    petta_py_eval_target(Space, Target, Pairs, Term, Bindings),
+    (   Direction \== none
+    ->  Core = petta_py_ordered_eval_under(Space, Term, VarNames, Direction,
+                                            Bindings, Encoded, Row, K, Used)
+    ;   Core = ( statistics(inferences, Before),
+                 petta_algebra_one(Space, One),
+                 b_setval('$petta_answer_k', One),
+                 petta_py_eval_term_bounded(Space, Term, Encoded),
+                 petta_py_row(VarNames, Bindings, Row),
+                 b_getval('$petta_answer_k', K),
+                 statistics(inferences, Now), Used is Now - Before )
+    ),
+    Goal = ( petta_with_under(Algebra, Core), petta_py_encode(K, KWire) ),
+    petta_py_cursor_bounded(Goal, Inf, Bounded),
+    engine_create([Encoded, Row, KWire, Used], Bounded, Engine).
+
+petta_py_ordered_eval_under(Space, Term, VarNames, Direction, Bindings, Encoded,
+                            Row, K, Used) :-
+    statistics(inferences, Before),
+    petta_algebra_one(Space, One),
+    findall(K0-[Encoded0, Row0],
+            ( b_setval('$petta_answer_k', One),
+              petta_py_eval_term_bounded(Space, Term, Encoded0),
+              petta_py_row(VarNames, Bindings, Row0),
+              b_getval('$petta_answer_k', K0) ),
+            Pairs),
+    statistics(inferences, Now),
+    Used is Now - Before,
+    petta_py_ordered_pairs(Direction, Pairs, Ordered),
+    member(K-[Encoded, Row], Ordered).
 
 petta_py_eval_count(Space, Target, Pairs, Count) :-
     petta_py_eval_target(Space, Target, Pairs, Term, _),
@@ -1800,6 +1941,11 @@ petta_py_eval_count(Space, Target, Pairs, Count) :-
         petta_run_with_fuel(petta_py_answer(Out), _,
                             petta_py_eval_solution(Space, Term, Out)),
         Count).
+
+petta_py_eval_count_under(Space, Target, Pairs, Algebra, Count) :-
+    petta_with_under(
+        Algebra,
+        petta_py_eval_count(Space, Target, Pairs, Count)).
 
 petta_py_eval_solution(Space, Term, Out) :-
     petta_py_module(Space, Module),

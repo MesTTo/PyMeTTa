@@ -66,6 +66,9 @@ Guarantees:
   - async peek and take keep event-loop threads unblocked while the engine
     worker performs the synchronous Linda wait [tested:
     test_async_peek_and_take_mirror_the_space_handle; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - async match forwards the submitting task's scoped or explicit algebra,
+    and sample mirrors the synchronous random.choices-shaped door [tested:
+    test_aio_covers_the_whole_synchronous_surface; commit=WORKTREE]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -100,6 +103,7 @@ from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
 from ._name_mapping import operator_attribute_target
 from ._space import Space as MeTTa
+from ._under import _UNSET
 from .atoms import Atom
 from .errors import Interrupted, PettaError
 from .results import Rows
@@ -698,11 +702,15 @@ class AsyncMeTTa:
         limit: int | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        under: Any = _UNSET,
         into: _builtins.type | None = None,
     ) -> Any:
-        """Match patterns with the synchronous surface's bounds, guard,
-        and into= row shaping.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """Match patterns with synchronous bounds, carrier, guard, and shape.
+
+        ``under=`` is resolved in the caller's copied ContextVar context and
+        executed on the owning worker, so a surrounding ``metta.under``
+        scope behaves the same across the async hop.
+        """
         return await self.call(
             lambda m: m.match(
                 *patterns,
@@ -710,6 +718,7 @@ class AsyncMeTTa:
                 limit=limit,
                 timeout=timeout,
                 inferences=inferences,
+                under=under,
                 into=into,
             )
         )
@@ -1005,6 +1014,7 @@ class AsyncMeTTa:
         laws: Sequence[str] = (),
         carrier: Sequence[Any] = (),
         requires: Sequence[str] = (),
+        order: Literal["ascending", "descending"] | None = None,
     ) -> Atom:
         """Declare one checked value algebra on the owning engine thread."""
         return await self.call(
@@ -1017,6 +1027,7 @@ class AsyncMeTTa:
                 laws=laws,
                 carrier=carrier,
                 requires=requires,
+                order=order,
             )
         )
 
@@ -1032,46 +1043,28 @@ class AsyncMeTTa:
             lambda m: m.add_tagged_rule(tag, head, *premises)
         )
 
-    async def evaluate_algebra(
+    async def sample(
         self,
         query: str | Atom,
         *,
-        algebra: str,
-        max_rounds: int = 64,
-    ) -> Any:
-        """Evaluate the general tagged-rule form on the owning engine thread."""
+        k: int = 10,
+        seed: int = 7,
+    ) -> list[Atom]:
+        """Draw ``k`` rate-weighted choices on the owning engine thread."""
         return await self.call(
-            lambda m: m.evaluate_algebra(
-                query, algebra=algebra, max_rounds=max_rounds
-            )
+            lambda m: m.sample(query, k=k, seed=seed)
         )
 
-    async def sample_rates(
-        self,
-        query: str | Atom,
-        *,
-        algebra: str,
-        draws: int,
-        seed: int,
-    ) -> tuple[Atom, ...]:
-        """Draw from declared rates on the owning engine thread."""
-        return await self.call(
-            lambda m: m.sample_rates(
-                query, algebra=algebra, draws=draws, seed=seed
-            )
-        )
-
-    async def capacity(self, limit: int) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def capacity(self, limit: int) -> Atom:
+        """Declare the maximum concurrent work for this context."""
         return await self.call(lambda m: m.capacity(limit))
 
-    async def context(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self, world: World
-    ) -> Atom:
+    async def context(self, world: World) -> Atom:
+        """Declare whether this context uses an open or closed world."""
         return await self.call(lambda m: m.context(world))
 
-    async def emits(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self, policy: AnswerPolicy
-    ) -> Atom:
+    async def emits(self, policy: AnswerPolicy) -> Atom:
+        """Declare this context's answer emission policy."""
         return await self.call(lambda m: m.emits(policy))
 
     async def events(
@@ -1090,22 +1083,24 @@ class AsyncMeTTa:
             lambda m: m.events() if delivery is None else m.events(delivery, order)
         )
 
-    async def handles(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def handles(
         self,
         pattern: str | Atom,
         fidelity: Fidelity,
         *,
         det: Determinism | None = None,
     ) -> Atom:
+        """Declare how this context handles one pattern shape."""
         return await self.call(
             lambda m: m.handles(pattern, fidelity, det=det)
         )
 
-    async def image(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def image(
         self,
         type_name: str,
         setting: ImageMode,
     ) -> Atom:
+        """Declare whether one type crosses by value or identity."""
         return await self.call(
             lambda m: m.image(type_name, setting)
         )

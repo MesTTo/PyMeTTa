@@ -6,6 +6,10 @@ Guarantees:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - Cursor keeps exhaustion distinct from explicit close [tested
     test_stream_agrees_with_query_and_closes_on_exhaustion]
+  - an algebra cursor captures each engine annotation while leaving the
+    ordinary one-row wire unchanged [tested:
+    test_ranked_and_tropical_slices_are_stable_best_prefixes;
+    commit=WORKTREE]
   - Prepared preserves first-appearance query columns [tested
     test_query_surfaces_share_column_order]
   - the bound function namespace transliterates attributes, preserves exact
@@ -456,6 +460,7 @@ class Cursor:
 
     __slots__ = (
         "__weakref__",
+        "_annotation",
         "_atoms",
         "_closed",
         "_exhausted",
@@ -466,6 +471,7 @@ class Cursor:
         "_space_name",
         "_stack",
         "_timeout",
+        "_under",
         "_where_atom",
         "columns",
     )
@@ -479,6 +485,8 @@ class Cursor:
         inferences: int | None,
         *,
         limit: int | None = None,
+        under: str | None = None,
+        order: str | None = None,
     ) -> None:
         atoms = [_to_atom(p) for p in patterns]
         columns = _column_names(atoms)
@@ -498,15 +506,14 @@ class Cursor:
         checked = guard_atom(where)
         self._where_atom = checked
         guard = [] if checked is None else checked.to_wire()
-        self._handle = self._rt.apply_must(
-            "petta_py_cursor_open",
-            space.name,
-            wires,
-            guard,
-            columns.copy(),
-            limit or 0,
-            steps,
-        )
+        self._under = under
+        self._annotation: Atom | None = None
+        predicate = "petta_py_cursor_open"
+        arguments = [space.name, wires, guard, columns.copy(), limit or 0, steps]
+        if under is not None:
+            predicate = "petta_py_cursor_open_under"
+            arguments.extend((under, order or "none"))
+        self._handle = self._rt.apply_must(predicate, *arguments)
         self._closed = False
         self._exhausted = False
         # The finalizer is the last guard, not the contract: it destroys
@@ -543,7 +550,21 @@ class Cursor:
             self._exhausted = True
             self._finalizer()
             raise StopIteration
-        return self._row_cls(_atom_from_wire(v) for v in answer[0])
+        payload = answer[0]
+        if self._under is not None:
+            row_wires, annotation_wire = payload
+            self._annotation = _atom_from_wire(annotation_wire)
+        else:
+            row_wires = payload
+        return self._row_cls(_atom_from_wire(v) for v in row_wires)
+
+    @property
+    def annotation(self) -> Atom:
+        """The annotation paired with the row most recently pulled."""
+        if self._annotation is None:
+            msg = "this cursor has not pulled an algebra-annotated row"
+            raise RuntimeError(msg)
+        return self._annotation
 
     def explain(self) -> str:
         """The query's plan, reflected rather than run: which provider

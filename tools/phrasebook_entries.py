@@ -20,6 +20,9 @@ Guarantees:
     checked out [tested: test_the_phrasebook_covers_every_leatta_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+  - the matching, nondeterminism, fold, and state rows execute every public
+    algebra-carrier spelling [tested: test_the_phrasebook_page_is_up_to_date;
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -395,9 +398,20 @@ ENTRIES: list[Entry] = [
             "(-> Expression Atom Expression %Undefined%)",
         ),
         "Symbol", "atoms", "dissolves",
-        "`functools.reduce` with an initial value, which is the same left fold.",
+        "`functools.reduce` with an initial value is the same finite left fold. "
+        "For a change stream, `m.events().fold(..., under=algebra)` makes the "
+        "algebra itself the step; `into=State(...)` is the running-gauge form.",
         metta="!(foldl-atom (1 2 3) 0 $a $b (+ $a $b))",
-        python="import functools\nfunctools.reduce(lambda a, b: a + b, [1, 2, 3], 0)",
+        python=(
+            "import functools\n"
+            "assert functools.reduce(lambda a, b: a + b, [1, 2, 3], 0) == 6\n"
+            "folded = m.events().fold(space=space.name, "
+            "pattern=S.fact(V.tag, V.value), under=metta.tropical)\n"
+            "space += S.fact(6, S.answer)\n"
+            "result = folded.take()\n"
+            "folded.cancel()\n"
+            "result"
+        ),
     ),
     Entry(
         "for-each-in-atom", ("(-> Expression Atom (->))",), "Symbol", "atoms", "dissolves",
@@ -564,8 +578,14 @@ ENTRIES: list[Entry] = [
         "superpose", ("(-> Expression %Undefined%)",), "Grounded", "control", "dissolves",
         "Nondeterminism has no primitive of its own because Python's iteration IS "
         "it: a list of values is a multiset of answers, and `yield` is the same act "
-        "inside a compiled body.",
-        metta="!(superpose (a b))", python="[S.a, S.b]",
+        "inside a compiled body. `space.sample(q, k=10, seed=7)` is the weighted "
+        "choice door, with replacement and implicit `(rate n)` weights.",
+        metta="!(superpose (a b))",
+        python=(
+            "space.add_tagged_fact(S.rate(1), S.choice(S.a))\n"
+            "assert len(space.sample(S.choice(V.x), k=10, seed=7)) == 10\n"
+            "[S.a, S.b]"
+        ),
     ),
     Entry(
         "collapse", ("(-> Atom Atom)",), "Symbol", "control", "dissolves",
@@ -734,9 +754,28 @@ ENTRIES: list[Entry] = [
     Entry(
         "match", ("(-> SpaceType Atom Atom %Undefined%)",), "Grounded", "spaces", "method",
         "`space[pattern]` is the subscript door and `space.match(pattern)` the named "
-        "one; the TEMPLATE is built in Python from the answer's bindings.",
+        "one; the TEMPLATE is built in Python from the answer's bindings. "
+        "`under=counting|tropical|prov|ranked` changes the annotation algebra; "
+        "`answers(call, under=...)` is its call twin, `with metta.under(...)` "
+        "scopes the default, and an annotated answer exposes `.annotation`, "
+        "`.why()` and `.under(other)` without a re-query. `metta.algebra(...)` "
+        "constructs arbitrary carriers while remaining their namespace.",
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(match &pb (f $x) $x)",
-        python="space += S.f(1)\n[row['x'] for row in space[S.f(V.x)]]",
+        python=(
+            "space += S.f(1)\n"
+            "assert space.match(S.f(V.x), under=metta.counting).one() == 1\n"
+            "space.run('(= (phrasebook-call) yes)')\n"
+            "assert space.answers(S.phrasebook_call(), under=metta.counting).one() == 1\n"
+            "with metta.under(metta.prov):\n"
+            "    annotated = space.match(S.f(V.x)).one()\n"
+            "assert annotated.annotation == S.one\n"
+            "assert annotated.under(metta.counting).annotation == 1\n"
+            "assert annotated.why()\n"
+            "declared = metta.algebra(S.phrasebook_max_plus, plus=max, "
+            "times=lambda a, b: a + b, zero=-100, one=0, order='descending')\n"
+            "assert declared.name == 'phrasebook-max-plus'\n"
+            "[row['x'] for row in space[S.f(V.x)]]"
+        ),
     ),
     Entry(
         "match%", ("(-> SpaceType Atom Atom %Undefined%)",), "Grounded", "spaces", "absent",
@@ -897,9 +936,20 @@ ENTRIES: list[Entry] = [
         "new-state", ("(-> $t (StateMonad $t))",), "Symbol", "state", "method",
         "`metta.State[T](value, space=space)` creates the typed Python handle. "
         "The row reads `.value` because the engine cell itself is deliberately "
-        "hidden behind that handle.",
+        "hidden behind that handle. An event `fold(..., into=state)` passes this "
+        "same process-shared cell to its step; individual reads and writes are "
+        "thread-safe, but a compound read-modify-write needs coordination.",
         metta="!(get-state (new-state 1))",
-        python="state = metta.State[int](1, space=m)\nstate.value",
+        python=(
+            "state = metta.State[int](1, space=m)\n"
+            "def retain(cell, event):\n"
+            "    cell.value += int(event.n)\n"
+            "folded = m.events().fold(retain, space=space.name, "
+            "pattern=S.delta(V.n), into=state)\n"
+            "space += S.delta(0)\n"
+            "folded.cancel()\n"
+            "state.value"
+        ),
     ),
     Entry(
         "get-state", ("(-> (StateMonad $tgso) $tgso)",), "Grounded", "state", "method",

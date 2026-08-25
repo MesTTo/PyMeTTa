@@ -35,6 +35,10 @@ Guarantees:
   - evaluation values and their caller-binding rows are parallel faces of one
     Answers cursor [tested: test_calls_keep_values_and_binding_rows;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - private item replay lets a deferred algebra route preserve those rows
+    without probing the engine when its Answers view is constructed [tested:
+    test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
+    commit=WORKTREE]
   - an Answers view crossing into a term observes exact-one cardinality and
     encodes that answer as the operand [tested:
     test_answer_views_observe_when_used_as_operands; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -782,6 +786,13 @@ class Answers[T](Sequence[T]):
         position = 0
         while self._pull(position):
             yield self._cache[position]
+            position += 1
+
+    def _items(self) -> Iterator[_AnswerItem]:
+        """Replay values together with their private caller-row metadata."""
+        position = 0
+        while self._pull(position):
+            yield _AnswerItem(self._cache[position], self._row_cache[position])
             position += 1
 
     def __bool__(self) -> bool:  # noqa: D105 -- Python's truth protocol names the contract

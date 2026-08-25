@@ -4,7 +4,7 @@ Guarantees:
   - a seeded two-branch histogram matches its declared ratio while ordinary
     queries stay unchanged [tested:
     test_declared_rates_make_seeded_selection_match_their_distribution;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -31,12 +31,8 @@ def test_declared_rates_make_seeded_selection_match_their_distribution(metta):
         unchanged = program.match(S.ordinary(V.value))
         program.add_tagged_fact(parse("(rate 1)"), S.branch(S.slow))
         program.add_tagged_fact(parse("(rate 3)"), S.branch(S.fast))
-        first = program.sample_rates(
-            S.branch(V.which), algebra="p4-rates", draws=1_000, seed=20260821
-        )
-        second = program.sample_rates(
-            S.branch(V.which), algebra="p4-rates", draws=1_000, seed=20260821
-        )
+        first = program.sample(S.branch(V.which), k=1_000, seed=20260821)
+        second = program.sample(S.branch(V.which), k=1_000, seed=20260821)
         assert first == second
         slow = sum(answer == S.branch(S.slow) for answer in first)
         fast = sum(answer == S.branch(S.fast) for answer in first)

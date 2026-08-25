@@ -5,14 +5,12 @@ does that 390 times, `mate` pairs the branches, and the whole thing answers
 just over a million atoms. It is a scale example, and the scale is what its
 Python twin has to respect.
 
-The count is Python's: `len(answers)` is what `(length (collapse X))`
-dissolves into. It is expensive at this size, and the number belongs in the
-open rather than in a different spelling: 114,470,667 inferences, 23.5 seconds
-and 1.2 GB of resident memory in one process, against the engine's own count at
-26,313,301 and 5.9 seconds, because a million atoms cross the seam one at a
-time to be counted [measured 2026-08-24; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. The missing door is
-the one peanofast.py names, a query that projects or aggregates before it
-crosses (residue, P14.7); the cost of not having it is the library's.
+The final count stays inside the engine:
+`m.answers(call, under=counting).one()` maps every answer derivation to one
+and crosses only the scalar 1,063,919, rather than materializing that million
+atoms in Python [tested:
+tools/twin_coverage.py --measure examples/spaces/matespace.metta;
+commit=WORKTREE].
 
 The three definitions whose bodies name `case` or `once` remain terms because
 neither translator form is in the function registry (residue, P14.4).
@@ -20,7 +18,7 @@ neither translator form is in the function registry (residue, P14.4).
 ambient handle comes from `context-space`, and its seed write is `space +=`.
 """
 
-from metta import S, V, equation, fn, if_, match
+from metta import S, V, counting, equation, fn, if_, match
 
 #: Why this twin sits below the top rung, stated once for the whole file.
 RUNG = (
@@ -71,7 +69,12 @@ RUNG = (
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 32666766
+#: RE-PINNED 2026-08-26, 32666766 to 32666757: the final million-answer
+#: observation now uses answers(..., under=counting) and crosses one scalar
+#: [measured: 32666757 inferences;
+#: command=python bindings/python/tools/twin_coverage.py;
+#: fixture=full-lane 390 doublings and 1063919 answers; commit=WORKTREE].
+BUDGET = 32666757
 
 
 def twin(m):
@@ -122,4 +125,4 @@ def twin(m):
         _mated = fn.mate()
         return match(space, S.num(V.x), S.num(V.x))
 
-    assert len(m.fn.mate_space_demo(390)) == 1063919
+    assert m.answers(S.mate_space_demo(390), under=counting).one() == 1063919

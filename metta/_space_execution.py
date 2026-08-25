@@ -20,6 +20,11 @@ Guarantees:
   - lazy evaluation keeps the answer value distinct from its parallel caller
     bindings [tested: test_calls_keep_values_and_binding_rows;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - an algebra call cursor returns its annotation beside the value while
+    counting uses the engine aggregate with no value decoding [tested:
+    test_counting_counts_duplicate_call_answers_inside_the_engine,
+    test_ranked_and_tropical_slices_are_stable_best_prefixes;
+    commit=WORKTREE]
   - the held-evaluation cursor ships in the boot-consulted bridge rather than
     being consulted on the first answer pull [tested:
     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -362,6 +367,43 @@ def evaluate(
     return [_from_wire(wire) for wire in wires]
 
 
+def evaluate_count(
+    rt: Runtime,
+    space: str,
+    target: Any,
+    timeout: float | None,
+    inferences: int | None,
+    *,
+    using: dict[str, Any] | None = None,
+    under: str | None = None,
+) -> int:
+    """Count call answers in the engine without decoding any answer value."""
+    encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
+    pairs = (
+        []
+        if not using
+        else [[name, _encode(value).to_wire()] for name, value in using.items()]
+    )
+    predicate = "petta_py_eval_count"
+    inputs: list[Any] = [space, encoded_target, pairs]
+    if under is not None:
+        predicate = "petta_py_eval_count_under"
+        inputs.append(under)
+    limits = _limits(timeout, inferences)
+    captured = _CAPTURED_OUTPUT.get()
+    if captured is not None:
+        predicate, inputs = "petta_py_captured", [predicate, inputs]
+    output = (
+        rt.apply_must(predicate, *inputs)
+        if limits is None
+        else _apply_limited(rt, limits, predicate, inputs)
+    )
+    if captured is not None:
+        output, captured_text = output
+        captured._append(str(captured_text))
+    return int(output)
+
+
 def evaluate_answers(
     rt: Runtime,
     space: str,
@@ -370,6 +412,8 @@ def evaluate_answers(
     inferences: int | None,
     *,
     using: dict[str, Any] | None = None,
+    under: str | None = None,
+    order: str | None = None,
 ) -> Answers[Any]:
     """Return evaluation as a cached lazy answer sequence.
 
@@ -392,58 +436,82 @@ def evaluate_answers(
     stack = -1 if limits is None else limits[2]
 
     def count_answers() -> int:
-        predicate = "petta_py_eval_count"
-        inputs: list[Any] = [space, encoded_target, pairs or []]
-        captured = _CAPTURED_OUTPUT.get()
-        if captured is not None:
-            predicate, inputs = "petta_py_captured", [predicate, inputs]
-        if limits is None:
-            output = rt.apply_must(predicate, *inputs)
-        else:
-            output = _apply_limited(rt, limits, predicate, inputs)
-        if captured is not None:
-            output, captured_text = output
-            captured._append(str(captured_text))
-        return int(output)
+        return evaluate_count(
+            rt,
+            space,
+            target,
+            timeout,
+            inferences,
+            using=using,
+            under=under,
+        )
 
     def stream() -> Iterator[Any]:
-        handle = rt.apply_must(
-            "petta_py_eval_cursor_open", space, encoded_target, pairs or [], columns, steps
-        )
+        predicate = "petta_py_eval_cursor_open"
+        inputs: list[Any] = [space, encoded_target, pairs or [], columns, steps]
+        if under is not None:
+            predicate = "petta_py_eval_cursor_open_under"
+            inputs.extend((under, order or "none"))
+        handle = rt.apply_must(predicate, *inputs)
         row_cls = _row_class(tuple(columns))
         reported_inferences = 0
         try:
             while True:
                 captured = _CAPTURED_OUTPUT.get()
                 predicate = "petta_py_cursor_next"
-                inputs: list[Any] = [handle]
+                pull_inputs: list[Any] = [handle]
                 if captured is not None:
-                    predicate, inputs = "petta_py_captured", [predicate, inputs]
+                    predicate, pull_inputs = (
+                        "petta_py_captured",
+                        [predicate, pull_inputs],
+                    )
                 if seconds is None and stack < 0:
-                    output = rt.apply_must(predicate, *inputs)
+                    output = rt.apply_must(predicate, *pull_inputs)
                 else:
                     output = _apply_limited(
                         rt,
                         (-1.0 if seconds is None else seconds, -1, stack),
                         predicate,
-                        inputs,
+                        pull_inputs,
                     )
                 if captured is not None:
                     output, text = output
                     captured._append(str(text))
                 if not output:
                     return
-                value_wire, row_wires, cumulative_inferences = output[0]
+                if under is None:
+                    value_wire, row_wires, cumulative_inferences = output[0]
+                    annotation_wire = None
+                else:
+                    value_wire, row_wires, annotation_wire, cumulative_inferences = output[0]
                 current_inferences = int(cumulative_inferences)
                 _record_engine_inferences(
                     max(0, current_inferences - reported_inferences)
                 )
                 reported_inferences = current_inferences
-                value = _from_wire(value_wire)
+                value: Any = _from_wire(value_wire)
+                if (
+                    annotation_wire is not None
+                    and error_answer(value) is None
+                    and not isinstance(value, Undefined)
+                ):
+                    from ._space import Space  # noqa: PLC0415 -- avoid module cycle
+                    from .algebra import captured_answer  # noqa: PLC0415 -- lazy satellite
+
+                    value = captured_answer(
+                        Space(space, _runtime=rt),
+                        value,
+                        _atom_from_wire(annotation_wire),
+                        under,
+                    )
                 # A failed branch is still its Error/Undefined answer.  For an
                 # ordinary relational answer, preserve the caller bindings as
                 # metadata instead of replacing the value with its row.
-                if columns and error_answer(value) is None and not isinstance(value, Undefined):
+                if (
+                    columns
+                    and error_answer(value) is None
+                    and not isinstance(value, Undefined)
+                ):
                     row = row_cls(_atom_from_wire(wire) for wire in row_wires)
                     yield _AnswerItem(value, row)
                 else:

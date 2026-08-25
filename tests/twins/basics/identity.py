@@ -141,7 +141,13 @@ is Python's own `assert`.
 #: check [measured 2026-08-25 through tools/twin_coverage.py
 #: examples/basics/identity.metta; provisional on the merged tree, the
 #: final release measure re-prices].
-BUDGET = 2822
+#: RE-PINNED 2026-08-26, 2822 to 2846, after the algebra carrier host
+#: services and catalog rows changed the compiled QLF layout. The ordinary
+#: identity workload does no carrier work and its one claim still agrees
+#: [measured: 2846 inferences; command=python
+#: bindings/python/tools/twin_coverage.py examples/basics/identity.metta;
+#: fixture=one full-lane identity twin; commit=WORKTREE].
+BUDGET = 2846
 
 
 def twin(m):

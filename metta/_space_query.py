@@ -15,6 +15,10 @@ Guarantees:
   - query_count returns one integer from an engine-side aggregate rather than
     crossing answer rows [tested:
     test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - the same aggregate accepts a per-ask algebra without opening a row cursor
+    [tested:
+    test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor;
+    commit=WORKTREE]
   - eager and prepared queries carry a scoped stack bound through the shared
     limited-call selector [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -74,6 +78,7 @@ def query_count(
     limit: int | None,
     timeout: float | None,
     inferences: int | None,
+    under: str | None = None,
 ) -> int:
     """Count one query wholly inside the engine."""
     _validate_limit(limit)
@@ -87,14 +92,11 @@ def query_count(
         columns,
         limit or 0,
     ]
-    return int(
-        _execute_query(
-            rt,
-            "petta_py_query_count",
-            inputs,
-            _limits(timeout, inferences),
-        )
-    )
+    predicate = "petta_py_query_count"
+    if under is not None:
+        predicate = "petta_py_query_count_under"
+        inputs.append(under)
+    return int(_execute_query(rt, predicate, inputs, _limits(timeout, inferences)))
 
 
 def _validate_limit(limit: int | None) -> None:

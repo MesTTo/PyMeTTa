@@ -105,7 +105,7 @@ class _FunctionNamespace:
     foldall: Symbol
     foldl: Symbol
     foldl_atom: Symbol
-    "foldl-atom: (-> Expression Atom Variable Variable Atom %Undefined%)\nfoldl-atom: (-> Expression Atom Expression %Undefined%)\n\n`functools.reduce` with an initial value, which is the same left fold."
+    "foldl-atom: (-> Expression Atom Variable Variable Atom %Undefined%)\nfoldl-atom: (-> Expression Atom Expression %Undefined%)\n\n`functools.reduce` with an initial value is the same finite left fold. For a change stream, `m.events().fold(..., under=algebra)` makes the algebra itself the step; `into=State(...)` is the running-gauge form."
     for_each_in_atom: Symbol
     "for-each-in-atom: (-> Expression Atom (->))\n\nA `for` statement. It is called for its effect, so the row prints and answers the unit. Python's `for` has no value at all, and the concept map says `None` IS the unit, but `metta.ground(None)` renders `<NoneType>` rather than `()` today, so a row that wants the unit writes it [measured 2026-08-22]."
     forall: Symbol
@@ -191,7 +191,7 @@ class _FunctionNamespace:
     "map-atom: (-> Expression Variable Atom Expression)\nmap-atom: (-> Expression Expression Expression)\n\nA comprehension, or `map`. The variable and the template are the comprehension's own binder and body."
     maplist: Symbol
     match: Symbol
-    "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript door and `space.match(pattern)` the named one; the TEMPLATE is built in Python from the answer's bindings."
+    "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript door and `space.match(pattern)` the named one; the TEMPLATE is built in Python from the answer's bindings. `under=counting|tropical|prov|ranked` changes the annotation algebra; `answers(call, under=...)` is its call twin, `with metta.under(...)` scopes the default, and an annotated answer exposes `.annotation`, `.why()` and `.under(other)` without a re-query. `metta.algebra(...)` constructs arbitrary carriers while remaining their namespace."
     match_type_or: Symbol
     match_types: Symbol
     max: Symbol
@@ -216,7 +216,7 @@ class _FunctionNamespace:
     new_space: Symbol
     "new-space: (-> SpaceType)\n\n`metta.space()`. A constructor call is Python's own spelling for `make me a fresh one`, and the row asks the fresh space for its atoms because the NAME a space gets differs per engine."
     new_state: Symbol
-    "new-state: (-> $t (StateMonad $t))\n\n`metta.State[T](value, space=space)` creates the typed Python handle. The row reads `.value` because the engine cell itself is deliberately hidden behind that handle."
+    "new-state: (-> $t (StateMonad $t))\n\n`metta.State[T](value, space=space)` creates the typed Python handle. The row reads `.value` because the engine cell itself is deliberately hidden behind that handle. An event `fold(..., into=state)` passes this same process-shared cell to its step; individual reads and writes are thread-safe, but a compound read-modify-write needs coordination."
     noeval: Symbol
     "noeval: (-> Atom Atom)\n\nThe same point as `quote`: a built term is already unevaluated."
     nop: Symbol
@@ -303,7 +303,7 @@ class _FunctionNamespace:
     "subtraction-atom: (-> Expression Expression Atom)\n\n`Counter` over children, answering an expression."
     super: Symbol
     superpose: Symbol
-    "superpose: (-> Expression %Undefined%)\n\nNondeterminism has no primitive of its own because Python's iteration IS it: a list of values is a multiset of answers, and `yield` is the same act inside a compiled body."
+    "superpose: (-> Expression %Undefined%)\n\nNondeterminism has no primitive of its own because Python's iteration IS it: a list of values is a multiset of answers, and `yield` is the same act inside a compiled body. `space.sample(q, k=10, seed=7)` is the weighted choice door, with replacement and implicit `(rate n)` weights."
     superpose_bind: Symbol
     "superpose-bind: (-> Expression Atom)\n\nThe inverse of `collapse-bind`: it restores each alternative WITH its recorded bindings, which is a different operation from `superpose`."
     switch: Symbol

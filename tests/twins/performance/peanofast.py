@@ -11,20 +11,14 @@ because a hyphen is not a Python identifier, and answers the lowercase symbol
 body compiles. `demo-peano` calls it by name and starts it from the data
 constructor `S.Z`.
 
-The count is Python's: `len(space[pattern])` is what `(length (collapse
-(match ...)))` dissolves into, and this is the file where that dissolution is
-expensive rather than free. Every answer here is a term of depth O(K), and the
-query door builds a Python atom for each one, so counting costs Theta(K^2)
-against the engine's linear collapse-and-length: 251,831 inferences at K=250,
-1,003,611 at 500, 4,007,233 at 1000 and 16,014,711 at 2000, quadrupling per
-doubling, against 1,308 / 2,058 / 3,558 / 6,558 [measured 2026-08-22,
-ai-tmp/probe/f_query_scaling.py]. The missing door is a query that projects or
-aggregates BEFORE it crosses, the way MeTTa's own `match` template does; the
-count below is the spelling the surface rules, and the cost is the library's
-to close (residue, P14.7).
+The count stays in the engine: `match(pattern, under=counting).one()` maps
+each derivation to one, preserves the bag, aggregates there, and crosses only
+the integer 2500. No depth-K Peano term is materialized in Python [tested:
+tools/twin_coverage.py --measure examples/performance/peanofast.metta;
+commit=WORKTREE].
 """
 
-from metta import S, V, fn
+from metta import S, V, counting, fn
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
@@ -69,7 +63,12 @@ from metta import S, V, fn
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 25104027
+#: RE-PINNED 2026-08-26, 25104027 to 103089: under=counting now omits
+#: caller-row encoding before the engine aggregate, so the 2,500 depth-growing
+#: Peano answers are never materialized and counting stays linear [measured:
+#: 103089 inferences; command=python bindings/python/tools/twin_coverage.py;
+#: fixture=full-lane 2500 successors; commit=WORKTREE].
+BUDGET = 103089
 
 
 def twin(m):
@@ -95,4 +94,4 @@ def twin(m):
         return expand_k(S.Z, k)
 
     assert demo_peano(2500) == [S.done]
-    assert len(m[S.num(V.stored)]) == 2500
+    assert m.match(S.num(V.stored), under=counting).one() == 2500

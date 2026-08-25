@@ -6,7 +6,7 @@ Guarantees:
   - a grounded tensor tag retains DLPack storage and its autograd graph through
     two declared rules and one pettorch module call [tested:
     test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -57,11 +57,9 @@ def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation
             S.middle(V.x),
             S.scale(V.x),
         )
-        evaluation = program.evaluate_algebra(
-            S.output(S.a), algebra="p4-gradient"
-        )
-        assert len(evaluation.answers) == 1
-        result = wire.decode(evaluation.answers[0].tag)
+        answers = list(program.match(S.output(S.a), under="p4-gradient"))
+        assert len(answers) == 1
+        result = wire.decode(answers[0].tag)
         assert result.item() == pytest.approx(6.0)
         assert hasattr(result, "__dlpack__")
         assert result.grad_fn is not None

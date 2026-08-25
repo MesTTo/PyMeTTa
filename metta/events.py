@@ -49,6 +49,11 @@ Guarantees:
   - subscribe, bridge and reaction are each expressible as a fold over this
     surface alone, with the same answers as the shipped models [tested
     test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_stream]
+  - fold can thread a running aggregate through a State cell or use a
+    declared algebra merge as the whole step [tested:
+    test_fold_into_state_updates_the_shared_engine_cell,
+    test_fold_under_counting_and_tropical_uses_the_algebra_as_the_step;
+    commit=WORKTREE]
 Guarded by:
   - _FoldRegistry._lock protects fold state, the active runtime, delivery
     counts, and engine subscription snapshots [tested
@@ -67,6 +72,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Final, Self
 
+from ._under import _UNSET
+from ._under import selected as _selected_under
 from .atoms import Atom, _atom_from_wire, _is_ground, _to_atom, unify
 from .errors import PettaError, SubscriberError
 from .structures import MatchIndex
@@ -544,12 +551,14 @@ class EventStream:
 
     def fold(
         self,
-        step: Step,
+        step: Step | None = None,
         *,
         space: str,
         pattern: Any,
         on: str = "add",
         state: Any = STATELESS,
+        into: Any = None,
+        under: Any = _UNSET,
     ) -> Fold:
         """Run `step(state, event)` for every matching change to `space`.
 
@@ -561,13 +570,98 @@ class EventStream:
         serialisation. Steps run synchronously, inside the write that caused
         them, so a step may write back and an infinite add-triggers-add loop
         is the author's own.
+
+        `into=State(...)` hands that same cell to every step. The cell's
+        engine store is process-shared; each individual dynamic-store read
+        and mutex-guarded write is thread-safe, but a compound
+        read-modify-write such as ``cell.value += 1`` is not atomic. The fold
+        serializes its own deliveries, while other writers must use their own
+        coordination. State has no events, history, or transactions.
+
+        With `under=algebra`, omit `step`: the algebra's merge and zero are the
+        complete fold, and an ordinary event contributes one. A normative
+        ``(fact tag proposition)`` event contributes its tag.
         """
         if on not in SubscriptionEdge:
             msg = f"on must be one of {', '.join(SubscriptionEdge)}, not {on!r}"
             raise ValueError(
                 msg
             )
-        fold = Fold(_REGISTRY, space, _to_atom(pattern), step, on=on, state=state)
+        from ._state import State  # noqa: PLC0415 -- keep State lazy at import
+
+        carrier = _selected_under(under)
+        if into is not None and not isinstance(into, State):
+            msg = "fold into= accepts a State cell"
+            raise TypeError(msg)
+        if into is not None and state is not STATELESS:
+            msg = "fold into= owns the running state; do not also pass state="
+            raise TypeError(msg)
+        if carrier is not None and step is not None:
+            msg = "fold under= uses the algebra as its step; omit step"
+            raise TypeError(msg)
+        if carrier is None and step is None:
+            msg = "fold needs step= or under=algebra"
+            raise TypeError(msg)
+
+        if carrier is not None:
+            from ._space import Space  # noqa: PLC0415 -- avoid the space/events cycle
+            from .algebra import resolve  # noqa: PLC0415 -- lazy algebra namespace
+            from .atoms import Expression, Grounded, _decode, _encode  # noqa: PLC0415
+
+            owner = Space(space, _runtime=self._runtime)
+            declaration = resolve(owner, carrier)
+
+            def algebra_step(held: Any, event: Event) -> Any:
+                current = held.value if isinstance(held, State) else held
+                current_atom = _encode(current)
+                event_atom = event.atom
+                contribution = declaration.one
+                if (
+                    isinstance(event_atom, Expression)
+                    and len(event_atom.children) == 3
+                    and str(event_atom.children[0]) == "fact"
+                ):
+                    contribution = event_atom.children[1]
+                if current_atom == declaration.zero:
+                    merged = contribution
+                elif contribution == declaration.zero:
+                    merged = current_atom
+                else:
+                    merged = declaration.combine_values(
+                        owner, current_atom, contribution
+                    )
+                value = _decode(merged) if isinstance(merged, Grounded) else merged
+                if isinstance(held, State):
+                    held.value = value
+                    return held
+                return value
+
+            step = algebra_step
+            state = into if into is not None else (
+                _decode(declaration.zero)
+                if isinstance(declaration.zero, Grounded)
+                else declaration.zero
+            )
+        elif into is not None:
+            user_step = step
+
+            def cell_step(cell: Any, event: Event) -> Any:
+                result = user_step(cell, event)
+                if result is not None and result is not cell:
+                    cell.value = result
+                return cell
+
+            step = cell_step
+            state = into
+
+        fold = Fold(
+            _REGISTRY,
+            space,
+            _to_atom(pattern),
+            step,
+            on=on,
+            state=state,
+        )
         _REGISTRY.add(self._runtime, fold)
         return fold
 

@@ -10,6 +10,11 @@ Guarantees:
   - each of the three shipped event models is reproducible as a fold over
     the public stream alone, with the same answers
     [tested test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_stream]
+  - a fold may thread its aggregate through an engine State cell, or use a
+    declared algebra merge as its entire step [tested:
+    test_fold_into_state_updates_the_shared_engine_cell,
+    test_fold_under_counting_and_tropical_uses_the_algebra_as_the_step;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,7 +25,8 @@ from __future__ import annotations
 
 import pytest
 
-from metta import S, V
+import metta as metta_module
+from metta import S, State, V, counting, tropical
 from metta.errors import PettaError
 from metta.foreign import SpaceProvider, delivery_promise
 from metta.subscribe import bridge
@@ -284,3 +290,55 @@ def test_a_fold_that_writes_into_its_own_pattern_says_so(metta):
             space.add(S.loop(1))
     finally:
         fold.cancel()
+
+
+def test_fold_into_state_updates_the_shared_engine_cell(metta):
+    """The step sees the State handle and writes the process-shared cell."""
+    source = metta._new_space()
+    total = State(0, space=metta)
+
+    def accumulate(cell, event):
+        cell.value += int(event.n)
+
+    folded = metta.events().fold(
+        accumulate,
+        space=source.name,
+        pattern=S.amount(V.n),
+        into=total,
+    )
+    try:
+        source.add(S.amount(2), S.amount(5))
+        assert total.value == 7
+        assert folded.state is total
+    finally:
+        folded.cancel()
+
+
+def test_fold_under_counting_and_tropical_uses_the_algebra_as_the_step(metta):
+    """With no body, merge and its identity are the complete fold."""
+    source = metta._new_space()
+    counted = metta.events().fold(
+        space=source.name,
+        pattern=S.offer(V.n),
+        under=counting,
+    )
+    with metta_module.under(counting):
+        scoped_counted = metta.events().fold(
+            space=source.name,
+            pattern=S.offer(V.n),
+        )
+    cheapest = metta.events().fold(
+        space=source.name,
+        pattern=S.fact(V.cost, V.proposition),
+        under=tropical,
+    )
+    try:
+        source.add(S.offer(8), S.offer(5), S.offer(3))
+        source.add(S.fact(8, S.route(S.a)), S.fact(3, S.route(S.b)))
+        assert counted.take() == 3
+        assert scoped_counted.take() == 3
+        assert cheapest.take() == 3
+    finally:
+        cheapest.cancel()
+        scoped_counted.cancel()
+        counted.cancel()
