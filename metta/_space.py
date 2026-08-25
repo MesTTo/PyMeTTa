@@ -90,6 +90,10 @@ Guarantees:
     test_bound_function_namespace_validates_at_access,
     test_function_calls_pull_engine_answers_only_as_demanded;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - ``Space.answers`` can evaluate one ask against a theory value or through
+    an explicit full-interpreter head without mutating the receiver [tested:
+    test_answers_selects_a_theory_or_interpreter_per_ask;
+    commit=WORKTREE]
   - builtin discovery is cached per logical space, with namespace reads
     comparing the engine's function generation and explicit Python mutation
     doors retaining eager invalidation [tested:
@@ -2170,6 +2174,8 @@ class Space(Handle):
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
+        theory: Any | None = None,
+        interpreter: Any | None = None,
     ) -> Answers[Any]:
         """Evaluate lazily as an immutable, cached and replayable view.
 
@@ -2185,8 +2191,47 @@ class Space(Handle):
         order their annotated ``TaggedAnswer`` values before a slice pulls
         its prefix. A surrounding ``metta.under(carrier)`` is used only when
         this call does not pass an explicit carrier.
+
+        ``theory=`` treats an atom or iterable of atoms as the complete
+        equational program for this ask. It installs that value in an isolated
+        scratch space on the first pull, evaluates there, and drops the space
+        when the view is exhausted or abandoned. The receiver is unchanged.
+        This mirrors reflective descent functions whose inputs are a reified
+        module and term [source:
+        https://maude.cs.illinois.edu/maude1/manual/maude-manual-html/maude-manual_24.html;
+        commit=WORKTREE].
+
+        ``interpreter=`` instead evaluates the explicit full-interpreter
+        application ``(interpreter target %Undefined% receiver)`` for this ask.
+        The selectors are mutually exclusive because each decides what
+        evaluation relation the answer cursor runs.
         """
+        if theory is not None and interpreter is not None:
+            msg = (
+                "theory= and interpreter= each select the evaluation relation; "
+                "pass one of them per answers() ask"
+            )
+            raise TypeError(msg)
+        if interpreter is not None:
+            interpreted_target = parse(target) if isinstance(target, str) else _to_atom(target)
+            target = Expression(
+                [
+                    _to_atom(interpreter),
+                    interpreted_target,
+                    Symbol("%Undefined%"),
+                    self,
+                ]
+            )
         carrier = _selected_under(under)
+        if theory is not None:
+            return self._answers_with_theory(
+                target,
+                theory,
+                using=using,
+                timeout=timeout,
+                inferences=inferences,
+                carrier=carrier,
+            )
         if carrier is None:
             return evaluate_answers(
                 self._rt,
@@ -2282,6 +2327,65 @@ class Space(Handle):
             space=self._space,
             target=target,
         )
+
+    def _answers_with_theory(
+        self,
+        target: Any,
+        theory: Any,
+        *,
+        using: dict[str, Any] | None,
+        timeout: float | None,
+        inferences: int | None,
+        carrier: Any | None,
+    ) -> Answers[Any]:
+        """Defer an isolated theory ask and own its scratch-space lifetime."""
+        columns = () if isinstance(target, str) else tuple(_column_names((_to_atom(target),)))
+
+        def source() -> Iterator[_AnswerItem]:
+            scratch = self._new_space()
+            inner: Answers[Any] | None = None
+            try:
+                atoms = self._theory_atoms(theory)
+                if atoms:
+                    scratch.add(*atoms)
+                options = {
+                    "using": using,
+                    "timeout": timeout,
+                    "inferences": inferences,
+                }
+                if carrier is not None:
+                    options["under"] = carrier
+                inner = scratch.answers(target, **options)
+                yield from inner._items()
+            finally:
+                if inner is not None:
+                    close = getattr(inner._source, "close", None)
+                    if callable(close):
+                        close()
+                scratch.drop()
+
+        return Answers(source(), columns=columns, space=self._space, target=target)
+
+    @staticmethod
+    def _theory_atoms(theory: Any) -> tuple[Atom, ...]:
+        """Normalize one data-valued theory without accepting source text."""
+        if isinstance(theory, Space):
+            values: Iterable[Any] = theory.atoms()
+        elif isinstance(theory, Atom):
+            values = (theory,)
+        elif isinstance(theory, str) or not isinstance(theory, Iterable):
+            msg = (
+                "theory= needs an atom, Space, or iterable of atoms as data; "
+                "source text belongs at run()"
+            )
+            raise TypeError(msg)
+        else:
+            values = theory
+        try:
+            return tuple(_to_atom(value) for value in values)
+        except (TypeError, ValueError) as error:
+            msg = f"theory= contains a value that is not an atom: {error}"
+            raise TypeError(msg) from error
 
     def parallel(
         self,

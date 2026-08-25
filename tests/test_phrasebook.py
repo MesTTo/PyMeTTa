@@ -8,7 +8,7 @@ is checked the other way round: every name LeaTTa declares has exactly one row,
 so the denominator cannot quietly shrink.
 The supplemental table separately pins Python-first faces that have no LeaTTa
 manifest name [tested: test_python_first_world_faces_are_in_the_phrasebook;
-commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1].
+commit=WORKTREE].
 
 Open Obligations:
   To Do: None
@@ -137,6 +137,7 @@ def test_python_first_world_faces_are_in_the_phrasebook():
         "metta.speculate()",
         "repr(space())",
         "space.register_token(re.compile(pattern), constructor)",
+        "space.answers(term, theory=laws); space.answers(term, interpreter=interpret)",
         "space.reacts(pattern, operation)",
         "testing.from_pattern(pattern)",
         "space.reify()",
