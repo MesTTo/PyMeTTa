@@ -1,4 +1,5 @@
 """Purpose: expose PeTTa atoms, the S/V/G factories, parsing, and matching.
+
 Guarantees:
   - order_key matches the engine's msort across every public atom kind,
     including float/integer ties, strings, opaque values, and the empty-list
@@ -34,11 +35,16 @@ Guarantees:
   - seg() builds the named segment and refuses anything but a Variable, since
     a non-variable second position is ordinary data to the engine [tested:
     test_seg_builds_a_named_segment; commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
+  - two-argument unify is symmetric and returns one normalized substitution
+    over variables from either operand [tested:
+    test_unify_binds_a_ground_term_and_pattern_in_both_orders,
+    test_unify_binds_variables_from_both_operands,
+    test_unify_path_compresses_long_alias_chains; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -425,10 +431,10 @@ def _alpha(a: Atom, b: Atom, ab: dict, ba: dict) -> bool:
 
 
 def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:
-    """The atom with every bound variable replaced, unify's companion:
-    substitute(pattern, unify(pattern, atom)) is the matched instance.
-    An unbound variable stays itself, so a partial substitution is a
-    narrower pattern rather than an error.
+    """The atom with every bound variable replaced. As unify's companion,
+    substitute(pattern, unify(pattern, atom)) is the matched instance. An
+    unbound variable stays itself, so a partial substitution is a narrower
+    pattern rather than an error.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     term = _encode(atom)
     if isinstance(term, Variable):
@@ -439,17 +445,124 @@ def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:
     return term
 
 
-def unify(pattern: Any, atom: Any) -> Mapping[str, Atom] | None:
-    """Match a pattern against an atom, returning bindings or None.
+def unify(left: Any, right: Any) -> Mapping[str, Atom] | None:
+    """Unify two atoms symmetrically, returning bindings or ``None``.
 
-    One-way: variables on the pattern side bind; a variable on the atom side
-    matches only the same variable. No occurs check, matching SWI's default
-    and therefore the engine's.
+    Variables in either operand bind. The returned substitution is normalized,
+    so a chain such as ``x = y, y = a`` reports both names bound to ``a``.
+    Anonymous ``_`` occurrences remain fresh and bind nothing. This host
+    matcher retains its historical no-occurs-check behavior; four-argument
+    conditional unification is the engine form exposed by ``metta.unify``.
     """
+    bindings: dict[str, Atom] = {}
+    if not _unify_symmetric(_encode(left), _encode(right), bindings):
+        return None
+    resolved: dict[str, Atom] = {}
+    normalized: dict[str, Atom] = {}
+    for name, value in bindings.items():
+        if name not in resolved:
+            resolved[name] = _resolve_binding(value, bindings, {name}, resolved)
+        normalized[name] = resolved[name]
+    return normalized
+
+
+def _match(pattern: Any, atom: Any) -> Mapping[str, Atom] | None:
+    """Match only variables in ``pattern``; private directional primitive."""
     bindings: dict[str, Atom] = {}
     if _unify(_encode(pattern), _encode(atom), bindings):
         return bindings
     return None
+
+
+def _walk_binding(atom: Atom, bindings: dict[str, Atom]) -> Atom:
+    """Follow and compress an alias path without entering expressions."""
+    path: list[str] = []
+    seen: set[str] = set()
+    while (
+        isinstance(atom, Variable)
+        and atom.name != "_"
+        and atom.name in bindings
+        and atom.name not in seen
+    ):
+        seen.add(atom.name)
+        path.append(atom.name)
+        atom = bindings[atom.name]
+    if not (isinstance(atom, Variable) and atom.name in seen):
+        for name in path:
+            bindings[name] = atom
+    return atom
+
+
+def _resolve_binding(
+    atom: Atom,
+    bindings: Mapping[str, Atom],
+    visiting: set[str],
+    resolved: dict[str, Atom],
+) -> Atom:
+    """Apply a substitution transitively without making depth a call stack.
+
+    The explicit post-order walk preserves an unchanged expression's identity,
+    expands variables introduced by other bindings, and uses path compression
+    plus a mutable active set so an alias chain normalizes in linear time.
+    Names already active mark no-occurs-check cycles and remain finite.
+    """
+    active = set(visiting)
+    stack: list[tuple[str, Any]] = [("visit", atom)]
+    results: list[Atom] = []
+    while stack:
+        action, payload = stack.pop()
+        if action == "leave":
+            resolved[payload] = results[-1]
+            active.remove(payload)
+            continue
+        node: Atom = payload
+        if action == "rebuild":
+            results.append(_mapped_candidate(node, results))
+            continue
+        if isinstance(node, Variable):
+            if node.name in resolved:
+                results.append(resolved[node.name])
+            elif (
+                node.name != "_"
+                and node.name in bindings
+                and node.name not in active
+            ):
+                active.add(node.name)
+                stack.append(("leave", node.name))
+                stack.append(("visit", bindings[node.name]))
+            else:
+                results.append(node)
+            continue
+        if isinstance(node, Expression):
+            stack.append(("rebuild", node))
+            stack.extend(("visit", child) for child in reversed(node.children))
+            continue
+        results.append(node)
+    return results[0]
+
+
+def _unify_symmetric(left: Atom, right: Atom, bindings: dict[str, Atom]) -> bool:
+    """Robinson's work-list unifier without an occurs check."""
+    stack: list[tuple[Atom, Atom]] = [(left, right)]
+    while stack:
+        x, y = stack.pop()
+        x = _walk_binding(x, bindings)
+        y = _walk_binding(y, bindings)
+        if x == y:
+            continue
+        if isinstance(x, Variable):
+            if x.name != "_":
+                bindings[x.name] = y
+        elif isinstance(y, Variable):
+            if y.name != "_":
+                bindings[y.name] = x
+        elif isinstance(x, Expression) and isinstance(y, Expression):
+            if len(x.children) != len(y.children):
+                return False
+            stack.extend(zip(x.children, y.children, strict=True))
+        else:
+            return False
+    return True
 
 
 def _unify(p: Atom, a: Atom, b: dict) -> bool:

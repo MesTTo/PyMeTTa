@@ -13,6 +13,13 @@ Guarantees:
   - implicit operation names map every underscore to a hyphen while an
     explicit name remains exact [tested: test_op_uses_the_define_name_ladder;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - one encoded generator supplies positional and sparse relational rows in
+    every binding direction without changing answer multiplicity, and an
+    effectful producer runs once per yielded candidate [tested:
+    test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
+    test_sparse_relational_dict_candidates_bind_parameter_names,
+    test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,10 +31,13 @@ import functools
 import inspect
 import types
 import uuid
+from collections import Counter
 
 import pytest
 
 from metta import (
+    UNIT,
+    Answer,
     Atom,
     Expression,
     MeTTa,
@@ -243,7 +253,8 @@ def test_a_python_op_is_a_higher_order_argument(metta):
     assert metta.run(f"!(map-atom (1 2 3) {inc})")[-1] == native
 
 
-def test_generator_is_nondeterministic(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_generator_is_nondeterministic(metta):
+    """Each generator yield remains one composable engine answer."""
     name = unique("upto")
 
     @metta.op(name=name)
@@ -253,6 +264,195 @@ def test_generator_is_nondeterministic(metta):  # noqa: D103  -- pytest discover
     assert metta.run(f"!(collapse ({name} 3))") == [[Expression(1, 2, 3)]]
     # Composes with let and arithmetic like any nondeterministic function.
     assert metta.run(f"!(collapse (let $x ({name} 3) (* $x 10)))") == [[Expression(10, 20, 30)]]
+
+
+def test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity(
+    metta,
+) -> None:
+    """Each positional row is one candidate parameter binding, duplicates included."""
+    name = unique("route")
+    candidates = [
+        (S.paris, S.lyon),
+        (S.paris, S.lyon),
+        (S.lyon, S.nice),
+    ]
+
+    @metta.op(name=name)
+    def route(origin, destination):
+        del origin, destination
+        yield from candidates
+
+    all_directions = metta.fn[name](V.origin, V.destination)
+    assert list(all_directions) == [UNIT, UNIT, UNIT]
+    assert Counter((row.origin, row.destination) for row in all_directions.rows) == Counter(
+        {
+            (S.paris, S.lyon): 2,
+            (S.lyon, S.nice): 1,
+        }
+    )
+
+    forwards = metta.fn[name](S.paris, V.destination)
+    assert list(forwards) == [UNIT, UNIT]
+    assert Counter(row.destination for row in forwards.rows) == Counter({S.lyon: 2})
+
+    backwards = metta.fn[name](V.origin, S.lyon)
+    assert list(backwards) == [UNIT, UNIT]
+    assert Counter(row.origin for row in backwards.rows) == Counter({S.paris: 2})
+
+    assert list(metta.fn[name](S.paris, S.lyon)) == [UNIT, UNIT]
+    assert list(metta.fn[name](S.paris, S.nice)) == []
+
+    numeric = unique("numeric-relation")
+
+    @metta.op(name=numeric)
+    def numeric_relation(value):
+        del value
+        yield (1,)
+
+    assert list(metta.fn[numeric](1.0)) == [UNIT]
+
+
+def test_sparse_relational_dict_candidates_bind_parameter_names(metta) -> None:
+    """A dict row constrains only the signature positions whose names it carries."""
+    name = unique("sparse-route")
+
+    @metta.op(name=name)
+    def route(origin, runtime: MeTTa, destination):
+        del origin, runtime, destination
+        yield {"origin": S.paris, "destination": S.lyon}
+        yield {"origin": S.paris, "destination": S.lyon}
+        yield {"destination": S.nice}
+
+    all_directions = metta.fn[name](V.origin, V.destination)
+    assert list(all_directions) == [UNIT, UNIT, UNIT]
+    assert Counter(row.destination for row in all_directions.rows) == Counter(
+        {S.lyon: 2, S.nice: 1}
+    )
+
+    forwards = metta.fn[name](S.rome, V.destination)
+    assert list(forwards) == [UNIT]
+    assert forwards.destination == [S.nice]
+
+    backwards = metta.fn[name](V.origin, S.lyon)
+    assert list(backwards) == [UNIT, UNIT]
+    assert Counter(row.origin for row in backwards.rows) == Counter({S.paris: 2})
+
+    assert list(metta.fn[name](S.rome, S.nice)) == [UNIT]
+    assert list(metta.fn[name](S.paris, S.nice)) == [UNIT]
+    assert list(metta.fn[name](S.rome, S.lyon)) == []
+
+
+def test_effectful_relational_candidates_run_once_per_yield_on_fresh_list(metta) -> None:
+    """A reverse filter visits each candidate once and answers matching rows."""
+    name = unique("effectful-route")
+    candidates = [
+        (S.paris, S.lyon),
+        (S.paris, S.lyon),
+        (S.lyon, S.nice),
+    ]
+    effects: list[tuple[Symbol, Symbol]] = []
+
+    @metta.op(name=name)
+    def route(origin, destination):
+        del origin, destination
+        for candidate in candidates:
+            effects.append(candidate)
+            yield candidate
+
+    assert list(metta.fn[name](V.origin, S.lyon)) == [UNIT, UNIT]
+    assert effects == candidates
+
+
+def test_relational_candidate_shape_errors_are_contract_errors(metta) -> None:
+    """Malformed rows fail loudly even under operation error-recovery policy."""
+    wide = unique("wide-route")
+    unknown = unique("unknown-route")
+    missing = unique("none-route")
+    nested_answer = unique("nested-answer-route")
+    repeated = unique("repeated-route")
+
+    @metta.op(name=wide)
+    def wide_route(origin, destination):
+        del origin, destination
+        yield (S.paris, S.lyon, S.nice)
+
+    @metta.op(name=unknown)
+    def unknown_route(origin, destination):
+        del origin, destination
+        yield {"origin": S.paris, "arrival": S.lyon}
+
+    @metta.op(name=missing)
+    def missing_route(origin, destination):
+        del origin, destination
+        yield (None, S.lyon)
+
+    @metta.op(name=nested_answer)
+    def nested_answer_route(origin, destination):
+        del origin, destination
+        yield (Answer(value=S.paris), S.lyon)
+
+    @metta.op(name=repeated, arities=[2])
+    def repeated_route(*items):
+        del items
+        yield {"items": S.paris}
+
+    metta.on_error(wide, S[wide](V.origin, V.destination), "keep")
+    metta.on_error(unknown, S[unknown](V.origin, V.destination), "empty")
+    metta.on_error(missing, S[missing](V.origin, V.destination), "keep")
+    metta.on_error(
+        nested_answer,
+        S[nested_answer](V.origin, V.destination),
+        "empty",
+    )
+    metta.on_error(repeated, S[repeated](V.left, V.right), "keep")
+
+    with pytest.raises(EngineError, match="yielded a tuple of width 3, but this call takes 2"):
+        list(metta.fn[wide](V.origin, V.destination))
+    with pytest.raises(EngineError, match=r"yielded unknown parameter key.*arrival"):
+        list(metta.fn[unknown](V.origin, V.destination))
+    with pytest.raises(EngineError, match=r"yielded None for parameter 'origin'"):
+        list(metta.fn[missing](V.origin, V.destination))
+    with pytest.raises(EngineError, match=r"yielded Answer for parameter 'origin'"):
+        list(metta.fn[nested_answer](V.origin, V.destination))
+    with pytest.raises(
+        EngineError,
+        match=r"repeated variadic parameters; yield a positional tuple of width 2",
+    ):
+        list(metta.fn[repeated](V.left, V.right))
+
+
+def test_explicit_answer_value_preserves_generator_tuple_and_dict_results(metta) -> None:
+    """Answer(value=...) keeps exact tuple and dict values out of row syntax."""
+    tuple_name = unique("tuple-value")
+    dict_name = unique("dict-value")
+    mapping = {"origin": S.paris, "destination": S.lyon}
+
+    @metta.op(name=tuple_name)
+    def tuple_value(_left, _right):
+        yield Answer(value=(S.paris, S.lyon))
+
+    @metta.op(name=dict_name)
+    def dict_value(_left, _right):
+        yield Answer(value=mapping)
+
+    assert list(metta.fn[tuple_name](S.any, S.arguments)) == [
+        Expression(S.paris, S.lyon)
+    ]
+    dict_answers = list(metta.fn[dict_name](S.any, S.arguments))
+    assert dict_answers == [ground(mapping)]
+    assert dict_answers[0].value is mapping
+
+
+def test_raw_generators_refuse_relational_rows(metta) -> None:
+    """Raw arguments cannot represent unbound positions, so relation rows require the wire."""
+    name = unique("raw-route")
+
+    @metta.op(name=name, transport="raw")
+    def raw_route(_origin, _destination):
+        yield ("paris", "lyon")
+
+    with pytest.raises(EngineError, match="raw generator yielded a relational tuple or dict"):
+        list(metta.fn[name](S.paris, S.lyon))
 
 
 def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
@@ -313,7 +513,8 @@ def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
         metta.unregister_op(name)
 
 
-def test_none_and_decline_answer_nothing(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_none_and_decline_answer_nothing(metta):
+    """Both semidet decline spellings produce no operation answer."""
     evens = unique("evens")
     picky = unique("picky")
 
@@ -333,7 +534,8 @@ def test_none_and_decline_answer_nothing(metta):  # noqa: D103  -- pytest discov
     assert r == [[Expression(7)]]
 
 
-def test_python_exception_is_a_hard_error(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_python_exception_is_a_hard_error(metta):
+    """An undeclared operation exception crosses as a hard engine error."""
     name = unique("boom")
 
     @metta.op(name=name)

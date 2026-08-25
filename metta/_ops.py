@@ -1,8 +1,9 @@
-"""Purpose: the operation registry the engine dispatches into. shim.pl calls
-dispatch/dispatch_many for encoded operations and dispatch_raw variants for
-raw ones; the registry maps a MeTTa function name to the Python callable
-behind it, decoding arguments to atoms-or-values and encoding results back.
-Importable as petta_ops, the name the Prolog side uses.
+"""Purpose: register the Python operation callables the engine dispatches into.
+
+shim.pl calls dispatch/dispatch_many for encoded operations and dispatch_raw
+variants for raw ones; the registry maps a MeTTa function name to the Python
+callable behind it, decoding arguments to atoms-or-values and encoding results
+back. Importable as petta_ops, the name the Prolog side uses.
 Guarantees:
   - operation records distinguish MeTTa names from declaration-space names
     [tested: test_canonical_context_types_replace_public_newtypes;
@@ -31,6 +32,12 @@ Guarantees:
     without a pass_atoms boolean [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - exact tuple and dict yields from encoded generators cross as candidate
+    parameter bindings, with width and names checked before the engine unifies
+    them [tested:
+    test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
+    test_sparse_relational_dict_candidates_bind_parameter_names;
+    commit=WORKTREE]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -48,7 +55,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
-"""  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+"""
 
 from __future__ import annotations
 
@@ -56,7 +63,7 @@ import inspect
 import threading
 import types
 import typing
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from contextlib import closing
 from dataclasses import dataclass
 from typing import Any
@@ -100,6 +107,7 @@ class Operation:
     arities: tuple = ()  # every registered arity, for reflection facts
     inverse: Callable[..., Any] | None = None  # the backwards direction
     pure: bool = False  # no effect a cache could hide
+    parameter_names: tuple[str, ...] = ()
     parameter_annotations: tuple[Any, ...] = ()
     return_annotation: Any = Any
 
@@ -243,10 +251,11 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
     """A generator of encoded answers; each yield is one MeTTa answer.
 
     A declared error mode is enforced here, where the exceptions are
-    native, because a mid-iteration exception tunnels through py_iter
-    past every Prolog catch: keep reduces the failed call to its
-    (Error <call> <reason>) atom as the final answer, empty ends the
-    stream; control signals and transport failures re-raise, always.
+    native: keep reduces the failed call to its (Error <call> <reason>) atom
+    as the final answer and empty ends the stream. Abort and transport errors
+    cross in a reserved terminal frame because raising during ``py_iter``
+    would discard the original exception. Control signals remain outside the
+    handler and pass through untouched.
     """
     op = REGISTRY[name]
     annotations = (*op.parameter_annotations, *(Any for _ in tagged_args))
@@ -254,6 +263,7 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
         _decode_arg(argument, op.pass_atoms, annotation)
         for argument, annotation in zip(tagged_args, annotations, strict=False)
     ]
+    relation_schema = _relation_schema(op, len(tagged_args))
     # closing/1 rather than a bare loop: the stream is one-shot and this is
     # what consumed it. A "many" operation is a generator function by
     # construction (ops._operation_kind), so close() is always there.
@@ -262,13 +272,24 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             for value in answers:
                 if value is None:
                     continue
+                relation = _encode_relation_candidate(op, value, relation_schema)
+                if relation is not None:
+                    yield relation
+                    continue
                 yield _encode_result(value, op.return_annotation)
     # KeyboardInterrupt and SystemExit are BaseException, outside this
     # handler by construction, so control signals pass through untouched.
     except Exception as error:
-        if mode == "abort" or is_transport_failure(error):
+        if _failed_during_generator_close(error):
             raise
-        if mode == "keep":
+        must_abort = (
+            mode == "abort"
+            or isinstance(error, _RelationContractError)
+            or is_transport_failure(error)
+        )
+        if must_abort:
+            yield _stream_error(error)
+        elif mode == "keep":
             call = Expression(
                 [
                     Symbol(name),
@@ -280,6 +301,147 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             )
             reason = f"{type(error).__name__}: {error}"
             yield Expression([Symbol("Error"), call, Grounded(reason)]).to_wire()
+
+
+class _RelationContractError(PettaError):
+    """A malformed candidate row, which error modes must never reinterpret."""
+
+
+@dataclass(frozen=True)
+class _RelationSchema:
+    """One call arity's positional names, types, lookup, and ambiguities."""
+
+    names: tuple[str, ...]
+    annotations: tuple[Any, ...]
+    positions: dict[str, int]
+    repeated: frozenset[str]
+
+
+def _relation_schema(op: Operation, arity: int) -> _RelationSchema:
+    """Index one call signature once, outside its candidate stream."""
+    names = op.parameter_names[:arity]
+    annotations = (
+        *op.parameter_annotations,
+        *(Any for _ in range(max(0, arity - len(op.parameter_annotations)))),
+    )
+    positions: dict[str, int] = {}
+    repeated: set[str] = set()
+    for index, name in enumerate(names):
+        if name in positions:
+            repeated.add(name)
+        else:
+            positions[name] = index
+    return _RelationSchema(
+        names,
+        annotations,
+        positions,
+        frozenset(repeated),
+    )
+
+
+def _failed_during_generator_close(error: Exception) -> bool:
+    """Tell a release failure from an ordinary mid-iteration failure.
+
+    ``contextlib.closing`` calls the owned generator's ``close`` while handling
+    ``GeneratorExit`` from this stream. A release error then carries that
+    control signal as its direct context and must propagate rather than yield,
+    because yielding while closing raises ``RuntimeError: generator ignored
+    GeneratorExit`` and hides the resource failure.
+    """
+    return isinstance(error.__context__, GeneratorExit)
+
+
+def _stream_error(error: Exception) -> list:
+    """Carry a terminal generator failure as data until Prolog can throw it.
+
+    Raising while Janus is pulling ``py_iter/2`` loses the Python exception
+    behind a bare ``SystemError``. The shim recognizes this reserved frame and
+    hands the live object to ``petta_py_failure/2``, the same structured error
+    boundary deterministic operations use.
+    """
+    return ["x", "raise", type(error).__name__, error]
+
+
+def _encode_relation_candidate(
+    op: Operation,
+    value: Any,
+    schema: _RelationSchema,
+) -> list | None:
+    """Encode one positional or sparse relation row by call-argument index."""
+    if type(value) is tuple:
+        if len(value) != len(schema.names):
+            msg = (
+                f"relational operation {op.name} yielded a tuple of width "
+                f"{len(value)}, but this call takes {len(schema.names)} arguments"
+            )
+            raise _RelationContractError(msg)
+        fields: Iterable[tuple[int, Any]] = enumerate(value)
+    elif type(value) is dict:
+        invalid = [
+            key
+            for key in value
+            if not isinstance(key, str) or key not in schema.positions
+        ]
+        if invalid:
+            expected = ", ".join(schema.names) or "no parameters"
+            msg = (
+                f"relational operation {op.name} yielded unknown parameter "
+                f"key(s) {invalid!r}; this call accepts {expected}"
+            )
+            raise _RelationContractError(msg)
+        ambiguous = [name for name in value if name in schema.repeated]
+        if ambiguous:
+            msg = (
+                f"relational operation {op.name} cannot use sparse key(s) "
+                f"{ambiguous!r} for repeated variadic parameters; yield a "
+                f"positional tuple of width {len(schema.names)}"
+            )
+            raise _RelationContractError(msg)
+        fields = (
+            (index, value[name])
+            for index, name in enumerate(schema.names)
+            if name in value
+        )
+    else:
+        return None
+    return [
+        "r",
+        [
+            _encode_relation_field(
+                op,
+                index,
+                schema.names[index],
+                candidate,
+                schema.annotations[index],
+            )
+            for index, candidate in fields
+        ],
+    ]
+
+
+def _encode_relation_field(
+    op: Operation,
+    index: int,
+    name: str,
+    candidate: Any,
+    annotation: Any,
+) -> list:
+    """Encode one candidate atom, rejecting whole-answer boundary values."""
+    if candidate is None:
+        msg = (
+            f"relational operation {op.name} yielded None for parameter "
+            f"{name!r}; omit a sparse dict key to leave that position "
+            "unconstrained"
+        )
+        raise _RelationContractError(msg)
+    if isinstance(candidate, Answer):
+        msg = (
+            f"relational operation {op.name} yielded Answer for parameter "
+            f"{name!r}; wrap the whole tuple or dict result in Answer(value=...) "
+            "instead of placing Answer inside a relation row"
+        )
+        raise _RelationContractError(msg)
+    return [index, _encode_result(candidate, annotation)]
 
 
 def _unbox(value: Any) -> Any:
@@ -315,9 +477,27 @@ def dispatch_raw(name: str, args: list) -> Any:
 
 
 def dispatch_raw_many(name: str, args: list):
-    with closing(REGISTRY[name].fn(*[_unbox(a) for a in args])) as answers:
-        for value in answers:
-            yield _rebox(_refuse_raw_answer(value))
+    try:
+        with closing(REGISTRY[name].fn(*[_unbox(a) for a in args])) as answers:
+            for value in answers:
+                _refuse_raw_relation_candidate(value)
+                yield _rebox(_refuse_raw_answer(value))
+    except Exception as error:
+        if _failed_during_generator_close(error):
+            raise
+        yield _stream_error(error)
+
+
+def _refuse_raw_relation_candidate(value: Any) -> None:
+    """Reject relation rows before Janus can mistake them for raw values."""
+    if type(value) not in (tuple, dict):
+        return
+    msg = (
+        "a raw generator yielded a relational tuple or dict; raw arguments "
+        "cannot carry unbound variables, so register the operation with "
+        'transport="encoded"'
+    )
+    raise PettaError(msg)
 
 
 def _refuse_raw_answer(value: Any) -> Any:

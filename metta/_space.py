@@ -68,6 +68,11 @@ Guarantees:
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - encoded generator tuple and sparse-dict yields are relational candidate
+    bindings in every call direction [tested:
+    test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
+    test_sparse_relational_dict_candidates_bind_parameter_names;
+    commit=WORKTREE]
   - ``Space.answers`` and bound ``Space.fn`` expose lazy, replayable
     evaluation, with unknown function attributes rejected at access [tested:
     test_bound_function_namespace_validates_at_access,
@@ -2164,6 +2169,24 @@ class Space(Handle):
         Use `Atom` only when the operation deliberately implements syntax or
         a control form; it is not just a static hint.
 
+        An encoded generator may instead yield exact tuples as positional
+        relation rows, or exact dicts keyed by parameter name as sparse rows.
+        The engine unifies each candidate against the written call, so one
+        implementation serves free, partially bound, and ground arguments:
+
+            @m.op
+            def route(origin, destination):
+                yield (S.paris, S.lyon)
+                yield {"destination": S.nice}  # origin is unconstrained
+
+            # route(V.origin, S.lyon).rows[0].origin == S.paris
+
+        Each matching occurrence answers unit and duplicate yields remain
+        duplicate answers. Use `Answer(value=...)` when an exact tuple or dict
+        is the result value rather than a parameter row. Relational rows
+        require encoded transport; raw calls cannot carry unbound argument
+        positions.
+
         When evaluation order stays ordinary but the callable needs the
         resulting Atom wrappers, declare that policy as data:
 
@@ -2192,8 +2215,9 @@ class Space(Handle):
         encoded. Bulk data should stay opaque: one transparent 64-float
         crossing costs 330 inferences where the handle costs 10.
 
-        inverse gives the operation a BACKWARDS direction, so it can stand in
-        a pattern position the way a MeTTa equation does:
+        `inverse=` remains the distinct-output form. Use it when the forward
+        operation returns a result and a separate callable must recover the
+        arguments from that result:
 
             m.op(cons, name="cons", inverse=uncons)
             # !(let (cons $h $t) (1 2 3) ($h $t))  ->  (1 (2 3))

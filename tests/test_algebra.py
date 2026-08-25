@@ -3,6 +3,9 @@
 Guarantees:
   - the required P4.20 names exercise only public PeTTa surfaces
     [tested: this module; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a ground algebra goal cannot bind a variable inside a stored candidate
+    [tested: test_algebra_patterns_do_not_bind_variables_inside_stored_candidates;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -130,6 +133,35 @@ def test_a_declared_algebra_without_laws_answers_in_order_and_unfused(metta):
         assert [(str(row.value), str(row.tag)) for row in manual.answers] == [
             (str(row.value), str(row.tag)) for row in compiled.answers
         ] == [("(grandparent tom ann)", "6")]
+
+
+def test_algebra_patterns_do_not_bind_variables_inside_stored_candidates(metta):
+    """Neither a final goal nor a rule premise may fill a stored variable."""
+    metta.algebra(
+        "p4-directional-goal",
+        combine="+",
+        extend="*",
+        zero=0,
+        one=1,
+    )
+    with metta._new_space() as facts:
+        facts.add_tagged_fact(1, S.edge(V.stored, S.b))
+        facts.add_tagged_rule(
+            1,
+            S.derived(S.hit),
+            S.edge(S.a, S.b),
+        )
+        goal_evaluation = facts.evaluate_algebra(
+            S.edge(S.a, S.b),
+            algebra="p4-directional-goal",
+        )
+        premise_evaluation = facts.evaluate_algebra(
+            S.derived(S.hit),
+            algebra="p4-directional-goal",
+        )
+
+    assert goal_evaluation.answers == ()
+    assert premise_evaluation.answers == ()
 
 
 def test_a_false_declared_law_is_refused_by_name(metta):

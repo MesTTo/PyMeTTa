@@ -141,7 +141,15 @@ is Python's own `assert`.
 #: check [measured 2026-08-25 through tools/twin_coverage.py
 #: examples/basics/identity.metta; provisional on the merged tree, the
 #: final release measure re-prices].
-BUDGET = 2822
+#: RE-PINNED 2026-08-26, 2822 to 2840: an Answers count now asks the
+#: engine-published metta_host_goal_repeatable/2 classifier before choosing
+#: whether it may issue a second query. That guard is what keeps effectful
+#: relational generators single-pass, and this pure define-and-call twin pays
+#: the classification once during its answer comparison [measured: 2840
+#: inferences; command=python bindings/python/tools/twin_coverage.py --measure
+#: --rounds 3 examples/basics/identity.metta; fixture=minimum of three serial
+#: runs; commit=WORKTREE].
+BUDGET = 2840
 
 
 def twin(m):

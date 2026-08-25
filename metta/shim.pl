@@ -10,6 +10,16 @@
 %   - Python's non-direct eval paths use translate_cached_expr/3, so repeated
 %     forms reuse the engine's invalidated translation templates
 %     [tested: translation_cache, test_the_host_service_scoreboard_matches_the_tree; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873]
+%   - encoded generator tuple and sparse-dict rows are unified against the
+%     operation's actual arguments, preserving one engine answer per matching
+%     yielded occurrence [tested:
+%     test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
+%     test_sparse_relational_dict_candidates_bind_parameter_names;
+%     commit=WORKTREE]
+%   - the repeatability bridge fails closed on an ordinary classifier refusal
+%     but preserves every engine control exception [tested:
+%     python_repeatability_control:the_bridge_preserves_inference_limits;
+%     commit=WORKTREE]
 %   - petta_py_declare_handles/3 writes the declaration and checks the
 %     context's critical pairs in one transaction, so a conflicting entry
 %     rolls back and never becomes queryable
@@ -703,6 +713,7 @@ petta_py_wrappable(petta_py_speculative).
 petta_py_wrappable(petta_py_profiled).
 petta_py_wrappable(petta_py_cursor_next).
 petta_py_wrappable(petta_py_eval_count).
+petta_py_wrappable(petta_py_eval_count_if_repeatable).
 petta_py_wrappable(petta_py_derivation).
 petta_py_wrappable(petta_py_load).
 petta_py_wrappable(petta_py_fast_load_unit).
@@ -1795,6 +1806,36 @@ petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :
 
 petta_py_eval_count(Space, Target, Pairs, Count) :-
     petta_py_eval_target(Space, Target, Pairs, Term, _),
+    petta_py_eval_count_term(Space, Term, Count).
+
+%A count is a second evaluation. It is a free cardinality probe for an
+%effect-safe goal, but executing an effectful operation here and then opening
+%the held answer cursor fires the operation twice. Reuse the engine's table /
+%memo admission walk as the decision: it follows user definitions, recognizes
+%host operation declarations, and fails closed on an unknown effect. Unsafe
+%answers return [] so Answers.__len__ materializes its one cursor instead.
+petta_py_eval_count_if_repeatable(Space, Target, Pairs, Answer) :-
+    petta_py_eval_target(Space, Target, Pairs, Term, _),
+    (   petta_py_eval_repeatable(Space, Term)
+    ->  petta_py_eval_count_term(Space, Term, Count), Answer = [Count]
+    ;   Answer = []
+    ).
+
+petta_py_eval_repeatable(Space, Term) :-
+    petta_py_module(Space, Module),
+    catch_recover(
+        (   (   petta_py_direct_goal(Module, Term, Goal, _)
+            ->  Body = Goal
+            ;   petta_py_in_module(
+                    Module,
+                    ( translate_cached_expr(Term, Goals, _),
+                      goals_list_to_conj(Goals, Body) ))
+            ),
+            metta_host_goal_repeatable(Module, Body)
+        ),
+        fail).
+
+petta_py_eval_count_term(Space, Term, Count) :-
     aggregate_all(
         count,
         petta_run_with_fuel(petta_py_answer(Out), _,
@@ -2085,10 +2126,58 @@ petta_py_dispatch_many(Name, Args, Result) :-
           Error, TR = '$petta_op_error'(Error)),
     (   TR = '$petta_op_error'(ManyError)
     ->  petta_py_op_erring(Name, Args, ManyError, Result)
+    ;   petta_py_stream_error(TR, StreamError)
+    ->  petta_py_failure([Name|Args], StreamError)
+    ;   petta_py_relation_form(TR, Fields)
+    ->  petta_py_relation_result(Fields, Args, Result)
     ;   TR = [_, _, _, _|_]
     ->  petta_py_answer_result(TR, Name, Args, Result)
     ;   petta_py_decode_shared_(TR, Result, variables_of(Args), _)
     ).
+
+%Python cannot raise from inside py_iter/2 without Janus replacing the real
+%exception with a bare SystemError. A generator therefore yields this reserved
+%terminal frame; reconstruct the ordinary Janus error term and pass it through
+%the same structured failure boundary as a deterministic operation.
+petta_py_stream_error([Tag, Raise, Class0, Exception],
+                      error(python_error(Class, Exception), none)) :-
+    petta_py_tag(Tag, x),
+    petta_py_tag(Raise, raise),
+    petta_py_tag(Class0, Class).
+
+%An encoded generator's exact tuple/dict yield is a relation row, tagged away
+%from the atom wire. Python has already mapped sparse parameter names to their
+%argument positions and checked the row shape. Decode every field against the
+%call's shared variable table, then use the engine matcher itself: custom
+%grounded matching, numeric promotion, space operands and the occurs check all
+%remain one law. Failure filters the candidate; success binds the call and
+%answers unit. py_iter contributes one choice point per yielded occurrence, so
+%duplicates remain duplicates.
+petta_py_relation_form([Tag, Fields], Fields) :-
+    petta_py_tag(Tag, r).
+
+petta_py_relation_result(Fields, Args, []) :-
+    petta_py_relation_fields(Fields, Args, variables_of(Args), _).
+
+petta_py_relation_fields(Fields, Args, Table0, Table) :-
+    petta_py_relation_fields(Fields, Args, 0, Table0, Table).
+
+petta_py_relation_fields([], _, _, Table, Table).
+petta_py_relation_fields([[Index, Wire]|Fields], Args0, Offset, Table0, Table) :-
+    integer(Index),
+    Index >= Offset,
+    Skip is Index - Offset,
+    petta_py_relation_argument(Skip, Args0, Actual, Args),
+    petta_py_decode_shared_(Wire, Candidate, Table0, Table1),
+    petta_match_atoms(Candidate, Actual),
+    Next is Index + 1,
+    petta_py_relation_fields(Fields, Args, Next, Table1, Table).
+
+petta_py_relation_argument(0, [Actual|Args], Actual, Args).
+petta_py_relation_argument(Skip, [_|Args0], Actual, Args) :-
+    Skip > 0,
+    Next is Skip - 1,
+    petta_py_relation_argument(Next, Args0, Actual, Args).
 
 %An operation's declared error mode, consulted only in the recovery, so
 %the success path pays one functor test. keep reduces the failed call to
@@ -2154,6 +2243,10 @@ petta_py_dispatch_raw_det(Name, Args, Result) :-
 petta_py_dispatch_raw_many(Name, Args, Result) :-
     catch(py_iter(petta_ops:dispatch_raw_many(Name, Args), R0),
           Error, petta_py_failure([Name|Args], Error)),
+    (   petta_py_stream_error(R0, StreamError)
+    ->  petta_py_failure([Name|Args], StreamError)
+    ;   true
+    ),
     R0 \== '@'(none),
     petta_py_raw_norm(R0, Result).
 

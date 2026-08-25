@@ -653,7 +653,7 @@ _DOCUMENTATION = {
     "tan-math": "tan-math: (-> Number Number)\n\n`math.tan`.",
     "trace!": "trace!: (-> %Undefined% Atom %Undefined%)\n\n`print` or `logging` beside the value; `m.trace()` is the engine's own reduction trace, a different and deeper thing.",
     "trunc-math": "trunc-math: (-> Number Number)\n\n`math.trunc`, or `int` on a float.",
-    "unify": "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural matching. `metta.unify(pattern, subject)` answers the bindings or `None`, so the four-argument form is that call with a conditional; in a compiled body Python's `match` statement lowers to this instruction. One friction: MeTTa's `unify` is symmetric while `metta.unify` is DIRECTIONAL, pattern first, so swapping the arguments answers `None` [measured 2026-08-22: `metta.unify(S.f(S.a), S.f(V.x))` is None].",
+    "unify": "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural unification. `metta.unify(a, b)` symmetrically answers one bindings mapping or `None`; `metta.unify(a, b, then, els)` evaluates the engine conditional, running `then` once per binding set and `els` only when none exists. A compiled body lowers the same four-argument call directly to the engine form.",
     "union": "union: (-> Atom Atom %Undefined%)\n\nMultiset union over nondeterministic answers, which is concatenation: answers are iterables and `+` joins them.",
     "union-atom": "union-atom: (-> Expression Expression Atom)\n\nThe same act over an expression's children; a tuple goes back in as one expression.",
     "unique": "unique: (-> Atom %Undefined%)\n\n`dict.fromkeys` is Python's order-preserving dedupe.",

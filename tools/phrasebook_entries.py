@@ -548,16 +548,15 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "unify", ("(-> Atom Atom Atom Atom %Undefined%)",), "Symbol", "control", "method",
-        "Structural matching. `metta.unify(pattern, subject)` answers the bindings "
-        "or `None`, so the four-argument form is that call with a conditional; in a "
-        "compiled body Python's `match` statement lowers to this instruction. One "
-        "friction: MeTTa's `unify` is symmetric while `metta.unify` is DIRECTIONAL, "
-        "pattern first, so swapping the arguments answers `None` "
-        "[measured 2026-08-22: `metta.unify(S.f(S.a), S.f(V.x))` is None].",
+        "Structural unification. `metta.unify(a, b)` symmetrically answers one "
+        "bindings mapping or `None`; `metta.unify(a, b, then, els)` evaluates the "
+        "engine conditional, running `then` once per binding set and `els` only "
+        "when none exists. A compiled body lowers the same four-argument call "
+        "directly to the engine form.",
         metta="!(unify (f $x) (f a) $x nope)",
         python=(
-            "b = metta.unify(S.f(V.x), S.f(S.a))\n"
-            "b['x'] if b is not None else S.nope"
+            "assert metta.unify(S.f(S.a), S.f(V.x)) == {'x': S.a}\n"
+            "metta.unify(S.f(V.x), S.f(S.a), V.x, S.nope).one()"
         ),
     ),
     Entry(

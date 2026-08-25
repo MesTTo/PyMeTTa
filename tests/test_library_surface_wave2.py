@@ -14,6 +14,11 @@ Guarantees:
     ambient-space matching [tested:
     test_expression_position_superpose_and_match_share_the_ambient_space;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - package ``unify`` dispatches its two-atom matcher and four-atom engine
+    conditional overloads, and compiled definitions lower the latter directly
+    [tested:
+    test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
+    commit=WORKTREE]
   - ``Space.pre_add`` installs one compiled judge whose package verdict
     builders preserve, transform, refuse, or silently drop each offered atom
     [tested: test_pre_add_compiles_the_four_verdict_judge; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -24,11 +29,13 @@ Guarantees:
 """
 
 import copy
+import inspect
 from collections import Counter
+from typing import Any, get_overloads, get_type_hints
 
 import pytest
 
-from metta import MeTTa, S, V, accept, drop, match, refuse, space, superpose
+from metta import MeTTa, S, V, accept, drop, match, refuse, space, superpose, unify
 from metta.errors import EngineError
 from metta.results import Answers
 
@@ -153,6 +160,53 @@ def test_expression_position_superpose_and_match_use_the_ruled_doors() -> None:
 
     assert list(choose(8)) == [8, 9]
     assert list(child_of(S.Tom)) == [S.Bob]
+    target.drop()
+
+
+def test_expression_position_unify_uses_the_engine_conditional_in_both_contexts() -> None:
+    """The root overload and compiler emit the protected core ``unify`` form."""
+    assert [tuple(inspect.signature(item).parameters) for item in get_overloads(unify)] == [
+        ("left", "right"),
+        ("left", "right", "then", "els"),
+    ]
+    assert get_type_hints(unify) == {
+        "left": Any,
+        "right": Any,
+        "then": Any,
+        "els": Any,
+        "return": Any,
+    }
+    target = space("&libfix-expression-unify")
+    target.clear()
+
+    with target:
+        assert list(unify(S.f(V.x), S.f(S.a), V.x, S.nope)) == [S.a]
+        assert list(unify(S.f(V.x), S.g(S.a), V.x, S.nope)) == [S.nope]
+
+    @target.define
+    def describe(value):
+        return unify(value, Person(V.n), Greeting(V.n), Unknown)  # noqa: F821 -- capitalized names and V attributes are compiled-body data constructors and variables
+
+    assert describe.source() == (
+        "(= (describe $value) "
+        "(unify $value (Person $n) (Greeting $n) Unknown))"
+    )
+    assert list(describe(S.Person(S.Ann))) == [S.Greeting(S.Ann)]
+    assert list(describe(S.Place(S.Ann))) == [S.Unknown]
+    assert describe.pure is True
+
+    @target.op(name="libfix_unify_observe")
+    def libfix_unify_observe(value):
+        return value
+
+    @target.define
+    def impure_describe(value):
+        return unify(value, A, libfix_unify_observe(value), Nope)  # noqa: F821 -- capitalized names are compiled-body data constructors
+
+    assert impure_describe.pure is False
+
+    with pytest.raises(TypeError, match="exactly 2 or 4 arguments"):
+        unify(S.a, S.b, S.c)
     target.drop()
 
 

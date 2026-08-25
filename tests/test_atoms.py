@@ -13,6 +13,13 @@ Guarantees:
     [tested:
     test_expression_collects_iterables_and_slices_keep_the_expression_kind;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - public two-argument unification binds variables from either operand and
+    preserves repeated-variable constraints [tested:
+    test_unify_binds_a_ground_term_and_pattern_in_both_orders,
+    test_unify_binds_variables_from_both_operands,
+    test_unify_treats_nesting_depth_as_data_during_normalization,
+    test_unify_path_compresses_long_alias_chains;
+    commit=WORKTREE]
 Owns:
   - test_atom_identity_caches_are_thread_safe joins every cache worker
     before checking identity [tested test_atom_identity_caches_are_thread_safe]
@@ -569,11 +576,53 @@ def test_alpha_eq():  # noqa: D103  -- pytest discovers or injects this callable
     assert not S.a.alpha_eq(S.b)
 
 
-def test_unify():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_unify():
+    """The basic matcher answers substitutions and rejects contradictions."""
     got = unify(S.Parent(V.x, S.Bob), S.Parent(S.Tom, S.Bob))
     assert got == {"x": S.Tom}
     assert unify(S.Parent(V.x, V.x), S.Parent(S.a, S.b)) is None
     assert unify(V.x, Expression(S.a)) == {"x": Expression(S.a)}
+
+
+def test_unify_binds_a_ground_term_and_pattern_in_both_orders():
+    """The public name is unification, so operand order cannot select matching."""
+    pattern = S.Parent(V.child, S.Bob)
+    ground = S.Parent(S.Tom, S.Bob)
+
+    assert unify(pattern, ground) == {"child": S.Tom}
+    assert unify(ground, pattern) == {"child": S.Tom}
+
+
+def test_unify_binds_variables_from_both_operands():
+    """One substitution carries bindings contributed by both term trees."""
+    assert unify(S.f(V.x, S.b), S.f(S.a, V.y)) == {
+        "y": S.b,
+        "x": S.a,
+    }
+    assert unify(S.pair(V.x, V.x), S.pair(S.a, S.b)) is None
+
+
+def test_unify_treats_nesting_depth_as_data_during_normalization():
+    """Resolving one deep ground binding is iterative and preserves identity."""
+    deep = S.leaf
+    for _ in range(5_000):
+        deep = S.f(deep)
+
+    bindings = unify(V.x, deep)
+    assert bindings is not None
+    assert bindings["x"] is deep
+
+
+def test_unify_path_compresses_long_alias_chains():
+    """Repeatedly walking a growing root chain remains linear by compression."""
+    variables = [V[f"x{index}"] for index in range(5_000)]
+    left = Expression([S.f, *([variables[0]] * len(variables))])
+    right = Expression([S.f, S.a, *reversed(variables[1:])])
+
+    bindings = unify(left, right)
+    assert bindings is not None
+    assert len(bindings) == len(variables)
+    assert all(value is S.a for value in bindings.values())
 
 
 def test_ground_equality_is_the_engines():

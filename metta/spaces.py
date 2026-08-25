@@ -18,6 +18,10 @@ Guarantees:
     turns an added py-field atom into setattr [tested:
     test_a_query_joins_stored_atoms_with_live_object_fields;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - provider queries and bridge declarations retain directional pattern
+    matching after public ``unify`` becomes symmetric [tested:
+    test_mapped_repeated_variable_pattern_stays_sound;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,10 +45,10 @@ from .atoms import (
     _decode,
     _encode,
     _is_ground,
+    _match,
     _to_atom,
     ground,
     substitute,
-    unify,
 )
 from .errors import PettaError
 from .foreign import Matcher, SpaceProvider
@@ -105,7 +109,7 @@ class _LiveDataView(SpaceProvider):
         key_pattern, _value_pattern = pattern.children[1:]
         for key, value in self._matching_entries(key_pattern):
             candidate = self._kv_atom(key, value)
-            if unify(pattern, candidate) is not None:
+            if _match(pattern, candidate) is not None:
                 yield candidate
 
     def _matching_entries(self, key_pattern: Atom) -> Iterator[tuple[Any, Any]]:
@@ -151,11 +155,11 @@ class _LiveDataView(SpaceProvider):
                 present = False
             if present:
                 candidate = _encode(member)
-                if unify(pattern, candidate) is not None:
+                if _match(pattern, candidate) is not None:
                     yield candidate
             return
         for candidate in self.atoms():
-            if unify(pattern, candidate) is not None:
+            if _match(pattern, candidate) is not None:
                 yield candidate
 
 
@@ -419,13 +423,13 @@ class _Mapped(SpaceProvider):
         self._inner = inner
 
     def _inward(self, outer_atom: Atom) -> Atom | None:
-        bindings = unify(self._outer, outer_atom)
+        bindings = _match(self._outer, outer_atom)
         if bindings is None:
             return None
         return substitute(self._inner, bindings)
 
     def _outward(self, inner_atom: Atom) -> Atom | None:
-        bindings = unify(self._inner, inner_atom)
+        bindings = _match(self._inner, inner_atom)
         if bindings is None:
             return None
         return substitute(self._outer, bindings)
@@ -439,7 +443,7 @@ class _Mapped(SpaceProvider):
     def match(self, pattern: Atom) -> Iterator[Atom]:
         inner_pattern = self._inward(pattern)
         if inner_pattern is None:
-            # unify is one-way (shape side binds), so its failure proves
+            # _match is one-way (shape side binds), so its failure proves
             # absence only for a GROUND pattern, where one-way and two-way
             # agree. A pattern with variables can still touch instances a
             # one-way walk refuses, (edge $x $x) against a shape carrying

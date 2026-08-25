@@ -5,9 +5,9 @@ answers "which entries apply to this atom", MatchIndex answers "which of
 many registered patterns match it" sublinearly, and AlphaSet holds atoms
 modulo variable renaming.
 Assumes:
-  - metta.atoms.unify is one-way, pattern side binding, which is the
-    reading every lookup here wants: stored patterns are the pattern side
-    and probes are the atom side [source: atoms.py unify docstring]
+  - metta.atoms._match is the private directional primitive every lookup
+    here wants: stored patterns are the pattern side and probes are the atom
+    side [source: bindings/python/metta/atoms.py:_match; commit=WORKTREE]
 Guarantees:
   - PatternMap's ground keys behave exactly like dict keys, the no-tax
     rule [tested test_patternmap_ground_keys_are_dict_keys]
@@ -54,9 +54,9 @@ from .atoms import (
     Variable,
     _encode,
     _is_ground,
+    _match,
     _variables,
     substitute,
-    unify,
 )
 from .errors import PettaError
 
@@ -196,11 +196,11 @@ class PatternMap(MutableMapping):
                 candidates |= self._buckets.get(bucket_key, set())
             for canonical in candidates:
                 stored, value = self._patterns[canonical]
-                if unify(stored, probe) is not None:
+                if _match(stored, probe) is not None:
                     yield (stored, value)
             return
         for key, value in self._ground.items():
-            if unify(probe, key) is not None:
+            if _match(probe, key) is not None:
                 yield (key, value)
         for stored, value in self._patterns.values():
             if _mutually_unifiable(stored, probe):
@@ -231,7 +231,7 @@ def _mutually_unifiable(left: Atom, right: Atom) -> bool:
     matching() probe with variables should answer, and the caller's own
     unify against the answered key settles the rest.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    return unify(left, right) is not None or unify(right, left) is not None
+    return _match(left, right) is not None or _match(right, left) is not None
 
 
 class MatchIndex:
@@ -358,7 +358,7 @@ class MatchIndex:
             if position == len(tokens):
                 for entry_id in node.get("$leaves", []):
                     entry = self._entries[entry_id]
-                    if unify(entry[0], probe) is not None:
+                    if _match(entry[0], probe) is not None:
                         found.append((entry_id, entry))
                 continue
             token = tokens[position]
@@ -612,7 +612,7 @@ class LiveView:
             # is what the subscription's own contract asks of a handler
             # that needs more than the event carries.
             pattern = event.atom
-            stale = [held for held in self._held if unify(pattern, held) is not None]
+            stale = [held for held in self._held if _match(pattern, held) is not None]
             if stale == [pattern] and _is_ground(pattern):
                 self._held[pattern] -= 1
                 if self._held[pattern] <= 0:
