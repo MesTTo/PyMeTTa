@@ -149,17 +149,15 @@ def test_algebra_patterns_do_not_bind_variables_inside_stored_candidates(metta):
             S.derived(S.hit),
             S.edge(S.a, S.b),
         )
-        goal_evaluation = facts.evaluate_algebra(
-            S.edge(S.a, S.b),
-            algebra="p4-directional-goal",
+        goal_evaluation = tuple(
+            facts.answers(S.edge(S.a, S.b), under="p4-directional-goal")
         )
-        premise_evaluation = facts.evaluate_algebra(
-            S.derived(S.hit),
-            algebra="p4-directional-goal",
+        premise_evaluation = tuple(
+            facts.answers(S.derived(S.hit), under="p4-directional-goal")
         )
 
-    assert goal_evaluation.answers == ()
-    assert premise_evaluation.answers == ()
+    assert goal_evaluation == ()
+    assert premise_evaluation == ()
 
 
 def test_a_false_declared_law_is_refused_by_name(metta):
