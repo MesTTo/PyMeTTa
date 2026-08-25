@@ -35,7 +35,7 @@ Guarantees:
     compiled assertion/removal statements, signature-bound call keywords, and
     per-ask theory/interpreter selection
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=0d49980b03d507f9bae0354786ab826a146c20df]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

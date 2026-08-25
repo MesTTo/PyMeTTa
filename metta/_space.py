@@ -93,7 +93,7 @@ Guarantees:
   - ``Space.answers`` can evaluate one ask against a theory value or through
     an explicit full-interpreter head without mutating the receiver [tested:
     test_answers_selects_a_theory_or_interpreter_per_ask;
-    commit=WORKTREE]
+    commit=0d49980b03d507f9bae0354786ab826a146c20df]
   - builtin discovery is cached per logical space, with namespace reads
     comparing the engine's function generation and explicit Python mutation
     doors retaining eager invalidation [tested:
@@ -2199,7 +2199,7 @@ class Space(Handle):
         This mirrors reflective descent functions whose inputs are a reified
         module and term [source:
         https://maude.cs.illinois.edu/maude1/manual/maude-manual-html/maude-manual_24.html;
-        commit=WORKTREE].
+        commit=0d49980b03d507f9bae0354786ab826a146c20df].
 
         ``interpreter=`` instead evaluates the explicit full-interpreter
         application ``(interpreter target %Undefined% receiver)`` for this ask.
