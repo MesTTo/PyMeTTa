@@ -21,6 +21,11 @@ Guarantees:
   - both hosts carry the signed-i64 Number/BigInt boundary as exact integers
     [tested test_a_second_language_binding_passes_the_same_conformance_kit,
     test_the_node_binding_and_the_python_host_answer_the_same_programs]
+  - the Node profile carries p as its JavaScript SpaceHandle species on all
+    four codec legs [tested
+    test_a_second_language_binding_passes_the_same_conformance_kit,
+    test_the_binding_runs_every_leg_and_says_which_cases_it_does_not;
+    commit=d0631377c5e01a5d34d1c3437e283f87a0fab86f]
   - the Node binding computes exactly the answers it is asked for, proven on
     an unbounded generator with a witness space
     [tested test_the_node_binding_leaves_the_third_answer_uncomputed]
@@ -200,7 +205,7 @@ def _transport_from_wire(wire: Any) -> Any:
 class NodeBinding:
     """The Node binding as one codec driver, over a line of JSON per call.
 
-    Three tags stay outside its profile and each for its own reason. `o` is a
+    Two term tags stay outside its profile and each for its own reason. `o` is a
     live host value and no JavaScript object is ever inside this engine; `h`
     is a native handle, whose whole point is a registry identity this binding
     mints none of; and the three frames belong to the remote wire, which an
@@ -208,7 +213,7 @@ class NodeBinding:
     """
 
     name = "node"
-    tags = frozenset({"s", "v", "n", "g", "e", "b"})
+    tags = frozenset({"s", "v", "n", "g", "e", "b", "p"})
     frames: frozenset[str] = frozenset()
     printer = "engine"
     reads_text = True
@@ -311,11 +316,10 @@ def test_a_second_language_binding_passes_the_same_conformance_kit(node_driver) 
     """The golden corpus, run against the Node binding.
 
     The kit is the authority on the grammar and this is the second language
-    held to it. Measured 2026-08-20 against the corpus on the branch that
-    writes it, before either merged: 67 cases in scope over all four legs, zero
-    complaints. It caught a real defect on the way, which is what a kit is
-    for: the decoder minted a fresh variable per occurrence, so (f $x $x)
-    came back as (f $x $y).
+    held to it. Measured 2026-08-26 against the current corpus: 67 cases in
+    scope over all four legs, zero complaints. It caught a real defect on the
+    way, which is what a kit is for: the decoder minted a fresh variable per
+    occurrence, so (f $x $x) came back as (f $x $y).
     """
     pytest.importorskip(
         "metta._codec_kit",
@@ -343,18 +347,15 @@ def test_the_binding_runs_every_leg_and_says_which_cases_it_does_not(node_driver
 
     plan = codec_plan(node_driver)
     assert plan["legs"] == ["read", "render", "roundtrip", "transport"]
-    assert plan["run"], "the plan put every case out of scope"
+    assert len(plan["run"]) == 67
+    assert "space-handle" in plan["run"]
     for case, why in plan["out_of_profile"]:
         # A capability reason would mean this binding claimed less than it
         # carries, which is the way a kit passes on a small profile.
         assert why.startswith(("tags [", "frame ")), f"{case} is out of profile: {why}"
         if why.startswith("tags ["):
-            # o is the host-object tag a wasm host cannot carry. p is the
-            # portable space reference R2 added; teaching the node bridge to
-            # decode it into its own handle species is filed as its own row,
-            # and until that lands the profile names it rather than claiming
-            # it.
-            assert why in ("tags ['o']", "tags ['p']"), f"{case} needs a tag beyond o and p: {why}"
+            # o is the host-object tag a wasm host cannot carry.
+            assert why == "tags ['o']", f"{case} needs a tag beyond o: {why}"
 
 
 def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_report: dict) -> None:
