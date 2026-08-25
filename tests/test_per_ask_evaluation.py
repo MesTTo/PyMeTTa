@@ -4,7 +4,7 @@ Guarantees:
     receives target, expected type, and receiver without either selector
     mutating the receiver [tested:
     test_answers_selects_a_theory_or_interpreter_per_ask;
-    commit=WORKTREE]
+    commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
 Open Obligations:
   To Do: None
   Hacks: None

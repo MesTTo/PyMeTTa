@@ -93,10 +93,11 @@ Guarantees:
   - ``Space.answers`` can evaluate one ask against a theory value or through
     an explicit full-interpreter head without mutating the receiver [tested:
     test_answers_selects_a_theory_or_interpreter_per_ask;
-    commit=WORKTREE]
+    commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
   - ``Space.cast`` preserves the inherited one-argument atom cast while its
     two-argument form keeps explicit context-relative casting [tested:
-    test_atom_cast_delegates_to_the_ambient_space; commit=WORKTREE]
+    test_atom_cast_delegates_to_the_ambient_space;
+    commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
   - callable doors cache live deprecation declarations until the next write
     and issue the catalog's since/remedy warning [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
@@ -1345,7 +1346,7 @@ class Space(Handle):
     # shape and adds the explicit-context form. An overload implementation must
     # accept every advertised input shape. [source:
     # https://github.com/python/typing/blob/44f42629df028aebb783917a393172e4234ad2e7/docs/spec/overload.rst#L150-L160;
-    # commit=WORKTREE]
+    # commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
     @overload
     def cast(self, type_: _builtins.type[_CastT], /) -> _CastT: ...
 
