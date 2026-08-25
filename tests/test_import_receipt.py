@@ -48,6 +48,10 @@ def thread_state(space) -> dict:
         " aggregate_all(count, filereader:source_load_assertion(ReceiptLoadId, stored, _), StoredOutputs)), "
         "aggregate_all(count, user:'get-atoms'(Space, [=, ['take-atom'|_], _]), StoredEquations), "
         "user:space_module(Space, _Module), "
+        # Deferred translation holds a source's clauses until first use, so
+        # the clause counts below are read through the engine's own force
+        # door; a removed contribution has no rows to force and stays 0.
+        "user:metta_ensure_compiled('take-atom'), "
         "functor(_Binary, 'take-atom', 3), "
         "functor(_Timed, 'take-atom', 4), "
         "aggregate_all(count, (clause(_Module:_Binary, _, _BinaryRef), "

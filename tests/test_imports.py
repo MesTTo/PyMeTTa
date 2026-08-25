@@ -78,7 +78,8 @@ def test_failed_import_rolls_back_partial_definitions(metta, tmp_path):  # noqa:
     # which is where janus resolves a goal by default. space_module/2 answers
     # which module it IS, so the test follows the engine instead of naming one.
     result = bridge().query_once(
-        f"space_module('&self', M), aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
+        f"space_module('&self', M), metta_ensure_compiled('{function_name}'), "
+        f"aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
     )
 
     assert result["Count"] == 1
@@ -93,7 +94,8 @@ def test_entry_file_breaks_direct_import_cycle(metta, tmp_path):  # noqa: D103  
 
     metta.load(str(entry_file))
     result = bridge().query_once(
-        f"space_module('&self', M), aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
+        f"space_module('&self', M), metta_ensure_compiled('{function_name}'), "
+        f"aggregate_all(count, clause(M:'{function_name}'(_), _), Count)"
     )
 
     assert result["Count"] == 1
