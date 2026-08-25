@@ -36,7 +36,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ._atoms_core import Atom, Expression, Symbol, _encode_value
-from ._engine import _STATE, _resolve_petta_path
 
 if TYPE_CHECKING:
     from ._space import Space
@@ -163,6 +162,16 @@ class _LibraryNamespace:
         directory rather than a hand-list; family names appear in their
         attribute spelling and out-of-family ones stay bracket-reachable.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        # Lazy on purpose: `import metta` must not import the engine
+        # module, and dir() is interactive, so the cost lands only where
+        # a person is already exploring
+        # [tested: test_the_fn_namespace_is_generated's import-lightness
+        # subprocess].
+        from ._engine import (  # noqa: PLC0415  -- the import-lightness contract above
+            _STATE,
+            _resolve_petta_path,
+        )
+
         active = getattr(_STATE, "runtime", None)
         root = active.petta_path if active is not None else _resolve_petta_path()
         names = set()
