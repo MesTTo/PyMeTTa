@@ -7,22 +7,22 @@ Guarantees:
   - a walrus-bound nondeterministic call uses call-time choice, so both uses
     in one pair share one answer [tested:
     test_walrus_call_time_choice_shares_one_nondeterministic_value;
-    commit=WORKTREE]
+    commit=5fe3175632a6b60b3b54ca9125b75607ac82401a]
   - State.value augmented assignment is a non-atomic read-modify-write, and a
     caller lock makes the compound update atomic [tested:
     test_state_increment_requires_a_lock_around_read_modify_write;
-    commit=WORKTREE]
+    commit=5fe3175632a6b60b3b54ca9125b75607ac82401a]
   - grouped MettaResultError reprs carry their Error atoms without fabricated
     Python stack text [tested:
     test_grouped_metta_errors_render_atoms_without_python_stacks;
-    commit=WORKTREE]
+    commit=5fe3175632a6b60b3b54ca9125b75607ac82401a]
   - record attribute docstrings are recovered from source for @doc while the
     runtime field descriptor has no __doc__ [tested:
     test_attribute_docstrings_are_source_only_not_field_runtime_docs;
-    commit=WORKTREE]
+    commit=5fe3175632a6b60b3b54ca9125b75607ac82401a]
   - the guide keeps every documentation-law explainer and boundary sentence
     in its owning page [tested: test_guides_keep_documentation_law_explainers;
-    commit=WORKTREE]
+    commit=5fe3175632a6b60b3b54ca9125b75607ac82401a]
 """
 
 import traceback
