@@ -97,7 +97,7 @@ Guarantees:
   - callable doors cache live deprecation declarations until the next write
     and issue the catalog's since/remedy warning [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
-    commit=WORKTREE]
+    commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
   - builtin discovery is cached per logical space, with namespace reads
     comparing the engine's function generation and explicit Python mutation
     doors retaining eager invalidation [tested:

@@ -59,7 +59,7 @@ Guarantees:
   - a live Defined call reads the shared deprecation catalog after staging
     has finished and warns with its since/remedy declaration [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
-    commit=WORKTREE]
+    commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
 Open Obligations:
   To Do: None
   Hacks: None

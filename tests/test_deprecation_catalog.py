@@ -5,7 +5,7 @@ Guarantees:
     bound callable doors, appears in ``explain``, and stops warning after the
     declaration is removed [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
-    commit=WORKTREE]
+    commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
 """
 
 from __future__ import annotations

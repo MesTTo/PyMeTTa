@@ -32,7 +32,7 @@ Guarantees:
   - direct and composite callable doors warn from the shared deprecation
     catalog with the declared since/remedy [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
-    commit=WORKTREE]
+    commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
