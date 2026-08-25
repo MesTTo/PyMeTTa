@@ -22,10 +22,10 @@ Guarantees:
   - ``Space.pre_add`` installs one compiled judge whose package verdict
     builders preserve, transform, refuse, or silently drop each offered atom
     [tested: test_pre_add_compiles_the_four_verdict_judge; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - all fifteen declaration verbs use their atom heads on Space and
-    AsyncMeTTa, inject a space subject, and leave every ``declare_*`` spelling
-    absent [tested: test_declarations_use_their_atom_heads_on_the_receiver;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - all fifteen declaration heads use their settled Space and AsyncMeTTa
+    spellings, including ``reacts`` for ``(on ...)`` while ``reaction``
+    remains, and leave every ``declare_*`` spelling absent [tested:
+    test_declarations_use_their_atom_heads_on_the_receiver; commit=WORKTREE]
 """
 
 import copy
@@ -299,5 +299,11 @@ def test_declarations_use_their_atom_heads_on_the_receiver() -> None:
     )
     assert str(target.admits("Atom")) == "(admits &libfix-declarations Atom)"
     assert str(target.capacity(2)) == "(capacity &libfix-declarations 2)"
+    assert str(target.reacts("(notice $x)", "(insert &self (seen $x))")) == (
+        "(on &libfix-declarations (notice $x) (insert &self (seen $x)))"
+    )
+    assert str(target.reaction("(legacy $x)", "(insert &self (seen $x))")) == (
+        "(on &libfix-declarations (legacy $x) (insert &self (seen $x)))"
+    )
 
     target.eval(S["undeclare-pre-add!"](target))

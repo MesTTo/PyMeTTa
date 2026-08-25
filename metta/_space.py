@@ -60,10 +60,11 @@ Guarantees:
     test_query_surfaces_share_column_order,
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
     test_the_python_remove_door_subtracts_one_copy; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - all fifteen declaration verbs use the atom head as the method name,
-    inject the receiver where it is the subject, and expose no ``declare_*``
-    aliases [tested: test_declarations_use_their_atom_heads_on_the_receiver,
-    test_m7_narrow_core_surface; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - all fifteen declaration heads use their settled receiver spellings,
+    including ``reacts`` for ``(on ...)``; the former ``reaction`` spelling
+    remains as a compatibility alias and no ``declare_*`` alias returns
+    [tested: test_declarations_use_their_atom_heads_on_the_receiver and
+    test_m7_narrow_core_surface; commit=WORKTREE]
   - Expression recognizes Space as the one iterable Handle whose listing is
     collected as an assembly-order snapshot [tested:
     test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -3877,8 +3878,8 @@ class Space(Handle):
         SCORES a reaction, highest first. Every policy breaks ties on
         declaration order.
 
-            alarms.reaction("(alert $w)", "(insert &log (all $w))")
-            alarms.reaction("(alert fire)", "(insert &log (fire))", priority=9)
+            alarms.reacts("(alert $w)", "(insert &log (all $w))")
+            alarms.reacts("(alert fire)", "(insert &log (fire))", priority=9)
             alarms.agenda("priority")
         """
         policies = AgendaPolicy
@@ -3912,7 +3913,7 @@ class Space(Handle):
         )
         return atom
 
-    def reaction(
+    def reacts(
         self,
         pattern: str | Atom,
         operation: str | Atom,
@@ -3949,6 +3950,15 @@ class Space(Handle):
         )
         self._rt.must("petta_install_bridges")
         return atom
+
+    def reaction(
+        self,
+        pattern: str | Atom,
+        operation: str | Atom,
+        priority: int | None = None,
+    ) -> Atom:
+        """Compatibility spelling for :meth:`reacts`; new code uses reacts."""
+        return self.reacts(pattern, operation, priority)
 
     def admits(self, type_name: str) -> Atom:
         """Type a pool's membership: only TYPE-carrying atoms enter.

@@ -32,10 +32,11 @@ Guarantees:
   - async head-named declaration methods reuse the catalog-generated policy aliases and
     own no duplicate Literal lists [tested: tests/check_policy_inventory.py;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - all fifteen synchronous declaration names have asynchronous head-named
-    mirrors and no ``declare_*`` aliases [tested:
+  - all fifteen synchronous declaration heads have asynchronous mirrors,
+    including ``reacts`` for ``(on ...)`` while ``reaction`` remains, and no
+    ``declare_*`` aliases [tested:
     test_aio_covers_the_whole_synchronous_surface,
-    test_m7_narrow_core_surface; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    test_m7_narrow_core_surface; commit=WORKTREE]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
@@ -1156,15 +1157,23 @@ class AsyncMeTTa:
             lambda m: m.on_error(subject_or_pattern, pattern_or_mode, mode)
         )
 
-    async def reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def reacts(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         pattern: str | Atom,
         operation: str | Atom,
         priority: int | None = None,
     ) -> Atom:
         return await self.call(
-            lambda m: m.reaction(pattern, operation, priority)
+            lambda m: m.reacts(pattern, operation, priority)
         )
+
+    async def reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        self,
+        pattern: str | Atom,
+        operation: str | Atom,
+        priority: int | None = None,
+    ) -> Atom:
+        return await self.reacts(pattern, operation, priority)
 
     async def agenda(
         self, policy: AgendaPolicy, function: str | None = None

@@ -58,7 +58,7 @@ Guarantees:
     `@space.pre_add`, the head-named declaration methods, package `match`
     and `superpose`, `view()`, `@space.cache`, `limits(stack=)` and the
     standard-module mentions inside a compiled body
-    [tested: test_the_landed_doors_read_clean; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
+    [tested: test_the_landed_doors_read_clean; commit=WORKTREE]
   - a bare vocabulary word at a head-named declaration door is a finding that
     names the exact StrEnum member, while pattern and name strings at those
     doors remain governed by the source-text rule
@@ -255,7 +255,7 @@ DECLARATION_CALLS = frozenset({
 #: a bare wire word; tested:
 #: test_a_declaration_takes_members_and_refuses_a_program; commit=417c6428f89aed9f514b9219db2dcd472d31fbe7].
 #:
-#: A word, and nothing else: `reaction("(Job $n)", op)` still reports, because
+#: A word, and nothing else: `reacts("(Job $n)", op)` still reports, because
 #: a program carries a parenthesis, a space or a dollar and a vocabulary word
 #: carries none of them. That is what keeps a `str | Atom` pattern parameter
 #: from being a sixth source door
@@ -469,7 +469,7 @@ RETIRED_HANDLE = {
     "declare_image": "space.image(...)",
     "declare_merge": "space.merge(...)",
     "declare_on_error": "space.on_error(...)",
-    "declare_reaction": "space.reaction(...)",
+    "declare_reaction": "space.reacts(...)",
     "declare_source": "space.source(...)",
     "declare_writes": "space.writes(...)",
 }

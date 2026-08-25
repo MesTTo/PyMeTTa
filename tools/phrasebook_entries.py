@@ -30,10 +30,10 @@ Guarantees:
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - the Python-first table teaches the concise atom cast, root catalog,
-    hygienic variable, pattern-instantiation, compiled reader-pattern, and
-    anonymous provenance doors
+    hygienic variable, pattern-instantiation, compiled reader-pattern,
+    anonymous provenance, and ``reacts`` declaration doors
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=5750e8fe84d8e933c1b5ef5d08c801846c8e5eb8]
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -152,6 +152,11 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
         "testing.from_pattern(pattern)",
         "generate ground instances with repeated variable identity preserved",
         "instances = testing.from_pattern(S.edge(V.x, V.x))",
+    ),
+    PublicFace(
+        "space.reacts(pattern, operation)",
+        "declare the space's (on ...) reaction using the settled word",
+        "space.reacts(S.job(V.id), S.insert(S['&log'], S.seen(V.id)))",
     ),
     PublicFace(
         "metta.speculate()",
