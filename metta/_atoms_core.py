@@ -4,11 +4,13 @@ Guarantees:
     four atom rich comparisons follow the engine order used by plain sorted [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names and
     test_atom_comparisons_are_only_ordering; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
-  - Grounded normalizes the numeric tower to engine-native values [tested
-    test_numpy_scalars_are_engine_numbers]
-  - exact rational values retain their Fraction payload through the n wire
-    tag [tested: test_rational_payloads_cross_the_scalar_door;
-    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - Grounded preserves every non-primitive Python value by identity; only
+    exact bool, int, float and str values use native wire terms [tested:
+    bindings/python/tests/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
+  - engine rational wire values decode to exact Fraction payloads, while a
+    Python-created Fraction follows the non-primitive identity law [tested:
+    test_rational_payloads_cross_the_scalar_door and
+    test_non_primitive_numbers_keep_their_python_identity; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - pathlib paths encode as symbols rather than opaque host boxes [tested:
     test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Ellipsis encodes as the gap symbol, so `...` in a pattern child position is
@@ -98,7 +100,6 @@ from __future__ import annotations
 import contextlib
 import inspect
 import math
-import numbers as _numbers
 import threading
 import weakref
 from abc import ABCMeta
@@ -136,19 +137,13 @@ def _encodable(value: str) -> str:
 
 
 def _normalize_grounded(value: Any) -> Any:
-    """Convert the numeric tower to the exact host types the engine carries."""
-    if type(value) in (bool, int, float, Fraction, str):
-        return value
-    if isinstance(value, _numbers.Integral):
-        return int(value)
-    if isinstance(value, _numbers.Real):
-        return float(value)
+    """Retain the exact Python value a grounded atom was constructed with."""
     return value
 
 
 def _is_primitive(value: Any) -> bool:
-    """Whether PeTTa has a native term for this value: string, number, boolean."""
-    return type(value) in (str, int, float, Fraction, bool)
+    """Whether identity is wholly represented by an exact primitive value."""
+    return type(value) in (str, int, float, bool)
 
 
 def _ground_equal(mine: Any, theirs: Any) -> bool:
@@ -256,6 +251,17 @@ class Box:
         raise TypeError(
             msg
         )
+
+
+def _unbox_wire_value(value: Any) -> Any:
+    """Remove transport envelopes through their reserved value protocol."""
+    wire_value = getattr(type(value), "__petta_wire_value__", None)
+    if isinstance(wire_value, property):
+        if wire_value.fget is None:
+            msg = "__petta_wire_value__ must be a readable property"
+            raise TypeError(msg)
+        return _unbox_wire_value(wire_value.fget(value))
+    return value
 
 
 # WeakKeyDictionary is not suitable here: it follows user equality, while
@@ -891,11 +897,11 @@ class Grounded(Atom):
 
     def to_wire(self) -> list:
         v = self.value
-        if isinstance(v, bool):
+        if type(v) is bool:
             return ["b", "true" if v else "false"]
-        if isinstance(v, str):
+        if type(v) is str:
             return ["g", _encodable(v)]
-        if isinstance(v, (int, float, Fraction)):
+        if type(v) in (int, float):
             return ["n", v]
         if isinstance(v, Box):
             return ["o", v]

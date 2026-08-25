@@ -1656,39 +1656,12 @@
     },
     {
       "kind": "friction",
-      "example": "examples/integration/python.metta",
-      "form": null,
-      "missing": "a `py-call` that accepts a Python object held by a Python name",
-      "row": "P14.15",
-      "section": "§9f host-bound operations; §5 the three lanes",
-      "detail": "An object made inside the engine cannot be held by a Python name and handed back. `(py-call (types.SimpleNamespace))` answers Grounded(<SimpleNamespace>) whose `.value` IS the real object, but passing that atom, or any Python-side object through `ground()`, back into `(py-call (setattr ...))` gives the callee janus's `Box` wrapper instead of the object, and setattr raises `'Box' object has no attribute 'foo'` [measured 2026-08-22 on three shapes: the engine-made namespace, a Python-made types.SimpleNamespace, and a plain class instance; all three fail identically]. So the example's three-step chain stays one `let*` term rather than three Python statements, which is the twin's one rung line."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/py_numpy.metta",
-      "form": null,
-      "missing": "a Python view of a grounded value's own Python type, and a keyword-argument spelling for a MeTTa-side call",
-      "row": "P14.15",
-      "section": "§9f host-bound operations",
-      "detail": "Two halves. A numpy SCALAR does not survive the crossing back into Python: inside the engine `(py-dot (np-abs -5) __class__)` says int64, which is the tutorial's own point, while `m.eval` and the answer view both hand Python an ordinary `int` (Grounded(5), value type int), so that claim can only be asked engine-side. An ndarray DOES survive, by reference, which is why the array claim is plain `isinstance`. And `Kwargs` remains the seam's own spelling for keyword arguments in a MeTTa-side call, with no Python-authored alternative that still crosses; §8c filed the design decision and nothing has landed. (Re-measured 2026-08-23 on the narrow core.)"
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/c_space/c_space.metta",
-      "form": null,
-      "missing": "a compliance kit that reaches a Prolog or C provider, not only a Python one",
-      "row": "P14.15",
-      "section": "§9i the catalog's four doors",
-      "detail": "NARROWED 2026-08-23: the half that said the MeTTa door names the space as a symbol is closed, because `check-space-provider` takes the handle (`m.answers(S[\"check-space-provider\"](store)).one()` answers the same seven lines as the symbol did, measured). What survives is that `petta.testing.check_space_provider(provider)` takes a Python `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and whose store lives in C is reachable only through the engine's own function. The twin has no rung line left; it calls the engine function like any other."
-    },
-    {
-      "kind": "friction",
       "example": "examples/integration/c_extension/handle.metta",
       "form": null,
-      "missing": "`Handle` as a `Grounded` species, and `atom.metatype` answering the symbol rather than its name",
+      "missing": "`atom.metatype` answering the symbol the factories speak, not a string",
       "row": "P14.5",
       "section": "§9d the concept map, \"the Python CLASS of an atom to its metatype\"",
-      "detail": "The design's rule is that the Python class of an atom IS its metatype, so `isinstance(a, Grounded)` should answer what `(get-metatype a)` answers. It does not for a native handle: `Handle.__mro__` is (Handle, Atom, object), `issubclass(Handle, Grounded)` is False, and the engine still says Grounded [re-measured 2026-08-23 on the narrow core]. Separately `atom.metatype` answers the STRING 'Grounded' rather than `S.Grounded`, so the claim reads `vector.metatype == S.Grounded.name`."
+      "detail": "NARROWED 2026-08-25: the isinstance half is closed, Handle subclasses Grounded per the canonical glossary (commit 02dc7642), with every value-reading Grounded branch audited for the unset value slot. What survives is the metatype half: `atom.metatype` answers the STRING \"Grounded\" where the design's own factories speak symbols; flipping it is a surface decision with a consumer list (messages format it, tests compare it), recorded in the known-issues ledger rather than changed blind."
     },
     {
       "kind": "friction",
@@ -1752,15 +1725,6 @@
       "row": "P14.13",
       "section": "§4 declarations that are directives",
       "detail": "Same wall as import_duplicate_cycle, for `_fixtures/imports/overhaul/space_payload` imported into two named spaces."
-    },
-    {
-      "kind": "friction",
-      "example": "examples/integration/import_space_identity.metta",
-      "form": null,
-      "missing": "a space-creation door on the handle's OWN context, not the process default",
-      "row": "P14.13",
-      "section": "§9b the space handle carries every context-relative door",
-      "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `petta.space(name)`, which rides `petta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`petta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it."
     }
   ],
   "retired": [
@@ -5390,6 +5354,36 @@
       "section": "§9n minimise strings: a path is a Path, never text",
       "detail": "AS FILED, superseded by the retirement line below. The guide lists paths under never-strings, and `import!` reads its target as an atom: measured 2026-08-24, `m.fn[\"import!\"](m, ground(Path(...)))` raises `atom_string/2: Type error: 'atom' expected, found <py_Box>`, while the same path as `ground(str(path))` or as `S[\"...\"]` loads. So the twin keeps the path as a `Path` and renders it at the door, and the sibling import twins mint a module NAME at the `S` factory, which is what a module name is.",
       "retired": "2026-08-25: the import door landed as appendix stamp 1 designs it, on the user's ruling: `m += lib.he` performs the import with the receiver as the target space, `metta.lib` is the catalog-generated namespace (family prefix `lib_` with underscores kept, bracket door for exact names, dotted part for the two-argument `(library alias inner)` form, and `lib(path)` for a path module, `pathlib.Path` taken whole and rendered at the door); every import-bearing twin now writes it and tests/test_library_door.py pins the doors and the refusals"
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/python.metta",
+      "form": null,
+      "missing": "a `py-call` that accepts a Python object held by a Python name",
+      "row": "P14.15",
+      "section": "§9f host-bound operations; §5 the three lanes",
+      "detail": "An object made inside the engine cannot be held by a Python name and handed back. `(py-call (types.SimpleNamespace))` answers Grounded(<SimpleNamespace>) whose `.value` IS the real object, but passing that atom, or any Python-side object through `ground()`, back into `(py-call (setattr ...))` gives the callee janus's `Box` wrapper instead of the object, and setattr raises `'Box' object has no attribute 'foo'` [measured 2026-08-22 on three shapes: the engine-made namespace, a Python-made types.SimpleNamespace, and a plain class instance; all three fail identically]. So the example's three-step chain stays one `let*` term rather than three Python statements, which is the twin's one rung line.",
+      "retired": "2026-08-25: fixed at its root in the py-call goal-term route: py_arg_norm/2 unboxes a janus Box through metta_py.unboxed before host invocation, the same law the raw-dispatch route applied, so the three-statement chain runs as written and the twin now writes it that way (commit 84fb55bd)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/c_space/c_space.metta",
+      "form": null,
+      "missing": "a compliance kit that reaches a Prolog or C provider, not only a Python one",
+      "row": "P14.15",
+      "section": "§9i the catalog's four doors",
+      "detail": "NARROWED 2026-08-23: the half that said the MeTTa door names the space as a symbol is closed, because `check-space-provider` takes the handle (`m.answers(S[\"check-space-provider\"](store)).one()` answers the same seven lines as the symbol did, measured). What survives is that `petta.testing.check_space_provider(provider)` takes a Python `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and whose store lives in C is reachable only through the engine's own function. The twin has no rung line left; it calls the engine function like any other.",
+      "retired": "2026-08-25: the conformance kit is universal: lib_conformance's check-space-provider gained the pattern-family, source-discipline and round-trip laws, and metta.testing.check_space_provider dispatches an engine Space handle to it through the seam, so the Prolog-clause, C-store provider is held to the same contract as a Python object; the twin asserts the space's own kit call and test_conformance.py pins the handle dispatch (commit 1d28398f)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/import_space_identity.metta",
+      "form": null,
+      "missing": "a space-creation door on the handle's OWN context, not the process default",
+      "row": "P14.13",
+      "section": "§9b the space handle carries every context-relative door",
+      "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `petta.space(name)`, which rides `petta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`petta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it.",
+      "retired": "2026-08-25: Space.metta answers the owning evaluation context, so m.metta.space(name) is the ruled creation door on the handle's own context and the twin creates both spaces through it (commit 33456a98)."
     }
   ]
 }

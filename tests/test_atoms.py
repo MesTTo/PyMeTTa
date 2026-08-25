@@ -5,9 +5,10 @@ Guarantees:
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - the kind ladder follows msort's string, opaque, empty-list, symbol order
     [tested: test_atoms_sort_in_prologs_standard_order; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - rational grounded numbers retain exact Fraction wire payloads [tested:
-    test_numbers_tower_reals_normalize_and_non_reals_stay_opaque;
-    commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - Python Fraction values retain identity through the opaque object channel,
+    while engine rational payloads still decode exactly [tested:
+    test_non_primitive_numbers_keep_their_python_identity;
+    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - Expression collects a single iterable and slicing preserves Expression
     [tested:
     test_expression_collects_iterables_and_slices_keep_the_expression_kind;
@@ -142,17 +143,18 @@ def test_grounded_hash_agrees_with_equality():  # noqa: D103  -- pytest discover
     assert Grounded("a") in strings
 
 
-def test_numpy_scalars_are_engine_numbers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_numpy_scalars_preserve_identity_and_dispatch_as_engine_numbers(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     np = pytest.importorskip("numpy")
     cases = [np.int32(7), np.int64(2), np.float32(1.5), np.float64(3.5)]
     for scalar in cases:
         atom = Grounded(scalar)
-        expected = int(scalar) if isinstance(scalar, np.integer) else float(scalar)
-        assert type(atom.value) is type(expected)
-        assert atom == scalar
-        assert atom.to_wire() == ["n", expected]
-        assert str(atom) == repr(expected)
-        assert metta.eval(Expression(S["+"], atom, 1)) == [Grounded(expected + 1)]
+        assert atom.value is scalar
+        tag, carrier = atom.to_wire()
+        assert tag == "o" and carrier.value is scalar
+        answers = metta.eval(Expression(S["+"], atom, 1))
+        assert len(answers) == 1
+        assert type(answers[0].value) is type(scalar)
+        assert answers[0].value == scalar + 1
 
 
 def test_non_real_numpy_values_stay_opaque():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -163,10 +165,12 @@ def test_non_real_numpy_values_stay_opaque():  # noqa: D103  -- pytest discovers
         assert atom.to_wire()[0] == "o"
 
 
-def test_numbers_tower_reals_normalize_and_non_reals_stay_opaque():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    real = Grounded(Fraction(3, 2))
-    assert type(real.value) is Fraction
-    assert real.to_wire() == ["n", Fraction(3, 2)]
+def test_non_primitive_numbers_keep_their_python_identity():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    rational = Fraction(3, 2)
+    real = Grounded(rational)
+    assert real.value is rational
+    tag, carrier = real.to_wire()
+    assert tag == "o" and carrier.value is rational
 
     decimal = Decimal("1.5")
     opaque = Grounded(decimal)

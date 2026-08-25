@@ -62,7 +62,12 @@ from metta import G, S, fn, ground
 #: an opaque dict read by method, type reflection), mirrored here
 #: [measured 2026-08-25 through tools/twin_coverage.py on the
 #: extended pair].
-BUDGET = 25691
+#: RE-PINNED 2026-08-25, 25691 to 25696, on the identity-wire merge:
+#: the numeric seam declarations move the compiled layout by a few
+#: inferences (the same clause-indexing effect qlf_boot.pl records)
+#: [measured 2026-08-25 through tools/twin_coverage.py on the merged
+#: tree; provisional, the final release measure re-prices].
+BUDGET = 25696
 
 
 def twin(m):

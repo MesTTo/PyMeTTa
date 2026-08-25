@@ -133,7 +133,15 @@ is Python's own `assert`.
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 2812
+#: RE-PINNED 2026-08-25, 2812 to 2822, for the identity-wire numeric
+#: ownership seams and concrete Number admission. The native arithmetic
+#: clauses remain first and spend the same 246015 inferences in the
+#: 2000-addition A/B; this small movement is the compiled QLF layout after
+#: adding the seam declarations, provider clauses, and failure-boundary type
+#: check [measured 2026-08-25 through tools/twin_coverage.py
+#: examples/basics/identity.metta; provisional on the merged tree, the
+#: final release measure re-prices].
+BUDGET = 2822
 
 
 def twin(m):

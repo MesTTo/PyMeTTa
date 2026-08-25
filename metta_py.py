@@ -16,6 +16,10 @@ Guarantees:
     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
   - every function here returns the OBJECT, never a converted copy, so the
     caller decides what crosses; bindings/python/bridge.pl asks janus for py_object(true)
+  - numeric_operation() uses Python's operator protocol and an object's array
+    namespace for math functions, retaining reflected dispatch and library
+    result types [tested: test_numpy_numeric_family_keeps_python_result_types
+    and test_user_numeric_subclass_uses_its_own_operator; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.
@@ -29,6 +33,9 @@ from __future__ import annotations
 
 import builtins
 import importlib
+import math
+import numbers
+import operator
 from collections.abc import Sequence
 from typing import Any, Self
 
@@ -124,6 +131,96 @@ def _unwrap_container(value: Any, active: set[int]) -> Any:
 def class_names(obj: Any) -> list[str]:
     """The visible MRO after removing transport and tuple carrier layers."""
     return [kind.__name__ for kind in type(_unwrap(obj)).__mro__ if kind is not object]
+
+
+def is_numeric(value: Any) -> bool:
+    """Whether a transported value implements Python's numeric tower."""
+    return isinstance(_unwrap(value), numbers.Number)
+
+
+_BINARY_NUMERIC_OPERATORS = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+    "%": operator.mod,
+    "<": operator.lt,
+    "<=": operator.le,
+    ">": operator.gt,
+    ">=": operator.ge,
+    "min": builtins.min,
+    "max": builtins.max,
+    "pow-math": operator.pow,
+}
+
+_ARRAY_NUMERIC_OPERATORS = {
+    "sqrt-math": "sqrt",
+    "abs-math": "abs",
+    "exp": "exp",
+    "exp-math": "exp",
+    "trunc-math": "trunc",
+    "ceil-math": "ceil",
+    "floor-math": "floor",
+    "round-math": "round",
+    "sin-math": "sin",
+    "asin-math": "asin",
+    "cos-math": "cos",
+    "acos-math": "acos",
+    "tan-math": "tan",
+    "atan-math": "atan",
+    "isnan-math": "isnan",
+    "isinf-math": "isinf",
+}
+
+_UNARY_NUMERIC_OPERATORS = {
+    "sqrt-math": math.sqrt,
+    "abs-math": operator.abs,
+    "exp": math.exp,
+    "exp-math": math.exp,
+    "trunc-math": math.trunc,
+    "ceil-math": math.ceil,
+    "floor-math": math.floor,
+    "round-math": builtins.round,
+    "sin-math": math.sin,
+    "asin-math": math.asin,
+    "cos-math": math.cos,
+    "acos-math": math.acos,
+    "tan-math": math.tan,
+    "atan-math": math.atan,
+    "isnan-math": math.isnan,
+    "isinf-math": math.isinf,
+}
+
+
+def _array_namespace(values: tuple[Any, ...]) -> Any | None:
+    for value in values:
+        namespace = getattr(value, "__array_namespace__", None)
+        if callable(namespace):
+            return namespace()
+    return None
+
+
+def numeric_operation(name: str, args: Sequence[Any]) -> Any:
+    """Apply one MeTTa numeric operation through Python's own protocols."""
+    values = tuple(_unwrap(arg) for arg in args)
+    binary = _BINARY_NUMERIC_OPERATORS.get(name)
+    if binary is not None:
+        if name in ("min", "max"):
+            return binary(values)
+        return binary(*values)
+
+    namespace = _array_namespace(values)
+    if name == "log-math":
+        base, value = values
+        if namespace is not None:
+            log = namespace.log
+            return operator.truediv(log(value), log(base))
+        return math.log(value, base)
+
+    array_name = _ARRAY_NUMERIC_OPERATORS.get(name)
+    if namespace is not None and array_name is not None:
+        return getattr(namespace, array_name)(*values)
+    return _UNARY_NUMERIC_OPERATORS[name](*values)
 
 
 def resolve(path: str) -> Any:

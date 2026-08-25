@@ -22,6 +22,10 @@ Guarantees:
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - raw operation results pass only exact primitives bare; every other
+    Python value uses the identity-interned object carrier [tested:
+    test_operation_results_preserve_python_object_identity;
+    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - Atom annotations select syntax-level delivery, while an `(arguments ...
     atoms)` seam declaration selects Atom wrappers after ordinary evaluation
     without a pass_atoms boolean [tested:
@@ -58,6 +62,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ._api_types import _OperationName, _SpaceId
+from ._atoms_core import _is_primitive, _unbox_wire_value, boxed
 from ._convert_build import build
 from ._convert_project import explicit_projection, project
 from .answer import Answer
@@ -278,13 +283,7 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
 
 
 def _unbox(value: Any) -> Any:
-    wire_value = getattr(type(value), "__petta_wire_value__", None)
-    if isinstance(wire_value, property):
-        if wire_value.fget is None:
-            msg = "__petta_wire_value__ must be a readable property"
-            raise TypeError(msg)
-        return _unbox(wire_value.fget(value))
-    return value
+    return _unbox_wire_value(value)
 
 
 def _rebox(value: Any) -> Any:
@@ -294,9 +293,9 @@ def _rebox(value: Any) -> Any:
     argument does, so an ndarray returned bare would explode into a list of
     element objects; the box is the envelope that keeps it one value.
     """
-    if value is None or isinstance(value, (bool, int, float, str, Box)):
+    if value is None or _is_primitive(value) or isinstance(value, Box):
         return value
-    return Box(value)
+    return boxed(value)
 
 
 def dispatch_raw(name: str, args: list) -> Any:

@@ -25,6 +25,10 @@ Guarantees:
     restores only space names registered by Space plus the reserved future
     namespace [tested: test_an_ampersand_symbol_is_not_reclassified_as_a_space;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - object decoding removes every __petta_wire_value__ carrier by protocol,
+    so transport classes cannot replace the carried object's identity
+    [tested: test_bridge_answers_preserve_python_object_identity;
+    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -40,13 +44,13 @@ from typing import Any
 
 from ._atoms_core import (
     Atom,
-    Box,
     Expression,
     Grounded,
     _NativeHandle,
     _new_expression,
     _set_children,
     _set_hash,
+    _unbox_wire_value,
     _wire_sym,
     _wire_var,
 )
@@ -156,7 +160,7 @@ def _variable_from_wire(payload: Any) -> Atom:
 
 
 def _object_from_wire(payload: Any) -> Atom:
-    return Grounded(payload.value if isinstance(payload, Box) else payload)
+    return Grounded(_unbox_wire_value(payload))
 
 
 class Undefined:

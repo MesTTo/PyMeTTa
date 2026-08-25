@@ -1,4 +1,4 @@
-"""Purpose: verify optional NumPy scalar values use native engine numbers.
+"""Purpose: verify optional NumPy scalars keep identity and remain numeric.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,8 +18,11 @@ given = hypothesis.given
 @given(pt.numpy_scalars())
 def test_numpy_scalar_strategy_round_trips_through_the_engine(metta, scalar):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     atom = Grounded(scalar)
+    assert atom.value is scalar
+    assert atom.to_wire()[0] == "o"
     row = metta.runtime.once(
         "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)",
         W=atom.to_wire(),
     )
-    assert wire.from_wire(row["W2"]) == atom
+    restored = wire.from_wire(row["W2"])
+    assert restored.value is scalar
