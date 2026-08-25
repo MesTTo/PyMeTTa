@@ -13,12 +13,14 @@ runtime escape hatch at every consuming door.
 Guarantees:
   - every class here exactly matches its catalog vocabulary row, values in
     declared order
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated;
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - every member encodes as its MeTTa symbol
-    [tested: test_every_vocabulary_member_crosses_as_its_symbol; commit=WORKTREE]
+    [tested: test_every_vocabulary_member_crosses_as_its_symbol;
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - Visibility is the catalog's exact PUBLIC/INTERNAL discriminator
     [tested: test_visibility_is_a_generated_catalog_vocabulary;
-    commit=WORKTREE]
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - EffectClass compares by catalog rank and joins a plan to its strongest
     member [tested: test_effect_class_is_the_public_five_rank_join_lattice,
     test_effect_join_obeys_the_lattice_laws;

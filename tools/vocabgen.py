@@ -15,18 +15,21 @@ Assumes:
     which is how every gate lane already runs it
 Guarantees:
   - the checked-in module equals what this produces, gated on every run
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated;
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - output is deterministic: vocabularies sorted by name, values kept in
     their declared order
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated;
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - the catalog visibility row generates the exact PUBLIC/INTERNAL enum
     [tested: test_visibility_is_a_generated_catalog_vocabulary;
-    commit=WORKTREE]
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - a catalog name that already uses CamelCase keeps that spelling in its
     Python class [tested: test_generated_alias_preserves_declared_camel_case;
     commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
   - every generated member encodes as its MeTTa symbol [tested:
-    test_every_vocabulary_member_crosses_as_its_symbol; commit=WORKTREE]
+    test_every_vocabulary_member_crosses_as_its_symbol;
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - EffectClass alone carries catalog-order comparison and strongest-member
     join/compose operations [tested:
     test_effect_class_is_the_public_five_rank_join_lattice,
@@ -77,12 +80,14 @@ runtime escape hatch at every consuming door.
 Guarantees:
   - every class here exactly matches its catalog vocabulary row, values in
     declared order
-    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
+    [tested: test_the_vocabulary_module_is_generated;
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - every member encodes as its MeTTa symbol
-    [tested: test_every_vocabulary_member_crosses_as_its_symbol; commit=WORKTREE]
+    [tested: test_every_vocabulary_member_crosses_as_its_symbol;
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - Visibility is the catalog's exact PUBLIC/INTERNAL discriminator
     [tested: test_visibility_is_a_generated_catalog_vocabulary;
-    commit=WORKTREE]
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
   - EffectClass compares by catalog rank and joins a plan to its strongest
     member [tested: test_effect_class_is_the_public_five_rank_join_lattice,
     test_effect_join_obeys_the_lattice_laws;

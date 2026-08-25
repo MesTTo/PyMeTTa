@@ -13,7 +13,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - visibility is generated as the exact PUBLIC/INTERNAL catalog vocabulary
     [tested: test_visibility_is_a_generated_catalog_vocabulary;
-    commit=WORKTREE]
+    commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6]
 Open Obligations:
   To Do: None
   Hacks: None
