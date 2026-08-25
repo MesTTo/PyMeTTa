@@ -9,7 +9,8 @@ Guarantees:
   - automatic bag-preserving memoization changes a doubly recursive family's
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
-    test_automatic_tabling_growth; commit=WORKTREE]
+    test_automatic_tabling_growth;
+    commit=04b794b718563ebb114800abebfc6f1200d7b835]
 Open Obligations:
   To Do: None
   Hacks: None
