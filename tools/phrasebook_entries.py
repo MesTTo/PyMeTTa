@@ -33,7 +33,7 @@ Guarantees:
     hygienic variable, pattern-instantiation, compiled reader-pattern, and
     anonymous provenance doors
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=5750e8fe84d8e933c1b5ef5d08c801846c8e5eb8]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

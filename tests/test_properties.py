@@ -14,7 +14,7 @@ Guarantees:
     equality [tested:
     test_from_pattern_generates_ground_instances_without_losing_aliases and
     test_from_pattern_draws_anonymous_occurrences_independently;
-    commit=WORKTREE]
+    commit=5750e8fe84d8e933c1b5ef5d08c801846c8e5eb8]
 Open Obligations:
   To Do: None
   Hacks: None

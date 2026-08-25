@@ -8,7 +8,7 @@ is checked the other way round: every name LeaTTa declares has exactly one row,
 so the denominator cannot quietly shrink.
 The supplemental table separately pins Python-first faces that have no LeaTTa
 manifest name [tested: test_python_first_world_faces_are_in_the_phrasebook;
-commit=WORKTREE].
+commit=5750e8fe84d8e933c1b5ef5d08c801846c8e5eb8].
 
 Open Obligations:
   To Do: None
