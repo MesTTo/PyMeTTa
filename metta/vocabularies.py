@@ -13,12 +13,16 @@ runtime escape hatch at every consuming door.
 Guarantees:
   - every class here exactly matches its catalog vocabulary row, values in
     declared order
-    [tested: test_the_vocabulary_module_is_generated; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
+    [tested: test_the_vocabulary_module_is_generated; commit=WORKTREE]
   - every member encodes as its MeTTa symbol
-    [tested: test_every_vocabulary_member_crosses_as_its_symbol; commit=4d01efe426a5a3b79d404afd993f3260e23a210c]
+    [tested: test_every_vocabulary_member_crosses_as_its_symbol; commit=WORKTREE]
+  - Visibility is the catalog's exact PUBLIC/INTERNAL discriminator
+    [tested: test_visibility_is_a_generated_catalog_vocabulary;
+    commit=WORKTREE]
   - EffectClass compares by catalog rank and joins a plan to its strongest
     member [tested: test_effect_class_is_the_public_five_rank_join_lattice,
-    test_effect_join_obeys_the_lattice_laws; commit=WORKTREE]
+    test_effect_join_obeys_the_lattice_laws;
+    commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -110,6 +114,7 @@ __all__ = [
     "SourceKind",
     "SpaceCapability",
     "SubscriptionEdge",
+    "Visibility",
     "Volatility",
     "World",
 ]
@@ -315,6 +320,12 @@ class SubscriptionEdge(_AtomStrEnum):
     add = "add"
     remove = "remove"
     both = "both"
+
+#: (vocabulary visibility PUBLIC INTERNAL)
+class Visibility(_AtomStrEnum):
+    """Typed values of the visibility vocabulary."""
+    PUBLIC = "PUBLIC"
+    INTERNAL = "INTERNAL"
 
 #: (vocabulary volatility volatile stable immutable)
 class Volatility(_AtomStrEnum):

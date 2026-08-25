@@ -11,6 +11,9 @@ Guarantees:
   - generated vocabulary aliases preserve declared CamelCase names
     [tested: test_generated_alias_preserves_declared_camel_case;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - visibility is generated as the exact PUBLIC/INTERNAL catalog vocabulary
+    [tested: test_visibility_is_a_generated_catalog_vocabulary;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,7 +27,7 @@ import pytest
 from metta import MeTTa, S, V
 from metta.errors import EngineError
 from metta.foreign import SpaceProvider
-from metta.vocabularies import Fidelity, Semiring
+from metta.vocabularies import Fidelity, Semiring, Visibility
 
 
 class _Recording(SpaceProvider):
@@ -128,6 +131,11 @@ def test_generated_alias_preserves_declared_camel_case(repo_root):  # noqa: D103
         sys.path.pop(0)
     assert vocabgen.alias_name("answer-policy") == "AnswerPolicy"
     assert vocabgen.alias_name("ClauseFailedEnum") == "ClauseFailedEnum"
+
+
+def test_visibility_is_a_generated_catalog_vocabulary():
+    """The discriminator's Python spelling preserves its two wire words."""
+    assert list(Visibility) == ["PUBLIC", "INTERNAL"]
 
 
 def test_the_binding_refuses_by_the_generated_vocabulary():
