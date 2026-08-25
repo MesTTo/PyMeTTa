@@ -78,7 +78,13 @@ is Python's own `assert`.
 #: 0.87, and the growth class of the workload is unchanged
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: examples/basics/identity.metta on the conformance-2 tree].
-BUDGET = 2824
+#: RE-PINNED 2026-08-25, 2824 to 2774, at the C reader port: the twin's own
+#: source reads go through engine/reader.c now, 50 inferences of shipped-mode
+#: parsing off this workload (the example itself moves 3246 to 2590). The
+#: budget is a two-sided band, so the drop repins rather than passes
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure with
+#: engine/reader.so present].
+BUDGET = 2774
 
 
 def twin(m):
