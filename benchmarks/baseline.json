@@ -105,7 +105,8 @@
         "json-wire": {
             "comment": "RE-FLOORED 2026-08-17 from 3753315597: the codec changed, not the cost of the old one. dumps and loads now cross into the engine and run library(json), so one round trip pays two janus crossings and two Prolog passes, 62M instructions per trip against the removed orjson path's 1.9M, a factor of 33 on this bench. The wire paths this serves are network-latency-dominated DAS and remote-space messages, and the trade bought one JSON implementation for the whole system with unbounded integers native. Spread under the deterministic harness: 0.005% across the re-floor triple.",
             "inferences": null,
-            "instruction_noise_percent": 1.0,
+            "layout_mode_comment": "BAND WIDENED 2026-08-25, 1.0 to 2.5 percent, because this lane sits in a documented code-layout bimodality (51c24bc2 isolated it: disabling the C reader did not move it, pristine parser.pl was green, and 50 inert facts pushed the count higher; Mytkowicz et al., ASPLOS 2009). On 2026-08-25 the high mode measured +1.56 percent IDENTICALLY on the fixed tree and on the pre-fix merge commit, six samples spread 0.002 percent within a mode, so the swing is layout, not content, and a 1 percent band red-flags a mode change no commit caused. The pin stays at the measured floor; a real regression must clear the widened band from the floor.",
+            "instruction_noise_percent": 2.5,
             "instructions": 124001054796,
             "operations": 2000,
             "unit": "payload round-trips",
