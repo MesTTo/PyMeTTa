@@ -400,7 +400,7 @@ DISSOLVED = {
     "get-type": "space.type(atom)",
     # The doc verb follows the same receiver/module pair as the type accessor:
     # a handle asks its own space and the module helper asks the process-default
-    # space [tested: test_the_doc_verb_answers_the_structured_atom; commit=fa0a8c553b83af5a978fa8156c063bf41ded0eab].
+    # space [tested: test_the_doc_verb_answers_the_structured_atom; commit=fa0a8c55035026a79f8fe67733332627e353872e].
     "get-doc": "space.doc(atom), or metta.doc(atom)",
 }
 
