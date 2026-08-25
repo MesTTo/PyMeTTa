@@ -125,11 +125,17 @@ _ROWS = 2_000
 #: plain arm moves by a fixed -48/-48/-46/-48 from the same lib_memo clause
 #: layout. Minima across three fresh-process min-of-three rounds on the
 #: reader.so-bearing tree; both directions are pinned under +-4.
+#: RE-PINNED 2026-08-26 on the counted-answer trie landing. The generated
+#: exact-policy dispatcher and specialization registry add a fixed
+#: +107/+109/+107/+107 inferences to automatic n=12/15/18/20, while the
+#: refused plain controls remain within two inferences of their pins. Three
+#: fresh-process min-of-three rounds produced the same automatic readings;
+#: the fixed delta leaves the linear automatic growth class unchanged.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 144_993, "automatic": 28_418},
-    15: {"plain": 1_091_237, "automatic": 29_566},
-    18: {"plain": 8_660_994, "automatic": 30_724},
-    20: {"plain": 34_614_331, "automatic": 31_506},
+    12: {"plain": 144_993, "automatic": 28_525},
+    15: {"plain": 1_091_237, "automatic": 29_675},
+    18: {"plain": 8_660_994, "automatic": 30_831},
+    20: {"plain": 34_614_331, "automatic": 31_613},
 }
 
 
