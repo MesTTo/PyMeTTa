@@ -342,3 +342,43 @@ def test_fold_under_counting_and_tropical_uses_the_algebra_as_the_step(metta):
         cheapest.cancel()
         scoped_counted.cancel()
         counted.cancel()
+
+
+def test_a_fold_binds_its_own_pattern_and_never_a_stored_event_variable(metta):
+    """Delivery matches directionally, which two spellings stopped sharing.
+
+    Event delivery binds the WATCHING pattern's variables against the atom
+    that arrived; a variable stored inside that atom is data and stays
+    unbound. Two branches wrote this call two ways on the same day: one kept
+    the private directional matcher, the other spelled it `unify`, which was
+    a synonym at that moment and became symmetric hours later when the root
+    door was made symmetric in both argument orders. The merge kept the
+    directional call and nothing pinned the choice, so this fixes the
+    spelling to the meaning: a symmetric call here would fill the stored
+    variable from the pattern and deliver an event the watcher never asked
+    for.
+    """
+    source = metta._new_space()
+    seen = []
+
+    def collect(held, event):
+        seen.append(event.bindings)
+        return held
+
+    fold = metta.events().fold(
+        collect, space=source.name, pattern=S.edge(S.a, V.to), state=None
+    )
+    try:
+        source.add(S.edge(S.a, S.b))
+        source.add(S.edge(V.stored, S.b))
+    finally:
+        fold.cancel()
+
+    assert seen, "the ground arrival was not delivered at all"
+    assert seen[0]["to"] == S.b
+    # The second atom carries a variable where the pattern has the ground
+    # symbol `a`. A directional match refuses it; a symmetric one would bind
+    # the STORED variable to `a` and deliver a second event.
+    assert len(seen) == 1, (
+        f"a stored variable was filled from the watching pattern: {seen}"
+    )
