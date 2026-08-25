@@ -540,6 +540,7 @@ class Space(Handle):
         petta_path: str | None = None,
         _runtime: Runtime | None = None,
     ) -> None:
+        super().__init__()
         self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
         self._name_atom: Symbol | Expression | None = None
         if isinstance(name, Symbol):

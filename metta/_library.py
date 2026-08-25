@@ -170,8 +170,7 @@ class _LibraryNamespace:
         # Lazy on purpose: `import metta` must not import the engine
         # module, and dir() is interactive, so the cost lands only where
         # a person is already exploring
-        # [tested: test_the_fn_namespace_is_generated's import-lightness
-        # subprocess].
+        # [tested: test_the_fn_namespace_is_generated].
         from ._engine import (  # noqa: PLC0415  -- the import-lightness contract above
             _STATE,
             _resolve_petta_path,
@@ -182,6 +181,7 @@ class _LibraryNamespace:
         names = set()
         for entry in Path(root, "lib").glob("*"):
             stem = entry.stem
+            # policy-inventory-exempt: mechanism-internal; reason=the two source suffixes a shipped library file can have, the catalog filter rather than an operator policy; evidence=engine/metta/interop.pl:resolve_module_form/2
             if entry.suffix in {".metta", ".pl"} and stem.startswith("lib_"):
                 suffix = stem[4:]
                 if _attribute_safe(suffix):

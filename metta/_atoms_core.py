@@ -930,6 +930,12 @@ class Handle(Grounded):
     # match statements into the unset slot.
     __match_args__ = ()
 
+    def __init__(self) -> None:
+        """A handle carries identity, not a payload: the value slot stays
+        deliberately unset, so construction does nothing, and a concrete
+        species calls this instead of Grounded's value-taking form.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
     def __call__(self, *args: Any, **kwargs: Any) -> Expression:
         del args, kwargs
         msg = (
@@ -982,6 +988,7 @@ class _NativeHandle(Handle):
     _released: bool
 
     def __init__(self, ident: int, text: str) -> None:
+        super().__init__()
         object.__setattr__(self, "ident", ident)
         object.__setattr__(self, "text", text)
         object.__setattr__(self, "_released", False)
