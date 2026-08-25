@@ -2,12 +2,12 @@
 Guarantees:
   - assert continues on truth and otherwise answers the Error algebra with a
     lazy explicit reason [tested: test_compiled_assert_lowers_to_the_error_algebra;
-    commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
+    commit=WORKTREE]
   - a Space-typed ``-=`` removes one occurrence while ``del space[pattern]``
     removes every match from the passed target and both keep absence loud
     [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
-    commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
