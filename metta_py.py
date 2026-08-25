@@ -204,6 +204,19 @@ def is_callable(obj: Any) -> bool:
     return callable(_unwrap(obj))
 
 
+def unboxed(value: Any) -> Any:
+    """The transport envelope removed, for the goal-term call route.
+
+    bridge.pl's py-call builds a Python goal term whose arguments janus
+    converts directly, so a metta Box reference reached the callee AS the
+    Box; setattr on a crossed object raised 'Box' object has no attribute
+    [measured 2026-08-25, integration/python.py's three-statement chain].
+    apply() unwraps its own arguments; this hands the same _unwrap to the
+    engine-side normalizer so both call routes see one law.
+    """
+    return _unwrap(value)
+
+
 def build_list(items: list) -> list:
     return list(items)
 

@@ -21,14 +21,32 @@ one term, and the missing spelling is filed as friction.
 
 import math
 
-from metta import S, V, fn, ground
+from metta import S, fn, ground
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 24034 to 24072, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 24072 to 24078, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+BUDGET = 24078
 
 
 def twin(m):
@@ -54,23 +72,16 @@ def twin(m):
     def math_pi():                           # (= (math.pi)
         return get_attribute(import_module(S.math), S.pi)      # (get-attribute (import math) pi))
 
-    # Make an object, give it an attribute, read the attribute back.
-    #
-    # Known issue: the perfect spelling is three Python statements, an object
-    # in a Python name between them. It does not work: `py-call` re-wraps a
-    # Python value it receives as an ARGUMENT in janus's `Box`, so the callee
-    # gets the wrapper and `setattr` raises `'Box' object has no attribute
-    # 'foo'` [measured on three shapes: the engine-made namespace, a
-    # Python-made types.SimpleNamespace, and a plain class instance]. The
-    # chain therefore stays one term.
-    stored = m.eval(S["let*"](  # rung: an engine-made object arrives back at py-call wrapped in a janus Box, so the sequence cannot become three Python statements
-        ((V.obj, S.make_object()),
-         (V.written, S.set_attribute(V.obj, S.foo, S["math.pi"]()))),
-        S.get_attribute(V.obj, S.foo),
-    ))
-    assert stored == [math.pi]               # [3.141592653589793]
+    # Make an object, give it an attribute, read the attribute back: three
+    # Python statements, the object in a Python name between them, which is
+    # this file's whole point. The crossed atom re-enters as an argument and
+    # arrives unwrapped (py_arg_norm runs the same _unwrap the apply route
+    # runs), so the chain no longer needs a single let* term.
+    obj, = m.eval(S.make_object())
+    m.eval(S.set_attribute(obj, S.foo, S["math.pi"]()))
+    assert m.eval(S.get_attribute(obj, S.foo)) == [math.pi]   # [3.141592653589793]
 
     # A bound method is a head like any other, and its receiver is the argument.
     py = m.fn.py_call
-    assert py(S[".upper"](ground("abc"))).one() == S.ABC   # (py-call (.upper "abc")) is ABC
-    assert py(S[".__add__"](5, 3)).one() == 8             # (py-call (.__add__ 5 3)) is 8
+    assert py(S[".upper"](ground("abc"))) == [S.ABC]   # (py-call (.upper "abc")) is ABC
+    assert py(S[".__add__"](5, 3)) == [8]   # (py-call (.__add__ 5 3)) is 8

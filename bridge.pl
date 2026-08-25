@@ -597,6 +597,16 @@ py_bool_norm(R, R).
 py_arg_norm(true, '@'(true)) :- !.
 py_arg_norm(false, '@'(false)) :- !.
 py_arg_norm(L, L1) :- is_list(L), !, maplist(py_arg_norm, L, L1).
+%A crossed host value is carried in a metta Box, and the goal-term call
+%route hands janus the reference AS WRITTEN, so the callee received the
+%envelope: setattr on a crossed object raised 'Box' object has no
+%attribute foo [measured 2026-08-25, integration/python.py]. The blob
+%test costs nothing on ordinary terms and keeps this off every
+%non-object argument; metta_py:unboxed/1 is _unwrap, the same law
+%apply/3 already runs on its own route.
+py_arg_norm(X, Y) :- python_object_blob(X), py_is_object(X), !,
+                     petta_py_bridge,
+                     py_call(metta_py:unboxed(X), Y, [py_object(true)]).
 py_arg_norm(X, X).
 
 :- dynamic python_import_alias/2.
