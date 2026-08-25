@@ -55,6 +55,7 @@ from typing import Any as _Any
 
 from ._config import Config, config
 from ._fn import fn
+from ._library import Library, lib
 from ._version import __version__
 from .atoms import (
     FALSE,
@@ -367,6 +368,7 @@ __all__ = [
     "G",
     "Grounded",
     "Handle",
+    "Library",
     "MeTTa",
     "NotReducible",
     "PettaError",
@@ -411,6 +413,7 @@ __all__ = [
     "if_",
     "in_",
     "integrate",
+    "lib",
     "limits",
     "lint",
     "manifest",

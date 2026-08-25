@@ -121,6 +121,7 @@ from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._atom_wire import _remember_space_name
 from ._engine import Runtime, bridge, runtime, started
+from ._library import Library, import_library
 from ._rules import Rules as _Rules
 from ._rules import rules as _collect_rules
 from ._space_definitions import (
@@ -1063,7 +1064,23 @@ class Space(Handle):
         `(rule $_17902 $_17904)`, because a variable is an identity and not a
         spelling. That is the right property for a logic engine and it is the
         one thing about storage that surprises everybody once.
+
+        A library IS knowledge, so the same door imports it: ``m += lib.he``
+        performs ``!(import! <m> (library lib_he))`` with this space as the
+        target. An import is an effect, so it refuses to hide inside an atom
+        batch or share a call with stored atoms.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if any(isinstance(atom, Library) for atom in atoms):
+            if not all(isinstance(atom, Library) for atom in atoms):
+                msg = (
+                    "imports and stores cannot share one add: a library "
+                    "handle performs an effect while atoms accumulate"
+                )
+                raise TypeError(msg)
+            _refuse_in_batch(self._space, "import")
+            for handle in atoms:
+                import_library(self, handle)
+            return
         pending = _ACTIVE_BATCHES.get().get(self._space)
         if pending is not None:
             pending.extend(atoms)
