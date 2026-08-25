@@ -13,7 +13,7 @@ Guarantees:
   - every generated Expression has symmetric, hash-coherent equality with its
     recursively transparent tuple value [tested:
     test_expression_tuple_equality_is_symmetric_and_hash_coherent;
-    commit=WORKTREE]
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
 Open Obligations:
   To Do: None
   Hacks: None

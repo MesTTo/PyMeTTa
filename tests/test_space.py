@@ -41,7 +41,7 @@ Guarantees:
     [tested: test_adding_an_iterable_of_atoms_writes_one_atom_each,
     test_the_write_doors_accept_the_same_atoms,
     test_the_write_door_reads_each_dataframe_row_as_one_atom;
-    commit=WORKTREE]
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - wide query projection preserves order, sharing, and values across lazy,
     limited, guarded, prepared, and cursor answer doors [tested:
     test_wide_query_projection_is_identical_through_every_answer_door;

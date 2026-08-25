@@ -28,7 +28,7 @@ Guarantees:
     [tested: test_a_tuple_equals_the_expression_it_encodes_to,
     test_an_opaque_grounded_tuple_is_not_its_transparent_expression,
     test_expression_tuple_equality_is_symmetric_and_hash_coherent;
-    commit=WORKTREE]
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - atom copy and pickle protocols preserve value and identity contracts
     [tested test_atoms_pickle_by_value, test_process_local_grounded_values_refuse_pickle]
   - Expression is a complete immutable Sequence with iterative equality and hashing

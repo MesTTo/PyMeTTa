@@ -9,7 +9,7 @@ Guarantees:
     [tested: test_relative_capacity_declaration_installs_the_receiver_contract,
     test_relative_admits_declaration_installs_the_receiver_contract,
     test_two_declared_admission_checks_interact_over_one_store;
-    commit=WORKTREE]
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
 """
 
 from __future__ import annotations

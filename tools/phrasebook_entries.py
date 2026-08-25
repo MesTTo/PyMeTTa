@@ -31,7 +31,7 @@ Guarantees:
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - space write rows teach the scalar-atom versus fact-stream boundary shipped
     by ``Space +=`` [tested: test_the_phrasebook_page_is_up_to_date;
-    commit=WORKTREE]
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

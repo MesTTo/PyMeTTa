@@ -45,13 +45,13 @@ Guarantees:
     test_write_door_scalar_kinds_are_never_mistaken_for_fact_streams,
     test_write_door_uses_the_iteration_protocol_not_only_the_iterable_abc,
     test_the_write_doors_accept_the_same_atoms,
-    test_the_write_door_reads_each_dataframe_row_as_one_atom; commit=WORKTREE]
+    test_the_write_door_reads_each_dataframe_row_as_one_atom; commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - relative ``(admits Type)`` and ``(capacity n)`` values written through
     ``+=`` invoke the receiver installers, and refuse to overtake a live batch
     [tested: test_relative_capacity_declaration_installs_the_receiver_contract,
     test_relative_admits_declaration_installs_the_receiver_contract,
     test_two_declared_admission_checks_interact_over_one_store,
-    test_relative_declarations_refuse_inside_an_active_batch; commit=WORKTREE]
+    test_relative_declarations_refuse_inside_an_active_batch; commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - ``Space.match`` returns a lazy Answers view; truth and single unpack pull
     only their demanded prefix, while len counts inside the engine [tested:
     test_query_answers_complete_the_lazy_projection_protocol,

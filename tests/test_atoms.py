@@ -17,7 +17,7 @@ Guarantees:
     a hash, while an explicitly opaque Grounded tuple remains a distinct value
     [tested: test_a_tuple_equals_the_expression_it_encodes_to,
     test_an_opaque_grounded_tuple_is_not_its_transparent_expression;
-    commit=WORKTREE]
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - public two-argument unification binds variables from either operand and
     preserves repeated-variable constraints [tested:
     test_unify_binds_a_ground_term_and_pattern_in_both_orders,
