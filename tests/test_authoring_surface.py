@@ -180,3 +180,70 @@ def test_failed_equation_publication_rolls_back_its_early_declaration(
         S["->"](S.Number, S.Number),
     )
     assert declaration not in space
+
+
+def test_the_staging_split_folds_ground_calls_and_stages_op_terms(metta):
+    """The rules-body staging split, all four cells, asserted on the laws.
+
+    A call carrying a RULE VARIABLE stages its call term; a GROUND defined
+    call runs at construction and embeds its single result (constant folding
+    by construction, the design's own cell); an op call with a rule variable
+    stages the OP-CALL TERM without running the host body (no effect fires
+    on a variable); a ground op call runs now, firing its effect exactly
+    once. A ground defined call answering several results keeps its call
+    term, because folding one answer of many would drop multiplicity.
+    """
+    space = metta._new_space()
+    fired = []
+
+    @space.define(name="p14-split-double")
+    def double(value):
+        return value + value
+
+    @space.define(name="p14-split-fib")
+    def fib(n):
+        if n <= 1:
+            return n
+        return fib(n - 1) + fib(n - 2)
+
+    @space.define(name="p14-split-both")
+    def both(value):
+        yield value
+        yield value + 1
+
+    @space.op(name="p14-split-stamp")
+    def stamp(x: int) -> int:
+        fired.append(x)
+        return x * 10
+
+    @rules
+    def cells(value):
+        yield equation(S["p14-split-stage"](value)).to(double(value))
+        yield equation(S["p14-split-fold"]()).to(fib(10))
+        yield equation(S["p14-split-multi"]()).to(both(3))
+        yield equation(S["p14-split-op-stage"](value)).to(stamp(value))
+        yield equation(S["p14-split-op-ground"]()).to(stamp(4))
+
+    # Construction already happened at decoration: exactly one host effect,
+    # the ground op call's, and never one carrying a variable.
+    assert fired == [4]
+
+    space += cells
+    stage, fold, multi, op_stage, op_ground = cells
+    assert stage == S["="](
+        S["p14-split-stage"](V.value), S["p14-split-double"](V.value)
+    )
+    assert fold == S["="](S["p14-split-fold"](), 55)
+    # Multiplicity preserved: the two-answer ground call stays a call term.
+    assert multi == S["="](S["p14-split-multi"](), S["p14-split-both"](3))
+    assert op_stage == S["="](
+        S["p14-split-op-stage"](V.value), S["p14-split-stamp"](V.value)
+    )
+    assert op_ground == S["="](S["p14-split-op-ground"](), 40)
+
+    # Every law answers, and the staged op crosses at application time.
+    assert space.eval(S["p14-split-stage"](6)) == [12]
+    assert space.eval(S["p14-split-fold"]()) == [55]
+    assert sorted(space.eval(S["p14-split-multi"]())) == [3, 4]
+    assert space.eval(S["p14-split-op-stage"](6)) == [60]
+    assert fired == [4, 6]

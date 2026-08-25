@@ -82,6 +82,7 @@ from .atoms import (
     Variable,
     _encode,
     _map_atoms,
+    _variables,
 )
 from .errors import CompileError
 from .results import Answers
@@ -315,12 +316,26 @@ class Defined[**P, R]:
         self.__name__ = name
         self.__wrapped__ = py
 
-    def __call__(self, *args: Any) -> Expression | Answers[Any]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def __call__(self, *args: Any) -> Atom | Answers[Any]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         if len(args) != len(self.params):
             msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
             raise TypeError(msg)
         term = Expression([Symbol(self.name), *(_encode(a) for a in args)])
         if _defined_calls_are_staged():
+            # The staging split, stated in the design's own words: a call
+            # whose arguments include RULE VARIABLES stages, building the
+            # call term inside the law (`double(x)` yields `(double $x)`);
+            # a call with GROUND arguments RUNS NOW, at construction, and
+            # the law stores the RESULT (`fib(10)` embeds 55) - constant
+            # folding by construction, deliberate. A ground call answering
+            # zero or several results keeps the call term instead, because
+            # folding one answer of many would drop multiplicity the author
+            # wrote, and staging preserves it exactly.
+            if _variables(term):
+                return term
+            folded = list(self.space.answers(term))
+            if len(folded) == 1:
+                return _encode(folded[0])
             return term
         if self._uses_main_engine:
             # SWI answer tables belong to the main engine. A child engine is

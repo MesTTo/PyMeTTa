@@ -86,7 +86,7 @@ from ._type_annotations import (
 from ._type_annotations import (
     callable_name as _callable_name,
 )
-from .atoms import Atom, Expression, S, Symbol, _expr, _to_atom
+from .atoms import Atom, Expression, S, Symbol, _encode, _expr, _to_atom, _variables
 
 _CO_GENERATOR = getattr(inspect, "CO_GENERATOR", 0x0020)
 _CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
@@ -741,7 +741,29 @@ def register[**P, R](
     # owner still declares them.
     _retire_previous(runtime, previous, new_facts, old_facts, space)
     REGISTRY[metta_name] = operation
-    return fn
+
+    # The staging split's op half, the design's own cell: inside a rules
+    # body, an op call whose arguments carry RULE VARIABLES stages, storing
+    # the op-call term so the law crosses the host per APPLICATION; before
+    # this, the host body ran at construction with a Variable atom in hand,
+    # firing effects on garbage and inlining whatever the body happened to
+    # build. A GROUND op call still runs now, which is the effect-fires-once
+    # law the ledger states beside it. The engine's own dispatch reads the
+    # bare fn from the registry, so this wrapper prices nothing there; a
+    # direct Python call pays one contextvar read.
+    # A module-level import would cycle: _rules imports atoms, which
+    # this module feeds.
+    from ._rules import _defined_calls_are_staged  # noqa: PLC0415
+
+    @functools.wraps(fn)
+    def _staging_aware(*args: Any, **kwargs: Any) -> Any:
+        if _defined_calls_are_staged() and not kwargs:
+            encoded = [_encode(a) for a in args]
+            if any(_variables(a) for a in encoded):
+                return Expression([Symbol(metta_name), *encoded])
+        return fn(*args, **kwargs)
+
+    return _staging_aware
 
 
 def unregister(runtime, name: str) -> None:
