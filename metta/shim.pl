@@ -880,6 +880,7 @@ petta_py_function_shape(Name0, [Tier, Detail, Arities, Determinism]) :-
     ;   Tier = "absent", Detail = ""
     ),
     ( fun_in(Home, Name) -> true ; petta_py_module('&self', Home) ),
+    spaces:metta_ensure_compiled(Name),
     findall([Arity, Speedup, Realised],
             ( arity(Name, Arity),
               petta_py_index_quality(Home, Name, Arity, Speedup, Realised) ),
@@ -1655,6 +1656,9 @@ petta_py_direct_goal(Module, [F|Args], Goal, Out) :-
     petta_py_plain_args(Args),
     length(Args, N),
     Arity is N + 1,
+    %The direct-goal guard reads the registry, so a deferred function fell
+    %to the slow path until something else forced it.
+    spaces:metta_ensure_compiled(F),
     arity(F, Arity),
     current_predicate(Module:F/Arity),
     append(Args, [Out], Full),
@@ -2395,6 +2399,7 @@ petta_py_unregister_op(Name0, Arity) :-
 %way out, so the call it had been answering came back unreduced
 %[tested test_a_prolog_registration_is_not_silently_replaced].
 petta_py_name_still_defined(Name) :-
+    spaces:metta_ensure_compiled(Name),
     ( petta_py_module('&self', Module) ; petta_engine_module(Module) ),
     current_predicate(Module:Name/A),
     functor(Head, Name, A),
@@ -2506,6 +2511,10 @@ petta_py_function_visible(Space0, Name0) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
     fun(Name),
+    %The question is about clauses, and a deferred function has none until
+    %its equations translate; the clause probe below is a read the
+    %undefined-predicate net never fires for.
+    spaces:metta_ensure_compiled(Name),
     petta_py_module(Space, Module),
     catch_recover(( current_predicate(Module:Name/Arity),
                     functor(Head, Name, Arity),
@@ -2514,6 +2523,8 @@ petta_py_function_visible(Space0, Name0) :-
 
 petta_py_arities(Name0, As) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    %Compiled arities are registered at translation, so the read forces.
+    spaces:metta_ensure_compiled(Name),
     findall(A, arity(Name, A), As).
 
 %Every stored equation for a name, live from the space. Pattern-directed:
