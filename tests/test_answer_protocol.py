@@ -18,7 +18,7 @@ Guarantees:
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - the settled ``reacts`` declaration spelling installs an ``(on ...)``
     bridge that runs under matched bindings [tested:
-    test_a_bridge_inserts_under_the_matched_bindings; commit=WORKTREE]
+    test_a_bridge_inserts_under_the_matched_bindings; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
 Open Obligations:
   To Do: None
   Hacks: None

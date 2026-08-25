@@ -25,7 +25,7 @@ Guarantees:
   - all fifteen declaration heads use their settled Space and AsyncMeTTa
     spellings, including ``reacts`` for ``(on ...)`` while ``reaction``
     remains, and leave every ``declare_*`` spelling absent [tested:
-    test_declarations_use_their_atom_heads_on_the_receiver; commit=WORKTREE]
+    test_declarations_use_their_atom_heads_on_the_receiver; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
 """
 
 import copy

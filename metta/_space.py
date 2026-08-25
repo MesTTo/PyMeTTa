@@ -64,7 +64,7 @@ Guarantees:
     including ``reacts`` for ``(on ...)``; the former ``reaction`` spelling
     remains as a compatibility alias and no ``declare_*`` alias returns
     [tested: test_declarations_use_their_atom_heads_on_the_receiver and
-    test_m7_narrow_core_surface; commit=WORKTREE]
+    test_m7_narrow_core_surface; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
   - Expression recognizes Space as the one iterable Handle whose listing is
     collected as an assembly-order snapshot [tested:
     test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

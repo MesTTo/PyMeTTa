@@ -58,7 +58,7 @@ Guarantees:
     `@space.pre_add`, the head-named declaration methods, package `match`
     and `superpose`, `view()`, `@space.cache`, `limits(stack=)` and the
     standard-module mentions inside a compiled body
-    [tested: test_the_landed_doors_read_clean; commit=WORKTREE]
+    [tested: test_the_landed_doors_read_clean; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
   - a bare vocabulary word at a head-named declaration door is a finding that
     names the exact StrEnum member, while pattern and name strings at those
     doors remain governed by the source-text rule
