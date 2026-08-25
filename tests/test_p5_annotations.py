@@ -82,7 +82,7 @@ def test_the_four_containers_share_one_parameterised_treatment(metta):
     ) -> set[int]:
         return members
 
-    metta.op(container_probe)
+    metta.op(container_probe, effect="pureStructural")
     claims = {
         str(atom)
         for atom in metta.atoms()
@@ -143,7 +143,7 @@ def test_a_typed_dict_annotation_agrees_with_its_value(metta):
     def echo_config(config: Config) -> Config:
         return config
 
-    metta.op(echo_config)
+    metta.op(echo_config, effect="pureStructural")
     assert metta.eval(Expression([S.echo_config, projected.atom])) == [projected.atom]
     claims = {str(atom) for atom in metta.atoms()}
     assert "(annotation echo-config (param 1 (TypedDict Config (field retries Number) (field label String))))" in claims
@@ -181,7 +181,7 @@ def test_every_advanced_annotation_reaches_metta_as_a_target_symbol(metta):
     def overloaded(value):
         return value
 
-    metta.op(overloaded)
+    metta.op(overloaded, effect="pureStructural")
     declarations = {str(atom) for atom in metta.atoms()}
     assert "(: overloaded (-> Number Number))" in declarations
     assert "(: overloaded (-> String String))" in declarations
@@ -197,7 +197,7 @@ def test_every_advanced_annotation_reaches_metta_as_a_target_symbol(metta):
     ) -> Never:
         raise AssertionError((mode, user, bounded, choice, guard, owner, number))
 
-    metta.op(advanced)
+    metta.op(advanced, effect="pureStructural")
     claims = {str(atom) for atom in metta.atoms() if "advanced" in str(atom)}
     assert "(annotation advanced (param 1 (Literal \"on\" \"off\")))" in claims
     assert "(annotation advanced (param 2 (NewType UserId Number)))" in claims
@@ -225,7 +225,7 @@ def test_two_values_of_one_base_type_are_distinguishable_by_their_metadata(metta
     ) -> int:
         return metres + feet
 
-    metta.op(convert_units)
+    metta.op(convert_units, effect="pureStructural")
     declarations = {str(atom) for atom in metta.atoms()}
     assert "(: convert-units (-> Number Number Number))" in declarations
     assert (
@@ -240,7 +240,7 @@ def test_two_values_of_one_base_type_are_distinguishable_by_their_metadata(metta
     def current_space(engine: Annotated[MeTTa, "engine"]):
         return engine
 
-    metta.op(current_space, name="annotated-engine")
+    metta.op(current_space, name="annotated-engine", effect="readOnlyLookup")
     ((answer,),) = metta.run("!(annotated-engine)")
     assert isinstance(answer, Grounded)
     assert isinstance(answer.value, MeTTa)
@@ -351,7 +351,7 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
         return value + len(options)
 
     with pytest.raises(TypeError, match=r"\*\*options.*unreachable"):
-        metta.op(kwargs)
+        metta.op(kwargs, effect="pureStructural")
 
     class Choice(Enum):
         first = 1
@@ -363,7 +363,7 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
     def p5_enum_choice() -> Choice:
         return Choice.first
 
-    metta.op(p5_enum_choice)
+    metta.op(p5_enum_choice, effect="pureStructural")
     assert "(: p5-enum-choice (-> Choice))" in {str(atom) for atom in metta.atoms()}
 
     installed: list[str] = []

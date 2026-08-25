@@ -120,7 +120,7 @@ def test_a_grounded_bool_is_falsey_and_nothing_else_is(m):
 def test_typevar_annotations_declare_parametrically(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     A = TypeVar("A")
 
-    @m.op(name="first-of")
+    @m.op(name="first-of", effect="pureStructural")
     def first_of(items: Sequence[A]) -> A:
         return items[0]
 
@@ -131,7 +131,7 @@ def test_typevar_annotations_declare_parametrically(m):  # noqa: D103  -- pytest
 
 def test_union_annotations_superpose_declarations(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
 
-    @m.op(name="describe")
+    @m.op(name="describe", effect="pureStructural")
     def describe(x: int | str) -> str:
         return f"<{x}>"
 
@@ -152,7 +152,7 @@ def test_union_annotations_superpose_declarations(m):  # noqa: D103  -- pytest d
 
 def test_optional_return_declares_the_value_type(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
 
-    @m.op(name="lookup-age")
+    @m.op(name="lookup-age", effect="pureStructural")
     def lookup_age(name: str) -> int | None:
         return {"ada": 36}.get(name)
 
@@ -163,13 +163,13 @@ def test_optional_return_declares_the_value_type(m):  # noqa: D103  -- pytest di
 
 
 def test_callable_and_tuple_annotations_declare_structurally(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @m.op(name="fixed-point-of")
+    @m.op(name="fixed-point-of", effect="pureStructural")
     def fixed_point_of(f: Callable[[int], int]) -> int:
         raise NotImplementedError
 
     assert _arrows_of(m, "fixed-point-of") == {"(-> (-> Number Number) Number)"}
 
-    @m.op(name="swap")
+    @m.op(name="swap", effect="pureStructural")
     def swap(pair: tuple[int, str]) -> tuple[str, int]:
         a, b = pair
         return (b, a)
@@ -184,7 +184,7 @@ def test_class_annotations_declare_the_class(m):  # noqa: D103  -- pytest discov
         mass: float
         velocity: float
 
-    @m.op(name="momentum")
+    @m.op(name="momentum", effect="pureStructural")
     def momentum(p: Particle) -> float:
         return p.mass * p.velocity
 
@@ -271,7 +271,7 @@ def test_a_weighted_relation_is_an_annotated_op(m):  # noqa: D103  -- pytest dis
         yield Answer(value=S.calm, k=0.25)
         yield Answer(value=S.tense, k=0.75)
 
-    m.op(mood, name="mood")
+    m.op(mood, name="mood", effect="nondeterministicReadOnly")
     m.annotations("mood", "prob")
     (classes,) = m.run("!(collapse (mood today))")[0]
     assert [str(c) for c in classes] == ["calm", "tense"]
@@ -292,7 +292,7 @@ def test_a_weighted_relation_is_an_annotated_op(m):  # noqa: D103  -- pytest dis
 def test_the_library_reflects_into_its_own_space(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     reflection = catalog
 
-    @m.op(name="reflect-probe")
+    @m.op(name="reflect-probe", effect="pureStructural")
     def reflect_probe(x: int) -> int:
         return x
 
@@ -364,11 +364,11 @@ def test_shared_class_declarations_survive_one_unregister(m):  # noqa: D103  -- 
     class SharedReview:
         stars: float
 
-    @m.op(name="rate-one")
+    @m.op(name="rate-one", effect="pureStructural")
     def rate_one(r: SharedReview) -> float:
         return r.stars
 
-    @m.op(name="rate-two")
+    @m.op(name="rate-two", effect="pureStructural")
     def rate_two(r: SharedReview) -> float:
         return r.stars * 2
 
@@ -389,7 +389,7 @@ def test_registration_failure_leaves_nothing_half_registered(m):  # noqa: D103  
         return 1
 
     with pytest.raises(TypeError):
-        m.op(bad, name="bad-op")
+        m.op(bad, name="bad-op", effect="pureStructural")
     reflection = catalog
     assert not reflection.match(S.op(S["bad-op"], V.a, V.k))
     assert not m.is_function("bad-op")
@@ -412,20 +412,26 @@ def test_postponed_annotations_generate_declarations(m):  # noqa: D103  -- pytes
     widen = namespace["widen"]
     assert widen.__annotations__["count"] == "int"
 
-    m.op(widen, name="widen-op")
+    m.op(widen, name="widen-op", effect="pureStructural")
     assert _arrows_of(m, "widen-op") == {"(-> Number String String)"}
     assert m.run('!(widen-op 2 "ab")') == [["abab"]]
 
 
 def test_union_expansion_is_bounded(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    U = int | str | bool  # noqa: N806  -- U is local type-algebra notation whose uses mirror the generic declaration under test
+    union_type = int | str | bool
 
     # Five inputs plus the return type produce 3**6 alternatives, over 512.
-    def wide(a: U, b: U, c: U, d: U, e: U) -> U:  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
-        return a
+    def wide(
+        a: union_type,
+        b: union_type,
+        c: union_type,
+        d: union_type,
+        e: union_type,
+    ) -> union_type:
+        return (a, b, c, d, e)[0]
 
     with pytest.raises(TypeError):
-        m.op(wide, name="wide-op")
+        m.op(wide, name="wide-op", effect="pureStructural")
     assert not m.is_function("wide-op")
 
 

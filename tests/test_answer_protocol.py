@@ -166,6 +166,7 @@ def test_a_generator_op_answers_bindings(metta):  # noqa: D103  -- pytest discov
     metta.op(
         relate,
         name="ap-rel",
+        effect="nondeterministicReadOnly",
         declarations=[Expression(S.arguments, S["ap-rel"], S.atoms)],
     )
     metta.run("(= (ap-probe $x) (let $r (ap-rel $x) (pair $x $r)))")
@@ -180,6 +181,7 @@ def test_a_det_op_answers_bindings_with_a_value(metta):  # noqa: D103  -- pytest
     metta.op(
         solve,
         name="ap-solve",
+        effect="pureStructural",
         declarations=[Expression(S.arguments, S["ap-solve"], S.atoms)],
     )
     metta.run("(= (ap-sprobe $x) (let $r (ap-solve $x) (pair $x $r)))")
@@ -191,7 +193,7 @@ def test_a_raw_op_refuses_answers(metta):  # noqa: D103  -- pytest discovers or 
     def wrong(x):
         return Answer({"x": x})
 
-    metta.op(wrong, name="ap-raw", transport="raw")
+    metta.op(wrong, name="ap-raw", transport="raw", effect="pureStructural")
     with pytest.raises(EngineError, match="raw"):
         metta.run("!(ap-raw 1)")
 
@@ -273,11 +275,13 @@ def test_an_op_residue_closes_through_the_engine(metta):  # noqa: D103  -- pytes
     metta.op(
         pick,
         name="ap-pick",
+        effect="pureStructural",
         declarations=[Expression(S.arguments, S["ap-pick"], S.atoms)],
     )
     metta.op(
         pickbig,
         name="ap-pickbig",
+        effect="pureStructural",
         declarations=[Expression(S.arguments, S["ap-pickbig"], S.atoms)],
     )
     out = metta.run("!(collapse (ap-pick $x))")
@@ -343,7 +347,7 @@ def test_top_over_an_annotated_op_answers_the_k_best_in_order(metta):  # noqa: D
         for word, degree in lexicon.items():
             yield Answer(value=word, k=degree)
 
-    metta.op(ap_lex, name="ap-lex")
+    metta.op(ap_lex, name="ap-lex", effect="nondeterministicReadOnly")
     metta.annotations("ap-lex", "ranked")
     out = metta.run('!(collapse (top 2 (ap-lex "q" $c)))')
     assert str(out[0][0]) == '("beta" "delta")'
@@ -367,7 +371,7 @@ def test_top_orders_mixed_integer_and_float_annotations_by_value(metta):  # noqa
         yield Answer(value=Symbol("intone"), k=1)
         yield Answer(value=Symbol("floathigh"), k=2.5)
 
-    metta.op(mixed, name="ap-mixed-k")
+    metta.op(mixed, name="ap-mixed-k", effect="nondeterministicReadOnly")
     metta.annotations("ap-mixed-k", "ranked")
     (best,) = metta.run("!(collapse (top 1 (ap-mixed-k q)))")[0]
     assert [str(a) for a in best.children] == ["floathigh"]
@@ -426,6 +430,7 @@ def test_an_undeclared_annotation_names_the_declaration(metta):  # noqa: D103  -
     metta.op(
         scorer,
         name="ap-undeclared",
+        effect="nondeterministicReadOnly",
         declarations=[Expression(S.arguments, S["ap-undeclared"], S.atoms)],
     )
     with pytest.raises(EngineError, match="annotations ap-undeclared ranked"):
@@ -553,7 +558,7 @@ def test_an_op_keeps_its_failure_as_the_error_atom(metta):  # noqa: D103  -- pyt
             raise ValueError(msg)
         return x // 2
 
-    metta.op(half, name="oe-half")
+    metta.op(half, name="oe-half", effect="pureStructural")
     metta.on_error("oe-half", "(oe-half $x)", "keep")
     out = metta.run("!(collapse (oe-half 8))")
     assert str(out[0][0]) == "(4)"
@@ -568,7 +573,7 @@ def test_an_op_empty_answers_nothing(metta):  # noqa: D103  -- pytest discovers 
         msg = "always broken"
         raise RuntimeError(msg)
 
-    metta.op(quarter, name="oe-quarter")
+    metta.op(quarter, name="oe-quarter", effect="pureStructural")
     metta.on_error("oe-quarter", "(oe-quarter $x)", "empty")
     out = metta.run("!(collapse (oe-quarter 8))")
     assert str(out[0][0]) == "()"
@@ -586,7 +591,7 @@ def test_a_generator_op_keeps_its_mid_stream_failure(metta):  # noqa: D103  -- p
         msg = "stream died"
         raise ValueError(msg)
 
-    metta.op(counting, name="oe-gen")
+    metta.op(counting, name="oe-gen", effect="nondeterministicReadOnly")
     metta.on_error("oe-gen", "(oe-gen $x)", "keep")
     out = metta.run("!(collapse (oe-gen 0))")
     answers = out[0][0].children
@@ -1047,7 +1052,7 @@ def test_explain_covers_operations(metta):  # noqa: D103  -- pytest discovers or
     def ex_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value="x", k=1.0)
 
-    metta.op(ex_lex, name="ex-lex")
+    metta.op(ex_lex, name="ex-lex", effect="nondeterministicReadOnly")
     metta.annotations("ex-lex", "ranked")
     out = metta.run('!(explain (ex-lex "q" $c))')
     explained = {str(item.children[0]): item for item in out[0][0].children}
@@ -1113,7 +1118,7 @@ def test_ranked_scores_read_through_the_annotation(metta):  # noqa: D103  -- pyt
     def pv_lex(query, candidate=None):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         yield Answer(value="hit", k=0.75)
 
-    metta.op(pv_lex, name="pv-lex")
+    metta.op(pv_lex, name="pv-lex", effect="nondeterministicReadOnly")
     metta.annotations("pv-lex", "ranked")
     out = metta.run(
         '!(collapse (let $r (pv-lex "q" $c) (pair $r (annotation))))'
@@ -1274,7 +1279,7 @@ def test_function_calls_pull_engine_answers_only_as_demanded(metta):  # noqa: D1
     space = metta._new_space()
     pulled = []
 
-    @space.op(name="r3-demand")
+    @space.op(name="r3-demand", effect="writesState")
     def demand():
         for value in (1, 2, 3):
             pulled.append(value)

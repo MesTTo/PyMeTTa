@@ -49,7 +49,7 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
     released = []
     reading = unique("rows")
 
-    @metta.op(name=reading)
+    @metta.op(name=reading, effect="oracleIO")
     def rows():
         handle = source.open(encoding="utf-8")
         try:
@@ -69,7 +69,7 @@ def test_a_nondeterministic_ops_generator_releases_what_it_holds(metta, tmp_path
 
     failing = unique("leaky")
 
-    @metta.op(name=failing)
+    @metta.op(name=failing, effect="nondeterministicReadOnly")
     def leaky():
         try:
             yield from range(10**6)

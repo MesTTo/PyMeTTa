@@ -25,10 +25,12 @@ def test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside(metta)
     metta.op(
         lambda left, right: left + right,
         name="amplitude-add",
+        effect="pureStructural",
     )
     metta.op(
         lambda left, right: left * right,
         name="amplitude-multiply",
+        effect="pureStructural",
     )
     with metta._new_space() as program:
         with pytest.raises(

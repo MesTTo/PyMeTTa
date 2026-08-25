@@ -211,7 +211,7 @@ def test_the_staging_split_folds_ground_calls_and_stages_op_terms(metta):
         yield value
         yield value + 1
 
-    @space.op(name="p14-split-stamp")
+    @space.op(name="p14-split-stamp", effect="writesState")
     def stamp(x: int) -> int:
         fired.append(x)
         return x * 10

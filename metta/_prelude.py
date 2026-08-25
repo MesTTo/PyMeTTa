@@ -163,6 +163,7 @@ def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude regist
             runtime,
             fn,
             name=_OperationName(name),
+            effect="oracleIO",
             declarations=[_expr(S.arguments, S[name], S.atoms)],
             arities=arities,
         )

@@ -7,13 +7,13 @@ facts:
 
 (source-span &my-space checked "example.py" 10 0 13 17)
 (free-variable &my-space checked helper)
-(effect checked immutable)
+(effect checked pureStructural)
 
 Guarantees:
   - Atom parameters preserve written terms while ordinary parameters receive
-    reduced values [tested: annotation_contracts example; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    reduced values [tested: annotation_contracts example; commit=WORKTREE]
   - local type claims and source-derived definition facts are visible through
-    the public API [tested: annotation_contracts example; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    the public API [tested: annotation_contracts example; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -27,11 +27,11 @@ import metta
 m = metta.MeTTa().space()
 
 
-@m.op
+@m.op(effect="pureStructural")
 def anyatom(term: metta.Atom) -> metta.Atom:
     return term
 
-@m.op
+@m.op(effect="pureStructural")
 def anyval(term):
     return term
 

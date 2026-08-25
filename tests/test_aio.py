@@ -390,6 +390,7 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103
                 lambda sync: sync.op(
                     lambda value: value,
                     name="aio-unregister-target",
+                    effect="pureStructural",
                 )
             )
             assert await am.is_function("aio-unregister-target")
@@ -749,7 +750,7 @@ def test_aio_declare_and_register_delegations_land():  # noqa: D103  -- pytest d
             def double(x: int) -> int:
                 return 2 * x
 
-            await m.op(double, name="aio-double")
+            await m.op(double, name="aio-double", effect="pureStructural")
             assert await m.one("(aio-double 21)") == 42
             await m.unregister_op("aio-double")
             await m.run("(= (aio-dis $x) $x)")

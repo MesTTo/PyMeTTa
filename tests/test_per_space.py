@@ -81,7 +81,7 @@ def test_identical_equation_removal_keeps_the_twin(metta):
 
 
 def test_python_ops_reach_every_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @metta.op(name="psp-op-everywhere")
+    @metta.op(name="psp-op-everywhere", effect="pureStructural")
     def psp_op_everywhere(x: int) -> int:
         return x + 1
 

@@ -82,7 +82,7 @@ def test_operation_arguments_preserve_python_object_identity(
     name = _operation_name(f"argument-{transport}")
     options = {} if transport == "encoded" else {"transport": "raw"}
 
-    @metta.op(name=name, **options)
+    @metta.op(name=name, effect="writesState", **options)
     def receive(argument):
         seen.append(argument)
         return True
@@ -109,7 +109,7 @@ def test_operation_results_preserve_python_object_identity(
     name = _operation_name(f"result-{transport}")
     options = {} if transport == "encoded" else {"transport": "raw"}
 
-    @metta.op(name=name, **options)
+    @metta.op(name=name, effect="readOnlyLookup", **options)
     def return_value():
         return value
 

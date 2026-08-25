@@ -182,7 +182,21 @@ is Python's own `assert`.
 #: inferences; command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged tree with
 #: engine/reader.so; commit=WORKTREE].
-BUDGET = 2861
+#: RE-PINNED 2026-08-26, 2822 to 2835, for mandatory operation-effect
+#: reflection. The first compiled definition publishes its canonical
+#: `(effect f pureStructural)` row beside `(defined ...)`; three direct
+#: measurements were identical at 2835 while the MeTTa example cost 2817
+#: [measured 2026-08-26 through tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta].
+#: RE-PINNED 2026-08-26, on the effect-lattice integration merge: 2801,
+#: which is also what the example itself costs, so the twin and its source
+#: agree exactly on this tree. The four merged mechanisms' layout costs
+#: compose non-monotonically through clause-indexing shape, which is why
+#: the parents above read 2830, 2846 and 2861 on their own
+#: [measured: 2801 inferences; command=tools/twin_coverage.py --measure
+#: --rounds 3 examples/basics/identity.metta; fixture=merged tree with
+#: engine/reader.so; commit=WORKTREE].
+BUDGET = 2801
 
 
 def twin(m):

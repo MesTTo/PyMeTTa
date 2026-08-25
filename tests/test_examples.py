@@ -85,11 +85,13 @@ WRONG = [
 
 @pytest.mark.parametrize("flags", [(), ("-O",)], ids=["plain", "optimized"])
 @pytest.mark.parametrize("claim,message", WRONG, ids=["value", "truthy"])
-def test_a_wrong_value_fails_under_O_too(tmp_path, flags, claim, message):  # noqa: N802  -- the symbolic test spelling mirrors the notation whose translation is under test
-    """`python -O` removes assert statements outright while the print beside
-    one still runs, so the harness's check had to stop asserting: a wrong
-    value used to print as a successful check under that flag.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+def test_a_wrong_value_fails_under_optimization_too(tmp_path, flags, claim, message):
+    """Require wrong values to fail under ``python -O`` too.
+
+    Optimization removes assert statements outright while the print beside one
+    still runs, so the harness's check had to stop asserting. A wrong value
+    used to print as a successful check under that flag.
+    """
     result = _run_example_source(
         tmp_path,
         f"from _common import check, done\n{claim}\ndone('throwaway')\n",
@@ -101,10 +103,12 @@ def test_a_wrong_value_fails_under_O_too(tmp_path, flags, claim, message):  # no
 
 
 @pytest.mark.parametrize("flags", [(), ("-O",)], ids=["plain", "optimized"])
-def test_a_right_value_still_passes_under_O_too(tmp_path, flags):  # noqa: N802  -- the symbolic test spelling mirrors the notation whose translation is under test
-    """The other half of the claim: refusing a wrong value is only worth
-    something if the right one is still accepted, under either interpreter.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+def test_a_right_value_still_passes_under_optimization_too(tmp_path, flags):
+    """Accept a right value under both interpreter modes.
+
+    Refusing a wrong value is useful only if the right value is still accepted
+    under either interpreter.
+    """
     result = _run_example_source(
         tmp_path,
         "from _common import check, done\ncheck('two', 1 + 1, 2)\ndone('throwaway')\n",
@@ -114,10 +118,12 @@ def test_a_right_value_still_passes_under_O_too(tmp_path, flags):  # noqa: N802 
     assert "OK throwaway" in result.stdout, result.stdout
 
 
-def test_an_example_that_checks_nothing_is_not_OK(tmp_path):  # noqa: N802  -- the symbolic test spelling mirrors the notation whose translation is under test
-    """The runner above reads `OK name` as proof the example verified itself,
-    so a file that verified nothing must not be able to print it.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+def test_an_example_that_checks_nothing_does_not_report_success(tmp_path):
+    """Prevent an unchecked example from reporting success.
+
+    The runner above reads ``OK name`` as proof that the example verified
+    itself, so a file that verified nothing must not be able to print it.
+    """
     result = _run_example_source(
         tmp_path, "from _common import done\ndone('throwaway')\n"
     )

@@ -28,7 +28,7 @@ def _counting_engine():
         fired.append(1)
         return 1
 
-    m.op(effectful, name="petta-effectful")
+    m.op(effectful, name="petta-effectful", effect="writesState")
     return m, fired
 
 

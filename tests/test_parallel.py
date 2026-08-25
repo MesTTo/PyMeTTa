@@ -62,7 +62,7 @@ def test_parallel_runs_branches_concurrently(metta):
         worker_threads: set[int] = set()
         worker_threads_lock = threading.Lock()
 
-        @space.op(name="parallel-rendezvous")
+        @space.op(name="parallel-rendezvous", effect="writesState")
         def meet(branch: int) -> int:
             with worker_threads_lock:
                 worker_threads.add(threading.get_ident())

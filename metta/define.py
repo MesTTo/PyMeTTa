@@ -19,10 +19,9 @@ Guarantees:
   - local annotated assignments resolve through a syntax-limited namespace
     reader and compile to enforceable in-place type claims [tested:
     test_an_annotated_binding_emits_its_claim; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - source spans, source docstrings, lexical captures, and call purity are
+  - source spans, source docstrings, lexical captures, and the strongest call effect are
     derived from the parsed function and exposed as immutable facts [tested:
-    test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_a_definition_joins_every_called_operations_effect; commit=WORKTREE]
   - ``yield from`` delegates only a statically known-nondeterministic call
     and refuses an ambiguous engine call instead of silently splicing it
     [tested:
@@ -86,6 +85,7 @@ from .atoms import (
 )
 from .errors import CompileError
 from .results import Answers
+from .vocabularies import EffectClass
 
 __all__ = ["Defined", "DefinitionFacts", "PrologBacked", "SourceSpan", "compile_function"]
 
@@ -96,6 +96,10 @@ def _provided[T](value: T | None, default: T) -> T:
 
 def _never(_name: str) -> bool:
     return False
+
+
+def _unknown_effect(_name: str) -> EffectClass:
+    return EffectClass.oracleIO
 
 
 def _deferred_main_engine_answers(space: Any, term: Expression):
@@ -373,8 +377,13 @@ class Defined[**P, R]:
 
     @property
     def pure(self) -> bool | None:
-        """Whether every source call is a local or declared-pure call."""
+        """Whether every source call is structurally pure."""
         return self.facts.pure if self.facts is not None else None
+
+    @property
+    def effect(self) -> EffectClass | None:
+        """The strongest effect reached by this compiled clause."""
+        return self.facts.effect if self.facts is not None else None
 
     @property
     def head(self) -> Expression:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
@@ -490,7 +499,7 @@ def compile_function(
     fn: types.FunctionType,
     known: Callable[[str], bool],
     nondet: Callable[[str], bool] | None = None,
-    pure: Callable[[str], bool] | None = None,
+    effect: Callable[[str], EffectClass] | None = None,
     metta_name: str | None = None,
     *,
     returns_bool: Callable[[str], bool] | None = None,
@@ -600,7 +609,7 @@ def compile_function(
         source_lines=source_lines,
         first_line=first_line,
         known=known,
-        pure=_provided(pure, _never),
+        effect=_provided(effect, _unknown_effect),
     )
     twin = _python_twin(fn, patterns)
     twin.__doc__ = facts.doc

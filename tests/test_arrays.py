@@ -6,10 +6,11 @@ Runs before test_pettorch alphabetically; the constructor default is
 process-global, so this suite installs NumPy as the default and the torch
 suite installs torch over it, each self-consistent.
 Guarantees:
-  - each installed array operation has at least one arrow declaration and
+  - each installed array operation has an arrow and a cache-safe effect rank;
     broadcast-shape works forwards and backwards as a CLP(FD) relation
-    [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint;
-     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint,
+     test_embedding_store_runs_on_numpy;
+     commit=WORKTREE]
   - the module fixture retires its process-global operation registrations, so
     later suites do not inherit array callables [tested: python -m pytest
     bindings/python/tests/test_arrays.py bindings/python/tests/test_operator_documentation.py;
@@ -34,6 +35,7 @@ from metta import (
     wire,
 )
 from metta.ops import registered
+from metta.vocabularies import EffectClass
 
 numpy = pytest.importorskip("numpy")
 pytest.importorskip("array_api_compat")
@@ -69,6 +71,20 @@ def test_every_array_operation_is_typed_and_a_shape_is_a_constraint(am):
         types = [atom for group in am.run(f"!(get-type {name})") for atom in group]
         assert types, name
         assert all(type_.head == S["->"] for type_ in types), (name, types)
+
+    operations = {
+        name: registered()[name]
+        for name in arrays.ARRAY_OPS
+        if name in registered()
+    }
+    assert operations
+    assert all(operation.effect in EffectClass for operation in operations.values())
+    assert registered()["matmul"].effect is EffectClass.writesState
+    assert registered()["t-item"].effect is EffectClass.readOnlyLookup
+    random_constructor = next(
+        name for name in operations if name.startswith("randn--")
+    )
+    assert registered()[random_constructor].effect is EffectClass.oracleIO
 
     assert am.run(
         "!(let True (broadcast-shape (4 1) (3) $shape) $shape)"
@@ -171,6 +187,12 @@ def test_mixed_library_binary_op_converts_rightward(am):  # noqa: D103  -- pytes
 def test_embedding_store_runs_on_numpy(am):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = am._new_space()
     store = arrays.EmbeddingStore(space, name="npk")
+    internal_knn, internal_embed = arrays._SPACE_STORES[(space.name, "npk")]
+    assert (
+        registered()[internal_knn].effect
+        is EffectClass.nondeterministicReadOnly
+    )
+    assert registered()[internal_embed].effect is EffectClass.readOnlyLookup
     store.add(S.dog, numpy.array([1.0, 0.0, 0.0]))
     store.add(S.cat, numpy.array([0.9, 0.1, 0.0]))
     store.add(S.car, numpy.array([0.0, 0.0, 1.0]))

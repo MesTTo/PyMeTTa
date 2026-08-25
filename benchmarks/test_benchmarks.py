@@ -295,7 +295,7 @@ def test_eval_arithmetic(benchmark, inference_baseline):
 def _operation_space(name, *, transport):
     space = _empty_space()
 
-    @space.op(name=name, transport=transport)
+    @space.op(name=name, effect="pureStructural", transport=transport)
     def addition(left, right):
         return left + right
 
@@ -675,7 +675,7 @@ def _weighted_space():
         yield Answer(value=S.calm, k=0.25)
         yield Answer(value=S.tense, k=0.75)
 
-    space.op(mood, name="benchmark-mood")
+    space.op(mood, name="benchmark-mood", effect="nondeterministicReadOnly")
     space.annotations("benchmark-mood", "prob")
     return space
 
@@ -716,7 +716,7 @@ def test_register_operation(benchmark, inference_baseline):
             def identity(value: int) -> int:
                 return value
 
-            space.op(identity, name=name)
+            space.op(identity, name=name, effect="pureStructural")
             space.unregister_op(name)
         return registrations
 

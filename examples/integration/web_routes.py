@@ -12,9 +12,9 @@ shown; and dispatch scans the method's whole table per request, which is the
 point being made legible rather than a routing index, so it is linear in the
 number of routes.
 Guarantees:
-  - handler registration derives declarations from the callable rather than
-    selecting an untyped boolean mode [tested:
-    test_example_runs_and_verifies_itself; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - handler registration requires and forwards the route's effect class while
+    deriving declarations from the callable [tested:
+    test_example_runs_and_verifies_itself; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -56,7 +56,7 @@ class Router:
         self._casters: dict[int, tuple] = {}
         self._count = 0
 
-    def get(self, path: str) -> Callable:
+    def get(self, path: str, *, effect: str) -> Callable:
         def wrap(fn: Callable) -> Callable:
             # Compile FIRST. Registering the operation and then compiling left
             # an unknown converter raising with the handler registered and no
@@ -64,7 +64,7 @@ class Router:
             # never heard of.
             segments, casters = self.compile(path)
             handler = fn.__name__.replace("_", "-")
-            self._m.op(fn, name=handler)
+            self._m.op(fn, name=handler, effect=effect)
             self.add_route("GET", segments, casters, handler)
             return fn
 
@@ -154,12 +154,12 @@ app = Router(m, "app")
 
 
 # The FastAPI shape: a decorator, a typed path parameter, a handler.
-@app.get("/users/{id:int}")
+@app.get("/users/{id:int}", effect="pureStructural")
 def read_user(id):
     return f"user {id}"
 
 
-@app.get("/users/{id:int}/karma")
+@app.get("/users/{id:int}/karma", effect="pureStructural")
 def karma(id):
     return id * 10
 
@@ -186,7 +186,7 @@ check(
 # A path naming one parameter twice is one variable with two casters, so it is
 # refused where it is written rather than misreading a request later.
 try:
-    app.get("/twice/{x:int}/{x:float}")(lambda x: x)
+    app.get("/twice/{x:int}/{x:float}", effect="pureStructural")(lambda x: x)
     check("a repeated parameter name is refused", "not refused", "refused")
 except ValueError as refused:
     check("a repeated parameter name is refused", "names 'x' twice" in str(refused), True)
@@ -194,7 +194,7 @@ except ValueError as refused:
 # An unknown converter is refused BEFORE the handler is registered, so no name
 # is left answering with nothing routing to it.
 try:
-    app.get("/unknown/{x:uuid}")(lambda x: x)
+    app.get("/unknown/{x:uuid}", effect="pureStructural")(lambda x: x)
     check("an unknown converter is refused", "not refused", "refused")
 except ValueError:
     check("and its handler was never registered", m.is_function("<lambda>"), False)

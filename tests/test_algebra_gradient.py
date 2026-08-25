@@ -71,6 +71,7 @@ def test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation
         program.op(
             lambda: result,
             name="p4-gradient-result",
+            effect="readOnlyLookup",
         )
         program.run("(= (p4-gradient-model) (p4-gradient-result))")
         model = pettorch.MettaModule(program, "p4-gradient-model")

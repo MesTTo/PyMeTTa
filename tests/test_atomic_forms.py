@@ -100,7 +100,7 @@ def test_a_transaction_rolls_back_every_answers_writes_together(three):
         msg = "the host operation failed"
         raise RuntimeError(msg)
 
-    three.op(blow, name="petta-blow")
+    three.op(blow, name="petta-blow", effect="pureStructural")
     three.run(
         "(= (petta-write-then-raise) (progn (superpose ("
         "(add-atom (context-space) (lost 1)) (add-atom (context-space) (lost 2)))) "
@@ -160,7 +160,7 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
         msg = "the host operation failed"
         raise RuntimeError(msg)
 
-    three.op(blow, name="petta-a-blow")
+    three.op(blow, name="petta-a-blow", effect="pureStructural")
     three.run(
         "(= (petta-a-raise) (progn (superpose ("
         "(add-atom (context-space) (a-lost 1)) (add-atom (context-space) (a-lost 2)))) "

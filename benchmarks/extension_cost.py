@@ -164,11 +164,11 @@ def rows(calls: int = CALLS, rounds: int = ROUNDS) -> list[Row]:
     def ec_plain(x):
         return x + 1
 
-    @space.op(name="ec-op-encoded")
+    @space.op(name="ec-op-encoded", effect="pureStructural")
     def _encoded(x):
         return x + 1
 
-    @space.op(name="ec-op-raw", transport="raw")
+    @space.op(name="ec-op-raw", effect="pureStructural", transport="raw")
     def _raw(x):
         return x + 1
 
@@ -329,11 +329,11 @@ def encoding_rows(calls: int = ENCODING_CALLS, rounds: int = ROUNDS) -> list[tup
     """
     space = MeTTa().self
 
-    @space.op(name="ec-size-encoded")
+    @space.op(name="ec-size-encoded", effect="pureStructural")
     def _encoded(x):
         return 1
 
-    @space.op(name="ec-size-raw", transport="raw")
+    @space.op(name="ec-size-raw", effect="pureStructural", transport="raw")
     def _raw(x):
         return 1
 

@@ -65,7 +65,7 @@ def test_a_docstring_emits_the_whole_doc_vocabulary() -> None:
         """One line and no sections."""
         return a + b
 
-    @metta.op
+    @metta.op(effect="pureStructural")
     def docemit_double(n: int) -> int:
         """Double a number.
 

@@ -27,10 +27,10 @@ Guarantees:
     canonical first-clause documentation follows replacement and clearing
     [tested: test_one_docstring_reaches_help_dot_doc_and_get_doc;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - source spans, AST documentation, free variables, and derived purity
+  - source spans, AST documentation, free variables, and derived effect joins
     replace atomically across clause replacement and leave reflection on
-    clear [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    clear [tested: test_a_definition_joins_every_called_operations_effect;
+    commit=WORKTREE]
   - generated class-method operations declare their Atom delivery policy in
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -106,6 +106,7 @@ from .ops import (
     referenced_classes,
     resolved_annotations,
 )
+from .vocabularies import EffectClass
 
 _DEFINE_CLAUSES: dict[tuple[str, str], list[dict[str, Any]]] = {}
 _DECLARED_DEFINES: dict[tuple[str, str], bool] = {}
@@ -209,9 +210,17 @@ def _is_nondeterministic(space: Any, called: str) -> bool:
     return (space.name, called) in _DEFINED_GENERATORS
 
 
-def _is_pure(space: Any, called: str) -> bool:
-    """Whether the engine's declaration set says this callee is immutable."""
-    return bool(space.runtime.once("seam:pure_operation(Name)", Name=called))
+def _operation_effect(space: Any, called: str) -> EffectClass:
+    """The callee's declared effect, conservatively top when unclassified."""
+    operation = REGISTRY.get(called)
+    if operation is not None:
+        return operation.effect
+    row = space.runtime.once(
+        "petta_operation_effect(Name, Effect)",
+        Name=called,
+    )
+    effect = row.get("Effect")
+    return EffectClass.oracleIO if effect is None else EffectClass(str(effect))
 
 
 def _returns_bool(space: Any, called: str) -> bool:
@@ -507,6 +516,8 @@ def _definition_facts(
     space: Any, name: str, clauses: list[dict[str, Any]]
 ) -> tuple[Expression, ...]:
     """The aggregate reflection of every live clause under one name."""
+    if not clauses:
+        return ()
     facts: list[Expression] = [Expression([Symbol("defined"), Symbol(space.name), Symbol(name)])]
     for clause in clauses:
         derived = clause["facts"]
@@ -538,8 +549,8 @@ def _definition_facts(
             {variable for clause in clauses for variable in clause["facts"].free_variables}
         )
     )
-    if clauses and all(clause["facts"].pure for clause in clauses):
-        facts.append(Expression([Symbol("effect"), Symbol(name), Symbol("immutable")]))
+    effect = EffectClass.compose(clause["facts"].effect for clause in clauses)
+    facts.append(Expression([Symbol("effect"), Symbol(name), Symbol(effect.value)]))
     return tuple(dict.fromkeys(facts))
 
 
@@ -678,7 +689,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         fn,
         known=space.is_function,
         nondet=partial(_is_nondeterministic, space),
-        pure=partial(_is_pure, space),
+        effect=partial(_operation_effect, space),
         returns_bool=partial(_returns_bool, space),
         metta_name=name,
         defined_name=partial(_installed_callable_name, space),
@@ -977,6 +988,7 @@ def _register_methods(space: Any, target: _builtins.type, type_name: str) -> Non
         space.op(
             wrapper_for(fn),
             name=operation_name,
+            effect=EffectClass.oracleIO,
             declarations=[
                 _expr(S.arguments, S[operation_name], S.atoms)
             ],

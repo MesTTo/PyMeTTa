@@ -19,6 +19,8 @@ Guarantees:
   - compiled-definition source, capture, and effect facts are typed ordinary
     declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - Effect enumerates the same five canonical ranks as the engine catalog
+    [tested: test_every_effect_rank_registers_and_reflects; commit=WORKTREE]
   - callable argument delivery is a typed `(arguments name atoms|values)`
     policy in &petta [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -134,9 +136,11 @@ ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_SUB, "Partial", "Sound"),
     (_COLON, "Effect", "Type"),
     (_COLON, "effect", _EFFECT_TYPE),
-    (_COLON, "immutable", "Effect"),
-    (_COLON, "stable", "Effect"),
-    (_COLON, "volatile", "Effect"),
+    (_COLON, "pureStructural", "Effect"),
+    (_COLON, "readOnlyLookup", "Effect"),
+    (_COLON, "nondeterministicReadOnly", "Effect"),
+    (_COLON, "writesState", "Effect"),
+    (_COLON, "oracleIO", "Effect"),
     (_COLON, "ImageSetting", "Type"),
     (_COLON, "opaque", "ImageSetting"),
     (_COLON, "transparent", "ImageSetting"),

@@ -242,7 +242,7 @@ def test_a_duplicate_declaration_names_the_first_one():  # noqa: D103  -- pytest
         return value
 
     with pytest.raises(Exception) as refused:
-        metta.op(duplicate_op, name="duplicate-op")
+        metta.op(duplicate_op, name="duplicate-op", effect="pureStructural")
 
     message = str(refused.value)
     assert "duplicate" in message

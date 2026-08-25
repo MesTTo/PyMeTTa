@@ -901,7 +901,12 @@ def test_eval_using_carries_identity(m):  # noqa: D103  -- pytest discovers or i
             self.n = n
 
     blob = Blob(7)
-    m.op(lambda o: o.n, name="blob-n", transport="raw")
+    m.op(
+        lambda o: o.n,
+        name="blob-n",
+        transport="raw",
+        effect="readOnlyLookup",
+    )
     m.run("(= (describe $o) (Seen (blob-n $o)))")
     try:
         assert str(m.eval("(describe o)", using={"o": blob})[0]) == "(Seen 7)"
