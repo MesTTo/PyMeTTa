@@ -39,7 +39,7 @@ from dataclasses import dataclass
 
 #: The manifest these rows were taken from.
 LEATTA_VERSION = "1.0.9"
-LEATTA_COMMIT = "c0ed0df"
+LEATTA_COMMIT = "39c7c43"
 LEATTA_ENTRY_COUNT = 382
 
 BUCKETS = {
@@ -633,11 +633,11 @@ ENTRIES: list[Entry] = [
         metta="!(gtry id a)", unrun="PeTTa leaves the call unreduced",
     ),
     Entry(
-        "check-alternatives", ("(-> Atom Atom)",), "Symbol", "control", "internal",
+        "_check-alternatives", ("(-> Atom Atom)",), "Symbol", "control", "internal",
         "LeaTTa's alternative-set check inside the Stratego basis.",
     ),
     Entry(
-        "case-empty", ("(-> Expression Atom)",), "Symbol", "control", "internal",
+        "_case-empty", ("(-> Expression Atom)",), "Symbol", "control", "internal",
         "LeaTTa's own decomposition of `case`.",
     ),
     Entry(
@@ -671,7 +671,7 @@ ENTRIES: list[Entry] = [
         "LeaTTa's own decomposition of `switch`.",
     ),
     Entry(
-        "switch-minimal%", ("(-> Atom Expression Atom)",), "Symbol", "control", "internal",
+        "_switch-minimal%", ("(-> Atom Expression Atom)",), "Symbol", "control", "internal",
         "LeaTTa's own decomposition of `switch`.",
     ),
     Entry(
@@ -1000,7 +1000,7 @@ ENTRIES: list[Entry] = [
         unrun="PeTTa leaves the MeTTa call unreduced",
     ),
     Entry(
-        "print-alternatives-each!", ("(-> Expression (->))",), "Symbol", "text", "internal",
+        "_print-alternatives-each!", ("(-> Expression (->))",), "Symbol", "text", "internal",
         "LeaTTa's per-alternative half of the printer.",
     ),
     # --------------------------------------------------------------- assert
@@ -1393,11 +1393,11 @@ ENTRIES: list[Entry] = [
         ),
     ),
     Entry(
-        "separate-errors", ("(-> Expression Expression Expression)",), "Symbol", "errors",
+        "_separate-errors", ("(-> Expression Expression Expression)",), "Symbol", "errors",
         "dissolves",
         "Partitioning answers into errors and results, which is one comprehension "
         "per side.",
-        metta="!(separate-errors ((Error a b) c) ())",
+        metta="!(_separate-errors ((Error a b) c) ())",
         python=(
             "answers = [S.Error(S.a, S.b), S.c]\n"
             "[a for a in answers if isinstance(a, metta.Expression) and a[0] == S.Error]"
@@ -1464,11 +1464,11 @@ ENTRIES: list[Entry] = [
         metta="!(stratego-some id (f a b))", unrun="PeTTa leaves the call unreduced",
     ),
     Entry(
-        "stratego-all-tail", ("(-> Atom Expression Expression)",), "Symbol", "strategies",
+        "_stratego-all-tail", ("(-> Atom Expression Expression)",), "Symbol", "strategies",
         "internal", "LeaTTa's internal tail recursion behind `stratego-all`.",
     ),
     Entry(
-        "stratego-some-walk", ("(-> Atom Expression Atom)",), "Symbol", "strategies",
+        "_stratego-some-walk", ("(-> Atom Expression Atom)",), "Symbol", "strategies",
         "internal", "LeaTTa's internal tail walk behind `stratego-some`, pairing "
         "the rebuilt tail with whether any member succeeded.",
     ),
@@ -1592,11 +1592,11 @@ ENTRIES: list[Entry] = [
         unrun="PeTTa leaves the call unreduced",
     ),
     Entry(
-        "metta-call", ("(-> Atom Type SpaceType Atom)",), "Symbol", "instructions", "internal",
+        "_metta-call", ("(-> Atom Type SpaceType Atom)",), "Symbol", "instructions", "internal",
         "LeaTTa's grounded-call step inside `metta`.",
     ),
     Entry(
-        "metta-call-result", ("(-> Atom Atom Type SpaceType Atom)",), "Symbol", "instructions",
+        "_metta-call-result", ("(-> Atom Atom Type SpaceType Atom)",), "Symbol", "instructions",
         "internal", "LeaTTa's grounded-call continuation inside `metta`.",
     ),
     Entry(

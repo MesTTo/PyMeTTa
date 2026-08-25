@@ -6,7 +6,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 922,
+  "metta_inferences": 694,
   "python": [
    "2"
   ],
@@ -19,7 +19,7 @@
   "metta": [
    "(f 1)"
   ],
-  "metta_inferences": 1284,
+  "metta_inferences": 672,
   "python": [
    "(f 1)"
   ],
@@ -32,7 +32,7 @@
   "metta": [
    "12"
   ],
-  "metta_inferences": 915,
+  "metta_inferences": 693,
   "python": [
    "12"
   ],
@@ -45,7 +45,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 915,
+  "metta_inferences": 693,
   "python": [
    "3"
   ],
@@ -58,7 +58,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 915,
+  "metta_inferences": 693,
   "python": [
    "3"
   ],
@@ -71,7 +71,7 @@
   "metta": [
    "(-> Number Number)"
   ],
-  "metta_inferences": 3882,
+  "metta_inferences": 1835,
   "python": [
    "(-> Number Number)"
   ],
@@ -84,14 +84,14 @@
   "metta": [
    "3.5"
   ],
-  "metta_inferences": 916,
+  "metta_inferences": 694,
   "python": [
    "3.5"
   ],
   "python_inferences": 0
  },
  "//": {
-  "leatta": "manifest 1.0.9, commit c0ed0df",
+  "leatta": "manifest 1.0.9, commit 39c7c43",
   "oracle_measured": true,
   "what": "measured answers, one record per stdlib name; --learn rewrites it"
  },
@@ -102,7 +102,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 928,
+  "metta_inferences": 712,
   "python": [
    "True"
   ],
@@ -115,7 +115,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 936,
+  "metta_inferences": 712,
   "python": [
    "True"
   ],
@@ -128,11 +128,11 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 2936,
+  "metta_inferences": 3967,
   "python": [
    "2"
   ],
-  "python_inferences": 1864
+  "python_inferences": 1936
  },
  "=%": {
   "leatta": [
@@ -148,7 +148,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1106,
+  "metta_inferences": 869,
   "python": [
    "True"
   ],
@@ -161,7 +161,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1059,
+  "metta_inferences": 672,
   "python": [
    "True"
   ],
@@ -174,7 +174,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 928,
+  "metta_inferences": 712,
   "python": [
    "True"
   ],
@@ -187,7 +187,7 @@
   "metta": [
    "False"
   ],
-  "metta_inferences": 937,
+  "metta_inferences": 713,
   "python": [
    "False"
   ],
@@ -200,7 +200,7 @@
   "metta": [
    "(@desc \"adds one\")"
   ],
-  "metta_inferences": 711,
+  "metta_inferences": 454,
   "python": [
    "\"adds one\""
   ],
@@ -213,7 +213,7 @@
   "metta": [
    "(@doc pbf (@desc \"adds one\"))"
   ],
-  "metta_inferences": 944,
+  "metta_inferences": 534,
   "python": [
    "\"adds one\""
   ],
@@ -226,7 +226,7 @@
   "metta": [
    "(@doc-formal (@item pbf) (@kind function) (@type (-> Number Number)) (@desc \"adds one\"))"
   ],
-  "metta_inferences": 1943,
+  "metta_inferences": 822,
   "python": [
    "(\"int\" \"adds one\")"
   ],
@@ -239,7 +239,7 @@
   "metta": [
    "(@item pbf)"
   ],
-  "metta_inferences": 690,
+  "metta_inferences": 473,
   "python": [
    "pbf"
   ],
@@ -252,7 +252,7 @@
   "metta": [
    "(@param \"the addend\")"
   ],
-  "metta_inferences": 735,
+  "metta_inferences": 454,
   "python": [
    "\"the addend\""
   ],
@@ -265,7 +265,7 @@
   "metta": [
    "(@params ((@param \"the addend\")))"
   ],
-  "metta_inferences": 965,
+  "metta_inferences": 521,
   "python": [
    "\"the addend\""
   ],
@@ -278,7 +278,7 @@
   "metta": [
    "(@return \"the sum\")"
   ],
-  "metta_inferences": 719,
+  "metta_inferences": 454,
   "python": [
    "\"the sum\""
   ],
@@ -291,7 +291,7 @@
   "metta": [
    "(@type Number)"
   ],
-  "metta_inferences": 714,
+  "metta_inferences": 473,
   "python": [
    "\"int\""
   ],
@@ -318,7 +318,7 @@
   "metta": [
    "(Error a b)"
   ],
-  "metta_inferences": 731,
+  "metta_inferences": 493,
   "python": [
    "(Error a b)"
   ],
@@ -331,7 +331,7 @@
   "metta": [
    "ErrorType"
   ],
-  "metta_inferences": 1357,
+  "metta_inferences": 1004,
   "python": [
    "ErrorType"
   ],
@@ -379,6 +379,15 @@
   "metta": null,
   "python": null
  },
+ "_separate-errors": {
+  "leatta": [
+   "(Error a b)"
+  ],
+  "metta": null,
+  "python": [
+   "(Error a b)"
+  ]
+ },
  "abs-math": {
   "leatta": [
    "3"
@@ -386,7 +395,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 861,
+  "metta_inferences": 626,
   "python": [
    "3"
   ],
@@ -399,7 +408,7 @@
   "metta": [
    "0.0"
   ],
-  "metta_inferences": 870,
+  "metta_inferences": 633,
   "python": [
    "0.0"
   ],
@@ -412,7 +421,7 @@
   "metta": [
    "(f 1)"
   ],
-  "metta_inferences": 2223,
+  "metta_inferences": 1472,
   "python": [
    "(f 1)"
   ],
@@ -427,7 +436,7 @@
    "(f 1)",
    "(f 2)"
   ],
-  "metta_inferences": 2488,
+  "metta_inferences": 1567,
   "python": [
    "(f 1)",
    "(f 2)"
@@ -441,11 +450,11 @@
   "metta": [
    "(total 3)"
   ],
-  "metta_inferences": 2728,
+  "metta_inferences": 1812,
   "python": [
    "(total 3)"
   ],
-  "python_inferences": 178
+  "python_inferences": 202
  },
  "add-reducts": {
   "leatta": [
@@ -456,12 +465,12 @@
    "(total 3)",
    "(total 4)"
   ],
-  "metta_inferences": 3483,
+  "metta_inferences": 2246,
   "python": [
    "(total 3)",
    "(total 4)"
   ],
-  "python_inferences": 307
+  "python_inferences": 355
  },
  "and": {
   "leatta": [
@@ -470,7 +479,7 @@
   "metta": [
    "False"
   ],
-  "metta_inferences": 1013,
+  "metta_inferences": 749,
   "python": [
    "False"
   ],
@@ -483,7 +492,7 @@
   "metta": [
    "0.0"
   ],
-  "metta_inferences": 870,
+  "metta_inferences": 633,
   "python": [
    "0.0"
   ],
@@ -496,7 +505,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1271,
+  "metta_inferences": 938,
   "python": [
    "True"
   ],
@@ -509,7 +518,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1909,
+  "metta_inferences": 1441,
   "python": [
    "True"
   ],
@@ -522,7 +531,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 2102,
+  "metta_inferences": 1517,
   "python": [
    "True"
   ],
@@ -535,7 +544,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1951,
+  "metta_inferences": 1380,
   "python": [
    "True"
   ],
@@ -548,7 +557,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 2147,
+  "metta_inferences": 1459,
   "python": [
    "True"
   ],
@@ -561,11 +570,11 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 2080,
+  "metta_inferences": 1667,
   "python": [
    "True"
   ],
-  "python_inferences": 90
+  "python_inferences": 114
  },
  "assertEqualMsg": {
   "leatta": [
@@ -574,11 +583,11 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 2241,
+  "metta_inferences": 1741,
   "python": [
    "True"
   ],
-  "python_inferences": 90
+  "python_inferences": 114
  },
  "assertEqualToResult": {
   "leatta": [
@@ -587,7 +596,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1928,
+  "metta_inferences": 1235,
   "python": [
    "True"
   ],
@@ -600,7 +609,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 2092,
+  "metta_inferences": 1314,
   "python": [
    "True"
   ],
@@ -613,7 +622,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1746,
+  "metta_inferences": 1178,
   "python": [
    "True"
   ],
@@ -626,7 +635,7 @@
   "metta": [
    "0.0"
   ],
-  "metta_inferences": 870,
+  "metta_inferences": 633,
   "python": [
    "0.0"
   ],
@@ -648,7 +657,7 @@
   "metta": [
    "(f 1)"
   ],
-  "metta_inferences": 2247,
+  "metta_inferences": 1472,
   "python": [
    "(f 1)"
   ],
@@ -675,7 +684,7 @@
   "metta": [
    "a"
   ],
-  "metta_inferences": 988,
+  "metta_inferences": 659,
   "python": [
    "a"
   ],
@@ -688,7 +697,7 @@
   "metta": [
    "two"
   ],
-  "metta_inferences": 1204,
+  "metta_inferences": 534,
   "python": [
    "two"
   ],
@@ -708,7 +717,7 @@
   "metta": [
    "(b c)"
   ],
-  "metta_inferences": 1012,
+  "metta_inferences": 683,
   "python": [
    "(b c)"
   ],
@@ -721,7 +730,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 884,
+  "metta_inferences": 631,
   "python": [
    "3"
   ],
@@ -734,11 +743,11 @@
   "metta": [
    "(foo 3)"
   ],
-  "metta_inferences": 1286,
+  "metta_inferences": 793,
   "python": [
    "(foo 3)"
   ],
-  "python_inferences": 90
+  "python_inferences": 114
  },
  "change-state!": {
   "leatta": [
@@ -747,11 +756,11 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 1832,
+  "metta_inferences": 1214,
   "python": [
    "2"
   ],
-  "python_inferences": 284
+  "python_inferences": 356
  },
  "collapse": {
   "leatta": [
@@ -760,7 +769,7 @@
   "metta": [
    "(a b)"
   ],
-  "metta_inferences": 964,
+  "metta_inferences": 523,
   "python": [
    "(a b)"
   ],
@@ -780,7 +789,7 @@
   "metta": [
    "(f a b)"
   ],
-  "metta_inferences": 1007,
+  "metta_inferences": 674,
   "python": [
    "(f a b)"
   ],
@@ -793,7 +802,7 @@
   "metta": [
    "(f 1)"
   ],
-  "metta_inferences": 1842,
+  "metta_inferences": 1044,
   "python": [
    "(f 1)"
   ],
@@ -806,7 +815,7 @@
   "metta": [
    "1.0"
   ],
-  "metta_inferences": 862,
+  "metta_inferences": 633,
   "python": [
    "1.0"
   ],
@@ -819,7 +828,7 @@
   "metta": [
    "(f (a b))"
   ],
-  "metta_inferences": 1019,
+  "metta_inferences": 668,
   "python": [
    "(f (a b))"
   ],
@@ -859,11 +868,11 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 1078,
+  "metta_inferences": 756,
   "python": [
    "3"
   ],
-  "python_inferences": 90
+  "python_inferences": 114
  },
  "eval-via-match": {
   "leatta": [
@@ -886,11 +895,11 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 1208,
+  "metta_inferences": 809,
   "python": [
    "3"
   ],
-  "python_inferences": 308
+  "python_inferences": 350
  },
  "filter-atom": {
   "leatta": [
@@ -899,7 +908,7 @@
   "metta": [
    "(2 3)"
   ],
-  "metta_inferences": 3353,
+  "metta_inferences": 3180,
   "python": [
    "(2 3)"
   ],
@@ -912,7 +921,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 892,
+  "metta_inferences": 631,
   "python": [
    "2"
   ],
@@ -925,11 +934,11 @@
   "metta": [
    "6"
   ],
-  "metta_inferences": 2254,
+  "metta_inferences": 1607,
   "python": [
    "6"
   ],
-  "python_inferences": 0
+  "python_inferences": 312
  },
  "for-each-in-atom": {
   "leatta": [
@@ -938,7 +947,7 @@
   "metta": [
    "(() ())"
   ],
-  "metta_inferences": 4333,
+  "metta_inferences": 3878,
   "python": [
    "()"
   ],
@@ -960,7 +969,7 @@
   "metta": [
    "\"a and b\""
   ],
-  "metta_inferences": 1335,
+  "metta_inferences": 920,
   "python": [
    "\"a and b\""
   ],
@@ -1002,7 +1011,7 @@
   "metta": [
    "(f 1)"
   ],
-  "metta_inferences": 2223,
+  "metta_inferences": 1472,
   "python": [
    "(f 1)"
   ],
@@ -1020,7 +1029,7 @@
    "(@doc-formal (@item +) (@kind function) (@type (-> Number Number Number)) (@desc \"Sums two numbers\") (@params ((@param (@type Number) (@desc \"Addend\")) (@param (@type Number) (@desc \"Augend\")))) (@return (@type Number) (@desc \"Sum\")))"
   ],
   "metta": [],
-  "metta_inferences": 1660,
+  "metta_inferences": 1393,
   "python": [
    "\"Make a title into a slug.\""
   ],
@@ -1033,7 +1042,7 @@
   "metta": [
    "Expression"
   ],
-  "metta_inferences": 777,
+  "metta_inferences": 444,
   "python": [
    "Expression"
   ],
@@ -1046,11 +1055,11 @@
   "metta": [
    "5"
   ],
-  "metta_inferences": 1391,
+  "metta_inferences": 867,
   "python": [
    "5"
   ],
-  "python_inferences": 183
+  "python_inferences": 231
  },
  "get-type": {
   "leatta": [
@@ -1059,11 +1068,11 @@
   "metta": [
    "Number"
   ],
-  "metta_inferences": 1002,
+  "metta_inferences": 779,
   "python": [
    "Number"
   ],
-  "python_inferences": 131
+  "python_inferences": 162
  },
  "get-type-space": {
   "leatta": [
@@ -1072,11 +1081,11 @@
   "metta": [
    "Number"
   ],
-  "metta_inferences": 1373,
+  "metta_inferences": 1034,
   "python": [
    "Number"
   ],
-  "python_inferences": 363
+  "python_inferences": 768
  },
  "git-import!": {
   "leatta": [
@@ -1085,7 +1094,7 @@
   "metta": [
    "Grounded"
   ],
-  "metta_inferences": 774,
+  "metta_inferences": 437,
   "python": [
    "json"
   ],
@@ -1121,7 +1130,7 @@
   "metta": [
    "5"
   ],
-  "metta_inferences": 790,
+  "metta_inferences": 613,
   "python": [
    "5"
   ],
@@ -1134,7 +1143,7 @@
   "metta": [
    "a"
   ],
-  "metta_inferences": 720,
+  "metta_inferences": 445,
   "python": [
    "a"
   ],
@@ -1156,7 +1165,7 @@
   "metta": [
    "yes"
   ],
-  "metta_inferences": 1411,
+  "metta_inferences": 1047,
   "python": [
    "yes"
   ],
@@ -1169,7 +1178,7 @@
   "metta": [
    "yes"
   ],
-  "metta_inferences": 4651,
+  "metta_inferences": 4196,
   "python": [
    "yes"
   ],
@@ -1182,7 +1191,7 @@
   "metta": [
    "a"
   ],
-  "metta_inferences": 8511,
+  "metta_inferences": 2034,
   "python": [
    "math"
   ],
@@ -1209,7 +1218,7 @@
   "metta": [
    "Grounded"
   ],
-  "metta_inferences": 742,
+  "metta_inferences": 437,
   "python": [
    "7"
   ],
@@ -1222,7 +1231,7 @@
   "metta": [
    "b"
   ],
-  "metta_inferences": 1085,
+  "metta_inferences": 693,
   "python": [
    "b"
   ],
@@ -1244,7 +1253,7 @@
    "b",
    "c"
   ],
-  "metta_inferences": 2446,
+  "metta_inferences": 1621,
   "python": [
    "b",
    "c"
@@ -1258,7 +1267,7 @@
   "metta": [
    "(b c)"
   ],
-  "metta_inferences": 1340,
+  "metta_inferences": 754,
   "python": [
    "(b c)"
   ],
@@ -1271,7 +1280,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 2008,
+  "metta_inferences": 1554,
   "python": [
    "True"
   ],
@@ -1284,7 +1293,7 @@
   "metta": [
    "False"
   ],
-  "metta_inferences": 890,
+  "metta_inferences": 649,
   "python": [
    "False"
   ],
@@ -1297,7 +1306,7 @@
   "metta": [
    "False"
   ],
-  "metta_inferences": 887,
+  "metta_inferences": 646,
   "python": [
    "False"
   ],
@@ -1310,7 +1319,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 1079,
+  "metta_inferences": 694,
   "python": [
    "2"
   ],
@@ -1330,7 +1339,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 1295,
+  "metta_inferences": 714,
   "python": [
    "3"
   ],
@@ -1359,7 +1368,7 @@
   "metta": [
    "3.0"
   ],
-  "metta_inferences": 978,
+  "metta_inferences": 700,
   "python": [
    "3.0"
   ],
@@ -1372,7 +1381,7 @@
   "metta": [
    "(2 3 4)"
   ],
-  "metta_inferences": 2047,
+  "metta_inferences": 1487,
   "python": [
    "(2 3 4)"
   ],
@@ -1385,11 +1394,11 @@
   "metta": [
    "1"
   ],
-  "metta_inferences": 2351,
+  "metta_inferences": 1485,
   "python": [
    "1"
   ],
-  "python_inferences": 67
+  "python_inferences": 13611
  },
  "match%": {
   "leatta": [],
@@ -1403,7 +1412,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 1005,
+  "metta_inferences": 642,
   "python": [
    "3"
   ],
@@ -1416,11 +1425,11 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 1594,
+  "metta_inferences": 1089,
   "python": [
    "3"
   ],
-  "python_inferences": 90
+  "python_inferences": 114
  },
  "min-atom": {
   "leatta": [
@@ -1429,7 +1438,7 @@
   "metta": [
    "1"
   ],
-  "metta_inferences": 1005,
+  "metta_inferences": 642,
   "python": [
    "1"
   ],
@@ -1486,7 +1495,7 @@
  "new-space": {
   "leatta": [],
   "metta": [],
-  "metta_inferences": 1034,
+  "metta_inferences": 704,
   "python": [],
   "python_inferences": 69
  },
@@ -1497,11 +1506,11 @@
   "metta": [
    "1"
   ],
-  "metta_inferences": 1199,
+  "metta_inferences": 914,
   "python": [
    "1"
   ],
-  "python_inferences": 183
+  "python_inferences": 771
  },
  "noeval": {
   "leatta": [
@@ -1510,7 +1519,7 @@
   "metta": [
    "(+ 1 2)"
   ],
-  "metta_inferences": 791,
+  "metta_inferences": 445,
   "python": [
    "(+ 1 2)"
   ],
@@ -1523,7 +1532,7 @@
   "metta": [
    "()"
   ],
-  "metta_inferences": 670,
+  "metta_inferences": 424,
   "python": [
    "()"
   ],
@@ -1536,7 +1545,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1623,
+  "metta_inferences": 1062,
   "python": [
    "True"
   ],
@@ -1549,7 +1558,7 @@
   "metta": [
    "False"
   ],
-  "metta_inferences": 858,
+  "metta_inferences": 661,
   "python": [
    "False"
   ],
@@ -1562,7 +1571,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1005,
+  "metta_inferences": 749,
   "python": [
    "True"
   ],
@@ -1575,7 +1584,7 @@
   "metta": [
    "8.0"
   ],
-  "metta_inferences": 998,
+  "metta_inferences": 704,
   "python": [
    "8.0"
   ],
@@ -1606,7 +1615,7 @@
   "metta": [
    "()"
   ],
-  "metta_inferences": 897,
+  "metta_inferences": 652,
   "python": [
    "()"
   ],
@@ -1619,7 +1628,7 @@
   "metta": [
    "(quote (+ 1 2))"
   ],
-  "metta_inferences": 785,
+  "metta_inferences": 447,
   "python": [
    "(quote (+ 1 2))"
   ],
@@ -1651,7 +1660,7 @@
  "remove-atom": {
   "leatta": [],
   "metta": [],
-  "metta_inferences": 2716,
+  "metta_inferences": 1594,
   "python": [],
   "python_inferences": 122
  },
@@ -1676,7 +1685,7 @@
   "metta": [
    "b"
   ],
-  "metta_inferences": 3305,
+  "metta_inferences": 2998,
   "python": [
    "b"
   ],
@@ -1689,7 +1698,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 892,
+  "metta_inferences": 631,
   "python": [
    "3"
   ],
@@ -1702,20 +1711,11 @@
   "metta": [
    "($x $y#0)"
   ],
-  "metta_inferences": 822,
+  "metta_inferences": 465,
   "python": [
    "($_v0 $_v1)"
   ],
   "python_inferences": 175
- },
- "separate-errors": {
-  "leatta": [
-   "(Error a b)"
-  ],
-  "metta": null,
-  "python": [
-   "(Error a b)"
-  ]
  },
  "sin-math": {
   "leatta": [
@@ -1724,7 +1724,7 @@
   "metta": [
    "0.0"
   ],
-  "metta_inferences": 862,
+  "metta_inferences": 633,
   "python": [
    "0.0"
   ],
@@ -1737,7 +1737,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 986,
+  "metta_inferences": 651,
   "python": [
    "3"
   ],
@@ -1764,7 +1764,7 @@
   "metta": [
    "(\"a\" \"b\" \"c\")"
   ],
-  "metta_inferences": 1047,
+  "metta_inferences": 688,
   "python": [
    "(\"a\" \"b\" \"c\")"
   ],
@@ -1777,7 +1777,7 @@
   "metta": [
    "2.0"
   ],
-  "metta_inferences": 870,
+  "metta_inferences": 633,
   "python": [
    "2.0"
   ],
@@ -1815,7 +1815,7 @@
    "a",
    "b"
   ],
-  "metta_inferences": 2278,
+  "metta_inferences": 1498,
   "python": [
    "a",
    "b"
@@ -1829,7 +1829,7 @@
   "metta": [
    "(a b)"
   ],
-  "metta_inferences": 1279,
+  "metta_inferences": 738,
   "python": [
    "(a b)"
   ],
@@ -1844,12 +1844,12 @@
    "a",
    "b"
   ],
-  "metta_inferences": 774,
+  "metta_inferences": 465,
   "python": [
    "a",
    "b"
   ],
-  "python_inferences": 0
+  "python_inferences": 5225
  },
  "superpose-bind": {
   "leatta": [
@@ -1865,7 +1865,7 @@
   "metta": [
    "two"
   ],
-  "metta_inferences": 1441,
+  "metta_inferences": 782,
   "python": [
    "two"
   ],
@@ -1878,7 +1878,7 @@
   "metta": [
    "0.0"
   ],
-  "metta_inferences": 862,
+  "metta_inferences": 633,
   "python": [
    "0.0"
   ],
@@ -1898,7 +1898,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 1407,
+  "metta_inferences": 1012,
   "python": [
    "3"
   ],
@@ -1911,7 +1911,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 892,
+  "metta_inferences": 633,
   "python": [
    "2"
   ],
@@ -1931,11 +1931,11 @@
   "metta": [
    "a"
   ],
-  "metta_inferences": 1013,
+  "metta_inferences": 528,
   "python": [
    "a"
   ],
-  "python_inferences": 230
+  "python_inferences": 231
  },
  "unify%": {
   "leatta": [
@@ -1959,7 +1959,7 @@
    "b",
    "c"
   ],
-  "metta_inferences": 2472,
+  "metta_inferences": 1771,
   "python": [
    "a",
    "b",
@@ -1976,7 +1976,7 @@
   "metta": [
    "(a b b b c)"
   ],
-  "metta_inferences": 1154,
+  "metta_inferences": 698,
   "python": [
    "(a b b b c)"
   ],
@@ -1993,7 +1993,7 @@
    "b",
    "c"
   ],
-  "metta_inferences": 1691,
+  "metta_inferences": 1202,
   "python": [
    "a",
    "b",
@@ -2008,7 +2008,7 @@
   "metta": [
    "(a b c)"
   ],
-  "metta_inferences": 1079,
+  "metta_inferences": 691,
   "python": [
    "(a b c)"
   ],
@@ -2021,11 +2021,11 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 1868,
+  "metta_inferences": 1413,
   "python": [
    "3"
   ],
-  "python_inferences": 90
+  "python_inferences": 114
  },
  "xor": {
   "leatta": [
@@ -2034,7 +2034,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1013,
+  "metta_inferences": 749,
   "python": [
    "True"
   ],
