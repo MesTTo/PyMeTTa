@@ -3,11 +3,11 @@ Guarantees:
   - known parameter names are validated with Python's Signature.bind and
     returned in declaration order [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
-    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
+    commit=WORKTREE]
   - a head with no known signature refuses keywords with an actionable
     positional spelling [tested:
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
-    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -33,11 +33,13 @@ def bind_positional_call(
     duplicate, and unexpected arguments; ``BoundArguments.args`` then exposes
     every positional-or-keyword value in declaration order. [source:
     https://docs.python.org/3.13/library/inspect.html#inspect.Signature.bind;
-    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
+    commit=WORKTREE]
     """
     signature = inspect.Signature(
-        inspect.Parameter(parameter, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-        for parameter in parameters
+        tuple(
+            inspect.Parameter(parameter, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            for parameter in parameters
+        )
     )
     try:
         bound = signature.bind(*args, **kwargs)
