@@ -25,6 +25,10 @@ Guarantees:
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - resolved bang mutations invalidate the owning space's builtin catalogue
     [tested: test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - bound functions place call-site keywords against their exact definition or
+    operation signature [tested:
+    test_known_call_site_keywords_bind_to_positional_metta_arguments;
+    commit=WORKTREE]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -47,8 +51,10 @@ from collections.abc import Iterable
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
+from ._call_binding import bind_positional_call, refuse_unknown_keywords
 from ._engine import Runtime
 from ._name_mapping import OperatorRecipe, operator_attribute_target
+from ._space_definitions import call_parameter_names
 from .atoms import (
     Atom,
     Expression,
@@ -920,7 +926,7 @@ class _EngineFunction:
     def _term(self, args: tuple) -> Expression:
         return Expression([Symbol(self._name), *(_encode(a) for a in args)])
 
-    def __call__(self, *args: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Evaluate this call and return its replayable Answers.
 
         MeTTa's trailing ``!`` is its effect marker, not a Python convention
@@ -928,6 +934,13 @@ class _EngineFunction:
         at the call boundary so the statement has happened when its line
         completes.  Non-bang calls retain demand-driven evaluation.
         """
+        if kwargs:
+            parameters = call_parameter_names(
+                self._space, self._name, len(args) + len(kwargs)
+            )
+            if parameters is None:
+                raise refuse_unknown_keywords(self._name, tuple(kwargs))
+            args = bind_positional_call(self._name, parameters, args, kwargs)
         answers = self._space.answers(self._term(args))
         if self._name.endswith("!"):
             answers._materialize()

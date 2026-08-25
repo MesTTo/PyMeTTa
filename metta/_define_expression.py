@@ -41,6 +41,11 @@ Guarantees:
     engine cell handle and ``get-state`` rather than host attribute access
     [tested: test_compiled_state_properties_round_trip_through_engine_heads;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - keyword-bearing calls whose parameter names are known lower to positional
+    applications, while unknown heads refuse with a positional remedy [tested:
+    test_known_call_site_keywords_bind_to_positional_metta_arguments,
+    test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -57,6 +62,7 @@ import operator
 import types
 from collections.abc import Callable
 
+from ._call_binding import bind_positional_call, refuse_unknown_keywords
 from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext, next_aux_serial
 from ._name_mapping import (
@@ -593,11 +599,7 @@ class ExpressionCompilerMixin(CompilerContext):
         if composite is not None:
             return composite
         if node.keywords:
-            msg = (
-                "a call in a compiled body passes positional arguments; MeTTa "
-                "application has no keywords"
-            )
-            raise CompileError(msg, construct="keyword argument", line=node.lineno)
+            return self._keyword_call(node)
         mentioned = self._mention(node.func)
         if mentioned is not None:
             return Expression([mentioned, *(self.expression(a) for a in node.args)])
@@ -621,6 +623,60 @@ class ExpressionCompilerMixin(CompilerContext):
             return _PYBUILTIN_CALLS[func.id](self, node)
         callee = self._x_Name(func)
         return Expression([callee, *(self.expression(a) for a in node.args)])
+
+    def _keyword_call(self, node: ast.Call) -> Atom:
+        """Place keywords against a known signature before emitting the term."""
+        if any(isinstance(argument, ast.Starred) for argument in node.args) or any(
+            keyword.arg is None for keyword in node.keywords
+        ):
+            msg = "compiled call-site keywords do not accept *args or **kwargs expansion"
+            raise CompileError(msg, construct="keyword argument", line=node.lineno)
+
+        display = ast.unparse(node.func)
+        total = len(node.args) + len(node.keywords)
+        parameters: tuple[str, ...] | None = None
+        callee: Atom | None = None
+        if isinstance(node.func, ast.Name):
+            resolved = self._resolved_name(node.func.id)
+            if resolved is not None:
+                parameters = self._bound_call_parameters(node.func.id, total)
+                if parameters is None:
+                    parameters = self.call_parameters(resolved, total)
+                callee = self._x_Name(node.func)
+        else:
+            mentioned = self._mention(node.func)
+            if isinstance(mentioned, Symbol):
+                callee = mentioned
+                if self._builder_root(node.func) == "fn":
+                    parameters = self.call_parameters(mentioned.name, total)
+
+        if parameters is None or callee is None:
+            refusal = refuse_unknown_keywords(
+                display, tuple(keyword.arg for keyword in node.keywords if keyword.arg)
+            )
+            raise CompileError(
+                str(refusal), construct="keyword argument", line=node.lineno
+            )
+        try:
+            ordered = bind_positional_call(
+                display,
+                parameters,
+                node.args,
+                {keyword.arg: keyword.value for keyword in node.keywords if keyword.arg},
+            )
+        except TypeError as error:
+            raise CompileError(
+                str(error), construct="keyword argument", line=node.lineno
+            ) from error
+        return Expression([callee, *(self.expression(argument) for argument in ordered)])
+
+    @staticmethod
+    def _builder_root(node: ast.expr) -> str | None:
+        if isinstance(node, (ast.Attribute, ast.Subscript)) and isinstance(
+            node.value, ast.Name
+        ):
+            return node.value.id
+        return None
 
     def _composite_operator_call(self, node: ast.Call) -> Atom | None:
         """Lower an unshadowed S/fn call whose operator image is a recipe."""

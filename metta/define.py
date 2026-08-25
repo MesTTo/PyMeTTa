@@ -52,6 +52,10 @@ Guarantees:
     arithmetic [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
     commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
+  - known call-site keywords bind to the definition's parameter order both at
+    the live door and inside compiled bodies [tested:
+    test_known_call_site_keywords_bind_to_positional_metta_arguments;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -67,6 +71,7 @@ import types
 from collections.abc import Callable
 from typing import Any, NamedTuple, cast
 
+from ._call_binding import bind_positional_call
 from ._define_expression import ExpressionCompilerMixin
 from ._define_facts import DefinitionFacts, SourceSpan, derive_definition_facts
 from ._define_loops import LoopCompilerMixin
@@ -325,7 +330,9 @@ class Defined[**P, R]:
         self.__name__ = name
         self.__wrapped__ = py
 
-    def __call__(self, *args: Any) -> Atom | Answers[Any]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    def __call__(self, *args: Any, **kwargs: Any) -> Atom | Answers[Any]:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        if kwargs:
+            args = bind_positional_call(self.name, self.params, args, kwargs)
         if len(args) != len(self.params):
             msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
             raise TypeError(msg)
@@ -509,6 +516,7 @@ def compile_function(
     *,
     returns_bool: Callable[[str], bool] | None = None,
     defined_name: Callable[[object], str | None] | None = None,
+    call_parameters: Callable[[str, int], tuple[str, ...] | None] | None = None,
 ) -> Compiled:
     """Read a function's source into a Compiled clause.
 
@@ -600,6 +608,8 @@ def compile_function(
         builders=builders,
         host_value=host_value,
         defined_name=defined_name,
+        call_parameters=call_parameters,
+        signature_params=tuple(params),
         annotation_resolver=annotation_resolver,
         space_locals=space_parameters,
     )
@@ -716,6 +726,8 @@ class _Compiler(
         builders: frozenset[str] = frozenset(),
         host_value: Callable[[str], Any] | None = None,
         defined_name: Callable[[object], str | None] | None = None,
+        call_parameters: Callable[[str, int], tuple[str, ...] | None] | None = None,
+        signature_params: tuple[str, ...] = (),
         runtime_ops: set[str] | None = None,
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
@@ -733,6 +745,10 @@ class _Compiler(
         self.builders = builders
         self.host_value = _provided(host_value, lambda _name: _MISSING_HOST)
         self.defined_name = _provided(defined_name, lambda _value: None)
+        self._given_call_parameters = _provided(
+            call_parameters, lambda _name, _arity: None
+        )
+        self.signature_params = signature_params
         # The prelude operations this definition leans on, and the reasons
         # its Python twin cannot run (a match, a constructor); both shared
         # across every compiler of the definition, like aux.
@@ -809,6 +825,21 @@ class _Compiler(
         value = self.host_value(identifier)
         return value.name if isinstance(value, Defined) else self.defined_name(value)
 
+    def call_parameters(self, called: str, arity: int) -> tuple[str, ...] | None:
+        """Return positional parameter names only when this call shape is known."""
+        if called == self.name and arity == len(self.signature_params):
+            return self.signature_params
+        return self._given_call_parameters(called, arity)
+
+    def _bound_call_parameters(
+        self, identifier: str, arity: int
+    ) -> tuple[str, ...] | None:
+        """Read parameters only from an exact lexically bound Defined value."""
+        value = self.host_value(identifier)
+        if isinstance(value, Defined) and arity == len(value.params):
+            return tuple(value.params)
+        return None
+
     def _fork(self) -> _Compiler:
         """A compiler for one branch: its own scope, the shared minted set."""
         return self._nested_compiler(self.scope.copy())
@@ -829,6 +860,8 @@ class _Compiler(
             builders=self.builders,
             host_value=self.host_value,
             defined_name=self.defined_name,
+            call_parameters=self._given_call_parameters,
+            signature_params=self.signature_params,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
@@ -864,6 +897,8 @@ class _Compiler(
             builders=self.builders,
             host_value=self.host_value,
             defined_name=self.defined_name,
+            call_parameters=self._given_call_parameters,
+            signature_params=self.signature_params,
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,

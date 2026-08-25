@@ -20,6 +20,9 @@ Guarantees:
     used by property reads and writes [tested:
     test_compiled_state_properties_round_trip_through_engine_heads;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - expression lowering can request exact parameter names for a known call
+    shape [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments;
+    commit=WORKTREE]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -83,6 +86,14 @@ class CompilerContext:
         raise NotImplementedError
 
     def _bound_defined_name(self, identifier: str) -> str | None:
+        raise NotImplementedError
+
+    def call_parameters(self, called: str, arity: int) -> tuple[str, ...] | None:
+        raise NotImplementedError
+
+    def _bound_call_parameters(
+        self, identifier: str, arity: int
+    ) -> tuple[str, ...] | None:
         raise NotImplementedError
 
     def _fork(self) -> CompilerContext:

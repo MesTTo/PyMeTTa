@@ -79,6 +79,10 @@ Guarantees:
     declarations remain space-relative while the atom owns the concise
     spelling [tested: test_atom_cast_delegates_to_the_ambient_space;
     commit=49c43f86fa17a20ecebf9f9dbb5514de4762297d]
+  - Grounded heads preserve keyword arguments for the py-call seam, while a
+    signature-free Symbol refuses keywords it cannot position [tested:
+    test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
+    commit=WORKTREE]
   - symbolic operator rows specialize into direct constructors once at import,
     so term-operators costs 660489697 instructions:u, 27.86% below its
     915593600 baseline [measured: minimum of 660489757, 660489704,
@@ -114,6 +118,7 @@ from functools import singledispatch
 from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, Self, cast, overload
 
+from ._call_binding import refuse_unknown_keywords
 from ._callable_mentions import callable_mention
 from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
 
@@ -643,19 +648,18 @@ class Symbol(Atom):
     def __call__(self, *args: Any, **kwargs: Any) -> Expression:
         """A symbol applied is an expression headed by it: S.likes(S.Ada).
 
-        Keyword arguments append the seam's own `(Kwargs (name value)...)`
-        form, so Python's keyword syntax reaches a Python operation across
-        the boundary: `S.f(4, step=2)` builds `(f 4 (Kwargs (step 2)))`,
-        the exact form bridge.pl's py-call splits. Names stay exact,
-        because they are Python parameter names, not MeTTa vocabulary.
+        A bare symbol carries no parameter names, so it cannot decide where a
+        keyword belongs in MeTTa's positional application and refuses with the
+        positional remedy. Bound functions and Defined values carry signatures.
         """
-        return _applied_atoms(self, args, kwargs)
+        if kwargs:
+            display = f"S.{self.name}"
+            raise refuse_unknown_keywords(display, tuple(kwargs))
+        return _applied_atoms(self, args, {})
 
 
 def _applied_atoms(head: Atom, args: tuple, kwargs: dict) -> Expression:
-    """One application builder for every head kind: positional children,
-    then the `(Kwargs ...)` tail when keywords were given.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    """Build a head's positional children and optional Python-call keyword tail."""
     children = [head, *(encode(a) for a in args)]
     if kwargs:
         pairs = tuple(

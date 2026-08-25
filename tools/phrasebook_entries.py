@@ -32,9 +32,9 @@ Guarantees:
   - the Python-first table teaches the concise atom cast, root catalog,
     hygienic variable, pattern-instantiation, compiled reader-pattern,
     anonymous provenance, ``reacts`` declaration, composite operator words,
-    and compiled assertion/removal statements
+    compiled assertion/removal statements, and signature-bound call keywords
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -124,6 +124,11 @@ class PublicFace:
 
 
 PUBLIC_FACES: tuple[PublicFace, ...] = (
+    PublicFace(
+        "defined(right=value, left=value); space.fn.op(right=value, left=value)",
+        "place call-site keywords in a known definition or operation signature",
+        "answer = relation(destination=S.Bob, source=S.Ada)",
+    ),
     PublicFace(
         "assert condition, reason",
         "continue on truth or answer (Error condition reason) from a compiled body",
