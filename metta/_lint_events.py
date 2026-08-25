@@ -33,6 +33,7 @@ from pathlib import Path
 from types import FrameType, FunctionType
 from typing import Any
 
+from ._ops import live_registration
 from .atoms import Atom, Expression, Grounded, Symbol
 
 # These are the adopted authorities, not implementation folklore. Keeping the
@@ -586,10 +587,6 @@ def clear(space: Any) -> None:
         _RUNTIMES.pop(name, None)
 
 
-def _registered_operation(value: Any) -> Any | None:
-    return getattr(value, "__petta_operation__", None)
-
-
 class _LoopCrossings(ast.NodeVisitor):
     def __init__(self, fn: FunctionType, path: str, first_line: int, atom: Atom) -> None:
         self.fn = fn
@@ -610,7 +607,7 @@ class _LoopCrossings(ast.NodeVisitor):
     def _operation(self, node: ast.expr) -> Any | None:
         if not isinstance(node, ast.Name):
             return None
-        return _registered_operation(self.bindings.get(node.id))
+        return live_registration(self.bindings.get(node.id))
 
     def _emit(self, node: ast.expr, operation: Any) -> None:
         line = self.first_line + node.lineno - 1

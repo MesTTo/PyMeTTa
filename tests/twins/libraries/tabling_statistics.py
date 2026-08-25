@@ -27,10 +27,9 @@ its own performs no engine work and the counters below it would all read zero
 for that reason too. The example's own `(collapse (reach a $y))` is what forces
 it, and `list(...)` is that collapse.
 
-`reach` is written by `@m.define` and tabled by hand rather than by `@m.cache`,
-whose `cache_info()` is this counter set under Python's own name, for the
-reason tabling_space_write gives: the compiled `match(...)` names its space,
-and caching refuses the two-argument form that would let it stay silent.
+`reach` is written by `@m.define` and tabled through `lib.tabling`. `@m.cache`
+uses the distinct exact-bag memo substrate, whose `cache_info()` reports memo
+entries and answer occurrences rather than SWI table counters.
 """
 
 from metta import S, V, lib, match

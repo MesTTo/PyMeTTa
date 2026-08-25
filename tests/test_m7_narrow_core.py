@@ -1,11 +1,8 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the renamed package surface has 100 names and keeps ``record`` and
+  - the renamed package surface has 102 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
-  - the renamed package surface has  and keeps ``record`` and
-    ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+    commit=WORKTREE]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - every retired root, context, and atom name is absent rather than aliased
@@ -64,18 +61,18 @@ FINAL_METTA_METHODS = 20
 # and therefore needs no name; +1 for doc, the get-doc receiver verb on the
 # default context, landing beside match and eval; +2 for the library import
 # door, `lib` the catalog-generated namespace the write door consumes and
-# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +6
-# for under, counting, tropical, prov, ranked and prob. The deliberate pin is
+# +6 for under, counting, tropical, prov, ranked and prob. The deliberate pin is
 # the algebra-carrier surface adopted in ai-python-first-revamp-discussion.md
-# lines 3024-3034 and 5471-5492.
-# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +1
-# for the exact ``metta.speculate()`` module-tier spelling required by style
-# ledger ``ai-python-conventions.md:1732-1733``.
-# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +1 for
-# the lazy strategies namespace. P14.11 and the design ledger at
+# lines 3024-3034 and 5471-5492; +1 for the exact ``metta.speculate()``
+# module-tier spelling required by style ledger
+# ``ai-python-conventions.md:1732-1733``; +1 for the lazy strategies namespace.
+# P14.11 and the design ledger at
 # ai-python-first-revamp-discussion.md:2921-2933 require the namespace but keep
-# each combinator as a reified term rather than another root callable.
-FINAL_METTA_EXPORTS = 100
+# each combinator as a reified term rather than another root callable; +1 for
+# the module-tier ``@metta.op`` primitive required by
+# ``ai-python-conventions.md:290``; +1 for the visible inline-host marker
+# ``py(expr)`` required by ``ai-python-conventions.md:1194-1212``.
+FINAL_METTA_EXPORTS = 102
 
 SATELLITES = {
     "aio",

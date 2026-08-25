@@ -81,6 +81,7 @@ from .errors import NotReducible, PettaError, is_transport_failure
 from .vocabularies import EffectClass
 
 __all__ = [
+    "OPERATION_REGISTRATION",
     "REGISTRY",
     "Operation",
     "dispatch",
@@ -89,6 +90,7 @@ __all__ = [
     "dispatch_many",
     "dispatch_raw",
     "dispatch_raw_many",
+    "live_registration",
 ]
 
 # The wire form the shim treats as failure rather than a value: the operation
@@ -126,6 +128,19 @@ class Operation:
 
 
 REGISTRY: dict[str, Operation] = {}
+
+# The attribute a registration wrapper carries so a reader resolves the Python
+# object rather than guessing from its source spelling. Private metadata on
+# the wrapper: it never enters the operation's call path.
+OPERATION_REGISTRATION = "__metta_operation_registration__"
+
+
+def live_registration(fn: Any) -> Operation | None:
+    """The registration a callable carries, while the registry still owns it."""
+    operation = getattr(fn, OPERATION_REGISTRATION, None)
+    if isinstance(operation, Operation) and REGISTRY.get(operation.name) is operation:
+        return operation
+    return None
 
 
 def _decode_arg(wire: Any, pass_atoms: bool, annotation: Any = Any) -> Any:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape

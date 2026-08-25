@@ -24,6 +24,9 @@ Guarantees:
     compiled State read or write cannot be advertised as immutable [tested:
     test_compiled_state_properties_round_trip_through_engine_heads;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - an exact ``py`` marker binding is always oracleIO even if an engine symbol
+    with the same spelling carries weaker metadata [tested:
+    test_py_host_island_executes_per_engine_application; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -140,10 +143,12 @@ class _EffectAnalysis(ast.NodeVisitor):
         local_functions: set[str],
         known: Callable[[str], bool],
         effect: Callable[[str], EffectClass],
+        host_island_names: frozenset[str],
     ) -> None:
         self.local_functions = local_functions
         self.known = known
         self.declared_effect = effect
+        self.host_island_names = host_island_names
         self.result = EffectClass.pureStructural
 
     def _join(self, effect: EffectClass) -> None:
@@ -154,7 +159,9 @@ class _EffectAnalysis(ast.NodeVisitor):
             self._join(EffectClass.oracleIO)
         else:
             name = node.func.id
-            if name == "match":
+            if name in self.host_island_names:
+                self._join(EffectClass.oracleIO)
+            elif name == "match":
                 # ``match(pattern, body)`` consults the definition's space
                 # and may produce several bindings, but it does not mutate
                 # that space. Calls nested in the first argument are pattern
@@ -215,6 +222,7 @@ def derive_definition_facts(
     first_line: int,
     known: Callable[[str], bool],
     effect: Callable[[str], EffectClass],
+    host_island_names: frozenset[str],
 ) -> DefinitionFacts:
     """Derive facts from the same syntax tree compilation consumes."""
     path = inspect.getsourcefile(fn) or inspect.getfile(fn)
@@ -243,7 +251,7 @@ def derive_definition_facts(
         for node in ast.walk(definition)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
-    effects = _EffectAnalysis(local_functions, known, effect)
+    effects = _EffectAnalysis(local_functions, known, effect, host_island_names)
     for statement in definition.body:
         effects.visit(statement)
 

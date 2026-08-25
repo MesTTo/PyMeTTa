@@ -97,6 +97,11 @@ Guarantees:
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``Space.cache`` stores complete answer bags independently of manual memo
+    policy and refuses an operation wrapper before definition registration
+    [tested: test_a_cached_definition_preserves_duplicate_answers,
+    test_cache_over_an_operation_refuses_before_definition_registration;
+    commit=WORKTREE]
   - encoded generator tuple and sparse-dict yields are relational candidate
     bindings in every call direction [tested:
     test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
@@ -3406,44 +3411,32 @@ class Space(Handle):
         name: str | None = None,
         unchecked: bool = False,
     ) -> Any:
-        """Define a function and TABLE it, in functools.lru_cache's shape.
+        """Define a function and memoize its complete answer bag.
 
-        The decorator is notation. What it lowers to is the engine's own
-        tabling declaration, `(tabled (<name> $a ...))`, so the answers come
-        from SWI's answer trie and stay correct across writes to the spaces
-        the body reads: a declared table is incremental, and a write that
-        invalidates it is re-evaluated rather than answered stale
-        [source: lib/lib_tabling.pl, metta_tabled_decl/2].
+        The decorator is notation over the engine's ``lib_memo`` substrate.
+        Each call key stores every answer occurrence, so caching changes when
+        work happens without changing result multiplicity.
 
             @m.cache
             def fib(n):
                 return n if n < 2 else fib(n - 1) + fib(n - 2)
 
             fib(25)               # [75025], linear rather than exponential
-            fib.cache_info()      # {'tables': 26, 'answers': 26, ...}
+            fib.cache_info()      # {'entries': 26, 'answers': 26}
             fib.cache_clear()
 
         `unchecked=True` is the declaration that ACCEPTS STALENESS: the
-        purity walk is skipped and the table is plain, which is the only way
-        to table a body whose reads the engine cannot resolve. It is the
+        purity walk is skipped, which is the only way to memoize a body whose
+        reads the engine cannot prove stable. It is the
         engine's `(cache <name> unchecked)`, not a size, and there is no
-        maxsize here because a table is not a fixed-size cache: it holds the
-        answers for the calls that were made.
+        maxsize argument here because engine memo policy owns its limits.
 
-        The counters are the table's, so `cache_info()` answers `tables`,
-        `answers`, `complete-call`, `invalidated` and `reevaluated` rather
-        than lru_cache's hits and misses
-        [tested: test_a_cached_definition_tables_and_answers_from_its_trie].
+        `cache_info()` reports this function's live call-key entries and the
+        number of answer occurrences stored across them.
 
-        WHAT THIS CHANGES, and lru_cache does not: a table normalises answer
-        ORDER and DUPLICATES away. `(= (f) a) (= (f) a) (= (f) b)` answers the
-        bag `a a b` and answers `a b` once tabled. The arbiter leaves order
-        unspecified and SPECIFIES multiplicity, so dropping the repeat is a
-        real change to what the function means and this decorator is the place
-        that asks for it. Cache a function whose equations are exclusive, or
-        one whose callers only ever ask whether an answer is there. lib_memo's
-        `(memoized ...)` keeps the bag and is the door for everything else
-        [tested: test_a_cached_definition_normalises_duplicate_answers_away].
+        Result order is unspecified but result multiplicity is observable.
+        ``a, a, b`` therefore remains ``a, a, b`` after caching [tested:
+        test_a_cached_definition_preserves_duplicate_answers; commit=WORKTREE].
         """
         if fn is None:
             return lambda function: self._cache_define(function, name, unchecked=unchecked)
@@ -3452,25 +3445,30 @@ class Space(Handle):
     def _cache_define(
         self, fn: Callable[..., Any], name: str | None, *, unchecked: bool
     ) -> Any:
-        """define, then the tabling declaration for what it defined."""
+        """Define, then install the multiplicity-preserving memo declaration."""
+        operation = _ops_module._registered_operation(fn)
+        if operation is not None:
+            msg = (
+                f"@metta.cache cannot wrap @metta.op {operation.name!r}; "
+                "memoize a host callable with functools.cache or "
+                "functools.lru_cache instead"
+            )
+            raise TypeError(msg)
         defined = install_define(self, fn, name)
-        # The declaration lives in lib_tabling, which is an ordinary library
+        # The declaration lives in lib_memo, which is an ordinary library
         # import rather than a load: import! skips a file already in the space,
         # so a second @m.cache in the same space costs one lookup.
         self.eval(Expression([Symbol("import!"), self,
-                        Expression([Symbol("library"), Symbol("lib_tabling")])]))
+                        Expression([Symbol("library"), Symbol("lib_memo")])]))
         if unchecked:
             self.add(Expression([Symbol("cache"), Symbol(defined.name), Symbol("unchecked")]))
-        declared = self.eval(Expression([Symbol("tabled"), defined.head]))
-        if declared != [True]:
-            msg = (
-                f"{defined.name}: the engine refused the tabling declaration, "
-                f"answering {declared!r}. A body whose reads it cannot resolve "
-                f"is refused rather than tabled without the invalidation "
-                f"guarantee; cache(unchecked=True) accepts that staleness."
-            )
-            raise EngineError(msg)
-        defined._uses_main_engine = True
+        self.runtime.must(
+            "petta_py_module(Space, Module), "
+            "petta_py_in_module(Module, lib_memo:memoize_exact(Fun))",
+            Space=self.name,
+            Fun=defined.name,
+        )
+        defined._memoized = True
         return defined
 
     def type(self, atom: Any) -> Atom:

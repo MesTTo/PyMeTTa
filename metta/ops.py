@@ -61,6 +61,11 @@ Guarantees:
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the returned staging wrapper carries its registration identity through
+    functools.wraps chains so mutually exclusive definition doors can refuse
+    before mutation [tested:
+    test_cache_over_an_operation_refuses_before_definition_registration;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -80,7 +85,7 @@ from typing import Any, Literal
 from ._api_types import _DEFAULT_SPACE, _OperationName, _SpaceId
 from ._documentation import documentation_atom
 from ._name_mapping import attribute_name
-from ._ops import REGISTRY, Operation
+from ._ops import OPERATION_REGISTRATION, REGISTRY, Operation, live_registration
 from ._type_annotations import (
     annotation_atom_for,
     annotation_exprs,
@@ -115,7 +120,6 @@ __all__ = [
     "type_atoms_for",
     "unregister",
 ]
-
 
 #: The library's own space. Everything Python registers reflects here as
 #: ordinary atoms: (op name arity kind) per registered arity,
@@ -863,11 +867,24 @@ def register[**P, R](
                 _record_rule_operation(operation, staged=False, frame=frame.f_back)
         return fn(*args, **kwargs)
 
-    # The lint walk resolves the Python object rather than guessing from its
-    # source spelling. This is private metadata on the wrapper and never enters
-    # the operation's call path.
-    _staging_aware.__dict__["__petta_operation__"] = operation
+    # Private metadata on the wrapper, so a reader resolves the Python object
+    # rather than guessing from its source spelling. It never enters the
+    # operation's call path.
+    setattr(_staging_aware, OPERATION_REGISTRATION, operation)
     return _staging_aware
+
+
+def _registered_operation(fn: Callable[..., Any]) -> Operation | None:
+    """Return the live registration owned by this callable or wrapper chain."""
+    operation = live_registration(fn)
+    if operation is not None:
+        return operation
+    source = inspect.unwrap(fn)
+    for candidate in REGISTRY.values():
+        registered = candidate.fn
+        if fn is registered or source is inspect.unwrap(registered):
+            return candidate
+    return None
 
 
 def unregister(runtime, name: str) -> None:

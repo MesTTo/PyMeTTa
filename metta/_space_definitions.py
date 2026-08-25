@@ -18,6 +18,10 @@ Guarantees:
   - a previously installed Python callable carries its exact MeTTa name into
     later compiled definitions [tested:
     test_compiled_calls_share_the_installed_name_resolver; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - an operation wrapper carries its registered MeTTa name into a definition
+    compiled after registration [tested:
+    test_module_tier_op_registration_precedes_definition_compilation;
+    commit=WORKTREE]
   - the compiler sees declared Bool result types, so condition positions do
     not add a redundant host-truthiness operation [tested:
     test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -243,7 +247,11 @@ def _remember_defined_callable(space: Any, fn: types.FunctionType, name: str) ->
 
 
 def _installed_callable_name(space: Any, value: object) -> str | None:
-    """Resolve a bound source function only when its installed name is unique."""
+    """Resolve the exact live name carried by a bound definition or operation."""
+    if callable(value):
+        operation = _ops_module._registered_operation(value)
+        if operation is not None and space.is_function(operation.name):
+            return operation.name
     if not isinstance(value, types.FunctionType):
         return None
     names = _DEFINED_FUNCTION_NAMES.get((space.name, value), set())

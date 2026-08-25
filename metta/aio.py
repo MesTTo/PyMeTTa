@@ -1234,9 +1234,9 @@ class AsyncMeTTa:
         name: str | None = None,
         unchecked: bool = False,
     ) -> Any:
-        """Define and TABLE on the worker, the sync door's cache decorator.
+        """Define and memoize on the worker, the sync door's cache decorator.
 
-        The answers come from SWI's answer trie, and the returned handle
+        The memo stores every answer occurrence, and the returned handle
         carries cache_clear() and cache_info() as synchronous doors the way
         define's handle carries its own.
         """
