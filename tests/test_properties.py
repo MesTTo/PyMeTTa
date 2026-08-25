@@ -10,6 +10,11 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - booleans use MeTTa's canonical True and False text [tested:
     test_swrite_writes_mettas_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - from_pattern produces ground instances while retaining repeated-variable
+    equality [tested:
+    test_from_pattern_generates_ground_instances_without_losing_aliases and
+    test_from_pattern_draws_anonymous_occurrences_independently;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -265,6 +270,27 @@ def test_atom_equality_is_engine_unification(metta, a, b):
 @given(pt.atoms(ground=True))
 def test_ground_strategy_generates_no_variables(atom):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert list(atom.vars) == []
+
+
+@settings(max_examples=40, deadline=None)
+@given(
+    pt.from_pattern(
+        S.pair(Variable("shared"), S.nested(Variable("shared"), Variable("_")))
+    )
+)
+def test_from_pattern_generates_ground_instances_without_losing_aliases(atom):
+    """A pattern becomes ground without breaking its repeated-variable law."""
+    assert atom.vars == ()
+    assert atom[1] == atom[2][1]
+
+
+def test_from_pattern_draws_anonymous_occurrences_independently():
+    """Two anonymous holes can receive different ground values."""
+    instance = hypothesis.find(
+        pt.from_pattern(S.pair(Variable("_"), Variable("_")), max_leaves=2),
+        lambda atom: atom[1] != atom[2],
+    )
+    assert instance.vars == ()
 
 
 def test_testing_names_the_need_without_hypothesis(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
