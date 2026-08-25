@@ -55,8 +55,10 @@ FINAL_METTA_METHODS = 20
 # satellite module at the same name, so it does not change the count); +1 for
 # seg, the named segment builder, whose anonymous twin is Python's own `...`
 # and therefore needs no name; +1 for doc, the get-doc receiver verb on the
-# default context, landing beside match and eval.
-FINAL_METTA_EXPORTS = 90
+# default context, landing beside match and eval; +2 for the library import
+# door, `lib` the catalog-generated namespace the write door consumes and
+# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25).
+FINAL_METTA_EXPORTS = 92
 
 SATELLITES = {
     "aio",
