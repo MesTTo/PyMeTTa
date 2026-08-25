@@ -1653,14 +1653,22 @@ petta_py_direct_goal(Module, [F|Args], Goal, Out) :-
     atom(F),
     fun(F),
     \+ petta_py_special(F),
-    %A declared callee, or any installed USER typing rule, means the call
-    %site's typed dispatch owns this call: the raw compiled clause carries
-    %no argument checks, so the direct goal would skip a refusal the same
-    %call written as a ! form makes -- (typing-rule-demo unknown-demo)
-    %answered (seen unknown-demo) here while the runnable answered the
-    %declared BadArgType with its TypingRuleRefusal. Shipped rules ride the
-    %clause-compile route and need no per-call gate.
-    \+ petta_py_typed_dispatch_applies(Module, F),
+    %A declared callee, any installed USER typing rule, or a translator
+    %rule means call-site machinery owns this call: the raw compiled clause
+    %carries no argument checks, so the direct goal would skip a refusal
+    %the same call written as a ! form makes -- (typing-rule-demo
+    %unknown-demo) answered (seen unknown-demo) here while the runnable
+    %answered the declared BadArgType with its TypingRuleRefusal. Shipped
+    %rules ride the clause-compile route and need no per-call gate. The
+    %question is the engine's (metta/types.pl documents both owners and
+    %the measured cost); the shim used to carry its own copy of the
+    %disjunction, and a three-state A/B on the eval-arith lane measured
+    %the declaration walk and a raw &self read within two inferences per
+    %LANE, so there is nothing to buy by narrowing the walk. The gate runs
+    %OUTSIDE petta_py_in_module, which is why the module-parameterized
+    %door is the right one: an ambient read like type_declaration/2 would
+    %inspect the wrong module.
+    \+ metta_typed_dispatch_applies(Module, F),
     petta_py_plain_args(Args),
     length(Args, N),
     Arity is N + 1,
@@ -1671,32 +1679,6 @@ petta_py_direct_goal(Module, [F|Args], Goal, Out) :-
     current_predicate(Module:F/Arity),
     append(Args, [Out], Full),
     Goal =.. [F|Full].
-
-%The condition mirrors the translator's own trigger. typed_functioncall_dl
-%runs when call_site_type_chains/2 is nonempty, and for a fun/1 head with
-%plain arguments those chains are exactly the declarations in scope. ANY
-%declaration closes the gate, not only an arrow, because a wildcard row
-%like (: $x T) types every head through unification and the translator
-%collects it into the chains the same way; when typed translation then
-%fails to fit a non-arrow chain and falls back to ordinary translation,
-%the slow path emits the same raw call this goal would have made, so
-%over-guarding costs inferences, never answers. User typing rules need no
-%separate read: they act inside fitting_type_chains/3, which only runs on
-%those same chains.
-%
-%The read is type_declaration_in/3, the same walk every typed call opens:
-%prelude tier first, then the stored rows. The prelude tier is load-bearing
-%here, not an over-approximation, because a prelude-declared head like +
-%makes the translator's chains nonempty in every module, so the engine's
-%own form of (+ 1 x) runs the argument checks and the flat door must too; a
-%raw read of the &self store alone missed exactly those heads. A three-state
-%shim A/B on the eval-arith lane measured the walk and the raw read within
-%two inferences of each other per LANE, so there is nothing to buy by
-%narrowing it. The gate runs OUTSIDE petta_py_in_module, which is why the
-%module-parameterized door is the right one: an ambient read like
-%type_declaration/2 would inspect the wrong module.
-petta_py_typed_dispatch_applies(Module, F) :-
-    catch_recover(type_declaration_in(Module, F, _), fail).
 
 petta_py_plain_args([]).
 petta_py_plain_args([A|As]) :-

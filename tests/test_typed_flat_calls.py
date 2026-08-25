@@ -3,11 +3,13 @@ door. A defined function called flat, `f(x)`, once took a direct compiled
 goal that skipped call-site typing entirely: with an arrow declared, the
 eval door refused a wrong-typed argument while the flat door echoed the raw
 clause, and a user typing rule's refusal never ran (the two P14.9 residue
-rows retired 2026-08-25). petta_py_typed_dispatch_applies/2 closes the fast
-path exactly where the translator's own call-site chains are nonempty, and
-it is engine-backed, so shim.plt's engine-free suites cannot reach it: its
-first cut read a module-private registry and crashed every undeclared flat
-call in the packaged boot with an existence error no Prolog suite saw.
+rows retired 2026-08-25). metta_typed_dispatch_applies/2, the engine-owned
+ownership door (metta/types.pl), closes the fast path exactly where the
+translator's own call-site chains are nonempty or a translator rule owns
+the head; the shim only asks it, so shim.plt's engine-free suites cannot
+reach the gate: its first cut read a module-private registry and crashed
+every undeclared flat call in the packaged boot with an existence error no
+Prolog suite saw.
 Guarantees:
   - an undeclared defined function still answers through the flat door
     [tested: test_an_undeclared_function_answers_through_the_flat_door]
@@ -171,3 +173,29 @@ def test_the_direct_goal_path_and_the_general_path_agree_on_every_corpus_call(m)
         general = fresh.eval(fn.collapse(call))
         assert len(general) == 1, (call, general)
         assert flat == list(general[0]), (call, flat, general)
+
+
+def test_a_rule_owned_head_obeys_its_orientation_through_the_flat_door(m):
+    """A translator rule's orientation gate (a bidirectional rewrite fires
+    only when it lowers the form's cost) lives in translation, so a
+    rule-owned head must decline the direct goal: the derived inverse of a
+    bidirectional rule, called raw, rewrote `(twin 1 1)` UP in cost while
+    every translated door blocked it [measured 2026-08-25,
+    examples/translation/translatorrule_direction.metta].
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    from typing import Any
+
+    from metta import Atom, Expression, equation
+
+    m += typed(S.unpack, arrow(Atom, Any))
+
+    @m.rules
+    def unwrapping(x):
+        """(= (unpack (wrap (box $x))) (noeval (twin $x $x)))."""
+        yield equation(S.unpack(S.wrap(S.box(x)))).to(S.noeval(S.twin(x, x)))
+
+    m.fn.add_translator_rule(S.unpack, Expression((S.direction(S.bidirectional),)))
+
+    small, small_unpack = S.twin(1, 1), S.unpack(S.wrap(S.box(1)))
+    assert m.eval(small) == [small]              # three nodes stay three
+    assert m.eval(small_unpack) == [small]       # four nodes lower to three

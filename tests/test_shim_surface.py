@@ -82,6 +82,13 @@ HOST_SERVICES = {
     "metta_declare_restricted_space/2",
     "metta_declare_space_parent/2",
     "metta_reducible_head/2",
+    # The direct-call door's ownership question: a declared or translator-
+    # rule-owned head declines the raw fast path (P14.32). Engine-owned as
+    # one door rather than the two raw reads the shim briefly carried
+    # (type_declaration_in/3 + the rule registry), the same shape
+    # metta_host_dispatch_proof_step/6 took, so the walk and the registry
+    # stay free to move.
+    "metta_typed_dispatch_applies/2",
     "metta_source_declarations/2",
     "metta_space_names/1",
     "metta_string_declarations/2",
@@ -171,6 +178,7 @@ FLOOR_REASONS = {
     "metta_host_unregister_reader_token/1": "door",
     "metta_reducible_head/2": "door",
     "metta_release_space/1": "door",
+    "metta_typed_dispatch_applies/2": "door",
     "metta_source_declarations/2": "codec",
     "metta_space_names/1": "door",
     "metta_string_declarations/2": "codec",
