@@ -80,7 +80,7 @@ Guarantees:
   - PUBLIC/INTERNAL is row data, all live catalog names carry it, and the
     rendered reference includes PUBLIC rows only [tested:
     test_internal_rows_are_absent_from_the_public_phrasebook;
-    commit=WORKTREE]
+    commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 Fails when:
   - a row's MeTTa form depends on answer ORDER: answers are compared as
     sequences, the reading `example_parity` already takes, so a genuinely

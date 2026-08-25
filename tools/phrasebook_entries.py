@@ -39,7 +39,7 @@ Guarantees:
   - every stdlib row carries PUBLIC or INTERNAL visibility independently of
     reachability, so generated stubs and references never teach internal
     heads [tested: test_internal_rows_are_absent_from_the_public_phrasebook;
-    commit=WORKTREE]
+    commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

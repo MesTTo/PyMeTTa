@@ -16,7 +16,7 @@ Guarantees:
   - INTERNAL catalog names remain exact runtime mentions but carry no generated
     documentation [tested:
     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
-    commit=WORKTREE]
+    commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -13,7 +13,7 @@ Guarantees:
   - INTERNAL catalog names remain exact S/fn mentions but are absent from the
     generated typed and reference surfaces [tested:
     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
-    commit=WORKTREE]
+    commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
   - the S, static fn, and bound fn attribute doors share Python's operator
     word vocabulary while bracket access remains exact and composite ``neg``
     keeps its canonical image [tested:

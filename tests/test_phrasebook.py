@@ -10,7 +10,8 @@ The supplemental table separately pins Python-first faces that have no LeaTTa
 manifest name [tested: test_python_first_world_faces_are_in_the_phrasebook;
 commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0].
 Internal catalog rows never enter the public generated page [tested:
-test_internal_rows_are_absent_from_the_public_phrasebook; commit=WORKTREE].
+test_internal_rows_are_absent_from_the_public_phrasebook;
+commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa].
 
 Open Obligations:
   To Do: None
