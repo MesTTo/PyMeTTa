@@ -8,7 +8,8 @@ ducks through protocol types registered on the integrate surface.
 Guarantees:
   - ``atom.cast(type_)`` uses the ambient space and agrees with the explicit
     ``space.cast(atom, type_)`` spelling [tested:
-    test_atom_cast_delegates_to_the_ambient_space; commit=WORKTREE]
+    test_atom_cast_delegates_to_the_ambient_space;
+    commit=162214d7a703e9108dd2422f4f18f3b9c007d367]
 Open Obligations:
   To Do: None
   Hacks: None
