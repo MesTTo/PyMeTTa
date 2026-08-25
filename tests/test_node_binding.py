@@ -25,7 +25,7 @@ Guarantees:
     four codec legs [tested
     test_a_second_language_binding_passes_the_same_conformance_kit,
     test_the_binding_runs_every_leg_and_says_which_cases_it_does_not;
-    commit=WORKTREE]
+    commit=d0631377c5e01a5d34d1c3437e283f87a0fab86f]
   - the Node binding computes exactly the answers it is asked for, proven on
     an unbounded generator with a witness space
     [tested test_the_node_binding_leaves_the_third_answer_uncomputed]
