@@ -5,6 +5,10 @@ source-text cheat, a renamed variable, a wrong answer, a hidden definition
 and an undeclared skip, and require the lane to answer correctly about each.
 
 Guarantees:
+  - shared answer comparison ignores order and alpha-renaming while preserving
+    multiplicity [tested:
+    test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;
+    commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - point budgets remain two-sided with the deterministic tolerance stated
     separately [tested: test_a_budget_is_two_sided; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - empirical envelopes are asymmetric, protocol-scoped, and falsified by
@@ -67,6 +71,8 @@ sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
 import example_parity as parity  # noqa: E402
 import twin_coverage as coverage  # noqa: E402
 
+from metta import S, V  # noqa: E402
+
 
 def _run(groups, heads=(), cost=0, error=None):
     """One side's run, built rather than measured.
@@ -74,6 +80,17 @@ def _run(groups, heads=(), cost=0, error=None):
     The comparison can then be exercised without starting an engine.
     """
     return coverage.Run(parity.Outcome(list(groups), error), cost, tuple(heads))
+
+
+def test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity():
+    """Order and variable spelling vanish, but one missing copy is a drift."""
+    left = [S.edge(V.x, S.b), S.edge(V.y, S.c), S.edge(V.x, S.b)]
+    reordered = [S.edge(V.other, S.b), S.edge(V.z, S.b), S.edge(V.any, S.c)]
+    assert coverage.answer_multiset_diff(left, reordered) == ([], [])
+
+    left_only, right_only = coverage.answer_multiset_diff(left, reordered[:-1])
+    assert len(left_only) == 1
+    assert right_only == []
 
 
 # ------------------------------------------------------------------- discovery

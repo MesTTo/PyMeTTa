@@ -60,6 +60,21 @@ with a message when the dependency is absent.
 |---|---|
 | [`live/standing_queries.py`](live/standing_queries.py) | actors and pub-sub: mailboxes as spaces and delivery inside the write |
 
+## Executable gallery
+
+Every gallery claim is followed by a checked `# ->` MeTTa translation and
+checked `# =>` output. The `gallery` gate runs all six programs and verifies
+each emitted `@example` through both its MeTTa definition and Python twin.
+
+| example | what it shows |
+|---|---|
+| [`gallery/family_algebras.py`](gallery/family_algebras.py) | all four family-relation directions under counting, tropical, provenance, ranking, and probability |
+| [`gallery/journaled_observed_store.py`](gallery/journaled_observed_store.py) | validation, transactional post-commit observation, and journal replay |
+| [`gallery/linda_coordination.py`](gallery/linda_coordination.py) | deterministic watch, peek, and consuming take over a tuple space |
+| [`gallery/git_like_worlds.py`](gallery/git_like_worlds.py) | immutable branches, multiset diff, and one observed commit |
+| [`gallery/symbolic_tensors.py`](gallery/symbolic_tensors.py) | a symbolic double-transpose lowering to one GEMM result under the tropical carrier |
+| [`gallery/ecosystem_graph.py`](gallery/ecosystem_graph.py) | NetworkX expressed as a read-only MeTTa operation whose result returns as knowledge |
+
 The torch examples formerly numbered 06 to 08 live in the sibling `pettorch`
 repository. The former soft-unification example 14 lives in the sibling
 `pettaprove` repository.
