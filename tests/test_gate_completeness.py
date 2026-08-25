@@ -109,7 +109,9 @@ RUFF_FAMILY_BURN_DOWN = {
     # the repository's own D205 one-invariant form or a D103 test-function
     # suppression, the two idioms the ceiling already prices. Measured
     # after the last edit of the landing set.
-    "D": 2172,
+    # 2173 as the grown integration/python twin's scenario docstring takes
+    # the corpus's D205 one-invariant form. Measured after the last edit.
+    "D": 2173,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a

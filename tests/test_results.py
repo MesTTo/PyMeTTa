@@ -237,12 +237,16 @@ def test_rich_renders_rows_as_a_table(metta):  # noqa: D103  -- pytest discovers
 
     metta.add(parse("(rich-edge x y)"))
     rows = metta.match("(rich-edge $a $b)", into=Rows)
-    console = Console(file=io.StringIO(), width=80)
+    # force_terminal pinned OFF: rich reads FORCE_COLOR from the environment
+    # even for a StringIO sink, so an inherited FORCE_COLOR=3 turned this
+    # plain-text inspection into ANSI and the substring checks lied about
+    # the renderer. Explicit beats env in rich's Console.
+    console = Console(file=io.StringIO(), width=80, force_terminal=False)
     console.print(rows)
     printed = console.file.getvalue()
     assert "a" in printed and "b" in printed and "x" in printed and "y" in printed
     # a zero-column answer set falls back to the plain repr
-    console2 = Console(file=io.StringIO(), width=80)
+    console2 = Console(file=io.StringIO(), width=80, force_terminal=False)
     console2.print(metta.match("(rich-edge x y)", into=Rows))
     assert "Rows[]" in console2.file.getvalue()
 
