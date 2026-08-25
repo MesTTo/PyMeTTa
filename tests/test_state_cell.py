@@ -8,6 +8,10 @@ Guarantees:
   - the older named spelling still works, because a cell is a handle atom and a
     plain symbol names one too.
   [tested: test_a_state_cell_is_a_value_typed_by_what_it_holds; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - compiled ``State.value`` reads, writes, and augmented writes lower to the
+    engine cell heads, while speculative writes refuse before mutation
+    [tested: test_compiled_state_properties_round_trip_through_engine_heads,
+    test_speculative_state_write_is_fenced; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Fails when: read as a claim about the PRINTED form. The arbiter renders a cell
   as (State <value>) and this engine renders it as its handle, the way it
   already renders a space handle; that divergence is recorded beside
@@ -20,7 +24,10 @@ Open Obligations:
 
 import re
 
-from metta import MeTTa
+import pytest
+
+from metta import MeTTa, State
+from metta.errors import PettaError
 
 
 def _answers(metta: MeTTa, source: str) -> list[str]:
@@ -89,3 +96,34 @@ def test_a_state_cell_is_a_value_typed_by_what_it_holds() -> None:
     # lib/lib_llm.metta writes.
     metta.run("!(change-state! &statecell-plain 3)")
     assert _answers(metta, "!(get-state &statecell-plain)") == ["3"]
+
+
+def test_compiled_state_properties_round_trip_through_engine_heads(metta) -> None:
+    """A closed-over cell is a State operand, not a pinned host attribute."""
+    hits = State(1, space=metta)
+
+    @metta.define
+    def state_property_round_trip():
+        hits.value += 1
+        return hits.value
+
+    @metta.define
+    def state_property_replace(replacement):
+        hits.value = replacement
+        return hits.value
+
+    assert state_property_round_trip() == [2]
+    assert state_property_round_trip() == [3]
+    assert state_property_replace(8) == [8]
+    assert state_property_round_trip() == [9]
+
+
+def test_speculative_state_write_is_fenced(metta) -> None:
+    """The non-backtrackable cell store cannot escape a discarded snapshot."""
+    cell = State(4, space=metta)
+    with metta.speculative():
+        with pytest.raises(PettaError, match=r"state.*speculative|speculative.*state"):
+            cell.value = 5
+        with pytest.raises(PettaError, match=r"state.*speculative|speculative.*state"):
+            State(0, space=metta)
+    assert cell.value == 4

@@ -6,6 +6,9 @@ Guarantees:
     strict execution policy scopes compose without per-call flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - eager eval follows the same atomic and speculative policy wrapper as run,
+    so State property writes cannot bypass a speculative fence [tested:
+    test_speculative_state_write_is_fenced; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
   - ordinary evaluation returns an unreduced term directly and has no
@@ -351,17 +354,21 @@ def evaluate(
             [[name, _encode(value).to_wire()] for name, value in using.items()],
         ]
     limits = _limits(timeout, inferences)
+    modes = _SCOPED_EXECUTION.get()
+    atomic = "atomic" in modes
+    speculative = "speculative" in modes
     captured = _CAPTURED_OUTPUT.get()
-    if limits is captured is None:
+    if limits is None and captured is None and not (atomic or speculative):
         wires = rt.apply_must(predicate, *inputs)
     else:
-        if captured is not None:
-            predicate, inputs = "petta_py_captured", [predicate, inputs]
-        output = _apply_limited(
+        output = _controlled_run(
             rt,
-            limits if limits is not None else (-1.0, -1, -1),
             predicate,
             inputs,
+            limits,
+            capture=captured is not None,
+            atomic=atomic,
+            speculative=speculative,
         )
         if captured is not None:
             wires, text = output
@@ -588,14 +595,16 @@ def evaluate_status(
         inputs.append(
             [[name, _encode(value).to_wire()] for name, value in using.items()]
         )
+    modes = _SCOPED_EXECUTION.get()
     captured = _CAPTURED_OUTPUT.get()
-    if captured is not None:
-        predicate, inputs = "petta_py_captured", [predicate, inputs]
-    output = _apply_limited(
+    output = _controlled_run(
         rt,
-        _limits(timeout, inferences) or (-1.0, -1, -1),
         predicate,
         inputs,
+        _limits(timeout, inferences),
+        capture=captured is not None,
+        atomic="atomic" in modes,
+        speculative="speculative" in modes,
     )
     if captured is not None:
         rows, captured_text = output

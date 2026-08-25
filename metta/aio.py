@@ -72,6 +72,10 @@ Guarantees:
   - async match forwards the submitting task's scoped or explicit algebra,
     and sample mirrors the synchronous random.choices-shaped door [tested:
     test_aio_covers_the_whole_synchronous_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - async reification, world evaluation, and commit keep every engine crossing
+    on the owning worker while immutable atom snapshots remain directly
+    readable [tested: test_async_worlds_stay_on_the_owning_worker;
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -774,6 +778,21 @@ class AsyncMeTTa:
         clone = await self.call(lambda m: m.copy())
         return AsyncMeTTa._sharing(clone, self._worker)
 
+    async def reify(self) -> AsyncWorld:
+        """Capture one immutable world on the owning engine worker."""
+        world = await self.call(lambda m: m.reify())
+        return AsyncWorld(self, world)
+
+    async def commit(self, world: AsyncWorld) -> None:
+        """Commit an async world through the worker that produced it."""
+        if not isinstance(world, AsyncWorld):
+            msg = f"commit expects an AsyncWorld, got {type(world).__name__}"
+            raise TypeError(msg)
+        if world._am._worker is not self._worker:
+            msg = "an async world must be committed through its originating engine worker"
+            raise PettaError(msg)
+        await self.call(lambda m: m.commit(world._world))
+
     async def drop(self) -> None:
         """Drop this named space from the engine."""
         return await self.call(lambda m: m.drop())
@@ -991,16 +1010,18 @@ class AsyncMeTTa:
         """Every space name this engine registers, sorted."""
         return await self.call(lambda m: m.space_names())
 
-    async def admits(self, type_name: str) -> Atom:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def admits(self, type_name: str) -> Atom:
+        """Declare an admitted type on the owning engine worker."""
         return await self.call(lambda m: m.admits(type_name))
 
-    async def annotations(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def annotations(
         self,
         subject_or_algebra: str,
         algebra: str | None = None,
         *,
         capabilities: Sequence[str] = (),
     ) -> Atom:
+        """Declare annotation algebra or subject capabilities on the worker."""
         return await self.call(
             lambda m: m.annotations(
                 subject_or_algebra, algebra, capabilities=capabilities
@@ -1095,6 +1116,7 @@ class AsyncMeTTa:
         det: Determinism | None = None,
     ) -> Atom:
         """Declare how this context handles one pattern shape."""
+        """Declare a handler's pattern, fidelity, and determinism."""
         return await self.call(
             lambda m: m.handles(pattern, fidelity, det=det)
         )
@@ -1450,6 +1472,50 @@ class AsyncMeTTa:
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         state = "closed" if self._closed else self._worker.state
         return f"AsyncMeTTa({self._m.name!r}, {state})"
+
+
+class AsyncWorld:
+    """An immutable world whose evaluation crosses its originating worker."""
+
+    __slots__ = ("_am", "_world")
+
+    def __init__(self, am: AsyncMeTTa, world: Any) -> None:
+        """Bind an immutable world value to its originating async owner."""
+        self._am = am
+        self._world = world
+
+    @property
+    def atoms(self) -> tuple[Atom, ...]:
+        """Return the frozen atom multiset without an engine crossing."""
+        return self._world.atoms
+
+    async def eval(
+        self,
+        target: Any,
+        *,
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> tuple[list[Atom], AsyncWorld]:
+        """Evaluate on the worker and return answers plus a successor value."""
+        world = self._world
+        answers, successor = await self._am.call(
+            lambda _m: world.eval(target, timeout=timeout, inferences=inferences)
+        )
+        return answers, AsyncWorld(self._am, successor)
+
+    def diff(self, other: AsyncWorld) -> tuple[list[Atom], list[Atom]]:
+        """Return ordered multiset extras between worlds from one worker."""
+        if not isinstance(other, AsyncWorld):
+            msg = f"an async world diff needs another AsyncWorld, got {type(other).__name__}"
+            raise TypeError(msg)
+        if other._am._worker is not self._am._worker:
+            msg = "async worlds from different engine workers cannot be diffed"
+            raise PettaError(msg)
+        return self._world.diff(other._world)
+
+    def __repr__(self) -> str:
+        """Return a representation containing the frozen atom multiset."""
+        return f"AsyncWorld(atoms={self.atoms!r})"
 
 
 _EXHAUSTED: Final = object()

@@ -7,6 +7,13 @@ Guarantees:
     test_a_raise_rolls_back_everything_and_arrives_as_itself]
   - an inner transaction's commit is relative to its outer transaction
     [tested test_nested_commit_dies_with_the_outer_rollback]
+  - subscription events are published in write order only after the owning
+    transaction commits, and are discarded with rollback or speculation
+    [tested: test_events_publish_only_after_transaction_commit,
+    test_atomic_scope_commits_or_discards_one_event_segment,
+    test_event_folds_observe_only_the_post_commit_stream,
+    test_rollback_and_outer_rollback_discard_every_buffered_event,
+    test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -15,8 +22,8 @@ Open Obligations:
 
 import pytest
 
-from metta import S
-from metta.errors import MettaResultError
+from metta import S, V
+from metta.errors import EngineError, MettaResultError
 
 
 @pytest.fixture()
@@ -116,3 +123,113 @@ def test_atomic_and_speculative_scopes_refuse_to_compose(m):
         with pytest.raises(ValueError, match="exclusive"), m.atomic():
             m.run("(tx-both fact) !(+ 1 1)")
     assert m.atoms() == []
+
+
+def test_events_publish_only_after_transaction_commit(m):
+    """The observer sees one ordered committed report, never tentative rows."""
+    seen = []
+    inside = []
+    subscription = m.subscribe(S.tx(V.n), seen.append)
+    try:
+        def work():
+            m.add(S.tx(10), S.tx(11))
+            inside.append([event.atom for event in seen])
+
+        m.transaction(work)
+        assert inside == [[]]
+        assert [event.atom for event in seen] == [S.tx(10), S.tx(11)]
+    finally:
+        subscription.cancel()
+
+
+def test_atomic_scope_commits_or_discards_one_event_segment(m):
+    """Atomic callbacks see the complete commit and no failed-run residue."""
+    seen = []
+    snapshots = []
+    subscription = m.subscribe(
+        S.atomic_event(V.n),
+        lambda event: (seen.append(event), snapshots.append(m.atoms())),
+    )
+    try:
+        with pytest.raises(EngineError):
+            with m.atomic():
+                m.run("(atomic-event 1) !(+ $left $right)")
+        assert seen == []
+        assert S.atomic_event(1) not in m
+
+        with m.atomic():
+            m.run("(atomic-event 2) (atomic-event 3) !(+ 1 1)")
+        assert [event.atom for event in seen] == [
+            S.atomic_event(2),
+            S.atomic_event(3),
+        ]
+        assert snapshots == [
+            [S.atomic_event(2), S.atomic_event(3)],
+            [S.atomic_event(2), S.atomic_event(3)],
+        ]
+    finally:
+        subscription.cancel()
+
+
+def test_event_folds_observe_only_the_post_commit_stream(m):
+    """A fold advances after commit and never advances for a rolled-back diff."""
+    fold = m.events().fold(
+        lambda held, event: [*held, event.atom],
+        space=m.name,
+        pattern=S.folded(V.n),
+        state=[],
+    )
+    try:
+        def committed():
+            m.add(S.folded(1), S.folded(2))
+            assert fold.state == []
+
+        m.transaction(committed)
+        assert fold.state == [S.folded(1), S.folded(2)]
+
+        def rolled_back():
+            m.add(S.folded(3))
+            assert fold.state == [S.folded(1), S.folded(2)]
+            msg = "discard folded write"
+            raise RuntimeError(msg)
+
+        with pytest.raises(RuntimeError, match="discard folded write"):
+            m.transaction(rolled_back)
+        assert fold.state == [S.folded(1), S.folded(2)]
+    finally:
+        fold.cancel()
+
+
+def test_rollback_and_outer_rollback_discard_every_buffered_event(m):
+    """A savepoint report joins its parent and dies if that parent rolls back."""
+    seen = []
+    subscription = m.subscribe(S.tx(V.n), seen.append)
+    try:
+        def outer():
+            m.add(S.tx(20))
+            m.transaction(lambda: m.add(S.tx(21)))
+            assert seen == []
+            msg = "discard the outer transaction"
+            raise RuntimeError(msg)
+
+        with pytest.raises(RuntimeError, match="discard the outer transaction"):
+            m.transaction(outer)
+        assert seen == []
+        assert S.tx(20) not in m
+        assert S.tx(21) not in m
+    finally:
+        subscription.cancel()
+
+
+def test_speculative_execution_discards_its_event_segment(m):
+    """A successful what-if returns answers but publishes no change report."""
+    seen = []
+    subscription = m.subscribe(S.tx(V.n), seen.append)
+    try:
+        with m.speculative():
+            assert m.run("(tx 30) !(+ 1 1)") == [[2]]
+            assert seen == []
+        assert seen == []
+        assert S.tx(30) not in m
+    finally:
+        subscription.cancel()

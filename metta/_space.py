@@ -25,6 +25,10 @@ Guarantees:
   - ``MeTTa.space()`` creates named or anonymous handles through one door
     [tested: test_module_tier_is_sugar_over_one_default_engine;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``Space.reify`` returns an immutable branch value and ``Space.commit``
+    applies its base-relative diff through ordinary transaction and event
+    doors [tested: test_world_eval_branches_without_touching_parent,
+    test_commit_applies_the_world_diff_as_post_commit_events; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric
@@ -1278,6 +1282,18 @@ class Space(Handle):
         return clone
 
     __copy__ = copy
+
+    def reify(self):
+        """Capture this space as an immutable, independently evaluable world."""
+        from ._world import reify_space  # noqa: PLC0415 -- avoids the Space type cycle
+
+        return reify_space(self)
+
+    def commit(self, world: Any) -> None:
+        """Apply one reified world's diff through this originating space."""
+        from ._world import commit_world  # noqa: PLC0415 -- avoids the Space type cycle
+
+        commit_world(self, world)
 
     def digest(self) -> str:
         """A sha256 hex digest of this space's content: every stored atom,
@@ -3026,9 +3042,11 @@ class Space(Handle):
             m.add(S.order(1))          # seen[0].bindings["id"] == 1
             sub.cancel()
 
-        With a callback, delivery is synchronous, inside the write that
-        caused it (the callback may write back; the engine re-enters
-        cleanly; an infinite add-triggers-add loop is the author's own).
+        With a callback, delivery is synchronous. An unscoped write delivers
+        before it returns; a transaction delivers its ordered segment only
+        after the complete commit, while rollback and speculation deliver
+        nothing. The callback may write back; the engine re-enters cleanly,
+        and an infinite add-triggers-add loop is the author's own.
         Without one, events queue on the subscription and drain() empties
         them: the mailbox reading. That queue is bounded by `queue_max`,
         and a write arriving at a full queue raises SubscriberError rather
@@ -3067,11 +3085,12 @@ class Space(Handle):
             seen.take()          # [(order 1)], and the fold starts again
 
         The stream is the primitive and a FOLD over it is how anything
-        consumes it: a step `(state, event) -> state` run inside the write
-        that caused the event. subscribe() is the fold whose step delivers,
-        bridge() the fold whose step writes, and a declared `(on ...)`
-        reaction the fold whose step evaluates, so a consumer you write and
-        one this library ships are the same kind of thing.
+        consumes it: a step `(state, event) -> state` run immediately for an
+        unscoped write or after the whole transaction commits. subscribe() is
+        the fold whose step delivers, bridge() the fold whose step writes, and
+        a declared `(on ...)` reaction the fold whose step evaluates, so a
+        consumer you write and one this library ships are the same kind of
+        thing.
         """
         return _satellite("events").stream(self._rt)
 
@@ -4148,6 +4167,15 @@ class MeTTa:
             _satellite("foreign").register_provider(self._rt, handle._space, provider)
             handle._backing = provider
             handle._owns_backing = owns_backing
+            if journal is not None:
+                try:
+                    # An owned journal stages user-transaction writes and
+                    # journals only the committed delta. The declaration is
+                    # what makes the existing coordinator enlist that protocol.
+                    handle.writes(Atomicity.transactional)
+                except BaseException:
+                    handle.drop()
+                    raise
         return handle
 
     def define(self, *args: Any, **kwargs: Any) -> Any:

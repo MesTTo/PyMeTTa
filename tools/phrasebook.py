@@ -71,6 +71,9 @@ Guarantees:
     test_a_silent_divergence_is_a_finding]
   - the checked-in page equals what `--markdown` produces [tested:
     test_the_phrasebook_page_is_up_to_date]
+  - Python-first additions that have no LeaTTa stdlib declaration are rendered
+    in a separate exact-spelling table rather than corrupting manifest coverage
+    [tested: test_python_first_world_faces_are_in_the_phrasebook; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Fails when:
   - a row's MeTTa form depends on answer ORDER: answers are compared as
     sequences, the reading `example_parity` already takes, so a genuinely
@@ -129,6 +132,7 @@ from phrasebook_entries import (  # noqa: E402
     LEATTA_COMMIT,
     LEATTA_ENTRY_COUNT,
     LEATTA_VERSION,
+    PUBLIC_FACES,
     SECTIONS,
     Entry,
 )
@@ -526,6 +530,21 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
     ]
     for bucket, description in BUCKETS.items():
         out.append(f"- **{bucket}** ({counts[bucket]}) &mdash; {description}")
+    out += [
+        "",
+        "## Python-first additions",
+        "",
+        "These faces implement the Python-first execution model and therefore have no",
+        "LeaTTa standard-library declaration to occupy one of the manifest rows above.",
+        "They stay separate so the differential coverage denominator remains exact.",
+        "",
+        "| public spelling | meaning | example |",
+        "|---|---|---|",
+    ]
+    out += [
+        f"| `{face.spelling}` | {face.meaning} | {_cell(face.example)} |"
+        for face in PUBLIC_FACES
+    ]
     priced = [
         (entry.name, answers[entry.name])
         for entry in entries

@@ -49,6 +49,9 @@ Guarantees:
     exports [tested:
     test_scoped_under_is_task_local_and_explicit_under_wins,
     test_requested_carrier_spellings_are_declared; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - ``speculate()`` is the exact module-tier spelling for the default
+    receiver's discarded execution scope [tested:
+    test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -405,6 +408,11 @@ def strict():
     return engine().self.strict()
 
 
+def speculate():
+    """Evaluate default-context calls against discarded engine snapshots."""
+    return engine().self.speculative()
+
+
 def trace(source: str, *, max_events: int = 10_000):
     """Trace source in the default self space."""
     return engine().self.trace(source, max_events=max_events)
@@ -501,6 +509,7 @@ __all__ = [
     "space",
     "spaces",
     "spawn",
+    "speculate",
     "stats",
     "strict",
     "structures",

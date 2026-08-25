@@ -19,6 +19,9 @@ Guarantees:
     while cast returns the admitted atom [tested:
     test_a_constructor_expression_rebuilds_through_the_query_door;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - ``metta.speculate()`` is the exact lazy module-tier spelling for the
+    default receiver's discarded execution scope [tested:
+    test_module_tier_speculate_discards_default_space_writes; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -79,6 +82,14 @@ def test_module_tier_exposes_the_mode_and_definition_family() -> None:
     assert callable(metta.trace)
 
 
+def test_module_tier_speculate_discards_default_space_writes() -> None:
+    """The guide-exact root spelling is sugar over the default receiver."""
+    with metta.speculate():
+        metta.run("!(add-atom &self (root-speculate-p14 1))")
+        assert list(metta.match(S.root_speculate_p14(V.n))) == []
+    assert list(metta.match(S.root_speculate_p14(V.n))) == []
+
+
 def test_module_tier_verbs_are_inert_until_called() -> None:
     """Naming every PEP 562-era root verb does not start the default engine."""
     root = Path(__file__).parents[3]
@@ -87,7 +98,7 @@ def test_module_tier_verbs_are_inert_until_called() -> None:
         "import metta\n"
         "assert not _engine.started()\n"
         "assert all(callable(getattr(metta, name)) for name in "
-        "('define', 'cache', 'stats', 'limits', 'strict', 'trace'))\n"
+        "('define', 'cache', 'stats', 'limits', 'strict', 'speculate', 'trace'))\n"
         "assert not _engine.started()\n"
     )
     subprocess.run(

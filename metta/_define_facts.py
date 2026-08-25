@@ -20,6 +20,10 @@ Guarantees:
     arguments are joined independently [tested:
     test_compiler_recognized_python_calls_remain_structural,
     test_definition_match_is_a_nondeterministic_read; commit=WORKTREE]
+  - a ``.value`` access is conservatively mutable-state dependent, so a
+    compiled State read or write cannot be advertised as immutable [tested:
+    test_compiled_state_properties_round_trip_through_engine_heads;
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -183,6 +187,22 @@ class _EffectAnalysis(ast.NodeVisitor):
 
     def visit_YieldFrom(self, node: ast.YieldFrom) -> None:
         self._join(EffectClass.nondeterministicReadOnly)
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        # A `.value` attribute is the State cell surface, which the compiler
+        # lowers to the engine's own state heads. Its context says which one:
+        # the same node appears with Store on the left of `cell.value += 1`
+        # and with Load in `return cell.value`, so a read stays a read rather
+        # than being charged the write's rank. This joined rather than
+        # assigned, because a body's effect is the join over its statements
+        # and a plain assignment here would erase a stronger sibling.
+        if node.attr == "value":
+            self._join(
+                EffectClass.readOnlyLookup
+                if isinstance(node.ctx, ast.Load)
+                else EffectClass.writesState
+            )
         self.generic_visit(node)
 
 

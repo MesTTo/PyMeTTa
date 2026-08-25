@@ -61,7 +61,10 @@ FINAL_METTA_METHODS = 20
 # for under, counting, tropical, prov, ranked and prob. The deliberate pin is
 # the algebra-carrier surface adopted in ai-python-first-revamp-discussion.md
 # lines 3024-3034 and 5471-5492.
-FINAL_METTA_EXPORTS = 98
+# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +1
+# for the exact ``metta.speculate()`` module-tier spelling required by style
+# ledger ``ai-python-conventions.md:1732-1733``.
+FINAL_METTA_EXPORTS = 99
 
 SATELLITES = {
     "aio",

@@ -6,6 +6,9 @@ without a spelling, a residue row that secretly carries one, and a stale page,
 and require the lane to answer correctly about each. The coverage claim itself
 is checked the other way round: every name LeaTTa declares has exactly one row,
 so the denominator cannot quietly shrink.
+The supplemental table separately pins Python-first faces that have no LeaTTa
+manifest name [tested: test_python_first_world_faces_are_in_the_phrasebook;
+commit=3ded7552797b66d78e666141eb51f3bc14686bd2].
 
 Open Obligations:
   To Do: None
@@ -25,7 +28,7 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
 
 import phrasebook as book  # noqa: E402
-from phrasebook_entries import ENTRIES, Entry  # noqa: E402
+from phrasebook_entries import ENTRIES, PUBLIC_FACES, Entry  # noqa: E402
 
 
 def _entry(**overrides) -> Entry:
@@ -118,6 +121,21 @@ def test_the_phrasebook_page_is_up_to_date():
     assert book.PAGE.read_text(encoding="utf-8") == book.page(list(ENTRIES), answers), (
         "run `python bindings/python/tools/phrasebook.py --markdown`"
     )
+
+
+def test_python_first_world_faces_are_in_the_phrasebook():
+    """Supplemental faces stay exact without entering manifest coverage."""
+    spellings = {face.spelling for face in PUBLIC_FACES}
+    assert spellings == {
+        "metta.speculate()",
+        "space.reify()",
+        "world.eval(target)",
+        "space.commit(world)",
+    }
+    page = book.page(list(ENTRIES), json.loads(book.ANSWERS.read_text()))
+    assert "## Python-first additions" in page
+    for spelling in spellings:
+        assert f"`{spelling}`" in page
 
 
 def test_every_answered_row_has_a_recorded_answer():

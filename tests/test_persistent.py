@@ -1,6 +1,16 @@
 """Purpose: journal-backed fact spaces, including registered matching,
 validation, replay, terminal-tail repair, failed-write containment,
 compaction, and isolation between independent journals.
+Guarantees:
+  - live State cells are refused before journal append and leave no replayable
+    residue after close and reopen [tested:
+    test_a_live_state_cell_never_enters_the_persistent_journal;
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - journaled spaces stage transaction/speculation writes, publish only a
+    committed event segment, and replay no rolled-back fact [tested:
+    test_a_journal_transaction_publishes_only_its_committed_delta,
+    test_a_speculative_journal_write_is_neither_persisted_nor_published;
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,6 +33,7 @@ from metta import (
     Expression,
     PettaError,
     S,
+    State,
     V,
     ground,
 )
@@ -116,6 +127,98 @@ def test_schema_and_native_refusals_name_the_offender(tmp_path):  # noqa: D103  
             space.add(S.edge(S.node(S.a), S.b))
     finally:
         space.close()
+
+
+def test_a_live_state_cell_never_enters_the_persistent_journal(metta, tmp_path):
+    """A generated cell handle is process state, not durable symbol data."""
+    journal = tmp_path / "state-cell.db"
+    cell = State(1, space=metta)
+    space = PersistentFactSpace(journal, {"Hits": 1}, sync="close")
+    try:
+        with pytest.raises(PettaError, match="live State cell"):
+            space.add(S.Hits(cell))
+    finally:
+        space.close()
+
+    reopened = PersistentFactSpace(journal, {"Hits": 1}, sync="close")
+    try:
+        assert list(reopened.atoms()) == []
+    finally:
+        reopened.close()
+
+
+def test_a_journal_transaction_publishes_only_its_committed_delta(metta, tmp_path):
+    """The provider stages behind the existing transaction coordinator."""
+    journal = tmp_path / "transaction.db"
+    space = metta.metta.space(
+        journal=journal,
+        schema={"entry": 1},
+        sync="close",
+    )
+    space.events("per-write-exactly", "ordered")
+    seen = []
+    subscription = space.subscribe(S.entry(V.value), seen.append)
+    try:
+        def rolled_back():
+            space.add(S.entry(S.rolled_back))
+            assert space.atoms() == [S.entry(S.rolled_back)]
+            assert seen == []
+            msg = "discard journal transaction"
+            raise RuntimeError(msg)
+
+        with pytest.raises(RuntimeError, match="discard journal transaction"):
+            space.transaction(rolled_back)
+        assert space.atoms() == []
+        assert seen == []
+
+        def committed():
+            space.add(S.entry(S.first), S.entry(S.second))
+            assert space.atoms() == [S.entry(S.first), S.entry(S.second)]
+            assert seen == []
+
+        space.transaction(committed)
+        assert [event.atom for event in seen] == [
+            S.entry(S.first),
+            S.entry(S.second),
+        ]
+    finally:
+        subscription.cancel()
+        space.drop()
+
+    reopened = PersistentFactSpace(journal, {"entry": 1}, sync="close")
+    try:
+        assert list(reopened.atoms()) == [S.entry(S.first), S.entry(S.second)]
+    finally:
+        reopened.close()
+
+
+def test_a_speculative_journal_write_is_neither_persisted_nor_published(
+    metta, tmp_path
+):
+    """Snapshot rollback includes an enlisted journal provider savepoint."""
+    journal = tmp_path / "speculative.db"
+    space = metta.metta.space(
+        journal=journal,
+        schema={"entry": 1},
+        sync="close",
+    )
+    space.events("per-write-exactly", "ordered")
+    seen = []
+    subscription = space.subscribe(S.entry(V.value), seen.append)
+    try:
+        with space.speculative():
+            space.run("(entry discarded)")
+        assert space.atoms() == []
+        assert seen == []
+    finally:
+        subscription.cancel()
+        space.drop()
+
+    reopened = PersistentFactSpace(journal, {"entry": 1}, sync="close")
+    try:
+        assert list(reopened.atoms()) == []
+    finally:
+        reopened.close()
 
 
 def test_compaction_replays_the_same_remaining_facts(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

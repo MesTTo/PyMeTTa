@@ -22,6 +22,9 @@ Guarantees:
   - async match and sample mirror the algebra carrier doors on their owning
     worker [tested: test_aio_covers_the_whole_synchronous_surface;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - async reification, world evaluation, and commit stay on the owning worker
+    and preserve immutable branching [tested:
+    test_async_worlds_stay_on_the_owning_worker; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -77,6 +80,26 @@ def test_aio_mirrors_the_surface(m):  # noqa: D103  -- pytest discovers or injec
     rows, groups, value, count = asyncio.run(go())
     assert [tuple(r) for r in rows] == [(1, 2, 3)]
     assert groups == [[3]] and value == 5 and count == 2
+
+
+def test_async_worlds_stay_on_the_owning_worker(m):
+    """The async wrapper never exposes a blocking world evaluation door."""
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            await am.add(S.base(1))
+            world = await am.reify()
+            answers, successor = await world.eval(
+                "(progn (add-atom &self (async-world 2)) done)"
+            )
+            assert world.atoms == (S.base(1),)
+            assert successor.diff(world) == ([S.async_world(2)], [])
+            assert await am.atoms() == [S.base(1)]
+            await am.commit(successor)
+            return answers, await am.atoms()
+
+    answers, atoms = asyncio.run(go())
+    assert answers == [S.done]
+    assert atoms == [S.base(1), S.async_world(2)]
 
 
 def test_aio_keeps_the_loop_live_while_the_engine_spins(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

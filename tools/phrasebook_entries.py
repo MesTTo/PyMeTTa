@@ -23,6 +23,9 @@ Guarantees:
   - the matching, nondeterminism, fold, and state rows execute every public
     algebra-carrier spelling [tested: test_the_phrasebook_page_is_up_to_date;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - the Python-first additions table names the exact speculate and immutable
+    world spellings [tested: test_python_first_world_faces_are_in_the_phrasebook;
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -97,6 +100,39 @@ class Entry:
     differs: str | None = None
     unrun: str | None = None
     ruled: str | None = None
+
+
+@dataclass(frozen=True)
+class PublicFace:
+    """One Python-first public spelling with no LeaTTa stdlib row."""
+
+    spelling: str
+    meaning: str
+    example: str
+
+
+PUBLIC_FACES: tuple[PublicFace, ...] = (
+    PublicFace(
+        "metta.speculate()",
+        "scope each default-context execution as a discarded segment",
+        "with metta.speculate():\n    metta.run(source)",
+    ),
+    PublicFace(
+        "space.reify()",
+        "capture an immutable evaluable world value, distinct from listing atoms",
+        "world = space.reify()",
+    ),
+    PublicFace(
+        "world.eval(target)",
+        "evaluate without touching the parent and return answers plus a successor world",
+        "answers, successor = world.eval(target)",
+    ),
+    PublicFace(
+        "space.commit(world)",
+        "land the world's base-relative diff as ordinary post-commit writes and events",
+        "space.commit(successor)",
+    ),
+)
 
 
 NUMBER2 = "(-> Number Number Number)"

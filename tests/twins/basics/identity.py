@@ -196,7 +196,20 @@ is Python's own `assert`.
 #: [measured: 2801 inferences; command=tools/twin_coverage.py --measure
 #: --rounds 3 examples/basics/identity.metta; fixture=merged tree with
 #: engine/reader.so; commit=WORKTREE].
-BUDGET = 2801
+#: RE-PINNED 2026-08-26, 2822 to 2880, on the post-commit observation,
+#: immutable-world, and State-fence tree. The reading prices the combined
+#: engine source and compiled QLF layout; three fresh serial processes each
+#: read metta=2817 and twin=2880.
+#: [measured: 2880; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/basics/identity.metta; fixture=three fresh serial processes under the required PeTTa venv with worktree.sh artifacts; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+#: RE-PINNED 2026-08-26, on the worlds integration merge: 2826 against the
+#: example's own 2801. Five landings now compose in this boot image and
+#: their layout costs do not add: the single-parent pins above read 2830,
+#: 2846, 2861, 2880 and 2801, and the merged tree sits inside that spread
+#: rather than at its sum [measured: 2826 inferences;
+#: command=tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=merged tree with
+#: engine/reader.so; commit=WORKTREE].
+BUDGET = 2826
 
 
 def twin(m):
