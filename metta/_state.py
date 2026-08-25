@@ -8,6 +8,11 @@ Guarantees:
   - ``State.value`` reads and writes the same engine cell, and ``__metta__``
     lets every ordinary atom boundary carry that cell [tested:
     test_state_retires_three_state_function_strings; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+  - the engine store is process-shared; each individual dynamic-store read
+    and mutex-guarded write is thread-safe, while compound Python
+    read-modify-write remains non-atomic and State emits no events, history,
+    or transactions [tested:
+    test_fold_into_state_updates_the_shared_engine_cell; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Owns resources:
   - the engine owns the state cell; this handle owns no independent resource.
 """
@@ -21,6 +26,7 @@ from .errors import EngineError
 
 if TYPE_CHECKING:
     from ._space import Space
+
 
 class State[T]:
     """A mutable engine cell whose Python type parameter is its value type."""

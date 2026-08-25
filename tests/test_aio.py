@@ -19,6 +19,9 @@ Guarantees:
   - async peek and take mirror the Space handle's Linda wait verbs on the
     engine worker [tested: test_async_peek_and_take_mirror_the_space_handle;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - async match and sample mirror the algebra carrier doors on their owning
+    worker [tested: test_aio_covers_the_whole_synchronous_surface;
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -328,6 +331,7 @@ def test_aio_covers_the_whole_synchronous_surface():
         "limit",
         "timeout",
         "inferences",
+        "under",
         "into",
     ]
     assert list(inspect.signature(aio.AsyncMeTTa.eval).parameters) == [

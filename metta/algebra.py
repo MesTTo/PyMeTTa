@@ -28,6 +28,15 @@ Guarantees:
     after public ``unify`` becomes symmetric [tested:
     test_algebra_patterns_do_not_bind_variables_inside_stored_candidates;
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+  - the module object is also the root algebra constructor, and the shipped
+    counting, tropical, provenance, and ranking objects are accepted directly
+    by every carrier [tested:
+    test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired,
+    test_requested_carrier_spellings_are_declared; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - tagged answers retain their derivation tree so why() and under() do not
+    rerun the query [tested:
+    test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -42,11 +51,13 @@ from __future__ import annotations
 import itertools
 import math
 import random
+import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from numbers import Real
-from typing import Any, Final
+from types import ModuleType
+from typing import Any, Final, Literal
 
 from ._space import Space
 from .atoms import (
@@ -66,6 +77,7 @@ from .errors import PettaError
 
 __all__ = [
     "AlgebraDeclarationError",
+    "AlgebraDerivation",
     "AlgebraEvaluation",
     "AlgebraEvaluationError",
     "AlgebraLawError",
@@ -77,11 +89,17 @@ __all__ = [
     "PlanDecision",
     "RateDeclarationError",
     "TaggedAnswer",
+    "counting",
     "declare",
     "evaluate",
+    "prob",
+    "prov",
+    "ranked",
+    "resolve",
     "sample",
     "tagged_fact",
     "tagged_rule",
+    "tropical",
 ]
 
 
@@ -155,9 +173,28 @@ class DeclaredAlgebra:
     laws: frozenset[str]
     carrier: tuple[Atom, ...]
     requires: frozenset[str]
+    order: Literal["ascending", "descending"] | None = None
 
     def operation(self, metta: Space, name: str, left: Atom, right: Atom) -> Atom:
         """Apply a declared binary operation and require one answer."""
+        if isinstance(left, Grounded) and isinstance(right, Grounded):
+            left_value, right_value = _decode(left), _decode(right)
+            if (
+                not isinstance(left_value, bool)
+                and not isinstance(right_value, bool)
+                and isinstance(left_value, Real)
+                and isinstance(right_value, Real)
+            ):
+                if name == "+":
+                    return _encode(left_value + right_value)
+                if name == "*":
+                    return _encode(left_value * right_value)
+                if name == "min":
+                    return _encode(min(left_value, right_value))
+                if name == "max":
+                    return _encode(max(left_value, right_value))
+        if name in {"plus", "times"}:
+            return Expression((Symbol(name), left, right))
         answers = metta.eval(Expression((Symbol(name), left, right)))
         if len(answers) != 1:
             msg = (
@@ -193,13 +230,81 @@ class PlanDecision:
 
 
 @dataclass(frozen=True, slots=True)
-class TaggedAnswer:
-    """A proposition together with its ordinary-atom tag and proof ledger."""
+class _Trace:
+    """One retained algebra-neutral derivation node."""
 
-    value: Atom
+    source: int
+    raw: Atom
+    children: tuple[_Trace, ...] = ()
+    is_rule: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class AlgebraDerivation:
+    """The derivation forest captured while an annotated answer was produced."""
+
+    answer: Any
+    algebra: str
+    alternatives: tuple[_Trace, ...]
+
+    def render(self) -> str:
+        """Render each source tag and rule edge without consulting a space."""
+        lines = [f"{self.answer} under {self.algebra}"]
+
+        def visit(trace: _Trace, indent: int) -> None:
+            kind = "rule" if trace.is_rule else "source"
+            lines.append(
+                f"{'  ' * indent}{kind} {trace.source}: {trace.raw}"
+            )
+            for child in trace.children:
+                visit(child, indent + 1)
+
+        for alternative in self.alternatives:
+            visit(alternative, 1)
+        return "\n".join(lines)
+
+    def __str__(self) -> str:
+        """Render the retained derivation in its human-readable form."""
+        return self.render()
+
+
+@dataclass(frozen=True, slots=True)
+class TaggedAnswer:
+    """A proposition, its annotation, and the retained derivation that made it."""
+
+    value: Any
     tag: Atom
     tokens: frozenset[int]
     proof: tuple[int, ...]
+    _derivations: tuple[_Trace, ...] = field(default=(), repr=False, compare=False)
+    _space: Space | None = field(default=None, repr=False, compare=False)
+    _algebra: str = field(default="unknown", repr=False, compare=False)
+    _plan: tuple[PlanDecision, ...] = field(default=(), repr=False, compare=False)
+
+    @property
+    def annotation(self) -> Any:
+        """The carrier value, decoded when it is an ordinary ground value."""
+        return _decode(self.tag) if isinstance(self.tag, Grounded) else self.tag
+
+    @property
+    def plan(self) -> tuple[PlanDecision, ...]:
+        """Law-gated decisions made while this answer's alternatives fused."""
+        return self._plan
+
+    def why(self) -> AlgebraDerivation:
+        """Return the derivation captured by the original ask."""
+        traces = self._derivations or (_Trace(-1, self.tag),)
+        return AlgebraDerivation(self.value, self._algebra, traces)
+
+    def under(self, carrier: Any) -> TaggedAnswer:
+        """Interpret this retained derivation under another algebra, no requery."""
+        if self._space is None:
+            msg = "this answer carries no owning space for algebra reinterpretation"
+            raise AlgebraEvaluationError(msg)
+        declaration = resolve(self._space, carrier)
+        traces = self._derivations or (_Trace(-1, self.tag),)
+        annotation = _interpret_alternatives(self._space, declaration, traces)
+        return replace(self, tag=annotation, _algebra=declaration.name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -264,6 +369,7 @@ def _preset(
     *,
     laws: frozenset[str] = _SEMIRING_LAWS,
     requires: Iterable[str] = (),
+    order: Literal["ascending", "descending"] | None = None,
 ) -> DeclaredAlgebra:
     return DeclaredAlgebra(
         name,
@@ -274,19 +380,26 @@ def _preset(
         laws,
         (),
         frozenset(requires),
+        order,
     )
 
 
 _PRESETS: Final[dict[str, DeclaredAlgebra]] = {
     "bool": _preset("bool", "max", "*", 0, 1),
     "bag": _preset("bag", "+", "*", 0, 1),
+    "counting": _preset("counting", "+", "*", 0, 1),
     "set": _preset(
         "set", "max", "*", 0, 1, laws=_SEMIRING_LAWS | {"combine-idempotent"}
     ),
-    "ranked": _preset("ranked", "max", "*", 0, 1),
-    "prob": _preset("prob", "+", "*", 0, 1),
+    "ranked": _preset("ranked", "max", "*", 0, 1, order="descending"),
+    "tropical": _preset(
+        "tropical", "min", "+", Symbol("infinity"), 0, order="ascending"
+    ),
+    "prob": _preset("prob", "+", "*", 0, 1, order="descending"),
     "prov": _preset("prov", "plus", "times", Symbol("zero"), Symbol("one")),
-    "budget": _preset("budget", "min", "+", Symbol("infinity"), 0),
+    "budget": _preset(
+        "budget", "min", "+", Symbol("infinity"), 0, order="ascending"
+    ),
     "amplitude": _preset(
         "amplitude",
         "amplitude-add",
@@ -302,6 +415,32 @@ _REGISTRY: dict[tuple[int, str], DeclaredAlgebra] = {}
 
 def _key(metta: Space, name: str) -> tuple[int, str]:
     return id(metta._rt), name
+
+
+def _carrier_name(carrier: Any) -> str:
+    """Normalize a declared object, Symbol, enum member, or exact name."""
+    if isinstance(carrier, DeclaredAlgebra):
+        return carrier.name
+    if isinstance(carrier, Symbol):
+        return carrier.name
+    if isinstance(carrier, str):
+        return carrier
+    value = getattr(carrier, "value", None)
+    if isinstance(value, str):
+        return value
+    msg = (
+        "under= needs a DeclaredAlgebra, Symbol, semiring enum member, or "
+        f"algebra name, not {type(carrier).__name__}"
+    )
+    raise TypeError(msg)
+
+
+def resolve(metta: Space, carrier: Any) -> DeclaredAlgebra:
+    """Resolve any public carrier spelling against one runtime catalog."""
+    if isinstance(carrier, DeclaredAlgebra):
+        registered = get(metta, carrier.name)
+        return carrier if registered is None else registered
+    return require(metta, _carrier_name(carrier))
 
 
 def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
@@ -367,7 +506,26 @@ def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
             laws=_canonical_laws(law_names),
             carrier=tuple(carrier.children[1:]),
             requires=frozenset(requirement_names),
+            order=_catalog_order(metta, name),
         )
+    return None
+
+
+def _catalog_order(
+    metta: Space, name: str
+) -> Literal["ascending", "descending"] | None:
+    """Read the direction attached to an ordered semiring claim."""
+    expected = (Symbol("claim"), Symbol("semiring"), Symbol(name), Symbol("ordered"))
+    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+        if not isinstance(atom, Expression) or atom.children[:4] != expected:
+            continue
+        if len(atom.children) < 5 or not isinstance(atom.children[4], Symbol):
+            return "descending"
+        direction = atom.children[4].name
+        if direction == "ascending":
+            return "ascending"
+        if direction == "descending":
+            return "descending"
     return None
 
 
@@ -605,6 +763,7 @@ def declare(
     laws: Iterable[str] = (),
     carrier: Iterable[Any] = (),
     requires: Iterable[str] = (),
+    order: Literal["ascending", "descending"] | None = None,
 ) -> Atom:
     """Check and add one algebra catalog atom, without replacing an old one."""
     if not name or not isinstance(name, str):
@@ -619,6 +778,9 @@ def declare(
     if not extend or not isinstance(extend, str):
         msg = f"algebra_operation_invalid({name}, extend)"
         raise AlgebraDeclarationError(msg)
+    if order not in {None, "ascending", "descending"}:
+        msg = f"algebra_order_invalid({name}, {order!r})"
+        raise AlgebraDeclarationError(msg)
     declaration = DeclaredAlgebra(
         name=name,
         combine=combine,
@@ -628,6 +790,7 @@ def declare(
         laws=_canonical_laws(laws),
         carrier=tuple(_encode(value) for value in carrier),
         requires=frozenset(requires),
+        order=order,
     )
     _validate_laws(metta, declaration)
     atom = Expression(
@@ -669,6 +832,17 @@ def tagged_rule(tag: Any, head: Any, *premises: Any) -> Expression:
     )
 
 
+def _coefficient(tag: Atom) -> Atom:
+    """Unwrap the normative ``(rate n)`` declaration to its carrier value."""
+    if (
+        isinstance(tag, Expression)
+        and len(tag.children) == 2
+        and tag.children[0] == Symbol("rate")
+    ):
+        return tag.children[1]
+    return tag
+
+
 def _head(atom: Atom, name: str, arity: int | None = None) -> bool:
     if not isinstance(atom, Expression) or not atom.children:
         return False
@@ -690,9 +864,10 @@ def _program(atoms: Sequence[Atom]) -> tuple[list[TaggedAnswer], list[_Rule]]:
             facts.append(
                 TaggedAnswer(
                     value=atom.children[2],
-                    tag=atom.children[1],
+                    tag=_coefficient(atom.children[1]),
                     tokens=frozenset({order}),
                     proof=(order,),
+                    _derivations=(_Trace(order, atom.children[1]),),
                 )
             )
         elif _head(atom, "rule", 4):
@@ -701,7 +876,12 @@ def _program(atoms: Sequence[Atom]) -> tuple[list[TaggedAnswer], list[_Rule]]:
                 msg = f"tagged_rule_body_malformed({atom}, expected=(premises ...))"
                 raise AlgebraDeclarationError(msg)
             rules.append(
-                _Rule(order, atom.children[1], atom.children[2], body.children[1:])
+                _Rule(
+                    order,
+                    _coefficient(atom.children[1]),
+                    atom.children[2],
+                    body.children[1:],
+                )
             )
     return facts, rules
 
@@ -724,15 +904,29 @@ def _derive_rule(
     rule: _Rule,
     available: Sequence[TaggedAnswer],
 ) -> list[TaggedAnswer]:
-    states: list[tuple[dict[str, Atom], Atom, frozenset[int], tuple[int, ...]]] = [
-        ({}, rule.tag, frozenset(), (rule.order,))
+    states: list[
+        tuple[
+            dict[str, Atom],
+            Atom,
+            frozenset[int],
+            tuple[int, ...],
+            tuple[_Trace, ...],
+        ]
+    ] = [
+        ({}, rule.tag, frozenset(), (rule.order,), ())
     ]
     linear = "linear" in declaration.requires
     for premise in rule.premises:
         next_states: list[
-            tuple[dict[str, Atom], Atom, frozenset[int], tuple[int, ...]]
+            tuple[
+                dict[str, Atom],
+                Atom,
+                frozenset[int],
+                tuple[int, ...],
+                tuple[_Trace, ...],
+            ]
         ] = []
-        for bindings, tag, tokens, proof in states:
+        for bindings, tag, tokens, proof, child_traces in states:
             pattern = substitute(premise, bindings)
             for candidate in available:
                 matched = _match(pattern, candidate.value)
@@ -754,17 +948,26 @@ def _derive_rule(
                         declaration.extend_values(metta, tag, candidate.tag),
                         tokens | candidate.tokens,
                         proof + candidate.proof,
+                        child_traces + candidate._derivations,
                     )
                 )
         states = next_states
         if not states:
             break
     answers: list[TaggedAnswer] = []
-    for bindings, tag, tokens, proof in states:
+    for bindings, tag, tokens, proof, child_traces in states:
         value = substitute(rule.head, bindings)
         if any(isinstance(node, Variable) for node in _walk(value)):
             continue
-        answers.append(TaggedAnswer(value, tag, tokens, proof))
+        answers.append(
+            TaggedAnswer(
+                value,
+                tag,
+                tokens,
+                proof,
+                (_Trace(rule.order, rule.tag, child_traces, is_rule=True),),
+            )
+        )
     return answers
 
 
@@ -801,8 +1004,73 @@ def _fuse(
             tag=declaration.combine_values(metta, previous.tag, answer.tag),
             tokens=previous.tokens | answer.tokens,
             proof=previous.proof + answer.proof,
+            _derivations=previous._derivations + answer._derivations,
         )
     return fused
+
+
+def _headed_tag(atom: Atom, name: str) -> bool:
+    return (
+        isinstance(atom, Expression)
+        and bool(atom.children)
+        and atom.children[0] == Symbol(name)
+    )
+
+
+def _carrier_input(declaration: DeclaredAlgebra, trace: _Trace) -> Atom:
+    """Map one universal source node into a carrier's generator value."""
+    if declaration.name in {"bool", "bag", "set", "counting"}:
+        return declaration.one
+    if declaration.name == "prov":
+        if not trace.is_rule and _headed_tag(trace.raw, "src"):
+            return trace.raw
+        if trace.is_rule:
+            return declaration.one
+        return Expression((Symbol("src"), Grounded(trace.source)))
+    if _headed_tag(trace.raw, "rate") and len(trace.raw.children) == 2:
+        return trace.raw.children[1]
+    return trace.raw
+
+
+def _interpret_trace(
+    metta: Space, declaration: DeclaredAlgebra, trace: _Trace
+) -> Atom:
+    value = _carrier_input(declaration, trace)
+    for child in trace.children:
+        value = declaration.extend_values(
+            metta, value, _interpret_trace(metta, declaration, child)
+        )
+    return value
+
+
+def _interpret_alternatives(
+    metta: Space,
+    declaration: DeclaredAlgebra,
+    alternatives: Sequence[_Trace],
+) -> Atom:
+    value = declaration.zero
+    for trace in alternatives:
+        contribution = _interpret_trace(metta, declaration, trace)
+        value = declaration.combine_values(metta, value, contribution)
+    return value
+
+
+def _order_answers(
+    declaration: DeclaredAlgebra, answers: Sequence[TaggedAnswer]
+) -> list[TaggedAnswer]:
+    """Apply a declared best direction stably before Python slices the view."""
+    if declaration.order is None:
+        return list(answers)
+
+    def key(answer: TaggedAnswer) -> Any:
+        tag = answer.tag
+        return _decode(tag) if isinstance(tag, Grounded) else tag
+
+    return sorted(
+        answers,
+        key=key,
+        reverse=declaration.order == "descending",
+    )
 
 
 def evaluate(
@@ -846,7 +1114,11 @@ def evaluate(
     )
     if can_fuse:
         matched = _fuse(metta, declaration, matched)
-    return AlgebraEvaluation(tuple(matched), plan)
+    retained = [
+        replace(answer, _space=metta, _algebra=declaration.name, _plan=plan)
+        for answer in _order_answers(declaration, matched)
+    ]
+    return AlgebraEvaluation(tuple(retained), plan)
 
 
 class AlgebraEvaluationError(PettaError):
@@ -895,13 +1167,224 @@ def sample(
     if total <= 0:
         return ()
     generator = random.Random(seed)  # noqa: S311 -- caller-seeded simulation is not a security boundary  # nosec B311
-    selected: list[Atom] = []
-    for _ in range(draws):
-        threshold = generator.random() * total
-        cumulative = 0.0
-        for answer, rate in weighted:
-            cumulative += rate
-            if threshold < cumulative:
-                selected.append(answer.value)
-                break
+    selected = generator.choices(
+        [answer.value for answer, _ in weighted],
+        weights=[rate for _, rate in weighted],
+        k=draws,
+    )
     return tuple(selected)
+
+
+def has_tagged_program(metta: Space, query: str | Atom) -> bool:
+    """Ask whether a normative tagged fact or rule can answer this query."""
+    encoded = query if isinstance(query, str) else _encode(query).to_wire()
+    return metta.runtime.apply_must(
+        "petta_py_has_tagged_program", metta.name, encoded
+    ) == "true"
+
+
+def count_tagged(
+    metta: Space,
+    query: str | Atom,
+    *,
+    max_rounds: int = 64,
+    limit: int | None = None,
+    timeout: float | None = None,
+    inferences: int | None = None,
+) -> int:
+    """Count tagged derivation trees wholly inside the engine."""
+    if isinstance(max_rounds, bool) or not isinstance(max_rounds, int):
+        msg = "max_rounds must be a positive integer"
+        raise TypeError(msg)
+    if max_rounds <= 0:
+        msg = "max_rounds must be positive"
+        raise ValueError(msg)
+    if limit is not None and (
+        isinstance(limit, bool) or not isinstance(limit, int) or limit < 0
+    ):
+        msg = "limit must be a nonnegative integer or None"
+        raise ValueError(msg)
+    encoded = query if isinstance(query, str) else _encode(query).to_wire()
+    inputs = [metta.name, encoded, max_rounds, limit or 0]
+    from ._space_execution import (  # noqa: PLC0415 -- algebra stays a satellite
+        _apply_limited,
+        _limits,
+    )
+
+    bounds = _limits(timeout, inferences)
+    output = (
+        metta.runtime.apply_must("petta_py_tagged_count", *inputs)
+        if bounds is None
+        else _apply_limited(
+            metta.runtime, bounds, "petta_py_tagged_count", inputs
+        )
+    )
+    return int(output)
+
+
+def captured_answer(
+    metta: Space,
+    value: Any,
+    annotation: Atom,
+    carrier: Any,
+) -> TaggedAnswer:
+    """Build an output answer around one engine-captured annotation."""
+    declaration = resolve(metta, carrier)
+    return TaggedAnswer(
+        value,
+        annotation,
+        frozenset(),
+        (),
+        (_Trace(-1, annotation),),
+        metta,
+        declaration.name,
+    )
+
+
+_CONSTRUCTOR_MISSING: Final = object()
+
+
+def _algebra_name(value: Any) -> str:
+    if isinstance(value, type):
+        return value.__name__.replace("_", "-")
+    return _carrier_name(value)
+
+
+def _operation_name(
+    metta: Space, algebra_name: str, role: str, operation: Any
+) -> str:
+    if isinstance(operation, Symbol):
+        return operation.name
+    if isinstance(operation, str):
+        return operation
+    if not callable(operation):
+        msg = (
+            f"{role} must be a callable, Symbol, or operation name, "
+            f"not {type(operation).__name__}"
+        )
+        raise TypeError(msg)
+    name = f"{algebra_name}-{role}"
+
+    def binary(left: Any, right: Any) -> Any:
+        return operation(left, right)
+
+    metta.op(binary, name=name)
+    return name
+
+
+def _construct(
+    subject: Any,
+    *,
+    plus: Any = None,
+    times: Any = None,
+    combine: Any = None,
+    extend: Any = None,
+    zero: Any = _CONSTRUCTOR_MISSING,
+    one: Any = _CONSTRUCTOR_MISSING,
+    laws: Iterable[str] = (),
+    carrier: Iterable[Any] = (),
+    requires: Iterable[str] = (),
+    order: Literal["ascending", "descending"] | None = None,
+) -> DeclaredAlgebra:
+    """Implement the functional and class-decorator constructor forms."""
+    from . import engine  # noqa: PLC0415 -- the callable module stays lazy
+
+    target = engine().self
+    algebra_name = _algebra_name(subject)
+    if isinstance(subject, type):
+        plus = getattr(subject, "plus", plus)
+        times = getattr(subject, "times", times)
+        combine = getattr(subject, "combine", combine)
+        extend = getattr(subject, "extend", extend)
+        zero = getattr(subject, "zero", zero)
+        one = getattr(subject, "one", one)
+        laws = getattr(subject, "laws", laws)
+        carrier = getattr(subject, "carrier", carrier)
+        requires = getattr(subject, "requires", requires)
+        order = getattr(subject, "order", order)
+    combine = plus if combine is None else combine
+    extend = times if extend is None else extend
+    if algebra_name in _PRESETS:
+        return require(target, algebra_name)
+    if combine is None or extend is None:
+        msg = "algebra() needs plus=/times= (or combine=/extend=)"
+        raise TypeError(msg)
+    if zero is _CONSTRUCTOR_MISSING or one is _CONSTRUCTOR_MISSING:
+        msg = "algebra() needs both zero= and one="
+        raise TypeError(msg)
+    combine_name = _operation_name(target, algebra_name, "plus", combine)
+    extend_name = _operation_name(target, algebra_name, "times", extend)
+    declare(
+        target,
+        algebra_name,
+        combine=combine_name,
+        extend=extend_name,
+        zero=zero,
+        one=one,
+        laws=laws,
+        carrier=carrier,
+        requires=requires,
+        order=order,
+    )
+    return require(target, algebra_name)
+
+
+class _AlgebraModule(ModuleType):
+    """A real namespace module that also constructs declared algebras."""
+
+    def __call__(
+        self,
+        subject: Any = None,
+        *,
+        plus: Any = None,
+        times: Any = None,
+        combine: Any = None,
+        extend: Any = None,
+        zero: Any = _CONSTRUCTOR_MISSING,
+        one: Any = _CONSTRUCTOR_MISSING,
+        laws: Iterable[str] = (),
+        carrier: Iterable[Any] = (),
+        requires: Iterable[str] = (),
+        order: Literal["ascending", "descending"] | None = None,
+    ) -> Any:
+        if subject is None:
+            def decorate(cls: type) -> DeclaredAlgebra:
+                return _construct(
+                    cls,
+                    plus=plus,
+                    times=times,
+                    combine=combine,
+                    extend=extend,
+                    zero=zero,
+                    one=one,
+                    laws=laws,
+                    carrier=carrier,
+                    requires=requires,
+                    order=order,
+                )
+
+            return decorate
+        return _construct(
+            subject,
+            plus=plus,
+            times=times,
+            combine=combine,
+            extend=extend,
+            zero=zero,
+            one=one,
+            laws=laws,
+            carrier=carrier,
+            requires=requires,
+            order=order,
+        )
+
+
+counting = replace(_PRESETS["counting"])
+tropical = replace(_PRESETS["tropical"])
+prov = replace(_PRESETS["prov"])
+ranked = replace(_PRESETS["ranked"])
+prob = replace(_PRESETS["prob"])
+
+# PEP 562 preserves lazy import identity at the package; changing the real
+# module object's class adds construction without introducing a proxy.
+sys.modules[__name__].__class__ = _AlgebraModule

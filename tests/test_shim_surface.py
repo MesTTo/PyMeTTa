@@ -14,7 +14,7 @@ Guarantees:
   - the manifest and the tree hold the same host_service set, compared as
     sets with both differences named
     [tested: test_the_host_service_scoreboard_matches_the_tree;
-    commit=c1eaa36c7a2089801fe9da3cbec3fc02833d66fe]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - every remaining row carries a named floor reason, so the list is the
     transport floor rather than a smaller pile of orchestration
     [tested: test_the_shim_surface_shrank_to_the_transport_floor;
@@ -47,6 +47,12 @@ HOST_SERVICES = {
     # and the alternative is the host reimplementing the fragment classifier
     # LeaTTa states and this engine already owns.
     "petta_seq_query_plan/2",
+    # The query carrier is engine policy: the host enters one dynamic scope,
+    # reads its effective declaration, and initializes annotations from that
+    # declaration's one rather than rebuilding those rules in the transport.
+    "petta_with_under/2",
+    "petta_effective_algebra/2",
+    "petta_algebra_one/2",
     "match_foreign/5",
     "metta_host_load_file/3",
     "metta_host_read_forms/2",
@@ -150,6 +156,9 @@ FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
     "lift_pattern_modifiers/4": "door",
     "petta_seq_query_plan/2": "door",
+    "petta_with_under/2": "door",
+    "petta_effective_algebra/2": "door",
+    "petta_algebra_one/2": "door",
     "match_foreign/5": "door",
     "metta_add_atoms/2": "door",
     "metta_assert_space_releasable/1": "door",

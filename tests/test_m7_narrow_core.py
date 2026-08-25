@@ -1,10 +1,10 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the renamed package surface has 88 names and keeps ``record`` and
+  - the renamed package surface has 98 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
-    [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [tested: test_m7_narrow_core_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - every retired root, context, and atom name is absent rather than aliased
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen ``declare_*`` spellings are absent from both synchronous and
@@ -22,10 +22,10 @@ Owns:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - ``BASELINE_*`` and ``FINAL_*`` are the published surface metrics
-    [measured: 90 to 20 MeTTa names and 152 to 88 metta names after the
-    module-tier family and the package rename;
+    [measured: 90 to 20 MeTTa names and 152 to 98 metta names after the
+    module-tier family, package rename, and algebra-carrier promotion;
     command=python -m pytest bindings/python/tests/test_m7_narrow_core.py -q;
-    fixture=a142938d baseline and the current generated root; commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
+    fixture=a142938d baseline and the current generated root; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -57,8 +57,11 @@ FINAL_METTA_METHODS = 20
 # and therefore needs no name; +1 for doc, the get-doc receiver verb on the
 # default context, landing beside match and eval; +2 for the library import
 # door, `lib` the catalog-generated namespace the write door consumes and
-# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25).
-FINAL_METTA_EXPORTS = 92
+# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +6
+# for under, counting, tropical, prov, ranked and prob. The deliberate pin is
+# the algebra-carrier surface adopted in ai-python-first-revamp-discussion.md
+# lines 3024-3034 and 5471-5492.
+FINAL_METTA_EXPORTS = 98
 
 SATELLITES = {
     "aio",

@@ -38,6 +38,13 @@ Guarantees:
     only their demanded prefix, while len counts inside the engine [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
     test_query_single_unpack_pulls_at_most_two_answers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - match and call answers accept explicit or scoped algebra carriers;
+    counting uses engine aggregates and ordered carriers sort before slicing
+    [tested:
+    test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
+    test_counting_counts_duplicate_call_answers_inside_the_engine,
+    test_ranked_and_tropical_slices_are_stable_best_prefixes;
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - ``Space.pre_add`` declares one compiled unary judge through the engine's
     existing pre-add hook [tested: test_pre_add_compiles_the_four_verdict_judge;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -145,6 +152,7 @@ from ._space_execution import (
     capture_output,
     evaluate,
     evaluate_answers,
+    evaluate_count,
     evaluate_status,
     execution_scope,
     profile_extension,
@@ -175,6 +183,8 @@ from ._space_persistence import (
     save_space,
 )
 from ._space_query import _validate_limit, query_count, solve_rows
+from ._under import _UNSET
+from ._under import selected as _selected_under
 from ._version import __version__
 from .atoms import (
     Atom,
@@ -185,8 +195,11 @@ from .atoms import (
     Undefined,
     Variable,
     _atom_from_wire,
+    _decode,
     _to_atom,
     parse,
+    substitute,
+    unify,
 )
 from .define import Defined, PrologBacked
 from .errors import EngineError, PettaError, SourceNotFound, StrictError, Timeout
@@ -195,6 +208,7 @@ from .results import (
     Rows,
     _AnswerItem,
     _QueryContext,
+    _row_class,
     raise_error_answers,
     rows_into,
 )
@@ -1475,6 +1489,7 @@ class Space(Handle):
         limit: int | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        under: Any = _UNSET,
         into: _builtins.type | None = None,
     ) -> Any:
         """Lazily match patterns against this space as one conjunction.
@@ -1498,6 +1513,17 @@ class Space(Handle):
         retains an Answers view. ``len`` uses an engine-side aggregate when
         no row has yet been pulled.
 
+        ``under=`` interprets the same ask through an annotation algebra.
+        ``under=counting`` answers one integer computed by an engine
+        aggregate, including duplicate derivations without crossing their
+        rows into Python. Ordered carriers sort in their declared direction
+        before slicing, so ``m.match(q, under=ranked)[:3]`` is top-k and
+        ``under=tropical`` puts the cheapest annotation first. Other carriers
+        answer ``TaggedAnswer`` values with ``annotation``, ``why()`` and
+        ``under(other)``; the latter two reuse the retained derivation rather
+        than querying the space again. ``with metta.under(carrier)`` supplies
+        the carrier when this call has no explicit ``under=``.
+
         `into=Rows` explicitly chooses the eager Rows face. Other `into=`
         values shape each row into a dataclass, NamedTuple, or
         TypedDict matched by field name, sqlite3's row_factory reading:
@@ -1509,6 +1535,17 @@ class Space(Handle):
             m.match(S.Edge(V.x, V.y), S.Edge(V.y, V.z))
         """
         _validate_limit(limit)
+        carrier = _selected_under(under)
+        if carrier is not None:
+            return self._match_under(
+                patterns,
+                where=where,
+                limit=limit,
+                timeout=timeout,
+                inferences=inferences,
+                under=carrier,
+                into=into,
+            )
         cursor = Cursor(self, patterns, where, timeout, inferences, limit=limit)
 
         def source() -> Iterator[_AnswerItem]:
@@ -1555,6 +1592,170 @@ class Space(Handle):
         if into is Rows:
             return eager
         return rows_into(eager, into)
+
+    def _match_under(
+        self,
+        patterns: tuple[Any, ...],
+        *,
+        where: Any | None,
+        limit: int | None,
+        timeout: float | None,
+        inferences: int | None,
+        under: Any,
+        into: _builtins.type | None,
+    ) -> Any:
+        """Build one lazy carrier view over tagged or ordinary engine rows."""
+        algebra_api = _satellite("algebra")
+        declaration = algebra_api.resolve(self, under)
+        if declaration.name == "counting":
+            return self._match_counting_under(
+                patterns,
+                where=where,
+                limit=limit,
+                timeout=timeout,
+                inferences=inferences,
+                algebra_api=algebra_api,
+                declaration=declaration,
+                into=into,
+            )
+
+        atoms = tuple(_to_atom(pattern) for pattern in patterns)
+        columns = tuple(_column_names(atoms))
+        query_context = _QueryContext(
+            self._space,
+            atoms,
+            guard_atom(where),
+        )
+
+        def tagged_source() -> Iterator[_AnswerItem]:
+            if len(patterns) != 1:
+                msg = "a tagged algebra query takes one proposition pattern"
+                raise algebra_api.AlgebraEvaluationError(msg)
+            evaluation = algebra_api.evaluate(
+                self,
+                patterns[0],
+                algebra=declaration.name,
+            )
+            row_cls = _row_class(columns)
+            yielded = 0
+            for answer in evaluation.answers:
+                bindings = unify(atoms[0], answer.value)
+                if bindings is None:
+                    continue
+                if where is not None:
+                    guard = substitute(guard_atom(where), bindings)
+                    guard_answers = self.eval(
+                        guard,
+                        timeout=timeout,
+                        inferences=inferences,
+                    )
+                    if not any(
+                        isinstance(value, Grounded) and _decode(value) is True
+                        for value in guard_answers
+                    ):
+                        continue
+                if limit is not None and yielded >= limit:
+                    return
+                row = row_cls(bindings[name] for name in columns)
+                yielded += 1
+                yield _AnswerItem(answer, row)
+
+        def engine_source() -> Iterator[_AnswerItem]:
+            cursor = Cursor(
+                self,
+                patterns,
+                where,
+                timeout,
+                inferences,
+                limit=limit,
+                under=declaration.name,
+                order=declaration.order,
+            )
+            try:
+                for row in cursor:
+                    answer = algebra_api.captured_answer(
+                        self,
+                        row,
+                        cursor.annotation,
+                        declaration,
+                    )
+                    yield _AnswerItem(answer, row)
+            finally:
+                cursor.close()
+
+        def source() -> Iterator[_AnswerItem]:
+            if len(patterns) == 1 and algebra_api.has_tagged_program(
+                self, patterns[0]
+            ):
+                yield from tagged_source()
+            else:
+                yield from engine_source()
+
+        answers: Answers[Any] = Answers(
+            source(),
+            columns=columns,
+            space=self._space,
+            target=patterns,
+            query=query_context,
+        )
+        if into is None:
+            return answers
+        eager = Rows(columns, answers.rows, _query=query_context)
+        if into is Rows:
+            return eager
+        return rows_into(eager, into)
+
+    def _match_counting_under(
+        self,
+        patterns: tuple[Any, ...],
+        *,
+        where: Any | None,
+        limit: int | None,
+        timeout: float | None,
+        inferences: int | None,
+        algebra_api: Any,
+        declaration: Any,
+        into: _builtins.type | None,
+    ) -> Answers[int]:
+        """Build the scalar engine-side counting view."""
+        if into is not None:
+            msg = "under=counting answers one scalar and cannot use into="
+            raise TypeError(msg)
+
+        def counted() -> Iterator[int]:
+            if len(patterns) == 1 and algebra_api.has_tagged_program(
+                self, patterns[0]
+            ):
+                if where is not None:
+                    msg = (
+                        "tagged under=counting does not accept where=; "
+                        "put the restriction in the tagged rule"
+                    )
+                    raise algebra_api.AlgebraEvaluationError(msg)
+                yield algebra_api.count_tagged(
+                    self,
+                    patterns[0],
+                    limit=limit,
+                    timeout=timeout,
+                    inferences=inferences,
+                )
+                return
+            yield query_count(
+                self._rt,
+                self._space,
+                patterns,
+                where=where,
+                limit=limit,
+                timeout=timeout,
+                inferences=inferences,
+                under=declaration.name,
+            )
+
+        return Answers(
+            counted(),
+            space=self._space,
+            target=patterns,
+        )
 
     def _stream(
         self,
@@ -1872,6 +2073,7 @@ class Space(Handle):
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        under: Any = _UNSET,
     ) -> Answers[Any]:
         """Evaluate lazily as an immutable, cached and replayable view.
 
@@ -1880,14 +2082,109 @@ class Space(Handle):
         same held evaluation [tested:
         test_function_calls_pull_engine_answers_only_as_demanded;
         commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
+
+        ``under=`` has the same carrier semantics as ``match``. In
+        particular, ``space.answers(call, under=counting).one()`` counts the
+        call's answer derivations inside the engine, and ordered carriers
+        order their annotated ``TaggedAnswer`` values before a slice pulls
+        its prefix. A surrounding ``metta.under(carrier)`` is used only when
+        this call does not pass an explicit carrier.
         """
-        return evaluate_answers(
-            self._rt,
-            self._space,
-            target,
-            timeout,
-            inferences,
-            using=using,
+        carrier = _selected_under(under)
+        if carrier is None:
+            return evaluate_answers(
+                self._rt,
+                self._space,
+                target,
+                timeout,
+                inferences,
+                using=using,
+            )
+        algebra_api = _satellite("algebra")
+        declaration = algebra_api.resolve(self, carrier)
+        tagged_target = parse(target) if isinstance(target, str) else _to_atom(target)
+        if using:
+            tagged_target = tagged_target.map(
+                lambda atom: (
+                    _to_atom(using[atom.name])
+                    if isinstance(atom, Symbol) and atom.name in using
+                    else atom
+                )
+            )
+        if declaration.name == "counting":
+            def counted() -> Iterator[int]:
+                if algebra_api.has_tagged_program(self, tagged_target):
+                    yield algebra_api.count_tagged(
+                        self,
+                        tagged_target,
+                        timeout=timeout,
+                        inferences=inferences,
+                    )
+                else:
+                    counted_engine = evaluate_count(
+                        self._rt,
+                        self._space,
+                        target,
+                        timeout,
+                        inferences,
+                        using=using,
+                        under=declaration.name,
+                    )
+                    if counted_engine is None:
+                        # The engine refused a second evaluation of an
+                        # effect-unsafe goal; count the bag through one
+                        # ordinary pass so the effects fire exactly once.
+                        counted_engine = sum(
+                            1
+                            for _ in evaluate_answers(
+                                self._rt,
+                                self._space,
+                                target,
+                                timeout,
+                                inferences,
+                                using=using,
+                            )
+                        )
+                    yield counted_engine
+
+            return Answers(counted(), space=self._space, target=target)
+        columns = tuple(_column_names((tagged_target,)))
+
+        def annotated() -> Iterator[Any]:
+            if algebra_api.has_tagged_program(self, tagged_target):
+                evaluation = algebra_api.evaluate(
+                    self,
+                    tagged_target,
+                    algebra=declaration.name,
+                )
+                if not columns:
+                    yield from evaluation.answers
+                    return
+                row_cls = _row_class(columns)
+                for answer in evaluation.answers:
+                    bindings = unify(tagged_target, answer.value)
+                    if bindings is None:
+                        continue
+                    row = row_cls(bindings[name] for name in columns)
+                    yield _AnswerItem(answer, row)
+                return
+            ordinary = evaluate_answers(
+                self._rt,
+                self._space,
+                target,
+                timeout,
+                inferences,
+                using=using,
+                under=declaration.name,
+                order=declaration.order,
+            )
+            yield from ordinary._items()
+
+        return Answers(
+            annotated(),
+            columns=columns,
+            space=self._space,
+            target=target,
         )
 
     def parallel(
@@ -3242,6 +3539,7 @@ class Space(Handle):
         laws: _abc.Iterable[str] = (),
         carrier: _abc.Iterable[Any] = (),
         requires: _abc.Iterable[str] = (),
+        order: Literal["ascending", "descending"] | None = None,
     ) -> Atom:
         """Declare operations and checked laws for an arbitrary atom carrier.
 
@@ -3260,6 +3558,7 @@ class Space(Handle):
             laws=laws,
             carrier=carrier,
             requires=requires,
+            order=order,
         )
 
     def add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
@@ -3309,29 +3608,27 @@ class Space(Handle):
         )
         return atom
 
-    def evaluate_algebra(
+    def sample(
         self,
         query: str | Atom,
         *,
-        algebra: str,
-        max_rounds: int = 64,
-    ) -> Any:
-        """Evaluate stored tagged facts and rules through one declared algebra."""
-        return _satellite("algebra").evaluate(
-            self, query, algebra=algebra, max_rounds=max_rounds
-        )
+        k: int = 10,
+        seed: int = 7,
+    ) -> list[Atom]:
+        """Choose ``k`` tagged alternatives with replacement by ``(rate n)``.
 
-    def sample_rates(
-        self,
-        query: str | Atom,
-        *,
-        algebra: str,
-        draws: int,
-        seed: int,
-    ) -> tuple[Atom, ...]:
-        """Select tagged alternatives by their nonnegative ``(rate n)`` tags."""
-        return _satellite("algebra").sample(
-            self, query, algebra=algebra, draws=draws, seed=seed
+        The argument names and list result follow ``random.choices``. A local
+        seeded generator makes repeated calls reproducible without changing
+        Python's process-global random state.
+        """
+        return list(
+            _satellite("algebra").sample(
+                self,
+                query,
+                algebra="prob",
+                draws=k,
+                seed=seed,
+            )
         )
 
     def source(

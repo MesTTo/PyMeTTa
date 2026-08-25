@@ -44,6 +44,11 @@ Guarantees:
   - module define/cache/stats/limits/strict/trace verbs defer engine creation
     until called and target the default self space [tested:
     test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - under scopes an algebra through ContextVar state and the exact counting,
+    tropical, probability, provenance, and ranking carriers stay lazy root
+    exports [tested:
+    test_scoped_under_is_task_local_and_explicit_under_wins,
+    test_requested_carrier_spellings_are_declared; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -129,6 +134,11 @@ _LAZY_ATTRIBUTES = {
     "Space": ("_space", "Space"),
     "SpaceProvider": ("foreign", "SpaceProvider"),
     "State": ("_state", "State"),
+    "counting": ("algebra", "counting"),
+    "prob": ("algebra", "prob"),
+    "prov": ("algebra", "prov"),
+    "ranked": ("algebra", "ranked"),
+    "tropical": ("algebra", "tropical"),
     "boot": ("manifest", "boot"),
     "equation": ("_rules", "equation"),
     "rules": ("_rules", "rules"),
@@ -380,6 +390,16 @@ def limits(
     )
 
 
+def under(algebra: _Any):
+    """Scope the default algebra for match, call-answer, and fold carriers.
+
+    The scope is task-local, nests with token restoration, and never mutates
+    the catalog. An explicit ``under=`` on a carrier outranks this default.
+    """
+    scoped = _importlib.import_module(f"{__name__}._under")
+    return scoped.ScopedUnder(algebra)
+
+
 def strict():
     """Refuse unreduced default-context directives within the block."""
     return engine().self.strict()
@@ -437,6 +457,7 @@ __all__ = [
     "channel",
     "config",
     "convert",
+    "counting",
     "current_space",
     "define",
     "derivation",
@@ -465,7 +486,10 @@ __all__ = [
     "parallel",
     "parse",
     "paths",
+    "prob",
+    "prov",
     "race",
+    "ranked",
     "reflection",
     "refuse",
     "remote",
@@ -485,7 +509,9 @@ __all__ = [
     "tables",
     "testing",
     "trace",
+    "tropical",
     "typed",
+    "under",
     "unify",
     "view",
     "vocabularies",

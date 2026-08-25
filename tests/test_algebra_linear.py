@@ -4,7 +4,7 @@ Guarantees:
   - the same stored evidence occurrence cannot satisfy two premises when its
     algebra deliberately omits contraction [tested:
     test_a_linear_algebra_refuses_the_second_spend_of_one_premise;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -42,9 +42,7 @@ def test_a_linear_algebra_refuses_the_second_spend_of_one_premise(metta):
             LinearEvidenceError,
             match=r"linear_evidence_already_spent\(p4-linear, token=\d+\)",
         ):
-            program.evaluate_algebra(
-                S.double_booked(S.alice), algebra="p4-linear"
-            )
+            list(program.match(S.double_booked(S.alice), under="p4-linear"))
 
     metta.algebra(
         "p4-reusable-evidence",
@@ -61,9 +59,9 @@ def test_a_linear_algebra_refuses_the_second_spend_of_one_premise(metta):
             S.meeting_token(S.alice, S.room7),
             S.meeting_token(S.alice, S.room7),
         )
-        answers = reusable.evaluate_algebra(
-            S.double_booked(S.alice), algebra="p4-reusable-evidence"
-        ).answers
+        answers = reusable.match(
+            S.double_booked(S.alice), under="p4-reusable-evidence"
+        )
         assert [(str(answer.value), str(answer.tag)) for answer in answers] == [
             ("(double-booked alice)", "2")
         ]

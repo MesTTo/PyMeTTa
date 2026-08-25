@@ -168,7 +168,21 @@ is Python's own `assert`.
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged tree with
 #: engine/reader.so; commit=WORKTREE].
-BUDGET = 2830
+#: RE-PINNED 2026-08-26, 2822 to 2846, after the algebra carrier host
+#: services and catalog rows changed the compiled QLF layout. The ordinary
+#: identity workload does no carrier work and its one claim still agrees
+#: [measured: 2846 inferences; command=python
+#: bindings/python/tools/twin_coverage.py examples/basics/identity.metta;
+#: fixture=one full-lane identity twin; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
+#: RE-PINNED 2026-08-26, on the under-algebra integration merge: the merged
+#: tree measures 2861 (the parents above read 2830 and 2846 alone), the
+#: example itself 2801; layout composes non-monotonically through
+#: clause-indexing shape and the carrier host services sit in the compiled
+#: image even though this workload does no carrier work [measured: 2861
+#: inferences; command=tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=merged tree with
+#: engine/reader.so; commit=WORKTREE].
+BUDGET = 2861
 
 
 def twin(m):
