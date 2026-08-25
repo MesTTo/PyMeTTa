@@ -1,10 +1,12 @@
 """Purpose: lower a symbolic tensor identity to one numeric GEMM operation.
 
-Assumes: NumPy is installed by the blocking ``test`` and ``checks`` extras.
+Assumes: NumPy is present. It is not a dependency of the library, so this
+  program skips where it is absent, the way every other integration example
+  does.
 Guarantees:
   - the declared top-down lowering rewrites ``MM(T(T(x)), y)`` to one matmul
     call, and tropical ``under=`` carries the checked numeric result
-    [tested: test_every_gallery_program_runs; commit=8bfe05c3850776543ece25a85038242f10b1d841]
+    [tested: test_a_gallery_program_runs; commit=WORKTREE]
 Owns resources: one named space plus one pure operation registration; an
   explicit unregister call and drop() release them after evaluation, while
   process exit releases the process-local lowering registry after failure.
@@ -12,8 +14,12 @@ Owns resources: one named space plus one pure operation registration; an
 
 from unittest.mock import patch
 
-import numpy as np
-from _common import claim, doctest, done
+from _common import claim, doctest, done, skip
+
+try:
+    import numpy as np
+except ImportError:
+    skip("numpy is not installed")
 
 from metta import Expression, Grounded, MeTTa, S, equation, rules, tropical
 

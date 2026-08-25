@@ -94,10 +94,45 @@ def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pyte
     assert "pylint>=3.3,<4" in extras["checks"]
 
 
-def test_minimal_version_matrix_installs_blocking_gallery_dependency():
-    """The all-tests version matrix cannot skip or miss the gallery package."""
+def test_the_minimal_version_matrix_installs_no_optional_integration():
+    """The floor matrix proves the suite skips cleanly without the extras.
+
+    Its whole subject is the library on three Pythons with nothing but the
+    engine binding and the test runner. Installing an integration package
+    there would make the skip-clean property untestable and would fail the
+    job whenever that package has no wheel for a new Python.
+    """
+    matrix = _version_matrix_job()
+    extras = _manifest()["project"]["optional-dependencies"]
+    integrations = set(extras["arrays"]) | set(extras["das"]) | set(extras["dataframes"])
+    integrations |= {"networkx>=3.6,<4"}
+    for package in integrations:
+        assert package.split(">")[0] not in matrix, package
+
+
+def _version_matrix_job() -> str:
     workflow = (ROOT / ".github" / "workflows" / "checks.yml").read_text(encoding="utf-8")
-    assert "janus_swi pytest hypothesis 'networkx>=3.6,<4' numpy" in workflow
+    return workflow.split("  versions:", 1)[1].split("\n  wheel:", 1)[0]
+
+
+def test_the_minimal_version_matrix_installs_every_required_dependency():
+    """A new required dependency must reach the matrix or nothing imports.
+
+    docstring-parser became required on 2026-08-23 and was not added to this
+    job's install line, so `import metta` raised ModuleNotFoundError in every
+    matrix environment from that day. The branch was never pushed, so no CI
+    run reported it. This is the check that would have.
+    """
+    matrix = _version_matrix_job()
+    install = next(
+        line for line in matrix.splitlines() if "janus_swi" in line and "pytest" in line
+    )
+    installed = set(install.split())
+    for requirement in _manifest()["project"]["dependencies"]:
+        name = re.split(r"[<>=!\[]", requirement)[0]
+        # janus-swi is spelled with the underscore its distribution uses,
+        # because --no-binary names the same package again.
+        assert {name, name.replace("-", "_")} & installed, requirement
 
 
 def test_the_pytest_lane_is_deterministic_under_load_protocol():

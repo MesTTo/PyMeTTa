@@ -41,6 +41,8 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[3]
 PYTHON_ROOT = REPO / "bindings" / "python"
 RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
@@ -184,6 +186,10 @@ def _ignore_entries(ruff: dict):
 
 
 def _ruff_findings(*extra: str) -> list[dict]:
+    # Ruff is in the checks extra, not the minimal version matrix, and this
+    # test drives the real binary rather than reading its configuration, so
+    # without it there is nothing to ask.
+    pytest.importorskip("ruff", reason="ruff is a checks-extra tool")
     command = [
         sys.executable,
         "-m",

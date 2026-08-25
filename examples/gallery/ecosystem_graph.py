@@ -1,20 +1,27 @@
 """Purpose: express a NetworkX shortest-path algorithm as one MeTTa operation.
 
 Assumes:
-  - NetworkX is installed by the blocking ``test`` and ``checks`` extras.
+  - NetworkX is present. It is not a dependency of the library, so this
+    program skips where it is absent, the way every other integration
+    example does.
   - the selected graph has one unique shortest path, so no library tie
     ordering can affect the shown answer.
 Guarantees:
   - stored edge atoms project through the common space seam, NetworkX computes
     the route, and that route returns to the same space as queryable knowledge
-    [tested: test_every_gallery_program_runs; commit=8bfe05c3850776543ece25a85038242f10b1d841]
+    [tested: test_a_gallery_program_runs; commit=WORKTREE]
 Owns resources: one named space and one read-only operation registration;
   unregister_op() and drop() release them after the result is written back,
   while process exit releases them after an earlier failed claim.
 """
 
-import networkx as nx
-from _common import claim, doctest, done
+from _common import claim, doctest, done, skip
+
+try:
+    import networkx as nx
+except ImportError:
+    skip("networkx is not installed")
+
 from integration.networkx_space import to_graph
 
 from metta import MeTTa, S, V

@@ -25,8 +25,12 @@ from __future__ import annotations
 import sqlite3
 from itertools import pairwise
 
-import networkx as nx
-from _common import check, done
+from _common import check, done, skip
+
+try:
+    import networkx as nx
+except ImportError:
+    skip("networkx is not installed")
 
 from metta import Expression, MeTTa, Variable, parse, tables, ground
 
