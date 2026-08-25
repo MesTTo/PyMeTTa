@@ -22,7 +22,7 @@ Guarantees:
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the matching, nondeterminism, fold, and state rows execute every public
     algebra-carrier spelling [tested: test_the_phrasebook_page_is_up_to_date;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

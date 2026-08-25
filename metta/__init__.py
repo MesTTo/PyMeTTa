@@ -44,7 +44,7 @@ Guarantees:
     tropical, probability, provenance, and ranking carriers stay lazy root
     exports [tested:
     test_scoped_under_is_task_local_and_explicit_under_wins,
-    test_requested_carrier_spellings_are_declared; commit=WORKTREE]
+    test_requested_carrier_spellings_are_declared; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None

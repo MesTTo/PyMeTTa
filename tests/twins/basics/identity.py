@@ -146,7 +146,7 @@ is Python's own `assert`.
 #: identity workload does no carrier work and its one claim still agrees
 #: [measured: 2846 inferences; command=python
 #: bindings/python/tools/twin_coverage.py examples/basics/identity.metta;
-#: fixture=one full-lane identity twin; commit=WORKTREE].
+#: fixture=one full-lane identity twin; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 BUDGET = 2846
 
 

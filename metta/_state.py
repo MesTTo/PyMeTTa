@@ -12,7 +12,7 @@ Guarantees:
     and mutex-guarded write is thread-safe, while compound Python
     read-modify-write remains non-atomic and State emits no events, history,
     or transactions [tested:
-    test_fold_into_state_updates_the_shared_engine_cell; commit=WORKTREE]
+    test_fold_into_state_updates_the_shared_engine_cell; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Owns resources:
   - the engine owns the state cell; this handle owns no independent resource.
 """

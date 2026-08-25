@@ -4,10 +4,10 @@ Guarantees:
   - exact opposite paths cancel inside the finite, contractive, staged
     fragment and any missing fence capability is refused by name [tested:
     test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - ``match(..., under="amplitude")`` is the public evaluation carrier
     [tested: test_amplitudes_interfere_inside_the_fragment_and_are_refused_outside;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None

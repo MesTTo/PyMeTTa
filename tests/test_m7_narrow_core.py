@@ -2,9 +2,9 @@
 Guarantees:
   - the renamed package surface has 98 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
-    [tested: test_m7_narrow_core_surface; commit=WORKTREE]
+    [tested: test_m7_narrow_core_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - every retired root, context, and atom name is absent rather than aliased
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen ``declare_*`` spellings are absent from both synchronous and
@@ -25,7 +25,7 @@ Decides:
     [measured: 90 to 20 MeTTa names and 152 to 98 metta names after the
     module-tier family, package rename, and algebra-carrier promotion;
     command=python -m pytest bindings/python/tests/test_m7_narrow_core.py -q;
-    fixture=a142938d baseline and the current generated root; commit=WORKTREE]
+    fixture=a142938d baseline and the current generated root; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None

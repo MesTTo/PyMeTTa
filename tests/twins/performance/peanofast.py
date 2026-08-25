@@ -15,7 +15,7 @@ The count stays in the engine: `match(pattern, under=counting).one()` maps
 each derivation to one, preserves the bag, aggregates there, and crosses only
 the integer 2500. No depth-K Peano term is materialized in Python [tested:
 tools/twin_coverage.py --measure examples/performance/peanofast.metta;
-commit=WORKTREE].
+commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 """
 
 from metta import S, V, counting, fn
@@ -67,7 +67,7 @@ from metta import S, V, counting, fn
 #: caller-row encoding before the engine aggregate, so the 2,500 depth-growing
 #: Peano answers are never materialized and counting stays linear [measured:
 #: 103089 inferences; command=python bindings/python/tools/twin_coverage.py;
-#: fixture=full-lane 2500 successors; commit=WORKTREE].
+#: fixture=full-lane 2500 successors; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 BUDGET = 103089
 
 

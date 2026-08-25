@@ -10,7 +10,7 @@ The final count stays inside the engine:
 and crosses only the scalar 1,063,919, rather than materializing that million
 atoms in Python [tested:
 tools/twin_coverage.py --measure examples/spaces/matespace.metta;
-commit=WORKTREE].
+commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 
 The three definitions whose bodies name `case` or `once` remain terms because
 neither translator form is in the function registry (residue, P14.4).
@@ -73,7 +73,7 @@ RUNG = (
 #: observation now uses answers(..., under=counting) and crosses one scalar
 #: [measured: 32666757 inferences;
 #: command=python bindings/python/tools/twin_coverage.py;
-#: fixture=full-lane 390 doublings and 1063919 answers; commit=WORKTREE].
+#: fixture=full-lane 390 doublings and 1063919 answers; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 BUDGET = 32666757
 
 

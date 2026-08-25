@@ -6,24 +6,24 @@ Guarantees:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor,
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_counting_inference_growth_is_linear_when_answers_grow_in_depth;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - ordered carriers determine answer order before an Answers slice selects
     its prefix [tested:
     test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - a retained derivation can be explained and reinterpreted without asking
     its provider again [tested:
     test_provenance_retains_a_derivation_for_no_requery_reinterpretation,
     test_tagged_call_answers_use_the_carrier_without_hijacking_other_calls;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - the algebra satellite is its callable constructor while keeping module
     identity, and Space.sample uses random.choices vocabulary [tested:
     test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired,
-    test_space_sample_is_seeded_and_uses_k_vocabulary; commit=WORKTREE]
+    test_space_sample_is_seeded_and_uses_k_vocabulary; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - carrier selection stays lazy and its ContextVar crosses the async worker
     [tested: test_under_answers_defers_its_tagged_route_probe_until_pull,
     test_scoped_under_crosses_the_async_worker_context,
-    test_under_refuses_none_and_restores_after_an_exception; commit=WORKTREE]
+    test_under_refuses_none_and_restores_after_an_exception; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 """
 
 from __future__ import annotations

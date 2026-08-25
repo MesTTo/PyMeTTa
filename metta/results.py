@@ -38,7 +38,7 @@ Guarantees:
   - private item replay lets a deferred algebra route preserve those rows
     without probing the engine when its Answers view is constructed [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - an Answers view crossing into a term observes exact-one cardinality and
     encodes that answer as the operand [tested:
     test_answer_views_observe_when_used_as_operands; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

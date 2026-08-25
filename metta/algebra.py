@@ -28,11 +28,11 @@ Guarantees:
     counting, tropical, provenance, and ranking objects are accepted directly
     by every carrier [tested:
     test_algebra_module_is_the_constructor_and_the_old_space_doors_are_retired,
-    test_requested_carrier_spellings_are_declared; commit=WORKTREE]
+    test_requested_carrier_spellings_are_declared; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - tagged answers retain their derivation tree so why() and under() do not
     rerun the query [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.

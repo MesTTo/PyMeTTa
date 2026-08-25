@@ -18,7 +18,7 @@ Guarantees:
   - the same aggregate accepts a per-ask algebra without opening a row cursor
     [tested:
     test_counting_counts_match_bag_duplicates_without_opening_a_row_cursor;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - eager and prepared queries carry a scoped stack bound through the shared
     limited-call selector [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

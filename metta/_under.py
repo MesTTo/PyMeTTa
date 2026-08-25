@@ -4,7 +4,7 @@ Guarantees:
   - an omitted per-call carrier reads the innermost scope, an explicit value
     wins, and exit restores the previous carrier even after an exception
     [tested: test_scoped_under_is_task_local_and_explicit_under_wins;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 """
 
 from __future__ import annotations

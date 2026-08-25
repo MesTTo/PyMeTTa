@@ -9,7 +9,7 @@ Guarantees:
   - an algebra cursor captures each engine annotation while leaving the
     ordinary one-row wire unchanged [tested:
     test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - Prepared preserves first-appearance query columns [tested
     test_query_surfaces_share_column_order]
   - the bound function namespace transliterates attributes, preserves exact

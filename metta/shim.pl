@@ -829,7 +829,7 @@ petta_py_cursor_bounded(Goal, Inf, Bounded) :-
 %engine_create defers execution until the first pull. Ordered carriers collect
 %and stably sort in the engine; Answers slicing then reads a genuine best
 %prefix rather than sorting a Python materialisation [tested:
-%bindings/python/tests/test_under_algebra.py; commit=WORKTREE].
+%bindings/python/tests/test_under_algebra.py; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 petta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
                            Limit, Inf, Algebra, Direction, prolog(Engine)) :-
     (   Direction \== none
@@ -1463,7 +1463,7 @@ petta_py_query_all(Space, PatternsTagged, VarNames, Rows) :-
 %answers whose terms grow with input depth stay linear instead of paying to
 %walk every bound term again [tested:
 %test_counting_inference_growth_is_linear_when_answers_grow_in_depth;
-%commit=WORKTREE]. GuardTagged=[] selects the unguarded query, and Limit=0
+%commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]. GuardTagged=[] selects the unguarded query, and Limit=0
 %means unbounded, matching the eager query doors.
 petta_py_query_count(Space, PatternsTagged, GuardTagged, _VarNames, Limit, Count) :-
     (   GuardTagged == [], Limit > 0,
@@ -1491,7 +1491,7 @@ petta_py_query_count_under(Space, PatternsTagged, GuardTagged, VarNames,
 %the engine enumerates proof trees and aggregate_all/3 keeps the bag cardinality
 %without returning any tree or row to Python [tested:
 %test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
-%commit=WORKTREE].
+%commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 petta_py_has_tagged_program(Space, Target, Has) :-
     petta_py_eval_target(Space, Target, [], Query, _),
     (   once(( 'get-atoms'(Space, Atom),

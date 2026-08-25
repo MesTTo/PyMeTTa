@@ -21,7 +21,7 @@ Guarantees:
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - async match and sample mirror the algebra carrier doors on their owning
     worker [tested: test_aio_covers_the_whole_synchronous_surface;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None

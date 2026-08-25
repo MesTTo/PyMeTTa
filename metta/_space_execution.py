@@ -24,7 +24,7 @@ Guarantees:
     counting uses the engine aggregate with no value decoding [tested:
     test_counting_counts_duplicate_call_answers_inside_the_engine,
     test_ranked_and_tropical_slices_are_stable_best_prefixes;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - the held-evaluation cursor ships in the boot-consulted bridge rather than
     being consulted on the first answer pull [tested:
     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

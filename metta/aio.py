@@ -68,7 +68,7 @@ Guarantees:
     test_async_peek_and_take_mirror_the_space_handle; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - async match forwards the submitting task's scoped or explicit algebra,
     and sample mirrors the synchronous random.choices-shaped door [tested:
-    test_aio_covers_the_whole_synchronous_surface; commit=WORKTREE]
+    test_aio_covers_the_whole_synchronous_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested

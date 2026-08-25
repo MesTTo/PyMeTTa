@@ -14,7 +14,7 @@ Guarantees:
     declared algebra merge as its entire step [tested:
     test_fold_into_state_updates_the_shared_engine_cell,
     test_fold_under_counting_and_tropical_uses_the_algebra_as_the_step;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None

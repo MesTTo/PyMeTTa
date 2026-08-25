@@ -4,7 +4,7 @@ Guarantees:
   - the same stored evidence occurrence cannot satisfy two premises when its
     algebra deliberately omits contraction [tested:
     test_a_linear_algebra_refuses_the_second_spend_of_one_premise;
-    commit=WORKTREE]
+    commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
   Hacks: None
