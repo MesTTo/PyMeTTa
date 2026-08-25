@@ -14,7 +14,7 @@ Guarantees:
   - operation effects are read from the reflected ``op`` and ``effect`` facts,
     so crossing diagnostics consume the lattice instead of recreating it
     [tested: test_known_map_filter_and_fold_111x_shapes_are_linted;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -3,14 +3,14 @@
 Guarantees:
   - atom/plain ordering refuses in both operand directions with Python's rich
     comparison ground, while atom/atom and grounded/plain ordering remain
-    lawful [tested: bindings/python/tests/test_refusal_grounds.py; commit=WORKTREE]
+    lawful [tested: bindings/python/tests/test_refusal_grounds.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - comparison-term truthiness names Python 6.10 and the explicit conjunction
     remedy required by GG5-019 [tested:
     test_comparison_truthiness_names_python_6_10_and_the_conjunction_remedy;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - compiler refusals carry their Python-reference ground as data without
     rewriting the sibling-owned unknown-callee message [tested:
-    test_compile_refusals_derive_a_python_reference_ground; commit=WORKTREE]
+    test_compile_refusals_derive_a_python_reference_ground; commit=acb40f1912f131ae088083d1af29b4b283019bea]
 """
 
 from __future__ import annotations

@@ -58,7 +58,7 @@ Guarantees:
   - zip and reversed retain their lawful Sequence behavior while recording
     advisory ordering evidence for Space.lint [tested:
     test_zip_over_unordered_answers_is_lawful_and_linted,
-    test_reversed_over_unordered_answers_is_lawful_and_linted; commit=WORKTREE]
+    test_reversed_over_unordered_answers_is_lawful_and_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None

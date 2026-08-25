@@ -4,7 +4,7 @@ Guarantees:
     test_finding_retains_public_pickle_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a lint invocation records and applies exact ``# metta: ok(kind)`` source
     intents without changing the space or executing findings [tested:
-    test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=WORKTREE]
+    test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None

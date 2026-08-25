@@ -7,7 +7,7 @@ Guarantees:
   - atom/plain ordering and comparison-term truthiness refuse with structured
     Python-reference grounds; chained comparisons name the explicit
     conjunction remedy [tested: bindings/python/tests/test_refusal_grounds.py;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - Grounded preserves every non-primitive Python value by identity; only
     exact bool, int, float and str values use native wire terms [tested:
     bindings/python/tests/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]

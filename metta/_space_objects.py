@@ -27,7 +27,7 @@ Guarantees:
   - bound synchronous function calls made in async bodies record the same
     AsyncMeTTa lint as direct Space calls [tested:
     test_a_sync_engine_call_inside_async_def_is_linted_not_refused;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested

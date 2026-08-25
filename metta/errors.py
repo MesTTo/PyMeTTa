@@ -20,7 +20,7 @@ Guarantees:
     and every CompileError derives one from its construct [tested:
     bindings/python/tests/test_refusal_grounds.py,
     tests/check_refusal_grounds.py;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None

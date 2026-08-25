@@ -6,13 +6,13 @@ Assumes:
 Guarantees:
   - ``# metta: ok(<rule>)`` comments are tokenized, bound to one statement,
     reflected as ``lint-intent`` data, and never alter execution [tested:
-    test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=WORKTREE]
+    test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - source evidence is immutable, deduplicated per logical space, and retired
     with that space [tested: test_lint_evidence_and_intent_follow_space_clear;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - operation calls under compiled loop bodies are recognized from the
     registered operation object rather than from spelling [tested:
-    test_an_operation_call_inside_a_compiled_loop_is_linted; commit=WORKTREE]
+    test_an_operation_call_inside_a_compiled_loop_is_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Guarded by:
   - ``_LOCK`` serializes the process registries and their reflected facts
 """

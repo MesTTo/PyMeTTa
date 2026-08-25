@@ -20,7 +20,7 @@ Guarantees:
     effectful calls without changing either result [tested:
     test_a_staged_operation_in_a_law_is_linted_not_refused,
     test_an_effectful_ground_operation_at_rule_construction_is_linted;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None

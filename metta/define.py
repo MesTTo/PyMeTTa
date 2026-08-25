@@ -21,7 +21,7 @@ Guarantees:
     test_an_annotated_binding_emits_its_claim; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - source spans, source docstrings, lexical captures, and the strongest call effect are
     derived from the parsed function and exposed as immutable facts [tested:
-    test_a_definition_joins_every_called_operations_effect; commit=WORKTREE]
+    test_a_definition_joins_every_called_operations_effect; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - ``yield from`` delegates only a statically known-nondeterministic call
     and refuses an ambiguous engine call instead of silently splicing it
     [tested:
@@ -49,7 +49,7 @@ Guarantees:
     test_function_calls_suspend_endless_producers; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a successful module-level call remains lawful and records one advisory
     lint event [tested: test_a_module_level_defined_call_is_linted_not_refused;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None
