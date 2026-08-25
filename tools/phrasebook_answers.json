@@ -45,7 +45,7 @@
   "metta": [
    "3"
   ],
-  "metta_inferences": 693,
+  "metta_inferences": 695,
   "python": [
    "3"
   ],
@@ -71,7 +71,7 @@
   "metta": [
    "(-> Number Number)"
   ],
-  "metta_inferences": 1835,
+  "metta_inferences": 1840,
   "python": [
    "(-> Number Number)"
   ],
@@ -128,11 +128,11 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 3967,
+  "metta_inferences": 3971,
   "python": [
    "2"
   ],
-  "python_inferences": 1936
+  "python_inferences": 1940
  },
  "=%": {
   "leatta": [
@@ -369,15 +369,27 @@
   "leatta": [
    "Type"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "Type"
+  ],
+  "metta_inferences": 6009287,
+  "python": [
+   "Type"
+  ],
+  "python_inferences": 6012069
  },
  "TU": {
   "leatta": [
    "(-> Type Type)"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "(-> Type Type)"
+  ],
+  "metta_inferences": 6020550,
+  "python": [
+   "(-> Type Type)"
+  ],
+  "python_inferences": 6020298
  },
  "_separate-errors": {
   "leatta": [
@@ -436,7 +448,7 @@
    "(f 1)",
    "(f 2)"
   ],
-  "metta_inferences": 1567,
+  "metta_inferences": 1565,
   "python": [
    "(f 1)",
    "(f 2)"
@@ -570,7 +582,7 @@
   "metta": [
    "True"
   ],
-  "metta_inferences": 1667,
+  "metta_inferences": 1665,
   "python": [
    "True"
   ],
@@ -661,14 +673,20 @@
   "python": [
    "(f 1)"
   ],
-  "python_inferences": 88
+  "python_inferences": 90
  },
  "bottomup": {
   "leatta": [
    "strategy-bottomup-root"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "strategy-bottomup-root"
+  ],
+  "metta_inferences": 8672906,
+  "python": [
+   "strategy-bottomup-root"
+  ],
+  "python_inferences": 8866319
  },
  "capture": {
   "leatta": [
@@ -756,11 +774,11 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 1214,
+  "metta_inferences": 1218,
   "python": [
    "2"
   ],
-  "python_inferences": 356
+  "python_inferences": 360
  },
  "collapse": {
   "leatta": [
@@ -938,7 +956,7 @@
   "python": [
    "6"
   ],
-  "python_inferences": 312
+  "python_inferences": 318
  },
  "for-each-in-atom": {
   "leatta": [
@@ -947,7 +965,7 @@
   "metta": [
    "(() ())"
   ],
-  "metta_inferences": 3878,
+  "metta_inferences": 3877,
   "python": [
    "()"
   ],
@@ -1055,11 +1073,11 @@
   "metta": [
    "5"
   ],
-  "metta_inferences": 867,
+  "metta_inferences": 869,
   "python": [
    "5"
   ],
-  "python_inferences": 231
+  "python_inferences": 233
  },
  "get-type": {
   "leatta": [
@@ -1111,8 +1129,14 @@
   "leatta": [
    "a"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "a"
+  ],
+  "metta_inferences": 5835270,
+  "python": [
+   "a"
+  ],
+  "python_inferences": 6005896
  },
  "help!": {
   "leatta": [
@@ -1241,8 +1265,14 @@
   "leatta": [
    "strategy-innermost-root"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "strategy-innermost-root"
+  ],
+  "metta_inferences": 9133672,
+  "python": [
+   "strategy-innermost-root"
+  ],
+  "python_inferences": 9350883
  },
  "intersection": {
   "leatta": [
@@ -1398,7 +1428,7 @@
   "python": [
    "1"
   ],
-  "python_inferences": 13611
+  "python_inferences": 14181
  },
  "match%": {
   "leatta": [],
@@ -1506,11 +1536,11 @@
   "metta": [
    "1"
   ],
-  "metta_inferences": 914,
+  "metta_inferences": 916,
   "python": [
    "1"
   ],
-  "python_inferences": 771
+  "python_inferences": 781
  },
  "noeval": {
   "leatta": [
@@ -1668,8 +1698,14 @@
   "leatta": [
    "strategy-c"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "strategy-c"
+  ],
+  "metta_inferences": 7166918,
+  "python": [
+   "strategy-c"
+  ],
+  "python_inferences": 7300755
  },
  "return": {
   "leatta": [
@@ -1787,8 +1823,14 @@
   "leatta": [
    "(f a b)"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "(f a b)"
+  ],
+  "metta_inferences": 9561824,
+  "python": [
+   "(f a b)"
+  ],
+  "python_inferences": 10393587
  },
  "stratego-one": {
   "leatta": [
@@ -1796,8 +1838,18 @@
    "(f a b)",
    "(f a b)"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "(f a b)",
+   "(f a b)",
+   "(f a b)"
+  ],
+  "metta_inferences": 11058966,
+  "python": [
+   "(f a b)",
+   "(f a b)",
+   "(f a b)"
+  ],
+  "python_inferences": 11349525
  },
  "stratego-some": {
   "leatta": [
@@ -1829,7 +1881,7 @@
   "metta": [
    "(a b)"
   ],
-  "metta_inferences": 738,
+  "metta_inferences": 740,
   "python": [
    "(a b)"
   ],
@@ -1849,7 +1901,7 @@
    "a",
    "b"
   ],
-  "python_inferences": 5225
+  "python_inferences": 5493
  },
  "superpose-bind": {
   "leatta": [
@@ -1888,8 +1940,14 @@
   "leatta": [
    "(strategy-node strategy-b)"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "(strategy-node strategy-b)"
+  ],
+  "metta_inferences": 7785334,
+  "python": [
+   "(strategy-node strategy-b)"
+  ],
+  "python_inferences": 8571893
  },
  "trace!": {
   "leatta": [
@@ -1911,7 +1969,7 @@
   "metta": [
    "2"
   ],
-  "metta_inferences": 633,
+  "metta_inferences": 631,
   "python": [
    "2"
   ],
@@ -1921,8 +1979,14 @@
   "leatta": [
    "strategy-b"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "strategy-b"
+  ],
+  "metta_inferences": 6489623,
+  "python": [
+   "strategy-b"
+  ],
+  "python_inferences": 7056518
  },
  "unify": {
   "leatta": [
@@ -2044,7 +2108,13 @@
   "leatta": [
    "(-> Atom Type Atom Atom)"
   ],
-  "metta": null,
-  "python": null
+  "metta": [
+   "(-> Atom Type Atom Atom)"
+  ],
+  "metta_inferences": 6008164,
+  "python": [
+   "(-> Atom Type Atom Atom)"
+  ],
+  "python_inferences": 6001210
  }
 }

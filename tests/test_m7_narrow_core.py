@@ -1,8 +1,11 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the renamed package surface has 98 names and keeps ``record`` and
+  - the renamed package surface has 100 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
+  - the renamed package surface has  and keeps ``record`` and
+    ``order_key`` absent [tested: test_m7_narrow_core_surface;
+    commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - every retired root, context, and atom name is absent rather than aliased
@@ -16,6 +19,10 @@ Guarantees:
   - the upstream ``python.petta`` alias and its two-method ``PeTTa`` wrapper
     are absent [tested: test_upstream_python_package_path_is_gone;
     commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
+  - the strategies namespace is one lazy root satellite while its fifteen
+    reified constructors stay inside that namespace [tested:
+    test_m7_narrow_core_surface and
+    test_m7_satellites_are_lazy_and_identity_stable; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Owns:
   - subprocesses used for clean import-order probes are waited synchronously
     by ``subprocess.run(check=True)`` [tested:
@@ -64,7 +71,11 @@ FINAL_METTA_METHODS = 20
 # `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +1
 # for the exact ``metta.speculate()`` module-tier spelling required by style
 # ledger ``ai-python-conventions.md:1732-1733``.
-FINAL_METTA_EXPORTS = 99
+# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +1 for
+# the lazy strategies namespace. P14.11 and the design ledger at
+# ai-python-first-revamp-discussion.md:2921-2933 require the namespace but keep
+# each combinator as a reified term rather than another root callable.
+FINAL_METTA_EXPORTS = 100
 
 SATELLITES = {
     "aio",
@@ -82,6 +93,7 @@ SATELLITES = {
     "paths",
     "remote",
     "spaces",
+    "strategies",
     "structures",
     "subscribe",
     "tables",

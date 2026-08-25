@@ -20,6 +20,10 @@ Guarantees:
       every source unit in their matching fragment directories
       [tested: test_no_dcg_semicontext_threads_the_compilers_state;
       commit=9a116762fb4372d55675e2ef64b7657092bc136d]
+    - the naming burn-down prices the two exact Stratego public atoms whose
+      language names shadow Python builtins [tested:
+      test_the_ruff_configuration_enables_every_family_or_records_why_not;
+      commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -52,7 +56,9 @@ RUFF_FAMILY_BURN_DOWN = {
     # where the value is reused rather than asked about once.
     "FBT": 67,
     "N": 35,
-    "A": 8,
+    # 8 -> 10 for metta.strategies: `id` and `all` must be the exact public
+    # strategy atoms, while each line carries the narrow A001 explanation.
+    "A": 10,
     # 2112 -> 2114 at the p12-space-model merge: its two new test modules
     # carry the repository's obligation-header docstring convention, whose
     # Purpose/Guarantees block is a deliberate per-line D205 suppression.

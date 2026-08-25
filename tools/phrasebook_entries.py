@@ -5,7 +5,7 @@ what you write in Python instead, and which bucket the translation falls in.
 The names, their types and their metatypes are LeaTTa's, copied verbatim from
 `tests/conformance/stdlib-manifest.json`, whose own derivation field says every
 field was measured against LeaTTa's built binary rather than transcribed. The
-manifest declares 379 operations over 377 distinct names: `print-alternatives!`
+manifest declares 382 operations over 380 distinct names: `print-alternatives!`
 and `_minimal-foldl-atom` are each declared twice, once in the prelude and once
 in a built-in module registry, with identical types both times.
 
@@ -20,12 +20,18 @@ Guarantees:
     checked out [tested: test_the_phrasebook_covers_every_leatta_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+<<<<<<< HEAD
   - the matching, nondeterminism, fold, and state rows execute every public
     algebra-carrier spelling [tested: test_the_phrasebook_page_is_up_to_date;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - the Python-first additions table names the exact speculate and immutable
     world spellings [tested: test_python_first_world_faces_are_in_the_phrasebook;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+=======
+  - strategy rows import lib_strategy only on PeTTa and may name an equivalent
+    unary LeaTTa oracle form when the reified PeTTa plan has a different arity
+    [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+>>>>>>> p14-audit-strategy
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -100,6 +106,9 @@ class Entry:
     differs: str | None = None
     unrun: str | None = None
     ruled: str | None = None
+    petta_setup: str | None = None
+    oracle_metta: str | None = None
+    petta_inferences: int | None = None
 
 
 @dataclass(frozen=True)
@@ -139,6 +148,9 @@ NUMBER2 = "(-> Number Number Number)"
 NUMBER1 = "(-> Number Number)"
 NUMBERB = "(-> Number Number Bool)"
 BOOL2 = "(-> Bool Bool Bool)"
+STRATEGY_SETUP = "!(import! (context-space) (library lib_strategy))"
+PY_STRATEGY_SETUP = "space += metta.lib.strategy\n"
+STRATEGY_INFERENCES = 20_000_000
 
 ENTRIES: list[Entry] = [
     # ---------------------------------------------------------------- arith
@@ -663,10 +675,13 @@ ENTRIES: list[Entry] = [
         metta="!(unquote (quote (+ 1 2)))", python="m.eval(S['+'](1, 2))",
     ),
     Entry(
-        "gtry", ("(-> Atom Atom Atom)",), "Symbol", "control", "absent",
-        "LeaTTa's guarded try, the failure-to-identity combinator under the Stratego "
-        "basis. PeTTa ships no strategy basis to build it on.",
-        metta="!(gtry id a)", unrun="PeTTa leaves the call unreduced",
+        "gtry", ("(-> Atom Atom Atom)",), "Symbol", "control", "method",
+        "LeaTTa's guarded try is lib_strategy's binary failure-to-identity "
+        "spelling. Python builds the same gtry atom and evaluates it in the space.",
+        metta="!(gtry id a)",
+        python=PY_STRATEGY_SETUP + "space.eval(S.gtry(metta.strategies.id, S.a))",
+        petta_setup=STRATEGY_SETUP,
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
         "_check-alternatives", ("(-> Atom Atom)",), "Symbol", "control", "internal",
@@ -924,15 +939,22 @@ ENTRIES: list[Entry] = [
         "does not declare the symbol itself",
     ),
     Entry(
-        "TP", ("Type",), "Symbol", "types", "absent",
-        "LeaTTa's type-preserving strategy type, Lämmel's TP. It arrives with the "
-        "strategy basis or not at all.",
-        metta="!(get-type TP)", unrun="PeTTa does not declare the name",
+        "TP", ("Type",), "Symbol", "types", "method",
+        "Lämmel's type-preserving strategy scheme, exported as the reified "
+        "`metta.strategies.TP` symbol.",
+        metta="!(get-type TP)",
+        python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](metta.strategies.TP))",
+        petta_setup=STRATEGY_SETUP,
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
-        "TU", ("(-> Type Type)",), "Symbol", "types", "absent",
-        "LeaTTa's type-unifying strategy type, Lämmel's TU.",
-        metta="!(get-type TU)", unrun="PeTTa does not declare the name",
+        "TU", ("(-> Type Type)",), "Symbol", "types", "method",
+        "Lämmel's type-unifying scheme constructor, exported as the reified "
+        "`metta.strategies.TU` symbol.",
+        metta="!(get-type TU)",
+        python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](metta.strategies.TU))",
+        petta_setup=STRATEGY_SETUP,
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
         "Pair", ("(-> $ta $tb (PairType $ta $tb))",), "Symbol", "types", "absent",
@@ -961,10 +983,13 @@ ENTRIES: list[Entry] = [
         unrun="PeTTa does not declare the name",
     ),
     Entry(
-        "◁", ("(-> Atom Type Atom Atom)",), "Symbol", "types", "absent",
-        "LeaTTa's typed strategy application operator, the selection half of the "
-        "TP/TU layer.",
-        metta="!(get-type ◁)", unrun="PeTTa does not declare the name",
+        "◁", ("(-> Atom Type Atom Atom)",), "Symbol", "types", "method",
+        "The typed strategy-application atom selects the TP or TU scheme before "
+        "running the named strategy.",
+        metta="!(get-type ◁)",
+        python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](S['◁']))",
+        petta_setup=STRATEGY_SETUP,
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     # ---------------------------------------------------------------- state
     Entry(
@@ -1442,53 +1467,138 @@ ENTRIES: list[Entry] = [
     ),
     # ----------------------------------------------------------- strategies
     Entry(
-        "try", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "absent",
-        "Stratego's `try(s) = s <+ id`, one rewriting step with failure turned into "
-        "identity. LeaTTa ships the basis specialised to `eval-via-match`; PeTTa "
-        "ships no strategy basis, and the ruling is that a `lib_strategy` PORTS "
-        "LeaTTa's, so the Python side needs only the names.",
-        metta="(= strategy-a strategy-b)\n!(try strategy-a)",
-        unrun="PeTTa leaves the call unreduced",
+        "try", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
+        "Stratego's `try(s) = s <+ id`. PeTTa reifies `s` in the plan and LeaTTa "
+        "specialises the same law to one equality rewrite.",
+        metta="(= (pb-try-step strategy-a) strategy-b)\n"
+              "(= (pb-try-step $x) Empty)\n"
+              "!(strategy-apply (try pb-try-step) strategy-a)",
+        python=(
+            PY_STRATEGY_SETUP
+            + "space.run('(= (pb-try-step strategy-a) strategy-b) "
+              "(= (pb-try-step $x) Empty)')\n"
+              "space.eval(S['strategy-apply'](metta.strategies.try_(S['pb-try-step']), "
+              "S['strategy-a']))"
+        ),
+        petta_setup=STRATEGY_SETUP,
+        oracle_metta="(= strategy-a strategy-b)\n!(try strategy-a)",
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
-        "repeat", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "absent",
+        "repeat", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
         "Stratego's `repeat(s) = try(s ; repeat(s))`, root steps to a normal form.",
-        metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n!(repeat strategy-a)",
-        unrun="PeTTa leaves the call unreduced",
+        metta="(= (pb-repeat-step strategy-a) strategy-b)\n"
+              "(= (pb-repeat-step strategy-b) strategy-c)\n"
+              "(= (pb-repeat-step $x) Empty)\n"
+              "!(strategy-apply (repeat pb-repeat-step) strategy-a)",
+        python=(
+            PY_STRATEGY_SETUP
+            + "space.run('(= (pb-repeat-step strategy-a) strategy-b) "
+              "(= (pb-repeat-step strategy-b) strategy-c) "
+              "(= (pb-repeat-step $x) Empty)')\n"
+              "space.eval(S['strategy-apply'](metta.strategies.repeat(S['pb-repeat-step']), "
+              "S['strategy-a']))"
+        ),
+        petta_setup=STRATEGY_SETUP,
+        oracle_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
+                     "!(repeat strategy-a)",
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
-        "topdown", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "absent",
+        "topdown", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
         "Stratego's `topdown(s) = s ; all(topdown(s))`, preorder traversal.",
-        metta="(= strategy-a strategy-b)\n(= (strategy-node strategy-b) strategy-bottomup-root)"
-              "\n!(topdown (strategy-node strategy-a))",
-        unrun="PeTTa leaves the call unreduced",
+        metta="(= (pb-topdown-step strategy-a) strategy-b)\n"
+              "(= (pb-topdown-step $x) Empty)\n"
+              "!(strategy-apply (topdown (try pb-topdown-step)) "
+              "(strategy-node strategy-a))",
+        python=(
+            PY_STRATEGY_SETUP
+            + "space.run('(= (pb-topdown-step strategy-a) strategy-b) "
+              "(= (pb-topdown-step $x) Empty)')\n"
+              "plan = metta.strategies.topdown("
+              "metta.strategies.try_(S['pb-topdown-step']))\n"
+              "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
+        ),
+        petta_setup=STRATEGY_SETUP,
+        oracle_metta="(= strategy-a strategy-b)\n"
+                     "(= (strategy-node strategy-b) strategy-bottomup-root)\n"
+                     "!(topdown (strategy-node strategy-a))",
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
-        "bottomup", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "absent",
+        "bottomup", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
         "Stratego's `bottomup(s) = all(bottomup(s)) ; s`, postorder traversal.",
-        metta="(= strategy-a strategy-b)\n(= (strategy-node strategy-b) strategy-bottomup-root)"
-              "\n!(bottomup (strategy-node strategy-a))",
-        unrun="PeTTa leaves the call unreduced",
+        metta="(= (pb-bottomup-step strategy-a) strategy-b)\n"
+              "(= (pb-bottomup-step (strategy-node strategy-b)) "
+              "strategy-bottomup-root)\n"
+              "(= (pb-bottomup-step $x) Empty)\n"
+              "!(strategy-apply (bottomup (try pb-bottomup-step)) "
+              "(strategy-node strategy-a))",
+        python=(
+            PY_STRATEGY_SETUP
+            + "space.run('(= (pb-bottomup-step strategy-a) strategy-b) "
+              "(= (pb-bottomup-step (strategy-node strategy-b)) "
+              "strategy-bottomup-root) (= (pb-bottomup-step $x) Empty)')\n"
+              "plan = metta.strategies.bottomup("
+              "metta.strategies.try_(S['pb-bottomup-step']))\n"
+              "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
+        ),
+        petta_setup=STRATEGY_SETUP,
+        oracle_metta="(= strategy-a strategy-b)\n"
+                     "(= (strategy-node strategy-b) strategy-bottomup-root)\n"
+                     "!(bottomup (strategy-node strategy-a))",
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
-        "innermost", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "absent",
+        "innermost", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
         "Stratego's `innermost(s) = bottomup(try(s ; innermost(s)))`.",
-        metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
-              "(= (strategy-node strategy-c) strategy-innermost-root)\n"
-              "!(innermost (strategy-node strategy-a))",
-        unrun="PeTTa leaves the call unreduced",
+        metta="(= (pb-innermost-step strategy-a) strategy-b)\n"
+              "(= (pb-innermost-step strategy-b) strategy-c)\n"
+              "(= (pb-innermost-step (strategy-node strategy-c)) "
+              "strategy-innermost-root)\n"
+              "(= (pb-innermost-step $x) Empty)\n"
+              "!(strategy-apply (innermost pb-innermost-step) "
+              "(strategy-node strategy-a))",
+        python=(
+            PY_STRATEGY_SETUP
+            + "space.run('(= (pb-innermost-step strategy-a) strategy-b) "
+              "(= (pb-innermost-step strategy-b) strategy-c) "
+              "(= (pb-innermost-step (strategy-node strategy-c)) "
+              "strategy-innermost-root) (= (pb-innermost-step $x) Empty)')\n"
+              "plan = metta.strategies.innermost(S['pb-innermost-step'])\n"
+              "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
+        ),
+        petta_setup=STRATEGY_SETUP,
+        oracle_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
+                     "(= (strategy-node strategy-c) strategy-innermost-root)\n"
+                     "!(innermost (strategy-node strategy-a))",
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
-        "stratego-all", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "absent",
-        "Stratego's `all(s)`, applying a strategy to every child.",
-        metta="!(stratego-all id (f a b))", unrun="PeTTa leaves the call unreduced",
+        "stratego-all", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "method",
+        "Stratego's `all(s)`, applying a strategy to every immediate child.",
+        metta="!(stratego-all id (f a b))",
+        python=(
+            PY_STRATEGY_SETUP
+            + "plan = metta.strategies.stratego_all(metta.strategies.id)\n"
+              "space.eval(S['strategy-apply'](plan, S.f(S.a, S.b)))"
+        ),
+        petta_setup=STRATEGY_SETUP,
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
-        "stratego-one", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "absent",
+        "stratego-one", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "method",
         "Stratego's `one(s)`, applying to one child. LeaTTa deliberately diverges "
         "from Stratego's committed choice by answering EVERY successful position "
         "through MeTTa's own nondeterminism.",
-        metta="!(stratego-one id (f a b))", unrun="PeTTa leaves the call unreduced",
+        metta="!(stratego-one id (f a b))",
+        python=(
+            PY_STRATEGY_SETUP
+            + "plan = metta.strategies.stratego_one(metta.strategies.id)\n"
+              "space.eval(S['strategy-apply'](plan, S.f(S.a, S.b)))"
+        ),
+        petta_setup=STRATEGY_SETUP,
+        petta_inferences=STRATEGY_INFERENCES,
     ),
     Entry(
         "stratego-some", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "absent",

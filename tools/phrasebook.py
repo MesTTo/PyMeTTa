@@ -1,5 +1,5 @@
 """Purpose: the MeTTa standard library, said in Python, with every saying
-executed. LeaTTa declares 379 stdlib operations over 377 distinct names, and
+executed. LeaTTa declares 382 stdlib operations over 380 distinct names, and
 `phrasebook_entries.py` carries one row per name: the MeTTa form, the Python
 spelling, and a note. This lane runs both sides of every row, compares them
 against each other and against the frozen answers in
@@ -74,6 +74,9 @@ Guarantees:
   - Python-first additions that have no LeaTTa stdlib declaration are rendered
     in a separate exact-spelling table rather than corrupting manifest coverage
     [tested: test_python_first_world_faces_are_in_the_phrasebook; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - a row may run a PeTTa-only setup and an explicitly recorded equivalent
+    LeaTTa form; neither is silently sent to the other engine [tested:
+    python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Fails when:
   - a row's MeTTa form depends on answer ORDER: answers are compared as
     sequences, the reading `example_parity` already takes, so a genuinely
@@ -174,8 +177,12 @@ def _one(value: Any) -> str:
     return alpha.canonical(str(metta.ground(value)))
 
 
-#: What a row may spend before the lane calls it a runaway. No stdlib row is
-#: a computation; the largest is a three-atom space walk.
+#: What an ordinary row may spend before the lane calls it a runaway. Strategy
+#: rows override this because each fresh row compiles lib_strategy and its
+#: recursive traversal equations before evaluating the small witness
+#: [measured: 2026-08-26, 11079816; command=python bindings/python/tools/phrasebook.py
+#: --learn --markdown --gate;
+#: fixture=bottomup row after ten prior strategy imports; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa].
 FUEL = 2_000_000
 SECONDS = 10.0
 
@@ -183,8 +190,10 @@ SECONDS = 10.0
 def metta_answers(engine: Any, entry: Entry, index: int, space: Any = None) -> tuple[str, ...]:
     """The answers of the last `!` form of a row's MeTTa side, on this engine."""
     space = engine._new_space() if space is None else space
-    source = entry.metta.replace(SPACE, f"{SPACE}{index}")
-    with engine.limits(inferences=FUEL, timeout=SECONDS):
+    source = "\n".join(part for part in (entry.petta_setup, entry.metta) if part)
+    source = source.replace(SPACE, f"{SPACE}{index}")
+    inferences = entry.petta_inferences or FUEL
+    with engine.limits(inferences=inferences, timeout=SECONDS):
         groups = space.run(source)
     if not groups:
         message = f"{entry.name}: no runnable form in {entry.metta!r}"
@@ -202,7 +211,8 @@ def leatta_answers(entry: Entry, scratch: Path) -> tuple[str, ...]:
     entries, on this box; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
     """
     path = scratch / "row.metta"
-    path.write_text(entry.metta if entry.metta.endswith("\n") else entry.metta + "\n")
+    source = entry.oracle_metta or entry.metta
+    path.write_text(source if source.endswith("\n") else source + "\n")
     finished = subprocess.run(  # noqa: S603
         [str(LEATTA_BINARY), "--observed-file", str(path)],
         capture_output=True,
@@ -373,6 +383,12 @@ def structural(entries: list[Entry]) -> list[str]:
             findings.append(
                 f"{entry.name}: names a ruling, which only a residue row needs"
             )
+        if entry.petta_setup is not None and entry.metta is None:
+            findings.append(f"{entry.name}: has PeTTa setup but no MeTTa form")
+        if entry.oracle_metta is not None and entry.metta is None:
+            findings.append(f"{entry.name}: has an oracle form but no MeTTa form")
+        if entry.petta_inferences is not None and entry.petta_inferences < 1:
+            findings.append(f"{entry.name}: has a non-positive PeTTa inference limit")
     return findings
 
 
@@ -509,8 +525,9 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         "",
         "Every operation MeTTa's standard library declares, and what you write in Python",
         f"instead. {spoken} of the {surface} operations a program can call have a Python",
-        "spelling, and every row below ran on both sides: the MeTTa form on this engine and",
-        "on LeaTTa, the conformance oracle, and the Python spelling here.",
+        "spelling, and every runnable row below was measured on this engine, on LeaTTa,",
+        "the conformance oracle, and through the Python spelling here. A row names the",
+        "equivalent oracle form when PeTTa's reified strategy application has another arity.",
         "",
         "The names and their types are LeaTTa's, measured against its built binary rather",
         f"than transcribed: manifest {LEATTA_VERSION} at commit `{LEATTA_COMMIT}`, "
@@ -601,6 +618,8 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         out += ["| MeTTa | Python | answers | bucket |", "|---|---|---|---|"]
         out += [_row(entry, answers.get(entry.name, {})) for entry in shown]
         out.append("")
+        if section == "strategies":
+            out += _strategy_basis_section()
         for entry in rows:
             line = f"- `{entry.name}` `{' | '.join(entry.types)}` &mdash; {entry.note}"
             if entry.differs:
@@ -609,9 +628,87 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
                 line += f" The form is shown but not run here: {entry.unrun}."
             if entry.ruled:
                 line += f" Ruled rather than missing: {entry.ruled}."
+            if entry.oracle_metta:
+                oracle = entry.oracle_metta.replace("\n", " ⏎ ")
+                line += f" LeaTTa oracle form: `{oracle}`."
             out.append(line)
         out.append("")
     return "\n".join(out) + "\n"
+
+
+def _strategy_basis_section() -> list[str]:
+    """Every public lib_strategy constructor and application/type door."""
+    rows = (
+        ("id", "`id`", "`strategies.id`", "`id(t) = t`"),
+        ("fail", "`fail`", "`strategies.fail`", "answers no result"),
+        ("seq", "`(seq s1 s2)`", "`strategies.seq(s1, s2)`", "`s2(s1(t))`"),
+        (
+            "choice",
+            "`(choice left right)`",
+            "`strategies.choice(left, right)`",
+            "complete left result bag, or `right(t)` only when that bag is empty",
+        ),
+        ("try", "`(try s)`", "`strategies.try_(s)`", "`choice(s, id)`"),
+        ("repeat", "`(repeat s)`", "`strategies.repeat(s)`", "`try(seq(s, repeat(s)))`"),
+        ("all", "`(all s)`", "`strategies.all(s)`", "apply `s` to every immediate child"),
+        ("one", "`(one s)`", "`strategies.one(s)`", "enumerate each successful one-child rewrite"),
+        (
+            "topdown",
+            "`(topdown s)`",
+            "`strategies.topdown(s)`",
+            "`seq(s, all(topdown(s)))`",
+        ),
+        (
+            "bottomup",
+            "`(bottomup s)`",
+            "`strategies.bottomup(s)`",
+            "`seq(all(bottomup(s)), s)`",
+        ),
+        (
+            "innermost",
+            "`(innermost s)`",
+            "`strategies.innermost(s)`",
+            "`bottomup(try(seq(s, innermost(s))))`",
+        ),
+        (
+            "stratego-all",
+            "`(stratego-all s)`",
+            "`strategies.stratego_all(s)`",
+            "public alias of `all(s)`",
+        ),
+        (
+            "stratego-one",
+            "`(stratego-one s)`",
+            "`strategies.stratego_one(s)`",
+            "public alias of `one(s)`",
+        ),
+        ("gtry", "direct call only", "`S.gtry`", "`gtry(s, t) = try(s)(t)`"),
+        (
+            "strategy-apply",
+            "`(strategy-apply s t)`",
+            "`S['strategy-apply'](s, t)`",
+            "translator-lowers to the atom `(strategy-eval s t)`",
+        ),
+        ("TP", "`TP`", "`strategies.TP`", "type-preserving strategy scheme"),
+        ("TU", "`(TU result-type)`", "`strategies.TU(result_type)`", "type-unifying strategy scheme"),
+        (
+            "◁",
+            "`(◁ s TP t)` or `(◁ s (TU r) t)`",
+            "`S['◁'](s, scheme, t)`",
+            "apply only when the declared strategy arrow fits the scheme",
+        ),
+    )
+    out = [
+        "PeTTa's complete shipped basis is reified below. Every plan cell is ordinary",
+        "queryable atom data, and every row is exercised by",
+        "`examples/libraries/strategy.metta` through the normal library runner.",
+        "",
+        "| public name | reified plan or MeTTa door | Python atom | law |",
+        "|---|---|---|---|",
+    ]
+    out += [f"| `{name}` | {plan} | {python} | {law} |" for name, plan, python, law in rows]
+    out.append("")
+    return out
 
 
 def _priced(answers: dict[str, Any], name: str) -> str:

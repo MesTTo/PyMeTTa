@@ -52,6 +52,10 @@ Guarantees:
   - ``speculate()`` is the exact module-tier spelling for the default
     receiver's discarded execution scope [tested:
     test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - ``strategies`` is a lazy satellite whose exports are reified Symbols rather
+    than promoted root callbacks [tested:
+    test_m7_satellites_are_lazy_and_identity_stable and
+    test_strategy_exports_are_reified_atoms; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -120,6 +124,7 @@ _SATELLITES = frozenset(
         "paths",
         "remote",
         "spaces",
+        "strategies",
         "structures",
         "subscribe",
         "tables",
@@ -511,6 +516,7 @@ __all__ = [
     "spawn",
     "speculate",
     "stats",
+    "strategies",
     "strict",
     "structures",
     "subscribe",
