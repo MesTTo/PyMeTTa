@@ -48,7 +48,9 @@ Guarantees:
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - reader-token registration and removal run on the owning engine worker and
     mirror the synchronous surface [tested:
-    test_aio_plain_methods_forward_on_the_worker; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_aio_plain_methods_forward_on_the_worker and
+    test_async_anonymous_space_repr_keeps_the_submitting_site;
+    commit=WORKTREE]
   - async eval mirrors the synchronous single answer shape without a
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
@@ -58,7 +60,7 @@ Guarantees:
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - async operation registration requires and forwards the canonical effect
     argument [tested: test_aio_declare_and_register_delegations_land;
-    commit=WORKTREE]
+    commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - execution-policy scopes cross the worker hop and never change awaited
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -100,6 +102,7 @@ import logging
 import math
 import os
 import queue
+import re as _re
 import threading
 import warnings
 import weakref
@@ -110,6 +113,7 @@ from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
 from ._name_mapping import operator_attribute_target
 from ._space import Space as MeTTa
+from ._space import _creation_site
 from ._under import _UNSET
 from .atoms import Atom
 from .errors import Interrupted, PettaError
@@ -814,11 +818,15 @@ class AsyncMeTTa:
         """Parse one MeTTa term without evaluating it."""
         return await self.call(lambda m: m.parse(source))
 
-    async def register_token(self, pattern: str, constructor: Callable[[str], Any]) -> None:
+    async def register_token(
+        self,
+        pattern: str | _re.Pattern[str],
+        constructor: Callable[[str], Any],
+    ) -> None:
         """Register a full-lexeme reader class on the engine worker."""
         return await self.call(lambda m: m.register_token(pattern, constructor))
 
-    async def unregister_token(self, pattern: str) -> None:
+    async def unregister_token(self, pattern: str | _re.Pattern[str]) -> None:
         """Remove a reader class from the engine worker."""
         return await self.call(lambda m: m.unregister_token(pattern))
 
@@ -911,11 +919,13 @@ class AsyncMeTTa:
         if name is None:
             parent = None if inherits is None else inherits._m
             requested_grants = tuple(grants)
+            created_at = _creation_site()
             handle = await self.call(
                 lambda m: m._new_space(
                     inherits=parent,
                     restricted=restricted,
                     grants=requested_grants,
+                    _created_at=created_at,
                 )
             )
         else:
@@ -1471,7 +1481,7 @@ class AsyncMeTTa:
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         state = "closed" if self._closed else self._worker.state
-        return f"AsyncMeTTa({self._m.name!r}, {state})"
+        return f"AsyncMeTTa({self._m!r}, {state})"
 
 
 class AsyncWorld:

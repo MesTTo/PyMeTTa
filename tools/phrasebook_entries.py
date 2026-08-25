@@ -29,10 +29,10 @@ Guarantees:
   - strategy rows import lib_strategy only on PeTTa and may name an equivalent
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
-  - the Python-first table teaches the concise atom cast, root catalog, and
-    hygienic variable doors
+  - the Python-first table teaches the concise atom cast, root catalog,
+    hygienic variable, compiled reader-pattern, and anonymous provenance doors
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -136,6 +136,16 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
         "metta.catalog",
         "query the runtime catalog as the ordinary &petta space",
         "rows = metta.catalog.match(S.op(V.name, V.arity, V.kind))",
+    ),
+    PublicFace(
+        "repr(space())",
+        "show the file and line that minted an anonymous space",
+        "origin = repr(metta.space())",
+    ),
+    PublicFace(
+        "space.register_token(re.compile(pattern), constructor)",
+        "register a compiled text regex while preserving supported flags",
+        "space.register_token(re.compile(r'kg', re.I), parse_mass)",
     ),
     PublicFace(
         "metta.speculate()",

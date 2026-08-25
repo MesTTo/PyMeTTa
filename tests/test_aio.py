@@ -16,6 +16,10 @@ Guarantees:
   - async space is the single named, anonymous, and provider-backed creation
     door [tested: test_aio_space_attaches_a_provider_without_a_register_alias;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - async anonymous spaces retain the submitting coroutine's source location
+    across the worker hop [tested:
+    test_async_anonymous_space_repr_keeps_the_submitting_site;
+    commit=WORKTREE]
   - async peek and take mirror the Space handle's Linda wait verbs on the
     engine worker [tested: test_async_peek_and_take_mirror_the_space_handle;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
@@ -36,6 +40,7 @@ import dataclasses
 import gc
 import inspect
 import logging
+import re
 import threading
 import time
 from collections import Counter
@@ -387,7 +392,7 @@ def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103
             assert len(await am.digest()) == 64
             assert "unknown" in (await am.why(S["aio-unknown"](V.x))).lower()
 
-            token_pattern = r"AIO[0-9]+"
+            token_pattern = re.compile(r"aio[0-9]+", re.IGNORECASE)
             await am.register_token(token_pattern, lambda token: S["aio-token"](token))
             try:
                 assert await am.parse("AIO7") == S["aio-token"]("AIO7")
@@ -760,6 +765,20 @@ def test_aio_structural_surface_behaves():
             return True
 
     assert asyncio.run(go())
+
+
+def test_async_anonymous_space_repr_keeps_the_submitting_site(metta):
+    """Creation provenance is captured before control crosses the worker."""
+    async def go():
+        async with aio.AsyncMeTTa(metta=metta) as am:
+            line = inspect.currentframe().f_lineno + 1
+            child = await am.space()
+            try:
+                assert f"{__file__}:{line}" in repr(child)
+            finally:
+                await child.drop()
+
+    asyncio.run(go())
 
 
 def test_aio_declare_and_register_delegations_land():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

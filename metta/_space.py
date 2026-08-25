@@ -103,6 +103,14 @@ Guarantees:
     to the anonymous allocation pool [tested:
     test_a_named_space_drop_never_enters_the_anonymous_pool;
     commit=d843bb6d17a525c36afd21cab077d63b34447535]
+  - compiled ``re.Pattern`` reader classes preserve supported semantic flags,
+    reject untranslatable flags, and unregister through the same normalized
+    key [tested: test_compiled_reader_patterns_preserve_flags_and_unregister;
+    commit=WORKTREE]
+  - an anonymous space representation records the external file and line that
+    created that life, while named-space representations remain stable
+    [tested: test_anonymous_space_repr_carries_its_creation_site;
+    commit=WORKTREE]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
@@ -120,6 +128,7 @@ import functools
 import hashlib
 import importlib as _importlib
 import os
+import re as _re
 import sys
 import threading
 import weakref
@@ -302,6 +311,63 @@ _RUN_BINDINGS: ContextVar[dict[str, Any] | None] = ContextVar(
 def _satellite(name: str) -> Any:
     """Import one optional surface only when its handle verb is called."""
     return _importlib.import_module(f"{__package__}.{name}")
+
+
+def _creation_site() -> tuple[str, int]:
+    """Return the first caller frame outside the metta package."""
+    import inspect  # noqa: PLC0415  -- anonymous construction alone pays
+
+    frame = inspect.currentframe()
+    try:
+        frame = None if frame is None else frame.f_back
+        package_prefix = f"{__package__}."
+        while frame is not None:
+            module = str(frame.f_globals.get("__name__", ""))
+            if module != __package__ and not module.startswith(package_prefix):
+                filename = frame.f_code.co_filename
+                if not filename.startswith("<"):
+                    filename = str(Path(filename).resolve())
+                return filename, frame.f_lineno
+            frame = frame.f_back
+    finally:
+        del frame
+    return "<unknown>", 0
+
+
+_READER_PATTERN_FLAGS = (
+    (_re.IGNORECASE, "i"),
+    (_re.MULTILINE, "m"),
+    (_re.DOTALL, "s"),
+    (_re.VERBOSE, "x"),
+)
+_READER_PATTERN_SUPPORTED = _re.NOFLAG
+for _reader_flag, _reader_letter in _READER_PATTERN_FLAGS:
+    _READER_PATTERN_SUPPORTED |= _reader_flag
+
+
+def _reader_pattern(pattern: str | _re.Pattern[str]) -> str:
+    """Normalize Python's compiled regex contract to the engine's PCRE text."""
+    if isinstance(pattern, str):
+        return pattern
+    if not isinstance(pattern, _re.Pattern):
+        msg = f"a reader-token pattern is str or re.Pattern, not {type(pattern).__name__}"
+        raise TypeError(msg)
+    if not isinstance(pattern.pattern, str):
+        msg = "a reader-token re.Pattern must compile text, not bytes"
+        raise TypeError(msg)
+    flags = _re.RegexFlag(pattern.flags) & ~_re.UNICODE
+    unsupported = flags & ~_READER_PATTERN_SUPPORTED
+    if unsupported:
+        msg = (
+            f"reader-token re.Pattern flags {unsupported!s} have no exact PCRE "
+            "translation; use IGNORECASE, MULTILINE, DOTALL, VERBOSE, or "
+            "write an inline PCRE pattern"
+        )
+        raise ValueError(msg)
+    letters = "".join(
+        letter for flag, letter in _READER_PATTERN_FLAGS if flags & flag
+    )
+    return f"(?{letters}){pattern.pattern}" if letters else pattern.pattern
 
 
 def current_space(default: str = _DEFAULT_SPACE) -> _SpaceId:
@@ -567,6 +633,7 @@ class Space(Handle):
         verbose: bool = False,
         petta_path: str | None = None,
         _runtime: Runtime | None = None,
+        _created_at: tuple[str, int] | None = None,
     ) -> None:
         super().__init__()
         self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
@@ -616,6 +683,7 @@ class Space(Handle):
         self._ephemeral = False
         self._backing: Any = None
         self._owns_backing = False
+        self._created_at = _created_at
         self._context_tokens: list[Any] = []
         if isinstance(engine_name, str):
             _remember_space_name(self._name)
@@ -668,6 +736,7 @@ class Space(Handle):
         inherits: Space | None = None,
         restricted: bool = False,
         grants: _abc.Iterable[str] = (),
+        _created_at: tuple[str, int] | None = None,
     ) -> Space:
         """An anonymous space with a name nothing else is using.
 
@@ -699,7 +768,10 @@ class Space(Handle):
             row = self._rt.must(
                 "petta_py_new_space(Parent, Name)", Parent=inherits._space
             )
-        fresh = Space(str(row["Name"]))
+        fresh = Space(
+            str(row["Name"]),
+            _created_at=_creation_site() if _created_at is None else _created_at,
+        )
         fresh._ephemeral = True
         return fresh
 
@@ -753,7 +825,12 @@ class Space(Handle):
     def __repr__(self) -> str:
         state = ", dropped" if self._dropped else ""
         shown = self._name_atom if self._name_atom is not None else self._name
-        return f"Space({shown!r}{state})"
+        created = (
+            ""
+            if self._created_at is None
+            else f", created_at={f'{self._created_at[0]}:{self._created_at[1]}'!r}"
+        )
+        return f"Space({shown!r}{state}{created})"
 
     def __str__(self) -> str:
         return str(self._name_atom if self._name_atom is not None else self._name)
@@ -1059,7 +1136,11 @@ class Space(Handle):
         """Read one form into an atom without evaluating it."""
         return parse(source)
 
-    def register_token(self, pattern: str, constructor: Callable[[str], Any]) -> None:
+    def register_token(
+        self,
+        pattern: str | _re.Pattern[str],
+        constructor: Callable[[str], Any],
+    ) -> None:
         """Register a full-token regex and its Atom constructor.
 
         The constructor receives the complete matched lexeme. It may return an
@@ -1067,24 +1148,21 @@ class Space(Handle):
         of the same pattern replaces the constructor. Only future parses read
         the new mapping; atoms already returned are immutable values.
         """
-        if not isinstance(pattern, str):
-            msg = f"a reader-token pattern is str, not {type(pattern).__name__}"
-            raise TypeError(msg)
+        normalized = _reader_pattern(pattern)
         if not callable(constructor):
             msg = "a reader-token constructor must be callable"
             raise TypeError(msg)
         self._rt.must(
             "petta_py_register_token(Pattern, Constructor)",
-            Pattern=pattern,
+            Pattern=normalized,
             Constructor=constructor,
         )
 
-    def unregister_token(self, pattern: str) -> None:
+    def unregister_token(self, pattern: str | _re.Pattern[str]) -> None:
         """Remove a reader-token class; an absent pattern is already removed."""
-        if not isinstance(pattern, str):
-            msg = f"a reader-token pattern is str, not {type(pattern).__name__}"
-            raise TypeError(msg)
-        self._rt.must("petta_py_unregister_token(Pattern)", Pattern=pattern)
+        self._rt.must(
+            "petta_py_unregister_token(Pattern)", Pattern=_reader_pattern(pattern)
+        )
 
     # ------------------------------------------------------------- space edits
 
