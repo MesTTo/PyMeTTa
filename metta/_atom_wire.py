@@ -28,7 +28,7 @@ Guarantees:
   - object decoding removes every __petta_wire_value__ carrier by protocol,
     so transport classes cannot replace the carried object's identity
     [tested: test_bridge_answers_preserve_python_object_identity;
-    commit=WORKTREE]
+    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -77,7 +77,7 @@ petta_py_bridge :- petta_py_dir(Dir),
 %converts None and only exact bool, int, float, str and tuple values under this
 %option; primitive subclasses remain references, which is the identity law
 %this bridge requires [tested: bindings/python/tests/test_identity_wire.py;
-%commit=WORKTREE].
+%commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f].
 petta_py_opts([py_object(true), py_string_as(string)]).
 
 petta_py(Call, Goal, Result) :-

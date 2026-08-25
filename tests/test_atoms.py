@@ -8,7 +8,7 @@ Guarantees:
   - Python Fraction values retain identity through the opaque object channel,
     while engine rational payloads still decode exactly [tested:
     test_non_primitive_numbers_keep_their_python_identity;
-    commit=WORKTREE]
+    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - Expression collects a single iterable and slicing preserves Expression
     [tested:
     test_expression_collects_iterables_and_slices_keep_the_expression_kind;

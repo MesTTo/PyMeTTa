@@ -6,11 +6,11 @@ Guarantees:
     test_atom_comparisons_are_only_ordering; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Grounded preserves every non-primitive Python value by identity; only
     exact bool, int, float and str values use native wire terms [tested:
-    bindings/python/tests/test_identity_wire.py; commit=WORKTREE]
+    bindings/python/tests/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - engine rational wire values decode to exact Fraction payloads, while a
     Python-created Fraction follows the non-primitive identity law [tested:
     test_rational_payloads_cross_the_scalar_door and
-    test_non_primitive_numbers_keep_their_python_identity; commit=WORKTREE]
+    test_non_primitive_numbers_keep_their_python_identity; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - pathlib paths encode as symbols rather than opaque host boxes [tested:
     test_path_and_capability_options_cross_as_symbols; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - Ellipsis encodes as the gap symbol, so `...` in a pattern child position is

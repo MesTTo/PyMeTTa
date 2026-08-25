@@ -19,7 +19,7 @@ Guarantees:
   - numeric_operation() uses Python's operator protocol and an object's array
     namespace for math functions, retaining reflected dispatch and library
     result types [tested: test_numpy_numeric_family_keeps_python_result_types
-    and test_user_numeric_subclass_uses_its_own_operator; commit=WORKTREE]
+    and test_user_numeric_subclass_uses_its_own_operator; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
 Fails when:
   - a name does not resolve. It raises rather than answering None, because a
     typo in a module path is not a value.

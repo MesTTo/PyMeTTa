@@ -3,10 +3,10 @@
 Guarantees:
   - exact bool, int, float and str values cross by value, while every other
     Python object crosses by reference through storage, operations and answers
-    [tested: bindings/python/tests/test_identity_wire.py; commit=WORKTREE]
+    [tested: bindings/python/tests/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - Python numeric objects are admitted once and evaluated by their own
     operator protocol, retaining NumPy scalar result classes
-    [tested: bindings/python/tests/test_identity_wire.py; commit=WORKTREE]
+    [tested: bindings/python/tests/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -27,7 +27,7 @@ Guarantees:
   - numpy_scalars generates non-primitive scalar objects whose identity and
     numeric dispatch survive an engine round trip [tested:
     test_numpy_scalar_strategy_round_trips_through_the_engine;
-    commit=WORKTREE]
+    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
 Open Obligations:
   To Do: None
   Hacks: None

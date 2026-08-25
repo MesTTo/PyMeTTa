@@ -25,7 +25,7 @@ Guarantees:
   - raw operation results pass only exact primitives bare; every other
     Python value uses the identity-interned object carrier [tested:
     test_operation_results_preserve_python_object_identity;
-    commit=WORKTREE]
+    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - Atom annotations select syntax-level delivery, while an `(arguments ...
     atoms)` seam declaration selects Atom wrappers after ordinary evaluation
     without a pass_atoms boolean [tested:
