@@ -78,7 +78,7 @@ Guarantees:
   - ``atom.cast(type_)`` delegates to the ambient ``Space.cast`` door, so
     declarations remain space-relative while the atom owns the concise
     spelling [tested: test_atom_cast_delegates_to_the_ambient_space;
-    commit=WORKTREE]
+    commit=49c43f86fa17a20ecebf9f9dbb5514de4762297d]
   - symbolic operator rows specialize into direct constructors once at import,
     so term-operators costs 660489697 instructions:u, 27.86% below its
     915593600 baseline [measured: minimum of 660489757, 660489704,

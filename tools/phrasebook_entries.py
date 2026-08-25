@@ -31,7 +31,7 @@ Guarantees:
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - the Python-first table teaches the concise ambient atom cast door
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=49c43f86fa17a20ecebf9f9dbb5514de4762297d]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
