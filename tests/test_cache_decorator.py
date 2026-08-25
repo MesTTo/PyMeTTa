@@ -71,7 +71,14 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
             overrun = list(cachedec_plain(_N))
 
         assert [str(atom) for atom in overrun] == ["(Error 1 StackOverflow)"]
-        assert untabled.inferences > 20 * cached.inferences
+        # Measured 2026-08-26: 830,676 inferences uncached against 11,433
+        # cached, a ratio of 72.7. The floor sits just under that rather than
+        # far below it, because a floor picked with room to spare is what
+        # hides the next regression. Routing the decorator off the C-level
+        # set table and onto the exact Prolog memo, which is what makes the
+        # bag survive, cost 1,622 -> 11,433 cached inferences and took this
+        # ratio from 512 to 73.
+        assert untabled.inferences > 60 * cached.inferences
     finally:
         plain.run(f"!(remove-atom &petta {refusal})")
 

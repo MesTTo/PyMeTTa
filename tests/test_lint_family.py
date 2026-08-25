@@ -404,3 +404,31 @@ def test_lint_evidence_and_intent_follow_space_clear(m):
 
     assert not catalog.match(intent)
     assert not catalog.match(evidence)
+
+
+def test_a_retired_operation_is_not_named_by_the_wrapper_it_left_behind(m):
+    """One reader answers both doors, and only while the registry owns it."""
+    from metta._ops import OPERATION_REGISTRATION, live_registration
+
+    @m.op(name="lint_retired_crossing", effect="pureStructural")
+    def lint_retired_crossing(value: int) -> int:
+        return value + 1
+
+    @m.define(name="lint-retired-loop")
+    def loop(values):
+        total = 0
+        for value in values:
+            total += lint_retired_crossing(value)
+        return total
+
+    assert [f.subject for f in _kind(m, "operation-crossing-in-loop")] == [
+        "lint_retired_crossing"
+    ]
+    assert live_registration(lint_retired_crossing) is not None
+
+    m.unregister_op("lint_retired_crossing")
+
+    # The wrapper still carries the attribute: liveness is the registry's
+    # answer, not the attribute's presence.
+    assert hasattr(lint_retired_crossing, OPERATION_REGISTRATION)
+    assert live_registration(lint_retired_crossing) is None

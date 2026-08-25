@@ -12,6 +12,10 @@ Guarantees:
     test_optional_integrations_have_installable_extras,
     test_minimal_version_matrix_installs_blocking_gallery_dependency;
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
+  - every ``python -m`` target named by a check.sh command reaches a real
+    entry point, so no lane can exit 0 having run nothing [tested:
+    test_every_module_invocation_in_the_gate_reaches_an_entry_point;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,6 +24,8 @@ Open Obligations:
 
 from __future__ import annotations
 
+import ast
+import importlib.util
 import os
 import re
 import shutil
@@ -269,3 +275,53 @@ def test_every_runtime_resource_reaches_the_source_archive(repo_root):
         f"`python -m build` cannot build the wheel from it and `pip install` "
         f"from PyPI fails"
     )
+
+
+def test_every_module_invocation_in_the_gate_reaches_an_entry_point():
+    """A `python -m X` whose X has no entry point exits 0 having run nothing.
+
+    Measured 2026-08-26: `python -m importlinter.cli lint_imports` printed
+    nothing and exited 0, because importlinter.cli only defines its click
+    commands. The `imports` lane had therefore checked nothing since it was
+    written, while 62 real contract violations accumulated behind it.
+    """
+    commands = "\n".join(
+        line
+        for line in (ROOT / "check.sh").read_text(encoding="utf-8").splitlines()
+        if not line.lstrip().startswith("#")
+    )
+    targets = sorted(set(re.findall(r"-m ([A-Za-z_][\w.]*)", commands)))
+    assert targets, commands
+
+    checked, absent = [], []
+    for target in targets:
+        try:
+            spec = importlib.util.find_spec(target)
+        except ModuleNotFoundError:
+            spec = None
+        if spec is None:
+            absent.append(target)
+            continue
+        checked.append(target)
+        if spec.submodule_search_locations is not None:
+            assert importlib.util.find_spec(f"{target}.__main__") is not None, (
+                f"{target} is a package with no __main__; `python -m {target}` "
+                f"cannot run"
+            )
+            continue
+        assert spec.origin is not None, target
+        source = Path(spec.origin).read_text(encoding="utf-8", errors="replace")
+        guarded = any(
+            isinstance(node, ast.If) and "'__main__'" in ast.dump(node.test)
+            for node in ast.parse(source).body
+        )
+        assert guarded, (
+            f"{target} has no `if __name__ == '__main__'` block; "
+            f"`python -m {target}` imports it and exits 0 without running"
+        )
+
+    assert checked, f"nothing was checked; every target was absent: {absent}"
+    for target in absent:
+        assert target.split(".")[0] not in {"metta", "benchmarks", "pytest"}, (
+            f"{target} is a first-party target and must resolve"
+        )
