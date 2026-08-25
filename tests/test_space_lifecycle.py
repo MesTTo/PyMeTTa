@@ -23,7 +23,7 @@ Guarantees:
   - anonymous handles report the external file and line that created their
     current life, while named handles retain their compact representation
     [tested: test_anonymous_space_repr_carries_its_creation_site;
-    commit=WORKTREE]
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -5,7 +5,7 @@ Guarantees:
     registration and removal, while bytes and untranslatable flags refuse
     before mutating the reader [tested:
     test_compiled_reader_patterns_preserve_flags_and_unregister;
-    commit=WORKTREE]
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
 
 Open Obligations:
   To Do: None

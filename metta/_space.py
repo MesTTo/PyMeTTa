@@ -106,11 +106,11 @@ Guarantees:
   - compiled ``re.Pattern`` reader classes preserve supported semantic flags,
     reject untranslatable flags, and unregister through the same normalized
     key [tested: test_compiled_reader_patterns_preserve_flags_and_unregister;
-    commit=WORKTREE]
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
   - an anonymous space representation records the external file and line that
     created that life, while named-space representations remain stable
     [tested: test_anonymous_space_repr_carries_its_creation_site;
-    commit=WORKTREE]
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;

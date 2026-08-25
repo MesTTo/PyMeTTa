@@ -50,7 +50,7 @@ Guarantees:
     mirror the synchronous surface [tested:
     test_aio_plain_methods_forward_on_the_worker and
     test_async_anonymous_space_repr_keeps_the_submitting_site;
-    commit=WORKTREE]
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
   - async eval mirrors the synchronous single answer shape without a
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;

@@ -19,7 +19,7 @@ Guarantees:
   - async anonymous spaces retain the submitting coroutine's source location
     across the worker hop [tested:
     test_async_anonymous_space_repr_keeps_the_submitting_site;
-    commit=WORKTREE]
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
   - async peek and take mirror the Space handle's Linda wait verbs on the
     engine worker [tested: test_async_peek_and_take_mirror_the_space_handle;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
