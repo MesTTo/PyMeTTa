@@ -28,7 +28,7 @@ Guarantees:
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - async bound ``fn.neg`` evaluates the shared composite operator recipe on
     the engine worker [tested: test_aio_structural_surface_behaves;
-    commit=WORKTREE]
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - async reification, world evaluation, and commit stay on the owning worker
     and preserve immutable branching [tested:
     test_async_worlds_stay_on_the_owning_worker; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]

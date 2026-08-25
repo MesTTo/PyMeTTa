@@ -17,7 +17,7 @@ Guarantees:
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - the composite operator word ``neg`` lowers to ``(- 0 x)`` at both S and
     fn call doors [tested: test_compiled_operator_word_calls_preserve_composite_images;
-    commit=WORKTREE]
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - a host-bound Defined mention lowers to the sibling's declared MeTTa name
     [tested: test_compiled_body_calls_renamed_defined_sibling;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

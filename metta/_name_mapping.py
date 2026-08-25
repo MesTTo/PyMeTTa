@@ -9,7 +9,7 @@ Guarantees:
     the mechanical name map, and ``neg`` builds its canonical composite image
     through the same generated roster [tested:
     test_operator_words_precede_the_mechanical_name_map;
-    commit=WORKTREE]
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -59,7 +59,7 @@ _NEG: Final = OperatorRecipe("neg", "-", (0,), "(- 0 x)")
 # engine head when it has one and to an immutable recipe when its settled
 # image is composite. ``floordiv`` remains refused because its requested word
 # door has not been settled. [source:
-# https://docs.python.org/3.14/library/operator.html; commit=WORKTREE]
+# https://docs.python.org/3.14/library/operator.html; commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
 OPERATOR_WORDS: Final[dict[str, str | OperatorRecipe]] = {
     "eq": "==",
     "ne": "!=",

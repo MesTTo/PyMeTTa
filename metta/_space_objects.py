@@ -19,7 +19,7 @@ Guarantees:
   - bound function attributes consult the operator word table before the
     mechanical map and evaluate composite ``neg`` through its canonical term
     [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=WORKTREE]
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - a resolved bang call completes before the call returns while retaining a
     replayable answer view [tested: test_resolved_bang_call_is_eager;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

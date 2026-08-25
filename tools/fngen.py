@@ -13,7 +13,7 @@ Guarantees:
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - operator word aliases are generated from the same fixed vocabulary as
     both runtime fn doors, including composite ``neg`` [tested:
-    test_operator_words_precede_the_mechanical_name_map; commit=WORKTREE]
+    test_operator_words_precede_the_mechanical_name_map; commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - executable phrasebook rows supply inert runtime and stub documentation
     without starting the engine [tested: test_generated_fn_help_is_offline;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -101,7 +101,7 @@ Guarantees:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - generated operator word attributes resolve through the shared fixed table
     [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=WORKTREE]
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - documented catalog rows remain available to help() before an engine starts
     [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
@@ -170,7 +170,7 @@ def stub_text(names: list[str], documentation: dict[str, str] | None = None) -> 
 #     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 #   - operator word aliases are explicit members generated from the runtime
 #     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
-#     commit=WORKTREE]
+#     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
 #   - catalog-row documentation is attached to explicit members for static
 #     help [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 # Open Obligations:
