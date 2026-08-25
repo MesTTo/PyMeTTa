@@ -23,7 +23,7 @@ Guarantees:
   - the public Space handle annotation denotes the engine's ``SpaceType``
     instead of declaring an unrelated user type [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
-    commit=WORKTREE]
+    commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
 Open Obligations:
   To Do: None
   Hacks: None

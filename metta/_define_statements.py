@@ -28,11 +28,11 @@ Guarantees:
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - assertions continue on truth and otherwise answer ``(Error call reason)``,
     including message and generator continuations [tested:
-    test_compiled_assert_lowers_to_the_error_algebra; commit=WORKTREE]
+    test_compiled_assert_lowers_to_the_error_algebra; commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
   - ``del space[pattern]`` removes every snapshotted match while annotated
     space ``-=`` removes one, with missing removals kept loud [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
-    commit=WORKTREE]
+    commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -34,7 +34,7 @@ Guarantees:
     anonymous provenance, ``reacts`` declaration, composite operator words,
     and compiled assertion/removal statements
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

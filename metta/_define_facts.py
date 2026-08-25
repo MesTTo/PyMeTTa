@@ -19,7 +19,7 @@ Guarantees:
   - compiler-recognized Python calls remain structural while effects in their
     arguments are joined independently [tested:
     test_compiler_recognized_python_calls_remain_structural,
-    test_definition_match_is_a_nondeterministic_read; commit=WORKTREE]
+    test_definition_match_is_a_nondeterministic_read; commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
   - a ``.value`` access is conservatively mutable-state dependent, so a
     compiled State read or write cannot be advertised as immutable [tested:
     test_compiled_state_properties_round_trip_through_engine_heads;
@@ -27,7 +27,7 @@ Guarantees:
   - delete statements and augmented assignments on Space-typed parameters are
     classified as state writes [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
-    commit=WORKTREE]
+    commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
 Open Obligations:
   To Do: None
   Hacks: None
