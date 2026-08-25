@@ -270,15 +270,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/control/unify.metta",
-      "form": null,
-      "missing": "the four-argument `unify(a, b, then, els)` the expression-position rule names",
-      "row": "P14.4",
-      "section": "§4 surface gaps: the expression-position functions",
-      "detail": "The guide's expression-position rule names `unify` as one of the four operations that get a surface FUNCTION because Python's syntax cannot spell the concept in that position, and it prints the exemplar twice: `return unify(x, S.Person(V.n), S.Greeting(V.n), S.Unknown)` inside a body, and `unify(b, 0, superpose(), a / b)` beside it. Neither runs. Re-measured 2026-08-24 on the P14 integration tip: the root `unify` is the two-argument matcher over two atoms Python already holds and raises `unify() takes 2 positional arguments but 4 were given`; and a bare `unify(...)` inside a compiled body raises `CompileError: 'unify' is not a parameter of describe, not a function the engine knows, and not a capitalized data constructor`, because it is not one of the SEVEN names a body reads as MeTTa (accept, collapse, drop, empty, match, refuse, superpose). `S.unify(x, pattern, then, els)` in a body does work and answers `[(Greeting Ann)]`, so the gap is the FUNCTION, not the instruction. Every one of this file's fifteen claims builds the four-argument form and evaluates it for want of the door. [measured 2026-08-24 on the p14-twins3-b tree; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]"
-    },
-    {
-      "kind": "friction",
       "example": "examples/control/caseconstrain.metta",
       "form": null,
       "missing": "a STAR arm in a case pattern, so a cons constraint over a tail of any length can be spelled",
@@ -1737,6 +1728,16 @@
     }
   ],
   "retired": [
+    {
+      "kind": "friction",
+      "example": "examples/control/unify.metta",
+      "form": null,
+      "missing": "the four-argument `unify(a, b, then, els)` the expression-position rule names",
+      "row": "P14.4",
+      "section": "§4 surface gaps: the expression-position functions",
+      "detail": "AS FILED, superseded by the retirement line below. The root `unify` formerly accepted only two atoms and a bare four-argument call inside a compiled body was refused, so the twin had to build every conditional as `S.unify(...)` and evaluate it separately.",
+      "retired": "2026-08-26: package `unify(a, b, then, els)` evaluates the engine conditional at expression position, the compiled-body intrinsic lowers the same spelling directly, and the control/unify twin now exercises both doors; two-argument `unify(a, b)` is symmetric, closing the P14.36 divergence"
+    },
     {
       "kind": "friction",
       "example": "examples/libraries/memo_per_arity.metta",

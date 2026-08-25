@@ -30,6 +30,10 @@ Guarantees:
   - imported ``functools.reduce`` lowers named reducers to ``foldl-atom`` and
     lambdas to its explicit accumulator/item template [tested:
     test_reduce_lowers_named_and_lambda_reducers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - a four-argument bare unify call lowers to the engine's protected special
+    form rather than resolving as a host closure [tested:
+    test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -97,7 +101,7 @@ _INSTEAD = {
 # Names with special meaning inside a compiled body. `match` runs a pattern
 # against the running space, nondeterminism and verdict forms pass through,
 # and `empty` answers nothing.
-_MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose")
+_MAGIC = ("accept", "collapse", "drop", "empty", "match", "refuse", "superpose", "unify")
 
 
 class ExpressionCompilerMixin(CompilerContext):
@@ -562,6 +566,8 @@ class ExpressionCompilerMixin(CompilerContext):
         func = self._plain_call_name(node)
         if func.id == "match":
             return self._match_call(node)
+        if func.id == "unify":
+            return Expression([Symbol("unify"), *self._args(node, 4, "unify")])
         if func.id == "superpose":
             # superpose(a, b, c): one expression holding the alternatives.
             return Expression(

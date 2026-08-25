@@ -5,30 +5,34 @@ a and b match, and the else branch exactly when no binding set exists. The
 operands cross unevaluated, all four arguments are typed Atom, and only the
 selected branch runs.
 
-`unify` keeps MeTTa's name because Python has no expression that matches two
-terms and chooses a branch: `metta.unify(pattern, atom)` answers bindings on
-atoms Python already holds, which is a different act, and the four-argument
-form the guide's expression-position rule names is not built yet. What does
-move into Python is everything around it: a stored marker is asked for with
-`in`, which IS match containment, and the space operand is the handle itself,
-because a space is a grounded atom and no symbol names it.
+`metta.unify` carries both ruled acts. At two arguments it symmetrically
+answers bindings over atoms Python already holds. At four arguments it
+evaluates the engine conditional in expression position, and a compiled body
+lowers the same call directly. A stored marker is asked for with `in`, which
+IS match containment, and the space operand is the handle itself, because a
+space is a grounded atom and no symbol names it.
 
-Both probes are compiled definitions that write from inside their own
-equations, over `(context-space)`, which is the space the equation runs in. So
-the markers stored are the example's own bare symbols. The Python write door
-still refuses one, `m.add(S.then_ran)` answering "a stored atom is a non-empty
-expression", where the engine's `add-atom` takes it; the two doors disagreeing
-is filed as residue against P14.10.
+Both marker probes are compiled definitions that write from inside their own
+equations, over `(context-space)`, which is the space the equation runs in. A
+third compiled definition calls four-argument `unify` directly so that the
+compiler lowers the conditional rather than executing it while defining the
+function. The markers stored are the example's own bare symbols. The Python
+write door still refuses one, `m.add(S.then_ran)` answering "a stored atom is a
+non-empty expression", where the engine's `add-atom` takes it; the two doors
+disagreeing is filed as residue against P14.10.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
+  - four-argument unify is called directly at expression position and lowers
+    from a compiled body [tested: bindings/python/tools/twin_coverage.py
+    examples/control/unify.metta; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """
 
-from metta import Expression, S, V, ground
+from metta import Expression, S, V, ground, unify
 
 #: The two strings the ground decisions compare, carried whole.
 STRING_X, STRING_Y = ground("x"), ground("y")
@@ -64,23 +68,22 @@ STRING_X, STRING_Y = ground("x"), ground("y")
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 12186
+#: RE-PINNED 2026-08-26, 12186 to 13701: the twin now exercises the public
+#: expression-position four-argument `unify`, compiles the same spelling in a
+#: function body, and mirrors both effectful branch definitions as matchable
+#: equations; those required engine crossings replace the old term-only calls
+#: [measured: 13701 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/control/unify.metta; fixture=minimum of three serial runs;
+#: commit=6917bef7ca902671999eafcae3a7a86db8f69723].
+BUDGET = 13701
 
 
 def twin(m):
     """Match ground terms, terms with variables, and a space."""
-    # The top rung is the expression-position function the guide rules and
-    # prints twice, `unify(a, b, then, els)`. It is not built. Re-measured
-    # 2026-08-24: the root `unify` is the two-argument matcher over two atoms
-    # Python already holds and raises "unify() takes 2 positional arguments but
-    # 4 were given", and a bare `unify(...)` inside a compiled body raises
-    # CompileError because it is not one of the seven names a body reads as
-    # MeTTa. `S.unify(x, pattern, then, els)` in a body does work, so the gap
-    # is the FUNCTION rather than the instruction. Residue: P14.4.
-    #
     # Ground decisions, including numeric promotion: 1 matches 1.0.
     # !(test (unify 1 1 same different) same)
-    assert m.eval(S.unify(1, 1, S.same, S.different)) == [S.same]
+    assert unify(1, 1, S.same, S.different) == [S.same]
     # !(test (unify 1 2 same different) different)
     assert m.eval(S.unify(1, 2, S.same, S.different)) == [S.different]
     # !(test (unify 1 1.0 same different) same)
@@ -101,26 +104,24 @@ def twin(m):
 
     @m.define
     def then_probe():
-        # (= (then-probe) (chain (add-atom &self then-ran) $_ 3))
-        _marked = S.add_atom(S.context_space(), S.then_ran)  # rung: `space += atom` is a Python statement over a handle, and a compiled body is pure atoms
-        return 3
+        return S.chain(S.add_atom(S.context_space(), S.then_ran), V._, 3)
 
     @m.define
     def else_probe():
-        # (= (else-probe) (chain (add-atom &self else-ran) $_ 4))
-        _marked = S.add_atom(S.context_space(), S.else_ran)  # rung: the other marker, the same way
-        return 4
+        return S.chain(S.add_atom(S.context_space(), S.else_ran), V._, 4)
 
-    probes = (S.then_probe(), S.else_probe())
+    @m.define
+    def probe(left, right):
+        return unify(left, right, S.then_probe(), S.else_probe())
 
     # Only the selected branch evaluates: each probe leaves a marker, and
     # exactly one marker lands per query.
     # !(test (unify A A (then-probe) (else-probe)) 3)
-    assert m.eval(S.unify(S.A, S.A, *probes)) == [3]
+    assert probe(S.A, S.A) == [3]
     # !(test (collapse (match &self else-ran hit)) ())
     assert S.else_ran not in m
     # !(test (unify A B (then-probe) (else-probe)) 4)
-    assert m.eval(S.unify(S.A, S.B, *probes)) == [4]
+    assert probe(S.A, S.B) == [4]
     # !(test (collapse (match &self then-ran hit)) (hit))
     assert S.then_ran in m
 

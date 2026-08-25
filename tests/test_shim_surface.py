@@ -59,6 +59,10 @@ HOST_SERVICES = {
     "metta_host_with_stack_limit/2",
     # Cache validation reads the function registry's engine-owned generation.
     "metta_host_function_generation/1",
+    # list() asks for a length hint before it pulls. The engine's shared
+    # effect classifier decides whether that second evaluation is safe; the
+    # host must not reconstruct its private queue protocol.
+    "metta_host_goal_repeatable/2",
     "metta_host_save_fast/3",
     "metta_host_load_fast/2",
     "metta_host_open_function/3",
@@ -172,6 +176,7 @@ FLOOR_REASONS = {
     "metta_host_run_source_status/3": "host-orchestration",
     "metta_host_with_stack_limit/2": "door",
     "metta_host_function_generation/1": "host-orchestration",
+    "metta_host_goal_repeatable/2": "host-orchestration",
     "metta_host_save_fast/3": "host-orchestration",
     "metta_host_stored/2": "host-orchestration",
     "metta_host_substitute/3": "host-orchestration",

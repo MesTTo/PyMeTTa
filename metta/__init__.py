@@ -28,6 +28,10 @@ Guarantees:
     its expression form; compiled definitions lower their syntactic match
     calls before either Python function executes [tested:
     test_module_tier_exposes_the_mode_and_definition_family; commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
+  - ``unify`` keeps the symmetric two-atom matcher at arity two and evaluates
+    the engine's conditional form at arity four [tested:
+    test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - ``view`` lazily opens a live provider space over Python mappings, sets,
     and sequences [tested: test_view_is_a_live_queryable_space;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -51,7 +55,13 @@ from __future__ import annotations
 import functools as _functools
 import importlib as _importlib
 import os as _os
+from collections.abc import Mapping as _Mapping
+from typing import TYPE_CHECKING as _TYPE_CHECKING
 from typing import Any as _Any
+from typing import overload as _overload
+
+if _TYPE_CHECKING:
+    from .results import Answers as _Answers
 
 from ._config import Config, config
 from ._fn import fn
@@ -81,8 +91,8 @@ from .atoms import (
     parse,
     seg,
     typed,
-    unify,
 )
+from .atoms import unify as _unify_atoms
 from .errors import NotReducible, PettaError, Timeout
 
 _SATELLITES = frozenset(
@@ -257,6 +267,37 @@ def match(*patterns: _Any, **kwargs: _Any):
 def _ambient_space():
     """Open the space selected by the active Python or engine context."""
     return engine().space(current_space())
+
+
+@_overload
+def unify(left: _Any, right: _Any) -> _Mapping[str, Atom] | None: ...
+
+
+@_overload
+def unify(left: _Any, right: _Any, then: _Any, els: _Any) -> _Answers[Atom]: ...
+
+
+def unify(
+    left: _Any,
+    right: _Any,
+    then: _Any = _OMITTED,
+    els: _Any = _OMITTED,
+) -> _Any:
+    """Unify two atoms, or evaluate the four-argument engine conditional.
+
+    ``unify(a, b)`` returns a symmetric bindings mapping or ``None`` without
+    starting the engine. ``unify(a, b, then, els)`` evaluates
+    ``(unify a b then els)`` in the ambient space, once per binding set on
+    success and through ``els`` only when no binding exists. A compiled body
+    lowers the same four-argument spelling directly to that engine form.
+    """
+    if then is _OMITTED and els is _OMITTED:
+        return _unify_atoms(left, right)
+    if then is not _OMITTED and els is not _OMITTED:
+        return _ambient_space().answers(S.unify(left, right, then, els))
+    given = 3
+    msg = f"unify() takes exactly 2 or 4 arguments ({given} given)"
+    raise TypeError(msg)
 
 
 def superpose(*alternatives: _Any):

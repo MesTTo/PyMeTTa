@@ -1,6 +1,11 @@
 """Purpose: subscription dispatch routed through the discrimination tree this
 package ships, held to the linear scan it replaces on BOTH delivery and
 order.
+Guarantees:
+  - the scan oracle uses directional pattern matching, so a variable in a
+    stored event does not make a literal watching pattern match [tested:
+    test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -10,7 +15,7 @@ Open Obligations:
 from __future__ import annotations
 
 from metta import S, V, ground
-from metta.atoms import unify
+from metta.atoms import _match
 
 
 def _scan(registered, space, atom, action="add"):
@@ -23,7 +28,7 @@ def _scan(registered, space, atom, action="add"):
         if subscription._active
         and watched is space
         and on in ("both", action)
-        and unify(pattern, atom) is not None
+        and _match(pattern, atom) is not None
     ]
 
 

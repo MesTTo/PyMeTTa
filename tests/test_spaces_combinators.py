@@ -126,7 +126,7 @@ def test_mapped_presents_and_writes_through_the_declaration(metta, pair):  # noq
 
 
 def test_mapped_repeated_variable_pattern_stays_sound(metta, pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # The one-way unify walk refuses (loop $x $x) against a shape whose
+    # The private `_joined` walk refuses (loop $x $x) against a shape whose
     # positions the pattern's repetition constrains; soundness demands the
     # candidates still answer, and the engine re-unifies them.
     inner, _ = pair

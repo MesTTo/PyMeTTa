@@ -151,7 +151,24 @@ is Python's own `assert`.
 #: [measured: 2850 inferences; command=tools/twin_coverage.py --measure
 #: --rounds 3 examples/basics/identity.metta; fixture=merged tree with
 #: engine/reader.so; commit=d843bb6d17a525c36afd21cab077d63b34447535].
-BUDGET = 2850
+#: RE-PINNED 2026-08-26, 2822 to 2840: an Answers count now asks the
+#: engine-published metta_host_goal_repeatable/2 classifier before choosing
+#: whether it may issue a second query. That guard is what keeps effectful
+#: relational generators single-pass, and this pure define-and-call twin pays
+#: the classification once during its answer comparison [measured: 2840
+#: inferences; command=python bindings/python/tools/twin_coverage.py --measure
+#: --rounds 3 examples/basics/identity.metta; fixture=minimum of three serial
+#: runs; commit=6917bef7ca902671999eafcae3a7a86db8f69723].
+#: RE-PINNED 2026-08-26, on the integration merge of both parents above:
+#: the merged tree measures 2830, BELOW both single-parent pins (2850 and
+#: 2840), because the two mechanisms' layout costs compose non-monotonically
+#: through clause-indexing shape - the boot-content lesson qlf_boot.pl's
+#: header records. Both parent entries stay as the mechanism record; the
+#: number is the merged tree's own [measured: 2830 inferences;
+#: command=tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=merged tree with
+#: engine/reader.so; commit=WORKTREE].
+BUDGET = 2830
 
 
 def twin(m):

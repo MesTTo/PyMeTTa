@@ -32,6 +32,10 @@ Guarantees:
     before registration changes any engine or registry state [tested:
     test_register_op_reads_co_flags_and_refuses_or_awaits;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - generator signatures supply positional and sparse-dict relation row names
+    after injected engine parameters are removed [tested:
+    test_sparse_relational_dict_candidates_bind_parameter_names;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - every documented operation owns its portable @doc atom in the
     declaration space, independent of type annotations, under the same transactional
     lifecycle and reference count as type declarations [tested:
@@ -632,18 +636,24 @@ def register[**P, R](
     """Make fn callable from MeTTa. Returns fn unchanged.
 
     A generator function registers as nondeterministic: each yield is one
-    answer, and MeTTa's collapse, superpose and let compose over them. A
-    plain function is deterministic; returning None or raising NotReducible
-    answers nothing. Defaults yield one registration per reachable arity;
-    a variadic callable names its call forms with arities=[...].
+    answer, and MeTTa's collapse, superpose and let compose over them. An exact
+    tuple yield is a positional relational candidate and an exact dict yield
+    is its sparse parameter-name spelling: the engine unifies each row against
+    the call, so ground arguments filter and variables bind through the same
+    implementation. Use ``Answer(value=...)`` when a generator intentionally
+    answers an exact tuple or dict value. Relational rows require encoded
+    transport.
+    A plain function is deterministic; returning None or raising NotReducible
+    answers nothing. Defaults yield one registration per reachable arity; a
+    variadic callable names its call forms with arities=[...].
 
-    inverse supplies the BACKWARDS direction, so the operation can stand in a
-    pattern position the way a MeTTa equation does. It takes the result and
-    returns the arguments, as a tuple, or the bare value at arity one; a
-    generator enumerates every preimage, and None or NotReducible means there is
-    none. It only ever runs when the arguments are not ground and the result
-    is, so a forward call never reaches it and an operation without one
-    compiles exactly what it compiled before.
+    inverse supplies a distinct result-to-arguments implementation for an
+    ordinary result-producing operation. It takes the result and returns the
+    arguments, as a tuple, or the bare value at arity one; a generator
+    enumerates every preimage, and None or NotReducible means there is none. It
+    only ever runs when the arguments are not ground and the result is, so a
+    forward call never reaches it. A relational tuple/dict generator needs no
+    inverse because its one implementation already binds every direction.
 
     Python annotations derive type atoms and Atom parameters receive syntax
     before evaluation. `transport="raw"` derives raw_det/raw_many in the
@@ -721,6 +731,17 @@ def register[**P, R](
         arities=tuple(arities),
         inverse=inverse,
         pure=pure,
+        parameter_names=tuple(
+            [param.name for param in params]
+            + (
+                [
+                    variadic.name
+                    for _ in range(max(0, max(arities) - len(params)))
+                ]
+                if variadic is not None
+                else []
+            )
+        ),
         parameter_annotations=tuple(
             [conversion_hints.get(param.name, Any) for param in params]
             + (

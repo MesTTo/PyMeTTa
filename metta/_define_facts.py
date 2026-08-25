@@ -12,6 +12,10 @@ Guarantees:
   - purity checks resolve compiled callees under the same catalog spelling
     rule as expression lowering [tested:
     test_mapped_nondeterministic_calls_keep_their_call_role; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - the four-argument unify control form is pure while its branch calls are
+    still visited and classified [tested:
+    test_expression_position_unify_uses_the_engine_conditional_in_both_contexts;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -51,7 +55,7 @@ class DefinitionFacts(NamedTuple):
     pure: bool
 
 
-_PURE_CONTROL_CALLS = frozenset({"collapse", "empty", "superpose"})
+_PURE_CONTROL_CALLS = frozenset({"collapse", "empty", "superpose", "unify"})
 _PURE_PYTHON_CALLS = frozenset(
     {"abs", "len", "max", "min", "pow", "range", "repr", "round", "sorted", "str", "sum"}
 )

@@ -49,6 +49,10 @@ Guarantees:
   - subscribe, bridge and reaction are each expressible as a fold over this
     surface alone, with the same answers as the shipped models [tested
     test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_stream]
+  - event delivery binds only the watching pattern and never variables stored
+    in an event atom [tested:
+    test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Guarded by:
   - _FoldRegistry._lock protects fold state, the active runtime, delivery
     counts, and engine subscription snapshots [tested
@@ -67,7 +71,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Final, Self
 
-from .atoms import Atom, _atom_from_wire, _is_ground, _to_atom, unify
+from .atoms import Atom, _atom_from_wire, _is_ground, _match, _to_atom
 from .errors import PettaError, SubscriberError
 from .structures import MatchIndex
 from .vocabularies import SubscriptionEdge
@@ -611,7 +615,7 @@ def _deliver(action: str, space: str, atom: Atom) -> None:
     for fold in _REGISTRY.candidates(space, atom):
         if fold.on not in ("both", action):
             continue
-        bindings = unify(fold.pattern, atom)
+        bindings = _match(fold.pattern, atom)
         if bindings is None:
             continue
         try:

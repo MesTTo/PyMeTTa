@@ -66,6 +66,10 @@ Guarantees:
     objects as handles and projecting transparent objects [tested:
     test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - fallback row deletion binds only the removal pattern after public
+    ``unify`` becomes symmetric [tested:
+    test_a_nonground_compound_downgrades_and_removal_still_unifies;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Decides:
   - declarations are trusted code, not user data: table and column
     names are interpolated into SQL, so a bridge declaration belongs in
@@ -91,9 +95,9 @@ from .atoms import (
     Variable,
     _encode,
     _is_ground,
+    _match,
     ground,
     substitute,
-    unify,
 )
 from .convert import auto_image, project
 from .foreign import SpaceProvider
@@ -523,7 +527,7 @@ class TableBridge(SpaceProvider):
                 shape.values(atom)
                 for row in self._select(shape, where, arguments)
                 for atom in (shape.atom(self._cell_atom, row),)
-                if isinstance(atom, Expression) and unify(pattern, atom) is not None
+                if isinstance(atom, Expression) and _match(pattern, atom) is not None
             ]
             for values in doomed:
                 clauses: list[str] = []

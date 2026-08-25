@@ -29,6 +29,10 @@ Guarantees:
   - status evaluation accepts the eager eval door's named host substitutions
     and capture scope without evaluating the target twice [tested:
     test_strict_eval_refuses_only_not_reducible; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - lazy evaluation uses a second engine for cardinality only when the
+    translated goal is effect-safe [tested:
+    test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -378,6 +382,13 @@ def evaluate_answers(
     the established query-cursor economics [tested:
     test_function_calls_pull_engine_answers_only_as_demanded;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
+
+    A pristine view counts through a separate engine only when the translated
+    goal is effect-safe. Otherwise len() materializes this view's held cursor,
+    so list() cannot execute an effect once for its length hint and again for
+    its values [tested:
+    test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723].
     """
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     columns = [] if isinstance(target, str) else _column_names((_to_atom(target),))
@@ -391,8 +402,8 @@ def evaluate_answers(
     steps = -1 if limits is None else limits[1]
     stack = -1 if limits is None else limits[2]
 
-    def count_answers() -> int:
-        predicate = "petta_py_eval_count"
+    def count_answers() -> int | None:
+        predicate = "petta_py_eval_count_if_repeatable"
         inputs: list[Any] = [space, encoded_target, pairs or []]
         captured = _CAPTURED_OUTPUT.get()
         if captured is not None:
@@ -404,7 +415,7 @@ def evaluate_answers(
         if captured is not None:
             output, captured_text = output
             captured._append(str(captured_text))
-        return int(output)
+        return int(output[0]) if output else None
 
     def stream() -> Iterator[Any]:
         handle = rt.apply_must(

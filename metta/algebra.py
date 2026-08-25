@@ -24,6 +24,10 @@ Guarantees:
     rule matching and declared operations [tested:
     test_a_declared_gradient_algebra_propagates_derivatives_through_a_derivation;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - rule premises and evaluation goals retain directional pattern matching
+    after public ``unify`` becomes symmetric [tested:
+    test_algebra_patterns_do_not_bind_variables_inside_stored_candidates;
+    commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Decides:
   - ``contraction`` is a capability, while the remaining public law names are
     equations checked exhaustively over the declared finite carrier.
@@ -54,9 +58,9 @@ from .atoms import (
     Variable,
     _decode,
     _encode,
+    _match,
     parse,
     substitute,
-    unify,
 )
 from .errors import PettaError
 
@@ -731,7 +735,7 @@ def _derive_rule(
         for bindings, tag, tokens, proof in states:
             pattern = substitute(premise, bindings)
             for candidate in available:
-                matched = unify(pattern, candidate.value)
+                matched = _match(pattern, candidate.value)
                 if matched is None:
                     continue
                 overlap = tokens & candidate.tokens
@@ -830,7 +834,7 @@ def evaluate(
             f"algebra_derivation_did_not_reach_fixpoint({algebra}, rounds={max_rounds})"
         )
         raise AlgebraEvaluationError(msg)
-    matched = [answer for answer in available if unify(goal, answer.value) is not None]
+    matched = [answer for answer in available if _match(goal, answer.value) is not None]
     licence = "combine-associative"
     can_fuse = licence in declaration.laws
     plan = (
