@@ -92,7 +92,15 @@ is Python's own `assert`.
 #: is gone and the example corpus stays 224/224
 #: [measured 2026-08-25, the twin reading 2784 stable across the suite run
 #: and a direct re-run on the fixed tree].
-BUDGET = 2784
+#: RE-PINNED 2026-08-25, 2784 to 2814, by the computed-head value dispatch:
+#: petta_dynamic_head_masks/1 and petta_dynamic_value_call/4 join
+#: seam:engine_emitted/1 at the documented three inferences per name per
+#: execution-module build, and this workload builds several spaces. The
+#: dispatch removes per-activation tail retranslation at computed-head
+#: sites (matespacefast 39.3s to 9.4s)
+#: [measured 2026-08-25, 2814 stable across the suite run and a direct
+#: re-run].
+BUDGET = 2814
 
 
 def twin(m):
