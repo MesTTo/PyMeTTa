@@ -78,7 +78,7 @@ def _narrow(value: Any) -> Any:
     unwraps to its Python value, everything else answers itself.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(value, Grounded):
-        return value.value
+        return getattr(value, "value", value)
     return value
 
 

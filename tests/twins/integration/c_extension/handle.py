@@ -24,11 +24,11 @@ operator's word at the attribute door.
 
 from pathlib import Path
 
-from metta import S, fn
+from metta import Grounded, S, fn, lib
 
 #: The two engine libraries the example opens, spelled with their real
 #: underscores.
-LIB_IMPORT, LIB_FILE = S["lib_import"], S["lib_file"]
+LIB_IMPORT, LIB_FILE = lib["lib_import"], lib.file
 
 #: The build artefact and the Prolog file that loads it, as host paths for a
 #: Python door.
@@ -40,17 +40,33 @@ HANDLE_LOADER_PL = Path("examples/integration/c_extension/handle_loader.pl")
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 76421 to 76554, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 76554 to 76570, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+BUDGET = 76570
 
 
 def twin(m):
     """Make native vectors, read them, bump them, and ask what one is."""
-    # Known issue: `import!` has no Python door on the handle. The perfect
-    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
-    # library (appendix stamp 1), and neither exists yet, so the directive is
-    # reached by its own bang name, which performs it where it is written.
+    # (import! &self (library lib_import)) and (library lib_file): the write
+    # door imports, and the receiver is the target space.
     for library in (LIB_IMPORT, LIB_FILE):
-        m.fn["import!"](m, S.library(library))
+        m += library
 
     if not HANDLE_SO.exists():
         # The example prints its skip here. A twin has no door for prose, and
@@ -64,8 +80,8 @@ def twin(m):
     )
 
     # A thousand elements, one value: length and element access are C calls.
-    assert m.fn.vector_length(S.vector_new(1000)).one() == 1000
-    assert m.fn.vector_nth(S.vector_new(1000), 700).one() == 700
+    assert m.fn.vector_length(S.vector_new(1000)) == [1000]
+    assert m.fn.vector_nth(S.vector_new(1000), 700) == [700]
 
     @m.define
     def bump_thrice():                     # (= (bump-thrice)
@@ -76,17 +92,15 @@ def twin(m):
 
     # The state behind the handle is the native one, so three bumps through
     # three separate calls land on the same memory.
-    assert bump_thrice().one() == 3
+    assert bump_thrice() == [3]
 
-    # It is an ordinary grounded value, and it compares by identity.
-    #
-    # Known issue, two halves. The perfect claim is
-    # `assert vector.metatype == S.Grounded`, and `metatype` answers the
-    # STRING 'Grounded' instead, so the comparison has to read the symbol's own
-    # name back. And the design's rule is that an atom's Python class IS its
-    # metatype, which would make `isinstance(vector, Grounded)` the whole
-    # claim; `Handle.__mro__` is (Handle, Atom, object), so that is False while
-    # the engine says Grounded [measured 2026-08-24].
+    # It is an ordinary grounded value, and it compares by identity. The
+    # design's rule holds in the class tree now: a Handle IS a Grounded
+    # species (the canonical glossary's own law), so isinstance is the whole
+    # claim. `metatype` answering the string rather than the symbol is a
+    # separate surface decision, recorded with its consumer list in the
+    # known-issues ledger rather than flipped blind.
     vector = m.answers(S.vector_new(1)).one()
+    assert isinstance(vector, Grounded)
     assert vector.metatype == S.Grounded.name
     assert m.fn.eq(vector, vector).one() is True   # (eval (let $v (vector-new 1) (== $v $v)))

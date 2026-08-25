@@ -116,7 +116,9 @@ class _LiveDataView(SpaceProvider):
             keys: tuple[Any, ...]
             if isinstance(key_pattern, Symbol):
                 keys = (key_pattern, key_pattern.name)
-            elif isinstance(key_pattern, Grounded):
+            elif isinstance(key_pattern, Grounded) and hasattr(
+                key_pattern, "value"
+            ):
                 keys = (_decode(key_pattern),)
             else:
                 keys = (key_pattern,)
@@ -131,7 +133,11 @@ class _LiveDataView(SpaceProvider):
                     seen.add(identity)
                     yield key, value
             return
-        if isinstance(key_pattern, Grounded) and isinstance(self.object, Sequence):
+        if (
+            isinstance(key_pattern, Grounded)
+            and hasattr(key_pattern, "value")
+            and isinstance(self.object, Sequence)
+        ):
             index = _decode(key_pattern)
             if type(index) is int and 0 <= index < len(self.object):
                 yield index, self.object[index]
@@ -214,7 +220,9 @@ class ObjectView(SpaceProvider):
             names = field_names(self.object)
         elif isinstance(name_atom, Symbol):
             names = [name_atom.name]
-        elif isinstance(name_atom, Grounded) and isinstance(name_atom.value, str):
+        elif isinstance(name_atom, Grounded) and isinstance(
+            getattr(name_atom, "value", None), str
+        ):
             names = [name_atom.value]
         else:
             return
@@ -238,7 +246,9 @@ class ObjectView(SpaceProvider):
             raise PettaError(msg)
         if isinstance(name_atom, Symbol):
             name = name_atom.name
-        elif isinstance(name_atom, Grounded) and isinstance(name_atom.value, str):
+        elif isinstance(name_atom, Grounded) and isinstance(
+            getattr(name_atom, "value", None), str
+        ):
             name = name_atom.value
         else:
             msg = "an object view write needs one ground field name"

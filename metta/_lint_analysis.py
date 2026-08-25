@@ -448,7 +448,7 @@ def _is_truth(atom: Atom, value: bool) -> bool:  # noqa: FBT001  -- the boolean 
     ground bool or as the symbol.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if isinstance(atom, Grounded):
-        return atom.value is value
+        return getattr(atom, "value", None) is value
     return atom in (Symbol(str(value)), Symbol(str(value).lower()))
 
 

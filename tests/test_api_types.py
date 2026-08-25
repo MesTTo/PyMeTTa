@@ -90,3 +90,26 @@ def test_cast_target_is_positional_only():  # noqa: D103  -- pytest discovers or
 
     with pytest.raises(TypeError, match="positional-only"):
         cast(None, 3, type_=int)
+
+
+def test_a_handle_is_a_grounded_species():
+    """The canonical glossary's law in the class tree: a handle answers
+    isinstance against Grounded, deconstructs to nothing, is always truthy,
+    refuses raw-value ordering, and its value slot is deliberately unset so
+    a payload read names the mistake instead of answering something.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    import pytest
+
+    from metta import Grounded, MeTTa
+
+    space = MeTTa().space()
+    assert isinstance(space, Grounded)
+    assert bool(space) is True
+    with pytest.raises(AttributeError):
+        _ = space.value
+    match space:
+        case Grounded():
+            pass
+        case _:
+            msg = "a handle must match the Grounded pattern"
+            raise AssertionError(msg)

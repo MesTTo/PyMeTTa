@@ -662,104 +662,6 @@ class Variable(Atom):
         return "Variable"
 
 
-class Handle(Atom):
-    """A grounded executable reference carried as an atom.
-
-    Space handles and native extension handles are the two concrete species.
-    A handle owns behavior and identity outside the term tree while remaining
-    usable wherever MeTTa accepts a grounded operand.
-    """
-
-    __slots__ = ()
-
-    @property
-    def metatype(self) -> str:
-        return "Grounded"
-
-
-class _NativeHandle(Handle):
-    """A native engine value held by reference: the identity carrier for
-    anything a C extension hands back as a blob (EXTENDING.md section 3).
-
-    The value itself never crosses; this atom carries a registry id and
-    the blob's own printed text. Handing it back to the engine resolves
-    the very same blob, so identity, mutation and accessor calls all see
-    one object. Unpacking is whatever accessors the owning extension
-    registered; the handle is deliberately opaque here, for any blob
-    type, with nothing per-type anywhere.
-
-    release() retracts the engine-side registry entry that keeps the
-    blob alive; further use of a released handle raises in the engine,
-    naming the id. Garbage collection releases as a safety net, but an
-    interpreter tearing down cannot promise engine calls, so explicit
-    release is the deterministic path.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-
-    __slots__ = {
-        "_released": "whether release() already retracted the registry entry",
-        "ident": "the engine-side registry id keeping the value alive",
-        "text": "the printed form the engine gave this handle",
-    }
-    __match_args__ = ("ident", "text")
-    ident: int
-    text: str
-    _released: bool
-
-    def __init__(self, ident: int, text: str) -> None:
-        object.__setattr__(self, "ident", ident)
-        object.__setattr__(self, "text", text)
-        object.__setattr__(self, "_released", False)
-
-    def __str__(self) -> str:
-        return self.text
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, _NativeHandle) and other.ident == self.ident
-
-    def __hash__(self) -> int:
-        return hash(("handle", self.ident))
-
-    def __reduce__(self):
-        msg = (
-            "a native handle has process-local identity and cannot be "
-            "pickled; read it out through its extension's accessors instead"
-        )
-        raise TypeError(
-            msg
-        )
-
-    def to_wire(self) -> list:
-        return ["h", self.ident]
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(self, *_exception: object) -> None:
-        self.release()
-
-    def release(self) -> None:
-        """Retract the engine-side registry entry keeping the value alive.
-
-        Handles are context managers, so the deterministic spelling is the
-        file-object idiom: `with` the handle and it releases on exit.
-        """
-        if self._released:
-            return
-        object.__setattr__(self, "_released", True)
-        from . import _engine  # noqa: I001,PLC0415 - atoms stay the base layer; the engine is reached only on release
-
-        runtime = _engine.active_runtime()
-        if runtime is not None:
-            runtime.do("petta_py_handle_release", self.ident)
-
-    def __del__(self) -> None:
-        # Interpreter teardown cannot promise engine calls, so collection
-        # is a best-effort release and explicit release() the deterministic
-        # path.
-        with contextlib.suppress(Exception):
-            self.release()
-
-
 class Grounded(Atom):
     """A grounded value: a host value carried whole.
 
@@ -972,6 +874,130 @@ class Grounded(Atom):
     @property
     def metatype(self) -> str:
         return "Grounded"
+
+
+class Handle(Grounded):
+    """A grounded executable reference carried as an atom.
+
+    Space handles and native extension handles are the two concrete species,
+    and the canonical glossary's law holds in the class tree: a Handle IS a
+    Grounded species, so ``isinstance(handle, Grounded)`` answers True. A
+    handle owns behavior and identity outside the term tree while remaining
+    usable wherever MeTTa accepts a grounded operand. The ``value`` slot is
+    deliberately never filled: a handle carries identity rather than a
+    payload, so a ``.value`` read raises AttributeError naming the slot, and
+    every Grounded branch that unwraps payloads guards with ``getattr``.
+    """
+
+    __slots__ = ()
+    # A handle deconstructs to nothing: Grounded's (value,) would send
+    # match statements into the unset slot.
+    __match_args__ = ()
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Expression:
+        del args, kwargs
+        msg = (
+            f"{type(self).__name__} is not applied: a handle names a live "
+            f"engine object, so call its methods, or place it in a built "
+            f"term as an operand"
+        )
+        raise TypeError(msg)
+
+    # A handle is presence: its truth is that it exists, never a payload's.
+    def __bool__(self) -> bool:
+        return True
+
+    # Raw-value ordering refuses: there is no payload to order by, and
+    # atom-vs-atom ordering goes through order_key, which is getattr-safe.
+    def _ordered(self, other: Any):
+        del other
+
+    @property
+    def metatype(self) -> str:
+        return "Grounded"
+
+
+class _NativeHandle(Handle):
+    """A native engine value held by reference: the identity carrier for
+    anything a C extension hands back as a blob (EXTENDING.md section 3).
+
+    The value itself never crosses; this atom carries a registry id and
+    the blob's own printed text. Handing it back to the engine resolves
+    the very same blob, so identity, mutation and accessor calls all see
+    one object. Unpacking is whatever accessors the owning extension
+    registered; the handle is deliberately opaque here, for any blob
+    type, with nothing per-type anywhere.
+
+    release() retracts the engine-side registry entry that keeps the
+    blob alive; further use of a released handle raises in the engine,
+    naming the id. Garbage collection releases as a safety net, but an
+    interpreter tearing down cannot promise engine calls, so explicit
+    release is the deterministic path.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+
+    __slots__ = {
+        "_released": "whether release() already retracted the registry entry",
+        "ident": "the engine-side registry id keeping the value alive",
+        "text": "the printed form the engine gave this handle",
+    }
+    __match_args__ = ("ident", "text")
+    ident: int
+    text: str
+    _released: bool
+
+    def __init__(self, ident: int, text: str) -> None:
+        object.__setattr__(self, "ident", ident)
+        object.__setattr__(self, "text", text)
+        object.__setattr__(self, "_released", False)
+
+    def __str__(self) -> str:
+        return self.text
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _NativeHandle) and other.ident == self.ident
+
+    def __hash__(self) -> int:
+        return hash(("handle", self.ident))
+
+    def __reduce__(self):
+        msg = (
+            "a native handle has process-local identity and cannot be "
+            "pickled; read it out through its extension's accessors instead"
+        )
+        raise TypeError(
+            msg
+        )
+
+    def to_wire(self) -> list:
+        return ["h", self.ident]
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_exception: object) -> None:
+        self.release()
+
+    def release(self) -> None:
+        """Retract the engine-side registry entry keeping the value alive.
+
+        Handles are context managers, so the deterministic spelling is the
+        file-object idiom: `with` the handle and it releases on exit.
+        """
+        if self._released:
+            return
+        object.__setattr__(self, "_released", True)
+        from . import _engine  # noqa: I001,PLC0415 - atoms stay the base layer; the engine is reached only on release
+
+        runtime = _engine.active_runtime()
+        if runtime is not None:
+            runtime.do("petta_py_handle_release", self.ident)
+
+    def __del__(self) -> None:
+        # Interpreter teardown cannot promise engine calls, so collection
+        # is a best-effort release and explicit release() the deterministic
+        # path.
+        with contextlib.suppress(Exception):
+            self.release()
 
 
 class Expression(Atom):
@@ -1533,7 +1559,10 @@ def decode(atom: Any) -> Any:
     variables stay atoms. Named for what it does; results already compare
     ergonomically without it, so it is never on a default path.
     """
-    return atom.value if isinstance(atom, Grounded) else atom
+    # getattr, not .value: a Handle is a Grounded species whose value slot
+    # is deliberately unset (identity, not payload), and it decodes to
+    # ITSELF, which is what a live reference means host-side.
+    return getattr(atom, "value", atom) if isinstance(atom, Grounded) else atom
 
 
 # Decoded symbols and variables intern per name: their equality and hash are by

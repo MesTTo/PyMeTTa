@@ -328,7 +328,7 @@ def _projected_type_atom(projected: Projected) -> Atom:
 
 def _type_name_of(atom: Atom) -> str:
     if isinstance(atom, Grounded):
-        v = atom.value
+        v = getattr(atom, "value", atom)
         if isinstance(v, bool):
             return "Bool"
         if isinstance(v, (int, float)):

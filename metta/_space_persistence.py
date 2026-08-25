@@ -41,7 +41,7 @@ from typing import Literal
 
 from ._engine import Runtime
 from ._space_objects import _apply_limited, _limits
-from .atoms import Atom, Expression, Grounded, Symbol, _atom_from_wire
+from .atoms import Atom, Expression, Grounded, Handle, Symbol, _atom_from_wire
 from .errors import EngineError, ResourceLimitError
 from .vocabularies import SaveFormat
 
@@ -98,7 +98,14 @@ def serializable(atom: Atom) -> bool:
     stack = [atom]
     while stack:
         current = stack.pop()
-        if isinstance(current, Grounded) and not isinstance(current.value, (bool, int, float, str)):
+        # A Handle is a Grounded species with no payload slot, and it has
+        # its own persistent spelling (the space name, the registry id),
+        # which is the old walk's behaviour kept exact.
+        if (
+            isinstance(current, Grounded)
+            and not isinstance(current, Handle)
+            and not isinstance(current.value, (bool, int, float, str))
+        ):
             return False
         if isinstance(current, Expression):
             stack.extend(current.children)

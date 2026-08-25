@@ -220,7 +220,8 @@ def _text_node(
         msg = f"malformed {name} node {node}: expected ({name} Text)"
         raise ValueError(msg)
     payload = node[1]
-    text = payload.value if isinstance(payload, Grounded) else str(payload)
+    value = getattr(payload, "value", None) if isinstance(payload, Grounded) else None
+    text = value if value is not None else str(payload)
     return constructor(str(text))
 
 
