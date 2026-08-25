@@ -618,9 +618,30 @@ class Symbol(Atom):
     def metatype(self) -> str:
         return "Symbol"
 
-    def __call__(self, *args: Any) -> Expression:
-        """A symbol applied is an expression headed by it: S.likes(S.Ada)."""
-        return _expression_atoms((self, *(encode(a) for a in args)))
+    def __call__(self, *args: Any, **kwargs: Any) -> Expression:
+        """A symbol applied is an expression headed by it: S.likes(S.Ada).
+
+        Keyword arguments append the seam's own `(Kwargs (name value)...)`
+        form, so Python's keyword syntax reaches a Python operation across
+        the boundary: `S.f(4, step=2)` builds `(f 4 (Kwargs (step 2)))`,
+        the exact form bridge.pl's py-call splits. Names stay exact,
+        because they are Python parameter names, not MeTTa vocabulary.
+        """
+        return _applied_atoms(self, args, kwargs)
+
+
+def _applied_atoms(head: Atom, args: tuple, kwargs: dict) -> Expression:
+    """One application builder for every head kind: positional children,
+    then the `(Kwargs ...)` tail when keywords were given.
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    children = [head, *(encode(a) for a in args)]
+    if kwargs:
+        pairs = tuple(
+            _expression_atoms((Symbol(name), encode(value)))
+            for name, value in kwargs.items()
+        )
+        children.append(_expression_atoms((Symbol("Kwargs"), *pairs)))
+    return _expression_atoms(children)
 
 
 class Variable(Atom):
@@ -684,6 +705,15 @@ class Grounded(Atom):
     __slots__ = {"value": "the ground Python value this atom carries"}
     __match_args__ = ("value",)
     value: Any
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Expression:
+        """A grounded head applied is an expression headed by it, the same
+        law a symbol has: `np_arange(4, step=2)` builds
+        `(np_arange 4 (Kwargs (step 2)))`, which is what the seam's py-call
+        route evaluates. Building is not calling: the term is data until
+        something evaluates it.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        return _applied_atoms(self, args, kwargs)
 
     # Truthiness follows equality, or `if answer:` reads a MeTTa False as
     # true. Without this the library forces the PEP 8 violation it warns

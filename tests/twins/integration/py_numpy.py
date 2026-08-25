@@ -38,7 +38,25 @@ np_random = np.random
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 3093 to 3112, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 3112 to 3113, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+BUDGET = 3113
 
 
 def twin(m):
@@ -46,12 +64,17 @@ def twin(m):
     # A numpy scalar stays a numpy object INSIDE the engine, which is the
     # tutorial's own point.
     #
-    # Known issue: the perfect claim is `isinstance(np.absolute(-5), np.int64)`
-    # on the answer Python holds, and a numpy SCALAR does not survive the
-    # crossing back: `m.eval` hands Python an ordinary `int` [measured
-    # 2026-08-24, Grounded(5) whose .value is an int]. An ndarray DOES survive,
-    # by reference, which is why the array claim below is plain `isinstance`.
-    # So this one question can only be asked engine-side.
+    # The scalar's Python identity dies at a NAMED seam line, not in this
+    # library: janus converts None, True, False, int, float, str and tuple
+    # regardless of py_object(true) (bridge.pl, petta_py_opts/1's own
+    # comment), and np.int64 IS an int, so the by-value coercion takes it at
+    # the first crossing. Preserving it needs a protocol carrier PLUS an
+    # engine-side arithmetic unwrap, else `(+ (np-abs -5) 1)` stops
+    # computing for every numeric py result; that trade is a seam design of
+    # its own, recorded in the known-issues ledger. An ndarray is not a
+    # primitive subclass, so it survives by reference, which is why the
+    # array claim below is plain `isinstance`. This one question is asked
+    # engine-side, where the object is whole.
     scalar = (np_abs, -5)
     class_of = S.py_dot(scalar, S["__class__"])
     assert m.fn.py_dot(class_of, S["__name__"]) == [ground("int64")]
@@ -65,17 +88,14 @@ def twin(m):
     # program writes the list.
     assert isinstance(m.answers((np_array, ground([1, 2, 3]))).one(), np.ndarray)
 
-    # arange means different things by how many arguments you give it.
-    #
-    # Known issue: the perfect spelling of the last two is Python's own
-    # `np.arange(step=2, stop=8)`, and a keyword argument has no Python-authored
-    # spelling that still crosses the seam, so `Kwargs` is the seam's own form
-    # written out as a term (the design decision is filed; nothing has landed).
-    assert m.answers((np_arange, 4)).one().tolist() == [0, 1, 2, 3]
-    assert m.answers((np_arange, S.Kwargs(S.step(2), S.stop(8)))).one().tolist() == [0, 2, 4, 6]
-    assert m.answers(
-        (np_arange, S.Kwargs(S.start(2), S.stop(10), S.step(3)))
-    ).one().tolist() == [2, 5, 8]
+    # arange means different things by how many arguments you give it, and
+    # a keyword argument is Python's own concept, so Python's own syntax
+    # reaches it: applying a head with keywords builds the seam's
+    # `(Kwargs (name value)...)` tail, the exact form py-call splits, and
+    # the names stay exact because they are Python parameter names.
+    assert m.answers(np_arange(4)).one().tolist() == [0, 1, 2, 3]
+    assert m.answers(np_arange(step=2, stop=8)).one().tolist() == [0, 2, 4, 6]
+    assert m.answers(np_arange(start=2, stop=10, step=3)).one().tolist() == [2, 5, 8]
 
     # A submodule held once, reached into for the function wanted: randint
     # answers a Python int, not a numpy one.
