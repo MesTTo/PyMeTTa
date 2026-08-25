@@ -12,8 +12,7 @@ than to the author. Everything the claims ask goes through the handle:
 what the example spells `(metta term %Undefined% &space)`.
 """
 
-import metta
-from metta import S
+from metta import S, lib
 
 #: The file both spaces import, from the repository root: a Python program has
 #: no importing file to resolve a relative import against.
@@ -28,26 +27,39 @@ FUNCTION = S.import_space_function()
 #: the merged tree, and a number measured in this worktree would pin a cost
 #: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
 #: integrator; commit=e70eaeba6b6c0afc9081239041b8459eb8bb1b92].
-BUDGET = 1
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 5383 to 5526, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 5526 to 5527, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+BUDGET = 5527
 
 
 def twin(m):
     """Import one payload into two spaces, and ask all three what they hold."""
-    # Known issue: `metta.space(name)` is the one space-creation door, and it
-    # rides the process-DEFAULT context rather than the one holding `m`. The
-    # two reach the same store only because the SWI runtime is process-wide,
-    # so the perfect spelling for a twin handed its own handle is a creation
-    # door ON that handle's context. `MeTTa.space` is that door one level up
-    # and a twin never sees the runtime object [measured 2026-08-24].
-    a = metta.space(S.import_space_a)       # (bind! &import-space-a (new-space))
-    b = metta.space(S.import_space_b)       # (bind! &import-space-b (new-space))
+    # The creation door on the handle's OWN context: `m.metta` answers the
+    # owning evaluation context, so both spaces are siblings of `m` by
+    # construction rather than by the accident of a process-wide runtime.
+    a = m.metta.space(S.import_space_a)     # (bind! &import-space-a (new-space))
+    b = m.metta.space(S.import_space_b)     # (bind! &import-space-b (new-space))
 
-    # Known issue: `import!` has no Python door on the handle. The perfect
-    # spelling is `m.import_(target)`, or `m += lib.<name>` for a shipped
-    # library (appendix stamp 1), and neither exists yet, so the directive is
-    # reached by its own bang name, which performs it where it is written.
+    # (import! &a payload) and (import! &b payload): the RECEIVER of the
+    # write door is the target space, so each space imports its own copy.
     for space in (a, b):
-        m.fn["import!"](space, PAYLOAD)
+        space += lib(PAYLOAD)
 
     # Each importing space holds the marker, once.
     assert len(a[MARKER]) == 1

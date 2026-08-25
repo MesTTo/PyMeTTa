@@ -3675,6 +3675,17 @@ class Space(Handle):
         """The engine bridge itself, for callers going under the surface."""
         return self._rt
 
+    @property
+    def metta(self) -> MeTTa:
+        """The owning evaluation context, so a handle can reach every
+        context-level door: ``m.metta.space(S.kb)`` creates a sibling space
+        in THIS handle's own context rather than the process default, which
+        is the creation door the twins' known-issue asked for. The wrapper
+        is two slots over the same runtime, so answering it costs nothing
+        and two answers compare equal through the runtime they share.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        return MeTTa(_runtime=self._rt)
+
 
 class MeTTa:
     """One PeTTa evaluation context; context-relative operations use Space."""
