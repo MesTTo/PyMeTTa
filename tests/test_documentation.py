@@ -22,6 +22,10 @@ Guarantees:
     [tested: test_an_overloaded_method_is_documented_once,
     test_the_legacy_reference_generator_tracks_the_narrow_public_modules;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - EXTENDING.md's extension-cost tables carry the numbers the committed
+    pins derive and name every pinned tier, so the page cannot drift from
+    the gate again [tested:
+    test_the_extension_cost_tables_match_the_committed_pins]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -376,3 +380,67 @@ def test_the_repository_ships_its_governance_documents():
     config = yaml.safe_load((_TEMPLATES / "config.yml").read_text(encoding="utf-8"))
     links = {one["name"]: one["url"] for one in config["contact_links"]}
     assert any(url.endswith("/SECURITY.md") for url in links.values()), links
+
+
+def test_the_extension_cost_tables_match_the_committed_pins():
+    """EXTENDING.md's cost tables against extension-baseline.json.
+
+    The tables sat days stale while the gated pins moved (the ordinary row
+    read 3.00 against a gated 4.00, and the C foreign row was absent from
+    the gate entirely), because nothing held the page to the harness. The
+    inference columns derive from the committed pins as
+    (tier - driver) / operations, so this is committed text against
+    committed numbers: it never measures, and the noisy microsecond
+    columns stay advisory.
+    """
+    import json
+
+    from benchmarks.extension_cost import _case_name
+
+    pins = json.loads(
+        (_REPO / "bindings/python/benchmarks/extension-baseline.json").read_text()
+    )["benchmarks"]
+    page = _PAGE.read_text()
+
+    def rows_of(header):
+        table = re.search(
+            rf"^\| {re.escape(header)} \|.*\n\|[-| ]+\|\n((?:\|.*\n)+)",
+            page,
+            re.M,
+        )
+        assert table, f"EXTENDING.md lost its '{header}' table"
+        rows = {}
+        for line in table.group(1).strip().splitlines():
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            rows[cells[0].replace("`", "")] = float(cells[1])
+        return rows
+
+    drivers = {
+        "extension point": pins["extcost-the-driver-itself"]["inferences"],
+        "write door": pins["extcost-the-add-driver-itself"]["inferences"],
+    }
+    documented = set()
+    for header, driver in drivers.items():
+        for label, shown in rows_of(header).items():
+            name = _case_name(label)
+            documented.add(name)
+            pin = pins[name]
+            expected = (pin["inferences"] - driver) / pin["operations"]
+            assert shown == pytest.approx(expected, abs=0.006), (
+                f"EXTENDING.md row {label!r} shows {shown:.2f} inferences/call "
+                f"but the committed pins derive {expected:.2f}; regenerate the "
+                f"table from `python -m benchmarks.extension_cost`"
+            )
+
+    pinned = {
+        name
+        for name in pins
+        if name.startswith("extcost-")
+        and not name.endswith("-driver-itself")
+        and name != "extcost-the-driver-itself"
+    }
+    assert pinned == documented, (
+        f"EXTENDING.md documents {sorted(documented)} but the gate pins "
+        f"{sorted(pinned)}; a pinned tier missing from the page is a cost "
+        f"nobody finds"
+    )

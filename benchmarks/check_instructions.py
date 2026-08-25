@@ -21,6 +21,7 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from benchmarks.configuration import counter_configuration
 from benchmarks.pure import _CASES
 from metta.testing import BenchmarkBaseline, measure_instructions
 
@@ -38,7 +39,9 @@ def observe_all(
             observed = baseline.observe_instructions(name, samples)
         except AssertionError as error:
             failures.append(str(error))
-            print(f"{name}: samples={list(samples)} REGRESSION")
+            # Both band directions land here: a regression and an unpinned
+            # improvement each fail, so the tag names the band, not one side.
+            print(f"{name}: samples={list(samples)} OUTSIDE BAND")
             continue
         print(f"{name}: samples={list(samples)} min={observed}")
     return failures
@@ -55,6 +58,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     directory = Path(__file__).resolve().parent
     baseline = BenchmarkBaseline(directory / "baseline.json", update=arguments.update)
+    # Several cases boot the engine, so the C-reader mode moves their
+    # instruction pins the way it moves inference pins; declare it. This
+    # runner re-measures only a subset of the document, so it never
+    # RESTAMPS the fingerprint the other pins were measured under.
+    baseline.observe_configuration(counter_configuration(), stamp=False)
 
     def sampler(name: str) -> Sequence[int]:
         return measure_instructions(
@@ -68,7 +76,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if failures:
         for message in failures:
             print(message, file=sys.stderr)
-        print(f"{len(failures)} case(s) regressed", file=sys.stderr)
+        print(f"{len(failures)} case(s) outside the band", file=sys.stderr)
         return 1
     return 0
 

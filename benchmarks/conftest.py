@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from benchmarks.configuration import counter_configuration
 from metta.testing import BenchmarkBaseline
 
 
@@ -45,5 +46,7 @@ def inference_baseline():
         update=update,
         compare_counters=counter_setting == "1",
     )
+    if baseline.compare_counters:
+        baseline.observe_configuration(counter_configuration())
     yield baseline
     baseline.finish()

@@ -2,17 +2,30 @@
 Guarantees:
   - benchmark_case uses fresh untimed setup for every counter sample,
     warmup, and timed round [tested test_benchmark_case_uses_fresh_state]
-  - engine regressions are decided by the minimum of three inference counts;
+  - engine movement is decided by the minimum of three inference counts
+    against a TWO-SIDED band: a drop beyond the allowance fails as a stale
+    pin, because a stale-high pin masks regressions up to its own margin;
     wall time is recorded for advice only [tested
-    test_baseline_rejects_inference_regressions_and_accepts_improvements]
+    test_baseline_rejects_inference_movement_beyond_the_allowance]
   - counter slopes compare the inference growth between two fixed workload
-    sizes, with fresh state at each point [tested
-    test_benchmark_counter_slope_uses_fresh_state_and_gates_growth]
+    sizes, with fresh state at each point and the same two-sided band
+    [tested test_benchmark_counter_slope_uses_fresh_state_and_gates_growth]
+  - instruction pins band on both sides of the noise allowance [tested
+    test_baseline_bands_instructions_on_both_sides]
+  - counter comparisons declare their measurement configuration and refuse a
+    missing or differing stamp, because artifact presence alone has moved a
+    pin 12x with zero code change [tested
+    test_baseline_stamps_and_verifies_counter_configuration,
+    test_baseline_without_configuration_stamp_refuses_counter_comparison]
   - perf instruction measurements fail loudly when perf or its event output
     fails [tested test_measure_instructions_parses_perf_csv]
 Owns:
   - BenchmarkBaseline owns an update file only until its atomic replace
-    completes [tested test_baseline_update_is_atomic_json]
+    completes [tested test_baseline_update_is_atomic_json]; update mode may
+    prune a case nothing measures [tested
+    test_baseline_remove_case_is_update_only], and a subset updater
+    verifies the configuration stamp without rewriting it [tested
+    test_a_subset_updater_verifies_without_restamping]
   - measure_instructions reaps its perf process and kills its process group
     on timeout or interruption [tested
     test_perf_timeout_kills_and_reaps_process_group]
@@ -105,6 +118,21 @@ def _compare_counter(
             f"{name} inference regression: minimum of {sample_values!r} is "
             f"{observed}, baseline {baseline} plus the {_COUNTER_TOLERANCE} "
             f"inference allowance"
+        )
+        raise AssertionError(
+            msg
+        )
+    #The band is two-sided because a stale-high pin masks real regressions
+    #up to its own margin: file-load sat at 8704891 while the tree measured
+    #722264, so anything under 12x slower would still have read green. A
+    #drop beyond the allowance therefore fails until the pin is re-measured
+    #and its mechanism recorded beside it.
+    if observed < baseline - _COUNTER_TOLERANCE:
+        msg = (
+            f"{name} inference improvement left unpinned: minimum of "
+            f"{sample_values!r} is {observed}, baseline {baseline} minus the "
+            f"{_COUNTER_TOLERANCE} inference allowance; re-pin with "
+            f"--update-baseline and record the mechanism beside the pin"
         )
         raise AssertionError(
             msg
@@ -221,6 +249,16 @@ def _compare_counter_slope(
         raise AssertionError(
             msg
         )
+    if observed < baseline - _COUNTER_TOLERANCE:
+        msg = (
+            f"{name} inference slope improvement left unpinned: {large_values!r} "
+            f"minus {small_values!r} has minimum growth {observed}, baseline "
+            f"{baseline} minus the {_COUNTER_TOLERANCE} inference allowance; "
+            f"re-pin with --update-baseline and record the mechanism beside the pin"
+        )
+        raise AssertionError(
+            msg
+        )
     return observed
 
 
@@ -264,6 +302,17 @@ def _compare_instructions(
             f"{name} instruction regression: minimum of {list(samples)!r} is "
             f"{observed}, baseline {baseline} plus {allowance:g}% is "
             f"{ceiling:.0f}"
+        )
+        raise AssertionError(
+            msg
+        )
+    floor = baseline * (1.0 - allowance / 100.0)
+    if observed < floor:
+        msg = (
+            f"{name} instruction improvement left unpinned: minimum of "
+            f"{list(samples)!r} is {observed}, baseline {baseline} minus "
+            f"{allowance:g}% is {floor:.0f}; re-pin with --update and record "
+            f"the mechanism beside the pin"
         )
         raise AssertionError(
             msg
@@ -378,6 +427,62 @@ class BenchmarkBaseline:
             large_values=large_values,
             observed=observed,
         )
+
+    def remove_case(self, name: str) -> None:
+        """Drop a pinned case during an update, for rows nothing measures.
+
+        A pinned row no measurement reaches can never fail, so it survives
+        renames and lost artifacts as a dead receipt; pruning is part of
+        re-pinning and is therefore update-only.
+        """
+        if not self.update:
+            msg = f"remove_case({name!r}) outside update mode"
+            raise AssertionError(msg)
+        if name not in self._document["benchmarks"]:
+            msg = f"benchmark baseline has no case named {name!r}"
+            raise KeyError(msg)
+        del self._document["benchmarks"][name]
+
+    def observe_configuration(
+        self, live: Mapping[str, Any], *, stamp: bool | None = None
+    ) -> None:
+        """Stamp or verify the measurement configuration the counters ran in.
+
+        Deterministic counters only compare within one configuration: the C
+        reader's presence moved file-load 8704891 to 722264 with zero code
+        change, so a tree measuring in one mode against pins from the other
+        produces confounded verdicts. Update mode stamps the live
+        configuration; comparison mode refuses a missing or differing stamp.
+
+        ``stamp=False`` makes even an update verify-only: a runner that
+        re-measures a SUBSET of the document (the instruction checker) must
+        not rewrite the fingerprint the other pins were measured under, so
+        it verifies when a stamp exists and leaves an absent stamp to the
+        owning full-battery updater.
+        """
+        if stamp is None:
+            stamp = self.update
+        if self.update and stamp:
+            self._document["counter_configuration"] = dict(live)
+            return
+        stored = self._document.get("counter_configuration")
+        if stored is None and self.update:
+            return
+        if stored is None:
+            msg = (
+                f"benchmark baseline carries no counter_configuration stamp; "
+                f"live configuration is {dict(live)!r}: re-pin with "
+                f"--update-baseline so comparisons declare their configuration"
+            )
+            raise AssertionError(msg)
+        if stored != dict(live):
+            msg = (
+                f"counter configuration drift: baseline pinned under "
+                f"{stored!r} but this run measures under {dict(live)!r}; "
+                f"restore the pinned configuration (build the artifact or "
+                f"unset the mode override) or re-pin with --update-baseline"
+            )
+            raise AssertionError(msg)
 
     def validate_case(self, name: str, *, unit: str, operations: int) -> None:
         """Check metadata when a wall-only run deliberately skips counters."""

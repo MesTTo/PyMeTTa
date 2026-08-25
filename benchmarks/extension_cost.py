@@ -22,6 +22,13 @@ Guarantees:
     in extension-baseline.json, so a change that moves one is a gate failure
     rather than a number a reader has to notice [tested 2026-08-16:
     test_a_moved_tier_fails_the_gate]
+  - a pinned row nothing measured fails the compare and is pruned aloud by
+    an update, so a renamed tier or a lost artifact cannot leave a dead
+    receipt reading as coverage [tested:
+    test_a_pinned_row_nothing_measures_fails_the_gate]
+  - the run stamps and verifies the shared counter configuration (C reader,
+    C extension artifacts), refusing to compare pins across modes [tested:
+    test_baseline_stamps_and_verifies_counter_configuration]
   - raw operation measurements select the reflected transport kind without a
     boolean registration pair [tested: test_extension_cost_rows_are_marginal;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -40,14 +47,16 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from benchmarks.configuration import counter_configuration
 from metta import MeTTa, Space
 from metta.testing import BenchmarkBaseline
 
 CALLS = 3_000
-C_EXTENSION = (
-    Path(__file__).resolve().parent.parent.parent
-    / "examples/integration/c_extension"
-)
+# parents[3] is the repository root: benchmarks, python, bindings, then the
+# tree. The partition move added a directory level and the old three-parent
+# spelling landed in bindings/, so has_c read False with the artifact built
+# and the C row silently left the gate from ac083177 until 2026-08-26.
+C_EXTENSION = Path(__file__).resolve().parents[3] / "examples/integration/c_extension"
 ROUNDS = 3
 
 
@@ -396,6 +405,7 @@ def compare(measured: list[Row], *, update: bool, path: Path = BASELINE) -> None
     difference of two drives and cancels a change that moved both.
     """
     baseline = BenchmarkBaseline(path, update=update)
+    baseline.observe_configuration(counter_configuration())
     for row in measured:
         if not row.samples:
             continue
@@ -405,6 +415,23 @@ def compare(measured: list[Row], *, update: bool, path: Path = BASELINE) -> None
             operations=row.operations,
             samples=list(row.samples),
         )
+    # A pinned row nothing measured is a dead receipt: it can never fail, so
+    # the guarantee "every tier is held to a committed count" silently
+    # shrinks. The C row sat exactly that way while has_c read a wrong path.
+    measured_names = {_case_name(row.tier) for row in measured if row.samples}
+    stale = sorted(
+        name for name in baseline.cases if name.startswith("extcost-") and name not in measured_names
+    )
+    if stale and update:
+        for name in stale:
+            baseline.remove_case(name)
+        print(f"pruned unmeasured baseline row(s): {', '.join(stale)}")
+    elif stale:
+        msg = (
+            f"baseline rows nothing measured: {', '.join(stale)}; build the "
+            f"missing artifact or re-pin with --update to prune them"
+        )
+        raise AssertionError(msg)
     baseline.finish()
 
 

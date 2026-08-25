@@ -163,7 +163,7 @@ def test_benchmark_case_runs_with_wall_timing_disabled(tmp_path):  # noqa: D103 
     assert "wall_seconds_per_operation" not in fixture.extra_info
 
 
-def test_baseline_rejects_inference_regressions_and_accepts_improvements(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_baseline_rejects_inference_movement_beyond_the_allowance(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "baseline.json"
     updating = BenchmarkBaseline(path, update=True)
     updating.observe_counter("engine", unit="answers", operations=2, samples=[10, 10, 10])
@@ -181,6 +181,12 @@ def test_baseline_rejects_inference_regressions_and_accepts_improvements(tmp_pat
     )
     with pytest.raises(AssertionError, match="inference regression"):
         baseline.observe_counter("engine", unit="answers", operations=2, samples=[15, 15, 15])
+    # The band is two-sided: a drop beyond the allowance is a stale pin, and
+    # a stale-high pin masks real regressions up to its own margin, so it
+    # fails until re-pinned with its mechanism recorded.
+    assert baseline.observe_counter("engine", unit="answers", operations=2, samples=[6, 6, 6]) == 6
+    with pytest.raises(AssertionError, match="improvement left unpinned"):
+        baseline.observe_counter("engine", unit="answers", operations=2, samples=[5, 5, 5])
 
 
 def test_baseline_update_is_atomic_json(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -265,6 +271,67 @@ def test_benchmark_counter_slope_uses_fresh_state_and_gates_growth(tmp_path):  #
             small_samples=[11, 11, 11],
             large_samples=[40, 40, 40],
         )
+    # Two-sided for the same reason as the flat counter: a slope that fell
+    # beyond the allowance is a stale pin masking growth regressions.
+    assert (
+        comparison.observe_counter_slope(
+            "growth",
+            unit="rows",
+            small_operations=2,
+            large_operations=8,
+            small_samples=[11, 11, 11],
+            large_samples=[31, 31, 31],
+        )
+        == 20
+    )
+    with pytest.raises(AssertionError, match="slope improvement left unpinned"):
+        comparison.observe_counter_slope(
+            "growth",
+            unit="rows",
+            small_operations=2,
+            large_operations=8,
+            small_samples=[11, 11, 11],
+            large_samples=[30, 30, 30],
+        )
+
+
+def test_baseline_bands_instructions_on_both_sides(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    path = tmp_path / "baseline.json"
+    updating = BenchmarkBaseline(path, update=True)
+    updating.observe_counter("pure", unit="terms", operations=3, samples=None)
+    updating.observe_wall("pure", 0.5)
+    updating.observe_instructions("pure", [1000, 1000, 1000])
+    updating.finish()
+
+    baseline = BenchmarkBaseline(path)
+    assert baseline.observe_instructions("pure", [1010, 1010, 1010]) == 1010
+    assert baseline.observe_instructions("pure", [990, 990, 990]) == 990
+    with pytest.raises(AssertionError, match="instruction regression"):
+        baseline.observe_instructions("pure", [1011, 1011, 1011])
+    with pytest.raises(AssertionError, match="instruction improvement left unpinned"):
+        baseline.observe_instructions("pure", [989, 989, 989])
+
+
+def test_baseline_stamps_and_verifies_counter_configuration(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    path = tmp_path / "baseline.json"
+    updating = BenchmarkBaseline(path, update=True)
+    updating.observe_counter("engine", unit="answers", operations=2, samples=[10, 10, 10])
+    updating.observe_configuration({"c_reader": True})
+    updating.finish()
+    assert json.loads(path.read_text())["counter_configuration"] == {"c_reader": True}
+
+    BenchmarkBaseline(path).observe_configuration({"c_reader": True})
+    with pytest.raises(AssertionError, match="counter configuration drift"):
+        BenchmarkBaseline(path).observe_configuration({"c_reader": False})
+
+
+def test_baseline_without_configuration_stamp_refuses_counter_comparison(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    path = tmp_path / "baseline.json"
+    updating = BenchmarkBaseline(path, update=True)
+    updating.observe_counter("engine", unit="answers", operations=2, samples=[10, 10, 10])
+    updating.finish()
+    with pytest.raises(AssertionError, match="no counter_configuration stamp"):
+        BenchmarkBaseline(path).observe_configuration({"c_reader": True})
 
 
 def test_measure_instructions_parses_perf_csv(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -616,3 +683,41 @@ def test_check_instructions_reports_every_failing_case(tmp_path):
     assert len(failures) == 2
     assert "alpha" in failures[0]
     assert "gamma" in failures[1]
+
+
+def test_baseline_remove_case_is_update_only(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    path = tmp_path / "baseline.json"
+    updating = BenchmarkBaseline(path, update=True)
+    updating.observe_counter("engine", unit="answers", operations=2, samples=[10, 10, 10])
+    updating.observe_counter("stale", unit="answers", operations=2, samples=[10, 10, 10])
+    updating.remove_case("stale")
+    with pytest.raises(KeyError):
+        updating.remove_case("missing")
+    updating.finish()
+    assert list(json.loads(path.read_text())["benchmarks"]) == ["engine"]
+    with pytest.raises(AssertionError, match="outside update mode"):
+        BenchmarkBaseline(path).remove_case("engine")
+
+
+def test_a_subset_updater_verifies_without_restamping(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    path = tmp_path / "baseline.json"
+    updating = BenchmarkBaseline(path, update=True)
+    updating.observe_counter("engine", unit="answers", operations=2, samples=[10, 10, 10])
+    updating.observe_configuration({"c_reader": True})
+    updating.finish()
+
+    subset = BenchmarkBaseline(path, update=True)
+    with pytest.raises(AssertionError, match="counter configuration drift"):
+        subset.observe_configuration({"c_reader": False}, stamp=False)
+    subset.observe_configuration({"c_reader": True}, stamp=False)
+
+    # An absent stamp is left for the owning full-battery updater rather
+    # than written by a subset run that measured only part of the document.
+    bare = tmp_path / "bare.json"
+    first = BenchmarkBaseline(bare, update=True)
+    first.observe_counter("engine", unit="answers", operations=2, samples=[10, 10, 10])
+    first.finish()
+    second = BenchmarkBaseline(bare, update=True)
+    second.observe_configuration({"c_reader": True}, stamp=False)
+    second.finish()
+    assert "counter_configuration" not in json.loads(bare.read_text())

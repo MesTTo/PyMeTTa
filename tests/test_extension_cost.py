@@ -132,3 +132,33 @@ def test_a_moved_tier_fails_the_gate(tmp_path, drives):
 
     with pytest.raises(AssertionError, match="inference regression"):
         compare(drives, update=False, path=baseline)
+
+
+def test_a_pinned_row_nothing_measures_fails_the_gate(tmp_path, drives):
+    """A row no measurement reaches is a dead receipt that can never fail.
+
+    The C foreign row sat exactly that way from the ac083177 partition until
+    2026-08-26: its path constant landed one directory short, has_c read
+    False with the artifact built, and the pinned row survived as coverage
+    that no longer covered anything. Compare mode now refuses such rows and
+    update mode prunes them aloud.
+    """
+    import json
+
+    from benchmarks.extension_cost import compare
+
+    baseline = tmp_path / "stale.json"
+    compare(drives, update=True, path=baseline)
+
+    recorded = json.loads(baseline.read_text())
+    donor = next(iter(recorded["benchmarks"].values()))
+    recorded["benchmarks"]["extcost-a-renamed-tier"] = dict(donor)
+    baseline.write_text(json.dumps(recorded))
+
+    with pytest.raises(AssertionError, match="nothing measured"):
+        compare(drives, update=False, path=baseline)
+
+    compare(drives, update=True, path=baseline)
+    pruned = json.loads(baseline.read_text())
+    assert "extcost-a-renamed-tier" not in pruned["benchmarks"]
+    compare(drives, update=False, path=baseline)

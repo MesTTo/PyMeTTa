@@ -1714,16 +1714,19 @@ def _budget_findings(
 ) -> list[str]:
     """The pinned-cost claim: what the twin declared against what it spent.
 
-    The budget is TWO-SIDED, which a benchmark baseline is not. A benchmark
-    only cares about getting slower; a twin that suddenly costs far less has
-    most likely stopped doing the work and started answering the expected
+    The budget is TWO-SIDED. A twin that suddenly costs far less has most
+    likely stopped doing the work and started answering the expected
     value, which is the failure mode a fixed public conformance corpus
     invites: "matching their text is a far cheaper route to pass the tests
     than implementing the spec" [source:
     https://www.christianfindlay.com/blog/basilisk-conformance-apology,
     the python/typing conformance suite, 2026-08; commit=c7191d87d9cbfce2870e586057168ec9103845ca]. Inferences
     are deterministic across processes here, so pinning both sides costs
-    nothing in flakiness and catches a twin that stopped being one.
+    nothing in flakiness and catches a twin that stopped being one. The
+    benchmark baseline adopted the same two-sided band on 2026-08-25, after
+    a stale-high pin (file-load at 8704891 against a 722264 tree) sat
+    green for days and masked that margin of regression headroom
+    [source: metta/benchmarking.py, _compare_counter].
     """
     try:
         budget = budget_of(twin)
