@@ -185,7 +185,7 @@ def test_a_recycled_name_still_sees_process_wide_registrations(drained):  # noqa
     sibling = drained._new_space()
     first = drained._new_space()
     name = first.name
-    first.op(lambda: 3, name="lifecycle-py")
+    first.op(lambda: 3, name="lifecycle-py", effect="pureStructural")
     try:
         assert sibling.run("!(lifecycle-py)") == [[3]]
         assert drained.run("!(lifecycle-py)") == [[3]]

@@ -56,6 +56,9 @@ Guarantees:
   - async function handles consume the synchronous Answers surface on their
     owning worker [tested: test_aio_structural_surface_behaves;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - async operation registration requires and forwards the canonical effect
+    argument [tested: test_aio_declare_and_register_delegations_land;
+    commit=WORKTREE]
   - execution-policy scopes cross the worker hop and never change awaited
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -110,6 +113,7 @@ from .vocabularies import (
     Atomicity,
     Delivery,
     Determinism,
+    EffectClass,
     EventOrder,
     Fidelity,
     ImageMode,
@@ -1157,6 +1161,7 @@ class AsyncMeTTa:
         fn: Callable,
         /,
         *,
+        effect: EffectClass | str,
         name: str | None = None,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
@@ -1165,15 +1170,16 @@ class AsyncMeTTa:
         inverse: Callable | None = None,
     ) -> Callable:
         """Register a callable through the single short operation door."""
+        options: dict[str, Any] = {
+            "name": name,
+            "transport": transport,
+            "effect": effect,
+            "declarations": declarations,
+            "arities": arities,
+            "inverse": inverse,
+        }
         return await self.call(
-            lambda m: m.op(
-                fn,
-                name=name,
-                transport=transport,
-                declarations=declarations,
-                arities=arities,
-                inverse=inverse,
-            )
+            lambda m: m.op(fn, **options)
         )
 
     async def define(

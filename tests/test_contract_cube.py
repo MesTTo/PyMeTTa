@@ -4,9 +4,11 @@ contract atoms must be a variant of the clause builder's expected body. If a
 callable policy cannot be expressed as atoms, this fails and names the point.
 Guarantees:
   - every valid callable declaration combination compiles the expected clause
-    and invalid raw-Atom and immutable-raw-generator combinations are absent
+    and invalid raw-Atom and under-ranked generator combinations are refused
     [tested: test_every_cube_point_compiles_the_expected_clause;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_generator_effects_below_nondeterministic_rank_are_refused;
+    test_raw_transport_with_atom_arguments_is_refused;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,6 +20,7 @@ import itertools
 import pytest
 
 from metta import parse
+from metta.vocabularies import EffectClass
 
 CHECKER = """
 cube_check(Name0, Arity, Kind0, Verdict) :-
@@ -72,17 +75,22 @@ def _points():
     """Every valid point of the parameter cube, exhaustively.
 
     Axes: generator-or-plain, raw-or-encoded op kind, annotated-or-unannotated
-    signature, atom-or-value argument declaration, immutable-or-undeclared
-    effect, inverse, and the arity shape. Invalid combinations are excluded by
-    the registration surface itself: a raw transport never decodes atoms, and
-    an immutable raw generator cannot have all its answers observed whole.
+    signature, atom-or-value argument declaration, all five ordered effects,
+    inverse, and the arity shape. Invalid combinations are excluded by the
+    registration surface itself: a raw transport never decodes atoms, and
+    every generator is at least nondeterministicReadOnly.
     """
-    for many, raw, typed, pass_atoms, pure, inverse in itertools.product(
-        (False, True), repeat=6
+    for many, raw, typed, pass_atoms, effect, inverse in itertools.product(
+        (False, True),
+        (False, True),
+        (False, True),
+        (False, True),
+        tuple(EffectClass),
+        (False, True),
     ):
         if raw and pass_atoms:
             continue
-        if pure and raw and many:
+        if many and effect < EffectClass.nondeterministicReadOnly:
             continue
         fn = {
             (False, True): _plain,
@@ -96,21 +104,22 @@ def _points():
             (False, True): "raw_det",
             (True, True): "raw_many",
         }[(many, raw)]
-        yield fn, kind, raw, pass_atoms, pure, inverse
+        yield fn, kind, raw, pass_atoms, effect, inverse
 
 
 def test_every_cube_point_compiles_the_expected_clause(cube):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     points = list(_points())
-    assert len(points) == 44  # 2^6 minus 16 raw+pass_atoms minus 4 pure raw generators
-    for index, (fn, kind, raw, pass_atoms, pure, inverse) in enumerate(points):
+    # 2^5 * 5, minus 40 raw+Atom points, minus 24 under-ranked generators.
+    assert len(points) == 96
+    assert {point[4] for point in points} == set(EffectClass)
+    for index, (fn, kind, raw, pass_atoms, effect, inverse) in enumerate(points):
         name = f"cube-{index}"
         declarations = []
         if pass_atoms:
             declarations.append(parse(f"(arguments {name} atoms)"))
-        if pure:
-            declarations.append(parse(f"(effect {name} immutable)"))
         kwargs = {
             "transport": "raw" if raw else "encoded",
+            "effect": effect,
             "declarations": declarations,
             "inverse": _inverse if inverse else None,
         }
@@ -126,7 +135,12 @@ def test_multi_arity_compiles_every_declared_clause(cube):  # noqa: D103  -- pyt
     def spread(*args):
         return len(args)
 
-    cube.op(spread, name="cube-multi", arities=[1, 2, 3])
+    cube.op(
+        spread,
+        name="cube-multi",
+        arities=[1, 2, 3],
+        effect=EffectClass.pureStructural,
+    )
     try:
         for arity in (1, 2, 3):
             verdict = cube._one(f'(cube_check "cube-multi" {arity} "det")')
@@ -139,10 +153,43 @@ def test_the_lane_can_fail(cube):  # noqa: D103  -- pytest discovers or injects 
     # CalDar's law: a lane that cannot fail is a defect. The planted
     # mismatch compares a det registration against the many builder and
     # must NOT answer match.
-    cube.op(_plain_untyped, name="cube-planted")
+    cube.op(
+        _plain_untyped,
+        name="cube-planted",
+        effect=EffectClass.pureStructural,
+    )
     try:
         verdict = cube._one('(cube_check "cube-planted" 1 "many")')
         assert str(verdict) != "match"
         assert "mismatch" in str(verdict)
     finally:
         cube.unregister_op("cube-planted")
+
+
+@pytest.mark.parametrize(
+    "effect",
+    (EffectClass.pureStructural, EffectClass.readOnlyLookup),
+)
+@pytest.mark.parametrize("transport", ("encoded", "raw"))
+def test_generator_effects_below_nondeterministic_rank_are_refused(
+    cube, effect, transport
+):
+    """A generator refuses either effect below its minimum valid rank."""
+    name = f"cube-under-ranked-{transport}-{effect.value}"
+    with pytest.raises(
+        ValueError, match="nondeterministicReadOnly or a stronger class"
+    ):
+        cube.op(_gen, name=name, transport=transport, effect=effect)
+
+
+def test_raw_transport_with_atom_arguments_is_refused(cube):
+    """Raw transport still refuses a declaration that requires Atom decoding."""
+    name = "cube-raw-atoms"
+    with pytest.raises(ValueError, match="raw calls do not cross the atom codec"):
+        cube.op(
+            _plain_untyped,
+            name=name,
+            transport="raw",
+            effect=EffectClass.pureStructural,
+            declarations=[parse(f"(arguments {name} atoms)")],
+        )

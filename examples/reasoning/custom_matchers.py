@@ -6,7 +6,7 @@ answer's annotation. Fuzzy, regex, semantic: all outside the library,
 a few lines each, composing with structural match through evaluation.
 Guarantees:
   - the unannotated ranked operation makes no synthetic type claim [tested:
-    test_example_runs_and_verifies_itself; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_example_runs_and_verifies_itself; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -72,7 +72,7 @@ def fuzzy(query, candidate=None):
         degree = difflib.SequenceMatcher(None, str(query), word).ratio()
         yield Answer(value=word, k=round(degree, 6))
 
-m.op(fuzzy, name="fuzmatch")
+m.op(fuzzy, name="fuzmatch", effect="nondeterministicReadOnly")
 m.annotations("fuzmatch", "ranked")
 (best,) = m.run('!(collapse (top 1 (fuzmatch "clase" $w)))')[0]
 check("fuzzy best is difflib's own ranking", str(best.children[0]), '"clause"')

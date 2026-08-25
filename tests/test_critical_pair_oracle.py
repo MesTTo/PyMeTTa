@@ -61,12 +61,20 @@ FUEL = 4
 # compare, so the corpus itself is written in neither.
 
 
-def V(n: int) -> tuple:  # noqa: D103, N802  -- pytest discovers or injects this callable; its descriptive name states the contract; the symbolic test spelling mirrors the notation whose translation is under test
+def variable_term(n: int) -> tuple:
+    """Build the corpus representation of a variable."""
     return ("v", n)
 
 
-def A(name: str, *args: tuple) -> tuple:  # noqa: D103, N802  -- pytest discovers or injects this callable; its descriptive name states the contract; the symbolic test spelling mirrors the notation whose translation is under test
+def application_term(name: str, *args: tuple) -> tuple:
+    """Build the corpus representation of an application."""
     return ("a", name, list(args))
+
+
+# Keep the corpus visually aligned with the V/A constructors in the Lean
+# oracle while the helpers retain descriptive Python names.
+V = variable_term
+A = application_term
 
 
 CORPUS: list[tuple[str, list[tuple[tuple, tuple]]]] = [

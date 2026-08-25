@@ -141,7 +141,13 @@ is Python's own `assert`.
 #: check [measured 2026-08-25 through tools/twin_coverage.py
 #: examples/basics/identity.metta; provisional on the merged tree, the
 #: final release measure re-prices].
-BUDGET = 2822
+#: RE-PINNED 2026-08-26, 2822 to 2835, for mandatory operation-effect
+#: reflection. The first compiled definition publishes its canonical
+#: `(effect f pureStructural)` row beside `(defined ...)`; three direct
+#: measurements were identical at 2835 while the MeTTa example cost 2817
+#: [measured 2026-08-26 through tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta].
+BUDGET = 2835
 
 
 def twin(m):

@@ -2,6 +2,10 @@
 generation is space rewriting: variation is Python operations, fitness is an
 operation, and the generational loop with its stopping rule is MeTTa source.
 The shape MOSES-style program evolution takes on this substrate.
+Guarantees:
+  - deterministic fitness is pureStructural while random variation and the
+    state-rewriting generation step are oracleIO [tested:
+    test_example_runs_and_verifies_itself; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,13 +27,13 @@ for index in range(16):
     m.add(Expression(S.member, index, Expression(*genome)))
 
 
-@m.op
+@m.op(effect="pureStructural")
 def fitness(genome) -> int:
     bits = [int(wire.decode(b)) for b in genome]
     return sum(1 for got, want in zip(bits, TARGET) if got == want)
 
 
-@m.op
+@m.op(effect="oracleIO")
 def breed(a, b):
     cut = random.randrange(1, len(TARGET))
     bits_a = [int(wire.decode(x)) for x in a]
@@ -41,7 +45,7 @@ def breed(a, b):
     return Expression(*child)
 
 
-@m.op(name="next-generation")
+@m.op(name="next-generation", effect="oracleIO")
 def next_generation() -> bool:
     rows = m.match(S.member(V.i, V.g))
     scored = sorted(rows, key=lambda r: -fitness(r.g))

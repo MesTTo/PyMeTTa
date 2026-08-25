@@ -26,6 +26,9 @@ Guarantees:
     boolean registration pairs [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - callable wrappers require a host-effect classification, and object
+    wrappers require one class per method [tested:
+    test_wrap_object_methods_with_effect_convention; commit=WORKTREE]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested
@@ -47,7 +50,7 @@ import graphlib
 import importlib
 import inspect
 import threading
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from importlib import metadata
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
@@ -71,6 +74,7 @@ from .atoms import (
 )
 from .errors import PettaError
 from .foreign import SpaceProvider
+from .vocabularies import EffectClass
 
 __all__ = [
     "ENTRY_POINT_GROUP",
@@ -344,6 +348,7 @@ def _register_module_callable(
     target: Callable,
     name: str,
     *,
+    effect: EffectClass | str,
     # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"],
 ) -> None:
@@ -351,11 +356,12 @@ def _register_module_callable(
         m.op(
             _spread(target),
             name=name,
+            effect=effect,
             transport=transport,
             arities=[0, 1, 2, 3, 4],
         )
         return
-    m.op(target, name=name, transport=transport)
+    m.op(target, name=name, effect=effect, transport=transport)
 
 
 def module_ops(
@@ -363,6 +369,7 @@ def module_ops(
     module: Any,
     names: Iterable[str] | None = None,
     *,
+    effect: EffectClass | str,
     prefix: str | None = None,
     rename: dict[str, str] | None = None,
     # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
@@ -370,7 +377,9 @@ def module_ops(
 ) -> list[str]:
     """Selected callables of any module as MeTTa functions, in one call.
 
-        metta.integrate.module_ops(m, math, ["sqrt", "floor", "gcd"])
+        metta.integrate.module_ops(
+            m, math, ["sqrt", "floor", "gcd"], effect="pureStructural"
+        )
         m.run("!(sqrt 16.0)")
 
     Underscores read as hyphens, a prefix namespaces the lot, and rename
@@ -383,7 +392,9 @@ def module_ops(
     for pyname in names:
         target = _require_callable(module, pyname)
         metta_name = _operation_name(pyname, prefix, rename)
-        _register_module_callable(m, target, metta_name, transport=transport)
+        _register_module_callable(
+            m, target, metta_name, effect=effect, transport=transport
+        )
         registered.append(metta_name)
     return registered
 
@@ -435,7 +446,14 @@ def _callable_arities(name: str, target: Callable) -> list[int]:
     return list(range(required, len(positional) + 1))
 
 
-def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None = None):
+def wrap_callable(
+    m,
+    name: str,
+    target: Callable,
+    *,
+    effect: EffectClass | str,
+    arities: list[int] | None = None,
+):
     """One callable, any callable, as a MeTTa function under a chosen name.
 
     The instance behind a bound method or a callable object crosses nothing:
@@ -450,15 +468,23 @@ def wrap_callable(m, name: str, target: Callable, *, arities: list[int] | None =
     def call(*xs):
         return target(*xs)
 
-    m.op(call, name=name, transport="raw", arities=arities)
+    m.op(call, name=name, effect=effect, transport="raw", arities=arities)
     return target
 
 
-def wrap_object(m, name: str, obj: Any, methods: dict[str, str] | Iterable[str]) -> Any:
+def wrap_object(
+    m,
+    name: str,
+    obj: Any,
+    methods: dict[str, str] | Iterable[str],
+    *,
+    effects: Mapping[str, EffectClass | str],
+) -> Any:
     """An instance's methods as operations: (name-method args...).
 
         metta.integrate.wrap_object(m, "db", connection,
-                                    {"execute": "db-query!", "close": "db-close!"})
+                                    {"execute": "db-query!", "close": "db-close!"},
+                                    effects={"execute": "oracleIO", "close": "oracleIO"})
 
     methods maps Python method names to MeTTa spellings, or lists names to
     mangle by the usual rule. A method returning None answers True, the
@@ -468,9 +494,22 @@ def wrap_object(m, name: str, obj: Any, methods: dict[str, str] | Iterable[str])
     """
     if not isinstance(methods, dict):
         methods = {name_: f"{name}-{name_.replace('_', '-')}" for name_ in methods}
+    method_names = set(methods)
+    missing = sorted(method_names - effects.keys())
+    extra = sorted(effects.keys() - method_names)
+    if missing or extra:
+        details = []
+        if missing:
+            details.append(f"missing {missing}")
+        if extra:
+            details.append(f"unknown {extra}")
+        raise PettaError(
+            "wrap_object effects must classify exactly the wrapped methods: "
+            + "; ".join(details)
+        )
     for method_name, metta_name in methods.items():
         bound = getattr(obj, method_name)
-        wrap_callable(m, metta_name, _effect(bound))
+        wrap_callable(m, metta_name, _effect(bound), effect=effects[method_name])
     m.add(Expression([S.wrapped, Symbol(name), ground(obj)]))
     return obj
 
@@ -609,11 +648,13 @@ def install_reflection_ops(m) -> list[str]:
     m.op(
         py_attr,
         name="py-attr",
+        effect="oracleIO",
         declarations=[_expr(S.arguments, S["py-attr"], S.atoms)],
     )
     m.op(
         py_field,
         name="py-field",
+        effect="oracleIO",
         declarations=[_expr(S.arguments, S["py-field"], S.atoms)],
     )
     return ["py-attr", "py-field"]

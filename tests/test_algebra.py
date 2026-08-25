@@ -137,6 +137,7 @@ def test_a_false_declared_law_is_refused_by_name(metta):
     metta.op(
         lambda left, right: (left - right) % 3,
         name="p4-subtract-mod3",
+        effect="pureStructural",
     )
     with pytest.raises(
         AlgebraLawError,

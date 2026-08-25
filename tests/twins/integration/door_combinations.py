@@ -27,7 +27,7 @@ from metta import equation as eq
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-#: ENVELOPED 2026-08-25 by the observe pass: this twin's count is
+#: ENVELOPED 2026-08-26 by the observe pass: this twin's count is
 #: intrinsically multi-valued (allocation-timing jitter moves GC
 #: work between runs; ten serial runs of one such twin answered six
 #: distinct counts), so a point pin with the +-4 tolerance is a
@@ -36,11 +36,11 @@ from metta import equation as eq
 #: is a real finding, and a new mode discovered later extends the
 #: envelope with its observation count rather than widening blind.
 BUDGET = {
-    # Widened to 63326..63370 by a second ten-round full-lane
-    # observe pass; observations count both passes.
-    "minimum": 63326,
-    "maximum": 63370,
-    "observations": 20,
+    # Re-measured after operation registration began recording the required
+    # five-rank effect contract fact for each host operation.
+    "minimum": 65218,
+    "maximum": 65274,
+    "observations": 10,
     "protocol": "full-lane/219/workers=32",
 }
 
@@ -83,7 +83,7 @@ def twin(m):
 
     fired = []
 
-    @m.op
+    @m.op(effect="writesState")
     def dc_stamp(x: int) -> int:
         fired.append(x)
         return x * 10
@@ -128,7 +128,7 @@ def twin(m):
 
     # ---- inside an OP body (host) ----
 
-    @m.op
+    @m.op(effect="readOnlyLookup")
     def dc_reenter(x: int) -> int:
         # a define inside an op RE-ENTERS the engine, a full driving-lane
         # call from within a callback
@@ -137,7 +137,7 @@ def twin(m):
 
     assert m.eval(S.dc_reenter(21)) == [42]
 
-    @m.op
+    @m.op(effect="writesState")
     def dc_hostside(x: int) -> int:
         # an op inside an op stays in host: plain Python, zero crossings
         return dc_stamp(x) + 1

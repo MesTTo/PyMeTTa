@@ -174,7 +174,7 @@ def test_a_typo_in_the_list_registers_nothing(space):  # noqa: D103  -- pytest d
 # had replaced, so the operation could neither be unregistered (retractall on
 # what was now a static procedure raised) nor re-registered.
 def test_a_python_operation_is_not_silently_replaced(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    @space.op(name="rp-owned")
+    @space.op(name="rp-owned", effect="pureStructural")
     def rp_owned(x):
         return ["python", x]
 
@@ -191,7 +191,7 @@ def test_a_prolog_registration_is_not_silently_replaced(space):  # noqa: D103  -
     space.register_prolog("'rp-mine'(X, R) :- R = [prolog, X].", names=["rp-mine"])
     with pytest.raises(EngineError, match="another extension tier"):
 
-        @space.op(name="rp-mine")
+        @space.op(name="rp-mine", effect="pureStructural")
         def rp_mine(x):
             return ["python", x]
 
@@ -261,7 +261,7 @@ def test_a_syntax_error_names_the_line(space):  # noqa: D103  -- pytest discover
 def test_prolog_registration_is_cheaper_than_python_registration(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space.register_prolog("'rp-fast'(X, Y) :- Y is X + 1.", names=["rp-fast"])
 
-    @space.op(name="rp-slow")
+    @space.op(name="rp-slow", effect="pureStructural")
     def rp_slow(x):
         return x + 1
 

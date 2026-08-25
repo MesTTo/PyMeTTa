@@ -49,6 +49,10 @@ Guarantees:
     type, and effect atoms rather than boolean decorator flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - every registration publishes exactly one canonical five-rank effect and
+    missing metadata refuses before engine mutation [tested:
+    test_unclassified_operation_refuses_with_all_five_effect_remedies,
+    test_every_effect_rank_registers_and_reflects; commit=WORKTREE]
   - the first Python owner refuses to adopt a source-owned declaration, while
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;
@@ -87,6 +91,7 @@ from ._type_annotations import (
     callable_name as _callable_name,
 )
 from .atoms import Atom, Expression, S, Symbol, _encode, _expr, _to_atom, _variables
+from .vocabularies import EffectClass
 
 _CO_GENERATOR = getattr(inspect, "CO_GENERATOR", 0x0020)
 _CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
@@ -118,10 +123,21 @@ __all__ = [
 #: without forking it.
 _REFLECTION_SPACE = "&petta"
 
+_EFFECT_NAMES = tuple(effect.value for effect in EffectClass)
+# PostgreSQL's volatility contract makes IMMUTABLE a pure computation,
+# STABLE a statement-snapshot read, and VOLATILE unconstrained, including
+# writes. The top rank is therefore the only sound single image of volatile.
+# https://www.postgresql.org/docs/16/xfunc-volatility.html
+_LEGACY_EFFECTS = {
+    "immutable": EffectClass.pureStructural,
+    "stable": EffectClass.readOnlyLookup,
+    "volatile": EffectClass.oracleIO,
+}
+
 
 def _op_facts(op: Operation) -> list[Expression]:
     """The operation's reflected surface: one (op name arity kind) per arity,
-    and (effect name immutable) when it declared itself pure. One list, so
+    and its mandatory (effect name Class) row. One list, so
     the transaction, rollback, re-registration diff and unregister all treat
     the effect atom exactly as they treat the op atoms.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
@@ -358,9 +374,60 @@ def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
     }[(transport == "raw", many)]
 
 
+def _effect_class(value: EffectClass | str | Symbol, *, name: str) -> EffectClass:
+    """Normalize the five canonical classes and the retired volatility trio."""
+    spelling = str(value)
+    if spelling in _LEGACY_EFFECTS:
+        return _LEGACY_EFFECTS[spelling]
+    try:
+        return EffectClass(spelling)
+    except (TypeError, ValueError) as error:
+        choices = ", ".join(_EFFECT_NAMES)
+        msg = f"the effect for {name!r} must be one of: {choices}; got {spelling!r}"
+        raise ValueError(msg) from error
+
+
+def _missing_effect(name: str) -> TypeError:
+    remedies = ", ".join(f"EffectClass.{effect.value}" for effect in EffectClass)
+    return TypeError(
+        f"operation {name!r} requires effect= metadata; choose one of: {remedies}"
+    )
+
+
+def _declaration_effect(
+    name: str,
+    atom: Expression,
+    previous: EffectClass | None,
+) -> tuple[EffectClass, Expression]:
+    """Validate and canonicalize one declaration-route effect."""
+    if len(atom.children) != 3 or atom.children[1] != Symbol(name):
+        msg = (
+            f"an effect declaration for {name!r} must be "
+            f"(effect {name} {'|'.join(_EFFECT_NAMES)})"
+        )
+        raise ValueError(msg)
+    declared = atom.children[2]
+    if not isinstance(declared, Symbol):
+        msg = (
+            f"an effect declaration for {name!r} must name its class as a symbol, "
+            f"got {declared!s}"
+        )
+        raise TypeError(msg)
+    candidate = _effect_class(declared, name=name)
+    if previous is not None and candidate is not previous:
+        msg = (
+            f"{name!r} has conflicting effect declarations: "
+            f"{previous.value} and {candidate.value}"
+        )
+        raise ValueError(msg)
+    return candidate, _expr(S.effect, S[name], S[candidate.value])
+
+
 def _partition_declarations(
-    name: str, declarations: Iterable[Atom]
-) -> tuple[list[Expression], tuple[Expression, ...]]:
+    name: str,
+    declarations: Iterable[Atom],
+    effect: EffectClass | str | None,
+) -> tuple[list[Expression], tuple[Expression, ...], EffectClass]:
     """Split operation-local declarations from &petta policy facts.
 
     Type and documentation atoms govern compilation in the operation's own
@@ -371,6 +438,7 @@ def _partition_declarations(
     """
     local: list[Expression] = []
     catalog: list[Expression] = []
+    declared_effect: EffectClass | None = None
     for declaration in declarations:
         atom = _to_atom(declaration)
         if not isinstance(atom, Expression) or not atom.children:
@@ -387,27 +455,13 @@ def _partition_declarations(
             )
             raise ValueError(msg)
         if head == Symbol("effect"):
-            if len(atom.children) != 3 or atom.children[1] != Symbol(name):
-                msg = (
-                    f"an effect declaration for {name!r} must be "
-                    f"(effect {name} immutable|stable|volatile)"
-                )
-                raise ValueError(msg)
-            if atom.children[2] not in (S.immutable, S.stable, S.volatile):
-                msg = (
-                    f"an effect declaration for {name!r} must name "
-                    "immutable, stable, or volatile"
-                )
-                raise ValueError(msg)
-            existing = [fact for fact in catalog if fact.head == S.effect]
-            if existing and atom not in existing:
-                msg = (
-                    f"{name!r} has conflicting effect declarations: "
-                    f"{existing[0]} and {atom}"
-                )
-                raise ValueError(msg)
-            if atom not in catalog:
-                catalog.append(atom)
+            declared_effect, canonical = _declaration_effect(
+                name,
+                atom,
+                declared_effect,
+            )
+            if canonical not in catalog:
+                catalog.append(canonical)
             continue
         if head == Symbol("arguments"):
             if (
@@ -433,11 +487,20 @@ def _partition_declarations(
         target = local if head in (Symbol(":"), Symbol("@doc")) else catalog
         if atom not in target:
             target.append(atom)
-    return local, tuple(catalog)
-
-
-def _is_immutable(name: str, catalog: tuple[Expression, ...]) -> bool:
-    return _expr(S.effect, S[name], S.immutable) in catalog
+    supplied_effect = None if effect is None else _effect_class(effect, name=name)
+    if supplied_effect is not None and declared_effect not in (None, supplied_effect):
+        msg = (
+            f"{name!r} has conflicting effect metadata: effect="
+            f"{supplied_effect.value} and declaration {declared_effect.value}"
+        )
+        raise ValueError(msg)
+    resolved = supplied_effect or declared_effect
+    if resolved is None:
+        raise _missing_effect(name)
+    canonical = _expr(S.effect, S[name], S[resolved.value])
+    if canonical not in catalog:
+        catalog.append(canonical)
+    return local, tuple(catalog), resolved
 
 
 def _passes_atoms(name: str, catalog: tuple[Expression, ...]) -> bool:
@@ -624,6 +687,7 @@ def register[**P, R](
     name: str | None = None,
     # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"] = "encoded",
+    effect: EffectClass | str | None = None,
     declarations: Iterable[Atom] = (),
     space: str = _DEFAULT_SPACE,
     arities: list[int] | None = None,
@@ -647,15 +711,20 @@ def register[**P, R](
 
     Python annotations derive type atoms and Atom parameters receive syntax
     before evaluation. `transport="raw"` derives raw_det/raw_many in the
-    operation's `(op ...)` fact. Additional declaration atoms are owned for
+    operation's `(op ...)` fact. Effect metadata is required; ``effect=`` is
+    the canonical input and names the strongest observable capability of the
+    operation. Existing effect declaration atoms remain a compatibility input.
+    Additional declaration atoms are owned for
     the operation's complete lifecycle: type atoms live in its declaration
-    space, while `(effect name immutable)` and other policy atoms live in
-    &petta and can be matched there. An immutable effect atom is the explicit
-    allow-list for tabled or memoized bodies.
+    space, while its canonical effect row and other policy atoms live in
+    &petta and can be matched there. Only ``pureStructural`` enters the
+    compatibility allow-list for tabled or memoized bodies.
     """
     metta_name = _metta_name(fn, name)
     kind = _operation_kind(fn, transport)
-    supplied, catalog = _partition_declarations(metta_name, declarations)
+    supplied, catalog, operation_effect = _partition_declarations(
+        metta_name, declarations, effect
+    )
     explicit_arities = arities
     arities, params, variadic = _arities(fn, arities)
     injected = _engine_positions(params, fn)
@@ -676,7 +745,6 @@ def register[**P, R](
     if inverse is not None and not callable(inverse):
         msg = f"the inverse of {metta_name} is not callable: {inverse!r}"
         raise TypeError(msg)
-    pure = _is_immutable(metta_name, catalog)
     pass_atoms = _passes_atoms(metta_name, catalog)
     if pass_atoms and kind.startswith("raw_"):
         msg = (
@@ -684,17 +752,16 @@ def register[**P, R](
             "raw calls do not cross the atom codec"
         )
         raise ValueError(msg)
-    if pure and kind == "raw_many":
-        # A raw generator is the one shape whose answers the engine never
-        # sees whole, so "no effect a cache could hide" is not checkable even
-        # in principle. Refusing here beats a caller finding out later.
+    inverse_kind = _operation_kind(inverse, "encoded") if inverse is not None else "det"
+    if (kind.endswith("many") or inverse_kind.endswith("many")) and (
+        operation_effect < EffectClass.nondeterministicReadOnly
+    ):
         msg = (
-            f"{metta_name} cannot be declared pure: a raw generator's answers "
-            f"cross one at a time and are never seen whole"
+            f"{metta_name} is nondeterministic and cannot declare "
+            f"{operation_effect.value}; use effect="
+            "EffectClass.nondeterministicReadOnly or a stronger class"
         )
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)
     declarations = _operation_declarations(
         metta_name,
         params,
@@ -714,13 +781,13 @@ def register[**P, R](
         fn=_with_engine(fn, injected) if injected else fn,
         kind=kind,
         arity=max(arities),
+        effect=operation_effect,
         pass_atoms=pass_atoms,
         space=_SpaceId(space),
         declarations=declarations,
         catalog=catalog,
         arities=tuple(arities),
         inverse=inverse,
-        pure=pure,
         parameter_annotations=tuple(
             [conversion_hints.get(param.name, Any) for param in params]
             + (
@@ -795,7 +862,7 @@ def _declare_purity(runtime: Any, operation: Operation) -> None:
 
     Retract first either way, because a re-registration of the same name must
     not leave the previous life's claim standing: an operation declared pure
-    and then re-registered without the flag would otherwise stay cacheable.
+    and then re-registered at a stronger rank would otherwise stay cacheable.
     """
     runtime.must("retractall(metta_host_pure_operation(Name))", Name=operation.name)
     if operation.pure:

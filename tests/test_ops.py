@@ -48,11 +48,11 @@ def unique(prefix: str) -> str:  # noqa: D103  -- pytest discovers or injects th
 
 
 def test_op_uses_the_define_name_ladder(metta):  # noqa: D103 -- pytest discovers this naming contract by name
-    @metta.op
+    @metta.op(effect="pureStructural")
     def implicit_operation(value):
         return value
 
-    @metta.op(name="exact_operation")
+    @metta.op(name="exact_operation", effect="pureStructural")
     def explicit_operation(value):
         return value
 
@@ -71,7 +71,7 @@ def test_op_uses_the_define_name_ladder(metta):  # noqa: D103 -- pytest discover
 def test_det_op_composes_with_equations(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("dbl")
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="pureStructural")
     def double(x: int) -> int:
         return 2 * x
 
@@ -85,11 +85,11 @@ def test_an_atom_annotation_changes_evaluation_order_as_documented(metta):
     atom_name = unique("anyatom")
     value_name = unique("anyval")
 
-    @metta.op(name=atom_name)
+    @metta.op(name=atom_name, effect="pureStructural")
     def anyatom(term: Atom) -> Atom:
         return term
 
-    @metta.op(name=value_name)
+    @metta.op(name=value_name, effect="pureStructural")
     def anyval(term):
         return term
 
@@ -159,12 +159,12 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     } >= prelude_names
 
     name = unique("p5-policy")
-    effect = Expression(S.effect, S[name], S.immutable)
+    effect = Expression(S.effect, S[name], S.pureStructural)
 
     @metta.op(
         name=name,
         transport="raw",
-        declarations=[effect],
+        effect="pureStructural",
     )
     def policy_operation(value):
         return value
@@ -174,7 +174,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     ]
     assert [
         row.effect for row in reflection.match(Expression(S.effect, S[name], V.effect))
-    ] == [S.immutable]
+    ] == [S.pureStructural]
     assert effect in reflection
     assert metta.run(f"!({name} 7)") == [[7]]
 
@@ -182,7 +182,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     arguments = Expression(S.arguments, S[atoms_name], S.atoms)
     seen = []
 
-    @metta.op(name=atoms_name, declarations=[arguments])
+    @metta.op(name=atoms_name, effect="writesState", declarations=[arguments])
     def atom_arguments(value):
         seen.append(value)
         return value
@@ -200,6 +200,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
             lambda value: value,
             name=refused_name,
             transport="raw",
+            effect="pureStructural",
             declarations=[Expression(S.arguments, S[refused_name], S.atoms)],
         )
 
@@ -223,7 +224,7 @@ def test_a_python_op_is_a_higher_order_argument(metta):
     """
     inc = unique("inc")
 
-    @metta.op(name=inc)
+    @metta.op(name=inc, effect="pureStructural")
     def increment(x: int) -> int:
         return x + 1
 
@@ -246,7 +247,7 @@ def test_a_python_op_is_a_higher_order_argument(metta):
 def test_generator_is_nondeterministic(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("upto")
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="nondeterministicReadOnly")
     def upto(n: int):
         yield from range(1, n + 1)
 
@@ -281,17 +282,17 @@ def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
         return wrapper
 
     cases = [
-        ("coroutine function", coroutine),
-        ("coroutine function", functools.partial(coroutine)),
-        ("coroutine function", CallableCoroutine()),
-        ("async-generator function", async_generator),
-        ("generator-based coroutine", iterable_coroutine),
-        ("coroutine function", wrapped(coroutine)),
+        ("coroutine function", coroutine, "pureStructural"),
+        ("coroutine function", functools.partial(coroutine), "pureStructural"),
+        ("coroutine function", CallableCoroutine(), "pureStructural"),
+        ("async-generator function", async_generator, "nondeterministicReadOnly"),
+        ("generator-based coroutine", iterable_coroutine, "pureStructural"),
+        ("coroutine function", wrapped(coroutine), "pureStructural"),
     ]
-    for expected, fn in cases:
+    for expected, fn, effect in cases:
         name = unique("awaitable")
         with pytest.raises(TypeError, match=expected):
-            metta.op(fn, name=name)
+            metta.op(fn, name=name, effect=effect)
         assert name not in registered()
         assert not any(
             isinstance(atom, Expression)
@@ -305,7 +306,7 @@ def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
     def ordinary(value):
         yield value
 
-    metta.op(ordinary, name=name)
+    metta.op(ordinary, name=name, effect="nondeterministicReadOnly")
     try:
         assert metta.run(f"!({name} 7)") == [[7]]
         assert registered()[name].kind == "many"
@@ -317,11 +318,11 @@ def test_none_and_decline_answer_nothing(metta):  # noqa: D103  -- pytest discov
     evens = unique("evens")
     picky = unique("picky")
 
-    @metta.op(name=evens)
+    @metta.op(name=evens, effect="pureStructural")
     def only_even(x: int):
         return x if x % 2 == 0 else None
 
-    @metta.op(name=picky)
+    @metta.op(name=picky, effect="pureStructural")
     def picky_op(x: int):
         if x < 0:
             raise NotReducible
@@ -336,7 +337,7 @@ def test_none_and_decline_answer_nothing(metta):  # noqa: D103  -- pytest discov
 def test_python_exception_is_a_hard_error(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("boom")
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="pureStructural")
     def boom(x: int) -> int:  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         msg = "exploded on purpose"
         raise ValueError(msg)
@@ -349,7 +350,7 @@ def test_python_exception_is_a_hard_error(metta):  # noqa: D103  -- pytest disco
 def test_annotations_declare_types(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("typed")
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="pureStructural")
     def typed_op(x: int) -> int:
         return x
 
@@ -374,7 +375,7 @@ def test_a_variable_crossing_python_comes_back_the_same_variable(metta):
     """
     op, native = unique("pcons"), unique("mcons")
 
-    @metta.op(name=op)
+    @metta.op(name=op, effect="pureStructural")
     def cons(head, tail):
         return (head, *tail)
 
@@ -398,6 +399,7 @@ def test_a_registered_operation_runs_backwards(metta):
     metta.op(
         lambda head, tail: (head, *tail),
         name=cons,
+        effect="pureStructural",
         inverse=lambda whole: (whole[0], tuple(whole[1:])),
     )
     assert metta.run(f"!({cons} 1 (2 3))") == [[Expression(1, 2, 3)]]
@@ -413,7 +415,12 @@ def test_a_registered_operation_runs_backwards(metta):
         yield (int(value**0.5),)
         yield (-int(value**0.5),)
 
-    metta.op(lambda x: x * x, name=square, inverse=roots)
+    metta.op(
+        lambda x: x * x,
+        name=square,
+        effect="nondeterministicReadOnly",
+        inverse=roots,
+    )
     assert metta.run(f"!(collapse (let ({square} $r) 9 $r))") == [[Expression(3, -3)]]
     assert metta.run(f"!({square} 4)") == [[16]]
 
@@ -421,6 +428,7 @@ def test_a_registered_operation_runs_backwards(metta):
     metta.op(
         lambda x: x * 2,
         name=double,
+        effect="pureStructural",
         # A bare value at arity one, and None for no preimage.
         inverse=lambda y: None if y % 2 else y // 2,
     )
@@ -439,22 +447,28 @@ def test_a_pure_python_operation_can_be_declared_and_cached(metta):
     even knowing the right name.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.run("!(import! &self (library lib_tabling))")
-    declared, silent = unique("psize"), unique("qsize")
+    declared, stateful = unique("psize"), unique("qsize")
     metta.op(
         len,
         name=declared,
-        declarations=[Expression(S.effect, S[declared], S.immutable)],
+        effect="pureStructural",
     )
-    metta.op(len, name=silent)
+    calls = []
+
+    def counted_size(value):
+        calls.append(value)
+        return len(value)
+
+    metta.op(counted_size, name=stateful, effect="writesState")
     metta.run(f"(= (uses-{declared} $k) ({declared} $k))")
-    metta.run(f"(= (uses-{silent} $k) ({silent} $k))")
+    metta.run(f"(= (uses-{stateful} $k) ({stateful} $k))")
 
     assert metta.run(f"!(tabled (uses-{declared} $k))") == [[True]]
 
     with pytest.raises(EngineError) as refused:
-        metta.run(f"!(tabled (uses-{silent} $k))")
+        metta.run(f"!(tabled (uses-{stateful} $k))")
     message = str(refused.value)
-    assert f"{silent}/1" in message, message
+    assert f"{stateful}/1" in message, message
     assert "petta_py_dispatch" not in message, message
 
 
@@ -476,7 +490,7 @@ def test_registering_an_operation_leaves_the_engines_pure_list_alone(metta):
         metta.op(
             len,
             name=name,
-            declarations=[Expression(S.effect, S[name], S.immutable)],
+            effect="pureStructural",
         )
 
     metta.run("(= (arith-after $k) (+ $k 1))")
@@ -494,8 +508,8 @@ def test_a_raw_operation_fails_like_an_encoded_one(metta):
     exactly the defect the encoded paths were fixed for.
     """
     raw, encoded = unique("rboom"), unique("eboom")
-    metta.op(lambda x: x // 0, name=raw, transport="raw")
-    metta.op(lambda x: x // 0, name=encoded)
+    metta.op(lambda x: x // 0, name=raw, transport="raw", effect="pureStructural")
+    metta.op(lambda x: x // 0, name=encoded, effect="pureStructural")
 
     caught = {
         label: str(metta.run(f"!(catch ({name} 1))")[-1][0])
@@ -531,7 +545,11 @@ def test_a_raw_operations_inverse_crosses_raw_too(metta):
     for label, transport in (("raw", "raw"), ("encoded", "encoded")):
         name = unique(label)
         metta.op(
-            forwards, name=name, transport=transport, inverse=backwards
+            forwards,
+            name=name,
+            transport=transport,
+            effect="writesState",
+            inverse=backwards,
         )
         seen.clear()
         metta.run(f"!({name} sym)")
@@ -550,7 +568,10 @@ def test_an_inverse_of_the_wrong_width_is_refused(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     name = unique("wide")
     metta.op(
-        lambda a, b: (a, b), name=name, inverse=lambda _: (1, 2, 3)
+        lambda a, b: (a, b),
+        name=name,
+        effect="pureStructural",
+        inverse=lambda _: (1, 2, 3),
     )
     with pytest.raises(EngineError) as refused:
         metta.run(f"!(let ({name} $a $b) (1 2) ($a $b))")
@@ -569,7 +590,7 @@ def test_an_operation_failure_names_the_metta_call(metta):
     """
     name = unique("boom")
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="pureStructural")
     def boom(x: int) -> int:
         return x // 0
 
@@ -594,11 +615,11 @@ def test_an_unbound_argument_is_named_when_python_fails(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     one, two = unique("ptail"), unique("pcons")
 
-    @metta.op(name=one)
+    @metta.op(name=one, effect="pureStructural")
     def tail(rest):
         return (0, *rest)
 
-    @metta.op(name=two)
+    @metta.op(name=two, effect="pureStructural")
     def cons(head, rest):
         return (head, *rest)
 
@@ -615,7 +636,7 @@ def test_an_unbound_argument_is_named_when_python_fails(metta):
     # something when it does appear.
     grounded = unique("plain")
 
-    @metta.op(name=grounded)
+    @metta.op(name=grounded, effect="pureStructural")
     def plain(x: int) -> int:
         return x // 0
 
@@ -639,7 +660,7 @@ def test_every_argument_shape_reaches_python_as_its_own_kind(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     name = unique("kindof")
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="pureStructural")
     def kind_of(x):
         return type(x).__name__
 
@@ -662,11 +683,11 @@ def test_annotations_and_explicit_atoms_are_the_two_typing_routes(metta):
     """Annotations derive arrows; an unannotated callable claims no type."""
     annotated, bare, declared = unique("ann"), unique("bare"), unique("declared")
 
-    @metta.op(name=annotated)
+    @metta.op(name=annotated, effect="pureStructural")
     def with_annotations(x: int) -> int:
         return x
 
-    @metta.op(name=bare)
+    @metta.op(name=bare, effect="pureStructural")
     def without_annotations(x):
         return x
 
@@ -674,6 +695,7 @@ def test_annotations_and_explicit_atoms_are_the_two_typing_routes(metta):
     metta.op(
         lambda x: x,
         name=declared,
+        effect="pureStructural",
         declarations=[Expression(S[":"], S[declared], arrow)],
     )
 
@@ -685,7 +707,7 @@ def test_annotations_and_explicit_atoms_are_the_two_typing_routes(metta):
 def test_defaults_register_every_arity(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("greet")
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="pureStructural")
     def greet(who: str, greeting: str = "hello") -> str:
         return f"{greeting}, {who}"
 
@@ -697,7 +719,7 @@ def test_ops_see_atoms_not_mush(metta):  # noqa: D103  -- pytest discovers or in
     name = unique("peek")
     seen = []
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="writesState")
     def peek(x) -> bool:
         seen.append(x)
         return True
@@ -714,7 +736,7 @@ def test_atom_annotations_hand_over_atoms(metta):  # noqa: D103  -- pytest disco
     name = unique("atoms")
     seen = []
 
-    @metta.op(name=name)
+    @metta.op(name=name, effect="writesState")
     def watch(x: Atom) -> bool:
         seen.append(x)
         return True
@@ -733,13 +755,13 @@ def test_objects_flow_through_ops_by_identity(metta):  # noqa: D103  -- pytest d
 
     box = []
 
-    @metta.op(name=make)
+    @metta.op(name=make, effect="writesState")
     def make_counter():
         c = Counter()
         box.append(c)
         return ground(c)
 
-    @metta.op(name=read)
+    @metta.op(name=read, effect="writesState")
     def read_counter(c) -> int:
         assert c is box[0]
         c.n += 1
@@ -752,7 +774,7 @@ def test_objects_flow_through_ops_by_identity(metta):  # noqa: D103  -- pytest d
 def test_raw_mode_for_number_work(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     name = unique("rawsum")
 
-    @metta.op(name=name, transport="raw")
+    @metta.op(name=name, transport="raw", effect="pureStructural")
     def raw_sum(a, b):
         return a + b
 
@@ -766,7 +788,7 @@ def test_operation_registration_names_are_symmetric(metta):  # noqa: D103  -- py
     assert metta.op.__func__ is metta.op.__func__
     assert not hasattr(metta, "unregister")
 
-    @metta.op(name="very-unique-op-name-xyz")
+    @metta.op(name="very-unique-op-name-xyz", effect="pureStructural")
     def very_unique_op_name_xyz(x: int) -> int:
         return x
 
@@ -780,13 +802,13 @@ def test_operation_registration_names_are_symmetric(metta):  # noqa: D103  -- py
 def test_var_kw_params_are_refused(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(TypeError):
 
-        @metta.op
+        @metta.op(effect="pureStructural")
         def bad(*args):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
             return 0
 
     with pytest.raises(TypeError):
 
-        @metta.op
+        @metta.op(effect="pureStructural")
         def bad2(*, key=1):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
             return 0
 
@@ -797,7 +819,7 @@ def test_engine_injection_by_annotation(metta):  # noqa: D103  -- pytest discove
     # sees the slot.
     metta.run("(inj-link a b) (inj-link b c)")
 
-    @metta.op(name="inj-related")
+    @metta.op(name="inj-related", effect="nondeterministicReadOnly")
     def inj_related(term, engine: MeTTa):
         for row in engine.self.match(Expression(S["inj-link"], term, V.x)):
             yield row[0]
@@ -814,7 +836,7 @@ def test_engine_injection_by_annotation(metta):  # noqa: D103  -- pytest discove
 def test_injection_binds_the_calling_space(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The engine injects ITSELF bound to the current context's space, the
     # &self reading, so one op behaves per-space without a space argument.
-    @metta.op(name="inj-here")
+    @metta.op(name="inj-here", effect="readOnlyLookup")
     def inj_here(engine: MeTTa):
         return str(engine.self.name)
 
@@ -832,7 +854,7 @@ def test_injection_binds_the_calling_space(metta):  # noqa: D103  -- pytest disc
 def test_injection_composes_with_defaults_and_position(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The engine slot may sit anywhere; remaining defaults still ladder
     # the arities, so (inj-mid x) and (inj-mid x y) both serve.
-    @metta.op(name="inj-mid")
+    @metta.op(name="inj-mid", effect="pureStructural")
     def inj_mid(a, engine: MeTTa, b=10):
         assert isinstance(engine, MeTTa)
         return int(a) + int(b)
@@ -866,7 +888,12 @@ def test_a_name_prolog_owns_registers_and_leaves_prolog_alone(metta):
         ("last", 1, "!(last 1)", 1),        # last/2, from library(lists)
         ("select", 2, "!(select 1 2)", 1),  # select/3, likewise
     ]:
-        metta.op(lambda *_a: 1, name=name, arities=[arity])
+        metta.op(
+            lambda *_a: 1,
+            name=name,
+            effect="pureStructural",
+            arities=[arity],
+        )
         try:
             assert metta.run(call) == [[expected]], name
         finally:
@@ -890,7 +917,12 @@ def test_prologs_protected_core_is_still_refused(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for name, arity in [("sort", 1), ("copy_term", 1), ("call", 1)]:
         with pytest.raises(EngineError) as refused:
-            metta.op(lambda *_a: 1, name=name, arities=[arity])
+            metta.op(
+                lambda *_a: 1,
+                name=name,
+                effect="pureStructural",
+                arities=[arity],
+            )
         message = str(refused.value)
         assert f"{name}/{arity + 1}" in message, message
         assert "already owns" in message
@@ -901,7 +933,7 @@ def test_a_free_name_that_merely_looks_prolog_still_registers(metta):  # noqa: D
     # digit/2 is free even though digit/3 is not, so the refusal has to be
     # per arity rather than per name, or it would take names nothing owns.
     name = unique("digit")
-    metta.op(lambda _x: 7, name=name, arities=[1])
+    metta.op(lambda _x: 7, name=name, effect="pureStructural", arities=[1])
     try:
         assert metta.run(f"!({name} 1)") == [[7]]
     finally:
@@ -918,7 +950,12 @@ def test_unregistering_a_name_a_system_predicate_shares_does_not_throw(metta):
     are SWI's and are what the walk trips over. A builtin is never a clause
     of ours, so it is skipped rather than inspected.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    metta.op(lambda *_a: 1, name="print", arities=[5])
+    metta.op(
+        lambda *_a: 1,
+        name="print",
+        effect="pureStructural",
+        arities=[5],
+    )
     try:
         assert metta.run("!(print 1 2 3 4 5)") == [[1]]
     finally:

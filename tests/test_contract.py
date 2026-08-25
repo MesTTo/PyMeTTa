@@ -7,7 +7,13 @@ Guarantees:
     the registration transaction, replacement, ownership, and unregister
     lifecycle [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=WORKTREE]
+  - every Python operation owns one canonical five-rank effect fact throughout
+    registration, replacement, reflection, and unregister
+    [tested: test_structural_registration_reflects_an_effect_atom;
+    test_reregistration_replaces_the_effect_rank;
+    test_a_registered_structural_effect_reaches_the_purity_walk;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -22,73 +28,81 @@ from metta import parse
 from metta.atoms import Expression, Variable
 from metta.errors import EngineError
 from metta.foreign import SpaceProvider
+from metta.vocabularies import EffectClass
 
 
-def _effect_atom(name):
-    return parse(f"(effect {name} immutable)")
+def _effect_atom(name, effect=EffectClass.pureStructural):
+    return parse(f"(effect {name} {effect.value})")
 
 
-def test_pure_registration_reflects_an_effect_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_structural_registration_reflects_an_effect_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def add1(x: int) -> int:
         return x + 1
 
-    metta.op(
-        add1, name="ct-pure", declarations=[_effect_atom("ct-pure")]
-    )
+    metta.op(add1, name="ct-pure", effect=EffectClass.pureStructural)
     petta_space = metta._at("&petta")
     assert _effect_atom("ct-pure") in petta_space
     # The op fact and the effect fact are one surface.
     assert parse("(op ct-pure 1 det)") in petta_space
 
 
-def test_impure_registration_reflects_no_effect_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_unclassified_registration_is_refused_with_the_five_rank_remedy(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def add1(x: int) -> int:
         return x + 1
 
-    metta.op(add1, name="ct-impure")
-    assert _effect_atom("ct-impure") not in metta._at("&petta")
+    with pytest.raises(TypeError) as error:
+        metta.op(add1, name="ct-unclassified", effect=None)
+    for effect in EffectClass:
+        assert f"EffectClass.{effect.value}" in str(error.value)
+    reflection = metta._at("&petta")
+    assert parse("(op ct-unclassified 1 det)") not in reflection
+    assert reflection.match(parse("(effect ct-unclassified $effect)")) == []
 
 
 def test_unregister_removes_the_effect_atom_with_the_op_facts(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    def add1(x: int) -> int:
-        return x + 1
+    values = {1: 2}
 
-    metta.op(
-        add1, name="ct-gone", declarations=[_effect_atom("ct-gone")]
-    )
+    def lookup(x: int) -> int:
+        return values[x]
+
+    metta.op(lookup, name="ct-gone", effect=EffectClass.readOnlyLookup)
     petta_space = metta._at("&petta")
-    assert _effect_atom("ct-gone") in petta_space
+    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) in petta_space
     metta.unregister_op("ct-gone")
-    assert _effect_atom("ct-gone") not in petta_space
+    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) not in petta_space
     assert parse("(op ct-gone 1 det)") not in petta_space
 
 
-def test_reregistration_without_pure_retires_the_effect_atom(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_reregistration_replaces_the_effect_rank(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    writes = []
+
     def add1(x: int) -> int:
         return x + 1
 
-    metta.op(
-        add1, name="ct-flip", declarations=[_effect_atom("ct-flip")]
-    )
+    def remember(x: int) -> int:
+        writes.append(x)
+        return x + 1
+
+    metta.op(add1, name="ct-flip", effect=EffectClass.pureStructural)
     petta_space = metta._at("&petta")
     assert _effect_atom("ct-flip") in petta_space
-    # The same name re-registered without the claim must not keep it: a claim
-    # from a previous life left standing is exactly what _declare_purity's
-    # retract-first exists to prevent, and the atom follows the same rule.
-    metta.op(add1, name="ct-flip")
+    # Replacement owns exactly one rank. A claim from a previous registration
+    # must not survive after the new operation takes ownership of its facts.
+    metta.op(remember, name="ct-flip", effect=EffectClass.writesState)
     assert _effect_atom("ct-flip") not in petta_space
+    assert _effect_atom("ct-flip", EffectClass.writesState) in petta_space
     metta.unregister_op("ct-flip")
 
 
 def test_the_effect_atom_is_matchable_from_metta(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    def add1(x: int) -> int:
-        return x + 1
+    values = {1: 2}
 
-    metta.op(
-        add1, name="ct-query", declarations=[_effect_atom("ct-query")]
-    )
+    def lookup(x: int) -> int:
+        return values[x]
+
+    metta.op(lookup, name="ct-query", effect=EffectClass.readOnlyLookup)
     rows = metta._at("&petta").match(parse("(effect ct-query $e)"))
-    assert [str(row.e) for row in rows] == ["immutable"]
+    assert [str(row.e) for row in rows] == ["readOnlyLookup"]
 
 
 def test_the_ontology_is_loaded_at_boot(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -96,7 +110,8 @@ def test_the_ontology_is_loaded_at_boot(metta):  # noqa: D103  -- pytest discove
     assert parse("(: Declaration Type)") in petta_space
     assert parse("(:< Exact Partial)") in petta_space
     assert parse("(:< Partial Sound)") in petta_space
-    assert parse("(: immutable Effect)") in petta_space
+    for effect in EffectClass:
+        assert parse(f"(: {effect.value} Effect)") in petta_space
     # Refuse is a Fidelity but deliberately outside the chain.
     assert parse("(: Refuse Fidelity)") in petta_space
     assert parse("(:< Refuse Sound)") not in petta_space
@@ -124,16 +139,40 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
         yield value
 
     functions = (
-        (f"p5-det-{suffix}", deterministic, "encoded", "det"),
-        (f"p5-many-{suffix}", nondeterministic, "encoded", "many"),
-        (f"p5-raw-det-{suffix}", deterministic, "raw", "raw_det"),
-        (f"p5-raw-many-{suffix}", nondeterministic, "raw", "raw_many"),
+        (
+            f"p5-det-{suffix}",
+            deterministic,
+            "encoded",
+            "det",
+            EffectClass.pureStructural,
+        ),
+        (
+            f"p5-many-{suffix}",
+            nondeterministic,
+            "encoded",
+            "many",
+            EffectClass.nondeterministicReadOnly,
+        ),
+        (
+            f"p5-raw-det-{suffix}",
+            deterministic,
+            "raw",
+            "raw_det",
+            EffectClass.pureStructural,
+        ),
+        (
+            f"p5-raw-many-{suffix}",
+            nondeterministic,
+            "raw",
+            "raw_many",
+            EffectClass.nondeterministicReadOnly,
+        ),
     )
     reflection = metta._at("&petta")
     assert parse("(: OpKind Type)") in reflection
     assert parse("(: op (-> Symbol Number OpKind OpDecl))") in reflection
-    for name, fn, transport, kind in functions:
-        metta.op(fn, name=name, transport=transport)
+    for name, fn, transport, kind, effect in functions:
+        metta.op(fn, name=name, transport=transport, effect=effect)
         fact = parse(f"(op {name} 1 {kind})")
         assert fact in reflection
         assert metta._at("&petta").run(f"!(get-type {fact})") == [[parse("OpDecl")]]
@@ -148,8 +187,8 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
         """Stable replacement documentation."""
         return value
 
-    metta.op(same, name=stable)
-    metta.op(same, name=stable)
+    metta.op(same, name=stable, effect=EffectClass.pureStructural)
+    metta.op(same, name=stable, effect=EffectClass.pureStructural)
     assert len(metta.run(f"!(get-doc {stable})")) == 1
 
     replacement = f"p5-replacement-{suffix}"
@@ -162,8 +201,8 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
         """Second registration documentation."""
         return value
 
-    metta.op(first, name=replacement)
-    metta.op(second, name=replacement)
+    metta.op(first, name=replacement, effect=EffectClass.pureStructural)
+    metta.op(second, name=replacement, effect=EffectClass.pureStructural)
     replaced_docs = metta.run(f"!(get-doc {replacement})")
     assert len(replaced_docs) == 1
     assert "Second registration documentation." in str(replaced_docs[0][0])
@@ -191,7 +230,11 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
 
     monkeypatch.setattr(runtime_type, "must", fail_compile)
     with pytest.raises(EngineError, match="forced registration failure"):
-        metta.op(documented_failure, name=rollback)
+        metta.op(
+            documented_failure,
+            name=rollback,
+            effect=EffectClass.pureStructural,
+        )
     assert metta.run(f"!(get-doc {rollback})") == [[]]
     assert parse(f"(op {rollback} 1 det)") not in reflection
 
@@ -210,22 +253,15 @@ def test_the_fidelity_chain_rides_subtype_widening(metta):  # noqa: D103  -- pyt
     assert [str(a) for a in answers[0]] == ["Exact", "Partial", "Sound"]
 
 
-def test_a_metta_declared_effect_reaches_the_purity_walk(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    calls = []
-
+def test_a_registered_structural_effect_reaches_the_purity_walk(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def lookup(x: int) -> int:
-        calls.append(x)
         return x + 10
 
-    metta.op(lookup, name="ct-mdecl")  # deliberately no effect atom
+    metta.op(lookup, name="ct-mdecl", effect=EffectClass.pureStructural)
     metta.run("!(import! &self (library lib_tabling))")
     metta.run("(= (ct-mwrap $x) (ct-mdecl $x))")
-    with pytest.raises(EngineError):
-        metta.run("!(tabled (ct-mwrap $x))")
-    # The same effect atom could have been supplied at registration; declaring
-    # it from inside the language reaches the same purity walk.
-    metta.run("!(add-atom &petta (effect ct-mdecl immutable))")
     assert metta.run("!(tabled (ct-mwrap $x))") == [[True]]
+    assert _effect_atom("ct-mdecl") in metta._at("&petta")
 
 
 def test_an_unchecked_declaration_memoizes_an_impure_body(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -235,7 +271,7 @@ def test_an_unchecked_declaration_memoizes_an_impure_body(metta):  # noqa: D103 
         calls.append(x)
         return len(calls)
 
-    metta.op(draw, name="ct-draw")
+    metta.op(draw, name="ct-draw", effect=EffectClass.writesState)
     metta.run("!(import! &self (library lib_memo))")
     metta.run("(= (ct-uwrap $x) (ct-draw $x))")
     with pytest.raises(EngineError):
@@ -251,10 +287,13 @@ def test_an_unchecked_declaration_memoizes_an_impure_body(metta):  # noqa: D103 
 
 
 def test_an_unchecked_declaration_tables_an_impure_body(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    calls = []
+
     def now(x: int) -> int:
+        calls.append(x)
         return x
 
-    metta.op(now, name="ct-tnow")
+    metta.op(now, name="ct-tnow", effect=EffectClass.writesState)
     metta.run("!(import! &self (library lib_tabling))")
     metta.run("(= (ct-twrap $x) (ct-tnow $x))")
     metta.run("!(add-atom &petta (cache ct-twrap unchecked))")
@@ -284,8 +323,12 @@ def test_an_explicitly_registered_type_projects_from_an_op(metta):  # noqa: D103
         yield _CtPoint(x, 0)
         yield _CtPoint(0, x)
 
-    metta.op(mk, name="ct-mkpt")
-    metta.op(spray, name="ct-spray")
+    metta.op(mk, name="ct-mkpt", effect=EffectClass.pureStructural)
+    metta.op(
+        spray,
+        name="ct-spray",
+        effect=EffectClass.nondeterministicReadOnly,
+    )
     assert [str(a) for a in metta.run("!(ct-mkpt 3 4)")[0]] == ["(CtPoint 3 4)"]
     # The generator path crosses the same encoder, one projection per answer.
     assert [str(a) for a in metta.run("!(collapse (ct-spray 7))")[0]] == [
@@ -310,7 +353,7 @@ def test_a_memoized_default_never_projects_from_an_op(metta):  # noqa: D103  -- 
     def mk(x: int):
         return _CtPlain(x)
 
-    metta.op(mk, name="ct-plain")
+    metta.op(mk, name="ct-plain", effect=EffectClass.writesState)
     answers = metta.run("!(ct-plain 5)")
     assert isinstance(answers[0][0], Grounded)
 
@@ -329,7 +372,7 @@ def test_an_explicit_handle_image_stays_opaque(metta):  # noqa: D103  -- pytest 
     def mk(x: int):
         return _CtHandle(x)
 
-    metta.op(mk, name="ct-handle")
+    metta.op(mk, name="ct-handle", effect=EffectClass.writesState)
     answers = metta.run("!(ct-handle 5)")
     assert isinstance(answers[0][0], Grounded)
 
@@ -344,7 +387,7 @@ def test_a_metta_hook_projects_from_an_op(metta):  # noqa: D103  -- pytest disco
     def mk():
         return _CtHooked()
 
-    metta.op(mk, name="ct-hooked")
+    metta.op(mk, name="ct-hooked", effect=EffectClass.pureStructural)
     assert [str(a) for a in metta.run("!(ct-hooked)")[0]] == ["(hooked yes)"]
 
 

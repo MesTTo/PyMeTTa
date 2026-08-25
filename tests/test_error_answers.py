@@ -168,7 +168,7 @@ def test_an_op_authors_exception_stays_wrapped(metta):  # noqa: D103  -- pytest 
         msg = "nope"
         raise ValueError(msg)
 
-    metta.op(moodyop)
+    metta.op(moodyop, effect="pureStructural")
     try:
         with pytest.raises(EngineError):
             metta.run("!(moodyop 1)")

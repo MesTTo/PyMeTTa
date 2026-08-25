@@ -14,6 +14,9 @@ Guarantees:
     word vocabulary while bracket access remains exact and composite
     operators refuse with their honest images [tested:
     test_operator_words_precede_the_mechanical_name_map; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - mapped generator calls remain nondeterministic in definition effects
+    [tested: test_mapped_nondeterministic_calls_keep_their_call_role;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -34,6 +37,7 @@ import pytest
 
 from metta import Expression, S, V, Variable, fn
 from metta.errors import CompileError
+from metta.vocabularies import EffectClass
 
 
 @pytest.fixture()
@@ -223,7 +227,10 @@ def test_mapped_nondeterministic_calls_keep_their_call_role(m):
     delegated = m.define(_delegate_mapped_values)
     iterated = m.define(_iterate_mapped_values)
 
-    assert delegated.facts.pure
+    assert delegated.facts.effect is EffectClass.nondeterministicReadOnly
+    assert iterated.facts.effect is EffectClass.nondeterministicReadOnly
+    assert not delegated.facts.pure
+    assert not iterated.facts.pure
     assert delegated() == [1, 2]
     assert iterated() == [1, 2]
 

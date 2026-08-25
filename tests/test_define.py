@@ -40,6 +40,7 @@ import pytest
 
 from metta import Expression, S, parse
 from metta.errors import CompileError, EngineError
+from metta.vocabularies import EffectClass
 
 hypothesis = pytest.importorskip("hypothesis")
 given = hypothesis.given
@@ -193,6 +194,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     assert observed.source_span.start_line == inspect.getsourcelines(ast_observed)[1]
     assert observed.free_variables == ("ast_helper",)
     assert observed.pure is True
+    assert observed.effect is EffectClass.pureStructural
     assert "pure" not in inspect.signature(m.define).parameters
 
     reflection = m._at("&petta")
@@ -216,7 +218,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
     free_fact = parse(
         "(free-variable " + m.name + " ast-observed ast_helper)"
     )
-    effect_fact = parse("(effect ast-observed immutable)")
+    effect_fact = parse("(effect ast-observed pureStructural)")
     assert free_fact in reflection
     assert effect_fact in reflection
     assert reflection.run(
@@ -237,7 +239,9 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
 
     replacement = m.define(ast_observed)
     assert replacement.pure is False
+    assert replacement.effect is EffectClass.oracleIO
     assert effect_fact not in reflection
+    assert parse("(effect ast-observed oracleIO)") in reflection
     assert len(
         reflection.match(
             parse("(source-span $space ast-observed $path $sl $sc $el $ec)")

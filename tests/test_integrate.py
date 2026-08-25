@@ -33,7 +33,12 @@ from metta.casting import CastError
 
 
 def test_module_ops_bulk_registers_a_stdlib_module(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    names = pi.module_ops(metta, math, ["sqrt", "floor", "gcd", "comb"])
+    names = pi.module_ops(
+        metta,
+        math,
+        ["sqrt", "floor", "gcd", "comb"],
+        effect="pureStructural",
+    )
     assert set(names) == {"sqrt", "floor", "gcd", "comb"}
     assert metta.run("!(sqrt 16.0)") == [[4.0]]
     assert metta.run("!(gcd 12 18)") == [[6]]
@@ -52,10 +57,20 @@ def test_uninspectable_callable_errors_are_classified(metta):  # noqa: D103  -- 
 
     target = Uninspectable()
     module = types.SimpleNamespace(__name__="uninspectable", target=target)
-    assert pi.module_ops(metta, module, ["target"]) == ["target"]
+    assert pi.module_ops(
+        metta,
+        module,
+        ["target"],
+        effect="pureStructural",
+    ) == ["target"]
     assert metta.run("!(target 7)") == [[7]]
     with pytest.raises(PettaError, match=r"pass arities=\[\.\.\.\]") as caught:
-        pi.wrap_callable(metta, "strict-target", target)
+        pi.wrap_callable(
+            metta,
+            "strict-target",
+            target,
+            effect="pureStructural",
+        )
     assert isinstance(caught.value.__cause__, TypeError)
 
 
@@ -64,7 +79,12 @@ def test_wrap_callable_rejects_required_keyword_only_parameters(metta):  # noqa:
         return value + required
 
     with pytest.raises(PettaError, match="required keyword-only parameter 'required'"):
-        pi.wrap_callable(metta, "keyword-only", target)
+        pi.wrap_callable(
+            metta,
+            "keyword-only",
+            target,
+            effect="pureStructural",
+        )
 
 
 def test_wrap_object_methods_with_effect_convention(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -79,7 +99,13 @@ def test_wrap_object_methods_with_effect_convention(metta):  # noqa: D103  -- py
             return len(self.items)
 
     store = Store()
-    pi.wrap_object(metta, "store", store, ["put", "size"])
+    pi.wrap_object(
+        metta,
+        "store",
+        store,
+        ["put", "size"],
+        effects={"put": "writesState", "size": "readOnlyLookup"},
+    )
     r = metta.run("!(store-put 42)\n!(store-put 43)\n!(store-size)")
     assert r == [[True], [True], [2]]
     assert store.items == [42, 43]
@@ -286,7 +312,7 @@ def test_networkx_integrates_in_a_page(metta):
         names = nx.shortest_path(graph, str(a), str(b), weight="weight")
         return Expression(*(S[n] for n in names))
 
-    space.op(shortest_path, name="nx-path")
+    space.op(shortest_path, name="nx-path", effect="readOnlyLookup")
     # And both compose with reasoning:
     assert space.run("!(nx-path a c)") == [[Expression(S.a, S.b, S.c)]]
     rows = space.match(S.nx_edge(S.a, V.to, V.w))

@@ -14,7 +14,7 @@ Guarantees:
   - _top_indices uses 35.26% fewer instructions than the prior full sort for
     500 top-10 selections from 100,000 scores [measured 2026-08-14: minimum
     of three perf stat instructions:u runs]
-  - the fixed public constructor vocabulary is marked immutable to type
+  - the fixed public constructor vocabulary is marked Final to type
     checkers [tested test_policy_constants_are_final]
   - all 44 installed operation names own arity-accurate arrows, and
     broadcast-shape relates compatible dimensions before any array exists
@@ -24,6 +24,12 @@ Guarantees:
     surface as every registered operation [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - operations returning mutable arrays are writesState, scalar inspections
+    are readOnlyLookup, random construction is oracleIO, and embedding search
+    is nondeterministicReadOnly [tested:
+    test_every_array_operation_is_typed_and_a_shape_is_a_constraint,
+    test_embedding_store_runs_on_numpy;
+    commit=WORKTREE]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]
@@ -256,6 +262,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         fn,
         *,
         name: str,
+        effect: str,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "raw",
         **kw,
@@ -272,7 +279,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             raise PettaError(
                 msg
             )
-        m.op(fn, name=name, transport=transport, **kw)
+        m.op(fn, name=name, effect=effect, transport=transport, **kw)
         registered.append(name)
         return fn
 
@@ -280,6 +287,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         fn,
         *,
         name: str,
+        effect: str,
         arities: list[int] | None = None,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "raw",
@@ -304,6 +312,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         op(
             fn,
             name=namespaced,
+            effect=effect,
             transport=transport,
             arities=arities,
             declarations=declarations,
@@ -356,6 +365,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     constructor(
         make_tensor,
         name="tensor",
+        effect="writesState",
         transport="encoded",
         declarations=[_expr(S.arguments, S.tensor, S.atoms)],
     )
@@ -374,11 +384,11 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def identity(n: int) -> DLTensor:
         return xp_default.eye(int(n))
 
-    constructor(zeros, name="zeros", arities=dims)
-    constructor(ones, name="ones", arities=dims)
-    constructor(_randn(xp_default), name="randn", arities=dims)
-    constructor(arange_tensor, name="arange-t")
-    constructor(identity, name="eye")
+    constructor(zeros, name="zeros", effect="writesState", arities=dims)
+    constructor(ones, name="ones", effect="writesState", arities=dims)
+    constructor(_randn(xp_default), name="randn", effect="oracleIO", arities=dims)
+    constructor(arange_tensor, name="arange-t", effect="writesState")
+    constructor(identity, name="eye", effect="writesState")
 
     # ---------------------------------------------------------------- algebra
 
@@ -388,7 +398,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             return fn(xp, a2, b2)
 
         call.__annotations__["b"] = second
-        op(call, name=name)
+        op(call, name=name, effect="writesState")
 
     binop(lambda xp, a, b: xp.matmul(a, b), "matmul", second=DLTensor)
     binop(lambda xp, a, b: xp.add(a, b), "t+")
@@ -405,9 +415,9 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def logarithm(a: DLTensor) -> DLTensor:
         return namespace_of(a).log(a)
 
-    op(negative, name="t-neg")
-    op(exponential, name="t-exp")
-    op(logarithm, name="t-log")
+    op(negative, name="t-neg", effect="writesState")
+    op(exponential, name="t-exp", effect="writesState")
+    op(logarithm, name="t-log", effect="writesState")
 
     def power(a: DLTensor, p: Any) -> DLTensor:
         # Through aligned() like every other binary operation, so a mixed
@@ -415,7 +425,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         a2, p2, xp = aligned(a, p)
         return xp.pow(a2, p2)
 
-    op(power, name="t-pow")
+    op(power, name="t-pow", effect="writesState")
 
     # ------------------------------------------------------------------ shape
 
@@ -437,11 +447,11 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def tensor_index(a: DLTensor, index: int) -> Any:
         return cast(Any, a)[int(index)]
 
-    op(reshape, name="reshape", arities=[2, 3, 4, 5])
-    op(transpose, name="t-transpose")
-    op(unsqueeze, name="unsqueeze")
-    op(squeeze, name="squeeze")
-    op(tensor_index, name="t-index")
+    op(reshape, name="reshape", effect="writesState", arities=[2, 3, 4, 5])
+    op(transpose, name="t-transpose", effect="writesState")
+    op(unsqueeze, name="unsqueeze", effect="writesState")
+    op(squeeze, name="squeeze", effect="writesState")
+    op(tensor_index, name="t-index", effect="writesState")
 
     # The tensor list is a VALUE these two decode member by member, so the
     # parameter is annotated by what it iterates rather than by the MeTTa atom
@@ -463,8 +473,8 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
             ground(namespace_of(parts[0]).stack(parts, axis=int(dimension)))
         )
 
-    op(cat_op, name="cat", transport="encoded")
-    op(stack_op, name="stack", transport="encoded")
+    op(cat_op, name="cat", effect="writesState", transport="encoded")
+    op(stack_op, name="stack", effect="writesState", transport="encoded")
 
     # ------------------------------------------------------------- reductions
 
@@ -480,10 +490,10 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def tensor_min(a: DLTensor) -> Any:
         return namespace_of(a).min(a)
 
-    op(tensor_sum, name="t-sum")
-    op(tensor_mean, name="t-mean")
-    op(tensor_max, name="t-max")
-    op(tensor_min, name="t-min")
+    op(tensor_sum, name="t-sum", effect="writesState")
+    op(tensor_mean, name="t-mean", effect="writesState")
+    op(tensor_max, name="t-max", effect="writesState")
+    op(tensor_min, name="t-min", effect="writesState")
 
     def argmax(a: DLTensor, dim: int = -1) -> Any:
         xp = namespace_of(a)
@@ -493,8 +503,8 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def tensor_norm(a: DLTensor) -> Any:
         return namespace_of(a).linalg.vector_norm(a)
 
-    op(argmax, name="t-argmax")
-    op(tensor_norm, name="t-norm")
+    op(argmax, name="t-argmax", effect="writesState")
+    op(tensor_norm, name="t-norm", effect="writesState")
 
     # ------------------------------------------------------------ activations
 
@@ -515,10 +525,10 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def hyperbolic_tangent(a: DLTensor) -> DLTensor:
         return namespace_of(a).tanh(a)
 
-    op(relu, name="relu")
-    op(sigmoid, name="sigmoid")
-    op(softmax, name="softmax")
-    op(hyperbolic_tangent, name="tanh")
+    op(relu, name="relu", effect="writesState")
+    op(sigmoid, name="sigmoid", effect="writesState")
+    op(softmax, name="softmax", effect="writesState")
+    op(hyperbolic_tangent, name="tanh", effect="writesState")
 
     # ------------------------------------------------------------------ exits
 
@@ -527,20 +537,20 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def item(a: Any) -> float:
         return float(a)
 
-    op(item, name="t-item")
+    op(item, name="t-item", effect="readOnlyLookup")
 
     def tolist(a: DLTensor) -> Any:
         data: Any = _decode(a) if isinstance(a, Atom) else a
         listed = data.tolist() if hasattr(data, "tolist") else list(data)
         return _expr(*listed) if isinstance(listed, list) else listed
 
-    op(tolist, name="t-tolist", transport="encoded")
+    op(tolist, name="t-tolist", effect="readOnlyLookup", transport="encoded")
 
     def shape(a: DLTensor) -> Expression:
         data: Any = _decode(a) if isinstance(a, Atom) else a
         return _expr(*[int(dimension) for dimension in data.shape])
 
-    op(shape, name="t-shape", transport="encoded")
+    op(shape, name="t-shape", effect="readOnlyLookup", transport="encoded")
 
     def dtype(a: DLTensor) -> str:
         return str(cast(Any, a).dtype)
@@ -548,8 +558,8 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
     def device(a: DLTensor) -> str:
         return str(_compat().device(a))
 
-    op(dtype, name="t-dtype")
-    op(device, name="t-device")
+    op(dtype, name="t-dtype", effect="readOnlyLookup")
+    op(device, name="t-device", effect="readOnlyLookup")
 
     def convert(a: DLTensor, lib: str) -> DLTensor:
         """(t-as $x numpy): the same values in another library, via DLPack."""
@@ -557,7 +567,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
         probe = target.zeros(0) if hasattr(target, "zeros") else target.asarray([0])
         return _compat().array_namespace(probe).from_dlpack(a)
 
-    op(convert, name="t-as")
+    op(convert, name="t-as", effect="oracleIO")
 
     ARRAY_OPS[:] = registered
     return registered
@@ -642,11 +652,13 @@ class EmbeddingStore:
         m.op(
             knn,
             name=internal_knn,
+            effect="nondeterministicReadOnly",
             declarations=[_expr(S.arguments, S[internal_knn], S.atoms)],
         )
         m.op(
             embed,
             name=internal_embed,
+            effect="readOnlyLookup",
             declarations=[_expr(S.arguments, S[internal_embed], S.atoms)],
         )
 

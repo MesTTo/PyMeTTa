@@ -180,7 +180,7 @@ def test_builtin_cache_invalidates_after_a_miss(tmp_path: Path) -> None:
     operation_name = "libfix-late-operation"
     assert operation_name not in target.builtins()
 
-    @target.op(name=operation_name)
+    @target.op(name=operation_name, effect="pureStructural")
     def late_operation(value):
         return value
 

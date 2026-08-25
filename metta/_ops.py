@@ -31,6 +31,9 @@ Guarantees:
     without a pass_atoms boolean [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - each operation record carries its canonical EffectClass and exposes
+    ``pure`` only as the structural-rank projection [tested:
+    test_every_effect_rank_registers_and_reflects; commit=WORKTREE]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -68,6 +71,7 @@ from ._convert_project import explicit_projection, project
 from .answer import Answer
 from .atoms import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _decode, _encode
 from .errors import NotReducible, PettaError, is_transport_failure
+from .vocabularies import EffectClass
 
 __all__ = [
     "REGISTRY",
@@ -93,15 +97,24 @@ class Operation:
     fn: Callable[..., Any]
     kind: str  # det | many | raw_det | raw_many
     arity: int
+    effect: EffectClass
     pass_atoms: bool = False  # derived from (arguments name atoms)
     space: _SpaceId | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
     catalog: tuple = ()  # policy atoms owned in &petta
     arities: tuple = ()  # every registered arity, for reflection facts
     inverse: Callable[..., Any] | None = None  # the backwards direction
-    pure: bool = False  # no effect a cache could hide
     parameter_annotations: tuple[Any, ...] = ()
     return_annotation: Any = Any
+
+    @property
+    def pure(self) -> bool:
+        """The legacy projection: true is rank 0, false is any rank 1-4.
+
+        The projection deliberately has no inverse: ``False`` cannot recover
+        which observable capability the operation declared.
+        """
+        return self.effect is EffectClass.pureStructural
 
 
 REGISTRY: dict[str, Operation] = {}

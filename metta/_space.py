@@ -195,6 +195,7 @@ from .vocabularies import (
     Atomicity,
     Delivery,
     Determinism,
+    EffectClass,
     EventOrder,
     Fidelity,
     ImageMode,
@@ -2096,6 +2097,7 @@ class Space(Handle):
         name: str | None = ...,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = ...,
+        effect: EffectClass | str,
         declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
         inverse: Callable | None = ...,
@@ -2108,6 +2110,7 @@ class Space(Handle):
         name: str | None = ...,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = ...,
+        effect: EffectClass | str,
         declarations: Iterable[Atom] = ...,
         arities: list[int] | None = ...,
         inverse: Callable | None = ...,
@@ -2120,17 +2123,18 @@ class Space(Handle):
         name: str | None = None,
         # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
+        effect: EffectClass | str | None = None,
         declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,
         inverse: Callable | None = None,
     ) -> Any:
         """Register a Python callable as a MeTTa function, decorator-style.
 
-            @m.op
+            @m.op(effect=EffectClass.pureStructural)
             def double(x: int) -> int:
                 return 2 * x                    # !(double 21) -> 42
 
-            @m.op
+            @m.op(effect=EffectClass.nondeterministicReadOnly)
             def neighbours(n: int):
                 yield n - 1                     # a generator is nondeterministic
                 yield n + 1
@@ -2153,7 +2157,7 @@ class Space(Handle):
         An `Atom` parameter changes evaluation order. The declaration tells
         the compiler to pass the argument as written, before it reduces:
 
-            @m.op
+            @m.op(effect=EffectClass.pureStructural)
             def anyatom(term: Atom) -> Atom:
                 return term
 
@@ -2170,6 +2174,7 @@ class Space(Handle):
             m.op(
                 inspect_atom,
                 name="inspect-atom",
+                effect=EffectClass.pureStructural,
                 declarations=[parse("(arguments inspect-atom atoms)")],
             )
 
@@ -2195,7 +2200,12 @@ class Space(Handle):
         inverse gives the operation a BACKWARDS direction, so it can stand in
         a pattern position the way a MeTTa equation does:
 
-            m.op(cons, name="cons", inverse=uncons)
+            m.op(
+                cons,
+                name="cons",
+                inverse=uncons,
+                effect=EffectClass.pureStructural,
+            )
             # !(let (cons $h $t) (1 2 3) ($h $t))  ->  (1 (2 3))
 
         It takes the result and returns the arguments, as a tuple, or the
@@ -2212,19 +2222,19 @@ class Space(Handle):
         arities or the declared arrow, and only operations that ask pay
         the weaving:
 
-            @m.op
+            @m.op(effect=EffectClass.nondeterministicReadOnly)
             def related(term, engine: metta.MeTTa):
                 for row in engine.match(Expression(S.link, term, V.x)):
                     yield row[0]
 
-        Purity is a seam declaration rather than a Python boolean. Supply the
-        ordinary effect atom to let the operation appear in a `(tabled ...)`
-        or memoized body:
+        Every operation declares its strongest observable effect. The five
+        ordered choices are ``pureStructural``, ``readOnlyLookup``,
+        ``nondeterministicReadOnly``, ``writesState``, and ``oracleIO``:
 
             m.op(
                 len,
                 name="size",
-                declarations=[parse("(effect size immutable)")],
+                effect=EffectClass.pureStructural,
             )
             # (= (count-of $x) (size $x))  is cacheable
 
@@ -2239,6 +2249,7 @@ class Space(Handle):
                 f,
                 name=name,
                 transport=transport,
+                effect=effect,
                 declarations=declarations,
                 space=self._space,
                 arities=arities,
