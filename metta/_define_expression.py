@@ -30,6 +30,10 @@ Guarantees:
   - imported ``functools.reduce`` lowers named reducers to ``foldl-atom`` and
     lambdas to its explicit accumulator/item template [tested:
     test_reduce_lowers_named_and_lambda_reducers; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - a closed-over State mention and its ``.value`` property lower to the
+    engine cell handle and ``get-state`` rather than host attribute access
+    [tested: test_compiled_state_properties_round_trip_through_engine_heads;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -53,6 +57,7 @@ from ._name_mapping import (
     operator_attribute_target,
     resolve_known_name,
 )
+from ._state import State
 from .atoms import Atom, Expression, Grounded, Handle, Symbol, Variable
 from .errors import CompileError
 
@@ -185,6 +190,8 @@ class ExpressionCompilerMixin(CompilerContext):
         host_value = self.host_value(node.id)
         if isinstance(host_value, Handle):
             return host_value
+        if isinstance(host_value, State):
+            return host_value.__metta__()
         known = self._known_symbol(node.id)
         if known is not None:
             return known
@@ -301,11 +308,26 @@ class ExpressionCompilerMixin(CompilerContext):
         mention = self._mention(node)
         if mention is not None:
             return mention
+        state_cell = self._state_cell(node)
+        if state_cell is not None:
+            return Expression([Symbol("get-state"), state_cell])
         msg = (
             f"{ast.unparse(node)!r} is host attribute access, not a compiled "
             "atom. Use S, V, or fn without shadowing, or register a plain-name operation."
         )
         raise CompileError(msg, construct="attribute", line=node.lineno)
+
+    def _state_cell(self, node: ast.expr) -> Atom | None:
+        """Resolve exactly ``closed_over_state.value`` to its engine cell."""
+        if (
+            not isinstance(node, ast.Attribute)
+            or node.attr != "value"
+            or not isinstance(node.value, ast.Name)
+            or node.value.id in self.scope
+        ):
+            return None
+        held = self.host_value(node.value.id)
+        return held.__metta__() if isinstance(held, State) else None
 
     def _constructor_symbol(self, node: ast.Name) -> Symbol:
         if self.host(node.id):

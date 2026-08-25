@@ -57,8 +57,10 @@ FINAL_METTA_METHODS = 20
 # and therefore needs no name; +1 for doc, the get-doc receiver verb on the
 # default context, landing beside match and eval; +2 for the library import
 # door, `lib` the catalog-generated namespace the write door consumes and
-# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25).
-FINAL_METTA_EXPORTS = 92
+# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +1
+# for the exact ``metta.speculate()`` module-tier spelling required by style
+# ledger ``ai-python-conventions.md:1732-1733``.
+FINAL_METTA_EXPORTS = 93
 
 SATELLITES = {
     "aio",

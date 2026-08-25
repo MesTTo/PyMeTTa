@@ -40,6 +40,9 @@ Guarantees:
   - module define/cache/stats/limits/strict/trace verbs defer engine creation
     until called and target the default self space [tested:
     test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``speculate()`` is the exact module-tier spelling for the default
+    receiver's discarded execution scope [tested:
+    test_speculative_execution_discards_its_event_segment; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -344,6 +347,11 @@ def strict():
     return engine().self.strict()
 
 
+def speculate():
+    """Evaluate default-context calls against discarded engine snapshots."""
+    return engine().self.speculative()
+
+
 def trace(source: str, *, max_events: int = 10_000):
     """Trace source in the default self space."""
     return engine().self.trace(source, max_events=max_events)
@@ -436,6 +444,7 @@ __all__ = [
     "space",
     "spaces",
     "spawn",
+    "speculate",
     "stats",
     "strict",
     "structures",

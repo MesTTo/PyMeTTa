@@ -18,6 +18,10 @@ Guarantees:
     turns an added py-field atom into setattr [tested:
     test_a_query_joins_stored_atoms_with_live_object_fields;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - union, readonly, mapped, and overlay snapshot each member once; a live
+    member without the explicit snapshot protocol refuses by member name
+    [tested: test_reify_refuses_and_names_a_live_composite_member;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -47,7 +51,7 @@ from .atoms import (
     unify,
 )
 from .errors import PettaError
-from .foreign import Matcher, SpaceProvider
+from .foreign import Matcher, Snapshotter, SpaceProvider
 from .structures import _canonical
 
 __all__ = [
@@ -333,6 +337,26 @@ class _Member:
     def clear(self) -> None:
         self.target.clear()
 
+    def snapshot(self) -> tuple[Atom, ...]:
+        """Capture this member once, never via a live enumeration fallback."""
+        source = self.target
+        if self._is_space:
+            backing = getattr(self.target, "_backing", None)
+            if backing is None:
+                return tuple(self.target.atoms())
+            source = backing
+        if not isinstance(source, Snapshotter):
+            msg = (
+                f"cannot reify {self.describe()}: member "
+                f"{type(source).__name__} is live and provides no snapshot()"
+            )
+            raise PettaError(msg)
+        captured = tuple(source.snapshot())
+        if any(not isinstance(atom, Atom) for atom in captured):
+            msg = f"{self.describe()}.snapshot() returned a non-Atom member"
+            raise PettaError(msg)
+        return captured
+
     def describe(self) -> str:
         if self._is_space:
             return str(self.target.name)
@@ -358,6 +382,10 @@ class _Union(SpaceProvider):
     def match(self, pattern: Atom) -> Iterator[Atom]:
         for member in self._members:
             yield from member.match(pattern)
+
+    def snapshot(self) -> tuple[Atom, ...]:
+        """One immutable concatenation of one snapshot per member."""
+        return tuple(atom for member in self._members for atom in member.snapshot())
 
     def __repr__(self) -> str:
         inside = ", ".join(member.describe() for member in self._members)
@@ -395,6 +423,10 @@ class _ReadOnly(SpaceProvider):
 
     def match(self, pattern: Atom) -> Iterator[Atom]:
         return self._member.match(pattern)
+
+    def snapshot(self) -> tuple[Atom, ...]:
+        """Snapshot the same inner contents while retaining no write door."""
+        return self._member.snapshot()
 
     def __repr__(self) -> str:
         return f"<readonly {self._member.describe()}>"
@@ -452,6 +484,11 @@ class _Mapped(SpaceProvider):
             outward = self._outward(candidate)
             if outward is not None:
                 yield outward
+
+    def snapshot(self) -> tuple[Atom, ...]:
+        """Map one immutable inner capture into this view's outward shape."""
+        outward = (self._outward(atom) for atom in self._member.snapshot())
+        return tuple(atom for atom in outward if atom is not None)
 
     def add(self, atom: Atom) -> None:
         inward = self._inward(atom)
@@ -527,6 +564,10 @@ class _Overlay(SpaceProvider):
     def match(self, pattern: Atom) -> Iterator[Atom]:
         yield from self._front.match(pattern)
         yield from self._back.match(pattern)
+
+    def snapshot(self) -> tuple[Atom, ...]:
+        """Capture front then back, preserving overlay enumeration order."""
+        return (*self._front.snapshot(), *self._back.snapshot())
 
     def add(self, atom: Atom) -> None:
         self._front.add(atom)

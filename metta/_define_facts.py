@@ -12,6 +12,10 @@ Guarantees:
   - purity checks resolve compiled callees under the same catalog spelling
     rule as expression lowering [tested:
     test_mapped_nondeterministic_calls_keep_their_call_role; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - a ``.value`` access is conservatively mutable-state dependent, so a
+    compiled State read or write cannot be advertised as immutable [tested:
+    test_compiled_state_properties_round_trip_through_engine_heads;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -124,6 +128,11 @@ class _Purity(ast.NodeVisitor):
                 # unknown lowercase call will be refused by compilation, but
                 # is conservatively impure if this analysis is used alone.
                 self.result = False
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        if node.attr == "value":
+            self.result = False
         self.generic_visit(node)
 
 

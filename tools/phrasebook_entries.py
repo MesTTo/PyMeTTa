@@ -20,6 +20,9 @@ Guarantees:
     checked out [tested: test_the_phrasebook_covers_every_leatta_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+  - the Python-first additions table names the exact speculate and immutable
+    world spellings [tested: test_python_first_world_faces_are_in_the_phrasebook;
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -94,6 +97,39 @@ class Entry:
     differs: str | None = None
     unrun: str | None = None
     ruled: str | None = None
+
+
+@dataclass(frozen=True)
+class PublicFace:
+    """One Python-first public spelling with no LeaTTa stdlib row."""
+
+    spelling: str
+    meaning: str
+    example: str
+
+
+PUBLIC_FACES: tuple[PublicFace, ...] = (
+    PublicFace(
+        "metta.speculate()",
+        "scope each default-context execution as a discarded segment",
+        "with metta.speculate():\n    metta.run(source)",
+    ),
+    PublicFace(
+        "space.reify()",
+        "capture an immutable evaluable world value, distinct from listing atoms",
+        "world = space.reify()",
+    ),
+    PublicFace(
+        "world.eval(target)",
+        "evaluate without touching the parent and return answers plus a successor world",
+        "answers, successor = world.eval(target)",
+    ),
+    PublicFace(
+        "space.commit(world)",
+        "land the world's base-relative diff as ordinary post-commit writes and events",
+        "space.commit(successor)",
+    ),
+)
 
 
 NUMBER2 = "(-> Number Number Number)"

@@ -102,8 +102,14 @@ HOST_SERVICES = {
     "petta_on_error_mode/3",
     "petta_name_pairs/2",
     "petta_source_reset/1",
+    # Speculation and State fencing are engine-owned execution/store doors.
+    # A host selects the boundary but does not reimplement snapshot rollback,
+    # the non-backtrackable State guard, or live-cell identity.
+    "petta_speculate/1",
     "petta_transaction/1",
     "petta_transport_failure/1",
+    "petta_with_state_write_fence/1",
+    "petta_live_state_cell/1",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -191,8 +197,11 @@ FLOOR_REASONS = {
     "petta_on_error_mode/3": "host-choice",
     "petta_name_pairs/2": "codec",
     "petta_source_reset/1": "door",
+    "petta_speculate/1": "door",
     "petta_transaction/1": "door",
     "petta_transport_failure/1": "error-vocabulary",
+    "petta_with_state_write_fence/1": "door",
+    "petta_live_state_cell/1": "door",
     "sread_with_names/3": "codec",
     "swrite_with_names/3": "codec",
     "translate_cached_expr/3": "codec",

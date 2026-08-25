@@ -4,6 +4,13 @@
 %   derivations on top of an unmodified PeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - atomic entry points publish atom hooks after commit, while speculative
+%     and reified-world entry points discard their buffered event segments;
+%     speculative and world execution also fence the non-backtrackable State
+%     store [tested: test_events_publish_only_after_transaction_commit,
+%     test_atomic_scope_commits_or_discards_one_event_segment,
+%     test_speculative_execution_discards_its_event_segment,
+%     test_world_eval_fences_state_and_emits_nothing; commit=WORKTREE].
 %   - an empty direct eval preserves a guarded head with no matching clause
 %     as a not-reducible answer while a matched empty body stays empty [tested:
 %     test_eval_keeps_unreduced_guarded_head_and_status; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
@@ -706,6 +713,7 @@ petta_py_wrappable(petta_py_eval_count).
 petta_py_wrappable(petta_py_derivation).
 petta_py_wrappable(petta_py_load).
 petta_py_wrappable(petta_py_fast_load_unit).
+petta_py_wrappable(petta_py_world_eval).
 
 petta_py_fast_load_unit(File, Space, []) :-
     petta_py_fast_load(File, Space).
@@ -762,21 +770,21 @@ petta_py_stats([Inferences, CpuTime, GcCount, GcFreed, GcTimeMs, TableBytes]) :-
     statistics(garbage_collection, [GcCount, GcFreed, GcTimeMs|_]),
     statistics(table_space_used, TableBytes).
 
-%Run the wrapped call inside the engine's own transaction/1: its dynamic
-%writes, facts and equations alike, commit whole or roll back whole when
-%the goal fails or throws. This is the engine's inline (transaction ...)
-%form lifted over a whole entry point. Subscription callbacks fire when a
-%write happens and are not unfired by a rollback, and the Python-side
-%effects of operations are equally the caller's own.
+%Run the wrapped call through the engine's user-transaction coordinator:
+%dynamic state and enlisted providers finish first, then the buffered atom
+%event segment is published. A failure or throw discards that segment with
+%the rolled-back writes.
 petta_py_atomic(Pred, Ins, Out) :-
     petta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    transaction(Goal).
+    petta_transaction(Goal).
 
 %Run against a frozen view and discard every change: snapshot/1, the
-%what-if reading. The answers return; the space stays as it was.
+%what-if reading. The answers return; the space stays as it was. Atom events
+%and process-shared State writes are effects a snapshot cannot roll back, so
+%the former stay in a discarded observation frame and the latter refuse.
 petta_py_speculative(Pred, Ins, Out) :-
     petta_py_wrapped_goal(Pred, Ins, Out, Goal),
-    snapshot(Goal).
+    petta_speculate(petta_with_state_write_fence(Goal)).
 
 %%%%%%%%%% Lazy cursors %%%%%%%%%%
 %
@@ -1108,6 +1116,83 @@ petta_py_target_term(Space, Target, Term) :-
         )
     ;   throw(error(domain_error(petta_py_wire_term, Target), none))
     ).
+
+%A reified world is evaluated in one fresh native space. Its base atoms are
+%replayed with both &self and the originating handle rebound to the scratch
+%space, so copied equations never write back through their old receiver. The
+%whole lifetime sits in one discarded observation frame and State fence; the
+%inner cleanup clears even on an evaluation exception, before the frame is
+%discarded. Atoms returned to Python replace the short-lived scratch handle
+%with the durable origin marker, ready for the next branch replay.
+petta_py_world_eval(Space, Origin, AtomWires, Target, [Answers, Stored]) :-
+    setup_call_cleanup(
+        seam:observation_begin,
+        setup_call_cleanup(
+            true,
+            petta_with_state_write_fence(
+                ( maplist(petta_py_world_add(Origin, Space), AtomWires),
+                  petta_py_target_term(Space, Target, Term0),
+                  petta_py_world_rebase(Term0, Origin, Space, Term),
+                  petta_py_world_eval_answers(Space, Term, Answers),
+                  petta_py_world_atoms(Space, Origin, Stored)
+                )),
+            petta_py_clear(Space)),
+        seam:observation_discard).
+
+petta_py_world_add(Origin, Space, Wire) :-
+    petta_py_decode_shared(Wire, Term0, _),
+    petta_py_world_rebase(Term0, Origin, Space, Term),
+    'add-atom'(Space, Term, _).
+
+petta_py_world_eval_answers(Space, Term, Answers) :-
+    findall(E, petta_py_eval_term_bounded(Space, Term, E), Found),
+    (   Found == [], petta_py_preserve_unmatched(Space, Term, Original)
+    ->  Answers = [Original]
+    ;   Answers = Found
+    ).
+
+petta_py_world_atoms(Space, Origin, Encoded) :-
+    findall(Wire,
+            ( 'get-atoms'(Space, Atom0),
+              petta_py_world_rebase(Atom0, Space, Origin, Atom),
+              petta_py_encode(Atom, Wire) ),
+            Encoded).
+
+%A provider-owned world commit has already landed and journaled its durable
+%delta. Decode the complete report before opening an observation frame, then
+%publish remove-before-add in the same ordering as the native commit door.
+%Callbacks therefore see the complete provider state, and a callback failure
+%is post-commit just as it is for a native transaction.
+petta_py_publish_world_diff(Space, RemovedWires, AddedWires) :-
+    maplist(petta_py_decode_world_atom, RemovedWires, Removed),
+    maplist(petta_py_decode_world_atom, AddedWires, Added),
+    seam:observation_begin,
+    maplist(petta_py_world_observe(removed, Space), Removed),
+    maplist(petta_py_world_observe(added, Space), Added),
+    seam:observation_commit.
+
+petta_py_decode_world_atom(Wire, Atom) :-
+    petta_py_decode_shared(Wire, Atom, _).
+
+petta_py_world_observe(Action, Space, Atom) :-
+    seam:observe(Action, Space, Atom).
+
+petta_py_world_rebase(Term0, From, To, Term) :-
+    (   Term0 == From
+    ->  Term = To
+    ;   Term0 == '&self'
+    ->  Term = To
+    ;   var(Term0)
+    ->  Term = Term0
+    ;   atomic(Term0)
+    ->  Term = Term0
+    ;   is_list(Term0)
+    ->  maplist(petta_py_world_rebase_(From, To), Term0, Term)
+    ;   Term = Term0
+    ).
+
+petta_py_world_rebase_(From, To, Term0, Term) :-
+    petta_py_world_rebase(Term0, From, To, Term).
 
 %Print a tagged term the way PeTTa prints it:
 %A symbol spelled like a boolean has no faithful text form: the engine's
@@ -3133,9 +3218,11 @@ petta_py_unregister_foreign(Space0) :-
 
 %%%%%%%%%% Subscriptions %%%%%%%%%%
 %
-% Standing queries: when Python has subscribers, every space write crosses
-% to petta_ops for pattern matching and callbacks, synchronously, inside
-% the write. The hook clauses exist only while at least one space is watched.
+% Standing queries: when Python has subscribers, every committed space write
+% crosses to petta_ops for pattern matching and callbacks. An unscoped write
+% crosses immediately; a transaction's segment crosses after commit, and a
+% discarded segment never crosses. The hook clauses exist only while at least
+% one space is watched.
 % Their guard is one dynamic fact per subscribed space, first-arg indexed, so
 % an unwatched space never crosses to Python while another space is watched.
 

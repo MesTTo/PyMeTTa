@@ -22,6 +22,10 @@ Guarantees:
     test_an_annotated_binding_emits_its_claim,
     translator_typed_let:a_source_colon_pair_stays_a_pattern;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - assignment and augmented assignment to a closed-over ``State.value``
+    lower to ``change-state!`` while preserving Python's read-before-write
+    order [tested: test_compiled_state_properties_round_trip_through_engine_heads;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -426,6 +430,40 @@ class StatementCompilerMixin(CompilerContext):
         The value compiles BEFORE the target rebinds, so `x = x + 1` reads
         the old x on the right and writes a fresh variable on the left.
         """
+        state_cell = self._state_binding_target(head)
+        if state_cell is not None:
+            if isinstance(head, ast.AugAssign):
+                state_target = head.target
+                assert isinstance(state_target, ast.Attribute)
+                value_node: ast.expr | None = ast.BinOp(
+                    left=ast.copy_location(
+                        ast.Attribute(
+                            value=state_target.value,
+                            attr=state_target.attr,
+                            ctx=ast.Load(),
+                        ),
+                        state_target,
+                    ),
+                    op=head.op,
+                    right=head.value,
+                    lineno=head.lineno,
+                    col_offset=head.col_offset,
+                )
+            else:
+                value_node = head.value
+            if value_node is None:
+                msg = "an annotation without a value writes no State cell"
+                raise CompileError(
+                    msg,
+                    construct="annotation",
+                    line=head.lineno,
+                )
+            state_value = self.expression(value_node)
+            discard = Variable(self._bind("_"))
+            return discard, Expression(
+                [Symbol("change-state!"), state_cell, state_value]
+            )
+
         value: Atom
         if isinstance(head, ast.AugAssign):
             target_name = _name_of(head.target, head.lineno)
@@ -514,6 +552,19 @@ class StatementCompilerMixin(CompilerContext):
             claim = Expression([Symbol(":"), variable, self.annotation_atom(head.annotation)])
             variable = Expression([Symbol("__petta_typed_binding__"), claim])
         return variable, value
+
+    def _state_binding_target(
+        self,
+        head: ast.Assign | ast.AnnAssign | ast.AugAssign,
+    ) -> Atom | None:
+        """The live State cell targeted by one property assignment, if any."""
+        if isinstance(head, ast.Assign):
+            if len(head.targets) != 1:
+                return None
+            target = head.targets[0]
+        else:
+            target = head.target
+        return self._state_cell(target)
 
     def if_statement(self, node: ast.If, rest: list[ast.stmt], continue_with) -> Atom:
         test = self._truthy(node.test)

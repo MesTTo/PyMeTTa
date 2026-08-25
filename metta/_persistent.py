@@ -24,6 +24,16 @@ Guarantees:
     test_every_truncation_point_of_the_torn_tail_classifies,
     test_a_terminated_record_is_refused_rather_than_truncated;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - snapshot() captures one locked immutable tuple, and add refuses a live
+    engine State cell before any persistent updater can append its handle
+    [tested: test_a_live_state_cell_never_enters_the_persistent_journal;
+    commit=WORKTREE]
+  - every supported mutation crosses this engine's hooks, so subscriptions
+    receive each committed write once in order while rolled-back provider
+    transactions remain unjournaled and unannounced
+    [tested: test_a_journal_transaction_publishes_only_its_committed_delta,
+    test_a_speculative_journal_write_is_neither_persisted_nor_published;
+    commit=WORKTREE]
 Owns resources:
   - PersistentFactSpace owns one process path claim, one generated module,
     and one journal attachment until close or constructor rollback
@@ -47,8 +57,10 @@ import itertools
 import logging
 import os
 import threading
+from collections import Counter
 from collections.abc import Iterator, Mapping
 from contextlib import ExitStack
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +98,9 @@ _HELPER_ARITIES = {
     "match": 2,
     "add": 2,
     "remove": 3,
+    "apply_add": 1,
+    "apply_remove": 1,
+    "apply_diff": 2,
     "clear_one": 2,
     "clear": 0,
     "validate_native": 1,
@@ -340,6 +355,36 @@ def _module_source(
         ; Removed = 0
         )).
 
+%A world or staged provider transaction has already validated every member
+%and computed its exact multiset delta. Apply the whole delta under the same
+%module mutex and one SWI transaction, removing before adding just like the
+%native world door. library(persistency) journals each updater as an ordinary
+%retract/assert record, so replay sees facts rather than an opaque world blob.
+{helpers["apply_remove"]}([Head, Wires]) :-
+    {helpers["schema"]}(Head, Arity),
+    length(Wires, Arity),
+    maplist({helpers["decode"]}, Wires, Args),
+    atom_concat(retract_, Head, RetractHead),
+    Retract =.. [RetractHead | Args],
+    ( call(Retract)
+    -> true
+    ;  Fact =.. [Head | Args],
+       throw(error(existence_error(persistent_fact, Fact), _))
+    ).
+
+{helpers["apply_add"]}([Head, Wires]) :-
+    {helpers["schema"]}(Head, Arity),
+    length(Wires, Arity),
+    maplist({helpers["decode"]}, Wires, Args),
+    atom_concat(assert_, Head, AssertHead),
+    Assert =.. [AssertHead | Args],
+    call(Assert).
+
+{helpers["apply_diff"]}(Removed, Added) :-
+    with_mutex({mutex},
+        transaction(( maplist({helpers["apply_remove"]}, Removed),
+                      maplist({helpers["apply_add"]}, Added) ))).
+
 {helpers["clear_one"]}(Head, Arity) :-
     length(Args, Arity),
     atom_concat(retractall_, Head, RetractHead),
@@ -499,6 +544,31 @@ def _persistent_argument_wire(
     raise PettaError(msg)
 
 
+@dataclass
+class _TransactionState:
+    """One thread's optimistic journal transaction."""
+
+    base: tuple[Atom, ...]
+    atoms: list[Atom]
+
+
+def _ordered_surplus(left: list[Atom], right: list[Atom]) -> list[Atom]:
+    """Ordered multiset subtraction for hashable persistent facts."""
+    remaining = Counter(right)
+    surplus = []
+    for atom in left:
+        if remaining[atom]:
+            remaining[atom] -= 1
+        else:
+            surplus.append(atom)
+    return surplus
+
+
+def _same_multiset(left: tuple[Atom, ...], right: tuple[Atom, ...]) -> bool:
+    """Whether two persistent snapshots carry the same facts and counts."""
+    return Counter(left) == Counter(right)
+
+
 class PersistentFactSpace(SpaceProvider):
     """A fixed-schema fact space backed by an append-only text journal.
 
@@ -531,6 +601,10 @@ class PersistentFactSpace(SpaceProvider):
 
     _SYNC_MODES = ("none", "flush", "close")
 
+    def delivers(self) -> tuple[str, str]:
+        """Declare the engine hooks as this exclusively attached store's stream."""
+        return ("per-write-exactly", "ordered")
+
     def __init__(
         self,
         path: str | os.PathLike[str],
@@ -550,6 +624,7 @@ class PersistentFactSpace(SpaceProvider):
         self._module_loaded = False
         self._module_released = False
         self._call_lock = threading.RLock()
+        self._transaction_local = threading.local()
         self._closed = True
         self._claimed = False
         self._write_failure: str | None = None
@@ -597,18 +672,35 @@ class PersistentFactSpace(SpaceProvider):
             and isinstance(pattern.head, Symbol)
             and pattern.head.name in self._schema
         ):
-            return iter(self._facts(pattern.head.name))
+            return iter(self._visible_facts(pattern.head.name))
         return self.atoms()
 
     def atoms(self) -> Iterator[Atom]:
-        return iter(self._facts())
+        return iter(self._visible_facts())
+
+    def snapshot(self) -> tuple[Atom, ...]:
+        """Capture one immutable journal view under the provider call lock."""
+        with self._call_lock:
+            return tuple(self._visible_facts())
 
     def add(self, atom: Atom) -> None:
-        head, wires = self._fact_parts(atom, "add")
+        head, wires = self._fact_parts(atom, "add", durable=True)
+        transaction_state = self._transaction_state()
+        if transaction_state is not None:
+            transaction_state.atoms.append(atom)
+            return
         self._write_call("add", "Head, Wires", {"Head": head, "Wires": wires})
 
     def remove(self, atom: Atom) -> bool:
         head, wires = self._fact_parts(atom, "remove")
+        transaction_state = self._transaction_state()
+        if transaction_state is not None:
+            try:
+                index = transaction_state.atoms.index(atom)
+            except ValueError:
+                return False
+            transaction_state.atoms.pop(index)
+            return True
         row = self._write_call(
             "remove",
             "Head, Wires, Removed",
@@ -622,7 +714,53 @@ class PersistentFactSpace(SpaceProvider):
 
     def clear(self) -> None:
         """Remove every stored fact while keeping the declared schema."""
+        transaction_state = self._transaction_state()
+        if transaction_state is not None:
+            transaction_state.atoms.clear()
+            return
         self._write_call("clear")
+
+    def begin(self) -> None:
+        """Start one optimistic provider transaction for the current thread."""
+        with self._call_lock:
+            parent = self._transaction_state()
+            base = tuple(self._facts()) if parent is None else tuple(parent.atoms)
+            self._transaction_stack().append(_TransactionState(base, list(base)))
+
+    def commit(self) -> None:
+        """Journal the staged multiset diff, refusing a concurrent stale base."""
+        transaction_state = self._require_transaction_state("commit")
+        removed = _ordered_surplus(
+            list(transaction_state.base), transaction_state.atoms
+        )
+        added = _ordered_surplus(
+            transaction_state.atoms, list(transaction_state.base)
+        )
+        try:
+            stack = self._transaction_stack()
+            if len(stack) > 1:
+                stack[-2].atoms = list(transaction_state.atoms)
+            else:
+                self._commit_diff(transaction_state.base, removed, added)
+        finally:
+            self._transaction_stack().pop()
+
+    def rollback(self) -> None:
+        """Discard the current thread's unjournaled staged facts."""
+        self._require_transaction_state("rollback")
+        self._transaction_stack().pop()
+
+    def commit_world(
+        self,
+        base: tuple[Atom, ...],
+        removed: list[Atom],
+        added: list[Atom],
+    ) -> None:
+        """Journal one immutable world's ordinary fact diff."""
+        if self._transaction_state() is not None:
+            msg = "cannot commit a reified world inside a provider transaction"
+            raise PettaError(msg)
+        self._commit_diff(base, removed, added)
 
     def sync(self) -> None:
         """Reload journal changes that are safe to apply to this attachment."""
@@ -875,8 +1013,91 @@ class PersistentFactSpace(SpaceProvider):
             facts.append(fact)
         return facts
 
-    def _fact_parts(self, atom: Atom, verb: str) -> tuple[str, list[list[Any]]]:
+    def _visible_facts(self, head: str | None = None) -> list[Atom]:
+        """Return this thread's staged view, or the durable provider view."""
+        transaction_state = self._transaction_state()
+        if transaction_state is None:
+            return self._facts(head)
+        facts = list(transaction_state.atoms)
+        if head is None:
+            return facts
+        return [
+            atom
+            for atom in facts
+            if isinstance(atom, Expression)
+            and isinstance(atom.head, Symbol)
+            and atom.head.name == head
+        ]
+
+    def _transaction_state(self) -> _TransactionState | None:
+        """Return the current thread's provider transaction, if any."""
+        stack = getattr(self._transaction_local, "stack", ())
+        return stack[-1] if stack else None
+
+    def _transaction_stack(self) -> list[_TransactionState]:
+        """Return this thread's nested provider savepoint stack."""
+        stack = getattr(self._transaction_local, "stack", None)
+        if stack is None:
+            stack = []
+            self._transaction_local.stack = stack
+        return stack
+
+    def _require_transaction_state(self, operation: str) -> _TransactionState:
+        transaction_state = self._transaction_state()
+        if transaction_state is None:
+            msg = f"cannot {operation} persistent journal {self._path}: no transaction is active"
+            raise PettaError(msg)
+        return transaction_state
+
+    def _commit_diff(
+        self,
+        base: tuple[Atom, ...],
+        removed: list[Atom],
+        added: list[Atom],
+    ) -> None:
+        """Validate and journal one base-relative multiset delta under one lock."""
+        with self._call_lock:
+            current = tuple(self._facts())
+            if not _same_multiset(current, base):
+                msg = (
+                    f"persistent journal {self._path} changed after its base was "
+                    "captured; refusing a stale diff"
+                )
+                raise PettaError(msg)
+            removed_parts = [
+                list(self._fact_parts(atom, "commit world removal"))
+                for atom in removed
+            ]
+            added_parts = [
+                list(self._fact_parts(atom, "commit world addition", durable=True))
+                for atom in added
+            ]
+            if removed_parts or added_parts:
+                self._write_call(
+                    "apply_diff",
+                    "Removed, Added",
+                    {"Removed": removed_parts, "Added": added_parts},
+                )
+
+    def _fact_parts(
+        self,
+        atom: Atom,
+        verb: str,
+        *,
+        durable: bool = False,
+    ) -> tuple[str, list[list[Any]]]:
         head, arguments = _validated_fact_head(atom, verb, self._schema)
+        if durable:
+            for argument in arguments:
+                if isinstance(argument, Symbol) and self._runtime.once(
+                    "petta_live_state_cell(Cell)", Cell=argument.name
+                ):
+                    msg = (
+                        f"cannot {verb} {atom}: {argument} is a live State "
+                        "cell whose process-local value cannot survive "
+                        "journal close and replay"
+                    )
+                    raise PettaError(msg)
         wires = [
             _persistent_argument_wire(atom, argument, index, verb)
             for index, argument in enumerate(arguments, start=1)

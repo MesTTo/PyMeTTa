@@ -141,7 +141,12 @@ is Python's own `assert`.
 #: check [measured 2026-08-25 through tools/twin_coverage.py
 #: examples/basics/identity.metta; provisional on the merged tree, the
 #: final release measure re-prices].
-BUDGET = 2822
+#: RE-PINNED 2026-08-26, 2822 to 2880, on the post-commit observation,
+#: immutable-world, and State-fence tree. The reading prices the combined
+#: engine source and compiled QLF layout; three fresh serial processes each
+#: read metta=2817 and twin=2880.
+#: [measured: 2880; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/basics/identity.metta; fixture=three fresh serial processes under the required PeTTa venv with worktree.sh artifacts; commit=WORKTREE]
+BUDGET = 2880
 
 
 def twin(m):

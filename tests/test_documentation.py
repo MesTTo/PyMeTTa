@@ -406,7 +406,7 @@ def test_the_extension_cost_tables_match_the_committed_pins():
         table = re.search(
             rf"^\| {re.escape(header)} \|.*\n\|[-| ]+\|\n((?:\|.*\n)+)",
             page,
-            re.M,
+            re.MULTILINE,
         )
         assert table, f"EXTENDING.md lost its '{header}' table"
         rows = {}
