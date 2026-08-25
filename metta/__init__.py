@@ -49,6 +49,10 @@ Guarantees:
     test_module_tier_op_forwards_identity_to_the_default_receiver,
     test_module_tier_op_registration_precedes_definition_compilation;
     commit=WORKTREE]
+  - ``py(expr)`` is an identity in ordinary Python and the exact visible marker
+    the definition compiler recognizes for an inline host island [tested:
+    test_py_is_identity_outside_a_compiled_body,
+    test_py_host_island_executes_per_engine_application; commit=WORKTREE]
   - under scopes an algebra through ContextVar state and the exact counting,
     tropical, probability, provenance, and ranking carriers stay lazy root
     exports [tested:
@@ -82,6 +86,7 @@ if _TYPE_CHECKING:
 
 from ._config import Config, config
 from ._fn import fn
+from ._host_island import py
 from ._library import Library, lib
 from ._version import __version__
 from .atoms import (
@@ -512,6 +517,7 @@ __all__ = [
     "paths",
     "prob",
     "prov",
+    "py",
     "race",
     "ranked",
     "reflection",

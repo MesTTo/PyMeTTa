@@ -51,6 +51,10 @@ Guarantees:
     bag-preserving memo store through cache_clear/cache_info
     [tested: test_a_cached_definition_preserves_duplicate_answers;
     commit=WORKTREE]
+  - exact ``py(expr)`` marker bindings become application-time host islands
+    carrying current SSA locals, live globals, source spans and loop context
+    [tested: test_py_host_island_executes_per_engine_application,
+    test_py_host_island_inside_loops_emits_exact_findings; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -64,6 +68,7 @@ import inspect
 import textwrap
 import types
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, NamedTuple, cast
 
 from ._define_expression import ExpressionCompilerMixin
@@ -72,6 +77,7 @@ from ._define_loops import LoopCompilerMixin
 from ._define_statements import StatementCompilerMixin, _is_generator, _superpose
 from ._define_twins import _python_twin
 from ._fn import fn as fn_namespace
+from ._host_island import py as _py_marker
 from ._name_mapping import resolve_known_name
 from ._rules import _defined_calls_are_staged
 from ._type_annotations import type_atoms_for
@@ -576,6 +582,10 @@ def compile_function(
     def host_value(identifier: str) -> Any:
         return namespace.get(identifier, _MISSING_HOST)
 
+    source_path = inspect.getsourcefile(fn) or inspect.getfile(fn)
+    if not (source_path.startswith("<") and source_path.endswith(">")):
+        source_path = str(Path(source_path).resolve())
+
     compiler = _Compiler(
         metta_name or fn.__name__,
         scope,
@@ -588,6 +598,10 @@ def compile_function(
         host_value=host_value,
         defined_name=defined_name,
         annotation_resolver=_annotation_resolver(fn),
+        function=fn,
+        source=source,
+        source_path=source_path,
+        first_line=first_line,
     )
     generator = _is_generator(definition)
     body: Atom
@@ -609,6 +623,9 @@ def compile_function(
         first_line=first_line,
         known=known,
         effect=_provided(effect, _unknown_effect),
+        host_island_names=frozenset(
+            identifier for identifier, value in namespace.items() if value is _py_marker
+        ),
     )
     twin = _python_twin(fn, patterns)
     twin.__doc__ = facts.doc
@@ -705,6 +722,11 @@ class _Compiler(
         hazards: set[str] | None = None,
         annotation_resolver: Callable[[ast.expr], Atom] | None = None,
         space_locals: set[str] | None = None,
+        function: types.FunctionType | None = None,
+        source: str = "",
+        source_path: str = "<unknown>",
+        first_line: int = 1,
+        loop_depth: int = 0,
     ):
         self.name = name
         # The Python spelling of the definition's own name, for recursion
@@ -749,6 +771,11 @@ class _Compiler(
         # mentions them, or the enclosing recursion loses its state.
         self.closer_names: list[str] = []
         self._annotation_resolver = annotation_resolver
+        self.function = function
+        self.source = source
+        self.source_path = source_path
+        self.first_line = first_line
+        self.loop_depth = loop_depth
         # Local names currently bound to a SPACE value: (context-space),
         # (new-space ...) or a closure handle. += and -= on one of these
         # are the write doors, never arithmetic; forks copy the set the
@@ -799,24 +826,10 @@ class _Compiler(
         return self._nested_compiler(self.scope.copy())
 
     def _nested_compiler(self, scope: dict[str, str]) -> _Compiler:
-        nested = _Compiler(
-            self.name,
+        nested = self._child_compiler(
             scope,
-            self.known,
             used=self.used,
-            nondet=self._given_nondet,
-            returns_bool=self.returns_bool,
-            aux=self.aux,
-            lifted=self.lifted,
             closer=self.closer,
-            pyname=self.pyname,
-            host=self.host,
-            builders=self.builders,
-            host_value=self.host_value,
-            defined_name=self.defined_name,
-            runtime_ops=self.runtime_ops,
-            hazards=self.hazards,
-            annotation_resolver=self._annotation_resolver,
             space_locals=self.space_locals.copy(),
         )
         nested.closer_names = self.closer_names.copy()
@@ -834,11 +847,22 @@ class _Compiler(
         """A compiler for a NEW equation (a loop helper, a lifted def):
         fresh variable namespace, shared aux and lifted registries.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        return self._child_compiler(params, used=None, closer=closer)
+
+    def _child_compiler(
+        self,
+        params: list[str] | dict[str, str],
+        *,
+        used: set[str] | None,
+        closer: Callable[[_Compiler], Atom] | None,
+        space_locals: set[str] | None = None,
+    ) -> _Compiler:
+        """Propagate shared definition context into every compiler child."""
         return _Compiler(
             self.name,
             params,
             self.known,
-            used=None,
+            used=used,
             nondet=self._given_nondet,
             returns_bool=self.returns_bool,
             aux=self.aux,
@@ -852,6 +876,12 @@ class _Compiler(
             runtime_ops=self.runtime_ops,
             hazards=self.hazards,
             annotation_resolver=self._annotation_resolver,
+            space_locals=space_locals,
+            function=self.function,
+            source=self.source,
+            source_path=self.source_path,
+            first_line=self.first_line,
+            loop_depth=self.loop_depth,
         )
 
     def _iteration(self, iter_node: ast.expr, var: str, body: Atom) -> Expression:

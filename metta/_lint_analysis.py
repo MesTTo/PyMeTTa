@@ -12,6 +12,9 @@ Guarantees:
   - a body calling a translator special form is not a finding, so the
     commonest shape in MeTTa, an equation whose body branches on `if`, lints
     clean [tested test_calling_a_special_form_is_not_an_undefined_reference]
+  - a compiled ``py(...)`` island retained under a repeated loop equation is
+    reported once per source island with its Python coordinates [tested:
+    test_py_host_island_inside_loops_emits_exact_findings; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -24,6 +27,7 @@ from collections import Counter
 from difflib import get_close_matches
 from typing import Any, TypeGuard
 
+from ._host_island import _HostIsland
 from ._lint_model import EngineRegistry, Finding
 from .atoms import Atom, Expression, Grounded, Symbol, Variable, _alpha_eq, _map_atoms, _variables
 
@@ -47,6 +51,16 @@ def _walk_heads(atom: Atom):
         if isinstance(current[0], Symbol):
             yield current
         stack.extend(reversed(current.children))
+
+
+def _walk_atoms(atom: Atom):
+    """Yield every atom iteratively, including non-symbol expression heads."""
+    stack = [atom]
+    while stack:
+        current = stack.pop()
+        yield current
+        if isinstance(current, Expression):
+            stack.extend(reversed(current.children))
 
 
 def _contains_binding_form(atom: Atom) -> bool:
@@ -436,6 +450,29 @@ def _equation_findings(
     return findings
 
 
+def _host_island_findings(equations: list[Expression]) -> list[Finding]:
+    """Report every explicit host crossing retained in repeated loop code."""
+    findings: list[Finding] = []
+    for equation in equations:
+        for atom in _walk_atoms(equation[2]):
+            if not isinstance(atom, Grounded):
+                continue
+            island = getattr(atom, "value", None)
+            if not isinstance(island, _HostIsland) or not island.in_loop:
+                continue
+            findings.append(
+                Finding(
+                    "host-island-in-loop",
+                    island.source,
+                    "crosses from the engine into Python on every loop iteration; "
+                    "move invariant host work before the loop, batch the crossing, "
+                    "or register a named @metta.op when repetition is intentional",
+                    equation,
+                    severity="warning",
+                    payload={"file": island.path, "line": island.line},
+                )
+            )
+    return findings
 
 
 # The seven syntactic simplification rules the TS linter carries, each
@@ -658,6 +695,7 @@ def analyze(space: Any, atoms: list[Atom], registry: EngineRegistry) -> list[Fin
         *_duplicate_findings(equations),
         *_subsumed_findings(equations),
         *_tabling_findings(equations, registry),
+        *_host_island_findings(equations),
         *_equation_findings(equations, fact_heads, registry),
         *_simplification_findings(equations),
         *_inconsistent_arity_findings(equations, declarations),

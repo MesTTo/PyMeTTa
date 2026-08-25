@@ -129,6 +129,7 @@ def test_python_first_world_faces_are_in_the_phrasebook():
     assert spellings == {
         "@metta.op(effect=...)",
         "metta.speculate()",
+        "py(expr)",
         "space.reify()",
         "world.eval(target)",
         "space.commit(world)",

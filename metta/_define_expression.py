@@ -38,6 +38,12 @@ Guarantees:
     engine cell handle and ``get-state`` rather than host attribute access
     [tested: test_compiled_state_properties_round_trip_through_engine_heads;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - exact ``py(expr)`` marker calls lower to application-time grounded host
+    islands, while unmarked unknown host calls refuse with a file/caret span
+    and both public remedies [tested:
+    test_py_host_island_executes_per_engine_application,
+    test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -56,6 +62,8 @@ from collections.abc import Callable
 
 from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext, next_aux_serial
+from ._host_island import _HostIsland
+from ._host_island import py as _py_marker
 from ._name_mapping import (
     attribute_name,
     operator_attribute_target,
@@ -315,6 +323,12 @@ class ExpressionCompilerMixin(CompilerContext):
         state_cell = self._state_cell(node)
         if state_cell is not None:
             return Expression([Symbol("get-state"), state_cell])
+        host_call = next(
+            (candidate for candidate in ast.walk(node) if isinstance(candidate, ast.Call)),
+            None,
+        )
+        if host_call is not None and not self._call_target_is_known(host_call.func):
+            raise self._unknown_host_callee(node, host_call)
         msg = (
             f"{ast.unparse(node)!r} is host attribute access, not a compiled "
             "atom. Use S, V, or fn without shadowing, or register a plain-name operation."
@@ -536,6 +550,7 @@ class ExpressionCompilerMixin(CompilerContext):
         # earlier clause's variable, but never its own.
         source = self.expression(gen.iter)
         inner = self._inner([var])
+        inner.loop_depth += 1
         stages = [
             self._stage(
                 "filter-atom",
@@ -572,6 +587,8 @@ class ExpressionCompilerMixin(CompilerContext):
         )
 
     def _x_Call(self, node: ast.Call) -> Atom:  # noqa: N802  -- the suffix mirrors ast node class names used by the translator's dynamic dispatch
+        if self._is_host_island_marker(node.func):
+            return self._host_island_call(node)
         if self._is_functools_reduce(node.func):
             return self._reduce_call(node)
         if node.keywords:
@@ -601,8 +618,125 @@ class ExpressionCompilerMixin(CompilerContext):
         # bridge to the engine functions that mean the same thing.
         if func.id in _PYBUILTIN_CALLS and func.id not in self.scope:
             return _PYBUILTIN_CALLS[func.id](self, node)
-        callee = self._x_Name(func)
+        try:
+            callee = self._x_Name(func)
+        except CompileError as error:
+            if error.construct == "free identifier":
+                raise self._unknown_host_callee(node, node) from None
+            raise
         return Expression([callee, *(self.expression(a) for a in node.args)])
+
+    def _is_host_island_marker(self, node: ast.expr) -> bool:
+        """Recognize the public marker by identity, including an import alias."""
+        return (
+            isinstance(node, ast.Name)
+            and node.id not in self.scope
+            and self.host_value(node.id) is _py_marker
+        )
+
+    def _call_target_is_known(self, node: ast.expr) -> bool:
+        """Whether call lowering already assigns this target engine meaning."""
+        if self._is_host_island_marker(node) or self._is_functools_reduce(node):
+            return True
+        if isinstance(node, ast.Name):
+            return (
+                node.id in self.scope
+                or node.id in _MAGIC
+                or node.id in self.lifted
+                or node.id in _PYBUILTIN_CALLS
+                or node.id[:1].isupper()
+                or self._resolved_name(node.id) is not None
+            )
+        if not (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id not in self.scope
+        ):
+            return False
+        owner = self.host_value(node.value.id)
+        return isinstance(owner, types.ModuleType) and callable_mention(
+            vars(owner).get(node.attr)
+        ) is not None
+
+    def _host_island_call(self, node: ast.Call) -> Atom:
+        """Compile the enclosed Python expression without executing it now."""
+        if node.keywords or len(node.args) != 1:
+            msg = "py(...) marks exactly one host expression and takes no keyword arguments"
+            raise CompileError(
+                msg,
+                construct="py host island",
+                line=node.lineno,
+            )
+        if self.function is None:
+            msg = "a py(...) island has no source function"
+            raise RuntimeError(msg)
+        expression = node.args[0]
+        runtime_names = tuple(
+            dict.fromkeys(
+                candidate.id
+                for candidate in ast.walk(expression)
+                if isinstance(candidate, ast.Name)
+                and isinstance(candidate.ctx, ast.Load)
+                and candidate.id in self.scope
+            )
+        )
+        island = _HostIsland(
+            self.function,
+            expression,
+            runtime_names,
+            source=self.source,
+            path=self.source_path,
+            first_line=self.first_line,
+            in_loop=self.loop_depth > 0,
+        )
+        return Expression(
+            [Grounded(island), *(Variable(self.scope[name]) for name in runtime_names)]
+        )
+
+    @staticmethod
+    def _character_column(line: str, byte_column: int) -> int:
+        """Translate Python AST's UTF-8 byte offset into a display column."""
+        return len(line.encode("utf-8")[:byte_column].decode("utf-8"))
+
+    def _unknown_host_callee(
+        self,
+        expression: ast.expr,
+        call: ast.Call,
+    ) -> CompileError:
+        """A compiler-grade refusal for an implicit host boundary crossing."""
+        called = ast.unparse(call)
+        host_expression = ast.unparse(expression)
+        message = "\n".join(
+            (
+                f"refused: `{called}` is an unknown callee",
+                "host attribute and computed calls do not cross into Python implicitly",
+                "remedy: extract the host call into an operation and call it by name:",
+                '   |     @metta.op(effect="oracleIO")',
+                "   |     def host_call(...): ...",
+                "or mark the host expression in place:",
+                f"   |     return py({host_expression})",
+            )
+        )
+        lines = self.source.splitlines()
+        source_line = lines[call.lineno - 1] if 0 < call.lineno <= len(lines) else ""
+        start = self._character_column(source_line, call.col_offset)
+        end_offset = (
+            call.end_col_offset
+            if call.end_lineno == call.lineno and call.end_col_offset is not None
+            else len(source_line.encode("utf-8"))
+        )
+        end = self._character_column(source_line, end_offset)
+        return CompileError(
+            message,
+            construct="unknown callee",
+            line=self.first_line + call.lineno - 1,
+            path=self.source_path,
+            source_line=source_line,
+            column=start,
+            end_column=end,
+            function=self.pyname,
+            annotation="not a parameter, a known function, or a data constructor",
+        )
 
     def _is_functools_reduce(self, node: ast.expr) -> bool:
         """Recognize the imported callable by identity, including an alias."""
@@ -720,18 +854,10 @@ class ExpressionCompilerMixin(CompilerContext):
             arguments[0] = Expression([Symbol("*"), Grounded(1.0), arguments[0]])
         return Expression([Symbol(mention), *arguments])
 
-    @staticmethod
-    def _attribute_call_error(node: ast.Call) -> CompileError:
-        return CompileError(
-            "an attribute call compiles only when it resolves to a standard "
-            "operator or math function with a MeTTa mention; register other "
-            "methods as operations and call them by name",
-            construct="call",
-            line=node.lineno,
-        )
+    def _attribute_call_error(self, node: ast.Call) -> CompileError:
+        return self._unknown_host_callee(node, node)
 
-    @staticmethod
-    def _plain_call_name(node: ast.Call) -> ast.Name:
+    def _plain_call_name(self, node: ast.Call) -> ast.Name:
         if node.keywords:
             msg = (
                 "a call in a compiled body passes positional arguments; MeTTa "
@@ -743,16 +869,7 @@ class ExpressionCompilerMixin(CompilerContext):
                 line=node.lineno,
             )
         if not isinstance(node.func, ast.Name):
-            msg = (
-                "a compiled body calls a plain name; attribute and computed "
-                "calls have no equation. Register the object's method as an "
-                "operation and call it by name."
-            )
-            raise CompileError(
-                msg,
-                construct="call",
-                line=node.lineno,
-            )
+            raise self._unknown_host_callee(node, node)
         return node.func
 
     def _lifted_call(self, name: str, node: ast.Call) -> Expression:

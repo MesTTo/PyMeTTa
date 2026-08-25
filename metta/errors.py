@@ -16,6 +16,10 @@ Guarantees:
     as fields [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - CompileError can render a source path, function, line and exact caret span
+    while retaining its machine-readable construct and coordinates [tested:
+    test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -285,11 +289,49 @@ class CompileError(PettaError):
     hiding it. Never a silent fallback.
     """
 
-    def __init__(self, message: str, *, construct: str | None = None, line: int | None = None):  # noqa: D107  -- the enclosing class documents construction and the object invariants
-        where = f" (line {line})" if line is not None else ""
-        super().__init__(f"{message}{where}")
+    def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
+        self,
+        message: str,
+        *,
+        construct: str | None = None,
+        line: int | None = None,
+        path: str | None = None,
+        source_line: str | None = None,
+        column: int | None = None,
+        end_column: int | None = None,
+        function: str | None = None,
+        annotation: str | None = None,
+    ):
+        if path is not None and line is not None and source_line is not None:
+            headline, *detail = message.splitlines()
+            place = f"  --> {path}:{line}"
+            if function is not None:
+                place += f" in {function}"
+            place += f" (line {line})"
+            start = max(column or 0, 0)
+            stop = max(end_column or start + 1, start + 1)
+            caret = " " * start + "^" * (stop - start)
+            if annotation is not None:
+                caret += f" {annotation}"
+            rendered = "\n".join(
+                [
+                    headline,
+                    place,
+                    "   |",
+                    f"{line:>3} | {source_line.rstrip()}",
+                    f"   | {caret}",
+                    *detail,
+                ]
+            )
+        else:
+            where = f" (line {line})" if line is not None else ""
+            rendered = f"{message}{where}"
+        super().__init__(rendered)
         self.construct = construct
         self.line = line
+        self.path = path
+        self.column = column
+        self.end_column = end_column
 
 
 class TransportFailure(PettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix

@@ -20,6 +20,10 @@ Guarantees:
     used by property reads and writes [tested:
     test_compiled_state_properties_round_trip_through_engine_heads;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - nested compiler forks retain source coordinates and loop depth for host
+    island diagnostics [tested:
+    test_py_host_island_inside_loops_emits_exact_findings;
+    commit=WORKTREE]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -69,6 +73,11 @@ class CompilerContext:
     lifted: dict[str, tuple[str, list[str], bool]]
     closer: Callable[[Any], Atom] | None
     closer_names: list[str]
+    function: Any
+    source: str
+    source_path: str
+    first_line: int
+    loop_depth: int
 
     def annotation_atom(self, node: ast.expr) -> Atom:
         raise NotImplementedError

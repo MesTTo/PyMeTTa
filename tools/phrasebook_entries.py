@@ -32,6 +32,9 @@ Guarantees:
   - the Python-first additions table documents module-tier operation
     registration [tested: test_python_first_world_faces_are_in_the_phrasebook;
     commit=WORKTREE]
+  - the Python-first additions table documents the explicit inline host island
+    marker [tested: test_python_first_world_faces_are_in_the_phrasebook;
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -125,6 +128,11 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
         "@metta.op(effect=...)",
         "register a host callable in the lazy default engine with explicit effect metadata",
         "@metta.op(effect=\"pureStructural\")\ndef double(value):\n    return value * 2",
+    ),
+    PublicFace(
+        "py(expr)",
+        "mark one compiled-body expression for application-time host execution",
+        "@metta.define\ndef status(url):\n    return py(requests.get(url).status_code)",
     ),
     PublicFace(
         "metta.speculate()",

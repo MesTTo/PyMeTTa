@@ -7,6 +7,9 @@ Guarantees:
   - mechanically mapped generator calls remain nondeterministic loop sources
     [tested: test_mapped_nondeterministic_calls_keep_their_call_role;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - host islands in repeated tests and bodies retain loop context for lint,
+    while a top-level iterable and the post-loop continuation do not [tested:
+    test_py_host_island_inside_loops_emits_exact_findings; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -84,12 +87,15 @@ class LoopCompilerMixin(CompilerContext):
         equation_compiler.closer_names = state.copy()
         recur = _recursion_closer(helper, state)
         body_compiler = equation_compiler._fork()
+        body_compiler.loop_depth += 1
         body_compiler.closer = recur
         exit_compiler = equation_compiler._fork()
         # The exit continues whatever the enclosing block was continuing.
         exit_compiler.closer = self.closer
 
-        test = equation_compiler._truthy(node.test)
+        test_compiler = equation_compiler._fork()
+        test_compiler.loop_depth += 1
+        test = test_compiler._truthy(node.test)
         body = body_compiler.block(node.body)
         exit_branch = exit_compiler.block(rest)
         head = Expression([Symbol(helper), *(Variable(n) for n in state)])
@@ -123,6 +129,7 @@ class LoopCompilerMixin(CompilerContext):
         equation_compiler = self._equation_compiler([sequence, *state])
         equation_compiler.closer_names = state.copy()
         body_compiler = equation_compiler._fork()
+        body_compiler.loop_depth += 1
         variable = body_compiler._bind(target)
         tail = body_compiler._temp("tail")
         # The remaining sequence is loop state like any other: a construct
