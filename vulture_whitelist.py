@@ -162,3 +162,12 @@ _.__ge__
 # Generated vocabulary member: the space-capability set crosses as atoms and
 # is read by MeTTa-side capability rows; no in-package Python loads the name.
 _.network
+
+# BenchmarkBaseline is shipped API whose only callers are the benchmark
+# harness: benchmarks/conftest.py stamps the counter configuration,
+# check_instructions.py verifies it without restamping, and
+# extension_cost.py prunes a pinned row nothing measured. The lane scans
+# the shipped package alone, on purpose, so a caller in benchmarks/ is
+# outside its sight rather than absent.
+_.observe_configuration
+_.remove_case

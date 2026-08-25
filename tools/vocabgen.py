@@ -106,9 +106,30 @@ class _EffectStrEnum(_AtomStrEnum):
         """The catalog position, from structural purity to host I/O."""
         return tuple(type(self)).index(self)
 
+    # The reason is here rather than beside the pragma because pylint reads
+    # everything after disable= as message names: this is the effect
+    # lattice's own operation, which shares a name with str.join on a
+    # str-derived enum, and the docstring below says why that is deliberate.
+    # pylint: disable-next=arguments-renamed
     def join(self, other):
-        """The least upper bound of two effects: their strongest member."""
-        other = type(self)(other)
+        """The least upper bound of two effects: their strongest member.
+
+        This shadows ``str.join`` on a str-derived enum deliberately: join
+        is the lattice operation's own name and its laws are tested
+        (commutative, idempotent, associative, with the weakest rank as
+        identity). Anything that is not an effect refuses by naming both
+        readings, so a caller who wanted the string operation is told which
+        door they reached rather than seeing a bad-enum-value error.
+        """
+        try:
+            other = type(self)(other)
+        except ValueError:
+            msg = (
+                f"{other!r} is not {type(self).__name__} member; this join "
+                f"is the effect lattice's least upper bound, not str.join. "
+                f"To join strings, call str.join on a plain string."
+            )
+            raise TypeError(msg) from None
         return self if self.rank >= other.rank else other
 
     @classmethod

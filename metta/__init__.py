@@ -309,7 +309,7 @@ def unify(
     success and through ``els`` only when no binding exists. A compiled body
     lowers the same four-argument spelling directly to that engine form.
     """
-    if then is _OMITTED and els is _OMITTED:
+    if then is els is _OMITTED:
         return _unify_atoms(left, right)
     if then is not _OMITTED and els is not _OMITTED:
         return _ambient_space().answers(S.unify(left, right, then, els))

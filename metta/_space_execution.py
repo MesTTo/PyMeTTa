@@ -358,7 +358,7 @@ def evaluate(
     atomic = "atomic" in modes
     speculative = "speculative" in modes
     captured = _CAPTURED_OUTPUT.get()
-    if limits is None and captured is None and not (atomic or speculative):
+    if limits is captured is None and not (atomic or speculative):
         wires = rt.apply_must(predicate, *inputs)
     else:
         output = _controlled_run(

@@ -213,7 +213,6 @@ class Snapshotter(Protocol):
 
     def snapshot(self) -> tuple[Atom, ...]:
         """Capture one immutable atom tuple at one instant."""
-        ...
 
 
 @runtime_checkable
@@ -233,7 +232,6 @@ class WorldCommitter(Protocol):
         added: list[Atom],
     ) -> None:
         """Land one base-relative diff under the provider's atomic boundary."""
-        ...
 
 
 @runtime_checkable

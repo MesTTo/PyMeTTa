@@ -1115,7 +1115,6 @@ class AsyncMeTTa:
         *,
         det: Determinism | None = None,
     ) -> Atom:
-        """Declare how this context handles one pattern shape."""
         """Declare a handler's pattern, fidelity, and determinism."""
         return await self.call(
             lambda m: m.handles(pattern, fidelity, det=det)

@@ -615,9 +615,6 @@ class EventStream:
         if carrier is not None and step is not None:
             msg = "fold under= uses the algebra as its step; omit step"
             raise TypeError(msg)
-        if carrier is None and step is None:
-            msg = "fold needs step= or under=algebra"
-            raise TypeError(msg)
 
         if carrier is not None:
             from ._space import Space  # noqa: PLC0415 -- avoid the space/events cycle
@@ -652,29 +649,36 @@ class EventStream:
                     return held
                 return value
 
-            step = algebra_step
+            resolved: Step = algebra_step
             state = into if into is not None else (
                 _decode(declaration.zero)
                 if isinstance(declaration.zero, Grounded)
                 else declaration.zero
             )
-        elif into is not None:
-            user_step = step
+        else:
+            # The one refusal, written where it also settles the type: with
+            # no carrier to supply the step there has to be one.
+            if step is None:
+                msg = "fold needs step= or under=algebra"
+                raise TypeError(msg)
+            resolved = step
+            if into is not None:
+                given = resolved
 
-            def cell_step(cell: Any, event: Event) -> Any:
-                result = user_step(cell, event)
-                if result is not None and result is not cell:
-                    cell.value = result
-                return cell
+                def cell_step(cell: Any, event: Event) -> Any:
+                    result = given(cell, event)
+                    if result is not None and result is not cell:
+                        cell.value = result
+                    return cell
 
-            step = cell_step
-            state = into
+                resolved = cell_step
+                state = into
 
         fold = Fold(
             _REGISTRY,
             space,
             _to_atom(pattern),
-            step,
+            resolved,
             on=on,
             state=state,
         )

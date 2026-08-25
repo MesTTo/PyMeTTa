@@ -430,11 +430,10 @@ class StatementCompilerMixin(CompilerContext):
         The value compiles BEFORE the target rebinds, so `x = x + 1` reads
         the old x on the right and writes a fresh variable on the left.
         """
-        state_cell = self._state_binding_target(head)
-        if state_cell is not None:
+        binding = self._state_binding_target(head)
+        if binding is not None:
+            state_cell, state_target = binding
             if isinstance(head, ast.AugAssign):
-                state_target = head.target
-                assert isinstance(state_target, ast.Attribute)
                 value_node: ast.expr | None = ast.BinOp(
                     left=ast.copy_location(
                         ast.Attribute(
@@ -556,15 +555,25 @@ class StatementCompilerMixin(CompilerContext):
     def _state_binding_target(
         self,
         head: ast.Assign | ast.AnnAssign | ast.AugAssign,
-    ) -> Atom | None:
-        """The live State cell targeted by one property assignment, if any."""
+    ) -> tuple[Atom, ast.Attribute] | None:
+        """The live State cell targeted by one property assignment, and the
+        attribute node that named it.
+
+        The node comes back with the cell because only this walk knows the
+        target was `cell.value`: _state_cell answers None for every other
+        shape, so handing the Attribute over carries that fact to the caller
+        instead of leaving it to restate the narrowing.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if isinstance(head, ast.Assign):
             if len(head.targets) != 1:
                 return None
             target = head.targets[0]
         else:
             target = head.target
-        return self._state_cell(target)
+        cell = self._state_cell(target)
+        if cell is None or not isinstance(target, ast.Attribute):
+            return None
+        return cell, target
 
     def if_statement(self, node: ast.If, rest: list[ast.stmt], continue_with) -> Atom:
         test = self._truthy(node.test)

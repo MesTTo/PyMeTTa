@@ -930,10 +930,19 @@ class Handle(Grounded):
     # match statements into the unset slot.
     __match_args__ = ()
 
+    # Reason below rather than beside the pragma, which pylint parses as a
+    # bare message list: Grounded.__init__ takes the payload a handle has
+    # none of, so not chaining is the contract.
+    # pylint: disable-next=super-init-not-called
     def __init__(self) -> None:
         """A handle carries identity, not a payload: the value slot stays
         deliberately unset, so construction does nothing, and a concrete
         species calls this instead of Grounded's value-taking form.
+
+        Not chaining is the point rather than an omission: Grounded's
+        __init__ stores a value into the slot this species leaves unset, so
+        calling it would give every handle a payload the match protocol
+        above deliberately removed.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
     def __call__(self, *args: Any, **kwargs: Any) -> Expression:

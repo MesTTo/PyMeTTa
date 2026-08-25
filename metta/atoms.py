@@ -528,8 +528,9 @@ def _resolve_binding(
                 and node.name not in active
             ):
                 active.add(node.name)
-                stack.append(("leave", node.name))
-                stack.append(("visit", bindings[node.name]))
+                stack.extend(
+                    (("leave", node.name), ("visit", bindings[node.name]))
+                )
             else:
                 results.append(node)
             continue

@@ -565,12 +565,12 @@ def _context_capabilities(metta: Space, algebra: str) -> frozenset[str]:
             continue
         if len(atom.children) == 3:
             return frozenset()
-        field = atom.children[3]
-        if not isinstance(field, Expression) or not field.children:
+        declared = atom.children[3]
+        if not isinstance(declared, Expression) or not declared.children:
             return frozenset()
         return frozenset(
             capability.name
-            for capability in field.children[1:]
+            for capability in declared.children[1:]
             if isinstance(capability, Symbol)
         )
     return frozenset()
