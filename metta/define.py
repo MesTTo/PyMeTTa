@@ -21,7 +21,7 @@ Guarantees:
     test_an_annotated_binding_emits_its_claim; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - source spans, source docstrings, lexical captures, and the strongest call effect are
     derived from the parsed function and exposed as immutable facts [tested:
-    test_a_definition_joins_every_called_operations_effect; commit=WORKTREE]
+    test_a_definition_joins_every_called_operations_effect; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - ``yield from`` delegates only a statically known-nondeterministic call
     and refuses an ambiguous engine call instead of silently splicing it
     [tested:
@@ -47,6 +47,9 @@ Guarantees:
   - ordinary Defined calls keep the held evaluation cursor inside a stats
     scope, so a bounded view suspends an endless producer [tested:
     test_function_calls_suspend_endless_producers; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - a successful module-level call remains lawful and records one advisory
+    lint event [tested: test_a_module_level_defined_call_is_linted_not_refused;
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -324,6 +327,22 @@ class Defined[**P, R]:
         if len(args) != len(self.params):
             msg = f"{self.name} takes {len(self.params)} argument(s), got {len(args)}"
             raise TypeError(msg)
+        caller = inspect.currentframe()
+        caller = None if caller is None else caller.f_back
+        if caller is not None:
+            from ._lint_events import (  # noqa: PLC0415 -- lint is optional
+                record_event_at_frame,
+                record_sync_engine_call,
+            )
+
+            record_sync_engine_call(self.space, self.name, caller)
+            if caller.f_code.co_name == "<module>":
+                record_event_at_frame(
+                    self.space,
+                    "module-level-defined-call",
+                    self.name,
+                    caller,
+                )
         term = Expression([Symbol(self.name), *(_encode(a) for a in args)])
         if _defined_calls_are_staged():
             # The staging split, stated in the design's own words: a call

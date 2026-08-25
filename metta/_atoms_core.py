@@ -4,6 +4,10 @@ Guarantees:
     four atom rich comparisons follow the engine order used by plain sorted [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names and
     test_atom_comparisons_are_only_ordering; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - atom/plain ordering and comparison-term truthiness refuse with structured
+    Python-reference grounds; chained comparisons name the explicit
+    conjunction remedy [tested: bindings/python/tests/test_refusal_grounds.py;
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - Grounded preserves every non-primitive Python value by identity; only
     exact bool, int, float and str values use native wire terms [tested:
     bindings/python/tests/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
@@ -118,6 +122,11 @@ from typing import TYPE_CHECKING, Any, Self, cast
 
 from ._callable_mentions import callable_mention
 from ._operator_lowerings import OPERATOR_LOWERINGS, OperatorLowering
+from .errors import (
+    _PYTHON_COMPARISON_GROUND,
+    _PYTHON_RICH_COMPARISON_GROUND,
+    _grounded_type_error,
+)
 
 
 def _encodable(value: str) -> str:
@@ -815,7 +824,7 @@ class Grounded(Atom):
             return order_key(self) < order_key(other)
         pair = self._ordered(other)
         if pair is None:
-            return NotImplemented
+            raise _atom_plain_order_error(self, other, "<")
         return pair[0] < pair[1]
 
     def __le__(self, other: Any) -> bool:
@@ -823,7 +832,7 @@ class Grounded(Atom):
             return _standard_order_le(self, other)
         pair = self._ordered(other)
         if pair is None:
-            return NotImplemented
+            raise _atom_plain_order_error(self, other, "<=")
         return pair[0] <= pair[1]
 
     def __gt__(self, other: Any) -> bool:
@@ -831,7 +840,7 @@ class Grounded(Atom):
             return _standard_order_gt(self, other)
         pair = self._ordered(other)
         if pair is None:
-            return NotImplemented
+            raise _atom_plain_order_error(self, other, ">")
         return pair[0] > pair[1]
 
     def __ge__(self, other: Any) -> bool:
@@ -839,7 +848,7 @@ class Grounded(Atom):
             return _standard_order_ge(self, other)
         pair = self._ordered(other)
         if pair is None:
-            return NotImplemented
+            raise _atom_plain_order_error(self, other, ">=")
         return pair[0] >= pair[1]
 
     def __str__(self) -> str:
@@ -1204,11 +1213,15 @@ class Expression(Atom):
             "xor",
         ):
             msg = (
-                f"{self} is a comparison TERM, not a truth value; evaluate "
-                f"it (space.eval) or use it as a guard (where=...)"
+                f"{self} is a comparison TERM, not a truth value. Python "
+                "Language Reference section 6.10: a chained comparison uses "
+                "truthiness between its terms. Write the conjunction explicitly, "
+                "as S.le(1, V.x) & S.le(V.x, 10), or use a named predicate; "
+                "then evaluate it with space.eval or pass it as where=."
             )
-            raise TypeError(
-                msg
+            raise _grounded_type_error(
+                msg,
+                ground=_PYTHON_COMPARISON_GROUND,
             )
         return True
 
@@ -1386,10 +1399,25 @@ def _install_operator_lowerings() -> None:
 _install_operator_lowerings()
 
 
+def _atom_plain_order_error(atom: Atom, other: Any, operator: str) -> TypeError:
+    """Ground a refused atom/plain comparison in Python's data model."""
+    message = (
+        f"{operator} is not defined between {type(atom).__name__} and "
+        f"{type(other).__name__}. Python Language Reference section 3.3.1 "
+        "delegates unsupported rich comparisons. Compare two atoms for engine "
+        "order, unwrap a grounded primitive with .value, or build the MeTTa "
+        f"relation explicitly with S[{operator!r}](left, right)."
+    )
+    return _grounded_type_error(
+        message,
+        ground=_PYTHON_RICH_COMPARISON_GROUND,
+    )
+
+
 def _standard_order_lt(self: Atom, other: Any) -> bool:
     """Order atoms by the engine's term order; comparisons as terms use S['<']."""
     if not isinstance(other, Atom):
-        return NotImplemented
+        raise _atom_plain_order_error(self, other, "<")
     from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
 
     return order_key(self) < order_key(other)
@@ -1398,7 +1426,7 @@ def _standard_order_lt(self: Atom, other: Any) -> bool:
 def _standard_order_le(self: Atom, other: Any) -> bool:
     """Compare atoms by the engine order, refusing non-atoms."""
     if not isinstance(other, Atom):
-        return NotImplemented
+        raise _atom_plain_order_error(self, other, "<=")
     from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
 
     return order_key(self) <= order_key(other)
@@ -1407,7 +1435,7 @@ def _standard_order_le(self: Atom, other: Any) -> bool:
 def _standard_order_gt(self: Atom, other: Any) -> bool:
     """Compare atoms by the engine order, refusing non-atoms."""
     if not isinstance(other, Atom):
-        return NotImplemented
+        raise _atom_plain_order_error(self, other, ">")
     from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
 
     return order_key(self) > order_key(other)
@@ -1416,7 +1444,7 @@ def _standard_order_gt(self: Atom, other: Any) -> bool:
 def _standard_order_ge(self: Atom, other: Any) -> bool:
     """Compare atoms by the engine order, refusing non-atoms."""
     if not isinstance(other, Atom):
-        return NotImplemented
+        raise _atom_plain_order_error(self, other, ">=")
     from .atoms import order_key  # noqa: PLC0415  -- atoms owns the public order
 
     return order_key(self) >= order_key(other)

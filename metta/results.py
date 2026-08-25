@@ -55,6 +55,10 @@ Guarantees:
   - one(default=) distinguishes absence from multiplicity for both eager and
     lazy faces, while first without a default never returns None [tested:
     test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - zip and reversed retain their lawful Sequence behavior while recording
+    advisory ordering evidence for Space.lint [tested:
+    test_zip_over_unordered_answers_is_lawful_and_linted,
+    test_reversed_over_unordered_answers_is_lawful_and_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -66,6 +70,7 @@ from __future__ import annotations
 import dataclasses
 import html
 import importlib as _importlib
+import inspect
 import itertools
 import reprlib
 import threading
@@ -786,11 +791,46 @@ class Answers[T](Sequence[T]):
             position += 1
         return tuple(self._cache)
 
-    def __iter__(self) -> Iterator[T]:  # noqa: D105 -- Python's iteration protocol names the contract
+    def _iterate(self) -> Iterator[T]:
         position = 0
         while self._pull(position):
             yield self._cache[position]
             position += 1
+
+    def __iter__(self) -> Iterator[T]:  # noqa: D105 -- Python's iteration protocol names the contract
+        frame = inspect.currentframe()
+        caller = None if frame is None else frame.f_back
+        if self._space is not None and caller is not None:
+            from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
+                frame_calls_builtin,
+                record_event_for_name,
+            )
+
+            if frame_calls_builtin(caller, "zip"):
+                record_event_for_name(
+                    self._space,
+                    "unordered-answers-zip",
+                    "Answers",
+                    caller,
+                )
+        return self._iterate()
+
+    def __reversed__(self) -> Iterator[T]:
+        """Reverse the materialized view and retain the unordered-use lint."""
+        frame = inspect.currentframe()
+        caller = None if frame is None else frame.f_back
+        if self._space is not None and caller is not None:
+            from ._lint_events import (  # noqa: PLC0415 -- lint remains optional
+                record_event_for_name,
+            )
+
+            record_event_for_name(
+                self._space,
+                "unordered-answers-reversed",
+                "Answers",
+                caller,
+            )
+        return reversed(self._materialize())
 
     def _items(self) -> Iterator[_AnswerItem]:
         """Replay values together with their private caller-row metadata."""

@@ -12,6 +12,13 @@ Guarantees:
   - a body calling a translator special form is not a finding, so the
     commonest shape in MeTTa, an equation whose body branches on `if`, lints
     clean [tested test_calling_a_special_form_is_not_an_undefined_reference]
+  - nine adopted advisory kinds cover first-letter roles, interpreter
+    shadows, Python/engine crossings, unordered answer views, import-time
+    calls, and synchronous async-body driving without refusing execution
+    [tested: bindings/python/tests/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - exact named source intents suppress only their bound finding, while the
+    intent remains queryable in &petta [tested:
+    test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -21,13 +28,50 @@ Open Obligations:
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Mapping
 from difflib import get_close_matches
 from typing import Any, TypeGuard
 
+from ._lint_events import (
+    LintInvocation,
+    authority_for,
+    events_for,
+    is_suppressed,
+)
 from ._lint_model import EngineRegistry, Finding
 from .atoms import Atom, Expression, Grounded, Symbol, Variable, _alpha_eq, _map_atoms, _variables
 
 _BINDING_HEADS = {"let", "let*", "match", "unify", "case", "chain", "bind!"}
+
+_EVENT_DETAILS = {
+    "operation-crossing-in-loop": (
+        "calls the Python operation once per engine-loop item; move the work "
+        "into a relational definition or batch the crossing"
+    ),
+    "module-level-defined-call": (
+        "drives a defined function while importing the module; keep definitions "
+        "at module level and move calls behind an explicit entry point"
+    ),
+    "effectful-operation-at-construction": (
+        "executes an effectful ground operation while constructing a law; the "
+        "effect fires once now rather than per law application"
+    ),
+    "operation-staged-in-law": (
+        "stages a Python operation into a law, crossing the host once per matching application"
+    ),
+    "unordered-answers-zip": (
+        "zips answer views whose multiset semantics promise no corresponding order; "
+        "join the patterns in the engine when rows must correspond"
+    ),
+    "unordered-answers-reversed": (
+        "reverses an answer view whose multiset semantics promise no meaningful order; "
+        "sort by an explicit key before reversing when order is intended"
+    ),
+    "sync-engine-call-in-async": (
+        "drives the synchronous engine from an async body and can block its event loop; "
+        "use AsyncMeTTa for this call"
+    ),
+}
 
 
 def _arrow_inputs(declaration: Atom) -> int | None:
@@ -94,6 +138,195 @@ def _index_atoms(
         name for equation in equations if (name := _symbol_head(equation[1])) is not None
     }
     return equations, declarations, fact_heads, defined_here
+
+
+def _first_letter_role_findings(atoms: list[Atom], equations: list[Expression]) -> list[Finding]:
+    """Report data/function heads whose first alphabetic character has the wrong role."""
+    authority = authority_for("first-letter-role-convention")
+    findings: list[Finding] = []
+    for equation in equations:
+        name = _symbol_head(equation[1])
+        if name is not None and name[:1].isupper():
+            findings.append(
+                Finding(
+                    "first-letter-role-convention",
+                    name,
+                    "an equation gives a capitalized data head function behavior; "
+                    "function and control heads start lowercase",
+                    equation,
+                    severity="warning",
+                    payload={"authority": authority, "role": "function"},
+                )
+            )
+    for atom in atoms:
+        name = _symbol_head(atom)
+        if name is None or name in ("=", ":") or not name[:1].islower():
+            continue
+        findings.append(
+            Finding(
+                "first-letter-role-convention",
+                name,
+                "a stored data head starts lowercase; data constructors start capitalized",
+                atom,
+                severity="warning",
+                payload={"authority": authority, "role": "data"},
+            )
+        )
+    return findings
+
+
+def _interpreter_shadow_findings(
+    equations: list[Expression], registry: EngineRegistry
+) -> list[Finding]:
+    """Report local equations on translator-owned interpreter heads."""
+    authority = authority_for("interpreter-equation-shadow")
+    findings: list[Finding] = []
+    for equation in equations:
+        name = _symbol_head(equation[1])
+        if name is None or not registry.is_special_form(name):
+            continue
+        findings.append(
+            Finding(
+                "interpreter-equation-shadow",
+                name,
+                "this writable equation shadows a head the interpreter translates; "
+                "the write is lawful but changes evaluation in this space",
+                equation,
+                severity="warning",
+                payload={"authority": authority},
+            )
+        )
+    return findings
+
+
+def _operation_in_higher_order_call(
+    call: Expression, registry: EngineRegistry
+) -> tuple[str, str] | None:
+    """Find the operation invoked per element by one engine iterator form."""
+    head = _symbol_head(call)
+    candidate: Atom | None = None
+    body: Atom | None = None
+    # policy-inventory-exempt: mechanism-internal; reason=map-atom and filter-atom are the two higher-order engine iterator heads whose callback position has the same crossing shape; evidence=bindings/python/metta/_lint_analysis.py:_operation_in_higher_order_call
+    if head in {"map-atom", "filter-atom"}:
+        if len(call) == 3:
+            candidate = call[2]
+        elif len(call) == 4:
+            body = call[3]
+    elif head == "foldl-atom":
+        if len(call) == 4:
+            candidate = call[3]
+        elif len(call) == 6:
+            body = call[5]
+    names: list[str] = []
+    if isinstance(candidate, Symbol):
+        names.append(candidate.name)
+    if body is not None:
+        names.extend(
+            nested[0].name
+            for nested in _walk_heads(body)
+            if isinstance(nested[0], Symbol)
+        )
+    for name in names:
+        effect = registry.operation_effect(name)
+        if effect is not None:
+            return name, effect
+    return None
+
+
+def _hot_higher_order_crossing_findings(
+    equations: list[Expression], registry: EngineRegistry
+) -> list[Finding]:
+    """Report map/filter/fold forms that invoke Python once per item."""
+    authority = authority_for("operation-crossing-in-loop")
+    findings: list[Finding] = []
+    seen: set[tuple[str, Expression]] = set()
+    for equation in equations:
+        for call in _walk_heads(equation[2]):
+            operation = _operation_in_higher_order_call(call, registry)
+            if operation is None:
+                continue
+            name, effect = operation
+            key = name, equation
+            if key in seen:
+                continue
+            seen.add(key)
+            findings.append(
+                Finding(
+                    "operation-crossing-in-loop",
+                    name,
+                    _EVENT_DETAILS["operation-crossing-in-loop"],
+                    equation,
+                    severity="warning",
+                    payload={"authority": authority, "effect": effect},
+                )
+            )
+    return findings
+
+
+def _event_findings(space: Any) -> list[Finding]:
+    """Turn retained source evidence into the public Finding shape."""
+    findings: list[Finding] = []
+    for event in events_for(space):
+        payload: dict[str, Any] = {
+            "file": event.path,
+            "line": event.line,
+            "column": event.column,
+            "authority": event.authority,
+        }
+        if event.effect is not None:
+            payload["effect"] = event.effect
+        findings.append(
+            Finding(
+                event.kind,
+                event.subject,
+                _EVENT_DETAILS[event.kind],
+                event.atom or event.fact(str(space.name)),
+                severity="warning",
+                payload=payload,
+            )
+        )
+    return findings
+
+
+def _unsuppressed(
+    space: Any, findings: list[Finding], invocation: LintInvocation | None
+) -> list[Finding]:
+    """Apply exact named intents after every analysis has had the same view."""
+    kept: list[Finding] = []
+    for finding in findings:
+        payload = finding.payload if isinstance(finding.payload, Mapping) else {}
+        path = payload.get("file")
+        line = payload.get("line")
+        if not is_suppressed(
+            space,
+            finding.kind,
+            path=path if isinstance(path, str) else None,
+            line=line if isinstance(line, int) else None,
+            invocation=invocation,
+        ):
+            kept.append(finding)
+    return kept
+
+
+def _prefer_source_evidence(findings: list[Finding]) -> list[Finding]:
+    """Drop an atom-only duplicate when the same finding has a source event."""
+    sourced = {
+        (finding.kind, finding.subject, finding.atom)
+        for finding in findings
+        if isinstance(finding.payload, Mapping)
+        and isinstance(finding.payload.get("file"), str)
+    }
+    return [
+        finding
+        for finding in findings
+        if not (
+            (finding.kind, finding.subject, finding.atom) in sourced
+            and not (
+                isinstance(finding.payload, Mapping)
+                and isinstance(finding.payload.get("file"), str)
+            )
+        )
+    ]
 
 
 def _arrowed_names(declarations: list[Expression]) -> set[str]:
@@ -650,16 +883,30 @@ def _type_findings(
     return findings
 
 
-def analyze(space: Any, atoms: list[Atom], registry: EngineRegistry) -> list[Finding]:
+def analyze(
+    space: Any,
+    atoms: list[Atom],
+    registry: EngineRegistry,
+    invocation: LintInvocation | None = None,
+) -> list[Finding]:
     """Analyze one enumerated space against one registry snapshot."""
     equations, declarations, fact_heads, defined_here = _index_atoms(atoms)
-    return [
+    findings = [
+        *(
+            []
+            if str(space.name) == "&petta"
+            else _first_letter_role_findings(atoms, equations)
+        ),
+        *_interpreter_shadow_findings(equations, registry),
         *_declaration_findings(space, declarations, defined_here, registry),
         *_duplicate_findings(equations),
         *_subsumed_findings(equations),
         *_tabling_findings(equations, registry),
+        *_hot_higher_order_crossing_findings(equations, registry),
         *_equation_findings(equations, fact_heads, registry),
         *_simplification_findings(equations),
         *_inconsistent_arity_findings(equations, declarations),
         *_type_findings(equations, declarations, registry),
+        *_event_findings(space),
     ]
+    return _unsuppressed(space, _prefer_source_evidence(findings), invocation)

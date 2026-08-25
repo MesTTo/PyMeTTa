@@ -16,6 +16,11 @@ Guarantees:
     as fields [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - semantic refusals carry a structured Python-reference or MeTTa-law ground,
+    and every CompileError derives one from its construct [tested:
+    bindings/python/tests/test_refusal_grounds.py,
+    tests/check_refusal_grounds.py;
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -23,6 +28,8 @@ Open Obligations:
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 __all__ = [
     "AssertionFailure",
@@ -47,6 +54,74 @@ __all__ = [
 ]
 
 
+@dataclass(frozen=True)
+class _RefusalGround:
+    """The semantics that requires one refusal, carried beside its prose."""
+
+    kind: str
+    citation: str
+
+    def __post_init__(self) -> None:
+        if self.kind not in ("python-reference", "metta-law"):
+            msg = f"unknown refusal-ground kind {self.kind!r}"
+            raise ValueError(msg)
+        if not self.citation.strip():
+            msg = "a refusal ground requires a nonempty citation"
+            raise ValueError(msg)
+
+    def __str__(self) -> str:
+        return f"{self.kind}: {self.citation}"
+
+
+_PYTHON_COMPARISON_GROUND = _RefusalGround(
+    "python-reference",
+    "Python Language Reference section 6.10, Comparisons",
+)
+_PYTHON_RICH_COMPARISON_GROUND = _RefusalGround(
+    "python-reference",
+    "Python Language Reference section 3.3.1, Basic customization",
+)
+
+_COMPILE_REFERENCE_BY_CONSTRUCT = (
+    (("match", "pattern", "case"), "Python Language Reference section 8.6, The match statement"),
+    (("loop", "for", "while"), "Python Language Reference section 8.2-8.3, while and for statements"),
+    (("with",), "Python Language Reference section 8.5, The with statement"),
+    (("yield", "generator"), "Python Language Reference section 6.2.9, Yield expressions"),
+    (("call", "callee", "keyword", "function", "def", "twin"), "Python Language Reference section 6.3.4, Calls"),
+    (("attribute",), "Python Language Reference section 6.3.2, Attribute references"),
+    (("subscript", "slice"), "Python Language Reference section 6.3.3, Subscriptions"),
+    (("comparison", "boolean"), "Python Language Reference section 6.10-6.11, Comparisons and Boolean operations"),
+    (("arithmetic", "floor", "binary", "reduce"), "Python Language Reference section 6.7, Binary arithmetic operations"),
+    (("name", "ambiguous"), "Python Language Reference section 4.2, Naming and binding"),
+)
+
+
+def _compile_ground(construct: str | None) -> _RefusalGround:
+    lowered = "" if construct is None else construct.lower()
+    citation = next(
+        (
+            reference
+            for terms, reference in _COMPILE_REFERENCE_BY_CONSTRUCT
+            if any(term in lowered for term in terms)
+        ),
+        "Python Language Reference section 6, Expressions",
+    )
+    return _RefusalGround("python-reference", citation)
+
+
+class _GroundedTypeError(TypeError):
+    """A Python-shaped TypeError whose semantic ground is machine-readable."""
+
+    def __init__(self, message: str, *, ground: _RefusalGround):
+        super().__init__(message)
+        self.ground = ground
+
+
+def _grounded_type_error(message: str, *, ground: _RefusalGround) -> TypeError:
+    """Construct a TypeError without exposing a second public exception name."""
+    return _GroundedTypeError(message, ground=ground)
+
+
 class PettaError(Exception):
     """Base class for everything this library raises on purpose.
 
@@ -54,8 +129,9 @@ class PettaError(Exception):
     AttributeError.name and OSError.errno do: `atom` is the MeTTa atom
     the error is about, an `(Error ...)` answer or the offending term;
     `space` is the space name involved; `operation` the operation that
-    refused; `capability` the capability that was missing. Each defaults
-    to None, and the message never changes for their presence, so a
+    refused; `capability` the capability that was missing; `ground` the
+    Python-reference or named MeTTa law that requires a semantic refusal.
+    Each defaults to None, and the message never changes for their presence, so a
     program reacts to the part where it used to parse the sentence.
     """
 
@@ -66,12 +142,14 @@ class PettaError(Exception):
         space: str | None = None,
         operation: str | None = None,
         capability: str | None = None,
+        ground: _RefusalGround | None = None,
     ):
         super().__init__(*args)
         self.atom = atom
         self.space = space
         self.operation = operation
         self.capability = capability
+        self.ground = ground
 
 
 class Timeout(PettaError, TimeoutError):  # noqa: N818 -- a timeout is the public outcome, not an implementation error suffix
@@ -285,9 +363,16 @@ class CompileError(PettaError):
     hiding it. Never a silent fallback.
     """
 
-    def __init__(self, message: str, *, construct: str | None = None, line: int | None = None):  # noqa: D107  -- the enclosing class documents construction and the object invariants
+    def __init__(  # noqa: D107 -- the enclosing class documents construction
+        self,
+        message: str,
+        *,
+        construct: str | None = None,
+        line: int | None = None,
+        ground: _RefusalGround | None = None,
+    ):
         where = f" (line {line})" if line is not None else ""
-        super().__init__(f"{message}{where}")
+        super().__init__(f"{message}{where}", ground=ground or _compile_ground(construct))
         self.construct = construct
         self.line = line
 

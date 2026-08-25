@@ -56,7 +56,7 @@ Guarantees:
   - every registration publishes exactly one canonical five-rank effect and
     missing metadata refuses before engine mutation [tested:
     test_unclassified_operation_refuses_with_all_five_effect_remedies,
-    test_every_effect_rank_registers_and_reflects; commit=WORKTREE]
+    test_every_effect_rank_registers_and_reflects; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - the first Python owner refuses to adopt a source-owned declaration, while
     later Python owners share the declaration reference count
     [tested: test_a_duplicate_declaration_names_the_first_one;
@@ -841,16 +841,32 @@ def register[**P, R](
     # direct Python call pays one contextvar read.
     # A module-level import would cycle: _rules imports atoms, which
     # this module feeds.
-    from ._rules import _defined_calls_are_staged  # noqa: PLC0415
+    from ._rules import (  # noqa: PLC0415
+        _defined_calls_are_staged,
+        _record_rule_operation,
+    )
 
     @functools.wraps(fn)
     def _staging_aware(*args: Any, **kwargs: Any) -> Any:
-        if _defined_calls_are_staged() and not kwargs:
+        staging = _defined_calls_are_staged()
+        if staging and not kwargs:
             encoded = [_encode(a) for a in args]
-            if any(_variables(a) for a in encoded):
+            staged = any(_variables(a) for a in encoded)
+            frame = inspect.currentframe()
+            if frame is not None and frame.f_back is not None:
+                _record_rule_operation(operation, staged=staged, frame=frame.f_back)
+            if staged:
                 return Expression([Symbol(metta_name), *encoded])
+        elif staging:
+            frame = inspect.currentframe()
+            if frame is not None and frame.f_back is not None:
+                _record_rule_operation(operation, staged=False, frame=frame.f_back)
         return fn(*args, **kwargs)
 
+    # The lint walk resolves the Python object rather than guessing from its
+    # source spelling. This is private metadata on the wrapper and never enters
+    # the operation's call path.
+    _staging_aware.__dict__["__petta_operation__"] = operation
     return _staging_aware
 
 

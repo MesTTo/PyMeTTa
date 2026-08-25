@@ -30,7 +30,10 @@ Guarantees:
   - source spans, AST documentation, free variables, and derived effect joins
     replace atomically across clause replacement and leave reflection on
     clear [tested: test_a_definition_joins_every_called_operations_effect;
-    commit=WORKTREE]
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - a successful compiled definition publishes advisory operation crossings
+    found under its loop bodies [tested:
+    test_an_operation_call_inside_a_compiled_loop_is_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - generated class-method operations declare their Atom delivery policy in
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -747,6 +750,9 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         replace_twin_clause(dispatcher, replaced, clause_twin)
         _document_definition(space, name, dispatcher)
         _remember_defined_callable(space, fn, name)
+        _importlib.import_module(f"{__package__}._lint_events").register_definition_crossings(
+            space, fn, equations[0], name
+        )
         return _defined_result(space, name, compiled, bodies, dispatcher)
     prospective = earlier.copy()
     record = _clause_record(patterns, equations, compiled)
@@ -781,6 +787,9 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
     if compiled.generator:
         _DEFINED_GENERATORS.add((space.name, name))
     _remember_defined_callable(space, fn, name)
+    _importlib.import_module(f"{__package__}._lint_events").register_definition_crossings(
+        space, fn, equations[0], name
+    )
     return defined
 
 

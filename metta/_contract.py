@@ -20,7 +20,10 @@ Guarantees:
     declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Effect enumerates the same five canonical ranks as the engine catalog
-    [tested: test_every_effect_rank_registers_and_reflects; commit=WORKTREE]
+    [tested: test_every_effect_rank_registers_and_reflects; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - lint evidence and named suppression intent are typed declarations rather
+    than comments lost after parsing [tested:
+    test_lint_evidence_and_intent_are_typed_reflection_facts; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - callable argument delivery is a typed `(arguments name atoms|values)`
     policy in &petta [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -81,6 +84,33 @@ _CONTEXT_IMAGE_TYPE = Expression(
 _REGISTRY_IMAGE_TYPE = Expression(
     [Symbol("->"), Symbol("Symbol"), Symbol("TypeImage"), Symbol("ImageDecl")]
 )
+_LINT_EVIDENCE_TYPE = Expression(
+    [
+        Symbol("->"),
+        Symbol("SpaceType"),
+        Symbol("Symbol"),
+        Symbol("String"),
+        Symbol("String"),
+        Symbol("Number"),
+        Symbol("Number"),
+        Symbol("String"),
+        Symbol("LintEvidence"),
+    ]
+)
+_LINT_INTENT_TYPE = Expression(
+    [
+        Symbol("->"),
+        Symbol("SpaceType"),
+        Symbol("Symbol"),
+        Symbol("String"),
+        Symbol("Number"),
+        Symbol("Number"),
+        Symbol("Number"),
+        Symbol("Number"),
+        Symbol("String"),
+        Symbol("LintIntent"),
+    ]
+)
 
 ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_COLON, "Declaration", "Type"),
@@ -109,6 +139,12 @@ ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_SUB, "ImageDecl", "Declaration"),
     (_COLON, "image", _CONTEXT_IMAGE_TYPE),
     (_COLON, "type-image", _REGISTRY_IMAGE_TYPE),
+    (_COLON, "LintEvidence", "Type"),
+    (_SUB, "LintEvidence", "Declaration"),
+    (_COLON, "lint-evidence", _LINT_EVIDENCE_TYPE),
+    (_COLON, "LintIntent", "Type"),
+    (_SUB, "LintIntent", "Declaration"),
+    (_COLON, "lint-intent", _LINT_INTENT_TYPE),
     (_COLON, "HandlesDecl", "Type"),
     (_SUB, "HandlesDecl", "Declaration"),
     (_COLON, "LoweringDecl", "Type"),

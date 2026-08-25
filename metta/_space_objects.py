@@ -24,6 +24,10 @@ Guarantees:
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - resolved bang mutations invalidate the owning space's builtin catalogue
     [tested: test_builtin_cache_invalidates_after_a_miss; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - bound synchronous function calls made in async bodies record the same
+    AsyncMeTTa lint as direct Space calls [tested:
+    test_a_sync_engine_call_inside_async_def_is_linted_not_refused;
+    commit=acb40f1912f131ae088083d1af29b4b283019bea]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -927,6 +931,12 @@ class _EngineFunction:
         at the call boundary so the statement has happened when its line
         completes.  Non-bang calls retain demand-driven evaluation.
         """
+        frame = inspect.currentframe()
+        caller = None if frame is None else frame.f_back
+        if caller is not None:
+            from ._lint_events import record_sync_engine_call  # noqa: PLC0415 -- lint is optional
+
+            record_sync_engine_call(self._space, self._name, caller)
         answers = self._space.answers(self._term(args))
         if self._name.endswith("!"):
             answers._materialize()
