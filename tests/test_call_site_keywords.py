@@ -3,11 +3,11 @@ Guarantees:
   - Defined, bound definition, bound operation, and compiled calls emit values
     in the target's declared positional order [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
-    commit=WORKTREE]
+    commit=26d052a6179bc0e0a536b7d585e79d6beef266a2]
   - a bare Symbol refuses keywords with a positional remedy while Grounded
     heads retain the Python-call transport [tested:
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
-    commit=WORKTREE]
+    commit=26d052a6179bc0e0a536b7d585e79d6beef266a2]
 Open Obligations:
   To Do: None
   Hacks: None
