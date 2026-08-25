@@ -9,6 +9,8 @@ so the denominator cannot quietly shrink.
 The supplemental table separately pins Python-first faces that have no LeaTTa
 manifest name [tested: test_python_first_world_faces_are_in_the_phrasebook;
 commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0].
+Internal catalog rows never enter the public generated page [tested:
+test_internal_rows_are_absent_from_the_public_phrasebook; commit=WORKTREE].
 
 Open Obligations:
   To Do: None
@@ -69,6 +71,11 @@ def test_every_row_states_its_bucket_honestly():
         ({"note": ""}, "no note"),
         ({"bucket": "invented"}, "unknown bucket"),
         ({"section": "invented"}, "unknown section"),
+        ({"visibility": "PRIVATE"}, "unknown visibility"),
+        (
+            {"bucket": "internal", "visibility": "PUBLIC"},
+            "internal row claims PUBLIC visibility",
+        ),
         ({"bucket": "absent", "python": None, "ruled": "x"}, None),
         ({"ruled": "x"}, "names a ruling"),
     ],
@@ -149,6 +156,16 @@ def test_python_first_world_faces_are_in_the_phrasebook():
     assert "## Python-first additions" in page
     for spelling in spellings:
         assert f"`{spelling}`" in page
+
+
+def test_internal_rows_are_absent_from_the_public_phrasebook():
+    """Reachable implementation names never become documentation promises."""
+    internal = {entry.name for entry in ENTRIES if entry.visibility == "INTERNAL"}
+    assert internal
+    assert {entry.visibility for entry in ENTRIES} == {"PUBLIC", "INTERNAL"}
+    page = book.page(list(ENTRIES), json.loads(book.ANSWERS.read_text()))
+    for name in internal:
+        assert f"`{name}`" not in page
 
 
 def test_every_answered_row_has_a_recorded_answer():

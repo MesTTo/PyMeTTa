@@ -10,6 +10,10 @@ Guarantees:
   - the runtime fn namespace and its typed stub come from one deterministic
     catalog snapshot [tested: test_the_fn_namespace_is_generated;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - INTERNAL catalog names remain exact S/fn mentions but are absent from the
+    generated typed and reference surfaces [tested:
+    test_internal_catalog_names_stay_exact_but_leave_public_outputs;
+    commit=WORKTREE]
   - the S, static fn, and bound fn attribute doors share Python's operator
     word vocabulary while bracket access remains exact and composite ``neg``
     keeps its canonical image [tested:
@@ -37,6 +41,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+import metta as metta_package
 from metta import Expression, S, V, Variable, fn
 from metta.errors import CompileError
 from metta.vocabularies import EffectClass
@@ -325,6 +330,36 @@ def test_the_fn_namespace_is_generated(repo_root: Path):
         check=True,
     )
     assert imported.stdout.strip() == "car-atom"
+
+
+def test_internal_catalog_names_stay_exact_but_leave_public_outputs(repo_root: Path):
+    """Visibility filters promises, not the target-language mention ladder."""
+    internal = {
+        "get-doc-atom",
+        "get-doc-function",
+        "get-doc-params",
+        "get-doc-single-atom",
+        "interpret",
+        "match-type-or",
+    }
+    rows = metta_package.catalog.match(S.visibility(V.name, V.level))
+    visibility = {str(row.name): str(row.level) for row in rows}
+    assert all(visibility.get(name) == "INTERNAL" for name in internal)
+    for name in internal:
+        assert fn[name] == S[name]
+
+    stub = (repo_root / "bindings" / "python" / "metta" / "_fn.pyi").read_text(
+        encoding="utf-8"
+    )
+    aliases = {name.replace("-", "_").removesuffix("!") for name in internal}
+    for alias in aliases:
+        assert f"    {alias}:" not in stub
+
+    reference = (
+        repo_root / "website" / "reference" / "stdlib-phrasebook.md"
+    ).read_text(encoding="utf-8")
+    for name in internal:
+        assert f"`{name}`" not in reference
 
 
 def test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door():

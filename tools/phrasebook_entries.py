@@ -36,6 +36,10 @@ Guarantees:
     per-ask theory/interpreter selection plus catalog-driven deprecation
     [tested: test_python_first_world_faces_are_in_the_phrasebook;
     commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
+  - every stdlib row carries PUBLIC or INTERNAL visibility independently of
+    reachability, so generated stubs and references never teach internal
+    heads [tested: test_internal_rows_are_absent_from_the_public_phrasebook;
+    commit=WORKTREE]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -71,6 +75,8 @@ BUCKETS = {
     ),
     "absent": "a user-facing operation with no Python spelling today: the residue",
 }
+
+VISIBILITIES = {"PUBLIC", "INTERNAL"}
 
 SECTIONS = {
     "arith": "Arithmetic",
@@ -113,6 +119,16 @@ class Entry:
     petta_setup: str | None = None
     oracle_metta: str | None = None
     petta_inferences: int | None = None
+    visibility: str = ""
+
+    def __post_init__(self) -> None:
+        """Materialize the existing bucket split as explicit row data."""
+        if not self.visibility:
+            object.__setattr__(
+                self,
+                "visibility",
+                "INTERNAL" if self.bucket == "internal" else "PUBLIC",
+            )
 
 
 @dataclass(frozen=True)

@@ -7,6 +7,10 @@
 #     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
 #   - catalog-row documentation is attached to explicit members for static
 #     help [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+#   - INTERNAL names have no static member while their exact runtime bracket
+#     door remains available [tested:
+#     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
+#     commit=WORKTREE]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
@@ -121,14 +125,6 @@ class _FunctionNamespace:
     "get-atoms: (-> SpaceType Atom)\n\n`space.atoms()`, or `for atom in space` when you want to walk them."
     get_doc: Symbol
     "get-doc: (-> SpaceType Atom %Undefined%)\n\nPython's builtin `help`, over the docstring a decorated function already carries. PeTTa answers nothing here because no documentation atoms are written yet, which is the doc-vocabulary gap."
-    get_doc_atom: Symbol
-    "get-doc-atom: (-> SpaceType Atom %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`."
-    get_doc_function: Symbol
-    "get-doc-function: (-> SpaceType Atom Type %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`."
-    get_doc_params: Symbol
-    "get-doc-params: (-> Expression Atom Expression (Expression Atom))\n\nLeaTTa's internal dispatch behind `get-doc`."
-    get_doc_single_atom: Symbol
-    "get-doc-single-atom: (-> SpaceType Atom %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`."
     get_doc_space: Symbol
     get_metatype: Symbol
     "get-metatype: (-> Atom Atom)\n\nPython's own builtin `type`: the four atom classes ARE the four metatypes, so `type(a).__name__` is the metatype by construction."
@@ -159,8 +155,6 @@ class _FunctionNamespace:
     index_atom: Symbol
     "index-atom: (-> Expression Number Atom)\n\nIndexing again, with the index you want."
     inferences: Symbol
-    interpret: Symbol
-    "interpret: (-> Atom Type SpaceType Atom)\n\nLeaTTa's typed interpreter, written in MeTTa: `interpret` and the equations that implement it. This is the machinery that makes LeaTTa an oracle rather than a second implementation, and PeTTa writes its interpreter in Prolog, so none of these names is on either surface"
     intersection: Symbol
     "intersection: (-> Atom Atom %Undefined%)\n\n`collections.Counter` IS the multiset algebra, and `&` is its intersection."
     intersection_atom: Symbol
@@ -193,7 +187,6 @@ class _FunctionNamespace:
     maplist: Symbol
     match: Symbol
     "match: (-> SpaceType Atom Atom %Undefined%)\n\n`space[pattern]` is the subscript door and `space.match(pattern)` the named one; the TEMPLATE is built in Python from the answer's bindings. `under=counting|tropical|prov|ranked` changes the annotation algebra; `answers(call, under=...)` is its call twin, `with metta.under(...)` scopes the default, and an annotated answer exposes `.annotation`, `.why()` and `.under(other)` without a re-query. `metta.algebra(...)` constructs arbitrary carriers while remaining their namespace."
-    match_type_or: Symbol
     match_types: Symbol
     max: Symbol
     max_atom: Symbol

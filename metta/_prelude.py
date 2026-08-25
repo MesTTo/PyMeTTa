@@ -14,6 +14,10 @@ Guarantees:
     implementation annotations or helper documentation into &self [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - the shipped Python-only operations receive catalog visibility after the
+    registration batch, so public-surface generators see the complete runtime
+    inventory [tested: test_internal_catalog_names_stay_exact_but_leave_public_outputs;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -167,3 +171,4 @@ def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude regist
             declarations=[_expr(S.arguments, S[name], S.atoms)],
             arities=arities,
         )
+    runtime.must("spaces:petta_publish_builtin_visibility")

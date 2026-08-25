@@ -77,6 +77,10 @@ Guarantees:
   - a row may run a PeTTa-only setup and an explicitly recorded equivalent
     LeaTTa form; neither is silently sent to the other engine [tested:
     python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+  - PUBLIC/INTERNAL is row data, all live catalog names carry it, and the
+    rendered reference includes PUBLIC rows only [tested:
+    test_internal_rows_are_absent_from_the_public_phrasebook;
+    commit=WORKTREE]
 Fails when:
   - a row's MeTTa form depends on answer ORDER: answers are compared as
     sequences, the reading `example_parity` already takes, so a genuinely
@@ -137,6 +141,7 @@ from phrasebook_entries import (  # noqa: E402
     LEATTA_VERSION,
     PUBLIC_FACES,
     SECTIONS,
+    VISIBILITIES,
     Entry,
 )
 
@@ -371,6 +376,14 @@ def structural(entries: list[Entry]) -> list[str]:
             findings.append(f"{entry.name}: unknown bucket {entry.bucket!r}")
         if entry.section not in SECTIONS:
             findings.append(f"{entry.name}: unknown section {entry.section!r}")
+        if entry.visibility not in VISIBILITIES:
+            findings.append(
+                f"{entry.name}: unknown visibility {entry.visibility!r}"
+            )
+        if entry.bucket == "internal" and entry.visibility != "INTERNAL":
+            findings.append(
+                f"{entry.name}: an internal row claims {entry.visibility} visibility"
+            )
         if entry.bucket in {"dissolves", "method"} and entry.python is None:
             findings.append(f"{entry.name}: claims bucket {entry.bucket} with no spelling")
         if entry.bucket == "absent" and entry.python is not None:
@@ -389,6 +402,32 @@ def structural(entries: list[Entry]) -> list[str]:
             findings.append(f"{entry.name}: has an oracle form but no MeTTa form")
         if entry.petta_inferences is not None and entry.petta_inferences < 1:
             findings.append(f"{entry.name}: has a non-positive PeTTa inference limit")
+    return findings
+
+
+def visibility_drift(engine: Any, entries: list[Entry]) -> list[str]:
+    """Compare phrasebook row visibility with the live callable catalog."""
+    import metta  # noqa: PLC0415  -- deferred so importing the lane stays inert
+
+    rows = engine._at("&petta").match(metta.S.visibility(metta.V.name, metta.V.level))
+    pairs = [(str(row.name), str(row.level)) for row in rows]
+    observed = dict(pairs)
+    names = set(engine.builtins())
+    findings = []
+    if len(observed) != len(pairs):
+        findings.append("more than one visibility row exists for a callable name")
+    missing = sorted(names - observed.keys())
+    extra = sorted(observed.keys() - names)
+    if missing:
+        findings.append(f"callable names have no visibility row: {missing}")
+    if extra:
+        findings.append(f"visibility rows name no callable: {extra}")
+    findings.extend(
+        f"{entry.name}: catalog says {observed[entry.name]}, "
+        f"phrasebook says {entry.visibility}"
+        for entry in entries
+        if entry.name in observed and observed[entry.name] != entry.visibility
+    )
     return findings
 
 
@@ -605,18 +644,16 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         "",
     ]
     for section, heading in SECTIONS.items():
-        rows = [entry for entry in entries if entry.section == section]
+        rows = [
+            entry
+            for entry in entries
+            if entry.section == section and entry.visibility == "PUBLIC"
+        ]
         if not rows:
             continue
         out += [f"## {heading}", ""]
-        if section == "interpreter":
-            out += _internal_section(rows)
-            continue
-        # An interpreter-internal row has no form to show, so it stays out of
-        # the table and keeps its line in the prose below it.
-        shown = [entry for entry in rows if entry.bucket != "internal"]
         out += ["| MeTTa | Python | answers | bucket |", "|---|---|---|---|"]
-        out += [_row(entry, answers.get(entry.name, {})) for entry in shown]
+        out += [_row(entry, answers.get(entry.name, {})) for entry in rows]
         out.append("")
         if section == "strategies":
             out += _strategy_basis_section()
@@ -714,21 +751,6 @@ def _strategy_basis_section() -> list[str]:
 def _priced(answers: dict[str, Any], name: str) -> str:
     """One row's recorded engine cost, for the prose that quotes it."""
     return f"{answers.get(name, {}).get('metta_inferences', 0):,}"
-
-
-def _internal_section(rows: list[Entry]) -> list[str]:
-    families: dict[str, list[str]] = {}
-    for entry in rows:
-        families.setdefault(entry.note, []).append(entry.name)
-    out = []
-    for note, names in families.items():
-        out += [
-            f"{note} ({len(names)} names).",
-            "",
-            "> " + ", ".join(f"`{name}`" for name in sorted(names)),
-            "",
-        ]
-    return out
 
 
 def _cell(text: str | None) -> str:
@@ -899,6 +921,9 @@ def main(argv: list[str]) -> int:
 
     engine = metta.MeTTa(petta_path=str(REPO)).self
     answers = json.loads(ANSWERS.read_text(encoding="utf-8")) if ANSWERS.is_file() else {}
+    visibility = visibility_drift(engine, entries)
+    if visibility:
+        findings["catalog visibility"] = visibility
 
     if arguments.cost:
         _print_cost(cost(engine, entries))
