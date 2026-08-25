@@ -38,6 +38,20 @@ Guarantees:
     patterns is a join, list writes stream their atoms, and del drains every
     match or raises KeyError [tested:
     test_subscript_one_pattern_and_bulk_delete_laws; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - the ``+=`` write door classifies atoms and scalar conversion kinds before
+    iteration, reads dataframe row protocols before generic iteration, and
+    sends each fact-stream item through the engine write spine [tested:
+    test_adding_an_iterable_of_atoms_writes_one_atom_each,
+    test_write_door_scalar_kinds_are_never_mistaken_for_fact_streams,
+    test_write_door_uses_the_iteration_protocol_not_only_the_iterable_abc,
+    test_the_write_doors_accept_the_same_atoms,
+    test_the_write_door_reads_each_dataframe_row_as_one_atom; commit=012413efb73b4dd27c71354c7f654862f349c03f]
+  - relative ``(admits Type)`` and ``(capacity n)`` values written through
+    ``+=`` invoke the receiver installers, and refuse to overtake a live batch
+    [tested: test_relative_capacity_declaration_installs_the_receiver_contract,
+    test_relative_admits_declaration_installs_the_receiver_contract,
+    test_two_declared_admission_checks_interact_over_one_store,
+    test_relative_declarations_refuse_inside_an_active_batch; commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - ``Space.match`` returns a lazy Answers view; truth and single unpack pull
     only their demanded prefix, while len counts inside the engine [tested:
     test_query_answers_complete_the_lazy_projection_protocol,
@@ -505,8 +519,8 @@ class _HashableSpaceTerm(list[Any]):
         return hash(frozen(self))
 
 
-def _to_stored_atom(value: Any) -> Expression:
-    """Accept exactly the non-empty expression shape spaces can store."""
+def _to_nonempty_expression(value: Any) -> Expression:
+    """Accept exactly the non-empty expression shape required by this caller."""
     atom = _to_atom(value)
     if not isinstance(atom, Expression) or not atom.children:
         detail = "the empty expression" if isinstance(atom, Expression) else atom.metatype
@@ -518,6 +532,47 @@ def _to_stored_atom(value: Any) -> Expression:
             msg
         )
     return atom
+
+
+def _fact_stream(value: Any) -> Iterator[Any] | None:
+    """Classify one ``+=`` operand without mistaking semantic atoms for rows.
+
+    Precedence is the contract. A constructed Atom, including iterable
+    Expression and Space handles, is one atom. Text, bytes, mappings, Paths,
+    and values with an explicit ``__metta__`` conversion are scalar too.
+    Dataframes expose rows through their row protocol rather than their generic
+    iterator. An outer tuple made only of complete tuple/Expression rows is a
+    fact stream; any other nonempty tuple is one transparent Expression. Empty
+    tuple joins the empty iterable law, while ``Expression()`` remains the
+    unambiguous spelling for one empty expression atom.
+
+    The final ``iter(value)`` is deliberate: Python's legacy ``__getitem__``
+    protocol is iterable even when ``isinstance(value, Iterable)`` is false.
+    """
+    if isinstance(value, (Atom, Library)):
+        return None
+    if isinstance(value, _Rules):
+        return iter(value)
+
+    iter_rows = getattr(value, "iter_rows", None)
+    if callable(iter_rows):
+        return iter(iter_rows())
+    itertuples = getattr(value, "itertuples", None)
+    if callable(itertuples):
+        return iter(itertuples(index=False))
+
+    if isinstance(value, tuple):
+        if not value or all(isinstance(item, (Expression, tuple)) for item in value):
+            return iter(value)
+        return None
+    if isinstance(value, (str, bytes, bytearray, _abc.Mapping, Path)):
+        return None
+    if getattr(type(value), "__metta__", None) is not None:
+        return None
+    try:
+        return iter(value)
+    except TypeError:
+        return None
 
 
 class Space(Handle):
@@ -1091,9 +1146,10 @@ class Space(Handle):
 
     def add(self, *atoms: Any) -> None:
         """Add atoms to this space, one engine round-trip for the lot.
-        An (= ...) atom compiles as an equation. A stored atom is an
-        expression, the engine's own storage shape, so anything else is
-        refused here rather than failing silently inside.
+        An (= ...) atom compiles as an equation. Every Atom shape the engine's
+        add-atom accepts crosses unchanged, including a bare Symbol, Grounded
+        value, and empty Expression; a free Variable receives the engine's own
+        insufficient-instantiation refusal.
 
         A variable's NAME is not stored. `(rule $x $y)` reads back as
         `(rule $_17902 $_17904)`, because a variable is an identity and not a
@@ -1120,7 +1176,7 @@ class Space(Handle):
         if pending is not None:
             pending.extend(atoms)
             return
-        wires = [_to_stored_atom(atom).to_wire() for atom in atoms]
+        wires = [_to_atom(atom).to_wire() for atom in atoms]
         if not wires:
             return
         if len(wires) == 1:
@@ -1142,7 +1198,7 @@ class Space(Handle):
         _refuse_in_batch(self._space, "remove")
         pattern = _to_atom(atom)
         if not isinstance(pattern, Variable):
-            pattern = _to_stored_atom(pattern)
+            pattern = _to_nonempty_expression(pattern)
         removed = self._rt.apply_must(
             "petta_py_remove", self._space, pattern.to_wire()
         )
@@ -1355,21 +1411,52 @@ class Space(Handle):
 
     # A handle mutates its store while an atom's + constructs a term.
     def __iadd__(self, atom: Any) -> Self:  # type: ignore[override]
-        """add()'s operator spelling: one tuple builds one expression, while
-        a list streams its elements through the bulk add door.
+        """add()'s operator spelling for one atom or one fact stream.
 
         ``m += (S.Edge, a, b)`` adds one fact. ``m += [(S.Edge, a, b),
-        (S.Edge, b, c)]`` adds two. The explicit ``add(list_value)`` door
-        remains available when the list itself is intended as one expression.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        if isinstance(atom, _Rules) or (
-            isinstance(atom, list)
-            and all(isinstance(item, (Expression, tuple)) for item in atom)
-        ):
-            self.add(*atom)
-        else:
+        (S.Edge, b, c)]`` and a generator yielding those rows add two. A built
+        Expression is always one atom even though it implements Sequence.
+        Dataframes use ``iter_rows`` or ``itertuples(index=False)``. The
+        explicit ``add(list_value)`` door remains available when a list itself
+        is intended as one transparent expression.
+
+        Relative ``S.admits(Type)`` and ``S.capacity(n)`` values are declared
+        data: they install the same contract as the receiver methods and are
+        not stored in this space. Explicit ``add(...)`` remains the raw storage
+        door for those shapes.
+        """
+        if self._install_relative_write_declaration(atom):
+            return self
+        stream = _fact_stream(atom)
+        if stream is None:
             self.add(atom)
+        else:
+            self.add(*stream)
         return self
+
+    def _install_relative_write_declaration(self, atom: Any) -> bool:
+        """Install the two relative pre-add declarations recognized by ``+=``."""
+        if (
+            not isinstance(atom, Expression)
+            or len(atom) != 2
+            or not isinstance(atom.head, Symbol)
+        ):
+            return False
+        argument = atom.children[1]
+        if atom.head.name == "admits" and isinstance(argument, Symbol):
+            _refuse_in_batch(self._space, "declare")
+            self.admits(argument.name)
+            return True
+        if (
+            atom.head.name == "capacity"
+            and isinstance(argument, Grounded)
+            and isinstance(argument.value, int)
+            and not isinstance(argument.value, bool)
+        ):
+            _refuse_in_batch(self._space, "declare")
+            self.capacity(argument.value)
+            return True
+        return False
 
     # A handle mutates its store while an atom's - constructs a term.
     def __isub__(self, atom: Any) -> Self:  # type: ignore[override]

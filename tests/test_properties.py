@@ -10,6 +10,10 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - booleans use MeTTa's canonical True and False text [tested:
     test_swrite_writes_mettas_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - every generated Expression has symmetric, hash-coherent equality with its
+    recursively transparent tuple value [tested:
+    test_expression_tuple_equality_is_symmetric_and_hash_coherent;
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -152,6 +156,23 @@ def test_alpha_eq_survives_renaming(atom):  # noqa: D103  -- pytest discovers or
         return x
 
     assert atom.alpha_eq(rename(atom))
+
+
+def _transparent_tuple(atom):
+    """Spell an Expression tree as nested immutable Python tuples."""
+    if isinstance(atom, Expression):
+        return tuple(_transparent_tuple(child) for child in atom)
+    return atom
+
+
+@given(pt.expressions())
+def test_expression_tuple_equality_is_symmetric_and_hash_coherent(atom):
+    """Cross-representation equality obeys symmetry and Python's hash law."""
+    transparent = _transparent_tuple(atom)
+
+    assert atom == transparent
+    assert transparent == atom
+    assert hash(atom) == hash(transparent)
 
 
 def _substitute(pattern, bindings):

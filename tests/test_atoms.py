@@ -13,6 +13,11 @@ Guarantees:
     [tested:
     test_expression_collects_iterables_and_slices_keep_the_expression_kind;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - a raw tuple and its transparent Expression compare symmetrically and share
+    a hash, while an explicitly opaque Grounded tuple remains a distinct value
+    [tested: test_a_tuple_equals_the_expression_it_encodes_to,
+    test_an_opaque_grounded_tuple_is_not_its_transparent_expression;
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - public two-argument unification binds variables from either operand and
     preserves repeated-variable constraints [tested:
     test_unify_binds_a_ground_term_and_pattern_in_both_orders,
@@ -224,6 +229,42 @@ def test_expr_identity_equality():  # noqa: D103  -- pytest discovers or injects
     same = atom
     assert atom == same
     assert atom == Expression(S.root, shared, shared)
+
+
+def test_a_tuple_equals_the_expression_it_encodes_to():
+    """Transparent tuples and Expressions are interchangeable value keys."""
+    cases = (
+        (),
+        (S.only,),
+        (S.row, 7, "seven"),
+        (S.outer, (S.inner, 3), S.tail),
+    )
+    for raw in cases:
+        expression = Expression(raw)
+
+        assert raw == expression
+        assert expression == raw
+        assert hash(raw) == hash(expression)
+        assert len({raw, expression}) == 1
+        assert {raw: "tuple"}[expression] == "tuple"
+        assert {expression: "expression"}[raw] == "expression"
+
+
+def test_an_opaque_grounded_tuple_is_not_its_transparent_expression():
+    """Explicit Grounded wrapping is the one opaque tuple spelling."""
+    raw = (S.edge, S.left, S.right)
+    transparent = Expression(raw)
+    opaque = Grounded(raw)
+    same_payload = Grounded(raw)
+    distinct_payload = Grounded((raw[0], raw[1], raw[2]))
+
+    assert raw == transparent and transparent == raw
+    assert raw != opaque and opaque != raw
+    assert transparent != opaque and opaque != transparent
+    assert opaque == same_payload
+    assert hash(opaque) == hash(same_payload)
+    assert opaque != distinct_payload
+    assert len({raw, transparent, opaque}) == 2
 
 
 def test_symbol_application_builds_expressions():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

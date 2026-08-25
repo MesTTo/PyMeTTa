@@ -239,7 +239,8 @@
       "missing": "a Python write door that stores a bare symbol, as MeTTa's add-atom does",
       "row": "P14.10",
       "section": "§9c primitive 2, the space wearing Python's container protocols",
-      "detail": "`(add-atom &self then-ran)` stores a bare SYMBOL, and the Python write door refuses it: `m.add(S.then_ran)` answers \"a stored atom is a non-empty expression; then-ran is Symbol. Wrap a bare value in structure, as in (value then-ran)\" [measured 2026-08-23]. The twin no longer works around it, because the write moved inside a compiled body where the engine's own `add-atom` takes the symbol, so the markers stored are now the example's own `then-ran` and `else-ran`. The defect stands on its own: the Python door and the engine door disagree about what may be stored, and a program that wanted to seed a bare marker from Python still cannot. Either the guard is wrong or `add-atom` should refuse the same thing."
+      "detail": "`(add-atom &self then-ran)` stores a bare SYMBOL, and the Python write door formerly refused it with `a stored atom is a non-empty expression` [measured 2026-08-23].",
+      "retired": "2026-08-26: CLOSED by write-door parity. `Space.add` and `Space +=` now store the same bare Symbol, Grounded, empty Expression, and ordinary Expression shapes as engine add-atom; both doors retain the engine's insufficient-instantiation refusal for a free Variable."
     },
     {
       "kind": "friction",
@@ -1825,7 +1826,7 @@
       "row": "P14.28",
       "section": "§9j: a plain Python tuple ENCODES to the same expression through the conversion table",
       "detail": "The old twin needed tuple-to-Expression equality to state its one-element pattern claim.",
-      "retired": "2026-08-24: the claim now constructs Expression((row.x,)) explicitly, so no cross-representation equality is needed"
+      "retired": "2026-08-26: CLOSED at the value door. A raw tuple and its transparent Expression compare equally in both directions and share Python's tuple hash; an explicit Grounded(tuple) remains opaque and unequal to both."
     },
     {
       "kind": "friction",
@@ -4971,8 +4972,8 @@
       "missing": "the iterable write door: space += <iterable of atoms> as the fact-stream pipe",
       "row": "P14.25",
       "section": "§9f input tuples against output Answers (the pipe: kb += (t for t in source()))",
-      "detail": "The ledger's generative principle is that \"ANYTHING THAT YIELDS TUPLES IS A FACT STREAM\", written `kb += (t for t in source())` and `kb += db.execute(...)`. The door is not open: re-measured 2026-08-23 on the narrow core, `m += (generator)` raises \"a stored atom is a non-empty expression; Grounded(<generator>) is Grounded\", and `m += [S.p(1), S.p(2)]` stores the LIST as one atom, after which `m[S.p(V.x)]` answers nothing, which is the worse of the two failures because it is silent. `m.add(*rows)` works and is what this twin uses for its eight facts. A single atom and an iterable of atoms are distinguishable at the door (an Atom is not an iterable of Atoms), so `+=` can carry both. CLOSED by the bulk `+=` stream. `space += [(S.set, key, value) for ...]` writes one atom per element rather than storing the list as a single atom [measured 2026-08-24]. A GENERATOR on the right still refuses, naming the value it wrapped, so the comprehension is the spelling.",
-      "retired": "2026-08-24"
+      "detail": "The ledger's generative principle is that \"ANYTHING THAT YIELDS TUPLES IS A FACT STREAM\", written `kb += (t for t in source())` and `kb += db.execute(...)`. The 2026-08-24 list-only repair left generators refusing as grounded host objects.",
+      "retired": "2026-08-26: CLOSED for the full stream law. Lists, outer tuples of rows, generators, dataframe row protocols, and legacy __getitem__ iterables write one atom per yielded item; constructed Atom values are classified first and therefore stay scalar."
     },
     {
       "kind": "friction",

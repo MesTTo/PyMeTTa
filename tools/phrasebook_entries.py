@@ -20,18 +20,18 @@ Guarantees:
     checked out [tested: test_the_phrasebook_covers_every_leatta_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
-<<<<<<< HEAD
   - the matching, nondeterminism, fold, and state rows execute every public
     algebra-carrier spelling [tested: test_the_phrasebook_page_is_up_to_date;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - the Python-first additions table names the exact speculate and immutable
     world spellings [tested: test_python_first_world_faces_are_in_the_phrasebook;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
-=======
   - strategy rows import lib_strategy only on PeTTa and may name an equivalent
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
->>>>>>> p14-audit-strategy
+  - space write rows teach the scalar-atom versus fact-stream boundary shipped
+    by ``Space +=`` [tested: test_the_phrasebook_page_is_up_to_date;
+    commit=012413efb73b4dd27c71354c7f654862f349c03f]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -741,29 +741,27 @@ ENTRIES: list[Entry] = [
     Entry(
         "add-atom", ("(-> SpaceType Atom (->))",), "Grounded", "spaces", "dissolves",
         "`space += atom`, the container protocol. A plain Python tuple encodes to "
-        "an expression on the way in, so a fact needs no builder ceremony.",
+        "an expression on the way in, so a fact needs no builder ceremony. Bare "
+        "symbols, grounded values, and empty expressions cross when engine "
+        "`add-atom` accepts them too.",
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(get-atoms &pb)",
         python="space += (S.f, 1)\nspace.atoms()",
     ),
     Entry(
         "add-atoms", ("(-> SpaceType Expression (->))",), "Symbol", "spaces", "dissolves",
         "The same `+=` door, once per fact: anything that yields tuples is a fact "
-        "stream. One friction, measured: a LIST on the `+=` door writes one atom "
-        "holding the list rather than one atom per element, so the row loops "
-        "[measured 2026-08-22: `space += [(S.f, 1), (S.f, 2)]` stores "
-        "`((f 1) (f 2))`; `space.add(a, b)` is the varargs door that does write "
-        "both].",
+        "stream. Lists, outer tuples of rows, generators, SQL cursors, and dataframe "
+        "row iterators each write one atom per yielded item; a built Expression is "
+        "always one atom.",
         metta="!(bind! &pb (new-space))\n!(add-atoms &pb ((f 1) (f 2)))\n!(get-atoms &pb)",
-        python="for fact in [(S.f, 1), (S.f, 2)]:\n    space += fact\nspace.atoms()",
+        python="space += [(S.f, 1), (S.f, 2)]\nspace.atoms()",
     ),
     Entry(
         "add-reduct", ("(-> SpaceType %Undefined% (->))",), "Symbol", "spaces", "dissolves",
         "There is no second door: `+=` adds what you give it, so adding a REDUCT is "
-        "explicit composition, `space += m.eval(term)[0]`. The row wraps the sum "
-        "because PeTTa's write door REFUSES a bare grounded atom that its own "
-        "MeTTa door accepts [measured 2026-08-22: `space += metta.ground(3)` "
-        "raises `a stored atom is a non-empty expression`, while "
-        "`!(add-reduct &pb (+ 1 2))` stores `3`].",
+        "explicit composition, `space += m.eval(term)[0]`. Bare grounded answers "
+        "use that door directly; this row wraps the evaluated sum only to retain "
+        "its `total` relation head.",
         metta="!(bind! &pb (new-space))\n!(add-reduct &pb (total (+ 1 2)))\n!(get-atoms &pb)",
         python="space += S.total(m.eval(S['+'](1, 2))[0])\nspace.atoms()",
         differs=(
