@@ -11,12 +11,10 @@ is dotted.
 Calling them is Python's own, `m.fn.<name>` reading the seam's own function as
 an ordinary callable through rung 4's map.
 
-What cannot be Python here is the SEQUENCE in the first claim, and the reason
-is measured rather than stylistic: an object made inside the engine cannot be
-held by a Python name and handed back, because `py-call` re-wraps a Python
-value it receives as an argument in janus's `Box`, so the callee gets the
-wrapper instead of the object and `setattr` raises. The chain therefore stays
-one term, and the missing spelling is filed as friction.
+The first claim's SEQUENCE is three Python statements with the object held
+in a Python name between them: an atom crossed back into an argument arrives
+unwrapped (py_arg_norm runs the same _unwrap the apply route runs), which is
+what closed the friction this file used to record.
 """
 
 import math

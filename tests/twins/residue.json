@@ -1725,6 +1725,15 @@
       "row": "P14.13",
       "section": "§4 declarations that are directives",
       "detail": "Same wall as import_duplicate_cycle, for `_fixtures/imports/overhaul/space_payload` imported into two named spaces."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/integration/door_combinations.metta",
+      "form": null,
+      "missing": "an engine-side spelling for the host half of the nesting matrix",
+      "row": "P14.14",
+      "section": "§9gg the door combinations, permuted",
+      "detail": "The pair is deliberately asymmetric, so the 10% cost band reads red by construction: the example proves the engine half of the 3x3 nesting matrix (define-in-define, op-in-define, equation writes, equations-as-atoms), while the twin also carries the HOST half - the rules-body staging split (rule-variable calls stage, ground defined calls fold their one result, ground op calls fire once at construction, staged op calls cross per application) and the op-body cells (engine re-entry, host-stays) - none of which has a MeTTa spelling, because staging and host bodies are host concepts. The twin's extra cost is those five extra cells, not a slower spelling of the same program. Filed 2026-08-25 with the matrix's landing."
     }
   ],
   "retired": [
