@@ -42,7 +42,7 @@ Guarantees:
     test_provider_length_requires_and_uses_sized; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - snapshot capability is structural and explicit, so reification never
     mistakes live enumeration for an immutable view [tested:
-    test_reify_refuses_and_names_a_live_composite_member; commit=WORKTREE]
+    test_reify_refuses_and_names_a_live_composite_member; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Guarded by:
   - _PROVIDER_LOCK serializes library registration and provider lookups
     [tested test_provider_registration_is_transactional]

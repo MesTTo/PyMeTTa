@@ -5,12 +5,12 @@ Guarantees:
   - live State cells are refused before journal append and leave no replayable
     residue after close and reopen [tested:
     test_a_live_state_cell_never_enters_the_persistent_journal;
-    commit=WORKTREE]
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - journaled spaces stage transaction/speculation writes, publish only a
     committed event segment, and replay no rolled-back fact [tested:
     test_a_journal_transaction_publishes_only_its_committed_delta,
     test_a_speculative_journal_write_is_neither_persisted_nor_published;
-    commit=WORKTREE]
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None

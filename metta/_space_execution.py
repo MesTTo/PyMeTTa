@@ -8,7 +8,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - eager eval follows the same atomic and speculative policy wrapper as run,
     so State property writes cannot bypass a speculative fence [tested:
-    test_speculative_state_write_is_fenced; commit=WORKTREE]
+    test_speculative_state_write_is_fenced; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - value() refuses zero, multiple, and undefined answers [tested
     test_value_answers_the_one_answer, test_value_refuses_undefined_truth]
   - ordinary evaluation returns an unreduced term directly and has no

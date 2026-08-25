@@ -42,7 +42,7 @@ Guarantees:
     test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``speculate()`` is the exact module-tier spelling for the default
     receiver's discarded execution scope [tested:
-    test_speculative_execution_discards_its_event_segment; commit=WORKTREE]
+    test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None

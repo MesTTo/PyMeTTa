@@ -7,11 +7,11 @@ Guarantees:
   - evaluation replays into a fresh receiver, rebases self references, fences
     State writes, emits no event, and returns a new frozen world without
     changing its parent [tested: test_world_eval_branches_without_touching_parent,
-    test_world_eval_fences_state_and_emits_nothing; commit=WORKTREE]
+    test_world_eval_fences_state_and_emits_nothing; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - commit validates the world's origin and base inside the owning
     transaction, then removes and adds the multiset diff as ordinary writes
     whose events publish after the complete diff is visible [tested:
-    test_commit_applies_the_world_diff_as_post_commit_events; commit=WORKTREE]
+    test_commit_applies_the_world_diff_as_post_commit_events; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Fails when:
   - a live member has no snapshot protocol, the parent changed since reify,
     or a provider cannot participate in an atomic transaction.

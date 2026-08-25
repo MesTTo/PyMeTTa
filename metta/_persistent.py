@@ -27,13 +27,13 @@ Guarantees:
   - snapshot() captures one locked immutable tuple, and add refuses a live
     engine State cell before any persistent updater can append its handle
     [tested: test_a_live_state_cell_never_enters_the_persistent_journal;
-    commit=WORKTREE]
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - every supported mutation crosses this engine's hooks, so subscriptions
     receive each committed write once in order while rolled-back provider
     transactions remain unjournaled and unannounced
     [tested: test_a_journal_transaction_publishes_only_its_committed_delta,
     test_a_speculative_journal_write_is_neither_persisted_nor_published;
-    commit=WORKTREE]
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Owns resources:
   - PersistentFactSpace owns one process path claim, one generated module,
     and one journal attachment until close or constructor rollback

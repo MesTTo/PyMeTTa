@@ -28,7 +28,7 @@ Guarantees:
   - ``Space.reify`` returns an immutable branch value and ``Space.commit``
     applies its base-relative diff through ordinary transaction and event
     doors [tested: test_world_eval_branches_without_touching_parent,
-    test_commit_applies_the_world_diff_as_post_commit_events; commit=WORKTREE]
+    test_commit_applies_the_world_diff_as_post_commit_events; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric

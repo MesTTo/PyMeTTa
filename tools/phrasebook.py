@@ -73,7 +73,7 @@ Guarantees:
     test_the_phrasebook_page_is_up_to_date]
   - Python-first additions that have no LeaTTa stdlib declaration are rendered
     in a separate exact-spelling table rather than corrupting manifest coverage
-    [tested: test_python_first_world_faces_are_in_the_phrasebook; commit=WORKTREE]
+    [tested: test_python_first_world_faces_are_in_the_phrasebook; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Fails when:
   - a row's MeTTa form depends on answer ORDER: answers are compared as
     sequences, the reading `example_parity` already takes, so a genuinely

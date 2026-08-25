@@ -69,7 +69,7 @@ Guarantees:
   - async reification, world evaluation, and commit keep every engine crossing
     on the owning worker while immutable atom snapshots remain directly
     readable [tested: test_async_worlds_stay_on_the_owning_worker;
-    commit=WORKTREE]
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested

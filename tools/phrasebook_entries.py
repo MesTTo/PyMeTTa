@@ -22,7 +22,7 @@ Guarantees:
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the Python-first additions table names the exact speculate and immutable
     world spellings [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

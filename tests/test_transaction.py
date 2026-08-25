@@ -13,7 +13,7 @@ Guarantees:
     test_atomic_scope_commits_or_discards_one_event_segment,
     test_event_folds_observe_only_the_post_commit_stream,
     test_rollback_and_outer_rollback_discard_every_buffered_event,
-    test_speculative_execution_discards_its_event_segment; commit=WORKTREE]
+    test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None

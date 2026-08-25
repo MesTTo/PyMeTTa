@@ -4,15 +4,15 @@ Guarantees:
   - reified evaluation leaves its parent unchanged and answers a new immutable
     world whose multiset diff can be committed as ordinary ordered events
     [tested: test_world_eval_branches_without_touching_parent,
-    test_commit_applies_the_world_diff_as_post_commit_events; commit=WORKTREE]
+    test_commit_applies_the_world_diff_as_post_commit_events; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - a composite containing a live provider without a snapshot capability
     refuses and names that member [tested:
-    test_reify_refuses_and_names_a_live_composite_member; commit=WORKTREE]
+    test_reify_refuses_and_names_a_live_composite_member; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - world evaluation fences State writes and emits no parent-space event
-    [tested: test_world_eval_fences_state_and_emits_nothing; commit=WORKTREE]
+    [tested: test_world_eval_fences_state_and_emits_nothing; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - provider-owned journal commits persist the ordinary multiset diff before
     publishing it and replay that state after close [tested:
-    test_a_journaled_world_commit_replays_its_ordinary_diff; commit=WORKTREE]
+    test_a_journaled_world_commit_replays_its_ordinary_diff; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -10,7 +10,7 @@
 %     store [tested: test_events_publish_only_after_transaction_commit,
 %     test_atomic_scope_commits_or_discards_one_event_segment,
 %     test_speculative_execution_discards_its_event_segment,
-%     test_world_eval_fences_state_and_emits_nothing; commit=WORKTREE].
+%     test_world_eval_fences_state_and_emits_nothing; commit=3ded7552797b66d78e666141eb51f3bc14686bd2].
 %   - an empty direct eval preserves a guarded head with no matching clause
 %     as a not-reducible answer while a matched empty body stays empty [tested:
 %     test_eval_keeps_unreduced_guarded_head_and_status; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]

@@ -35,7 +35,7 @@ Guarantees:
     test_events_publish_only_after_transaction_commit,
     test_atomic_scope_commits_or_discards_one_event_segment,
     test_rollback_and_outer_rollback_discard_every_buffered_event,
-    test_speculative_execution_discards_its_event_segment; commit=WORKTREE]
+    test_speculative_execution_discards_its_event_segment; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - event attributes project named pattern bindings and unknown names fail as
     attributes [tested: test_take_peek_and_watch_retire_the_thread_linda_fn_strings;
     commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]

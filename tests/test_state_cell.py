@@ -11,7 +11,7 @@ Guarantees:
   - compiled ``State.value`` reads, writes, and augmented writes lower to the
     engine cell heads, while speculative writes refuse before mutation
     [tested: test_compiled_state_properties_round_trip_through_engine_heads,
-    test_speculative_state_write_is_fenced; commit=WORKTREE]
+    test_speculative_state_write_is_fenced; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Fails when: read as a claim about the PRINTED form. The arbiter renders a cell
   as (State <value>) and this engine renders it as its handle, the way it
   already renders a space handle; that divergence is recorded beside

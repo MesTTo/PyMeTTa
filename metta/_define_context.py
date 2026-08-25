@@ -19,7 +19,7 @@ Guarantees:
   - statement and expression bands share the typed State-cell resolver contract
     used by property reads and writes [tested:
     test_compiled_state_properties_round_trip_through_engine_heads;
-    commit=WORKTREE]
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]

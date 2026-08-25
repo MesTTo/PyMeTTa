@@ -15,7 +15,7 @@ Guarantees:
   - a ``.value`` access is conservatively mutable-state dependent, so a
     compiled State read or write cannot be advertised as immutable [tested:
     test_compiled_state_properties_round_trip_through_engine_heads;
-    commit=WORKTREE]
+    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None

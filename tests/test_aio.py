@@ -21,7 +21,7 @@ Guarantees:
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - async reification, world evaluation, and commit stay on the owning worker
     and preserve immutable branching [tested:
-    test_async_worlds_stay_on_the_owning_worker; commit=WORKTREE]
+    test_async_worlds_stay_on_the_owning_worker; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 Open Obligations:
   To Do: None
   Hacks: None
