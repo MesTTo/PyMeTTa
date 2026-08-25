@@ -20,18 +20,15 @@ Guarantees:
     checked out [tested: test_the_phrasebook_covers_every_leatta_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
-<<<<<<< HEAD
   - the matching, nondeterminism, fold, and state rows execute every public
     algebra-carrier spelling [tested: test_the_phrasebook_page_is_up_to_date;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - the Python-first additions table names the exact speculate and immutable
     world spellings [tested: test_python_first_world_faces_are_in_the_phrasebook;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
-=======
   - strategy rows import lib_strategy only on PeTTa and may name an equivalent
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
->>>>>>> p14-audit-strategy
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
