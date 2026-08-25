@@ -141,7 +141,17 @@ is Python's own `assert`.
 #: check [measured 2026-08-25 through tools/twin_coverage.py
 #: examples/basics/identity.metta; provisional on the merged tree, the
 #: final release measure re-prices].
-BUDGET = 2822
+#: RE-PINNED 2026-08-26, 2822 to 2850, on the memory-and-scale merge. The
+#: twin's definition and assertion are unchanged; the fixed 28-inference move
+#: is the compiled program-layout cost after adding the named-lifecycle and
+#: wide-query bridge clauses. Removing only the hashtable import and then only
+#: the hot petta_py_query/4 wide clause left the same 2850 count, ruling out
+#: both an import charge and per-query traversal. The pin is the minimum of
+#: three fresh processes on the merged tree with engine/reader.so present
+#: [measured: 2850 inferences; command=tools/twin_coverage.py --measure
+#: --rounds 3 examples/basics/identity.metta; fixture=merged tree with
+#: engine/reader.so; commit=d843bb6d17a525c36afd21cab077d63b34447535].
+BUDGET = 2850
 
 
 def twin(m):

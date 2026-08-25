@@ -83,6 +83,10 @@ Guarantees:
     ``peek`` and ``take`` expose the engine's event-driven Linda operations
     [tested: test_space_handles_are_term_operands_and_round_trip,
     test_space_handle_peek_and_take_are_linda_verbs; commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - dropping a named space clears that life without returning its public name
+    to the anonymous allocation pool [tested:
+    test_a_named_space_drop_never_enters_the_anonymous_pool;
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
@@ -676,15 +680,17 @@ class Space(Handle):
         return fresh
 
     def drop(self) -> None:
-        """Clear this space and release its name for reuse. Dropping a
-        foreign space releases the binding and leaves the provider's own
-        data alone; &self, the engine's own space, is cleared but its name
-        never released. Subscriptions on the space cancel with it: a
-        pooled name reused later must not deliver to the old life's
-        watchers. The handle itself dies here: every later call through it
-        refuses, because its name may already belong to another space.
-        Dropping twice is a no-op, as closing twice is.
-        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        """Clear this space and release an anonymous name for reuse.
+
+        Dropping unregisters a Python provider and closes only backing state
+        owned by this handle. A foreign provider with a clear/drop lifecycle,
+        such as MORK, releases its provider state.
+        A named space's public name is not an anonymous allocation and never
+        enters the anonymous pool. &self is cleared but never released.
+        Subscriptions on the space cancel with it: a pooled name reused later
+        must not deliver to the old life's watchers. The handle itself dies
+        here, and dropping twice is a no-op, as closing twice is.
+        """
         if self._dropped:
             return
         if self._space != "&self":
@@ -704,7 +710,10 @@ class Space(Handle):
                     close()
         self.clear()
         if self._space != "&self":
-            self._rt.must("petta_py_release_space(Space)", Space=self._space)
+            predicate = (
+                "petta_py_release_space" if self._ephemeral else "petta_py_drop_space"
+            )
+            self._rt.must(f"{predicate}(Space)", Space=self._space)
         integrate._forget_space(self._space)
         self._dropped = True
 

@@ -1,8 +1,7 @@
-"""Purpose: hold the repository's own pages to what they promise, from
-EXTENDING.md's seam list through the generated reference pages to the
-governance documents.
+"""Purpose: hold repository documentation to its promised source contracts.
 
-The extension page is what a library author reads instead of the source, so a
+The check spans EXTENDING.md's seam list, generated reference pages, and the
+governance documents. The extension page is what a library author reads instead of the source, so a
 seam it does not mention is a seam nobody finds. Four were missing when this
 was first checked: seam:foreign_clear/1, which had lived in the Python shim
 rather than beside the other five space hooks; seam:grounded_extra_type/2 and
@@ -30,7 +29,7 @@ Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
-"""  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+"""
 
 import ast
 import importlib.util
@@ -44,10 +43,11 @@ _REPO = Path(__file__).resolve().parents[3]
 
 
 def _load_reference():
-    """The generator is a tool, not a package member, so it is loaded by path
-    rather than imported: putting it under metta/ would ship a build-time
-    script in the wheel.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """Load the source-reference generator by path.
+
+    The generator is a tool, not a package member. Putting it under metta/
+    would ship a build-time script in the wheel.
+    """
     spec = importlib.util.spec_from_file_location(
         "petta_reference_tool", _REPO / "bindings" / "python" / "tools" / "reference.py"
     )
@@ -94,7 +94,8 @@ def test_the_seam_list_is_not_empty():
 
 
 @pytest.mark.parametrize("seam", _declared_seams())
-def test_every_declared_seam_is_documented(seam):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_every_declared_seam_is_documented(seam):
+    """Require each declared extension seam to appear in EXTENDING.md."""
     page = _PAGE.read_text(encoding="utf-8")
     # The page may write prolog:error_message with or without its module
     # qualifier, so the bare name is what has to appear.
@@ -119,7 +120,8 @@ def test_every_reference_page_names_its_source():
         assert title.startswith("metta"), page.name
 
 
-def test_the_reference_pages_are_up_to_date():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_the_reference_pages_are_up_to_date():
+    """Require every generated reference page to match its source."""
     stale = [
         page.name
         for page, module_path, title in _reference.sources()
@@ -132,9 +134,11 @@ def test_the_reference_pages_are_up_to_date():  # noqa: D103  -- pytest discover
 
 
 def test_a_signature_too_long_for_one_line_wraps_one_argument_per_line():
-    """ast.unparse writes any signature on one line, and one method's came out
+    """Wrap an overlong signature one argument per line.
+
+    ``ast.unparse`` writes any signature on one line, and one method's came out
     at 300 columns.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    """
     node = ast.parse(
         "def a_method_with_a_long_name(self, a: dict[str, int] = {}, *, "
         "keyword_one: str | None = None, keyword_two: int = 1, "
@@ -211,7 +215,8 @@ def _load_libdoc():
     return module
 
 
-def test_the_metta_library_page_is_up_to_date():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_the_metta_library_page_is_up_to_date():
+    """Require the generated MeTTa library page to match its doc atoms."""
     libdoc = _load_libdoc()
     current = libdoc._PAGE.read_text(encoding="utf-8")
     assert current == libdoc.page(), (

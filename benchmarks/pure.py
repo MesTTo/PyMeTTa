@@ -2,6 +2,10 @@
 Guarantees:
   - setup and teardown stay outside perf's controlled measurement interval
     [tested test_perf_workload_setup_and_teardown_stay_outside_control]
+  - sized memory/scale joins use that same controlled interval, so retired
+    instructions see primitive memberchk/2 work that SWI's inference counter
+    cannot [tested: test_instruction_join_workload_checks_both_projection_shapes;
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
 Owns:
   - main releases the selected workload after success or failure
     [tested test_perf_workload_teardown_runs_after_failure]
@@ -14,6 +18,7 @@ Open Obligations:
 import argparse
 import os
 from collections.abc import Callable, Sequence
+from typing import Literal
 
 from benchmarks.engine_workloads import (
     EngineCase,
@@ -21,6 +26,7 @@ from benchmarks.engine_workloads import (
     close_engine_case,
     close_save_load_case,
     digest_case,
+    join_width_case,
     let_heavy,
     let_space,
     py_method_case,
@@ -73,7 +79,7 @@ def _engine_case(factory: Callable[[], EngineCase]) -> PerfCase:
     return state[1], lambda: close_engine_case(state)
 
 
-def _save_load(format: str) -> PerfCase:
+def _save_load(format: Literal["fast", "metta"]) -> PerfCase:
     state = save_load_case(format)
     return state[1], lambda: close_save_load_case(state)
 
@@ -109,6 +115,11 @@ _CASES = {
     "term-operators": _term_operators,
     "typed-call": _typed_call,
     "wire-codec": _wire_codec,
+}
+
+_SIZED_CASES = {
+    "memory-join-projection": lambda size: join_width_case(size, projection=True),
+    "memory-join-shared": lambda size: join_width_case(size, projection=False),
 }
 
 
@@ -170,10 +181,19 @@ _WARM_UP = frozenset({"alpha-unique"})
 def main(argv: Sequence[str] | None = None) -> int:
     """Run exactly one named workload."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("case", choices=sorted(_CASES))
+    parser.add_argument("case", choices=sorted(_CASES | _SIZED_CASES))
+    parser.add_argument("--size", type=int)
     parser.add_argument("--controlled", action="store_true")
     arguments = parser.parse_args(argv)
-    operation, teardown = _CASES[arguments.case]()
+    if arguments.case in _SIZED_CASES:
+        if arguments.size is None or arguments.size < 1:
+            parser.error("a sized workload needs --size with a positive integer")
+        state = _SIZED_CASES[arguments.case](arguments.size)
+        operation, teardown = state[1], lambda: close_engine_case(state)
+    else:
+        if arguments.size is not None:
+            parser.error("--size applies only to a sized workload")
+        operation, teardown = _CASES[arguments.case]()
     try:
         if arguments.case in _WARM_UP:
             operation()

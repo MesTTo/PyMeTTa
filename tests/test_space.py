@@ -36,6 +36,10 @@ Guarantees:
   - ``Expression(space)`` snapshots the space's assembly-order listing
     [tested: test_expression_of_a_space_is_an_assembly_order_snapshot;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - wide query projection preserves order, sharing, and values across lazy,
+    limited, guarded, prepared, and cursor answer doors [tested:
+    test_wide_query_projection_is_identical_through_every_answer_door;
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -281,6 +285,40 @@ def test_query_surfaces_share_column_order(m):  # noqa: D103  -- pytest discover
     assert m.prepare(*patterns).columns == expected
     with m._stream(*patterns) as cursor:
         assert cursor.columns == expected
+
+
+def test_wide_query_projection_is_identical_through_every_answer_door(m):  # noqa: D103 -- the descriptive name is the contract
+    variables = [V[f"column_{index:08x}"] for index in range(64)]
+    relations = [S[f"wide_{index:08x}"] for index in range(64)]
+    m.add(*(relation(S.only) for relation in relations), S.repeat(S.only))
+    patterns = [
+        *(
+            relation(variable)
+            for relation, variable in zip(relations, variables, strict=True)
+        ),
+        S.repeat(variables[0]),
+    ]
+    columns = tuple(f"column_{index:08x}" for index in range(64))
+    expected = tuple(S.only for _ in variables)
+    guard = variables[-1].eq(S.only)
+
+    surfaces = [
+        m.match(*patterns),
+        m.match(*patterns, limit=1),
+        m.match(*patterns, where=guard, limit=1),
+        m.prepare(*patterns).solve(limit=1),
+        m.prepare(*patterns, where=guard).solve(limit=1),
+    ]
+    for rows in surfaces:
+        assert rows.columns == columns
+        assert tuple(rows.one()) == expected
+
+    with m._stream(*patterns) as cursor:
+        assert cursor.columns == columns
+        assert tuple(next(cursor)) == expected
+    with m._stream(*patterns, where=guard) as cursor:
+        assert cursor.columns == columns
+        assert tuple(next(cursor)) == expected
 
 
 def test_atoms_count_contains_remove_clear(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
