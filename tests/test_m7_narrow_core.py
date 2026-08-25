@@ -1,8 +1,8 @@
 """Purpose: prove the Fork 4 surface collapse deletes superseded doors.
 Guarantees:
-  - the renamed package surface has 88 names and keeps ``record`` and
+  - the renamed package surface has 93 names and keeps ``record`` and
     ``order_key`` absent [tested: test_m7_narrow_core_surface;
-    commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
+    commit=WORKTREE]
   - the published before/after counts are exact for ``MeTTa`` and ``metta``
     [tested: test_m7_narrow_core_surface; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every retired root, context, and atom name is absent rather than aliased
@@ -16,6 +16,10 @@ Guarantees:
   - the upstream ``python.petta`` alias and its two-method ``PeTTa`` wrapper
     are absent [tested: test_upstream_python_package_path_is_gone;
     commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
+  - the strategies namespace is one lazy root satellite while its fifteen
+    reified constructors stay inside that namespace [tested:
+    test_m7_narrow_core_surface and
+    test_m7_satellites_are_lazy_and_identity_stable; commit=WORKTREE]
 Owns:
   - subprocesses used for clean import-order probes are waited synchronously
     by ``subprocess.run(check=True)`` [tested:
@@ -57,8 +61,11 @@ FINAL_METTA_METHODS = 20
 # and therefore needs no name; +1 for doc, the get-doc receiver verb on the
 # default context, landing beside match and eval; +2 for the library import
 # door, `lib` the catalog-generated namespace the write door consumes and
-# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25).
-FINAL_METTA_EXPORTS = 92
+# `Library` its handle type (appendix stamp 1, user-stamped 2026-08-25); +1 for
+# the lazy strategies namespace. P14.11 and the design ledger at
+# ai-python-first-revamp-discussion.md:2921-2933 require the namespace but keep
+# each combinator as a reified term rather than another root callable.
+FINAL_METTA_EXPORTS = 93
 
 SATELLITES = {
     "aio",
@@ -76,6 +83,7 @@ SATELLITES = {
     "paths",
     "remote",
     "spaces",
+    "strategies",
     "structures",
     "subscribe",
     "tables",

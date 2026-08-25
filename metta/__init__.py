@@ -40,6 +40,10 @@ Guarantees:
   - module define/cache/stats/limits/strict/trace verbs defer engine creation
     until called and target the default self space [tested:
     test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - ``strategies`` is a lazy satellite whose exports are reified Symbols rather
+    than promoted root callbacks [tested:
+    test_m7_satellites_are_lazy_and_identity_stable and
+    test_strategy_exports_are_reified_atoms; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -102,6 +106,7 @@ _SATELLITES = frozenset(
         "paths",
         "remote",
         "spaces",
+        "strategies",
         "structures",
         "subscribe",
         "tables",
@@ -437,6 +442,7 @@ __all__ = [
     "spaces",
     "spawn",
     "stats",
+    "strategies",
     "strict",
     "structures",
     "subscribe",
