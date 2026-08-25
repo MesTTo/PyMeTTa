@@ -46,7 +46,7 @@
 %   - petta_py_drop_space/1 ends a named space life without admitting that
 %     public name to the anonymous pool [tested:
 %     test_a_named_space_drop_never_enters_the_anonymous_pool;
-%     commit=WORKTREE]
+%     commit=d843bb6d17a525c36afd21cab077d63b34447535]
 %   - petta_py_open_atom_space/2 decodes and declares a ground expression
 %     identity once for Python space handles [tested:
 %     test_python_space_factory_accepts_atom_valued_names; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -154,7 +154,7 @@
 %     columns, while eager, limited, guarded, prepared, and cursor answer doors
 %     preserve first-appearance column order and variable sharing [tested:
 %     test_wide_query_projection_is_identical_through_every_answer_door;
-%     commit=WORKTREE]
+%     commit=d843bb6d17a525c36afd21cab077d63b34447535]
 %   - a converted Python tuple encodes as its structural MeTTa expression,
 %     while an explicitly Grounded tuple remains an object reference
 %     [tested: test_a_python_tuple_answers_the_same_through_both_doors;

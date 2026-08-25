@@ -150,7 +150,7 @@ is Python's own `assert`.
 #: three fresh processes on the merged tree with engine/reader.so present
 #: [measured: 2850 inferences; command=tools/twin_coverage.py --measure
 #: --rounds 3 examples/basics/identity.metta; fixture=merged tree with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=d843bb6d17a525c36afd21cab077d63b34447535].
 BUDGET = 2850
 
 

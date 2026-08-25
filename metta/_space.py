@@ -86,7 +86,7 @@ Guarantees:
   - dropping a named space clears that life without returning its public name
     to the anonymous allocation pool [tested:
     test_a_named_space_drop_never_enters_the_anonymous_pool;
-    commit=WORKTREE]
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;

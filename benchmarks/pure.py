@@ -5,7 +5,7 @@ Guarantees:
   - sized memory/scale joins use that same controlled interval, so retired
     instructions see primitive memberchk/2 work that SWI's inference counter
     cannot [tested: test_instruction_join_workload_checks_both_projection_shapes;
-    commit=WORKTREE]
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
 Owns:
   - main releases the selected workload after success or failure
     [tested test_perf_workload_teardown_runs_after_failure]

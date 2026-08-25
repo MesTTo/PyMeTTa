@@ -16,15 +16,15 @@ Guarantees:
   - projection-width curves also use perf's controlled instructions:u window,
     because SWI does not charge memberchk/2 traversal to its inference counter
     [tested: test_aggregation_accepts_controlled_instruction_samples;
-    commit=WORKTREE]
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
   - query-answer curves use numeric payloads, leaving unique wire-name retention
     to its own capped-cache curves so streaming peak memory measures the cursor
     rather than the intern table [tested: test_stream_curve_excludes_wire_cache_growth;
-    commit=WORKTREE]
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
   - a selected curve run compares only the selected committed pins while a
     complete run still detects any missing pinned case [tested:
     test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
-    commit=WORKTREE]
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
 Owns resources:
   - every workload drops or empties the spaces and temporary files it creates;
     the parent process joins, terminates, or kills every worker through the
@@ -36,14 +36,14 @@ Decides:
 
 [source: SWI-Prolog predicate and clause size accounting,
 https://github.com/SWI-Prolog/swipl-devel/blob/fc7ef84b949378b729052c3ade79c90ce5416abb/src/pl-proc.c#L3676-L3678;
-commit=WORKTREE]
+commit=d843bb6d17a525c36afd21cab077d63b34447535]
 [source: Linux proc high-water reset and resident fields,
 https://github.com/torvalds/linux/blob/028ef9c96e96197026887c0f092424679298aae8/Documentation/filesystems/proc.rst#L221-L224;
-commit=WORKTREE]
+commit=d843bb6d17a525c36afd21cab077d63b34447535]
 [source: Google Benchmark complexity fitting with geometric ranges and
 normalized RMS,
 https://github.com/google/benchmark/blob/eddb0241389718a23a42db6af5f0164b6e0139af/docs/user_guide.md#L496-L524;
-commit=WORKTREE]
+commit=d843bb6d17a525c36afd21cab077d63b34447535]
 """
 
 from __future__ import annotations
@@ -568,7 +568,7 @@ def _object_reclamation(size: int) -> dict[str, int]:
             # barrier. [source: janus-swi 1.5.3 janus.c,
             # MyPy_DECREF/py_gil_ensure;
             # sha256=6fb8941d22a6eb0981ba0ebac60e80bd2a299d0605d5f0b62a47276fcef104da;
-            # commit=WORKTREE]
+            # commit=d843bb6d17a525c36afd21cab077d63b34447535]
             root.runtime.must("py_call(builtins:len([]), _Ignored)")
             gc.collect()
             if len(_BOXES) == box_floor and all(

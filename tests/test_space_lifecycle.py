@@ -15,7 +15,7 @@ Guarantees:
     test_a_recycled_name_still_sees_process_wide_registrations]
   - named spaces are never admitted to the anonymous reuse pool [tested:
     test_a_named_space_drop_never_enters_the_anonymous_pool;
-    commit=WORKTREE]
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
   - an inherited space reads its own multiset before its ancestors, joins
     across those layers, and mutates only its own store
     [tested: test_a_child_space_reads_through_its_parent_and_writes_locally;

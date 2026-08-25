@@ -8,7 +8,7 @@
           "the intended complexity family is constant",
           "RE-MEASURED 2026-08-26 on the merged tree: [7, 7, 7, 7] with +/-0 noise remains [7, 7, 7, 7] with +/-0 noise; atom reclamation is still constant because every size returns to the same seven-atom process floor"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "constant",
       "fit": {
@@ -76,7 +76,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [1408, 19488, 184960, 2044480] +/-0 to [3088, 36288, 352960, 3724480] +/-0 after mainline's 5655d253 deferred-translation store and typed-dispatch metadata became part of each first-forced compiled predicate; bytes remain linear in equation count"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -144,7 +144,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [8357, 12840, 51933, 421848] +/-31 to [9706, 14259, 53907, 429234] +/-29 after mainline's typed-dispatch and result-boundary work added fixed setup and bounded per-branch checks; the measured curve remains linear in branch count"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -212,7 +212,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [1316028, 6748655, 87766743, 1486937473] +/-1385 to [3487245, 13554620, 162524726, 1573221052] +/-321667 after d1421012's indexed 64-column decoder was composed with mainline's Segments query pipeline and the controlled workload was ported to materialize lazy Space.match Answers inside the measured interval; the fit improves from n_log_n to linear and the instruction curve stays O(rows times projected columns)"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -280,7 +280,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [82, 433, 3403, 33103] +/-0 to [100, 492, 3822, 37122] +/-0 after the workload moved onto mainline's lazy Space.match and deferred-store join path; the added bridge setup does not change the linear growth in shared-width conjuncts"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -348,7 +348,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [3624, 36240, 362400, 3624000] +/-0 to [7104, 71040, 710400, 7104000] +/-0 after mainline made each live space own deferred translation, support, and execution-module lifecycle state; the exact per-space byte coefficient changes while growth remains linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -416,7 +416,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [1404, 2762, 16248, 151284] +/-0 to [1476, 2838, 16332, 151344] +/-0 after the mainline handle/store split added a bounded load receipt and lifecycle step; the delta is fixed to low-double-digit setup and the curve remains linear in loaded atoms"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -484,7 +484,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [3906, 34067, 351784, 3690907] +/-0 to [953, 2845, 21743, 210751] +/-0 because b77e3ce5's engine/reader.so is present and shipped-mode parses now execute outside SWI's inference counter; every size uses that stamped C-reader configuration and the remaining load work is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -552,7 +552,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [457, 1580, 23807, 418019] +/-0 to [341, 1446, 18579, 291291] +/-0 after f1dffa91's demand-grown bridge buffers were rebuilt against MORK dd224fd7 and PathMap 4c84a8b4 and composed with the current join door; the fitted power exponent is 0.9904, so the n_log_n numerical fit remains within the declared linear growth bound"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -620,7 +620,7 @@
           "the intended complexity family is constant",
           "RE-MEASURED 2026-08-26 after rebuilding the MORK provider: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; every named provider life releases all retained atoms at every size"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "constant",
       "fit": {
@@ -688,7 +688,7 @@
           "the intended complexity family is constant",
           "RE-MEASURED 2026-08-26 through the current metta object surface: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; dropping the handle releases every tracked object independently of size"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "constant",
       "fit": {
@@ -756,7 +756,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [272610, 272642, 380545, 3629282] +/-45 to [272739, 272798, 272753, 1682644] +/-73 after the workload was ported from the removed eager query door to lazy Space.match and explicitly materializes inside the measured callback; the fitted power exponent is 0.2371 and the tenfold-size last step grows 6.17x, both below a linear bound despite the four-point least-squares model naming quadratic; this Python-allocation lane remains advisory"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -824,7 +824,7 @@
           "the intended complexity family is constant",
           "RE-PINNED 2026-08-26 from [272597, 272610, 272551, 272642] +/-59 to [272798, 272798, 272753, 272830] +/-45 after the port uses Space._stream and consumes only the declared prefix; the 77-byte range and 0.000012 power exponent preserve constant memory despite the numerical best-model tie naming quadratic"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "constant",
       "fit": {
@@ -892,7 +892,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [2869, 11149, 93953, 921983] +/-0 to [2842, 10854, 90956, 891986] +/-0 after 5655d253's bulk store door removed repeated per-atom save traversal; the saving scales with atoms and the resulting curve remains linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -960,7 +960,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [1845, 5265, 39467, 381479] +/-0 to [1846, 5266, 39468, 381482] +/-0 after the merged lifecycle adds one fixed receipt boundary around text save; the +1/+1/+1/+3 movement is layout-scale and the curve remains linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -1028,7 +1028,7 @@
           "the intended complexity family is constant",
           "RE-MEASURED 2026-08-26 with f1dffa91's named-drop door composed with the current anonymous pool: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; a second allocation cycle retains no module bytes at any size"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "constant",
       "fit": {
@@ -1096,7 +1096,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [507904, 655360, 2129920, 29437952] +/-8192 to [462848, 614400, 2768896, 30019584] +/-77824 after rebuilding f1dffa91's bounded MORK allocations against MORK dd224fd7 and PathMap 4c84a8b4; allocator-page noise widens, while the fitted power exponent remains below one and the provider-memory lane remains advisory"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -1164,7 +1164,7 @@
           "the intended complexity family is linear",
           "RE-MEASURED 2026-08-26 through the 5655d253 native store: [2232, 13752, 128952, 1280952] with +/-0 noise remains byte-for-byte [2232, 13752, 128952, 1280952] with +/-0 noise; native storage remains linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -1232,7 +1232,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [2798, 6576, 44382, 422270] +/-0 to [3564, 5769, 27821, 248329] +/-0 after 93cc9c9's module-forget algorithm was adapted to mainline's hashed supports/4 and adjacent symbol indexes; the fixed index-priming cost rises at size one while avoiding the prior whole-graph work, and growth remains linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -1300,7 +1300,7 @@
           "the intended complexity family is linear",
           "RE-PINNED 2026-08-26 from [2798, 26858, 267390, 2672236] +/-0 to [3564, 34706, 346118, 3460244] +/-0 after 93cc9c9's linear module teardown was composed with 5655d253's larger hashed support, memo, and deferred-translation ownership set; the coefficient increases for the additional per-module state but every tenfold size still costs tenfold work"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "linear",
       "fit": {
@@ -1368,7 +1368,7 @@
           "the intended complexity family is constant",
           "RE-MEASURED 2026-08-26 with untabling ordered before provider and predicate cleanup: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; cleared spaces retain no table bytes at any size"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "constant",
       "fit": {
@@ -1436,7 +1436,7 @@
           "the intended complexity family is capped_linear",
           "RE-MEASURED 2026-08-26 after the metta atoms-core port: [101, 1001, 10001, 65536] with +/-0 noise remains [101, 1001, 10001, 65536] with +/-0 noise; symbol interning is linear until the unchanged 65536-entry cap"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "capped_linear",
       "fit": {
@@ -1504,7 +1504,7 @@
           "the intended complexity family is capped_linear",
           "RE-MEASURED 2026-08-26 after the metta atoms-core port: [100, 1000, 10000, 65536] with +/-0 noise remains [100, 1000, 10000, 65536] with +/-0 noise; variable interning is linear until the unchanged 65536-entry cap"
         ],
-        "commit": "WORKTREE"
+        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
       "expected": "capped_linear",
       "fit": {

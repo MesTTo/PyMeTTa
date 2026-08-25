@@ -8,15 +8,15 @@ Guarantees:
   - controlled projection workloads check both shared and distinct-column
     answer shapes before they can publish an instruction sample
     [tested: test_instruction_join_workload_checks_both_projection_shapes;
-    commit=WORKTREE].
+    commit=d843bb6d17a525c36afd21cab077d63b34447535].
   - the streaming answer curve measures bounded cursor memory without unique
     wire names populating the separately measured intern caches [tested:
     test_stream_curve_excludes_wire_cache_growth;
-    commit=WORKTREE].
+    commit=d843bb6d17a525c36afd21cab077d63b34447535].
   - complete baseline comparison checks more than one pin without confusing the
     pin mapping with an individual pinned value [tested:
     test_baseline_comparison_uses_pinned_noise_and_names_a_regression;
-    commit=WORKTREE].
+    commit=d843bb6d17a525c36afd21cab077d63b34447535].
 """
 
 import json

@@ -39,7 +39,7 @@ Guarantees:
   - wide query projection preserves order, sharing, and values across lazy,
     limited, guarded, prepared, and cursor answer doors [tested:
     test_wide_query_projection_is_identical_through_every_answer_door;
-    commit=WORKTREE]
+    commit=d843bb6d17a525c36afd21cab077d63b34447535]
 Open Obligations:
   To Do: None
   Hacks: None
