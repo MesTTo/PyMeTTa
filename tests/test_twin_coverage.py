@@ -174,7 +174,7 @@ def test_a_name_and_marked_data_are_not_programs(tmp_path):
         "BUDGET = 1\n"
         "def twin(m):\n"
         '    kb = metta.space("&kb")\n'
-        '    assert kb.eval(S["sread-command"](ground("(f a)"))) == []\n'
+        '    assert kb.eval(S["parse-command"](ground("(f a)"))) == []\n'
         '    assert kb.eval(S["#>="](1, 2)) == [True]\n'
         '    assert kb.eval(m.fn["xor"](True, False)) == [True]\n'
         "    @m.define(name='math-string')\n"

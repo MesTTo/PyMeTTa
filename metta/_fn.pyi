@@ -227,6 +227,7 @@ class _FunctionNamespace:
     once: Symbol
     or_else: Symbol
     parse: Symbol
+    parse_command: Symbol
     pow: Symbol
     "pow-math: (-> Number Number Number)\n\nPython's `**` operator. MeTTa answers a float where Python's integer power answers an integer, so the row raises a float."
     pow_math: Symbol
@@ -294,7 +295,6 @@ class _FunctionNamespace:
     sqrt_math: Symbol
     "sqrt-math: (-> Number Number)\n\n`math.sqrt`."
     sread: Symbol
-    sread_command: Symbol
     sub: Symbol
     "-: (-> Number Number Number)\n\nPython's own operator."
     subtraction: Symbol
