@@ -356,11 +356,15 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
     class Choice(Enum):
         first = 1
 
-    def choose() -> Choice:
+    # A unique probe name, the suite's law for anything written to &self:
+    # the declaration outlives every handle, and a generic head here typed a
+    # sibling test's own `choose` into WrongNumberOfArguments whenever this
+    # file ran first on its worker.
+    def p5_enum_choice() -> Choice:
         return Choice.first
 
-    metta.op(choose)
-    assert "(: choose (-> Choice))" in {str(atom) for atom in metta.atoms()}
+    metta.op(p5_enum_choice)
+    assert "(: p5-enum-choice (-> Choice))" in {str(atom) for atom in metta.atoms()}
 
     installed: list[str] = []
 
