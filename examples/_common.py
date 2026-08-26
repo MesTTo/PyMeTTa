@@ -12,7 +12,7 @@ Guarantees:
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
   - claim() binds runtime emission and execution to adjacent checked comments,
     while doctest() verifies emitted examples in both languages
-    [tested: test_a_gallery_program_runs; commit=WORKTREE]
+    [tested: test_a_gallery_program_runs; commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -2,6 +2,13 @@
 validation, replay, terminal-tail repair, failed-write containment,
 compaction, and isolation between independent journals.
 Guarantees:
+  - replay rename maps migrate every journal action atomically, name absent
+    old heads with a remedy, and cannot be applied to the migrated journal a
+    second time [tested:
+    test_a_replay_rename_migrates_every_journal_action_once,
+    test_a_replay_rename_with_an_absent_old_name_refuses_with_the_remedy,
+    test_a_second_replay_does_not_reapply_the_rename,
+    test_replay_rename_composes_with_terminal_tail_recovery; commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
   - live State cells are refused before journal append and leave no replayable
     residue after close and reopen [tested:
     test_a_live_state_cell_never_enters_the_persistent_journal;
@@ -26,6 +33,7 @@ import stat
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -110,6 +118,120 @@ def test_journal_replays_every_supported_native(tmp_path):  # noqa: D103  -- pyt
         assert list(second.atoms()) == expected
     finally:
         second.close()
+
+
+def _write_old_head_journal(journal) -> None:
+    space = PersistentFactSpace(journal, {"old": 1}, sync="close")
+    try:
+        space.add(S.old(S.value))
+    finally:
+        space.close()
+
+
+def test_a_replay_rename_migrates_every_journal_action_once(tmp_path):
+    """Only stored fact heads change; action kind, arguments, and order stay."""
+    journal = tmp_path / "all-rename-actions.db"
+    journal.write_text(
+        "created(1).\n"
+        "assert(old(old)).\n"
+        "assert(old(drop)).\n"
+        "retract(old(drop)).\n"
+        "assert(old(swept)).\n"
+        "retractall(old(swept),1).\n"
+        "asserta(old(first)).\n"
+        "assert(old(last)).\n",
+        encoding="utf-8",
+    )
+
+    migrated = PersistentFactSpace(
+        journal,
+        {"new": 1},
+        sync="close",
+        rename={"old": "new"},
+    )
+    try:
+        assert list(migrated.atoms()) == [
+            S.new(S.first),
+            S.new(S.old),
+            S.new(S.last),
+        ]
+        with pytest.raises(PettaError, match="unknown persistent head 'old'"):
+            migrated.add(S.old(S.alias))
+    finally:
+        migrated.close()
+
+    text = journal.read_text(encoding="utf-8")
+    assert "assert(new(old))." in text
+    assert "asserta(new(first))." in text
+    assert "retract(new(drop))." in text
+    assert "retractall(new(swept),1)." in text
+
+
+def test_a_replay_rename_with_an_absent_old_name_refuses_with_the_remedy(tmp_path):
+    """A typo cannot turn a requested migration into a silent partial one."""
+    journal = tmp_path / "absent-old.db"
+    _write_old_head_journal(journal)
+    original = journal.read_bytes()
+
+    with pytest.raises(PettaError, match=r"absent old.*'missing'.*remove.*rename="):
+        PersistentFactSpace(
+            journal,
+            {"new": 1, "other": 1},
+            sync="close",
+            rename={"old": "new", "missing": "other"},
+        )
+    assert journal.read_bytes() == original
+
+
+def test_a_second_replay_does_not_reapply_the_rename(tmp_path):
+    """The materialized migration leaves no live old-name alias behind."""
+    journal = tmp_path / "one-shot.db"
+    _write_old_head_journal(journal)
+
+    migrated = PersistentFactSpace(
+        journal,
+        {"new": 1},
+        sync="close",
+        rename={"old": "new"},
+    )
+    migrated.close()
+
+    with pytest.raises(PettaError, match=r"absent old.*'old'.*remove.*rename="):
+        PersistentFactSpace(
+            journal,
+            {"new": 1},
+            sync="close",
+            rename={"old": "new"},
+        )
+
+    replayed = PersistentFactSpace(journal, {"new": 1}, sync="close")
+    try:
+        assert list(replayed.atoms()) == [S.new(S.value)]
+    finally:
+        replayed.close()
+
+
+def test_replay_rename_composes_with_terminal_tail_recovery(tmp_path):
+    """A crashed old-schema append is repaired before its one-time rename."""
+    journal = tmp_path / "rename-torn-tail.db"
+    _write_old_head_journal(journal)
+    torn = b"assert(old(torn)"
+    with journal.open("ab") as stream:
+        stream.write(torn)
+
+    migrated = PersistentFactSpace(
+        journal,
+        {"new": 1},
+        sync="close",
+        rename={"old": "new"},
+    )
+    try:
+        assert list(migrated.atoms()) == [S.new(S.value)]
+    finally:
+        migrated.close()
+
+    assert Path(f"{journal}.tail").read_bytes() == torn
+    assert "old" not in journal.read_text(encoding="utf-8")
 
 
 def test_schema_and_native_refusals_name_the_offender(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

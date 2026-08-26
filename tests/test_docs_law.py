@@ -4,6 +4,11 @@ Assumes:
   - bare Python threads share the home engine and serialize individual engine
     calls, while callers own synchronization across several calls.
 Guarantees:
+  - the twin corpus states the Python-stack versus engine-LCO fuel boundary,
+    pins one concrete depth divergence, and preserves answer equality below it
+    [tested: test_twin_docs_state_python_stack_engine_lco_and_answer_equality,
+    test_twin_depth_divergence_is_operational_not_an_answer_difference;
+    commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
   - a walrus-bound nondeterministic call uses call-time choice, so both uses
     in one pair share one answer [tested:
     test_walrus_call_time_choice_shares_one_nondeterministic_value;
@@ -25,6 +30,9 @@ Guarantees:
     commit=5fe3175632a6b60b3b54ca9125b75607ac82401a]
 """
 
+import os
+import subprocess
+import sys
 import traceback
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -195,3 +203,60 @@ def test_guides_keep_documentation_law_explainers() -> None:
     floor = _guide("getting-started.md")
     assert "PeTTa supports Python 3.12 and newer" in floor
     assert "Python 3.14 adds t-string syntax" in floor
+
+    spaces = _guide("spaces.md")
+    assert "rename={\"old\": \"new\"}" in spaces
+    assert "Renaming a stored head changes the atom and therefore changes the digest" in spaces
+
+
+def test_twin_docs_state_python_stack_engine_lco_and_answer_equality() -> None:
+    """The corpus-level prose keeps the ruled operational distinction."""
+    path = _REPOSITORY / "bindings" / "python" / "tests" / "twins" / "README.md"
+    text = " ".join(path.read_text(encoding="utf-8").split())
+    assert "`fib.py(n)` recurses on Python's stack" in text
+    assert "the engine's last-call optimization (LCO)" in text
+    assert "recursion limit of 80" in text
+    assert "`n=100`" in text
+    assert "Whenever both routes finish, they must answer the same value" in text
+
+
+def test_twin_depth_divergence_is_operational_not_an_answer_difference(tmp_path) -> None:
+    """Shallow answers agree; only the Python route exhausts its depth fuel."""
+    probe = tmp_path / "twin_depth_probe.py"
+    probe.write_text(
+        "import sys\n"
+        "from metta import MeTTa\n"
+        "with MeTTa().space() as target:\n"
+        "    @target.define\n"
+        "    def fib(n):\n"
+        "        return n if n < 2 else fib(n - 1) + fib(n - 2)\n"
+        "    for n in range(21):\n"
+        "        assert fib(n) == [fib.py(n)]\n"
+        "    sys.setrecursionlimit(80)\n"
+        "    try:\n"
+        "        fib.py(100)\n"
+        "    except RecursionError:\n"
+        "        pass\n"
+        "    else:\n"
+        "        raise AssertionError('fib.py(100) did not exhaust Python depth')\n"
+        "    assert fib(100) == [354_224_848_179_261_915_075]\n"
+        "print('fib-depth-receipt: shallow-equal python-deep-recursion engine-deep-answer')\n",
+        encoding="utf-8",
+    )
+    completed = subprocess.run(
+        [sys.executable, str(probe)],
+        cwd=_REPOSITORY / "bindings" / "python",
+        env={
+            **os.environ,
+            "PYTHONPATH": str(_REPOSITORY / "bindings" / "python")
+            + os.pathsep
+            + os.environ.get("PYTHONPATH", ""),
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert completed.stdout.strip() == (
+        "fib-depth-receipt: shallow-equal python-deep-recursion engine-deep-answer"
+    )
