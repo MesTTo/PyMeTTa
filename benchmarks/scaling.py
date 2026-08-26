@@ -258,7 +258,7 @@ def parse_forms(size: int) -> Workload:
     where the file shares its process with every other file the loadfile
     scheduler put on that worker: it made 14 tests in five unrelated files fail
     after this one ran, and none of them fail without it
-    [tested: test_a_workload_never_drops_the_engine_root; commit=WORKTREE].
+    [tested: test_a_workload_never_drops_the_engine_root; commit=99fb0de3a5d6cd48f9ee06e3c4ef251b2e3379ee].
     """
     space = MeTTa().space()
     text = " ".join(f"(scaling-form {index} (nested {index}))" for index in range(size))
