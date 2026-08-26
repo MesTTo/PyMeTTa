@@ -37,6 +37,7 @@ from benchmarks.engine_workloads import (
     typed_call,
     typed_space,
 )
+from benchmarks.scaling import WORKLOADS as SCALING_WORKLOADS
 from benchmarks.subscription import (
     close_subscription_case,
     subscription_dispatch_case,
@@ -117,10 +118,26 @@ _CASES = {
     "wire-codec": _wire_codec,
 }
 
+def _scaling_case(family: str) -> Callable[[int], EngineCase]:
+    """Adapt a scaling family to the sized-case shape perf's window drives.
+
+    The scaling gate's primary counter is inferences, which foreign code does
+    not retire. A family whose work crosses into C or Rust therefore needs the
+    same ladder measured a second way, and this is the entry point
+    `benchmarks.scaling` runs under `perf stat` to get it.
+    """
+
+    def build(size: int) -> EngineCase:
+        workload = SCALING_WORKLOADS[family](size)
+        return workload.space, workload.operation
+
+    return build
+
+
 _SIZED_CASES = {
     "memory-join-projection": lambda size: join_width_case(size, projection=True),
     "memory-join-shared": lambda size: join_width_case(size, projection=False),
-}
+} | {f"scaling-{family}": _scaling_case(family) for family in SCALING_WORKLOADS}
 
 
 def _acknowledge(descriptor: int) -> None:

@@ -60,10 +60,10 @@ import weakref
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from statistics import fmean
 from typing import Any, Literal
 
-from metta import MeTTa, S, V, Space, ground
+from benchmarks import atomic_json, curves
+from metta import MeTTa, S, Space, V, ground
 from metta.testing import measure_instructions
 
 STANDARD_SIZES = (10, 100, 1_000, 10_000)
@@ -839,18 +839,20 @@ def _transform(model: str, size: int) -> float:
 
 
 def _linear_fit(xs: Sequence[float], ys: Sequence[float]) -> tuple[float, float, float]:
-    mean_x = fmean(xs)
-    mean_y = fmean(ys)
-    denominator = sum((value - mean_x) ** 2 for value in xs)
-    slope = 0.0 if denominator == 0 else sum(
-        (x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=True)
-    ) / denominator
-    intercept = mean_y - slope * mean_x
-    residual = math.sqrt(
-        fmean((y - (intercept + slope * x)) ** 2 for x, y in zip(xs, ys, strict=True))
-    )
-    scale = max(max(ys) - min(ys), abs(mean_y), 1.0)
-    return intercept, slope, residual / scale
+    """Fit, then normalise the residual the way this lane has always normalised it.
+
+    This lane divides the residual RMS by the widest of the observed span, the
+    mean, and one, where google/benchmark divides by the mean alone. Measured
+    across all 23 pinned cases the two rules pick the same model and reach the
+    same verdict on every one, with google's the stricter; the span rule stays
+    here because it is what every nrms pinned in memory-scale-baseline.json was
+    computed with, and `benchmarks.scaling` uses google's own rule for its own
+    report. Keeping two rules is only defensible while they agree
+    [tested: test_the_span_and_mean_normalisations_reach_the_same_memory_scale_verdicts;
+    commit=WORKTREE].
+    """
+    fit = curves.least_squares(xs, ys)
+    return fit.intercept, fit.slope, fit.residual / max(fit.span, abs(fit.mean), 1.0)
 
 
 def fit_curve(sizes: Sequence[int], values: Sequence[int | float]) -> dict[str, Any]:
@@ -865,16 +867,15 @@ def fit_curve(sizes: Sequence[int], values: Sequence[int | float]) -> dict[str, 
         models[model] = {"intercept": intercept, "slope": slope, "nrms": nrms}
     best = min(models, key=lambda name: (models[name]["nrms"], _MODEL_ORDER[name]))
 
-    positive = [(float(n), float(y)) for n, y in zip(sizes, ys, strict=True) if y > 0]
-    exponent: float | None = None
-    if len(positive) >= 2:
-        log_x = [math.log(n) for n, _ in positive]
-        log_y = [math.log(y) for _, y in positive]
-        _, exponent, _ = _linear_fit(log_x, log_y)
+    # A curve with fewer than two positive points has no log-log slope at all,
+    # which is a different statement from a slope of zero.
+    positive = sum(1 for n, y in zip(sizes, ys, strict=True) if n > 0 and y > 0)
+    power = curves.power_fit(sizes, ys) if positive >= 2 else None
     return {
         "best_model": best,
         "models": models,
-        "power_exponent": exponent,
+        "power_exponent": None if power is None else power.exponent,
+        "r_squared": None if power is None else power.r_squared,
         "last_ratio": None if values[-2] == 0 else float(values[-1]) / float(values[-2]),
     }
 
@@ -957,21 +958,6 @@ def aggregate_samples(
         },
         "metrics": metrics,
     }
-
-
-def _atomic_json(path: Path, document: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            json.dump(document, handle, indent=2, sort_keys=True)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        Path(temporary).replace(path)
-    except BaseException:
-        Path(temporary).unlink(missing_ok=True)
-        raise
 
 
 def baseline_document(results: Mapping[str, Any], *, cause_commit: str) -> dict[str, Any]:
@@ -1151,7 +1137,7 @@ def run_suite(  # noqa: C901  -- the loop keeps each process, payload, and failu
         "errors": errors,
     }
     if output is not None:
-        _atomic_json(output, document)
+        atomic_json(output, document)
         print(f"wrote memory-scale data to {output}")
 
     for name, result in document["cases"].items():
@@ -1167,7 +1153,7 @@ def run_suite(  # noqa: C901  -- the loop keeps each process, payload, and failu
     if quick:
         return int(bool(errors))
     if update_baseline:
-        _atomic_json(baseline_path, baseline_document(document, cause_commit=cause_commit))
+        atomic_json(baseline_path, baseline_document(document, cause_commit=cause_commit))
         print(f"wrote memory-scale baseline to {baseline_path}")
         return int(bool(errors))
     if not baseline_path.exists():

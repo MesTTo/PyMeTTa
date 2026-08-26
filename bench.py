@@ -115,7 +115,7 @@ def _run_case(pytest_arguments: list[str], *, update: bool) -> None:
         raise SystemExit(int(result))
 
 
-def _finish_process(process: Any, timeout: float) -> str | None:
+def finish_process(process: Any, timeout: float) -> str | None:
     """Join one spawned worker and reap it on every timeout path."""
     process.join(timeout)
     if process.is_alive():
@@ -246,7 +246,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps
             cause_commit=arguments.memory_cause_commit,
             keep_going=arguments.keep_going,
             context=multiprocessing.get_context("spawn"),
-            finish_process=_finish_process,
+            finish_process=finish_process,
         )
     if arguments.list_cases:
         print("\n".join(sorted(CASES)))
@@ -293,7 +293,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps
                 name=f"petta-benchmark-{name}",
             )
             process.start()
-            process_failure = _finish_process(process, arguments.timeout)
+            process_failure = finish_process(process, arguments.timeout)
             if process_failure is not None:
                 message = f"benchmark {name} {process_failure}"
                 if not arguments.keep_going:

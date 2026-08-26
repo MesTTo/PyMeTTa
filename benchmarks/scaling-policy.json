@@ -1,0 +1,86 @@
+{
+ "schema": 1,
+ "note": "Each family is a workload shape with a size knob and a DECLARED complexity class. `maximum_exponent` bounds the exponent of `y = a*x^b` fitted by linear regression on (log size, log inferences) across the whole ladder, so the family is held to its class rather than to a constant. `maximum_growth` is the factor any size may cost above its pinned row in scaling-baseline.json, which catches a constant-factor loss that leaves the class alone. `route`, where present, names the route every size must still be on; a size that left it is REFUSED rather than fitted, because a fallback silently changes what is being measured. Ladders are chosen so the classes are far apart: the sibling project's own note on the two quadratics that survived its kernel is that 'every one of these families is flat at the tens'.",
+ "counter": "inferences",
+ "counter_note": "Inferences are deterministic and load-immune, so this gates on a shared workstation. Measured 2026-08-26: across three fresh processes per size, every one of the eight families returned the IDENTICAL count at every size, spread 0 absolute and 0 relative, and the same counts came back from a run at loadavg 3.40 and a run at loadavg 5.97. Repeating a call inside ONE process is not the same thing and is not what the gate does: that way the same families spread 0.0062% to 0.3512%, the widest on mork-write, because state warms across calls. Repetitions are therefore processes. A family whose work crosses into C or Rust retires no inferences there, so it declares `paired_counter` and can be measured a second time under `perf stat -e instructions:u` with --paired; that second lane is ADVISORY and never gates, because this workstation is shared.",
+ "ported_from": "metta-on-mork benchmarks/program-scaling-policy.json and scripts/check_program_scaling.py. What ported is the SCHEMA: a per-family `sizes` ladder, a declared bound on the growth exponent, and a SEPARATE looser bound on the constant factor against a recorded ledger. The SCRIPT did not, and neither did its numbers. Its counter is perf retired instructions where this lane's primary is inferences, which removes its CPU pinning (`performance_gate.pin_to`, hardcoded to cpu 11 where available) and its quiet-box requirement; it reaches into `check_direct_performance` for that pinning, source digests and cpu model, none of which have an equivalent here; its `BUDGET` and `NO_ROUTING=1` environment are kernel-specific; its refusal reads one `native_answered` field printed by one probe binary where a route here is per family and observed through the engine, because PeTTa's routes are per surface (`parser:petta_c_reader_active/0`, `seam:foreign_space/1`); and its constant guard compares `counts[-1]` alone where this one compares every size, since a curve that bends mid-ladder passes a last-size check. The ESTIMATOR is the reason its bounds cannot be reused: it takes the MAXIMUM of consecutive-pair slopes, this takes the regression exponent over all points. Recomputed on its own committed ledger on 2026-08-26, every one of its ten families reads LOWER under regression than under max-pair, by 0.008 to 0.235 (car_walk 1.542 -> 1.307, space_facts 0.515 -> 0.346, many_equations 0.474 -> 0.323), so adopting its numbers would have loosened every bound. The bounds here are set from this tree's own measurements instead. The two estimators agree to within 0.017 on the six seeded families below, which is what a ladder tall enough to reach the asymptote looks like; the gap is 0.117 on planted-quadratic, because a quadratic still carrying a linear term settles more slowly, and it is widest on the sibling's families exactly where its ladders stop short.",
+ "families": [
+  {
+   "name": "write-door",
+   "surface": "the write door: metta._space.Space.add",
+   "detail": "n separate writes into one space, which `add-single` pins at a single size and nothing measures across sizes. A write cost that starts depending on how much is already stored is the shape this catches.",
+   "expected_class": "linear",
+   "sizes": [200, 400, 800, 1600],
+   "maximum_exponent": 1.25,
+   "maximum_growth": 1.1
+  },
+  {
+   "name": "parse-forms",
+   "surface": "the reader: engine/reader.c and engine/filereader.pl",
+   "detail": "one program text holding n forms, parsed once. The coverage survey names the parser as one of four surfaces where a class regression is invisible today. It OBSERVES its route (`c` when engine/reader.so loaded, `prolog` otherwise) but does not pin a value, because the two routes are both shipped: check.sh builds reader.so where swipl-ld exists and prints a note and gates the Prolog reader where it does not, and PETTA_C_READER=off selects the fallback deliberately. Pinning `c` here would make this lane red on a box the rest of the gate accepts. The route still has to hold across the whole ladder, and a change of reader BETWEEN runs is caught by the configuration stamp, which refuses the comparison the way BenchmarkBaseline.observe_configuration already refuses one for baseline.json. The reader's route is worth about 12x, so a drifted comparison is worth refusing.",
+   "expected_class": "linear",
+   "sizes": [200, 400, 800, 1600],
+   "maximum_exponent": 1.25,
+   "maximum_growth": 1.1,
+   "paired_counter": true
+  },
+  {
+   "name": "chain-join",
+   "surface": "the join planner: a conjunctive match with a shared variable",
+   "detail": "two patterns joined on a shared variable over a path of n edges. The path keeps the ANSWER count linear, so the class is the finding rather than the output size: an unindexed nested-loop join is quadratic here and an indexed one is linear. This is the family most likely to hide a quadratic, because the engine's own note records that a conjunctive match IS a nested-loop join and is quadratic under skew.",
+   "expected_class": "linear",
+   "sizes": [200, 400, 800, 1600],
+   "maximum_exponent": 1.25,
+   "maximum_growth": 1.1
+  },
+  {
+   "name": "selective-query",
+   "surface": "the matcher: one selective lookup against a space of n facts",
+   "detail": "declared CONSTANT, which is the strongest statement in the file. The moment a lookup stops reaching its index this becomes linear and the exponent gate says so, where a point pin at one size would see only a bigger number and read it as a constant-factor regression. The bound of 0.25 is well above the -0.013 measured and well below the 1.0 a lost index would produce.",
+   "expected_class": "constant",
+   "sizes": [400, 800, 1600, 3200],
+   "maximum_exponent": 0.25,
+   "maximum_growth": 1.1
+  },
+  {
+   "name": "segment-split",
+   "surface": "sequence variables: engine/spaces/segment_matching.pl",
+   "detail": "two gaps around a separator splitting a row of n children. 896 lines with ZERO performance measurement at any layer, and split enumeration by backtracking is the classic quadratic, so this is where one would hide. The ladder stops at 800 because a flat row's children become a Prolog procedure arity and SWI refuses one above 1024.",
+   "expected_class": "linear",
+   "sizes": [100, 200, 400, 800],
+   "maximum_exponent": 1.25,
+   "maximum_growth": 1.1
+  },
+  {
+   "name": "mork-write",
+   "surface": "the MORK backend write path, through seam:foreign_space/1",
+   "detail": "n writes into a `&mork:` space. This family exists as much for its REFUSAL as for its curve: with the backend artefact absent the name silently becomes an ordinary native space, and the coverage survey records that two already-gated curves can therefore compare MORK pins against native measurements. The route check makes that impossible. Its growth bound is looser than the rest because it is the least settled family in the set: repeating a call inside ONE process spreads it 0.3512% where the widest native family spreads 0.0254%. Across fresh processes, which is what the gate actually measures, every family including this one is exact.",
+   "expected_class": "linear",
+   "sizes": [200, 400, 800, 1600],
+   "maximum_exponent": 1.25,
+   "maximum_growth": 1.15,
+   "route": "foreign",
+   "paired_counter": true
+  },
+  {
+   "name": "planted-quadratic",
+   "surface": "NEGATIVE CONTROL for the exponent gate",
+   "detail": "the write-door workload with a full scan of the space added to every write, so a cost paid once per step grows with everything written so far. That is the exact shape of the two quadratics the sibling project found inside a lane whose own assertions were on charged steps. It is DECLARED linear, so the exponent gate has to catch it; measured 1.746 against the 1.25 bound. It is here permanently, the way Renaissance ships dummy-validation-failing, and the lane fails if it ever stops failing.",
+   "expected_class": "linear",
+   "sizes": [50, 100, 200, 400],
+   "maximum_exponent": 1.25,
+   "maximum_growth": 1.1,
+   "control": {"fails": "exponent"}
+  },
+  {
+   "name": "planted-constant-factor",
+   "surface": "NEGATIVE CONTROL for the constant guard",
+   "detail": "the write-door workload run three times over, pinned against the row for running it once. The class is untouched, so this must PASS the exponent gate at 0.999 and FAIL the growth gate at 2.99x, which is what proves the two gates are independent rather than one gate wearing two names. Its pinned row is write-door's own measurement and is never re-recorded: re-pinning it would replace the plant with its own inflated cost and the lane would go green having proved nothing.",
+   "expected_class": "linear",
+   "sizes": [200, 400, 800, 1600],
+   "maximum_exponent": 1.25,
+   "maximum_growth": 1.1,
+   "control": {"fails": "growth", "pinned_from": "write-door"}
+  }
+ ]
+}
