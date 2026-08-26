@@ -83,7 +83,26 @@ from metta import S, V, fn, match, superpose
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 2394988
+#: RE-PINNED 2026-08-26, 2396435 to 2033218 (-363217, -15.2%). `len(...)` on
+#: this effect-bearing goal used to encode and cross all 301 answers to reach
+#: one number, and these answers are deep Peano numerals, so the encoding cost
+#: by term size: 2,029,719 inferences counting without it, 2,392,138 counting
+#: with it, 2,393,864 for the full materializing pass. The count and the
+#: values now come from ONE evaluation holding its answers unencoded
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
+#: RE-PINNED 2026-08-26, at the relational-counting merge: 2031806.
+#: Both parents re-pinned this budget and neither number survives the
+#: merge, so it is re-measured here rather than resolved to a side.
+#: The two mechanisms above COMPOSE, and the world-admission merge's
+#: admission guard lands on top of them: this lineage read 2394988,
+#: the counting branch read 2033218 against its own base, and the
+#: merged tree reads 2031806
+#: [measured: min-of-3 serial fresh processes on the resolved merge
+#: tree; command=python bindings/python/tools/twin_coverage.py
+#: --measure --rounds 3 ../../examples/<this example>;
+#: fixture=engine/reader.so and the MORK artefact present;
+#: commit=WORKTREE].
+BUDGET = 2031806
 def twin(m):
     """Expand the space 300 times, then count what is in it."""
 

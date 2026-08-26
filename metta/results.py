@@ -52,6 +52,12 @@ Guarantees:
     materializes the held cursor once [tested:
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+  - the count source is told whether an iterator has already been handed out,
+    so a count that would have to HOLD its answers can decline for a caller
+    about to read them [measured 2026-08-26: without the hint, list() on an
+    effect-bearing view paid the holding evaluation and ten corpus twins rose
+    by 9 to 256 inferences; command=python
+    bindings/python/tools/twin_coverage.py; commit=bbadc684deb3bdbe3426c44b64685717692c1dbc]
   - one(default=) distinguishes absence from multiplicity for both eager and
     lazy faces, while first without a default never returns None [tested:
     test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -723,6 +729,7 @@ class Answers[T](Sequence[T]):
         "_source",
         "_space",
         "_target",
+        "_values_demanded",
     )
 
     def __init__(  # noqa: D107 -- the enclosing type documents construction
@@ -732,7 +739,7 @@ class Answers[T](Sequence[T]):
         columns: Iterable[str] = (),
         space: str | None = None,
         target: object = None,
-        count: Callable[[], int | None] | None = None,
+        count: Callable[..., int | None] | None = None,
         query: _QueryContext | None = None,
     ) -> None:
         self._source = iter(source)
@@ -746,6 +753,16 @@ class Answers[T](Sequence[T]):
         self._row_cache: list[Row | None] = []
         self._done = False
         self._error: Exception | None = None
+        # True once an iterator over these answers has been handed out, which
+        # says the values are wanted and not just their number. `list(view)`
+        # asks for an iterator BEFORE it asks for a length hint, so a count
+        # source can tell it from a bare `len(view)` and skip work that only
+        # pays for itself when the values are thrown away: a count that has
+        # to HOLD its answers to avoid a second evaluation is pure overhead
+        # for a caller about to read them anyway. It is a hint and nothing
+        # else, so a Python that asked in the other order would pay that
+        # overhead rather than answer differently.
+        self._values_demanded = False
         self._lock = threading.RLock()
 
     @property
@@ -813,6 +830,7 @@ class Answers[T](Sequence[T]):
                     "Answers",
                     caller,
                 )
+        self._values_demanded = True
         return self._iterate()
 
     def __reversed__(self) -> Iterator[T]:
@@ -834,6 +852,7 @@ class Answers[T](Sequence[T]):
 
     def _items(self) -> Iterator[_AnswerItem]:
         """Replay values together with their private caller-row metadata."""
+        self._values_demanded = True
         position = 0
         while self._pull(position):
             yield _AnswerItem(self._cache[position], self._row_cache[position])
@@ -851,7 +870,7 @@ class Answers[T](Sequence[T]):
                 self._known_length = len(self._materialize())
                 return self._known_length
             if self._known_length is None:
-                counted = self._count_source()
+                counted = self._count_source(values_wanted=self._values_demanded)
                 if counted is None:
                     self._known_length = len(self._materialize())
                 else:

@@ -88,7 +88,26 @@ from metta import Expression, S, V, lib
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 301104
+#: RE-PINNED 2026-08-26, 302803 to 302740 (-63): the same count-route change
+#: the matespace family carries, worth little here because this twin's one
+#: `len(...)` sees three answers. What it still pays is the repeatability
+#: walk itself, which is per-length rather than per-answer and is what
+#: chooses between the O(1)-memory count for an effect-safe goal and the
+#: holding evaluation for an effect-bearing one
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
+#: RE-PINNED 2026-08-26, at the relational-counting merge: 302279.
+#: Both parents re-pinned this budget and neither number survives the
+#: merge, so it is re-measured here rather than resolved to a side.
+#: The two mechanisms above COMPOSE, and the world-admission merge's
+#: admission guard lands on top of them: this lineage read 301104,
+#: the counting branch read 302740 against its own base, and the
+#: merged tree reads 302279
+#: [measured: min-of-3 serial fresh processes on the resolved merge
+#: tree; command=python bindings/python/tools/twin_coverage.py
+#: --measure --rounds 3 ../../examples/<this example>;
+#: fixture=engine/reader.so and the MORK artefact present;
+#: commit=WORKTREE].
+BUDGET = 302279
 def twin(m):
     """Load soft matching, state two similarities, then check all seventeen claims."""
     # !(import! &self (library lib_measure))

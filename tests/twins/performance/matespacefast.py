@@ -87,7 +87,15 @@ from metta import S, V, equation, fn, if_, match
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 324566172
+#: RE-PINNED 2026-08-26, 324566172 to 74483636 (-250082536, -77.1%), the
+#: largest of the family because it is the answer-heaviest: `len(...)` on an
+#: effect-bearing goal had to encode and cross all 1,572,862 answers to reach
+#: one number. The count and the values now come from ONE evaluation that
+#: holds its answers unencoded in the engine. Crossing an answer costs
+#: 9.1 + 8.0 per term node in engine inferences, measured over a depth sweep,
+#: and that whole product is what a discarded length used to pay
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
+BUDGET = 74483636
 def twin(m):
     """Rewrite nineteen levels deep, then count what landed."""
     m += equation(S.rewriteK(V.t, V.n)).to(

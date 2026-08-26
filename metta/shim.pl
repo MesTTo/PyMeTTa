@@ -15,6 +15,11 @@
 %     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
 %     test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
 %     commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+%   - petta_py_eval_count_retaining/6 answers a cardinality and a replay
+%     cursor from ONE evaluation, so an effect-bearing goal fires once and a
+%     length nobody turns into values encodes nothing [tested:
+%     test_a_retained_count_replays_the_bag_the_cursor_would_have_answered;
+%     commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 %   - atomic entry points publish atom hooks after commit, while speculative
 %     and reified-world entry points discard their buffered event segments;
 %     speculative and world execution also fence the non-backtrackable State
@@ -769,8 +774,10 @@ petta_py_wrappable(petta_py_speculative).
 petta_py_wrappable(petta_py_profiled).
 petta_py_wrappable(petta_py_cursor_next).
 petta_py_wrappable(petta_py_eval_count).
+petta_py_wrappable(petta_py_eval_count_under).
 petta_py_wrappable(petta_py_eval_count_if_repeatable).
 petta_py_wrappable(petta_py_eval_count_under_if_repeatable).
+petta_py_wrappable(petta_py_eval_count_retaining).
 petta_py_wrappable(petta_py_derivation).
 petta_py_wrappable(petta_py_load).
 petta_py_wrappable(petta_py_fast_load_unit).
@@ -2439,8 +2446,52 @@ petta_py_eval_count_term(Space, Term, Count) :-
     aggregate_all(
         count,
         petta_run_with_fuel(petta_py_answer(Out), _,
-                            petta_py_eval_solution(Space, Term, Out)),
+                            petta_py_eval_solution(Space, Term, Out, _)),
         Count).
+
+%A count is a second evaluation, which an effect-bearing goal must not pay.
+%Evaluate ONCE instead: hold every answer one step short of the wire, answer
+%the count, and hand back a cursor that replays what was held. A count nobody
+%turns into values then crosses one integer, where the materializing pass it
+%replaces encoded and crossed every answer to reach that number; a later value
+%demand encodes exactly the answers it pulls. Encoding is the whole per-answer
+%cost here, measured on examples/reasoning/peano.metta's 301 answers: 2029719
+%inferences counting without it, 2392138 counting with it, and 2393864 for the
+%full materializing pass, so deferring the encode recovers 99.5% of the gap
+%while the boundary walk it keeps costs one inference per answer.
+%This is the held-portal shape a SQL engine uses to answer a count over an
+%open cursor without re-running the query: PostgreSQL materializes a SCROLL
+%cursor once and MOVE FORWARD ALL reports the row count with no row reaching
+%the client [source: PostgreSQL 17 manual, SQL-DECLARE and SQL-MOVE].
+petta_py_eval_count_retaining(Space, Target, Pairs, VarNames, Inf,
+                              [Count, prolog(Engine)]) :-
+    petta_py_eval_target(Space, Target, Pairs, Term, Bindings),
+    Collect = ( petta_py_eval_retained(Space, Term, Retained),
+                petta_py_row(VarNames, Bindings, Row) ),
+    petta_py_cursor_bounded(Collect, Inf, Bounded),
+    findall(Retained-Row, Bounded, Bag),
+    length(Bag, Count),
+    %Same cumulative-inference report the evaluating cursor makes, so a
+    %replayed view still tells its enclosing stats block what the held engine
+    %spent. The evaluation's own inferences were spent on the caller's engine
+    %and are already in that thread's counter.
+    Replay = ( statistics(inferences, Before),
+               member(Held-HeldRow, Bag),
+               petta_py_retained_encoded(Held, Encoded),
+               statistics(inferences, Now), Used is Now - Before ),
+    engine_create([Encoded, HeldRow, Used], Replay, Engine).
+
+%One held answer: the fuel-scope result before its wire form exists.
+petta_py_eval_retained(Space, Term, Retained) :-
+    petta_run_with_fuel(petta_py_answer(Out-Delays), Retained,
+                        petta_py_eval_solution(Space, Term, Out, Delays)).
+
+%The encoding petta_py_eval_term_bounded/3 does eagerly, deferred to the pull
+%that wants the answer. Mirrors petta_py_fuel_encoded/2: a fuel overflow
+%answer is its own term rather than a held value-and-delays pair.
+petta_py_retained_encoded(petta_py_answer(Out-Delays), Encoded) :- !,
+    petta_py_encode_truth(Out, Delays, Encoded).
+petta_py_retained_encoded(Overflow, Encoded) :- petta_py_encode(Overflow, Encoded).
 
 petta_py_eval_count_under(Space, Target, Pairs, Algebra, Count) :-
     petta_with_under(
@@ -2455,13 +2506,18 @@ petta_py_eval_count_under_if_repeatable(Space, Target, Pairs, Algebra, Answer) :
         Algebra,
         petta_py_eval_count_if_repeatable(Space, Target, Pairs, Answer)).
 
-petta_py_eval_solution(Space, Term, Out) :-
+%petta_py_eval_term/3 is this dispatch plus petta_py_encode_truth/3, written
+%out there rather than calling here so the eager answer path pays no extra
+%frame. The two are held in step by
+%test_a_retained_count_replays_the_bag_the_cursor_would_have_answered, which
+%runs the same programs through both and compares the answer bags.
+petta_py_eval_solution(Space, Term, Out, Delays) :-
     petta_py_module(Space, Module),
     ( petta_py_direct_goal(Module, Term, Goal, Produced)
-      -> petta_py_in_module(Module, call_delays(call(Module:Goal), _))
+      -> petta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
     ; petta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Produced),
                                    call_delays(petta_py_call_goals(Module, Goals),
-                                               _) )) ),
+                                               Delays) )) ),
     translator:petta_boundary_result(Term, Produced, Out).
 
 %A direct compiled predicate that fails can mean either that its written head

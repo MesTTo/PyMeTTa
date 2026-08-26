@@ -89,7 +89,29 @@ RUNG = (
 #: and 13 further inferences at every later position. The walk is
 #: first-order now, at 4.0 inferences per position against 17.0.
 #: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
-BUDGET = 124312733
+#: RE-PINNED 2026-08-26, 124314232 to 50679104 (-73635128, -59.2%). This twin's
+#: `len(...)` asks an effect-bearing goal for a cardinality, which 6917bef7
+#: answered by evaluating once through the cursor and encoding every one of
+#: 1,297,533 answers onto the wire. The count and the values now come from ONE
+#: evaluation that holds its answers unencoded in the engine, so the length
+#: crosses one integer and a value demand encodes only what it pulls. The
+#: residue over the pre-6917bef7 46,782,015 is the held bag: about 3
+#: inferences per answer for the boundary walk and the findall, which is what
+#: keeps `list()` correct
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
+#: RE-PINNED 2026-08-26, at the relational-counting merge: 50677615.
+#: Both parents re-pinned this budget and neither number survives the
+#: merge, so it is re-measured here rather than resolved to a side.
+#: The two mechanisms above COMPOSE, and the world-admission merge's
+#: admission guard lands on top of them: this lineage read 124312733,
+#: the counting branch read 50679104 against its own base, and the
+#: merged tree reads 50677615
+#: [measured: min-of-3 serial fresh processes on the resolved merge
+#: tree; command=python bindings/python/tools/twin_coverage.py
+#: --measure --rounds 3 ../../examples/<this example>;
+#: fixture=engine/reader.so and the MORK artefact present;
+#: commit=WORKTREE].
+BUDGET = 50677615
 def twin(m):
     """Run eighty expand-and-mate rounds, then count what the space holds."""
     nodup = S.add_atom_no_duplicate

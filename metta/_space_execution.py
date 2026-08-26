@@ -41,10 +41,20 @@ Guarantees:
     translated goal is effect-safe [tested:
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+  - an effect-bearing goal's cardinality and its values come from ONE
+    evaluation that holds its answers in the engine, so a length nobody turns
+    into values crosses one integer rather than encoding every answer
+    [tested: test_a_retained_count_replays_the_bag_the_cursor_would_have_answered,
+    test_a_length_evaluates_an_effect_bearing_goal_exactly_once;
+    commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2]
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: None.
+  Future Enhancements:
+    - the holding evaluation covers the plain cursor only. A carrier cursor
+      (evaluate_answers under=) answers an annotation beside every value,
+      which petta_py_eval_count_retaining/6 does not hold, so its declined
+      count still counts through one materializing pass.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
@@ -383,35 +393,29 @@ def evaluate(
     return [_from_wire(wire) for wire in wires]
 
 
-def evaluate_count(
-    rt: Runtime,
+def _count_inputs(
     space: str,
     target: Any,
-    timeout: float | None,
-    inferences: int | None,
-    *,
-    using: dict[str, Any] | None = None,
-    under: str | None = None,
-) -> int | None:
-    """Count call answers in the engine without decoding any answer value.
-
-    Answers None when the engine classifies the goal effect-unsafe to run a
-    second time; the caller then counts through its single answer pass.
-    """
+    using: dict[str, Any] | None,
+) -> list[Any]:
+    """The space, wire target, and named substitutions a count door takes."""
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     pairs = (
         []
         if not using
         else [[name, _encode(value).to_wire()] for name, value in using.items()]
     )
-    # The repeatability guard survives the carrier: a count is a second
-    # evaluation, so an effect-unsafe goal answers None here and the caller
-    # counts by one materializing pass instead of firing the effects twice.
-    predicate = "petta_py_eval_count_if_repeatable"
-    inputs: list[Any] = [space, encoded_target, pairs]
-    if under is not None:
-        predicate = "petta_py_eval_count_under_if_repeatable"
-        inputs.append(under)
+    return [space, encoded_target, pairs]
+
+
+def _count_call(
+    rt: Runtime,
+    predicate: str,
+    inputs: list[Any],
+    timeout: float | None,
+    inferences: int | None,
+) -> Any:
+    """Send one counting predicate through the capture and limit wrappers."""
     limits = _limits(timeout, inferences)
     captured = _CAPTURED_OUTPUT.get()
     if captured is not None:
@@ -424,7 +428,89 @@ def evaluate_count(
     if captured is not None:
         output, captured_text = output
         captured._append(str(captured_text))
+    return output
+
+
+def evaluate_count(
+    rt: Runtime,
+    space: str,
+    target: Any,
+    timeout: float | None,
+    inferences: int | None,
+    *,
+    using: dict[str, Any] | None = None,
+    under: str | None = None,
+) -> int:
+    """Count call answers in the engine without decoding any answer value.
+
+    For the caller whose count IS the whole evaluation. The counting carrier
+    holds no answer cursor beside its scalar, so nothing here can run twice
+    and the repeatability question does not arise.
+    """
+    inputs = _count_inputs(space, target, using)
+    predicate = "petta_py_eval_count"
+    if under is not None:
+        predicate = "petta_py_eval_count_under"
+        inputs.append(under)
+    return int(_count_call(rt, predicate, inputs, timeout, inferences))
+
+
+def evaluate_count_if_repeatable(
+    rt: Runtime,
+    space: str,
+    target: Any,
+    timeout: float | None,
+    inferences: int | None,
+    *,
+    using: dict[str, Any] | None = None,
+    under: str | None = None,
+) -> int | None:
+    """The same count for a caller that also holds this goal's answer cursor.
+
+    Answers None when the engine classifies the goal effect-unsafe to run a
+    second time; counting it here and then opening the cursor would fire the
+    effects twice. The repeatability guard survives the carrier, because a
+    count is a second evaluation whatever algebra tags it.
+    """
+    inputs = _count_inputs(space, target, using)
+    predicate = "petta_py_eval_count_if_repeatable"
+    if under is not None:
+        predicate = "petta_py_eval_count_under_if_repeatable"
+        inputs.append(under)
+    output = _count_call(rt, predicate, inputs, timeout, inferences)
     return int(output[0]) if output else None
+
+
+def _retain_and_count(
+    rt: Runtime,
+    inputs: list[Any],
+    seconds: float | None,
+    stack: int,
+) -> tuple[int, Any]:
+    """Evaluate once, answer the count, and hold the answers unencoded.
+
+    The wall and stack limits wrap this call the way they wrap one cursor
+    pull, and the inference limit rides inside the predicate as it does for
+    the cursor, because this single call is the whole enumeration.
+    """
+    predicate = "petta_py_eval_count_retaining"
+    captured = _CAPTURED_OUTPUT.get()
+    if captured is not None:
+        predicate, inputs = "petta_py_captured", [predicate, inputs]
+    if seconds is None and stack < 0:
+        output = rt.apply_must(predicate, *inputs)
+    else:
+        output = _apply_limited(
+            rt,
+            (-1.0 if seconds is None else seconds, -1, stack),
+            predicate,
+            inputs,
+        )
+    if captured is not None:
+        output, text = output
+        captured._append(str(text))
+    count, handle = output
+    return int(count), handle
 
 
 def evaluate_answers(
@@ -447,11 +533,14 @@ def evaluate_answers(
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
 
     A pristine view counts through a separate engine only when the translated
-    goal is effect-safe. Otherwise len() materializes this view's held cursor,
-    so list() cannot execute an effect once for its length hint and again for
-    its values [tested:
-    test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
-    commit=6917bef7ca902671999eafcae3a7a86db8f69723].
+    goal is effect-safe. Otherwise the count and the values come from ONE
+    evaluation that holds its answers in the engine, so list() cannot execute
+    an effect once for its length hint and again for its values, and a count
+    nobody turns into values crosses one integer instead of encoding every
+    answer [tested:
+    test_effectful_relational_candidates_run_once_per_yield_on_fresh_list,
+    test_a_retained_count_replays_the_bag_the_cursor_would_have_answered;
+    commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
     """
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     columns = [] if isinstance(target, str) else _column_names((_to_atom(target),))
@@ -464,9 +553,13 @@ def evaluate_answers(
     seconds = None if limits is None or limits[0] < 0 else limits[0]
     steps = -1 if limits is None else limits[1]
     stack = -1 if limits is None else limits[2]
+    #: The cursor a declined count left behind, at most one, read by the first
+    #: pull. Written under Answers' own lock, which serialises len() against
+    #: every pull, and only while the view is still pristine.
+    retained: list[Any] = []
 
-    def count_answers() -> int | None:
-        return evaluate_count(
+    def count_answers(*, values_wanted: bool) -> int | None:
+        counted = evaluate_count_if_repeatable(
             rt,
             space,
             target,
@@ -475,14 +568,33 @@ def evaluate_answers(
             using=using,
             under=under,
         )
+        if counted is not None or under is not None or values_wanted:
+            # Three ways this count is already the cheapest one available.
+            # An effect-safe goal counts on its own engine. A carrier cursor
+            # answers an annotation beside every value, a shape the holding
+            # door does not carry. And a caller that has taken an iterator is
+            # about to read the answers, so holding them to avoid a second
+            # evaluation buys nothing that one materializing pass does not.
+            return counted
+        count, handle = _retain_and_count(
+            rt,
+            [space, encoded_target, pairs or [], columns, steps],
+            seconds,
+            stack,
+        )
+        retained.append(handle)
+        return count
 
     def stream() -> Iterator[Any]:
-        predicate = "petta_py_eval_cursor_open"
-        inputs: list[Any] = [space, encoded_target, pairs or [], columns, steps]
-        if under is not None:
-            predicate = "petta_py_eval_cursor_open_under"
-            inputs.extend((under, order or "none"))
-        handle = rt.apply_must(predicate, *inputs)
+        if retained:
+            handle = retained.pop()
+        else:
+            predicate = "petta_py_eval_cursor_open"
+            inputs: list[Any] = [space, encoded_target, pairs or [], columns, steps]
+            if under is not None:
+                predicate = "petta_py_eval_cursor_open_under"
+                inputs.extend((under, order or "none"))
+            handle = rt.apply_must(predicate, *inputs)
         row_cls = _row_class(tuple(columns))
         reported_inferences = 0
         try:

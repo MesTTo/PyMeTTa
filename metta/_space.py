@@ -1858,7 +1858,10 @@ class Space(Handle):
             space=self._space,
             target=patterns,
             query=query_context,
-            count=lambda: query_count(
+            # A pattern query reads and writes nothing, so counting it is
+            # always the cheap engine aggregate; the route hints a count
+            # source may be given change nothing here.
+            count=lambda **_route: query_count(
                 self._rt,
                 self._space,
                 patterns,
@@ -2477,7 +2480,13 @@ class Space(Handle):
                         inferences=inferences,
                     )
                 else:
-                    counted_engine = evaluate_count(
+                    # This scalar IS the whole evaluation: the counting view
+                    # holds no answer cursor beside it, so the engine counts
+                    # once and one integer crosses. Asking the repeatability
+                    # question here instead sent an effect-bearing goal
+                    # through a materializing pass that encoded and crossed
+                    # every answer to reach a number nobody kept.
+                    yield evaluate_count(
                         self._rt,
                         self._space,
                         target,
@@ -2486,22 +2495,6 @@ class Space(Handle):
                         using=using,
                         under=declaration.name,
                     )
-                    if counted_engine is None:
-                        # The engine refused a second evaluation of an
-                        # effect-unsafe goal; count the bag through one
-                        # ordinary pass so the effects fire exactly once.
-                        counted_engine = sum(
-                            1
-                            for _ in evaluate_answers(
-                                self._rt,
-                                self._space,
-                                target,
-                                timeout,
-                                inferences,
-                                using=using,
-                            )
-                        )
-                    yield counted_engine
 
             return Answers(counted(), space=self._space, target=target)
         columns = tuple(_column_names((tagged_target,)))
