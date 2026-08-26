@@ -80,7 +80,14 @@ from metta import Expression, S, V, lib
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=WORKTREE].
-BUDGET = 302803
+#: RE-PINNED 2026-08-26, 302803 to 302740 (-63): the same count-route change
+#: the matespace family carries, worth little here because this twin's one
+#: `len(...)` sees three answers. What it still pays is the repeatability
+#: walk itself, which is per-length rather than per-answer and is what
+#: chooses between the O(1)-memory count for an effect-safe goal and the
+#: holding evaluation for an effect-bearing one
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=WORKTREE].
+BUDGET = 302740
 def twin(m):
     """Load soft matching, state two similarities, then check all seventeen claims."""
     # !(import! &self (library lib_measure))

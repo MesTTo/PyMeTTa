@@ -87,7 +87,14 @@ RUNG = (
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 116492911
+#: RE-PINNED 2026-08-26, 116492911 to 32668415 (-83824496, -71.9%), which
+#: returns this twin to its pre-6917bef7 cost: `answers(..., under=counting)`
+#: builds a view whose ONLY source is the scalar, so the count is that view's
+#: whole evaluation and the repeatability question cannot arise. Asking it
+#: anyway sent this effect-bearing goal through a materializing pass that
+#: encoded and crossed all 1,063,919 answers to reach a number nobody kept
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=WORKTREE].
+BUDGET = 32668415
 def twin(m):
     """Grow a space by 390 doublings, mate the branches, and count what is left."""
     nodup = S.add_atom_no_duplicate

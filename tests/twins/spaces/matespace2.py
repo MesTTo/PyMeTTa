@@ -81,7 +81,17 @@ RUNG = (
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 124314232
+#: RE-PINNED 2026-08-26, 124314232 to 50679104 (-73635128, -59.2%). This twin's
+#: `len(...)` asks an effect-bearing goal for a cardinality, which 6917bef7
+#: answered by evaluating once through the cursor and encoding every one of
+#: 1,297,533 answers onto the wire. The count and the values now come from ONE
+#: evaluation that holds its answers unencoded in the engine, so the length
+#: crosses one integer and a value demand encodes only what it pulls. The
+#: residue over the pre-6917bef7 46,782,015 is the held bag: about 3
+#: inferences per answer for the boundary walk and the findall, which is what
+#: keeps `list()` correct
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=WORKTREE].
+BUDGET = 50679104
 def twin(m):
     """Run eighty expand-and-mate rounds, then count what the space holds."""
     nodup = S.add_atom_no_duplicate
