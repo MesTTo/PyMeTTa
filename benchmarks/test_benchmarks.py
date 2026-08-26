@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=04b794b718563ebb114800abebfc6f1200d7b835]
+    commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -132,11 +132,20 @@ _ROWS = 2_000
 #: refused plain controls remain within two inferences of their pins. Three
 #: fresh-process min-of-three rounds produced the same automatic readings;
 #: the fixed delta leaves the linear automatic growth class unchanged.
+#: RE-PINNED 2026-08-26 after lexical declaration selection stopped a named
+#: function's compile path from scanning inherited ``&self`` rows. Relative
+#: to the exact base, plain drops 53/55/55/55 and automatic drops 105 at every
+#: size, fixed setup costs that leave the exponential and linear growth
+#: classes unchanged [measured: candidate observations 144938/28422,
+#: 1091182/29568, 8660937/30728, 34614276/31510; command=python -c
+#: "from benchmarks.test_benchmarks import _automatic_tabling_observations;
+#: print(_automatic_tabling_observations())"; fixture=isolated candidate and
+#: base worktrees, min-of-three per cell; commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 144_993, "automatic": 28_525},
-    15: {"plain": 1_091_237, "automatic": 29_675},
-    18: {"plain": 8_660_994, "automatic": 30_831},
-    20: {"plain": 34_614_331, "automatic": 31_613},
+    12: {"plain": 144_938, "automatic": 28_422},
+    15: {"plain": 1_091_182, "automatic": 29_568},
+    18: {"plain": 8_660_937, "automatic": 30_728},
+    20: {"plain": 34_614_276, "automatic": 31_510},
 }
 
 

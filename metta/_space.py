@@ -117,6 +117,11 @@ Guarantees:
     an explicit full-interpreter head without mutating the receiver [tested:
     test_answers_selects_a_theory_or_interpreter_per_ask;
     commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
+  - a theory replaces only the receiver's own program for one ask; shared
+    session definitions remain visible and are lexically shadowed by theory
+    definitions [tested:
+    test_an_inherited_arrow_does_not_veto_a_local_definition;
+    commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c]
   - ``Space.cast`` preserves the inherited one-argument atom cast while its
     two-argument form keeps explicit context-relative casting [tested:
     test_atom_cast_delegates_to_the_ambient_space;
@@ -2348,12 +2353,15 @@ class Space(Handle):
         its prefix. A surrounding ``metta.under(carrier)`` is used only when
         this call does not pass an explicit carrier.
 
-        ``theory=`` treats an atom or iterable of atoms as the complete
-        equational program for this ask. It installs that value in an isolated
-        scratch space on the first pull, evaluates there, and drops the space
-        when the view is exhausted or abandoned. The receiver is unchanged.
-        This mirrors reflective descent functions whose inputs are a reified
-        module and term [source:
+        ``theory=`` treats an atom or iterable of atoms as the theory value for
+        this ask. That value replaces the receiver's own equational program.
+        Engine builtins and the shared ``&self`` session space remain in scope
+        exactly as they are for every space, and names the theory defines
+        shadow inherited ones. It installs the theory in an isolated scratch
+        space on the first pull, evaluates there, and drops the space when the
+        view is exhausted or abandoned. The receiver is unchanged. This
+        mirrors reflective descent functions whose inputs are a reified module
+        and term [source:
         https://maude.cs.illinois.edu/maude1/manual/maude-manual-html/maude-manual_24.html;
         commit=0d49980b03d507f9bae0354786ab826a146c20df].
 
