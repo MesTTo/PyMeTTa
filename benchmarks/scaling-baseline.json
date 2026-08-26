@@ -1,0 +1,427 @@
+{
+  "configuration": {
+    "c_extension": true,
+    "c_reader": true,
+    "mork_backend": "foreign",
+    "python_version": "3.14.4",
+    "swipl_version": "10.1.13"
+  },
+  "families": {
+    "chain-join": {
+      "cause": {
+        "chain": [
+          "python -m benchmarks.scaling --record measured chain-join",
+          "minimum of 3 fresh processes per size",
+          "the declared class is linear"
+        ],
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+      },
+      "counter": "inferences",
+      "expected_class": "linear",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 19.312316828264702,
+        "exponent": 0.9744271237726175,
+        "growth": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "normalised_rms": {
+          "constant": 0.704043,
+          "cubic": 0.490058,
+          "linear": 0.008935,
+          "log_n": 0.584009,
+          "n_log_n": 0.081085,
+          "quadratic": 0.349331
+        },
+        "pair_slopes": [
+          0.9471,
+          0.9824,
+          0.9911
+        ],
+        "r_squared": 0.9998904770240529
+      },
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "representative": [
+        3402,
+        6559,
+        12959,
+        25759
+      ],
+      "sizes": [
+        200,
+        400,
+        800,
+        1600
+      ],
+      "work": [
+        199,
+        399,
+        799,
+        1599
+      ]
+    },
+    "mork-write": {
+      "cause": {
+        "chain": [
+          "python -m benchmarks.scaling --record measured mork-write",
+          "minimum of 3 fresh processes per size",
+          "the declared class is linear"
+        ],
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+      },
+      "counter": "inferences",
+      "expected_class": "linear",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 149.14980265309504,
+        "exponent": 1.0008918964960085,
+        "growth": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "normalised_rms": {
+          "constant": 0.716311,
+          "cubic": 0.485494,
+          "linear": 0.001642,
+          "log_n": 0.596174,
+          "n_log_n": 0.071982,
+          "quadratic": 0.343045
+        },
+        "pair_slopes": [
+          0.997,
+          1.0013,
+          1.0042
+        ],
+        "r_squared": 0.9999973923550471
+      },
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "representative": [
+        30010,
+        59897,
+        119899,
+        240505
+      ],
+      "sizes": [
+        200,
+        400,
+        800,
+        1600
+      ],
+      "work": [
+        200,
+        400,
+        800,
+        1600
+      ]
+    },
+    "parse-forms": {
+      "cause": {
+        "chain": [
+          "python -m benchmarks.scaling --record measured parse-forms",
+          "minimum of 3 fresh processes per size",
+          "the declared class is linear"
+        ],
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+      },
+      "counter": "inferences",
+      "expected_class": "linear",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 26.339070682954343,
+        "exponent": 0.9982700238510626,
+        "growth": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "normalised_rms": {
+          "constant": 0.714137,
+          "cubic": 0.486929,
+          "linear": 0.000638,
+          "log_n": 0.593947,
+          "n_log_n": 0.073959,
+          "quadratic": 0.344726
+        },
+        "pair_slopes": [
+          0.997,
+          0.9985,
+          0.9993
+        ],
+        "r_squared": 0.9999997183609889
+      },
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "representative": [
+        5222,
+        10422,
+        20822,
+        41624
+      ],
+      "sizes": [
+        200,
+        400,
+        800,
+        1600
+      ],
+      "work": [
+        200,
+        400,
+        800,
+        1600
+      ]
+    },
+    "planted-constant-factor": {
+      "cause": {
+        "chain": [
+          "THE PLANT. This row is write-door's own measurement, for the UNMULTIPLIED workload that planted-constant-factor runs a fixed number of times.",
+          "The distance between this row and the control's measurement is the planted constant-factor loss, so it is copied rather than measured and never reflects the control's own cost.",
+          "The class is untouched, so the control passes the exponent gate and fails only the growth gate."
+        ],
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+      },
+      "counter": "inferences",
+      "expected_class": "linear",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 27.44626830656026,
+        "exponent": 0.9978090214396321,
+        "growth": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "normalised_rms": {
+          "constant": 0.713918,
+          "cubic": 0.487022,
+          "linear": 0.000816,
+          "log_n": 0.593729,
+          "n_log_n": 0.074126,
+          "quadratic": 0.344848
+        },
+        "pair_slopes": [
+          0.996,
+          0.9983,
+          0.999
+        ],
+        "r_squared": 0.9999995274051957
+      },
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "representative": [
+        5429,
+        10828,
+        21630,
+        43230
+      ],
+      "sizes": [
+        200,
+        400,
+        800,
+        1600
+      ],
+      "work": [
+        200,
+        400,
+        800,
+        1600
+      ]
+    },
+    "segment-split": {
+      "cause": {
+        "chain": [
+          "python -m benchmarks.scaling --record measured segment-split",
+          "minimum of 3 fresh processes per size",
+          "the declared class is linear"
+        ],
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+      },
+      "counter": "inferences",
+      "expected_class": "linear",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 35.961379295216645,
+        "exponent": 0.9684585389131932,
+        "growth": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "normalised_rms": {
+          "constant": 0.700099,
+          "cubic": 0.491997,
+          "linear": 0.012057,
+          "log_n": 0.56509,
+          "n_log_n": 0.092086,
+          "quadratic": 0.351809
+        },
+        "pair_slopes": [
+          0.9458,
+          0.9725,
+          0.9857
+        ],
+        "r_squared": 0.9999130972231698
+      },
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "representative": [
+        3133,
+        6035,
+        11842,
+        23451
+      ],
+      "sizes": [
+        100,
+        200,
+        400,
+        800
+      ],
+      "work": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    "selective-query": {
+      "cause": {
+        "chain": [
+          "python -m benchmarks.scaling --record measured selective-query",
+          "minimum of 3 fresh processes per size",
+          "the declared class is constant"
+        ],
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+      },
+      "counter": "inferences",
+      "expected_class": "constant",
+      "fit": {
+        "best_model": "constant",
+        "coefficient": 107.23448941264257,
+        "exponent": -0.013183004276279284,
+        "growth": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "normalised_rms": {
+          "constant": 0.013289,
+          "cubic": 0.826911,
+          "linear": 0.58808,
+          "log_n": 0.120081,
+          "n_log_n": 0.628732,
+          "quadratic": 0.769919
+        },
+        "pair_slopes": [
+          -0.0439,
+          0.0,
+          0.0
+        ],
+        "r_squared": 0.6
+      },
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "representative": [
+        100,
+        97,
+        97,
+        97
+      ],
+      "sizes": [
+        400,
+        800,
+        1600,
+        3200
+      ],
+      "work": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    "write-door": {
+      "cause": {
+        "chain": [
+          "python -m benchmarks.scaling --record measured write-door",
+          "minimum of 3 fresh processes per size",
+          "the declared class is linear"
+        ],
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+      },
+      "counter": "inferences",
+      "expected_class": "linear",
+      "fit": {
+        "best_model": "linear",
+        "coefficient": 27.44626830656026,
+        "exponent": 0.9978090214396321,
+        "growth": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "normalised_rms": {
+          "constant": 0.713918,
+          "cubic": 0.487022,
+          "linear": 0.000816,
+          "log_n": 0.593729,
+          "n_log_n": 0.074126,
+          "quadratic": 0.344848
+        },
+        "pair_slopes": [
+          0.996,
+          0.9983,
+          0.999
+        ],
+        "r_squared": 0.9999995274051957
+      },
+      "noise": {
+        "absolute_max": 0,
+        "relative_max": 0.0
+      },
+      "representative": [
+        5429,
+        10828,
+        21630,
+        43230
+      ],
+      "sizes": [
+        200,
+        400,
+        800,
+        1600
+      ],
+      "work": [
+        200,
+        400,
+        800,
+        1600
+      ]
+    }
+  },
+  "repetitions": 3,
+  "repin_rule": "A changed pin must name the first causal code or dependency change, carry the old and new counts, and explain why the family still holds its declared class. A control row is never re-pinned: the planted constant-factor loss IS the distance between its measurement and the row below it.",
+  "schema": 1
+}
