@@ -1367,7 +1367,8 @@
           "bench.py --memory-scale spawns table-reclamation in a fresh process",
           "table_bytes_after_clear is selected by minimum of repetitions",
           "the intended complexity family is constant",
-          "RE-MEASURED 2026-08-26 with untabling ordered before provider and predicate cleanup: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; cleared spaces retain no table bytes at any size"
+          "RE-MEASURED 2026-08-26 with untabling ordered before provider and predicate cleanup: [0, 0, 0, 0] with +/-0 noise remains [0, 0, 0, 0] with +/-0 noise; cleared spaces retain no table bytes at any size",
+          "RE-PINNED 2026-08-26 from [0, 0, 0, 0] to [168, 168, 168, 168] at the tabling-seam merge: declarations table `as shared`, and abolishing a shared table leaves SWI's one shared-trie registry shell, a fixed 168-byte floor that is CONSTANT across every size, so the law this case guards, no table memory growth surviving clear, still holds; a zero floor returns if the private-when-unwatched refinement lands."
         ],
         "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
@@ -1417,10 +1418,10 @@
       },
       "primary_metric": "table_bytes_after_clear",
       "representative": [
-        0,
-        0,
-        0,
-        0
+        168,
+        168,
+        168,
+        168
       ],
       "sizes": [
         10,
