@@ -4,6 +4,11 @@ Assumes:
   - a provider is reifiable only through ``foreign.Snapshotter``; ordinary
     enumeration is live and is never promoted to a snapshot.
 Guarantees:
+  - a plan is admitted before scratch-space creation exactly when its joined
+    effect is covered by the originating world's catalog declaration;
+    structural plans need no declaration [tested:
+    test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation,
+    test_world_coverage_admits_the_joined_plan; commit=WORKTREE]
   - evaluation replays into a fresh receiver, rebases self references, fences
     State writes, emits no event, and returns a new frozen world without
     changing its parent [tested: test_world_eval_branches_without_touching_parent,
@@ -19,36 +24,122 @@ Fails when:
 
 from __future__ import annotations
 
+import weakref
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from ._space_objects import _apply_limited, _limits
 from .atoms import Atom, Undefined, _atom_from_wire, _from_wire, _to_atom
-from .errors import PettaError
+from .errors import _EFFECT_SAFETY_GROUND, PettaError
 from .foreign import Transactional, WorldCommitter
 from .spaces import _Member, _surplus
+from .vocabularies import EffectClass
 
 if TYPE_CHECKING:
     from ._space import Space
 
 
-def _permit_world_effect(_space: Space, _target: Any) -> None:
-    """Permissive admission until the sibling EffectClass lane wires policy."""
+def _raise_world_refusal(
+    origin: Space,
+    target: Any,
+    rows: list[Any],
+    required_raw: Any,
+    coverage_raw: Any,
+) -> NoReturn:
+    """Raise the one grounded refusal for either admission checkpoint."""
+    required = EffectClass(str(required_raw))
+    coverage = EffectClass(str(coverage_raw))
+    strongest = [
+        str(name)
+        for name, declared in rows
+        if EffectClass(str(declared)) == required
+    ]
+    operation = strongest[0] if strongest else "<dynamic-operation>"
+    operations = ", ".join(strongest) if strongest else operation
+    msg = (
+        f"reified-world evaluation refuses operation {operations} at effect "
+        f"rank {required} because world {origin} covers only {coverage}. "
+        f"Declare the handler coverage with space.covers({str(required)!r}), "
+        "or route this evaluation through the mutable space instead."
+    )
+    raise PettaError(
+        msg,
+        atom=target,
+        space=str(origin),
+        operation=operation,
+        capability=str(required),
+        ground=_EFFECT_SAFETY_GROUND,
+    )
 
 
-# Integration seam for the sibling effect-rank implementation. World.eval
-# calls this predicate exactly once before creating or mutating scratch state.
-_WORLD_EFFECT_ADMISSION: Callable[[Space, Any], None] = _permit_world_effect
+def _admit_world_effect(
+    plan: Space,
+    origin: Space,
+    target: Any,
+    image_rows: tuple[tuple[str, str], ...],
+    image_effect: EffectClass,
+) -> tuple[list[list[str]], EffectClass]:
+    """Refuse the joined target-and-image plan or return its stable snapshot."""
+    target_wire = target if isinstance(target, str) else _to_atom(target).to_wire()
+    rows, required_raw, coverage_raw = plan._rt.apply_must(
+        "petta_py_world_effect_plan",
+        plan._space,
+        origin._space,
+        target_wire,
+    )
+    required = EffectClass(str(required_raw)).join(image_effect)
+    coverage = EffectClass(str(coverage_raw))
+    combined_rows = [
+        *([name, declared] for name, declared in image_rows),
+        *([str(name), str(declared)] for name, declared in rows),
+    ]
+    if required <= coverage:
+        return combined_rows, required
+    _raise_world_refusal(origin, target, combined_rows, required, coverage)
 
 
-@dataclass(frozen=True, slots=True)
+# World.eval calls this predicate exactly once before creating or mutating
+# scratch state. Keeping the named seam makes the ordering directly probeable.
+_WORLD_EFFECT_ADMISSION: Callable[..., tuple[list[list[str]], EffectClass]] = (
+    _admit_world_effect
+)
+
+
+def _drop_world_plan(plan: Space) -> None:
+    """Retire an anonymous plan image, tolerating interpreter shutdown."""
+    with suppress(BaseException):
+        plan.drop()
+
+
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class ReifiedWorld:
     """One immutable multiset state with an immutable reification base."""
 
     _origin: Space = field(repr=False, compare=False)
     _base: tuple[Atom, ...] = field(repr=False)
     atoms: tuple[Atom, ...]
+    _plan: Space = field(repr=False, compare=False)
+    _prepare_rows: tuple[tuple[str, str], ...] = field(repr=False, compare=False)
+    _prepare_effect: EffectClass = field(repr=False, compare=False)
+    _finalizer: weakref.finalize = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "_finalizer",
+            weakref.finalize(self, _drop_world_plan, self._plan),
+        )
+
+    def close(self) -> None:
+        """Release this world's retained native program image."""
+        self._finalizer()
+
+    def _require_open(self) -> None:
+        if not self._finalizer.alive:
+            msg = "this ReifiedWorld is closed; reify the source space again"
+            raise PettaError(msg, space=str(self._origin))
 
     def eval(
         self,
@@ -58,36 +149,67 @@ class ReifiedWorld:
         inferences: int | None = None,
     ) -> tuple[list[Atom | Undefined], ReifiedWorld]:
         """Evaluate against this value and return ``(answers, successor)``."""
-        _WORLD_EFFECT_ADMISSION(self._origin, target)
+        self._require_open()
+        operations, effect = _WORLD_EFFECT_ADMISSION(
+            self._plan,
+            self._origin,
+            target,
+            self._prepare_rows,
+            self._prepare_effect,
+        )
         scratch = self._origin._new_space()
         target_wire = target if isinstance(target, str) else _to_atom(target).to_wire()
-        inputs = [
-            scratch._space,
-            self._origin._space,
-            [atom.to_wire() for atom in self.atoms],
-            target_wire,
-        ]
+        transferred = False
         try:
+            atom_wires = [atom.to_wire() for atom in self.atoms]
+            inputs = [
+                scratch._space,
+                self._origin._space,
+                atom_wires,
+                target_wire,
+                operations,
+                str(effect),
+            ]
             limits = _limits(timeout, inferences)
             if limits is None:
-                answer_wires, atom_wires = self._origin._rt.apply_must(
+                result = self._origin._rt.apply_must(
                     "petta_py_world_eval", *inputs
                 )
             else:
-                answer_wires, atom_wires = _apply_limited(
+                result = _apply_limited(
                     self._origin._rt,
                     limits,
                     "petta_py_world_eval",
                     inputs,
                 )
+            if str(result[0]) == "refused":
+                _raise_world_refusal(
+                    self._origin,
+                    target,
+                    result[1],
+                    result[2],
+                    result[3],
+                )
+            _, answer_wires, atom_wires, image_rows_raw, image_effect_raw = result
+            answers = [_from_wire(wire) for wire in answer_wires]
+            atoms = tuple(_atom_from_wire(wire) for wire in atom_wires)
+            image_rows = tuple(
+                (str(name), str(declared))
+                for name, declared in image_rows_raw
+            )
+            successor = ReifiedWorld(
+                self._origin,
+                self._base,
+                atoms,
+                scratch,
+                image_rows,
+                EffectClass(str(image_effect_raw)),
+            )
+            transferred = True
+            return answers, successor
         finally:
-            # petta_py_world_eval clears while its discard frame is open. The
-            # drop therefore only retires the now-empty anonymous name.
-            scratch.drop()
-
-        answers = [_from_wire(wire) for wire in answer_wires]
-        atoms = tuple(_atom_from_wire(wire) for wire in atom_wires)
-        return answers, ReifiedWorld(self._origin, self._base, atoms)
+            if not transferred:
+                scratch.drop()
 
     def diff(self, other: ReifiedWorld) -> tuple[list[Atom], list[Atom]]:
         """Return this world's and the other world's ordered multiset extras."""
@@ -103,7 +225,44 @@ class ReifiedWorld:
 def reify_space(space: Space) -> ReifiedWorld:
     """Capture one space through its native or explicit provider snapshot."""
     captured = _Member(space).snapshot()
-    return ReifiedWorld(space, captured, captured)
+    image_rows_raw, image_effect_raw, coverage_raw = space._rt.apply_must(
+        "petta_py_world_image_effect_plan",
+        space._space,
+        space._space,
+        [atom.to_wire() for atom in captured],
+    )
+    image_rows = tuple(
+        (str(name), str(declared)) for name, declared in image_rows_raw
+    )
+    image_effect = EffectClass(str(image_effect_raw))
+    coverage = EffectClass(str(coverage_raw))
+    if image_effect > coverage:
+        _raise_world_refusal(
+            space,
+            "<frozen world image>",
+            list(image_rows),
+            image_effect,
+            coverage,
+        )
+    plan = space._new_space()
+    try:
+        space._rt.must(
+            "petta_py_world_prepare(Space, Origin, Atoms)",
+            Space=plan._space,
+            Origin=space._space,
+            Atoms=[atom.to_wire() for atom in captured],
+        )
+        return ReifiedWorld(
+            space,
+            captured,
+            captured,
+            plan,
+            image_rows,
+            image_effect,
+        )
+    except BaseException:
+        plan.drop()
+        raise
 
 
 def commit_world(space: Space, world: ReifiedWorld) -> None:

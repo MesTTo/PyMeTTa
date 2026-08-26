@@ -79,6 +79,10 @@ Guarantees:
     on the owning worker while immutable atom snapshots remain directly
     readable [tested: test_async_worlds_stay_on_the_owning_worker;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - async coverage, compensation declarations, and saga recovery keep their
+    complete synchronous scope on one owning worker [tested:
+    test_async_saga_and_world_coverage_stay_on_the_owning_worker;
+    commit=WORKTREE]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested
@@ -108,6 +112,7 @@ import threading
 import warnings
 import weakref
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from types import TracebackType
 from typing import Any, Final, Literal, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, _SpaceId
@@ -798,6 +803,27 @@ class AsyncMeTTa:
             msg = "an async world must be committed through its originating engine worker"
             raise PettaError(msg)
         await self.call(lambda m: m.commit(world._world))
+
+    async def covers(self, effect: EffectClass | str) -> Atom:
+        """Declare reified-world effect coverage on the owning worker."""
+        return await self.call(lambda m: m.covers(effect))
+
+    async def compensates(self, operation: str, compensation: str) -> Atom:
+        """Declare one saga compensation on the owning worker."""
+        return await self.call(lambda m: m.compensates(operation, compensation))
+
+    def saga(self, receipts: AsyncMeTTa) -> AsyncSaga:
+        """Open an async saga whose complete scopes run on this worker."""
+        if not isinstance(receipts, AsyncMeTTa):
+            msg = (
+                "async saga receipts must be an AsyncMeTTa, got "
+                f"{type(receipts).__name__}"
+            )
+            raise TypeError(msg)
+        if receipts._worker is not self._worker:
+            msg = "an async saga and its receipt space must share one engine worker"
+            raise PettaError(msg)
+        return AsyncSaga(self, receipts)
 
     async def drop(self) -> None:
         """Drop this named space from the engine."""
@@ -1493,6 +1519,100 @@ class AsyncMeTTa:
         return f"AsyncMeTTa({self._m!r}, {state})"
 
 
+class AsyncSaga:
+    """The awaitable context-manager twin of :class:`metta._saga.Saga`."""
+
+    __slots__ = ("_acquiring", "_am", "_receipts", "_saga")
+
+    def __init__(self, am: AsyncMeTTa, receipts: AsyncMeTTa) -> None:
+        """Bind both spaces to the one worker that owns their engine calls."""
+        self._am = am
+        self._receipts = receipts
+        self._saga: Any = None
+        self._acquiring = False
+
+    async def __aenter__(self) -> Self:
+        """Enter the synchronous saga entirely on the owning worker."""
+        if self._saga is not None or self._acquiring:
+            msg = "an AsyncSaga context cannot be entered twice"
+            raise PettaError(msg)
+
+        acquired: dict[str, Any] = {}
+
+        def enter(space: MeTTa) -> Any:
+            saga = space.saga(self._receipts._m)
+            acquired["saga"] = saga
+            saga.__enter__()
+            return saga
+
+        self._acquiring = True
+        try:
+            self._saga = await self._am.call(enter)
+        except BaseException as acquisition_error:  # cancellation owns cleanup too
+            def cleanup(_space: MeTTa) -> None:
+                saga = acquired.pop("saga", None)
+                if saga is not None:
+                    saga.close()
+
+            cleanup_task = asyncio.create_task(self._am.call(cleanup))
+            cleanup_error: BaseException | None = None
+            while not cleanup_task.done():
+                try:
+                    await asyncio.shield(cleanup_task)
+                except asyncio.CancelledError:
+                    continue
+                except BaseException as error:  # noqa: BLE001 -- pair cleanup with acquisition
+                    cleanup_error = error
+                    break
+            if cleanup_error is None and not cleanup_task.cancelled():
+                cleanup_error = cleanup_task.exception()
+            if cleanup_error is not None:
+                msg = "async saga acquisition and cancellation cleanup both failed"
+                raise BaseExceptionGroup(
+                    msg,
+                    [acquisition_error, cleanup_error],
+                ) from None
+            raise
+        finally:
+            self._acquiring = False
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        error: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Recover exceptional exits and preserve failed recovery for retry."""
+        saga = self._require_saga("exit")
+        await self._am.call(
+            lambda _space: saga.__exit__(exc_type, error, traceback)
+        )
+        self._saga = None
+
+    async def run(self, target: Any) -> list[Atom]:
+        """Commit one forward step and its receipt on the owning worker."""
+        saga = self._require_saga("run")
+        return await self._am.call(lambda _space: saga.run(target))
+
+    async def rollback(self) -> None:
+        """Run the pending reverse recovery plan on the owning worker."""
+        saga = self._require_saga("rollback")
+        await self._am.call(lambda _space: saga.rollback())
+
+    async def aclose(self) -> None:
+        """Cancel the synchronous receipt observer on the owning worker."""
+        saga = self._require_saga("aclose")
+        await self._am.call(lambda _space: saga.close())
+
+    def _require_saga(self, operation: str) -> Any:
+        saga = self._saga
+        if saga is None:
+            msg = f"AsyncSaga.{operation}() requires an active async saga"
+            raise PettaError(msg)
+        return saga
+
+
 class AsyncWorld:
     """An immutable world whose evaluation crosses its originating worker."""
 
@@ -1531,6 +1651,11 @@ class AsyncWorld:
             msg = "async worlds from different engine workers cannot be diffed"
             raise PettaError(msg)
         return self._world.diff(other._world)
+
+    async def aclose(self) -> None:
+        """Release this world's retained program image on its worker."""
+        world = self._world
+        await self._am.call(lambda _m: world.close())
 
     def __repr__(self) -> str:
         """Return a representation containing the frozen atom multiset."""

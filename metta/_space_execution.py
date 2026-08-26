@@ -83,6 +83,11 @@ _SCOPED_EXECUTION: ContextVar[frozenset[str]] = ContextVar(
 _CAPTURED_OUTPUT: ContextVar[CapturedOutput | None]
 
 
+def speculative_enabled() -> bool:
+    """Whether this task is inside the discarded execution policy."""
+    return "speculative" in _SCOPED_EXECUTION.get()
+
+
 class ScopedExecution:
     """One execution policy applied to calls inside a with-block."""
 

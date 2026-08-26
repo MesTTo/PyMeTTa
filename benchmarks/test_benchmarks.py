@@ -132,11 +132,26 @@ _ROWS = 2_000
 #: refused plain controls remain within two inferences of their pins. Three
 #: fresh-process min-of-three rounds produced the same automatic readings;
 #: the fixed delta leaves the linear automatic growth class unchanged.
+#: RE-PINNED 2026-08-26 on the world-admission landing, automatic only:
+#: +48/+48/+50/+50 at n=12/15/18/20, a FIXED additive that leaves the linear
+#: automatic growth class exactly as it was and leaves every refused plain
+#: control inside its allowance (n=18 reads 8,660,992 against its 8,660,994
+#: pin, the other three are exact). The mechanism is the cache-admission
+#: seam: seam:pure_operation/1 now asks the catalog's own declarations AND
+#: refuses a name the reviewed native profile fixes at a stronger rank, which
+#: is one extra semidet guard per admitted memo call. Three-sided, all
+#: min-of-three fresh-process rounds on this reader.so-bearing tree: the
+#: branch point reads the standing pins; this branch BEFORE the declared/fixed
+#: split read 30,105/31,251/32,409/33,191, an order-of-magnitude worse
+#: coupling in which the whole reviewed profile answered the cache's question;
+#: this tree reads 28,573/29,723/30,881/31,663
+#: [command=python -m pytest benchmarks/test_benchmarks.py::test_automatic_tabling_growth
+#: from bindings/python; commit=WORKTREE].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 144_993, "automatic": 28_525},
-    15: {"plain": 1_091_237, "automatic": 29_675},
-    18: {"plain": 8_660_994, "automatic": 30_831},
-    20: {"plain": 34_614_331, "automatic": 31_613},
+    12: {"plain": 144_993, "automatic": 28_573},
+    15: {"plain": 1_091_237, "automatic": 29_723},
+    18: {"plain": 8_660_994, "automatic": 30_881},
+    20: {"plain": 34_614_331, "automatic": 31_663},
 }
 
 

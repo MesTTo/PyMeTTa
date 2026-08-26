@@ -32,6 +32,9 @@ Guarantees:
   - async reification, world evaluation, and commit stay on the owning worker
     and preserve immutable branching [tested:
     test_async_worlds_stay_on_the_owning_worker; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - async coverage declarations and complete saga scopes stay on the owning
+    worker [tested: test_async_saga_and_world_coverage_stay_on_the_owning_worker;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -46,6 +49,7 @@ import logging
 import re
 import threading
 import time
+import uuid
 from collections import Counter
 
 import pytest
@@ -95,6 +99,7 @@ def test_async_worlds_stay_on_the_owning_worker(m):
     async def go():
         async with aio.AsyncMeTTa(metta=m) as am:
             await am.add(S.base(1))
+            await am.covers("writesState")
             world = await am.reify()
             answers, successor = await world.eval(
                 "(progn (add-atom &self (async-world 2)) done)"
@@ -108,6 +113,69 @@ def test_async_worlds_stay_on_the_owning_worker(m):
     answers, atoms = asyncio.run(go())
     assert answers == [S.done]
     assert atoms == [S.base(1), S.async_world(2)]
+
+
+def test_async_saga_and_world_coverage_stay_on_the_owning_worker(m):
+    """Both new synchronous laws cross the worker as complete scopes."""
+    suffix = uuid.uuid4().hex[:8]
+    operation = f"aio-saga-forward-{suffix}"
+    compensation = f"aio-saga-reverse-{suffix}"
+    callback_threads = []
+
+    def forward(value: int) -> int:
+        callback_threads.append(threading.get_ident())
+        return value
+
+    def reverse(_quoted):
+        callback_threads.append(threading.get_ident())
+        return S.done
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            receipts = await am.space()
+            declaration = None
+            coverage = None
+            try:
+                await am.op(forward, name=operation, effect="writesState")
+                await am.op(reverse, name=compensation, effect="writesState")
+                declaration = await am.compensates(operation, compensation)
+
+                uncovered = await am.reify()
+                try:
+                    with pytest.raises(PettaError, match="writesState"):
+                        await uncovered.eval(f"({operation} 1)")
+                finally:
+                    await uncovered.aclose()
+
+                coverage = await am.covers("writesState")
+                world = await am.reify()
+                try:
+                    assert (await world.eval(f"({operation} 2)"))[0] == [2]
+                finally:
+                    await world.aclose()
+
+                with pytest.raises(RuntimeError, match="async saga abort"):
+                    async with am.saga(receipts) as saga:
+                        assert await saga.run(f"({operation} 7)") == [7]
+                        abort = RuntimeError("async saga abort")
+                        raise abort
+                assert await receipts.atoms() == []
+                worker_thread = await am.call(lambda _space: threading.get_ident())
+                assert callback_threads == [worker_thread, worker_thread, worker_thread]
+            finally:
+                if coverage is not None:
+                    await am.call(
+                        lambda space: space._at("&petta").remove(coverage)
+                    )
+                if declaration is not None:
+                    await am.call(
+                        lambda space: space._at("&petta").remove(declaration)
+                    )
+                await am.unregister_op(operation)
+                await am.unregister_op(compensation)
+                await receipts.drop()
+
+    asyncio.run(go())
 
 
 def test_aio_keeps_the_loop_live_while_the_engine_spins(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

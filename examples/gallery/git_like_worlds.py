@@ -4,6 +4,9 @@ Guarantees:
   - two successor worlds leave their base untouched, expose an exact multiset
     diff, and only the selected world lands as one post-commit observed change
     [tested: test_a_gallery_program_runs; commit=WORKTREE]
+  - branching declares the effect rank its branches are allowed to reach, so a
+    world admits the writes it handles and refuses anything stronger [tested:
+    test_a_gallery_program_runs; commit=WORKTREE]
 Owns resources: two named native spaces and one subscription; cancel() and
   drop() release them after the selected branch commits, while process exit
   releases them after an earlier failed claim.
@@ -33,6 +36,11 @@ doctest("revision doctest", revision)
 claim("create base revision", S.add_atom(parent, S.Base(1)), parent.eval)
 # -> (add-atom &gallery-worlds (Base 1))
 # => ()
+# A reified world admits only the effect rank its origin declares it handles.
+# Branching writes into each successor's own scratch state, so this repository
+# covers writesState; anything stronger, an import or a clock read, still
+# refuses and names the operation.
+parent.covers("writesState")
 base = parent.reify()
 branches = {}
 

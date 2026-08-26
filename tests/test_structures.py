@@ -18,7 +18,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from metta import Expression, S, V, ground
+from metta import Expression, Handle, S, V, ground
 from metta.atoms import unify
 from metta.structures import AlphaSet, MatchIndex, PatternMap
 from metta.testing import atoms as atom_strategy
@@ -101,6 +101,31 @@ def test_matchindex_matches_grounded_numbers_by_unification():
     index.add(ground(0), "int")
     assert list(index.matches(ground(0.0))) == []
     assert list(index.matches(ground(0))) == [(ground(0), "int")]
+
+
+def test_matchindex_indexes_handles_without_unwrapping_them():
+    """A Handle is Grounded but owns identity rather than a ``value`` slot."""
+
+    class IndexedHandle(Handle):
+        __slots__ = ("ident",)
+
+        def __init__(self, ident):
+            super().__init__()
+            object.__setattr__(self, "ident", ident)
+
+        def __eq__(self, other):
+            return isinstance(other, IndexedHandle) and self.ident == other.ident
+
+        def __hash__(self):
+            return hash((IndexedHandle, self.ident))
+
+    handle = IndexedHandle("ledger")
+    index = MatchIndex()
+    index.add(S.did(S.write, handle), "receipt")
+
+    assert list(index.matches(S.did(S.write, handle))) == [
+        (S.did(S.write, handle), "receipt")
+    ]
 
 
 @given(

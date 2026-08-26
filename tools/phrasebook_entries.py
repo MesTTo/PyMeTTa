@@ -26,6 +26,9 @@ Guarantees:
   - the Python-first additions table names the exact speculate and immutable
     world spellings [tested: test_python_first_world_faces_are_in_the_phrasebook;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - the Python-first additions table names the two effect-safety declarations
+    and the saga runner they gate [tested:
+    test_python_first_world_faces_are_in_the_phrasebook; commit=WORKTREE]
   - strategy rows import lib_strategy only on PeTTa and may name an equivalent
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
@@ -231,6 +234,11 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
         "with metta.speculate():\n    metta.run(source)",
     ),
     PublicFace(
+        "space.covers(effect)",
+        "declare the strongest effect rank a reified world of this space admits",
+        "space.covers(EffectClass.writesState)",
+    ),
+    PublicFace(
         "space.reify()",
         "capture an immutable evaluable world value, distinct from listing atoms",
         "world = space.reify()",
@@ -244,6 +252,16 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
         "space.commit(world)",
         "land the world's base-relative diff as ordinary post-commit writes and events",
         "space.commit(successor)",
+    ),
+    PublicFace(
+        "space.compensates(operation, recovery)",
+        "declare the operation that semantically reverses an effectful one",
+        "space.compensates(charge, refund)",
+    ),
+    PublicFace(
+        "space.saga(receipts)",
+        "run forward steps whose committed (did ...) receipts drive reverse recovery",
+        "with space.saga(receipts) as saga:\n    saga.run(S.charge(S.order_7))",
     ),
 )
 

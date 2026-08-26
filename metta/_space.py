@@ -29,6 +29,12 @@ Guarantees:
     applies its base-relative diff through ordinary transaction and event
     doors [tested: test_world_eval_branches_without_touching_parent,
     test_commit_applies_the_world_diff_as_post_commit_events; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - ``Space.covers`` and ``Space.compensates`` publish the two effect-safety
+    declarations, while ``Space.saga`` builds recovery on the existing
+    transaction and post-commit event doors [tested:
+    test_world_coverage_admits_the_joined_plan,
+    test_committed_effects_leave_queryable_receipts_and_failed_steps_leave_none;
+    commit=WORKTREE]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric
@@ -1366,7 +1372,7 @@ class Space(Handle):
             or deadline < 0
         ):
             msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
-            raise ValueError(msg)
+            raise ValueError(msg) from None
         caller = (
             self
             if self._space == _DEFAULT_SPACE
@@ -2109,6 +2115,30 @@ class Space(Handle):
                 msg
             )
         return cast("_R", row["R"])
+
+    def saga(self, receipts: Space):
+        """Open a committed-receipt saga over this execution space.
+
+        ``receipts`` is an ordinary space that stores ``(did op args result)``
+        atoms. Run each forward term with the returned context manager's
+        ``run`` method. A normal exit keeps its work and receipts; an
+        exceptional exit invokes declared compensations in reverse commit
+        order and removes each successfully recovered receipt.
+
+            with orders.saga(receipts) as saga:
+                saga.run(S.charge(S.order_7))
+
+        Operations ranked writesState or oracleIO leave receipts. Declare a
+        handler with ``compensates`` before recovery. Handlers receive the
+        quoted complete receipt and must be idempotent, because a failed
+        compensation remains queryable and is retried by ``rollback()``.
+        """
+        from ._saga import Saga  # noqa: PLC0415 -- avoids the Space type cycle
+
+        if not isinstance(receipts, Space):
+            msg = f"saga receipts must be a Space, got {type(receipts).__name__}"
+            raise TypeError(msg)
+        return Saga(self, receipts)
 
     def solve(self, pattern: Any, subject: Any) -> Any:
         """Run relational ``let`` and return bindings keyed by its variables.
@@ -3941,6 +3971,93 @@ class Space(Handle):
             carrier=carrier,
             requires=requires,
             order=order,
+        )
+
+    def _replace_catalog_declaration(
+        self,
+        head: str,
+        subject: Atom,
+        atom: Expression,
+    ) -> Atom:
+        """Replace one subject-keyed catalog row atomically."""
+        previous = Expression(
+            [Symbol(head), subject, Variable("previous")]
+        )
+
+        def replace() -> Atom:
+            while True:
+                removed = self._rt.apply_must(
+                    "petta_py_remove",
+                    "&petta",
+                    previous.to_wire(),
+                )
+                result = _atom_from_wire(removed)
+                if not bool(getattr(result, "value", True)):
+                    break
+            self._rt.must(
+                "petta_py_add(Space, W)",
+                Space="&petta",
+                W=atom.to_wire(),
+            )
+            return atom
+
+        return self._at("&petta").transaction(replace)
+
+    def covers(self, effect: EffectClass | str) -> Atom:
+        """Declare the strongest effect this reified world can handle.
+
+        Coverage is a catalog fact ``(covers <space> <effect>)``. World
+        evaluation always admits pureStructural plans. A stronger joined plan
+        runs only when this declaration is at least as strong; redeclaring
+        replaces the previous row atomically.
+
+            orders.covers("writesState")
+            world = orders.reify()
+        """
+        try:
+            declared = EffectClass(effect)
+        except (TypeError, ValueError):
+            msg = (
+                f"effect is one of {', '.join(EffectClass)}, not {effect!r}"
+            )
+            raise ValueError(msg) from None
+        subject = (
+            self._name_atom
+            if self._name_atom is not None
+            else Symbol(str(self._space))
+        )
+        atom = Expression(
+            [Symbol("covers"), subject, Symbol(str(declared))]
+        )
+        return self._replace_catalog_declaration(
+            "covers",
+            subject,
+            atom,
+        )
+
+    def compensates(self, operation: str, compensation: str) -> Atom:
+        """Declare one recovery operation for an effectful operation.
+
+        The catalog row is ``(compensates operation compensation)``. The
+        source operation must already be registered at writesState or
+        oracleIO, because weaker operations leave no saga receipt. The
+        recovery name must already be a host operation or compiled MeTTa
+        function. It receives the quoted complete ``(did ...)`` receipt.
+        Redeclaring replaces the old row atomically.
+        """
+        operation_name = str(operation)
+        compensation_name = str(compensation)
+        atom = Expression(
+            [
+                Symbol("compensates"),
+                Symbol(operation_name),
+                Symbol(compensation_name),
+            ]
+        )
+        return self._replace_catalog_declaration(
+            "compensates",
+            Symbol(operation_name),
+            atom,
         )
 
     def add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
