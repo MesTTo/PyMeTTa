@@ -8,8 +8,10 @@ P14.4, so the body names `xor` through the static function namespace instead,
 autocompletes without the engine having to be running.
 
 The static function mention is already an engine boolean function, so the
-conditional consumes it directly. Equality and ordering lower to the source's
-engine relations.
+conditional consumes it directly. Ordering retains `>`, while Python equality
+stores the engine-native `py-eq` head where the source stores `==`. The former
+`py-truthy` wrapper is gone, but the digest lane still reports that deliberate
+spelling difference.
 """
 
 from metta import fn
@@ -69,8 +71,10 @@ def twin(m):
     # exact non-mechanical name is what `name=` is for.
     @m.define(name="check_xor")  # rung: def check_xor maps to check-xor, while the source head is check_xor
     def check_xor(source, destination):
-        # (= (check_xor $source $destination)
-        #    (if (xor (== $source $destination) (> $source $destination)) 42 0))
+        # Source: (= (check_xor $source $destination)
+        #             (if (xor (== $source $destination) (> $source $destination)) 42 0))
+        # Twin:   (= (check_xor $source $destination)
+        #             (if (xor (py-eq $source $destination) (> $source $destination)) 42 0))
         return 42 if fn.xor(source == destination, source > destination) else 0
 
     assert check_xor(2, 2) == [42]

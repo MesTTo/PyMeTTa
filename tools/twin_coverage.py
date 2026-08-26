@@ -75,6 +75,12 @@ Guarantees:
     enumeration order are irrelevant while duplicate counts remain semantic
     [tested: test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
+  - each example and twin reports Space.digest() from its own process; an
+    unequal digest, a refusal, or a missing oracle result is a stored-content
+    finding with multiplicity-preserving equation diagnostics [tested:
+    test_a_twin_stores_the_equations_its_comments_claim,
+    test_stored_content_uses_the_digest_and_keeps_equation_multiplicity;
+    commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,
@@ -126,6 +132,7 @@ import keyword
 import os
 import re
 import sys
+from collections import Counter
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -179,6 +186,9 @@ def answer_multiset_diff(
 #: match with, on their own marker lines beside the answer groups.
 COST = "P14C-COST "
 HEADS = "P14C-HEADS "
+DIGEST = "P14C-DIGEST "
+DIGEST_ERROR = "P14C-DIGEST-ERROR "
+EQUATIONS = "P14C-EQUATIONS "
 
 #: What a twin yields for a form it cannot say in Python. It is not a group,
 #: so it can never collide with one: a group is always parenthesised.
@@ -1380,11 +1390,15 @@ class Run:
     outcome: parity.Outcome
     cost: int | None
     heads: tuple[str, ...]
+    digest: str | None = None
+    digest_error: str | None = None
+    equations: tuple[str, ...] = ()
 
 
 _PREAMBLE = (
-    "import sys; sys.path.insert(0, 'bindings/python')\n"
+    "import json, sys; sys.path.insert(0, 'bindings/python')\n"
     "from metta import Expression, MeTTa, S, V\n"
+    "from metta.structures import _canonical\n"
     "def _key(head):\n"
     "    if isinstance(head, Expression) and head.children:\n"
     "        return f'{head.children[0]}/{len(head.children) - 1}'\n"
@@ -1400,6 +1414,14 @@ _EPILOGUE = (
     "print('" + COST + "' + str(spent.inferences))\n"
     "heads = {_key(row.head) for row in m.match(S['='](V.head, V.body))}\n"
     "print('" + HEADS + "' + ' '.join(sorted(heads)))\n"
+    "equations = sorted(str(_canonical(S['='](row.head, row.body))) "
+    "for row in m.match(S['='](V.head, V.body)))\n"
+    "print('" + EQUATIONS + "' + json.dumps(equations, separators=(',', ':')))\n"
+    "try:\n"
+    "    print('" + DIGEST + "' + m.digest())\n"
+    "except Exception as error:\n"
+    "    detail = type(error).__name__ + ': ' + str(error)\n"
+    "    print('" + DIGEST_ERROR + "' + json.dumps(detail))\n"
 )
 
 
@@ -1407,12 +1429,21 @@ def _read(text: str, outcome: parity.Outcome) -> Run:
     """One run's marker lines, the cost and heads read beside the groups."""
     cost: int | None = None
     heads: tuple[str, ...] = ()
+    digest: str | None = None
+    digest_error: str | None = None
+    equations: tuple[str, ...] = ()
     for line in text.splitlines():
         if line.startswith(COST):
             cost = int(line[len(COST):].strip())
         elif line.startswith(HEADS):
             heads = tuple(line[len(HEADS):].split())
-    return Run(outcome, cost, heads)
+        elif line.startswith(DIGEST):
+            digest = line[len(DIGEST):].strip()
+        elif line.startswith(DIGEST_ERROR):
+            digest_error = json.loads(line[len(DIGEST_ERROR):])
+        elif line.startswith(EQUATIONS):
+            equations = tuple(json.loads(line[len(EQUATIONS):]))
+    return Run(outcome, cost, heads, digest, digest_error, equations)
 
 
 def _launch(source: str, root: Path) -> Run:
@@ -1624,6 +1655,7 @@ class Verdict:
     example_cost: int | None
     twin_cost: int | None
     findings: tuple[str, ...]
+    storage: str = "unavailable"
 
     @property
     def ratio(self) -> float | None:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
@@ -1702,9 +1734,18 @@ def check(
     )
     findings.extend(differences)
     findings.extend(_visible(relative, left, right))
+    findings.extend(_stored(relative, left, right))
     stated = any(entry["example"] == relative for entry in entries)
     findings.extend(_price(relative, twin, left, right, stated, protocol=protocol))
-    return Verdict(example, claims, covered, left.cost, right.cost, tuple(findings))
+    return Verdict(
+        example,
+        claims,
+        covered,
+        left.cost,
+        right.cost,
+        tuple(findings),
+        _storage_status(left, right),
+    )
 
 
 def _visible(relative: str, left: Run, right: Run) -> list[str]:
@@ -1722,6 +1763,69 @@ def _visible(relative: str, left: Run, right: Run) -> list[str]:
         f"{relative}: the twin's space does not answer a (= $head $body) "
         f"match with {' '.join(sorted(missing))}, so a definition the "
         f"example makes matchable is hidden in Python"
+    ]
+
+
+def _storage_status(left: Run, right: Run) -> str:
+    """Classify the cross-process digest result for report accounting."""
+    if left.digest_error or right.digest_error:
+        return "refused"
+    if left.digest is None or right.digest is None:
+        return "unavailable"
+    return "equal" if left.digest == right.digest else "different"
+
+
+def _equation_surplus(
+    these: tuple[str, ...], those: tuple[str, ...]
+) -> list[str]:
+    """Keep every extra canonical equation, including duplicate copies."""
+    surplus = Counter(these) - Counter(those)
+    return [equation for equation in sorted(surplus) for _ in range(surplus[equation])]
+
+
+def _stored(relative: str, left: Run, right: Run) -> list[str]:
+    """Compare the independently minted content digests and explain drift.
+
+    Equation strings are diagnostics only. They never replace a refused or
+    absent digest, because the adopted oracle is the whole-space digest.
+    """
+    findings = []
+    if left.digest_error:
+        findings.append(
+            f"{relative}: the example's stored-content digest refused: "
+            f"{left.digest_error}"
+        )
+    elif left.digest is None:
+        findings.append(
+            f"{relative}: the example produced no stored-content digest marker"
+        )
+    if right.digest_error:
+        findings.append(
+            f"{relative}: the twin's stored-content digest refused: "
+            f"{right.digest_error}"
+        )
+    elif right.digest is None:
+        findings.append(
+            f"{relative}: the twin produced no stored-content digest marker"
+        )
+    if findings:
+        return findings
+    if left.digest == right.digest:
+        return []
+
+    example_only = _equation_surplus(left.equations, right.equations)
+    twin_only = _equation_surplus(right.equations, left.equations)
+    if example_only or twin_only:
+        detail = (
+            "equation multiset "
+            f"example-only={json.dumps(example_only, separators=(',', ':'))} "
+            f"twin-only={json.dumps(twin_only, separators=(',', ':'))}"
+        )
+    else:
+        detail = "equations agree, so non-equation stored content differs"
+    return [
+        f"{relative}: stored content differs across processes: example digest "
+        f"{left.digest}, twin digest {right.digest}; {detail}"
     ]
 
 
@@ -1881,7 +1985,10 @@ def _folders(verdicts: list[Verdict], root: Path) -> dict[str, tuple[int, ...]]:
 
 
 def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> None:
-    print(f"{'example':44} {'claims':>6} {'proved':>6} {'metta':>8} {'twin':>8} {'ratio':>6}")
+    print(
+        f"{'example':44} {'claims':>6} {'proved':>6} {'metta':>8} "
+        f"{'twin':>8} {'ratio':>6} {'store':>11}"
+    )
     for verdict in verdicts:
         ratio = verdict.ratio
         print(
@@ -1889,7 +1996,7 @@ def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> N
             f"{verdict.forms:6} {verdict.covered:6} "
             f"{verdict.example_cost if verdict.example_cost is not None else '-':>8} "
             f"{verdict.twin_cost if verdict.twin_cost is not None else '-':>8} "
-            f"{f'{ratio:.2f}' if ratio else '-':>6}"
+            f"{f'{ratio:.2f}' if ratio else '-':>6} {verdict.storage:>11}"
         )
 
     print()
@@ -1905,6 +2012,14 @@ def _print_report(verdicts: list[Verdict], entries: list[dict], root: Path) -> N
     print(
         f"coverage TOTAL: {totals[0]}/{totals[1]} files twinned and passing, "
         f"{totals[2]}/{totals[3]} claims of those files proved"
+    )
+    storage = Counter(verdict.storage for verdict in verdicts)
+    print(
+        "stored content: "
+        + ", ".join(
+            f"{storage.get(status, 0)} {status}"
+            for status in ("equal", "different", "refused", "unavailable")
+        )
     )
 
     for kind in (DECLINED_KIND, FRICTION_KIND):

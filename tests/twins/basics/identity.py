@@ -225,7 +225,24 @@ is Python's own `assert`.
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=isolated p14-typed-shadowing
 #: worktree with engine/reader.so; commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c].
-BUDGET = 2885
+#: RE-PINNED 2026-08-26, 2891 to 2866 on the writable-specialization tree.
+#: The source example remains 2801, and the twin stores only f/1 with no
+#: specialization equation. The move is compiled engine-image layout from the
+#: new specializer clauses, the same non-monotonic QLF layout effect recorded
+#: above, rather than work in this identity program [measured: base
+#: metta=2801 twin=2891 and candidate metta=2801 twin=2866;
+#: command=tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta in each worktree; fixture=separate fresh
+#: processes with worktree.sh-linked engine/reader.so on detached base
+#: 20e9fc70bb171a2380ef378322817d3b95ed7618 and candidate; commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee].
+#: RE-PINNED 2026-08-26 on the MERGED tree: the two re-pins above each
+#: measured from their OWN parent (2885 lexical selector, 2866 writable
+#: minter), and the merged image reads 2875, three stable rounds, the same
+#: non-monotonic layout composition both comments describe [measured:
+#: metta=2801 twin=2875; command=tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=merged tree with
+#: engine/reader.so; commit=WORKTREE].
+BUDGET = 2875
 
 
 def twin(m):

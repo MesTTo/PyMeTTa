@@ -11,8 +11,9 @@ to its own result, which is variable-head application (`r(r(g))` compiles to
 recursive call passes `twice(r)`, a PARTIAL application of a two-parameter
 function. Neither needs a MeTTa spelling: the subset already reads both.
 
-Python's `n == 0` is the source-faithful spelling: compiled-body equality
-lowers to the engine's `==` relation rather than host structural comparison.
+Python's `n == 0` compiles to the engine-native `py-eq` relation. It avoids a
+host callback but deliberately differs from the source's stored `==` spelling,
+which the digest lane reports.
 """
 
 from metta import S
@@ -78,7 +79,8 @@ def twin(m):
 
     @m.define
     def evolve(r, n, g):
-        # (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
+        # Source: (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
+        # Twin: the same equation with py-eq in the condition.
         return g if n == 0 else evolve(twice(r), n - 1, g)
 
     assert evolve(S.derive, 2, S.stmt) == [S.stmt]

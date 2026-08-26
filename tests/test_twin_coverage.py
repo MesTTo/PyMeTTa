@@ -9,6 +9,12 @@ Guarantees:
     multiplicity [tested:
     test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity;
     commit=8bfe05c3850776543ece25a85038242f10b1d841]
+  - stored-content comparison treats Space.digest() as authoritative and uses
+    canonical equations only to explain whole-space drift without losing
+    duplicate counts [tested:
+    test_stored_content_uses_the_digest_and_keeps_equation_multiplicity,
+    test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback;
+    commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
   - point budgets remain two-sided with the deterministic tolerance stated
     separately [tested: test_a_budget_is_two_sided; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - empirical envelopes are asymmetric, protocol-scoped, and falsified by
@@ -74,12 +80,28 @@ import twin_coverage as coverage  # noqa: E402
 from metta import S, V  # noqa: E402
 
 
-def _run(groups, heads=(), cost=0, error=None):
+def _run(
+    groups,
+    heads=(),
+    cost=0,
+    error=None,
+    *,
+    digest=None,
+    digest_error=None,
+    equations=(),
+):
     """One side's run, built rather than measured.
 
     The comparison can then be exercised without starting an engine.
     """
-    return coverage.Run(parity.Outcome(list(groups), error), cost, tuple(heads))
+    return coverage.Run(
+        parity.Outcome(list(groups), error),
+        cost,
+        tuple(heads),
+        digest,
+        digest_error,
+        tuple(equations),
+    )
 
 
 def test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity():
@@ -867,6 +889,161 @@ def test_a_hidden_definition_is_a_finding():
     assert any("hidden in Python" in finding for finding in findings)
     assert any("facF/1" in finding for finding in findings)
     assert coverage._visible("x.metta", _run([], heads=()), _run([], heads=("f/1",))) == []
+
+
+def test_stored_content_uses_the_digest_and_keeps_equation_multiplicity():
+    """A whole-space mismatch names each surplus equation copy."""
+    equation = "(= (f $0) $0)"
+    other = "(= (g $0) $0)"
+    left = _run([], digest="a" * 64, equations=(equation, equation, other))
+    right = _run([], digest="b" * 64, equations=(equation,))
+
+    findings = coverage._stored("x.metta", left, right)
+
+    assert len(findings) == 1
+    assert findings[0].count(equation) == 1
+    assert f'example-only=["{equation}","{other}"]' in findings[0]
+    assert "twin-only=[]" in findings[0]
+    assert coverage._storage_status(left, right) == "different"
+
+
+def test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback():
+    """Matching equation diagnostics cannot license an unavailable oracle."""
+    equations = ("(= (f $0) $0)",)
+    left = _run(
+        [],
+        digest_error="ValueError: live object",
+        equations=equations,
+    )
+    right = _run([], digest="c" * 64, equations=equations)
+
+    assert coverage._stored("x.metta", left, right) == [
+        "x.metta: the example's stored-content digest refused: "
+        "ValueError: live object"
+    ]
+    assert coverage._storage_status(left, right) == "refused"
+
+
+def test_a_twin_stores_the_equations_its_comments_claim():
+    """The seven historical files either agree or document their exact drift."""
+    historical = {
+        "basics/factorial.metta": (
+            (
+                "(= (facF $_alpha0) (if (== $_alpha0 0) 1 "
+                "(* $_alpha0 (facF (- $_alpha0 1)))))",
+            ),
+            (
+                "(= (facF $_alpha0) (if (py-eq $_alpha0 0) 1 "
+                "(* $_alpha0 (facF (- $_alpha0 1)))))",
+            ),
+            ("Source:", "Twin:", "engine-native", "`py-eq` head"),
+        ),
+        "basics/fibsmart.metta": (
+            (
+                "(= (fib-tr $_alpha0 $_alpha1 $_alpha2) "
+                "(if (== $_alpha0 0) $_alpha1 "
+                "(fib-tr (- $_alpha0 1) $_alpha2 (+ $_alpha1 $_alpha2))))",
+            ),
+            (
+                "(= (fib-tr $_alpha0 $_alpha1 $_alpha2) "
+                "(if (py-eq $_alpha0 0) $_alpha1 "
+                "(fib-tr (- $_alpha0 1) $_alpha2 (+ $_alpha1 $_alpha2))))",
+            ),
+            ("Source:", "Twin:", "engine-native", "`py-eq` head"),
+        ),
+        "basics/math_exp_random.metta": (
+            (),
+            (),
+            ("historical stored-equation divergence is lifted",),
+        ),
+        "basics/xor.metta": (
+            (
+                "(= (check_xor $_alpha0 $_alpha1) "
+                "(if (xor (== $_alpha0 $_alpha1) (> $_alpha0 $_alpha1)) 42 0))",
+            ),
+            (
+                "(= (check_xor $_alpha0 $_alpha1) "
+                "(if (xor (py-eq $_alpha0 $_alpha1) "
+                "(> $_alpha0 $_alpha1)) 42 0))",
+            ),
+            ("Source:", "Twin:", "former", "`py-truthy` wrapper is gone"),
+        ),
+        "control/eval.metta": (
+            (
+                "(= (evalCustom $_alpha0) "
+                "(let* (($_alpha1 (add-atom &self (= (myfunc) $_alpha0))) "
+                "($_alpha2 (reduce (myfunc))) "
+                "($_alpha3 (remove-atom &self (= (myfunc) $_alpha0)))) $_alpha2))",
+                "(= (f $_alpha0 $_alpha1 $_alpha2) "
+                "(let $_alpha3 (+ $_alpha1 $_alpha2) "
+                "(append ($_alpha3) $_alpha0)))",
+            ),
+            (
+                "(= (evalCustom $_alpha0) "
+                "(let* (($_alpha1 (add-atom (context-space) "
+                "(= (myfunc) $_alpha0)))) "
+                "(let* (($_alpha2 (reduce (myfunc)))) "
+                "(let* (($_alpha3 (remove-atom (context-space) "
+                "(= (myfunc) $_alpha0)))) $_alpha2))))",
+                "(= (f $_alpha0 $_alpha1 $_alpha2) "
+                "(let* (($_alpha3 (+ $_alpha1 $_alpha2))) "
+                "(append ($_alpha3) $_alpha0)))",
+            ),
+            ("Source:", "Twin:", "nested one-binding `let*`"),
+        ),
+        "control/metta4_streams.metta": (
+            (),
+            (),
+            (
+                "historical stored-equation divergence is lifted",
+                "0a373e46d28e353ed02251c91b5d440f16ab17d3a79375fd5adebb149879c230",
+            ),
+        ),
+        "control/tests.metta": (
+            (
+                "(= (program1 $_alpha0) (let $_alpha1 $_alpha0 "
+                "(collapse (superpose (12 (+ $_alpha1 4))))))",
+                "(= (program2 $_alpha0) (let $_alpha1 "
+                "(let $_alpha2 (1 2 3) (collapse (superpose $_alpha2))) "
+                "(superpose $_alpha1)))",
+                "(= (program3 $_alpha0) (if (== $_alpha0 2) "
+                "(let $_alpha1 (superpose ((if (< $_alpha0 10) "
+                "(superpose ((42 43))) 43))) $_alpha1) "
+                "(let $_alpha1 4 $_alpha1)))",
+            ),
+            (
+                "(= (program1 $_alpha0) (let* (($_alpha1 $_alpha0)) "
+                "(collapse (superpose (12 (+ $_alpha1 4))))))",
+                "(= (program2 $_alpha0) (let* (($_alpha1 (1 2 3))) "
+                "(let* (($_alpha2 (collapse (superpose $_alpha1)))) "
+                "(superpose $_alpha2))))",
+                "(= (program3 $_alpha0) (if (py-eq $_alpha0 2) "
+                "(superpose ((if (< $_alpha0 10) "
+                "(superpose ((42 43))) 43))) 4))",
+            ),
+            ("digest difference is deliberate", "Source:", "Twin:"),
+        ),
+    }
+
+    for relative, (example_only, twin_only, comment_claims) in historical.items():
+        example = REPO / "examples" / relative
+        twin = coverage.twin_for(example)
+        left = coverage.run_example(example)
+        right = coverage.run_twin(twin)
+
+        assert left.outcome.error is None, (relative, left.outcome.error)
+        assert right.outcome.error is None, (relative, right.outcome.error)
+        assert left.digest_error is None, (relative, left.digest_error)
+        assert right.digest_error is None, (relative, right.digest_error)
+        assert tuple(coverage._equation_surplus(left.equations, right.equations)) == example_only
+        assert tuple(coverage._equation_surplus(right.equations, left.equations)) == twin_only
+        if example_only or twin_only:
+            assert left.digest != right.digest, relative
+        else:
+            assert left.digest == right.digest, relative
+
+        documented = twin.read_text(encoding="utf-8")
+        assert all(claim in documented for claim in comment_claims), relative
 
 
 # ---------------------------------------------------------------- the budgets

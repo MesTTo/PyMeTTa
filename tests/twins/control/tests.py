@@ -16,6 +16,11 @@ compiled body that gathers carries the suppression the residue entry against
 P14.4 would delete. `list()`, the dissolution table's spelling for `collapse`,
 does not lower inside a compiled body either, which supercollapse records
 against the same row.
+
+The digest difference is deliberate and spans three equations. Assignment
+stores one-binding `let*` forms in `program1` and nested `let*` forms in
+`program2`. Python equality stores `py-eq` in `program3`, and the two identity
+lets in that source equation disappear from the twin.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
@@ -75,26 +80,26 @@ def twin(m):
     """Stack lets and superpositions four ways, then collapse the lot."""
     @m.define
     def program1(y):
-        # (= (program1 $Y) (let $X $Y (collapse (superpose (12 (+ $X 4))))))
+        # Source: (= (program1 $Y) (let $X $Y (collapse (superpose (12 (+ $X 4))))))
+        # Twin:   (= (program1 $Y) (let* (($X $Y)) (collapse (superpose (12 (+ $X 4))))))
         x = y
         return collapse(superpose(12, x + 4))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
 
     @m.define
     def program2(_y):
-        # (= (program2 $Y) (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))
+        # Source: (= (program2 $Y) (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))
+        # Twin: nested one-binding let* forms for $L and the collapsed list.
         values = (1, 2, 3)
         answers = collapse(fn.superpose(values))  # noqa: F821  -- the same name
         return fn.superpose(answers)
 
     @m.define
     def program3(x):
-        # (= (program3 $x)
+        # Source: (= (program3 $x)
         #    (if (== $x 2)
         #        (let $z (superpose ((if (< $x 10) (superpose ((42 43))) 43))) $z)
         #        (let $z 4 $z)))
-        # Python's `==` lowers to `py-eq`, its own equality rather than
-        # MeTTa's `==`; both answer the same here, and the `let`s that only
-        # name their own result are the identity a Python reader would drop.
+        # Twin: the same if shape with py-eq; both identity lets are elided.
         if x == 2:
             return superpose(superpose((42, 43)) if x < 10 else 43)
         return 4

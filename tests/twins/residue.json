@@ -5153,7 +5153,7 @@
       "row": "P14.4",
       "section": "§4 surface gaps",
       "detail": "AS FILED, superseded by the retirement line below. `n == 0` previously compiled to `(py-eq $n 0)` instead of the source's `(== $n 0)`.",
-      "retired": "2026-08-24: e265712c routes compiled-body equality through the engine-native `==` head; the source equation and its recursive specialization claim now run through the ordinary Python conditional"
+      "retired": "2026-08-24: e265712c makes `py-eq` engine-native and removes the host callback. The exact stored spelling remains different: the twin stores `py-eq` where the source stores `==`, and P14.26 reports it."
     },
     {
       "kind": "friction",
@@ -5163,7 +5163,7 @@
       "row": "P14.4",
       "section": "correction to what the twins lane proves",
       "detail": "AS FILED, superseded by the retirement line below. Compiled-body equality previously stored `py-eq` where the factorial source stores `==`.",
-      "retired": "2026-08-24: e265712c gives compiled-body equality the engine-native protocol; `return 1 if n == 0 else n * fac_f(n - 1)` stores and runs the source equation"
+      "retired": "2026-08-24: e265712c makes `py-eq` engine-native and removes the host callback. The twin still stores `py-eq` where factorial.metta stores `==`, and P14.26 reports that deliberate spelling difference."
     },
     {
       "kind": "friction",
