@@ -1111,6 +1111,30 @@ def test_a_name_prolog_owns_registers_and_leaves_prolog_alone(metta):
     assert "(still here)\n" in output.text
 
 
+def test_a_generated_memo_clause_does_not_consume_a_registrable_name(metta):
+    """A cached definition's generated replay body must not resolve library
+    names in the shared base module. The counted-trie memo's replay clause
+    called bare between/3; the module-tier cache asserts into the base tier,
+    the first replay resolved between/3 THERE, current_predicate answered
+    true from then on, and registering a MeTTa operation named `between`
+    refused with petta_op_name_taken for the rest of the process. Found by
+    bisecting a serial-order suite failure to
+    test_a_cached_definition_memoizes_its_complete_answer_bag
+    [measured 2026-08-26]. The generated body now says system:between.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    @metta.cache(name="opsleak-fib", unchecked=True)
+    def opsleak_fib(n):
+        return n if n < 2 else opsleak_fib(n - 1) + opsleak_fib(n - 2)
+
+    assert opsleak_fib(10) == [55]
+
+    metta.op(lambda *_a: 1, name="between", effect="pureStructural", arities=[2])
+    try:
+        assert metta.run("!(between 1 2)") == [[1]]
+    finally:
+        metta.unregister_op("between")
+
+
 def test_prologs_protected_core_is_still_refused(metta):
     """What is left of the refusal, and it is Prolog's rather than the
     engine's: SWI will not let any module define these, so the assert raises
