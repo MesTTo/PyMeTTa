@@ -76,6 +76,15 @@ HOST_SERVICES = {
     # effect classifier decides whether that second evaluation is safe; the
     # host must not reconstruct its private queue protocol.
     "metta_host_goal_repeatable/2",
+    # World admission asks the engine to walk the compiled target and compose
+    # its canonical effect rows; reproducing that walk in a host is unsound.
+    "metta_host_goal_effect_plan/4",
+    # The same walk asked of a retained source term: what the target would do
+    # before it is translated, what replaying a frozen image compiles, and
+    # which operations one saga step can execute.
+    "metta_host_source_effect_plan/4",
+    "metta_host_source_compile_effect_plan/4",
+    "metta_host_source_runtime_effect_plan/4",
     "metta_host_save_fast/3",
     "metta_host_load_fast/2",
     "metta_host_open_function/3",
@@ -124,6 +133,12 @@ HOST_SERVICES = {
     # the non-backtrackable State guard, or live-cell identity.
     "petta_speculate/1",
     "petta_transaction/1",
+    # Sagas need the durable transaction outcome before any post-commit
+    # observer or foreign-provider failure is rethrown.
+    "petta_transaction_notified/3",
+    "petta_world_effect_coverage/2",
+    "petta_effect_covered/2",
+    "petta_compensation/2",
     "petta_transport_failure/1",
     "petta_with_state_write_fence/1",
     "petta_live_state_cell/1",
@@ -200,6 +215,10 @@ FLOOR_REASONS = {
     "metta_host_with_stack_limit/2": "door",
     "metta_host_function_generation/1": "host-orchestration",
     "metta_host_goal_repeatable/2": "host-orchestration",
+    "metta_host_goal_effect_plan/4": "host-orchestration",
+    "metta_host_source_effect_plan/4": "host-orchestration",
+    "metta_host_source_compile_effect_plan/4": "host-orchestration",
+    "metta_host_source_runtime_effect_plan/4": "host-orchestration",
     "metta_host_save_fast/3": "host-orchestration",
     "metta_host_stored/2": "host-orchestration",
     "metta_host_substitute/3": "host-orchestration",
@@ -221,6 +240,10 @@ FLOOR_REASONS = {
     "petta_source_reset/1": "door",
     "petta_speculate/1": "door",
     "petta_transaction/1": "door",
+    "petta_transaction_notified/3": "door",
+    "petta_world_effect_coverage/2": "door",
+    "petta_effect_covered/2": "door",
+    "petta_compensation/2": "door",
     "petta_transport_failure/1": "error-vocabulary",
     "petta_with_state_write_fence/1": "door",
     "petta_live_state_cell/1": "door",

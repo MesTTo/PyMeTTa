@@ -21,6 +21,10 @@ Guarantees:
     bindings/python/tests/test_refusal_grounds.py,
     tests/check_refusal_grounds.py;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - a reified-world effect refusal carries the named EffectSafety law as its
+    machine-readable ground [tested:
+    test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation;
+    commit=WORKTREE]
   - CompileError can render a source path, function, line and exact caret span
     while retaining its machine-readable construct and coordinates [tested:
     test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
@@ -84,6 +88,10 @@ _PYTHON_COMPARISON_GROUND = _RefusalGround(
 _PYTHON_RICH_COMPARISON_GROUND = _RefusalGround(
     "python-reference",
     "Python Language Reference section 3.3.1, Basic customization",
+)
+_EFFECT_SAFETY_GROUND = _RefusalGround(
+    "metta-law",
+    "LeaTTa EffectSafety: a reified world admits only an effect plan covered by its handlers",
 )
 
 _COMPILE_REFERENCE_BY_CONSTRUCT = (

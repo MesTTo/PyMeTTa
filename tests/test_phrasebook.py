@@ -153,9 +153,12 @@ def test_python_first_public_faces_are_in_the_phrasebook():
         "space.answers(term, theory=laws); space.answers(term, interpreter=interpret)",
         "space.reacts(pattern, operation)",
         "testing.from_pattern(pattern)",
+        "space.covers(effect)",
         "space.reify()",
         "world.eval(target)",
         "space.commit(world)",
+        "space.compensates(operation, recovery)",
+        "space.saga(receipts)",
     }
     page = book.page(list(ENTRIES), json.loads(book.ANSWERS.read_text()))
     assert "## Python-first additions" in page

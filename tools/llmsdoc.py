@@ -160,14 +160,14 @@ def _absent_artefact_diagnosis(stated: int, actual: int, root: pathlib.Path = RO
     """The missing-build-product reading of a builtin-count mismatch.
 
     Each backend under backends/ loads only where its artefact exists and
-    declares what it would register as seam:backend_builtin/1 facts in its
+    declares what it would register as seam:backend_builtin/2 facts in its
     implementation file. When the stated count exceeds the live one by
     exactly the declarations of backends whose artefacts are absent here,
     the mismatch is this checkout's configuration, not documentation drift,
     and the answer is to name the artefact rather than fail the claim.
     """
     absent: list[tuple[str, list[str]]] = []
-    fact = re.compile(r"^seam:backend_builtin\('?([^')]+)'?\)\.", re.MULTILINE)
+    fact = re.compile(r"^seam:backend_builtin\('?([^',)]+)'?\s*,[^)]*\)\.", re.MULTILINE)
     # Per-integration discovery: any fact-bearing implementation under a
     # backend's folder, its artefact the crate build beside it, so a new
     # backend is a new folder and this diagnosis needs no edit.

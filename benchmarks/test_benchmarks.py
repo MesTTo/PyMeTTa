@@ -141,11 +141,37 @@ _ROWS = 2_000
 #: "from benchmarks.test_benchmarks import _automatic_tabling_observations;
 #: print(_automatic_tabling_observations())"; fixture=isolated candidate and
 #: base worktrees, min-of-three per cell; commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c].
+#: RE-PINNED 2026-08-26 on the world-admission landing, automatic only:
+#: +48/+48/+50/+50 at n=12/15/18/20, a FIXED additive that leaves the linear
+#: automatic growth class exactly as it was and leaves every refused plain
+#: control inside its allowance (n=18 reads 8,660,992 against its 8,660,994
+#: pin, the other three are exact). The mechanism is the cache-admission
+#: seam: seam:pure_operation/1 now asks the catalog's own declarations AND
+#: refuses a name the reviewed native profile fixes at a stronger rank, which
+#: is one extra semidet guard per admitted memo call. Three-sided, all
+#: min-of-three fresh-process rounds on this reader.so-bearing tree: the
+#: branch point reads the standing pins; this branch BEFORE the declared/fixed
+#: split read 30,105/31,251/32,409/33,191, an order-of-magnitude worse
+#: coupling in which the whole reviewed profile answered the cache's question;
+#: this tree reads 28,573/29,723/30,881/31,663
+#: [command=python -m pytest benchmarks/test_benchmarks.py::test_automatic_tabling_growth
+#: from bindings/python; commit=WORKTREE].
+#: RE-PINNED 2026-08-26 at the world-admission merge, automatic arm only:
+#: +50/+52/+50/+50 over the lexical-declaration pins, the branch's
+#: cache-admission guard (one extra semidet check per admitted memo call,
+#: the +48..50 class its own three-sided note above documents) riding this
+#: lineage's values. Plain is EXACTLY unchanged at every size, confirming
+#: the split leaves refused controls alone [measured: two fresh-process
+#: rounds on the resolved merge tree read
+#: 28472/29620/30778/31560 and 28472/29620/30776/31558 automatic with plain
+#: 144938/1091182/8660937..39/34614276, min taken; command=python -c "from
+#: benchmarks.test_benchmarks import _automatic_tabling_observations;
+#: print(_automatic_tabling_observations())"; commit=WORKTREE].
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 144_938, "automatic": 28_422},
-    15: {"plain": 1_091_182, "automatic": 29_568},
-    18: {"plain": 8_660_937, "automatic": 30_728},
-    20: {"plain": 34_614_276, "automatic": 31_510},
+    12: {"plain": 144_938, "automatic": 28_472},
+    15: {"plain": 1_091_182, "automatic": 29_620},
+    18: {"plain": 8_660_937, "automatic": 30_776},
+    20: {"plain": 34_614_276, "automatic": 31_558},
 }
 
 

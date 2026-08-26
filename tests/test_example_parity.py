@@ -201,7 +201,7 @@ def test_the_llms_builtin_claim_holds_in_a_bare_configuration(tmp_path):
     ).read_text(encoding="utf-8")
     (backend / "morkspaces.pl").write_text(declarations, encoding="utf-8")
     names = re.findall(
-        r"^seam:backend_builtin\('?([^')]+)'?\)\.",
+        r"^seam:backend_builtin\('?([^',)]+)'?\s*,[^)]*\)\.",
         declarations,
         re.MULTILINE,
     )

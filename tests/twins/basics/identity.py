@@ -297,7 +297,17 @@ Guarantees:
 #: run and a direct re-run; command=python -m pytest
 #: "tests/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[basics/identity.metta]";
 #: fixture=guarded-hook tree with engine/reader.so; commit=87cc9f6c96a11bc06e307d3b2bec861cf0c1430e].
-BUDGET = 2821
+#: RE-PINNED 2026-08-26, 2821 to 2841 (+20), at the world-admission merge:
+#: the cache-admission seam now asks the declared effect and refuses names
+#: the reviewed native profile fixes stronger, one extra semidet guard per
+#: admitted memo call in this define-and-run workload, the same +20 the
+#: async-admission entry above documents for its arm. The branch's own tree
+#: read the same class against its own base (2888 vs its 2891 pin)
+#: [measured: 2841 on the resolved merge tree with engine/reader.so;
+#: command=python -m pytest
+#: "tests/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[basics/identity.metta]";
+#: commit=WORKTREE].
+BUDGET = 2841
 def twin(m):
     """Define the square, then check it."""
     @m.define

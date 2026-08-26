@@ -45,6 +45,11 @@ Guarantees:
     inverse host dispatch alike [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - an active saga capture records one ``(did op args result)`` atom for
+    every successful writesState-or-stronger operation answer, including
+    relational, inverse, and raw dispatch [tested:
+    test_every_effectful_dispatch_shape_leaves_one_committed_receipt;
+    commit=WORKTREE]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -72,6 +77,7 @@ import types
 import typing
 from collections.abc import Callable, Iterable
 from contextlib import closing
+from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from typing import Any
 
@@ -81,7 +87,17 @@ from ._atoms_core import _is_primitive, _unbox_wire_value, boxed
 from ._convert_build import build
 from ._convert_project import explicit_projection, project
 from .answer import Answer
-from .atoms import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _decode, _encode
+from .atoms import (
+    Atom,
+    Box,
+    Expression,
+    Grounded,
+    Symbol,
+    Variable,
+    _atom_from_wire,
+    _decode,
+    _encode,
+)
 from .errors import NotReducible, PettaError, is_transport_failure
 from .vocabularies import EffectClass
 
@@ -107,6 +123,126 @@ __all__ = [
 # The wire form the shim treats as failure rather than a value: the operation
 # looked at its arguments and answered nothing.
 _DECLINED = ["x", "declined"]
+
+
+@dataclass
+class _ReceiptCapture:
+    """The pending ordinary-data receipts owned by one saga step."""
+
+    receipts: list[_CapturedReceipt]
+    effectful_names: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class _CapturedReceipt:
+    """One provisional receipt and whether the engine can roll its effect back."""
+
+    atom: Expression
+    enlisted: bool
+
+
+_RECEIPT_CAPTURE: ContextVar[_ReceiptCapture | None] = ContextVar(
+    "petta_receipt_capture",
+    default=None,
+)
+
+
+def _begin_receipt_capture(
+    receipts: list[_CapturedReceipt],
+) -> Token[_ReceiptCapture | None]:
+    """Route this context's effectful operation answers into ``receipts``."""
+    return _RECEIPT_CAPTURE.set(_ReceiptCapture(receipts))
+
+
+def _end_receipt_capture(token: Token[_ReceiptCapture | None]) -> None:
+    """Restore the capture active before ``_begin_receipt_capture``."""
+    _RECEIPT_CAPTURE.reset(token)
+
+
+def _suspend_receipt_capture() -> Token[_ReceiptCapture | None]:
+    """Keep compensation execution out of an enclosing saga's journal."""
+    return _RECEIPT_CAPTURE.set(None)
+
+
+def _select_receipt_operations(names: list[str]) -> None:
+    """Freeze the engine's effectful operation plan for this saga step."""
+    capture = _RECEIPT_CAPTURE.get()
+    if capture is None:
+        msg = "the saga receipt plan arrived outside its active capture scope"
+        raise RuntimeError(msg)
+    capture.effectful_names = frozenset(names)
+
+
+def _capture_atom_receipt(op: Operation, arguments: list[Atom], result: Atom) -> None:
+    """Append one provisional receipt for engine-side effect filtering."""
+    capture = _RECEIPT_CAPTURE.get()
+    if capture is None or str(op.name) not in capture.effectful_names:
+        return
+    capture.receipts.append(
+        _CapturedReceipt(
+            Expression(
+                [
+                    Symbol("did"),
+                    Symbol(str(op.name)),
+                    Expression(arguments),
+                    result,
+                ]
+            ),
+            enlisted=False,
+        )
+    )
+
+
+def _substitute_receipt_atom(atom: Atom, theta: dict[str, Atom]) -> Atom:
+    """Apply one explicit Answer's bindings to receipt arguments."""
+    if isinstance(atom, Variable):
+        return theta.get(atom.name, atom)
+    if isinstance(atom, Expression):
+        return Expression(
+            [_substitute_receipt_atom(child, theta) for child in atom.children]
+        )
+    return atom
+
+
+def _capture_encoded_receipt(
+    op: Operation,
+    argument_wires: list,
+    result_wire: list,
+) -> None:
+    """Turn one successful encoded dispatch answer into ordinary atom data."""
+    if _RECEIPT_CAPTURE.get() is None:
+        return
+    arguments = [_atom_from_wire(wire) for wire in argument_wires]
+    if result_wire and result_wire[0] == "a":
+        theta = {
+            str(name): _atom_from_wire(wire)
+            for name, wire in result_wire[1]
+        }
+        arguments = [_substitute_receipt_atom(atom, theta) for atom in arguments]
+        result = (
+            Expression()
+            if len(result_wire) == 4
+            else _atom_from_wire(result_wire[4])
+        )
+    else:
+        result = _atom_from_wire(result_wire)
+    _capture_atom_receipt(op, arguments, result)
+
+
+def _capture_raw_receipt(op: Operation, arguments: list[Any], result: Any) -> None:
+    """Preserve raw transport identity in one provisional receipt."""
+    if _RECEIPT_CAPTURE.get() is None:
+        return
+    _capture_atom_receipt(
+        op,
+        [_raw_receipt_atom(argument) for argument in arguments],
+        _raw_receipt_atom(result),
+    )
+
+
+def _raw_receipt_atom(value: Any) -> Atom:
+    """Project primitives and box every opaque raw value by identity."""
+    return _encode(value) if _is_primitive(value) else _encode(boxed(value))
 
 
 @dataclass(frozen=True)
@@ -205,9 +341,17 @@ def dispatch(name: str, tagged_args: list) -> list:
     op = REGISTRY[name]
     args = _decode_args(op, tagged_args)
     try:
-        return _encode_result(op.fn(*args), op.return_annotation)
+        value = op.fn(*args)
+        encoded = _encode_result(value, op.return_annotation)
+        if encoded != _DECLINED:
+            _capture_encoded_receipt(
+                op,
+                tagged_args,
+                encoded,
+            )
     except NotReducible:
         return _DECLINED
+    return encoded
 
 
 def _decode_args(op: Operation, tagged_args: list) -> list[Any]:
@@ -244,10 +388,12 @@ def dispatch_inverse(name: str, tagged_result: Any):
         _decode_arg(tagged_result, op.pass_atoms, op.return_annotation),
     ):
         annotations = (*op.parameter_annotations, *(Any for _ in arguments))
-        yield [
+        encoded_arguments = [
             _encode_result(argument, annotation)
             for argument, annotation in zip(arguments, annotations, strict=False)
         ]
+        _capture_encoded_receipt(op, encoded_arguments, tagged_result)
+        yield encoded_arguments
 
 
 def dispatch_inverse_context(token: int, name: str, tagged_result: Any):
@@ -263,7 +409,10 @@ def dispatch_inverse_raw(name: str, result: Any):
     encoding instead gave one function pair two value conventions: `str` for a
     symbol going out and `Symbol` coming back.
     """
-    for arguments in _preimages(name, _unbox(result)):
+    op = REGISTRY[name]
+    unboxed_result = _unbox(result)
+    for arguments in _preimages(name, unboxed_result):
+        _capture_raw_receipt(op, list(arguments), unboxed_result)
         yield [_rebox(argument) for argument in arguments]
 
 
@@ -329,9 +478,23 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
                     continue
                 relation = _encode_relation_candidate(op, value, relation_schema)
                 if relation is not None:
+                    receipt_arguments = list(tagged_args)
+                    for index, candidate in relation[1]:
+                        receipt_arguments[index] = candidate
+                    _capture_encoded_receipt(
+                        op,
+                        receipt_arguments,
+                        Expression().to_wire(),
+                    )
                     yield relation
                     continue
-                yield _encode_result(value, op.return_annotation)
+                encoded = _encode_result(value, op.return_annotation)
+                _capture_encoded_receipt(
+                    op,
+                    tagged_args,
+                    encoded,
+                )
+                yield encoded
     # KeyboardInterrupt and SystemExit are BaseException, outside this
     # handler by construction, so control signals pass through untouched.
     except Exception as error:
@@ -549,8 +712,13 @@ def dispatch_raw(name: str, args: list) -> Any:
     out, so an operation body only ever sees real objects. None crosses as
     janus @none, which the shim reads as no answer; NotReducible maps onto it.
     """
+    op = REGISTRY[name]
+    unboxed_args = [_unbox(argument) for argument in args]
     try:
-        return _rebox(_refuse_raw_answer(REGISTRY[name].fn(*[_unbox(a) for a in args])))
+        value = _refuse_raw_answer(op.fn(*unboxed_args))
+        if value is not None:
+            _capture_raw_receipt(op, unboxed_args, value)
+        return _rebox(value)
     except NotReducible:
         return None
 
@@ -561,11 +729,16 @@ def dispatch_raw_context(token: int, name: str, args: list) -> Any:
 
 
 def dispatch_raw_many(name: str, args: list):
+    op = REGISTRY[name]
+    unboxed_args = [_unbox(argument) for argument in args]
     try:
-        with closing(REGISTRY[name].fn(*[_unbox(a) for a in args])) as answers:
-            for value in answers:
-                _refuse_raw_relation_candidate(value)
-                yield _rebox(_refuse_raw_answer(value))
+        with closing(op.fn(*unboxed_args)) as answers:
+            for answer in answers:
+                _refuse_raw_relation_candidate(answer)
+                value = _refuse_raw_answer(answer)
+                if value is not None:
+                    _capture_raw_receipt(op, unboxed_args, value)
+                yield _rebox(value)
     except Exception as error:
         if _failed_during_generator_close(error):
             raise

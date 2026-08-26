@@ -25,6 +25,20 @@
 %   - an empty direct eval preserves a guarded head with no matching clause
 %     as a not-reducible answer while a matched empty body stays empty [tested:
 %     test_eval_keeps_unreduced_guarded_head_and_status; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+%   - petta_py_world_effect_plan/4 translates and walks a target without
+%     executing it, returning the engine's named effect plan and the world's
+%     declared coverage before world scratch state exists; semantic special
+%     forms remain visible when lowering erases their head [tested:
+%     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation,
+%     test_lowered_nondeterminism_remains_visible_to_world_admission;
+%     commit=WORKTREE]
+%   - one saga step's receipt instrumentation is installed and retired as a
+%     whole: a wrapper that cannot be installed unwinds the ones before it and
+%     leaves no receipt sink, and a teardown whose first unwrap is already gone
+%     still retires every later wrapper [tested:
+%     test_a_refused_wrapper_installation_leaves_no_saga_instrumentation,
+%     test_saga_teardown_retires_every_wrapper_past_a_missing_one;
+%     commit=WORKTREE]
 %   - Python's non-direct eval paths use translate_cached_expr/3, so repeated
 %     forms reuse the engine's invalidated translation templates
 %     [tested: translation_cache, test_the_host_service_scoreboard_matches_the_tree; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873]
@@ -216,6 +230,7 @@
 :- use_module(library(hashtable), [ht_get/3, ht_new/1, ht_put/3]).
 :- use_module(library(time)).
 :- use_module(library(prolog_profile)).
+:- use_module(library(prolog_wrap), [wrap_predicate/4, unwrap_predicate/2]).
 :- use_module(library(wfs)).
 
 %translated_from/2 is engine/filereader.pl's, declared dynamic and exported
@@ -1210,27 +1225,263 @@ petta_py_target_term(Space, Target, Term) :-
     ;   throw(error(domain_error(petta_py_wire_term, Target), none))
     ).
 
-%A reified world is evaluated in one fresh native space. Its base atoms are
-%replayed with both &self and the originating handle rebound to the scratch
-%space, so copied equations never write back through their old receiver. The
-%whole lifetime sits in one discarded observation frame and State fence; the
-%inner cleanup clears even on an evaluation exception, before the frame is
-%discarded. Atoms returned to Python replace the short-lived scratch handle
-%with the durable origin marker, ready for the next branch replay.
-petta_py_world_eval(Space, Origin, AtomWires, Target, [Answers, Stored]) :-
+%Plan the same direct or translated goal petta_py_eval/3 will call. Translation
+%may populate its ordinary invalidated template cache, but this seam creates no
+%space and executes no target goal; ReifiedWorld.eval calls it before allocating
+%the discarded receiver. Coverage remains catalog data keyed by the originating
+%world context.
+petta_py_world_effect_plan(Space, Origin, Target,
+                           [Operations, Effect, Coverage]) :-
+    petta_py_target_term(Space, Target, Term0),
+    petta_py_world_rebase(Term0, Origin, Space, Term),
+    petta_py_module(Space, Module),
+    petta_world_effect_coverage(Origin, Coverage),
+    metta_host_source_effect_plan(
+        Module, Term, SourceOperations, SourceEffect),
+    (   petta_effect_covered(SourceEffect, Coverage)
+    ->  (   petta_py_direct_goal(Module, Term, Goal, _)
+        ->  Body0 = Goal
+        ;   petta_py_in_module(
+                Module,
+                ( translator:translate_cached_expr(Term, Goals, _),
+                  translator:goals_list_to_conj(Goals, Body0) ))
+        ),
+        Body = (petta_effect_source_term(Term), Body0),
+        metta_host_goal_effect_plan(Module, Body, Operations, Effect)
+    ;   Operations = SourceOperations,
+        Effect = SourceEffect
+    ).
+
+%Replay the immutable program image once and retain the native space. The
+%observation segment is discarded and State writes are fenced, just like a
+%world evaluation, but the stored clauses remain so every later admission
+%question is asked of the frozen program rather than the mutable origin.
+petta_py_world_prepare(Space, Origin, AtomWires) :-
     setup_call_cleanup(
         seam:observation_begin,
-        setup_call_cleanup(
-            true,
+        petta_with_state_write_fence(
+            maplist(petta_py_world_add(Origin, Space), AtomWires)),
+        seam:observation_discard).
+
+%The raw image is immutable world data, but materialising its equations may run
+%translator rules. Compute that compilation-only join against the module whose
+%complete compiled image supplied the atoms. The walk itself never translates.
+petta_py_world_image_effect_plan(Space, Origin, AtomWires,
+                                 [Operations, Effect, Coverage]) :-
+    petta_py_module(Space, Module),
+    findall(Row,
+            ( member(Wire, AtomWires),
+              petta_py_decode_shared(Wire, Term0, _),
+              petta_py_world_rebase(Term0, Origin, Space, Term),
+              metta_host_source_compile_effect_plan(
+                  Module, Term, TermOperations, _),
+              member(Row, TermOperations) ),
+            RawOperations),
+    sort(RawOperations, Operations),
+    findall(Class, member([_, Class], Operations), Classes),
+    petta_effect_compose(Classes, Effect),
+    petta_world_effect_coverage(Origin, Coverage).
+
+%The catalog checks a compensation when its row is written. Recovery checks
+%again against the execution space because either callable can be unregistered
+%or hidden after that write, and preflight must detect the stale plan before an
+%earlier handler changes anything.
+petta_py_saga_compensation_callable(Space, Name) :-
+    atom(Name),
+    petta_py_module(Space, Module),
+    metta_ensure_compiled(Name),
+    functor(Goal, Name, 2),
+    current_predicate(Module:Name/2),
+    predicate_property(Module:Goal, visible),
+    (   petta_contract_fact([op, Name, 1, _])
+    ;   arity(Name, 2)
+    ).
+
+%The saga's Python callback is run through the engine transaction owner. The
+%two zero-argument notifications happen after the database outcome is known
+%but before a post-commit failure is rethrown, so bookkeeping never guesses
+%durability from the exception's class.
+petta_py_saga_transaction(F, Committed, RolledBack, R) :-
+    petta_transaction_notified(
+        py_call(F:'__call__'(), R),
+        py_call(Committed:'__call__'(), _),
+        py_call(RolledBack:'__call__'(), _)).
+
+%A non-host operation may still publish an (effect ...) row. Wrap only those
+%reachable predicates for the duration of one saga evaluation. Registered
+%Python operations keep their earlier capture point inside dispatch, where an
+%effect has already fired even if a later relation candidate is rejected.
+petta_py_saga_eval_all(Space, Tagged, SelectHost, ReceiptSink, Answers) :-
+    with_mutex('$petta_saga_wrappers',
+        ( petta_py_saga_prepare_target(
+              Space, Tagged, NativeOperations, HostOperations),
+          py_call(SelectHost:'__call__'(HostOperations), _),
+          setup_call_cleanup(
+              petta_py_saga_capture_begin(
+                  Space, NativeOperations, ReceiptSink, Wrapped),
+              petta_py_eval_all(Space, Tagged, Answers),
+              petta_py_saga_capture_end(Wrapped)) )).
+
+%Compilation can call effect-classified engine predicates such as include/3 to
+%publish function metadata. Those are implementation work, not operations the
+%forward target performed, and wrapping before the first translation produced
+%a spurious `(did include ...)` recovery obligation. Populate the ordinary
+%translation cache before installing wrappers, but keep the preparation inside
+%the step transaction and the wrapper mutex. Python host calls made by a custom
+%translator rule remain captured by the active Python ContextVar.
+petta_py_saga_prepare_target(Space, Tagged,
+                             NativeOperations, HostOperations) :-
+    petta_py_target_term(Space, Tagged, Term),
+    petta_py_module(Space, Module),
+    metta_host_source_runtime_effect_plan(Module, Term, RuntimeRows, _),
+    (   member(['<dynamic-operation>', _], RuntimeRows)
+    ->  throw(error(petta_saga_dynamic_operation(Term), none))
+    ;   true
+    ),
+    (   member(['<catalog-policy-mutation>', _], RuntimeRows)
+    ->  throw(error(petta_saga_catalog_policy_mutation(Term), none))
+    ;   true
+    ),
+    petta_effect_rank(writesState, Threshold),
+    findall(Name,
+            ( member([Name, Effect], RuntimeRows),
+              petta_effect_rank(Effect, Rank),
+              Rank >= Threshold ),
+            Names),
+    sort(Names, NativeOperations),
+    findall(Name,
+            ( petta_contract_fact([op, Name, _, _]),
+              petta_operation_effect(Name, Effect),
+              petta_effect_rank(Effect, Rank),
+              Rank >= Threshold ),
+            HostNames),
+    sort(HostNames, HostOperations),
+    (   petta_py_direct_goal(Module, Term, _, _)
+    ->  true
+    ;   petta_py_in_module(Module,
+                           translate_cached_expr(Term, _, _))
+    ).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_saga_dynamic_operation(Term)) -->
+    [ 'Saga.run cannot journal dynamic-head target ~p; use a static operation \c
+       head so the effect and compensation boundary is known before execution'-
+      [Term] ].
+prolog:error_message(petta_saga_catalog_policy_mutation(Term)) -->
+    [ 'Saga.run refuses target ~p because it mutates &petta policy while \c
+       receipt eligibility is frozen; declare effects and compensations \c
+       before entering the saga'-[Term] ].
+
+%Install the whole wrapper set or none of it. setup_call_cleanup/3 runs no
+%cleanup when its setup raises or fails, so a half-installed set would outlive
+%the step that began it and publish `(did ...)` receipts for later work the
+%saga never planned. Choosing the predicates before the sink exists keeps a
+%module or selection failure from leaving the sink behind either.
+petta_py_saga_capture_begin(Space, Operations, ReceiptSink, Wrapped) :-
+    petta_py_module(Space, Module),
+    findall(Owner:Name/Arity,
+            petta_py_saga_effect_predicate(Module, Operations,
+                                           Owner, Name, Arity),
+            Predicates0),
+    sort(Predicates0, Predicates),
+    nb_setval('$petta_saga_receipt_sink', ReceiptSink),
+    petta_py_saga_wrap_all(Predicates, [], Wrapped).
+
+%Each step's own catch covers only its own installation, so the unwind runs
+%exactly once: the levels below have already left their catch when the throw
+%passes them. A wrap that merely fails is reported as an error rather than a
+%silent failure, because the caller's setup would otherwise fail with the
+%earlier predicates still wrapped.
+petta_py_saga_wrap_all([], Wrapped, Wrapped).
+petta_py_saga_wrap_all([Predicate|Rest], Installed, Wrapped) :-
+    catch(( petta_py_saga_wrap(Predicate, One)
+          -> true
+          ;  throw(error(petta_saga_wrap_failed(Predicate), none))
+          ),
+          Error,
+          ( petta_py_saga_capture_end(Installed), throw(Error) )),
+    petta_py_saga_wrap_all(Rest, [One|Installed], Wrapped).
+
+prolog:error_message(petta_saga_wrap_failed(Predicate)) -->
+    [ 'Saga.run could not instrument ~p for receipt capture; no wrapper was \c
+       left installed'-[Predicate] ].
+
+petta_py_saga_effect_predicate(Module, Operations, Owner, Name, Arity) :-
+    memberchk(Name, Operations),
+    (   builtin_fun(Name)
+    ;   petta_contract_fact([effect, Name, _])
+    ),
+    petta_operation_effect(Name, Effect),
+    petta_effect_rank(Effect, Rank),
+    petta_effect_rank(writesState, Threshold),
+    Rank >= Threshold,
+    \+ petta_contract_fact([op, Name, _, _]),
+    (   current_predicate(Module:Name/Arity)
+    ;   current_predicate(Name/Arity),
+        functor(Visible, Name, Arity),
+        predicate_property(Module:Visible, visible)
+    ),
+    Arity > 0,
+    functor(Head, Name, Arity),
+    (   predicate_property(Module:Head, imported_from(Imported))
+    ->  Owner = Imported
+    ;   Owner = Module
+    ).
+
+petta_py_saga_wrap(Owner:Name/Arity, Owner:Name/Arity) :-
+    functor(Head, Name, Arity),
+    Head =.. [_|All],
+    append(Args, [Result], All),
+    wrap_predicate(Owner:Head, petta_saga_receipt, Wrapped,
+                   petta_py_saga_wrapped_call(Name, Args, Result, Wrapped)).
+
+petta_py_saga_wrapped_call(Name, Args, Result, Wrapped) :-
+    call(Wrapped),
+    (   nb_current('$petta_saga_receipt_sink', Sink)
+    ->  petta_py_encode([did, Name, Args, Result], Wire),
+        py_call(Sink:'__call__'(Wire), _)
+    ;   true
+    ).
+
+%Teardown is total. setup_call_cleanup/3 IGNORES a failing cleanup goal
+%[measured 2026-08-26: setup_call_cleanup(true, true, fail) succeeds], so a
+%forall/2 that stopped at the first predicate somebody else already unwrapped
+%would silently leave every later wrapper installed. Retire each one on its
+%own and always release the sink.
+petta_py_saga_capture_end(Wrapped) :-
+    forall(member(Predicate, Wrapped),
+           ignore(catch(unwrap_predicate(Predicate, petta_saga_receipt),
+                        _, true))),
+    (   nb_current('$petta_saga_receipt_sink', _)
+    ->  nb_delete('$petta_saga_receipt_sink')
+    ;   true
+    ).
+
+%Evaluate one already-prepared frozen image. Admission is repeated inside the
+%same engine call immediately before execution, closing the replacement race
+%between the Python-side before-allocation check and the actual operation.
+%Success retains Space as the successor world's exact compiled image; Python
+%drops it on refusal or exception.
+petta_py_world_eval(Space, Origin, AtomWires, Target,
+                    Operations, Effect, Result) :-
+    petta_world_effect_coverage(Origin, Coverage),
+    (   petta_effect_covered(Effect, Coverage)
+    ->  setup_call_cleanup(
+            seam:observation_begin,
             petta_with_state_write_fence(
                 ( maplist(petta_py_world_add(Origin, Space), AtomWires),
                   petta_py_target_term(Space, Target, Term0),
                   petta_py_world_rebase(Term0, Origin, Space, Term),
                   petta_py_world_eval_answers(Space, Term, Answers),
-                  petta_py_world_atoms(Space, Origin, Stored)
-                )),
-            petta_py_clear(Space)),
-        seam:observation_discard).
+                  petta_py_world_atoms(Space, Origin, Stored),
+                  petta_py_world_image_effect_plan(
+                      Space, Origin, Stored,
+                      [ImageOperations, ImageEffect, _]),
+                  Result = [admitted, Answers, Stored,
+                            ImageOperations, ImageEffect] )),
+            seam:observation_discard)
+    ;   Result = [refused, Operations, Effect, Coverage]
+    ).
 
 petta_py_world_add(Origin, Space, Wire) :-
     petta_py_decode_shared(Wire, Term0, _),
@@ -2945,6 +3196,10 @@ seam:effect_operation_name(petta_py_dispatch_async(Name, Args, _), Name, Arity) 
 seam:effect_operation_name(petta_py_dispatch_raw_det(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
 seam:effect_operation_name(petta_py_dispatch_raw_many(Name, Args, _), Name, Arity) :-
+    petta_py_dispatch_arity(Args, Arity).
+seam:effect_operation_name(petta_py_dispatch_inverse(Name, _, Args), Name, Arity) :-
+    petta_py_dispatch_arity(Args, Arity).
+seam:effect_operation_name(petta_py_dispatch_inverse_raw(Name, _, Args), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
 
 %The MeTTa arity, which is the argument list's length: the engine's extra
