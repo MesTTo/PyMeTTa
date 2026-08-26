@@ -299,6 +299,16 @@ _BUILTINS_CACHE: weakref.WeakKeyDictionary[
 _DEPRECATION_CACHE: weakref.WeakKeyDictionary[
     Runtime, dict[str, tuple[str, str] | None]
 ] = weakref.WeakKeyDictionary()
+#: Whether the runtime holds ANY deprecation declaration at all. The catalog
+#: is almost always empty, and without this flag every distinct name's first
+#: live call paid one engine crossing to learn nothing: measured 2026-08-26,
+#: +1,288 inferences on the parse twin (391 to 1,679) from d74e2e82's
+#: per-name reads alone. One process-wide apply-seam emptiness probe
+#: amortises them
+#: [tested: test_an_empty_deprecation_catalog_costs_one_cheap_probe].
+_DEPRECATION_ANY: weakref.WeakKeyDictionary[Runtime, bool] = (
+    weakref.WeakKeyDictionary()
+)
 
 
 def _invalidate_builtins_cache(rt: Runtime) -> None:
@@ -307,6 +317,7 @@ def _invalidate_builtins_cache(rt: Runtime) -> None:
         epoch, function_generation, _ = _BUILTINS_CACHE.get(rt, (0, -1, {}))
         _BUILTINS_CACHE[rt] = (epoch + 1, function_generation, {})
         _DEPRECATION_CACHE.pop(rt, None)
+        _DEPRECATION_ANY.pop(rt, None)
 
 
 def _catalog_text(value: Any) -> str:
@@ -322,6 +333,15 @@ def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
         cache = _DEPRECATION_CACHE.setdefault(rt, {})
         if name in cache:
             return cache[name]
+        any_declared = _DEPRECATION_ANY.get(rt)
+    if any_declared is None:
+        any_declared = bool(int(rt.apply_must("petta_py_deprecation_declared")))
+        with _BUILTINS_CACHE_LOCK:
+            _DEPRECATION_ANY[rt] = any_declared
+    if not any_declared:
+        with _BUILTINS_CACHE_LOCK:
+            _DEPRECATION_CACHE.setdefault(rt, {})[name] = None
+        return None
     row = rt.once("petta_deprecation(Name, Since, Remedy)", Name=name)
     declaration = (
         None

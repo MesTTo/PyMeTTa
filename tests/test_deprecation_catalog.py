@@ -6,6 +6,10 @@ Guarantees:
     declaration is removed [tested:
     test_deprecation_catalog_rows_drive_warnings_and_explanations;
     commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
+  - an empty catalog answers every name through one process-wide apply-seam
+    probe, with no per-name goal-string read [tested:
+    test_an_empty_deprecation_catalog_costs_one_cheap_probe;
+    commit=WORKTREE]
 """
 
 from __future__ import annotations
@@ -62,3 +66,36 @@ def test_deprecation_catalog_rows_drive_warnings_and_explanations(metta):
             warnings.simplefilter("always")
             assert list(legacy(S.current)) == [S.modern(S.current)]
         assert seen == []
+
+
+def test_an_empty_deprecation_catalog_costs_one_cheap_probe(
+    metta, monkeypatch
+):
+    """The common case performs no per-name goal-string read at all.
+
+    Until 2026-08-26 every distinct name's first call through a callable
+    door compiled a fresh ``once/1`` goal string to learn the catalog was
+    empty: 1,311 inferences measured on the first ``fn.parse`` call where
+    the steady state is 5. With the process-wide apply-seam flag, an empty
+    catalog answers every name without a single ``petta_deprecation``
+    goal-string read.
+    """
+    from metta import _space as space_module
+
+    reads = []
+    real_once = space_module.Runtime.once
+
+    def counting_once(self, goal, *args, **kwargs):
+        if "petta_deprecation(" in goal:
+            reads.append(goal)
+        return real_once(self, goal, *args, **kwargs)
+
+    monkeypatch.setattr(space_module.Runtime, "once", counting_once)
+    with metta._new_space() as space:
+        for name in ("parse", "repr", "car-atom"):
+            answers = space.fn[name] if name == "car-atom" else getattr(
+                space.fn, name
+            )
+        [answer] = space.fn.parse('"probe"')
+        [answer] = space.fn.repr(answer)
+    assert reads == []

@@ -2944,6 +2944,15 @@ petta_py_builtins(Names) :-
 petta_py_function_generation(Generation) :-
     metta_host_function_generation(Generation).
 
+%Whether ANY deprecation declaration exists, as 1/0 through the apply seam.
+%The catalog is almost always empty, and the callable doors' first-call
+%deprecation read through a fresh once/1 goal string measured 1,311
+%inferences where this apply-seam probe is double digits, the same
+%once-versus-apply gap petta_py_catalogue_member/1 documents below
+%[tested: test_an_empty_deprecation_catalog_costs_one_cheap_probe].
+petta_py_deprecation_declared(Flag) :-
+    ( petta_deprecation(_, _, _) -> Flag = 1 ; Flag = 0 ).
+
 petta_py_special_form_names(Names) :-
     findall(Name, metta_special_form_head(Name), Names0),
     sort(Names0, Names).
