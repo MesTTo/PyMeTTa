@@ -7,7 +7,7 @@ Guarantees:
   - higher-order specializations mint symbols that survive text save, reload,
     and digest, including all eight formerly unwritable names in
     examples/functions/specialize.metta [tested:
-    test_a_specialized_program_saves_and_digests; commit=WORKTREE]
+    test_a_specialized_program_saves_and_digests; commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
 Open Obligations:
   To Do: None
   Hacks: None

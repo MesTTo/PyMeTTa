@@ -14,7 +14,7 @@ Guarantees:
     duplicate counts [tested:
     test_stored_content_uses_the_digest_and_keeps_equation_multiplicity,
     test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback;
-    commit=WORKTREE]
+    commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
   - point budgets remain two-sided with the deterministic tolerance stated
     separately [tested: test_a_budget_is_two_sided; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
   - empirical envelopes are asymmetric, protocol-scoped, and falsified by

@@ -80,7 +80,7 @@ Guarantees:
     finding with multiplicity-preserving equation diagnostics [tested:
     test_a_twin_stores_the_equations_its_comments_claim,
     test_stored_content_uses_the_digest_and_keeps_equation_multiplicity;
-    commit=WORKTREE]
+    commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
   - a twin writing MeTTa in Python punctuation is a finding naming the Python
     spelling it should have used [tested:
     test_a_dissolved_head_names_the_python_spelling_it_replaces,

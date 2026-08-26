@@ -226,7 +226,7 @@ is Python's own `assert`.
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta in each worktree; fixture=separate fresh
 #: processes with worktree.sh-linked engine/reader.so on detached base
-#: 20e9fc70bb171a2380ef378322817d3b95ed7618 and candidate; commit=WORKTREE].
+#: 20e9fc70bb171a2380ef378322817d3b95ed7618 and candidate; commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee].
 BUDGET = 2866
 
 
