@@ -118,6 +118,7 @@ _CASES = {
     "wire-codec": _wire_codec,
 }
 
+
 def _scaling_case(family: str) -> Callable[[int], EngineCase]:
     """Adapt a scaling family to the sized-case shape perf's window drives.
 
