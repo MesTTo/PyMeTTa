@@ -33,6 +33,10 @@ stacking reads as first-match, so two clauses fixing no literal are a
 REDEFINITION. `@rules` is the other shape of the definitional door and says it
 directly, and `space += bundle` lands the clause set through the one write
 door.
+
+The historical stored-equation divergence is lifted. The current example and
+twin digest both equal
+`0a373e46d28e353ed02251c91b5d440f16ab17d3a79375fd5adebb149879c230`.
 Guarantees:
   - UNIT used here is a package value rather than a local reconstruction
     [tested: test_the_canonical_atoms_are_public_values; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]

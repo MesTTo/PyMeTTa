@@ -4,8 +4,10 @@
 conditional expression IS MeTTa's `if` and the recursive call is the same call
 the equation makes.
 
-Compiled-body equality now lowers to the engine's `==` relation, so the stored
-equation is the source equation rather than a host-equality approximation.
+The source stores `==`. Python's comparison compiles to the engine-native
+`py-eq` head, so the twin deliberately stores a different equation while
+keeping the comparison inside the engine. The digest lane reports that
+spelling difference.
 """
 
 #: Inferences this twin spends, its own tripwire. INTERIM PIN 2026-08-24,
@@ -61,7 +63,8 @@ def twin(m):
     """Define the factorial and run it."""
     @m.define(name="facF")
     def fac_f(n):
-        # (= (facF $n) (if (== $n 0) 1 (* $n (facF (- $n 1)))))
+        # Source: (= (facF $n) (if (== $n 0) 1 (* $n (facF (- $n 1)))))
+        # Twin:   (= (facF $n) (if (py-eq $n 0) 1 (* $n (facF (- $n 1)))))
         return 1 if n == 0 else n * fac_f(n - 1)
 
     assert fac_f(10) == [3628800]

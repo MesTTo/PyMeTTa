@@ -8,8 +8,9 @@ naming ladder's own underscore map, and nothing has to say that name twice.
 name that object was installed under, so the stored equation is the
 original's.
 
-Compiled-body equality lowers to the engine's `==`, so `fib-tr`'s stored body
-matches the original equation as well.
+The source stores `==`. Python's comparison compiles to the engine-native
+`py-eq` head, so `fib-tr` deliberately differs in that one stored spelling.
+The digest lane reports it.
 """
 
 #: Inferences this twin spends, its own tripwire.
@@ -62,7 +63,8 @@ def twin(m):
     """Define the accumulator fib and its entry point, then run it."""
     @m.define
     def fib_tr(n, a, b):
-        # (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
+        # Source: (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
+        # Twin:   (= (fib-tr $n $a $b) (if (py-eq $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
         return a if n == 0 else fib_tr(n - 1, b, a + b)
 
     # A body calling the definition above it is the ordinary call: `fib_tr` is

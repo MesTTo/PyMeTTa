@@ -15,6 +15,12 @@ the right rung and not a shortcut [measured 2026-08-24: `space += atom` inside
 a compiled body stores `(+ $space $atom)` and writes nothing; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 That stays filed against control/and_then_or_else.metta, where the space is
 neither a parameter nor the context space and so cannot be reached at all.
+
+The stored equations are deliberately not source-identical. Assignment
+lowers `f`'s `let` to a one-binding `let*`. `evalCustom` lowers the source's
+multi-binding `let*` to nested one-binding `let*` forms and names the running
+space as `(context-space)` instead of the source token `&self`. The digest
+lane reports both equations.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
@@ -90,7 +96,8 @@ def twin(m):
     """Read a specialised body out of the space, then evaluate it."""
     @m.define
     def f(li, a, b):
-        # (= (f $L $a $b) (let $result (+ $a $b) (append ($result) $L)))
+        # Source: (= (f $L $a $b) (let $result (+ $a $b) (append ($result) $L)))
+        # Twin:   (= (f $L $a $b) (let* (($result (+ $a $b))) (append ($result) $L)))
         result = a + b
         return fn.append((result,), li)
 
@@ -102,11 +109,13 @@ def twin(m):
 
     @m.define(name="evalCustom")
     def eval_custom(body):
-        # (= (evalCustom $body)
+        # Source: (= (evalCustom $body)
         #    (let* (($a   (add-atom &self (= (myfunc) $body)))
         #           ($res (reduce (myfunc)))
         #           ($r   (remove-atom &self (= (myfunc) $body))))
         #          $res))
+        # Twin: nested one-binding let* forms around add-atom, reduce, and
+        # remove-atom, with (context-space) in both write calls.
         # The top rung is the write door itself, as a body statement:
         #     here = S.context_space()
         #     here += equation(S.myfunc()).to(body)

@@ -10,6 +10,9 @@ which is the crossing rule as well as the spelling.
 The original's `and` is a Python keyword, so the compiled body takes the exact
 static-function escape, `fn["and"]`, while each comparison uses Python's
 operator spelling and lowers to the corresponding engine relation.
+
+The historical stored-equation divergence is lifted. The example and twin
+currently produce the same cross-process digest.
 """
 
 from metta import fn

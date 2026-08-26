@@ -3,6 +3,11 @@ canonicalized atoms: insertion order and stored-variable names cannot
 change it, duplicates and any real content change do, the same content
 answers the same digest in another process, and live host objects refuse
 exactly like save.
+Guarantees:
+  - higher-order specializations mint symbols that survive text save, reload,
+    and digest, including all eight formerly unwritable names in
+    examples/functions/specialize.metta [tested:
+    test_a_specialized_program_saves_and_digests; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -136,3 +141,41 @@ def test_save_keeps_every_symbol_it_accepts(metta, tmp_path, name):  # noqa: D10
     with metta._new_space() as reader:
         reader.load(path)
         assert reader.atoms() == [S.container(S[name])]
+
+
+def test_a_specialized_program_saves_and_digests(metta, repo_root, tmp_path):
+    """The name minter, writer, parser, and digest agree on specializations."""
+    exact = tmp_path / "map-flat.metta"
+    with metta._new_space() as writer:
+        writer.run("(= (map-flat $f $xs) (collapse ($f (superpose $xs))))")
+        assert str(writer.run("!(map-flat (+ 1) (1 2 3))")) == "[[(2 3 4)]]"
+        before = writer.digest()
+        writer.save(exact)
+    with metta._new_space() as reader:
+        reader.load(exact)
+        assert reader.digest() == before
+
+    measured = tmp_path / "specialize.metta"
+    with metta._new_space() as writer:
+        writer.load(repo_root / "examples" / "functions" / "specialize.metta")
+        assert writer.run("!(trickyspec (+ 2))") == [[3]]
+        names = {
+            str(atom.children[1].children[0])
+            for atom in writer.atoms()
+            if str(atom).startswith("(= (") and "_Spec_" in str(atom)
+        }
+        assert len(names) == 11
+        assert sum("_Spec_k" in name for name in names) == 8
+        before = writer.digest()
+        writer.save(measured)
+    with metta._new_space() as reader:
+        reader.load(measured)
+        assert reader.digest() == before
+        assert str(reader.run("!(map-flat (+ 1) (1 2 3))")) == "[[(2 3 4)]]"
+        assert reader.run("!(trickyspec (+ 1))") == [[3]]
+        loaded_names = {
+            str(atom.children[1].children[0])
+            for atom in reader.atoms()
+            if str(atom).startswith("(= (") and "_Spec_" in str(atom)
+        }
+        assert names == loaded_names
