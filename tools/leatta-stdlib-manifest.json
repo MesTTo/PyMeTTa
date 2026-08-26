@@ -1,0 +1,8847 @@
+{
+ "schema": {
+  "operations[].name": "declared operation symbol, taken from preludeSrc and then from each built-in module registry source, in declaration order",
+  "operations[].module": "the built-in module whose import declares this operation; absent for a prelude declaration",
+  "operations[].types": "every declared type, one list entry per get-type result, measured",
+  "operations[].metatype": "the get-metatype result, measured",
+  "operations[].masks": "per declared arrow: parameter types with evaluated flags and the result; a parameter is unevaluated when declared Atom/Expression/Variable or the (:Atom T)/(:Expression T) quadrant",
+  "operations[].zeroArityProbe": "the transcript line of !(<op>) measured under a timeout; the zero-argument error text where the operation has one"
+ },
+ "version": "1.0.9",
+ "commit": "046edba",
+ "derivation": "scripts/gen-stdlib-manifest.py: operation list extracted from preludeSrc and from the built-in module registry in Minimal/Interpreter.lean; every field measured on ./.lake/build/bin/LeaTTa, a built-in module operation behind its own import",
+ "operationCount": 382,
+ "operations": [
+  {
+   "name": "=",
+   "types": [
+    "(-> $t $t %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$t",
+       "evaluated": true
+      },
+      {
+       "type": "$t",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (=) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "=%",
+   "types": [
+    "(-> $t $t %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$t",
+       "evaluated": true
+      },
+      {
+       "type": "$t",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (=%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-doc",
+   "types": [
+    "(-> SpaceType Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-doc) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "help!",
+   "types": [
+    "(-> Atom (->))",
+    "(-> (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    },
+    {
+     "parameters": [],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "="
+  },
+  {
+   "name": "eval",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (eval) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "evalc",
+   "types": [
+    "(-> Atom SpaceType Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (evalc) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "chain",
+   "types": [
+    "(-> Atom Variable Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (chain) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "unify",
+   "types": [
+    "(-> Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (unify) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "unify%",
+   "types": [
+    "(-> Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (unify%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "function",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (function) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "return",
+   "types": [
+    "(-> $t $t)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$t",
+       "evaluated": true
+      }
+     ],
+     "result": "$t"
+    }
+   ],
+   "zeroArityProbe": "[(Error (return) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "cons-atom",
+   "types": [
+    "(-> Atom Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (cons-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "decons-atom",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (decons-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "context-space",
+   "types": [
+    "(-> SpaceType)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [],
+     "result": "SpaceType"
+    }
+   ],
+   "zeroArityProbe": "[&self]"
+  },
+  {
+   "name": "collapse-bind",
+   "types": [
+    "(-> Atom Expression)",
+    "(TU Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (collapse-bind) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "superpose-bind",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (superpose-bind) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "metta",
+   "types": [
+    "(-> Atom Type SpaceType Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (metta) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "quote",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (quote) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "new-state",
+   "types": [
+    "(-> $t (StateMonad $t))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$t",
+       "evaluated": true
+      }
+     ],
+     "result": "(StateMonad $t)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (new-state) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "if",
+   "types": [
+    "(-> Bool Atom Atom $t)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "$t"
+    }
+   ],
+   "zeroArityProbe": "[(Error (if) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "let",
+   "types": [
+    "(-> Atom %Undefined% Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (let) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "let*",
+   "types": [
+    "(-> Expression Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (let*) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "let%",
+   "types": [
+    "(-> Atom %Undefined% Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (let%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "let*%",
+   "types": [
+    "(-> Expression Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (let*%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "car-atom",
+   "types": [
+    "(-> Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (car-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "cdr-atom",
+   "types": [
+    "(-> Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (cdr-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "switch",
+   "types": [
+    "(-> %Undefined% Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (switch) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-tuple",
+   "types": [
+    "(-> Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-tuple) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "switch-minimal",
+   "types": [
+    "(-> Atom Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (switch-minimal) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "switch-internal",
+   "types": [
+    "(-> Atom Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (switch-internal) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_switch-minimal%",
+   "types": [
+    "(-> Atom Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_switch-minimal%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "switch-internal%",
+   "types": [
+    "(-> Atom Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (switch-internal%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "collapse",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (collapse) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "unique",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (unique) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "union",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (union) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "intersection",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (intersection) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "subtraction",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (subtraction) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "Error",
+   "types": [
+    "(-> Atom Atom ErrorType)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "ErrorType"
+    }
+   ],
+   "zeroArityProbe": "[(Error (Error) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "noeval",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (noeval) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "id",
+   "types": [
+    "(-> $t $t)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$t",
+       "evaluated": true
+      }
+     ],
+     "result": "$t"
+    }
+   ],
+   "zeroArityProbe": "[(Error (id) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "print-alternatives!",
+   "types": [
+    "(-> Atom Expression (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (print-alternatives!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_print-alternatives-each!",
+   "types": [
+    "(-> Expression (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_print-alternatives-each!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "if-decons-expr",
+   "types": [
+    "(-> Expression Variable Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (if-decons-expr) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "foldl-atom",
+   "types": [
+    "(-> Expression Atom Variable Variable Atom %Undefined%)",
+    "(-> Expression Atom Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    },
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (foldl-atom) IncorrectNumberOfArguments), (Error (foldl-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assert",
+   "types": [
+    "(-> Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assert) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertIncludes",
+   "types": [
+    "(-> Atom Expression (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertIncludes) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertEqual",
+   "types": [
+    "(-> Atom Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertEqual) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertEqualMsg",
+   "types": [
+    "(-> Atom Atom Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertEqualMsg) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertEqualToResult",
+   "types": [
+    "(-> Atom Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertEqualToResult) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertEqualToResultMsg",
+   "types": [
+    "(-> Atom Atom Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertEqualToResultMsg) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertAlphaEqual",
+   "types": [
+    "(-> Atom Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertAlphaEqual) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertAlphaEqualMsg",
+   "types": [
+    "(-> Atom Atom Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertAlphaEqualMsg) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertAlphaEqualToResult",
+   "types": [
+    "(-> Atom Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertAlphaEqualToResult) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "assertAlphaEqualToResultMsg",
+   "types": [
+    "(-> Atom Atom Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (assertAlphaEqualToResultMsg) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "unquote",
+   "types": [
+    "(-> %Undefined% %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (unquote) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "eval-via-match",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (eval-via-match) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "TP",
+   "types": [
+    "Type"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(TP)]"
+  },
+  {
+   "name": "TU",
+   "types": [
+    "(-> Type Type)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "Type"
+    }
+   ],
+   "zeroArityProbe": "[(Error (TU) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "try",
+   "types": [
+    "TP",
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (try) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "gtry",
+   "types": [
+    "(-> Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (gtry) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "repeat",
+   "types": [
+    "TP",
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (repeat) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "stratego-all",
+   "types": [
+    "(-> Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (stratego-all) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_stratego-all-tail",
+   "types": [
+    "(-> Atom Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_stratego-all-tail) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "stratego-one",
+   "types": [
+    "(-> Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (stratego-one) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "stratego-some",
+   "types": [
+    "(-> Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (stratego-some) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_stratego-some-walk",
+   "types": [
+    "(-> Atom Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_stratego-some-walk) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "◁",
+   "types": [
+    "(-> Atom Type Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (◁) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "topdown",
+   "types": [
+    "TP",
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (topdown) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "bottomup",
+   "types": [
+    "TP",
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (bottomup) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "innermost",
+   "types": [
+    "TP",
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (innermost) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "eval-via-unify",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (eval-via-unify) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-chain",
+   "types": [
+    "(-> Atom Variable Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-chain) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-chain-collapsed",
+   "types": [
+    "(-> %Undefined% Variable Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-chain-collapsed) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-chain-run",
+   "types": [
+    "(-> %Undefined% Variable Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-chain-run) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-chain-substitute",
+   "types": [
+    "(-> Atom Variable Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-chain-substitute) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify",
+   "types": [
+    "(-> Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-structural",
+   "types": [
+    "(-> Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-structural) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-is-space",
+   "types": [
+    "(-> Atom Atom Bool)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-is-space) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-space-item",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-space-item) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-space-carrier",
+   "types": [
+    "(-> SpaceType Atom Atom Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-space-carrier) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-space-carriers",
+   "types": [
+    "(-> Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-space-carriers) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-space",
+   "types": [
+    "(-> SpaceType Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-space) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-space-finish",
+   "types": [
+    "(-> %Undefined% Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-space-finish) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-probe",
+   "types": [
+    "(-> Atom Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-probe) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-finish",
+   "types": [
+    "(-> %Undefined% Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-finish) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-rigid-first",
+   "types": [
+    "(-> Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-rigid-first) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-rigid-first-result",
+   "types": [
+    "(-> Atom Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-rigid-first-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-rigid-second",
+   "types": [
+    "(-> Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-rigid-second) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-unify-rigid-second-result",
+   "types": [
+    "(-> Atom Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-unify-rigid-second-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain",
+   "types": [
+    "(-> Atom Variable Atom Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-substituted",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-substituted) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-substitution-failed",
+   "types": [
+    "(-> Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(mi-apply-chain-substitution-failed)]"
+  },
+  {
+   "name": "mi-apply-chain-prepared-one",
+   "types": [
+    "(-> Atom Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepared-one) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-prepared",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepared) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-empty-prepare",
+   "types": [
+    "(-> Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-empty-prepare) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-collapsed",
+   "types": [
+    "(-> %Undefined% Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-collapsed) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-collapsed-choice",
+   "types": [
+    "(-> Bool Expression Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-collapsed-choice) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-prepare",
+   "types": [
+    "(-> Expression Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepare) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-prepare-choice",
+   "types": [
+    "(-> Bool Expression Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepare-choice) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-prepare-nonempty",
+   "types": [
+    "(-> %Undefined% Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepare-nonempty) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-prepare-head",
+   "types": [
+    "(-> %Undefined% Expression Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepare-head) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-prepare-tail",
+   "types": [
+    "(-> %Undefined% Atom Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepare-tail) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-prepared-carrier",
+   "types": [
+    "(-> %Undefined% Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepared-carrier) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-prepare-one",
+   "types": [
+    "(-> %Undefined% Variable Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-prepare-one) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-substituted-carrier",
+   "types": [
+    "(-> %Undefined% Expression Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-substituted-carrier) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-run",
+   "types": [
+    "(-> %Undefined% Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-run) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-chain-run-result",
+   "types": [
+    "(-> %Undefined% Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-chain-run-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify",
+   "types": [
+    "(-> Atom Atom Atom Atom Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-hit",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-hit) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-probe",
+   "types": [
+    "(-> Atom Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-probe) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-probed",
+   "types": [
+    "(-> %Undefined% Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-probed) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-rigid",
+   "types": [
+    "(-> Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-rigid) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-rigid-order",
+   "types": [
+    "(-> Bool Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-rigid-order) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-attempt",
+   "types": [
+    "(-> Atom Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-attempt) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-final",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-final) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-rigid-result",
+   "types": [
+    "(-> %Undefined% Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-rigid-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-has-segment",
+   "types": [
+    "(-> Atom Bool)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-has-segment) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-run",
+   "types": [
+    "(-> Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-run) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-apply-unify-run-result",
+   "types": [
+    "(-> %Undefined% Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-apply-unify-run-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-cons-atom",
+   "types": [
+    "(-> Atom Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-cons-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-decons-atom",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-decons-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-function-result",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-function-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-function",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-function) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-function-loop",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-function-loop) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mi-function-continue",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mi-function-continue) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-miss",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-miss)]"
+  },
+  {
+   "name": "u-hit",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-hit) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-stuck",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-stuck) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-exhausted",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-exhausted) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-equation",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-equation)]"
+  },
+  {
+   "name": "u-reduced",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduced) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-error",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-error) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-next-entry",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-next-entry)]"
+  },
+  {
+   "name": "u-function",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-function)]"
+  },
+  {
+   "name": "u-eval",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-eval)]"
+  },
+  {
+   "name": "u-evalc",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-evalc)]"
+  },
+  {
+   "name": "u-chain",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-chain)]"
+  },
+  {
+   "name": "u-unify",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-unify)]"
+  },
+  {
+   "name": "u-unify-rigid",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-unify-rigid)]"
+  },
+  {
+   "name": "u-cons-atom",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-cons-atom)]"
+  },
+  {
+   "name": "u-decons-atom",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-decons-atom)]"
+  },
+  {
+   "name": "u-collapse-bind",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-collapse-bind)]"
+  },
+  {
+   "name": "u-superpose-bind",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-superpose-bind)]"
+  },
+  {
+   "name": "u-metta",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-metta)]"
+  },
+  {
+   "name": "u-context-space",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-context-space)]"
+  },
+  {
+   "name": "u-freshen-equation",
+   "types": [
+    "(-> SpaceType Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-freshen-equation) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-scan-data",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-scan-data)]"
+  },
+  {
+   "name": "u-scan-held",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-scan-held) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-filter-data",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-filter-data)]"
+  },
+  {
+   "name": "u-filter-held",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-filter-held) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-filter-head-data",
+   "types": [
+    "Atom"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(u-filter-head-data)]"
+  },
+  {
+   "name": "u-filter-head",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-filter-head) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-filter-carrier",
+   "types": [
+    "(-> Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-filter-carrier) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-equation-carrier",
+   "types": [
+    "(-> Expression Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-equation-carrier) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-equation-apply",
+   "types": [
+    "(-> Expression Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-equation-apply) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-apply",
+   "types": [
+    "(-> Expression Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-apply) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-classify",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-classify) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-classify-expression",
+   "types": [
+    "(-> Atom Number Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-classify-expression) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-native-plan",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-native-plan) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-native-apply",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-native-apply) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-chain-apply",
+   "types": [
+    "(-> Expression Atom Variable Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-chain-apply) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-unify-apply",
+   "types": [
+    "(-> Expression Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-unify-apply) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-term",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-term) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce",
+   "types": [
+    "(-> Expression Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-held",
+   "types": [
+    "(-> Expression Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-held) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-held-classified",
+   "types": [
+    "(-> Expression Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-held-classified) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-data",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-held",
+   "types": [
+    "(-> Expression Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-held) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-list",
+   "types": [
+    "(-> Expression Expression Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-list) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-list-choice",
+   "types": [
+    "(-> Bool Expression Expression Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-list-choice) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-entry",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-entry) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-one",
+   "types": [
+    "(-> Expression Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-one) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-classify",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-classify) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-classified",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-classified) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-one-classified",
+   "types": [
+    "(-> Expression Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-one-classified) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-append",
+   "types": [
+    "(-> Expression Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-append) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-reduce-carrier-append-choice",
+   "types": [
+    "(-> Bool Expression Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-reduce-carrier-append-choice) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-run-term",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-run-term) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-run",
+   "types": [
+    "(-> Expression Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-run) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-run-held",
+   "types": [
+    "(-> Expression Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-run-held) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-result",
+   "types": [
+    "(-> Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-add",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-add) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-remove",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-remove) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-query-scan",
+   "types": [
+    "(-> Expression Atom Atom SpaceType Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-query-scan) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-query-choice",
+   "types": [
+    "(-> Bool Expression Atom Atom SpaceType Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-query-choice) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-query-carrier",
+   "types": [
+    "(-> Expression Atom Atom Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-query-carrier) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-query",
+   "types": [
+    "(-> Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-query) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-theory-scan",
+   "types": [
+    "(-> Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-theory-scan) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-theory-choice",
+   "types": [
+    "(-> Bool Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-theory-choice) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-theory-head",
+   "types": [
+    "(-> Atom Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-theory-head) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-equality-theory",
+   "types": [
+    "(-> Atom Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-equality-theory) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "u-space-eval",
+   "types": [
+    "(-> Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (u-space-eval) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "reduce-via-match",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (reduce-via-match) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "case",
+   "types": [
+    "(-> Atom Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (case) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "case%",
+   "types": [
+    "(-> Atom Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (case%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_case-empty",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_case-empty) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "case-empty-internal",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (case-empty-internal) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "atom-subst",
+   "types": [
+    "(-> Atom Variable Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (atom-subst) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "map-atom",
+   "types": [
+    "(-> Expression Variable Atom Expression)",
+    "(-> Expression Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    },
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (map-atom) IncorrectNumberOfArguments), (Error (map-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "filter-atom",
+   "types": [
+    "(-> Expression Variable Atom Expression)",
+    "(-> Expression Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    },
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (filter-atom) IncorrectNumberOfArguments), (Error (filter-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_minimal-foldl-atom",
+   "types": [
+    "(-> Expression Atom Variable Variable Atom SpaceType %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_minimal-foldl-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "@doc",
+   "types": [
+    "(-> Atom DocDescription DocInformal)",
+    "(-> Atom DocDescription DocParameters DocReturnInformal DocInformal)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "DocDescription",
+       "evaluated": true
+      }
+     ],
+     "result": "DocInformal"
+    },
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "DocDescription",
+       "evaluated": true
+      },
+      {
+       "type": "DocParameters",
+       "evaluated": true
+      },
+      {
+       "type": "DocReturnInformal",
+       "evaluated": true
+      }
+     ],
+     "result": "DocInformal"
+    }
+   ],
+   "zeroArityProbe": "[(Error (@doc) IncorrectNumberOfArguments), (Error (@doc) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "@desc",
+   "types": [
+    "(-> String DocDescription)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "String",
+       "evaluated": true
+      }
+     ],
+     "result": "DocDescription"
+    }
+   ],
+   "zeroArityProbe": "[(Error (@desc) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "@param",
+   "types": [
+    "(-> String DocParameterInformal)",
+    "(-> DocType DocDescription DocParameter)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "String",
+       "evaluated": true
+      }
+     ],
+     "result": "DocParameterInformal"
+    },
+    {
+     "parameters": [
+      {
+       "type": "DocType",
+       "evaluated": true
+      },
+      {
+       "type": "DocDescription",
+       "evaluated": true
+      }
+     ],
+     "result": "DocParameter"
+    }
+   ],
+   "zeroArityProbe": "[(Error (@param) IncorrectNumberOfArguments), (Error (@param) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "@return",
+   "types": [
+    "(-> String DocReturnInformal)",
+    "(-> DocType DocDescription DocReturn)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "String",
+       "evaluated": true
+      }
+     ],
+     "result": "DocReturnInformal"
+    },
+    {
+     "parameters": [
+      {
+       "type": "DocType",
+       "evaluated": true
+      },
+      {
+       "type": "DocDescription",
+       "evaluated": true
+      }
+     ],
+     "result": "DocReturn"
+    }
+   ],
+   "zeroArityProbe": "[(Error (@return) IncorrectNumberOfArguments), (Error (@return) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "@doc-formal",
+   "types": [
+    "(-> DocItem DocKindFunction DocType DocDescription DocParameters DocReturn DocFormal)",
+    "(-> DocItem DocKindAtom DocType DocDescription DocFormal)",
+    "(-> DocItem DocKindFunction DocType DocDescription DocFormal)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "DocItem",
+       "evaluated": true
+      },
+      {
+       "type": "DocKindFunction",
+       "evaluated": true
+      },
+      {
+       "type": "DocType",
+       "evaluated": true
+      },
+      {
+       "type": "DocDescription",
+       "evaluated": true
+      },
+      {
+       "type": "DocParameters",
+       "evaluated": true
+      },
+      {
+       "type": "DocReturn",
+       "evaluated": true
+      }
+     ],
+     "result": "DocFormal"
+    },
+    {
+     "parameters": [
+      {
+       "type": "DocItem",
+       "evaluated": true
+      },
+      {
+       "type": "DocKindAtom",
+       "evaluated": true
+      },
+      {
+       "type": "DocType",
+       "evaluated": true
+      },
+      {
+       "type": "DocDescription",
+       "evaluated": true
+      }
+     ],
+     "result": "DocFormal"
+    },
+    {
+     "parameters": [
+      {
+       "type": "DocItem",
+       "evaluated": true
+      },
+      {
+       "type": "DocKindFunction",
+       "evaluated": true
+      },
+      {
+       "type": "DocType",
+       "evaluated": true
+      },
+      {
+       "type": "DocDescription",
+       "evaluated": true
+      }
+     ],
+     "result": "DocFormal"
+    }
+   ],
+   "zeroArityProbe": "[(Error (@doc-formal) IncorrectNumberOfArguments), (Error (@doc-formal) IncorrectNumberOfArguments), (Error (@doc-formal) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "@item",
+   "types": [
+    "(-> Atom DocItem)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "DocItem"
+    }
+   ],
+   "zeroArityProbe": "[(Error (@item) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "@type",
+   "types": [
+    "(-> Type DocType)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "DocType"
+    }
+   ],
+   "zeroArityProbe": "[(Error (@type) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "@params",
+   "types": [
+    "(-> Expression DocParameters)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "DocParameters"
+    }
+   ],
+   "zeroArityProbe": "[(Error (@params) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-doc-single-atom",
+   "types": [
+    "(-> SpaceType Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-doc-single-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-doc-function",
+   "types": [
+    "(-> SpaceType Atom Type %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-doc-function) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "undefined-doc-function-type",
+   "types": [
+    "(-> Expression Type)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Type"
+    }
+   ],
+   "zeroArityProbe": "[(Error (undefined-doc-function-type) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-doc-params",
+   "types": [
+    "(-> Expression Atom Expression (Expression Atom))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "(Expression Atom)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-doc-params) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-doc-atom",
+   "types": [
+    "(-> SpaceType Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-doc-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "help-internal!",
+   "types": [
+    "(-> Atom (->))",
+    "(-> Symbol (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    },
+    {
+     "parameters": [
+      {
+       "type": "Symbol",
+       "evaluated": true
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (help-internal!) IncorrectNumberOfArguments), (Error (help-internal!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "help-space!",
+   "types": [
+    "(-> SpaceType (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (help-space!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "help-param!",
+   "types": [
+    "(-> Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (help-param!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "noreduce-eq",
+   "types": [
+    "(-> Atom Atom Bool)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (noreduce-eq) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "if-error",
+   "types": [
+    "(-> Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (if-error) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "return-on-error",
+   "types": [
+    "(-> Atom Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (return-on-error) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "for-each-in-atom",
+   "types": [
+    "(-> Expression Atom (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (for-each-in-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "->",
+   "types": [
+    "(-> (%Rest% Type) Type)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "(%Rest% Type)",
+       "evaluated": true
+      }
+     ],
+     "result": "Type"
+    }
+   ],
+   "zeroArityProbe": "[(->)]"
+  },
+  {
+   "name": "is-function",
+   "types": [
+    "(-> Type Bool)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (is-function) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-type-cast-error-or-bad-type",
+   "types": [
+    "(-> Atom Type Expression %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-type-cast-error-or-bad-type) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-type-cast",
+   "types": [
+    "(-> Atom Type SpaceType %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-type-cast) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_separate-errors",
+   "types": [
+    "(-> Expression Expression Expression)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_separate-errors) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_check-alternatives",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_check-alternatives) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret",
+   "types": [
+    "(-> Atom Type SpaceType Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-dispatch",
+   "types": [
+    "(-> Atom Type SpaceType Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-dispatch) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-result-type",
+   "types": [
+    "(-> Type Type)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "Type"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-result-type) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-expression",
+   "types": [
+    "(-> Atom Type SpaceType %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-expression) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-expression-ok",
+   "types": [
+    "(-> Atom Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-expression-ok) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-type-ok",
+   "types": [
+    "(-> Type Type Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-type-ok) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-result",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-selection",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-selection) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-types-data",
+   "types": [
+    "(-> Expression Atom Type SpaceType Expression Bool Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Bool",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-types-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-type-data",
+   "types": [
+    "(-> Type Expression Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-type-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-tail-data",
+   "types": [
+    "(-> Atom Expression Bool Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Bool",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-tail-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-checked-data",
+   "types": [
+    "(-> Expression Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-checked-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-data",
+   "types": [
+    "(-> Atom Expression Expression Type Type SpaceType Number Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-arg-data",
+   "types": [
+    "(-> Atom Atom Expression Type Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-arg-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-return-data",
+   "types": [
+    "(-> Atom Type Type Type Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-return-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-is-metatype",
+   "types": [
+    "(-> Type Bool)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-is-metatype) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-carrier-append",
+   "types": [
+    "(-> Expression Expression SpaceType %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-carrier-append) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-carrier-append-choice",
+   "types": [
+    "(-> Bool Expression Expression SpaceType %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-carrier-append-choice) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-types",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-types) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-type",
+   "types": [
+    "(-> Bool Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-type) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-type-classified",
+   "types": [
+    "(-> Bool Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-type-classified) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-types-checked",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-types-checked) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-selected-data",
+   "types": [
+    "(-> Atom Type Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-selected-data) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-types-tail",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-types-tail) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-types-end",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-types-end) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-types-end-classified",
+   "types": [
+    "(-> Bool Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-types-end-classified) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-args",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-args) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-args-ready",
+   "types": [
+    "(-> Bool Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-args-ready) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-args-head",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-args-head) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-return",
+   "types": [
+    "(-> Bool Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-return) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-arg",
+   "types": [
+    "(-> Bool Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-arg) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-arg-return",
+   "types": [
+    "(-> Bool Atom Type %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-arg-return) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-function-check-tail",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-function-check-tail) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-expression-operator",
+   "types": [
+    "(-> Atom Type SpaceType Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-expression-operator) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-expression-selected",
+   "types": [
+    "(-> Bool Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-expression-selected) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-expression-dispatch",
+   "types": [
+    "(-> Bool Atom Type SpaceType Type %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-expression-dispatch) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-expression-function",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-expression-function) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-expression-tuple",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-expression-tuple) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-func",
+   "types": [
+    "(-> Atom Type Type SpaceType %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-func) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-func-ok",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-func-ok) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-func-plan",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-func-plan) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-func-args",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-func-args) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-args-ok",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-args-ok) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-args",
+   "types": [
+    "(-> Atom Expression Expression Type SpaceType %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-args) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-args-at",
+   "types": [
+    "(-> Atom Expression Expression Type SpaceType Number %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-args-at) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-args-tail",
+   "types": [
+    "(-> Atom Atom Expression Expression Type SpaceType %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-args-tail) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "interpret-args-tail-at",
+   "types": [
+    "(-> Atom Atom Expression Expression Type SpaceType Number %Undefined%)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (interpret-args-tail-at) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_metta-call",
+   "types": [
+    "(-> Atom Type SpaceType Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_metta-call) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_metta-call-result",
+   "types": [
+    "(-> Atom Atom Type SpaceType Atom)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_metta-call-result) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "ErrorType",
+   "types": [
+    "Type"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(ErrorType)]"
+  },
+  {
+   "name": "SpaceType",
+   "types": [
+    "Type"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(SpaceType)]"
+  },
+  {
+   "name": "BadType",
+   "types": [
+    "(-> Type Type ErrorDescription)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "ErrorDescription"
+    }
+   ],
+   "zeroArityProbe": "[(Error (BadType) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "BadArgType",
+   "types": [
+    "(-> Number Type Type ErrorDescription)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      },
+      {
+       "type": "Type",
+       "evaluated": true
+      }
+     ],
+     "result": "ErrorDescription"
+    }
+   ],
+   "zeroArityProbe": "[(Error (BadArgType) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "IncorrectNumberOfArguments",
+   "types": [
+    "ErrorDescription"
+   ],
+   "metatype": "Symbol",
+   "masks": [],
+   "zeroArityProbe": "[(IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "add-reduct",
+   "types": [
+    "(-> SpaceType %Undefined% (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (add-reduct) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "add-reducts",
+   "types": [
+    "(-> SpaceType %Undefined% (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (add-reducts) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "add-atoms",
+   "types": [
+    "(-> SpaceType Expression (->))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (add-atoms) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "%",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "&self",
+   "types": [
+    "SpaceType"
+   ],
+   "metatype": "Grounded",
+   "masks": [],
+   "zeroArityProbe": "[(&self)]"
+  },
+  {
+   "name": "*",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (*) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "+",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (+) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "-",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (-) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "/",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (/) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "<",
+   "types": [
+    "(-> Number Number Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (<) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "<=",
+   "types": [
+    "(-> Number Number Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (<=) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "==",
+   "types": [
+    "(-> $t $t Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$t",
+       "evaluated": true
+      },
+      {
+       "type": "$t",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (==) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "=alpha",
+   "types": [
+    "(-> Atom Atom Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (=alpha) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": ">",
+   "types": [
+    "(-> Number Number Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (>) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": ">=",
+   "types": [
+    "(-> Number Number Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (>=) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_assert-results-are-alpha-equal",
+   "types": [
+    "(-> Atom Atom Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_assert-results-are-alpha-equal) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_minimal-foldl-atom",
+   "types": [
+    "(-> Expression Atom Variable Variable Atom SpaceType %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Variable",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_minimal-foldl-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_assert-results-are-alpha-equal-msg",
+   "types": [
+    "(-> Atom Atom Atom Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_assert-results-are-alpha-equal-msg) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_assert-results-are-equal",
+   "types": [
+    "(-> Atom Atom Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_assert-results-are-equal) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_assert-results-are-equal-msg",
+   "types": [
+    "(-> Atom Atom Atom Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_assert-results-are-equal-msg) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "_new-state",
+   "types": [
+    "(-> $t Expression (StateMonad $t))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$t",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "(StateMonad $t)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (_new-state) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "abs-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (abs-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "acos-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (acos-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "add-atom",
+   "types": [
+    "(-> SpaceType Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (add-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "and",
+   "types": [
+    "(-> Bool Bool Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Bool",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (and) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "asin-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (asin-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "atan-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (atan-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "bind!",
+   "types": [
+    "(-> Symbol %Undefined% (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Symbol",
+       "evaluated": true
+      },
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (bind!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "capture",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (capture) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "ceil-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (ceil-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "change-state!",
+   "types": [
+    "(-> (StateMonad $tcso) $tcso (StateMonad $tcso))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "(StateMonad $tcso)",
+       "evaluated": true
+      },
+      {
+       "type": "$tcso",
+       "evaluated": true
+      }
+     ],
+     "result": "(StateMonad $tcso)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (change-state!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "cos-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (cos-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "div-euclid",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (div-euclid) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "div-floor",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (div-floor) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "div-trunc",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (div-trunc) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "floor-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (floor-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "fork-space",
+   "types": [
+    "(-> SpaceType SpaceType)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "SpaceType"
+    }
+   ],
+   "zeroArityProbe": "[(Error (fork-space) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "format-args",
+   "types": [
+    "(-> String Expression String)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "String",
+       "evaluated": true
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "String"
+    }
+   ],
+   "zeroArityProbe": "[(Error (format-args) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "fuzzy-match",
+   "types": [
+    "(-> Atom Expression Number Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (fuzzy-match) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "fuzzy-match-space",
+   "types": [
+    "(-> SpaceType Atom Expression Number Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (fuzzy-match-space) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "fuzzy-match-context",
+   "types": [
+    "(-> SpaceType SpaceType Atom Expression Number Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (fuzzy-match-context) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-atoms",
+   "types": [
+    "(-> SpaceType Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-atoms) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-deps",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-deps) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-metatype",
+   "types": [
+    "(-> Atom Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-metatype) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-state",
+   "types": [
+    "(-> (StateMonad $tgso) $tgso)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "(StateMonad $tgso)",
+       "evaluated": true
+      }
+     ],
+     "result": "$tgso"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-state) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-type",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-type) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "get-type-space",
+   "types": [
+    "(-> SpaceType Atom Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (get-type-space) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "git-import!",
+   "types": [
+    "(-> String String Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "String",
+       "evaluated": true
+      },
+      {
+       "type": "String",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (git-import!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "git-module!",
+   "types": [
+    "(-> Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (git-module!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "if-equal",
+   "types": [
+    "(-> Atom Atom Atom Atom %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (if-equal) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "import!",
+   "types": [
+    "(-> Atom Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (import!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "import-into!",
+   "types": [
+    "(-> SpaceType Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (import-into!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "import-item!",
+   "types": [
+    "(-> Atom Atom Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (import-item!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "include",
+   "types": [
+    "(-> Atom %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (include) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "index-atom",
+   "types": [
+    "(-> Expression Number Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (index-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "intersection-atom",
+   "types": [
+    "(-> Expression Expression Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (intersection-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "isinf-math",
+   "types": [
+    "(-> Number Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (isinf-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "isnan-math",
+   "types": [
+    "(-> Number Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (isnan-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "loaded-mods!",
+   "types": [
+    "(-> Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(corelib builtin:skel)]"
+  },
+  {
+   "name": "log-math",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (log-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "match",
+   "types": [
+    "(-> SpaceType Atom Atom %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (match) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "match%",
+   "types": [
+    "(-> SpaceType Atom Atom %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (match%) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "max-atom",
+   "types": [
+    "(-> %Undefined% Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (max-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "min-atom",
+   "types": [
+    "(-> %Undefined% Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (min-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mod-euclid",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mod-euclid) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mod-floor",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mod-floor) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "mod-space!",
+   "types": [
+    "(-> Atom SpaceType)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "SpaceType"
+    }
+   ],
+   "zeroArityProbe": "[(Error (mod-space!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "module-space-no-deps",
+   "types": [
+    "(-> SpaceType SpaceType)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      }
+     ],
+     "result": "SpaceType"
+    }
+   ],
+   "zeroArityProbe": "[(Error (module-space-no-deps) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "module-tree!",
+   "types": [
+    "(-> Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(top corelib stdlib skel)]"
+  },
+  {
+   "name": "near-match",
+   "types": [
+    "(-> Atom Expression Atom Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (near-match) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "new-space",
+   "types": [
+    "(-> SpaceType)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [],
+     "result": "SpaceType"
+    }
+   ],
+   "zeroArityProbe": "[&space-#0]"
+  },
+  {
+   "name": "nop",
+   "types": [
+    "(-> (%Rest% %Undefined%) (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "(%Rest% %Undefined%)",
+       "evaluated": true
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[()]"
+  },
+  {
+   "name": "not",
+   "types": [
+    "(-> Bool Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (not) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "or",
+   "types": [
+    "(-> Bool Bool Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Bool",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (or) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "pow-math",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (pow-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "print-alternatives!",
+   "types": [
+    "(-> Atom Expression (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (print-alternatives!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "print-mods!",
+   "types": [
+    "(-> (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "top = &self"
+  },
+  {
+   "name": "println!",
+   "types": [
+    "(-> %Undefined% (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (println!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "register-module!",
+   "types": [
+    "(-> Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (register-module!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "rem-trunc",
+   "types": [
+    "(-> Number Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      },
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (rem-trunc) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "remove-atom",
+   "types": [
+    "(-> SpaceType Atom (->))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "SpaceType",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "(->)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (remove-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "round-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (round-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "sealed",
+   "types": [
+    "(-> Expression Atom Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (sealed) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "sin-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (sin-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "size-atom",
+   "types": [
+    "(-> Expression Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (size-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "sort-strings",
+   "types": [
+    "(-> Expression Expression)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Expression"
+    }
+   ],
+   "zeroArityProbe": "[(Error (sort-strings) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "sqrt-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (sqrt-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "subtraction-atom",
+   "types": [
+    "(-> Expression Expression Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (subtraction-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "superpose",
+   "types": [
+    "(-> Expression %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (superpose) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "tan-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (tan-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "trace!",
+   "types": [
+    "(-> %Undefined% Atom %Undefined%)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "%Undefined%",
+       "evaluated": true
+      },
+      {
+       "type": "Atom",
+       "evaluated": false
+      }
+     ],
+     "result": "%Undefined%"
+    }
+   ],
+   "zeroArityProbe": "[(Error (trace!) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "trunc-math",
+   "types": [
+    "(-> Number Number)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Number",
+       "evaluated": true
+      }
+     ],
+     "result": "Number"
+    }
+   ],
+   "zeroArityProbe": "[(Error (trunc-math) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "union-atom",
+   "types": [
+    "(-> Expression Expression Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      },
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (union-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "unique-atom",
+   "types": [
+    "(-> Expression Atom)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Expression",
+       "evaluated": false
+      }
+     ],
+     "result": "Atom"
+    }
+   ],
+   "zeroArityProbe": "[(Error (unique-atom) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "xor",
+   "types": [
+    "(-> Bool Bool Bool)"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "Bool",
+       "evaluated": true
+      },
+      {
+       "type": "Bool",
+       "evaluated": true
+      }
+     ],
+     "result": "Bool"
+    }
+   ],
+   "zeroArityProbe": "[(Error (xor) IncorrectNumberOfArguments)]"
+  },
+  {
+   "name": "PairType",
+   "types": [
+    "(-> $ta $tb Type)"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$ta",
+       "evaluated": true
+      },
+      {
+       "type": "$tb",
+       "evaluated": true
+      }
+     ],
+     "result": "Type"
+    }
+   ],
+   "zeroArityProbe": "[(Error (PairType) IncorrectNumberOfArguments)]",
+   "module": "skel"
+  },
+  {
+   "name": "Pair",
+   "types": [
+    "(-> $ta $tb (PairType $ta $tb))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "$ta",
+       "evaluated": true
+      },
+      {
+       "type": "$tb",
+       "evaluated": true
+      }
+     ],
+     "result": "(PairType $ta $tb)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (Pair) IncorrectNumberOfArguments)]",
+   "module": "skel"
+  },
+  {
+   "name": "skel-swap-pair",
+   "types": [
+    "(-> (PairType $ta $tb) (PairType $tb $ta))"
+   ],
+   "metatype": "Symbol",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "(PairType $ta $tb)",
+       "evaluated": true
+      }
+     ],
+     "result": "(PairType $tb $ta)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (skel-swap-pair) IncorrectNumberOfArguments)]",
+   "module": "skel"
+  },
+  {
+   "name": "skel-swap-pair-native",
+   "types": [
+    "(-> (PairType $ta $tb) (PairType $tb $ta))"
+   ],
+   "metatype": "Grounded",
+   "masks": [
+    {
+     "parameters": [
+      {
+       "type": "(PairType $ta $tb)",
+       "evaluated": true
+      }
+     ],
+     "result": "(PairType $tb $ta)"
+    }
+   ],
+   "zeroArityProbe": "[(Error (skel-swap-pair-native) IncorrectNumberOfArguments)]",
+   "module": "skel"
+  }
+ ]
+}

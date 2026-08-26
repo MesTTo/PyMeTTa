@@ -129,6 +129,9 @@ LEATTA = (
     else REPO.parents[1] / "LeaTTa"
 )
 LEATTA_MANIFEST = LEATTA / "tests" / "conformance" / "stdlib-manifest.json"
+#: The oracle revision the rows were transcribed from, vendored so this
+#: repository's gate reads an oracle this repository owns. See drift().
+VENDORED_MANIFEST = TOOLS / "leatta-stdlib-manifest.json"
 LEATTA_BINARY = LEATTA / ".lake" / "build" / "bin" / "LeaTTa"
 
 sys.path.insert(0, str(TOOLS))
@@ -432,19 +435,79 @@ def visibility_drift(engine: Any, entries: list[Entry]) -> list[str]:
     return findings
 
 
-def drift(entries: list[Entry]) -> tuple[str, list[str]]:
-    """The rows against LeaTTa's own manifest, when LeaTTa is checked out."""
+def _vendored_manifest() -> Any:
+    """The oracle revision these rows were transcribed from, kept in-tree."""
+    return json.loads(VENDORED_MANIFEST.read_text(encoding="utf-8"))
+
+
+def oracle_state() -> str:
+    """Where the sibling LeaTTa checkout stands against the vendored revision.
+
+    ``absent`` (not checked out), ``at-pin`` (the same revision this repository
+    vendors), or ``moved`` (the oracle has gone on). Only the middle one lets a
+    live comparison mean what it says, and none of the three changes whether
+    the ROWS are faithful, which is asked of the vendored copy instead.
+    """
     if not LEATTA_MANIFEST.is_file():
-        return (
-            f"LeaTTa is not checked out at {LEATTA}, so the rows stand on their "
-            f"recorded provenance (manifest {LEATTA_VERSION}, commit {LEATTA_COMMIT})",
-            [],
-        )
-    manifest = json.loads(LEATTA_MANIFEST.read_text(encoding="utf-8"))
+        return "absent"
+    live = json.loads(LEATTA_MANIFEST.read_text(encoding="utf-8"))
+    return "at-pin" if str(live["commit"]) == str(_vendored_manifest()["commit"]) else "moved"
+
+
+def drift(entries: list[Entry]) -> tuple[str, list[str]]:
+    """The rows against the oracle revision this repository vendors.
+
+    Read from `leatta-stdlib-manifest.json` beside this file rather than from a
+    sibling checkout, because a gate whose verdict depends on another
+    repository's working tree is not a gate on this one. That was not
+    hypothetical: on 2026-08-26 this lane was green, and hours later reported
+    five 'the phrasebook has no row for it' findings that read as our file
+    being wrong, while nothing here had changed and the sibling had moved
+    39c7c43 to d6c7c16 to 4987902 with a dirty tree mid-edit. Vendoring the
+    manifest is MeTTa.jl's discipline for the same problem (it vendors
+    LeaTTa's prelude verbatim beside a regeneration script) and the benchmark
+    harness's, in observe_configuration.
+
+    Whether the ORACLE has moved past what we vendor is a real and separate
+    question. It is answered in the note below on every run, and advancing is a
+    deliberate re-vendor rather than something a sibling checkout can trigger:
+
+        cd /path/to/LeaTTa && git show <commit>:tests/conformance/stdlib-manifest.json \
+            > bindings/python/tools/leatta-stdlib-manifest.json
+
+    then advance LEATTA_COMMIT and LEATTA_ENTRY_COUNT with the rows.
+    """
+    manifest = _vendored_manifest()
     declared: dict[str, list[str]] = {}
     for operation in manifest["operations"]:
         declared.setdefault(operation["name"], operation["types"])
     ours = {entry.name: list(entry.types) for entry in entries}
+    differences = _row_differences(declared, ours, manifest)
+    state = oracle_state()
+    if state == "absent":
+        standing = f"the sibling checkout at {LEATTA} is absent"
+    elif state == "at-pin":
+        standing = "the sibling checkout holds the same revision"
+    else:
+        live = json.loads(LEATTA_MANIFEST.read_text(encoding="utf-8"))
+        standing = (
+            f"the sibling checkout has MOVED to manifest {live['version']} at "
+            f"commit {live['commit']} with {live['operationCount']} declarations; "
+            f"re-vendor deliberately to follow it"
+        )
+    note = (
+        f"checked against the vendored LeaTTa manifest {manifest['version']} at "
+        f"commit {manifest['commit']} (tree {LEATTA_COMMIT}): "
+        f"{manifest['operationCount']} declarations over {len(declared)} distinct "
+        f"names; {standing}"
+    )
+    return note, differences
+
+
+def _row_differences(
+    declared: dict[str, list[str]], ours: dict[str, list[str]], manifest: Any
+) -> list[str]:
+    """Every way the rows and one manifest revision disagree."""
     findings = [
         f"LeaTTa declares {name!r} and the phrasebook has no row for it"
         for name in sorted(set(declared) - set(ours))
@@ -463,12 +526,7 @@ def drift(entries: list[Entry]) -> tuple[str, list[str]]:
             f"LeaTTa now declares {manifest['operationCount']} operations where the "
             f"phrasebook records {LEATTA_ENTRY_COUNT}"
         )
-    return (
-        f"checked against LeaTTa manifest {manifest['version']} at commit "
-        f"{manifest['commit']}: {manifest['operationCount']} declarations over "
-        f"{len(declared)} distinct names",
-        findings,
-    )
+    return findings
 
 
 def report(
