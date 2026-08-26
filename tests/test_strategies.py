@@ -39,22 +39,36 @@ def test_strategy_exports_are_reified_atoms():
 
 
 def test_python_strategy_terms_use_the_shipped_basis(metta):
-    """One stored Python plan is queried whole, then lowered and evaluated."""
+    """One stored Python plan is queried whole, then lowered and evaluated.
+
+    The library import goes into a scoped space, not the shared fixture:
+    lib_strategy declares three-argument arrows for `choice`, `seq` and kin,
+    and an import into the session's ``&self`` makes those declarations reach
+    every space in the process for the rest of the worker's life. That is how
+    this file broke test_per_ask_evaluation's zero-argument `choice` in
+    whichever worker ran both [measured 2026-08-26: the bisected pairing
+    answers (Error (choice) IncorrectNumberOfArguments)].
+    """
     strategies = metta_package.strategies
-    metta += lib.strategy
-    metta.run(
-        "(= (python-strategy-step python-a) python-b)\n"
-        "(= (python-strategy-step python-b) python-c)\n"
-        "(= (python-strategy-step $x) Empty)"
-    )
+    with metta._new_space() as space:
+        space += lib.strategy
+        space.run(
+            "(= (python-strategy-step python-a) python-b)\n"
+            "(= (python-strategy-step python-b) python-c)\n"
+            "(= (python-strategy-step $x) Empty)"
+        )
 
-    plan = strategies.seq(strategies.try_(S["python-strategy-step"]), strategies.id)
-    assert isinstance(plan, Expression)
-    assert not any(isinstance(atom, Grounded) for atom in plan)
+        plan = strategies.seq(
+            strategies.try_(S["python-strategy-step"]), strategies.id
+        )
+        assert isinstance(plan, Expression)
+        assert not any(isinstance(atom, Grounded) for atom in plan)
 
-    metta.add(S["python-strategy-plan"](S.fast, plan))
-    stored = metta.match(S["python-strategy-plan"](S.fast, V.strategy)).one().strategy
-    assert stored == plan
+        space.add(S["python-strategy-plan"](S.fast, plan))
+        stored = (
+            space.match(S["python-strategy-plan"](S.fast, V.strategy)).one().strategy
+        )
+        assert stored == plan
 
-    applied = S["strategy-apply"](stored, S["python-a"])
-    assert metta.eval(applied) == [S["python-b"]]
+        applied = S["strategy-apply"](stored, S["python-a"])
+        assert space.eval(applied) == [S["python-b"]]
