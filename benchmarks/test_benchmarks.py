@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=WORKTREE]
+    commit=5059173b1767600ce4df0f6b7841d88116ee62d3]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -155,7 +155,7 @@ _ROWS = 2_000
 #: coupling in which the whole reviewed profile answered the cache's question;
 #: this tree reads 28,573/29,723/30,881/31,663
 #: [command=python -m pytest benchmarks/test_benchmarks.py::test_automatic_tabling_growth
-#: from bindings/python; commit=WORKTREE].
+#: from bindings/python; commit=173eeed021beb360b5e5f9f8461889e27190affc].
 #: RE-PINNED 2026-08-26 at the world-admission merge, automatic arm only:
 #: +50/+52/+50/+50 over the lexical-declaration pins, the branch's
 #: cache-admission guard (one extra semidet check per admitted memo call,
@@ -166,7 +166,7 @@ _ROWS = 2_000
 #: 28472/29620/30778/31560 and 28472/29620/30776/31558 automatic with plain
 #: 144938/1091182/8660937..39/34614276, min taken; command=python -c "from
 #: benchmarks.test_benchmarks import _automatic_tabling_observations;
-#: print(_automatic_tabling_observations())"; commit=WORKTREE].
+#: print(_automatic_tabling_observations())"; commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0].
 _AUTOMATIC_TABLING_PINS = {
     12: {"plain": 144_938, "automatic": 28_472},
     15: {"plain": 1_091_182, "automatic": 29_620},

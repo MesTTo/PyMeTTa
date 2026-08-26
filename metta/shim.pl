@@ -36,14 +36,14 @@
 %     forms remain visible when lowering erases their head [tested:
 %     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation,
 %     test_lowered_nondeterminism_remains_visible_to_world_admission;
-%     commit=WORKTREE]
+%     commit=173eeed021beb360b5e5f9f8461889e27190affc]
 %   - one saga step's receipt instrumentation is installed and retired as a
 %     whole: a wrapper that cannot be installed unwinds the ones before it and
 %     leaves no receipt sink, and a teardown whose first unwrap is already gone
 %     still retires every later wrapper [tested:
 %     test_a_refused_wrapper_installation_leaves_no_saga_instrumentation,
 %     test_saga_teardown_retires_every_wrapper_past_a_missing_one;
-%     commit=WORKTREE]
+%     commit=173eeed021beb360b5e5f9f8461889e27190affc]
 %   - Python's non-direct eval paths use translate_cached_expr/3, so repeated
 %     forms reuse the engine's invalidated translation templates
 %     [tested: translation_cache, test_the_host_service_scoreboard_matches_the_tree; commit=d90a3c9620e56e42d3a2f5982b4353da8423e873]

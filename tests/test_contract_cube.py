@@ -8,7 +8,7 @@ Guarantees:
     [tested: test_every_cube_point_compiles_the_expected_clause;
     test_generator_effects_below_nondeterministic_rank_are_refused;
     test_raw_transport_with_atom_arguments_is_refused;
-    commit=WORKTREE]
+    commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 Open Obligations:
   To Do: None
   Hacks: None

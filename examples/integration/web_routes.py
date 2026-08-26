@@ -14,7 +14,7 @@ number of routes.
 Guarantees:
   - handler registration requires and forwards the route's effect class while
     deriving declarations from the callable [tested:
-    test_example_runs_and_verifies_itself; commit=WORKTREE]
+    test_example_runs_and_verifies_itself; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 Open Obligations:
   To Do: None
   Hacks: None

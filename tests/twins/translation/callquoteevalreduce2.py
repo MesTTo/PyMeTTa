@@ -67,14 +67,14 @@ from metta import S
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 #: RE-PINNED 2026-08-26, 52891 to 52859 (-32), at the tabling-seam
 #: merge: compiled-image layout from the library's dispatch and
 #: reflection clauses, the tens-scale class this file's chain documents
 #: [measured: min-of-3 serial fresh processes; command=python
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
-#: commit=WORKTREE].
+#: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 52859
 def twin(m):
     """Wrap one term four ways, and see which of them reduce."""

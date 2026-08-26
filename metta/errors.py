@@ -24,11 +24,11 @@ Guarantees:
   - a reified-world effect refusal carries the named EffectSafety law as its
     machine-readable ground [tested:
     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - CompileError can render a source path, function, line and exact caret span
     while retaining its machine-readable construct and coordinates [tested:
     test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
-    commit=WORKTREE]
+    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
 Open Obligations:
   To Do: None
   Hacks: None

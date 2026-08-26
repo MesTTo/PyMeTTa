@@ -82,7 +82,7 @@ Guarantees:
   - async coverage, compensation declarations, and saga recovery keep their
     complete synchronous scope on one owning worker [tested:
     test_async_saga_and_world_coverage_stay_on_the_owning_worker;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
 Owns:
   - each owning AsyncMeTTa owns one daemon worker and its attached Prolog
     engine until aclose(), stop(), or the atexit handler releases it [tested

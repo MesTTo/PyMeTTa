@@ -8,7 +8,7 @@ Guarantees:
     effect is covered by the originating world's catalog declaration;
     structural plans need no declaration [tested:
     test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_operation,
-    test_world_coverage_admits_the_joined_plan; commit=WORKTREE]
+    test_world_coverage_admits_the_joined_plan; commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - evaluation replays into a fresh receiver, rebases self references, fences
     State writes, emits no event, and returns a new frozen world without
     changing its parent [tested: test_world_eval_branches_without_touching_parent,

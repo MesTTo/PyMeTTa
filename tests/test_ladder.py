@@ -7,7 +7,7 @@ Guarantees:
     default engine, and op forwards its receiver result without another
     wrapper [tested: test_module_tier_exposes_the_mode_and_definition_family,
     test_module_tier_op_forwards_identity_to_the_default_receiver;
-    commit=WORKTREE]
+    commit=fc7ec0b08cd8b5876a3f4105211c487185f6a9bf]
   - scoped stack bounds retain an explicit byte count for
     ``petta_py_limited/6`` [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

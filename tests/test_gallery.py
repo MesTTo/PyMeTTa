@@ -7,7 +7,7 @@ Guarantees:
   - every program verifies one emitted doctest bilingually and prints its own
     checked OK receipt; the two that reach an ecosystem package skip where
     that package is absent rather than making it a dependency of the library
-    [tested: test_a_gallery_program_runs; commit=WORKTREE]
+    [tested: test_a_gallery_program_runs; commit=4b6f6bf075e80f794ebcb46a5748dba46dcd3522]
 """
 
 from __future__ import annotations

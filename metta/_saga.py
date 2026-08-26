@@ -8,19 +8,19 @@ Guarantees:
     receipts as ordinary ``(did op args result)`` atoms and a failed step
     publishes none [tested:
     test_committed_effects_leave_queryable_receipts_and_failed_steps_leave_none;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - rollback preflights every declaration, compensates in reverse receipt
     order, and retains the failed suffix for an idempotent retry [tested:
     test_saga_compensates_in_reverse_commit_order,
     test_saga_preflights_missing_compensations_before_undo,
     test_a_failed_compensation_can_be_retried_without_losing_its_receipt;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - a receipt space whose provider refuses its commit leaves no phantom
     obligation: the step's effects are recovered at once instead of being
     recorded against a journal entry that never became durable [tested:
     test_a_provider_receipt_space_commits_the_receipt_before_recovery_reads_it,
     test_a_refused_provider_commit_recovers_the_step_it_could_not_journal;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
 Owns resources:
   - the receipt-space subscription opened on context entry and cancelled on
     every exit, including rollback and cancellation failures.

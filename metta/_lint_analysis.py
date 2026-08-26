@@ -21,7 +21,7 @@ Guarantees:
     test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - a compiled ``py(...)`` island retained under a repeated loop equation is
     reported once per source island with its Python coordinates [tested:
-    test_py_host_island_inside_loops_emits_exact_findings; commit=WORKTREE]
+    test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -2,14 +2,14 @@
 Assumes:
   - only the expression compiler constructs ``_HostIsland`` values; the public
     ``py`` function is an identity outside a compiled definition [tested:
-    test_py_is_identity_outside_a_compiled_body; commit=WORKTREE]
+    test_py_is_identity_outside_a_compiled_body; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
 Guarantees:
   - a marked expression executes at engine application time with the current
     compiled local values and live Python globals and closure cells [tested:
-    test_py_host_island_executes_per_engine_application; commit=WORKTREE]
+    test_py_host_island_executes_per_engine_application; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - each island retains its source spelling and repeated-loop status for lint
     diagnostics [tested: test_py_host_island_inside_loops_emits_exact_findings;
-    commit=WORKTREE]
+    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
 Fails when:
   - an internal compiled call supplies a different number of runtime locals
     than the island captured; this is a compiler/runtime contract violation.

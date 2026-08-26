@@ -9,7 +9,7 @@ Guarantees:
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - host islands in repeated tests and bodies retain loop context for lint,
     while a top-level iterable and the post-loop continuation do not [tested:
-    test_py_host_island_inside_loops_emits_exact_findings; commit=WORKTREE]
+    test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -3,10 +3,10 @@
 Guarantees:
   - two successor worlds leave their base untouched, expose an exact multiset
     diff, and only the selected world lands as one post-commit observed change
-    [tested: test_a_gallery_program_runs; commit=WORKTREE]
+    [tested: test_a_gallery_program_runs; commit=4b6f6bf075e80f794ebcb46a5748dba46dcd3522]
   - branching declares the effect rank its branches are allowed to reach, so a
     world admits the writes it handles and refuses anything stronger [tested:
-    test_a_gallery_program_runs; commit=WORKTREE]
+    test_a_gallery_program_runs; commit=173eeed021beb360b5e5f9f8461889e27190affc]
 Owns resources: two named native spaces and one subscription; cancel() and
   drop() release them after the selected branch commits, while process exit
   releases them after an earlier failed claim.

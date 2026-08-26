@@ -28,7 +28,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - callable wrappers require a host-effect classification, and object
     wrappers require one class per method [tested:
-    test_wrap_object_methods_with_effect_convention; commit=WORKTREE]
+    test_wrap_object_methods_with_effect_convention; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 Owns:
   - _INSTALLED retains one target per live space and integration name;
     MeTTa.drop releases every record for that space [tested

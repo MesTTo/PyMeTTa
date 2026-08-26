@@ -74,7 +74,7 @@ from metta import S, V, fn, match, superpose
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 #: RE-PINNED 2026-08-26, 2396435 to 2394988 (-1447), by the specializer
 #: argument-walk fix.
 #: Planning a specialization grafts a call argument onto the equation's
@@ -101,7 +101,7 @@ from metta import S, V, fn, match, superpose
 #: tree; command=python bindings/python/tools/twin_coverage.py
 #: --measure --rounds 3 ../../examples/<this example>;
 #: fixture=engine/reader.so and the MORK artefact present;
-#: commit=WORKTREE].
+#: commit=58d0332489da668251edcd52ccc5cb42ba2e57bb].
 BUDGET = 2031806
 def twin(m):
     """Expand the space 300 times, then count what is in it."""

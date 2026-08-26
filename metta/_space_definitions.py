@@ -21,7 +21,7 @@ Guarantees:
   - an operation wrapper carries its registered MeTTa name into a definition
     compiled after registration [tested:
     test_module_tier_op_registration_precedes_definition_compilation;
-    commit=WORKTREE]
+    commit=fc7ec0b08cd8b5876a3f4105211c487185f6a9bf]
   - the compiler sees declared Bool result types, so condition positions do
     not add a redundant host-truthiness operation [tested:
     test_compiled_boolean_call_is_a_direct_condition; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

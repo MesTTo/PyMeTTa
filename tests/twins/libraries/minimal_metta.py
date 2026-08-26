@@ -102,7 +102,7 @@ from metta import FALSE, TRUE, Expression, S, V, equation, lib
 #: [measured: min-of-3 serial fresh processes; command=python
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
-#: commit=WORKTREE].
+#: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 #: RE-PINNED 2026-08-26, 195133 to 192583 (-2550), by the specializer
 #: argument-walk fix this file's own chain named as the follow-up.
 #: Planning a specialization grafts a call argument onto the equation's

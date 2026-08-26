@@ -82,7 +82,7 @@ from metta import S, V, lib, match
 #: instead of a cursor-engine-private one, and calls route through
 #: the declared dispatch ownership seam. The shared scope is what
 #: SWI charges for cross-engine visibility; a private-when-unwatched
-#: refinement is recorded as follow-up [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=tabling-seam merged tree with engine/reader.so; commit=WORKTREE].
+#: refinement is recorded as follow-up [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=tabling-seam merged tree with engine/reader.so; commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 #: RE-PINNED 2026-08-26, 67893 to 66441 (-1452), by the specializer
 #: argument-walk fix.
 #: Planning a specialization grafts a call argument onto the equation's

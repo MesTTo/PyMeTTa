@@ -25,10 +25,10 @@ Guarantees:
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - the Python-first additions table names the exact speculate, immutable-world,
     and coroutine-operation spellings [tested:
-    test_python_first_public_faces_are_in_the_phrasebook; commit=WORKTREE]
+    test_python_first_public_faces_are_in_the_phrasebook; commit=5059173b1767600ce4df0f6b7841d88116ee62d3]
   - the Python-first additions table names the two effect-safety declarations
     and the saga runner they gate [tested:
-    test_python_first_public_faces_are_in_the_phrasebook; commit=WORKTREE]
+    test_python_first_public_faces_are_in_the_phrasebook; commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0]
   - strategy rows import lib_strategy only on PeTTa and may name an equivalent
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
@@ -37,17 +37,17 @@ Guarantees:
     commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - the Python-first additions table documents module-tier operation
     registration [tested: test_python_first_public_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=fc7ec0b08cd8b5876a3f4105211c487185f6a9bf]
   - the Python-first additions table documents the explicit inline host island
     marker [tested: test_python_first_public_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - the Python-first table teaches the concise atom cast, root catalog,
     hygienic variable, pattern-instantiation, compiled reader-pattern,
     anonymous provenance, ``reacts`` declaration, composite operator words,
     compiled assertion/removal statements, signature-bound call keywords, and
     per-ask theory/interpreter selection plus catalog-driven deprecation
     [tested: test_python_first_public_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=5059173b1767600ce4df0f6b7841d88116ee62d3]
   - every stdlib row carries PUBLIC or INTERNAL visibility independently of
     reachability, so generated stubs and references never teach internal
     heads [tested: test_internal_rows_are_absent_from_the_public_phrasebook;

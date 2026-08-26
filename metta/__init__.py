@@ -48,11 +48,11 @@ Guarantees:
     its required five-rank ``effect=`` contract [tested:
     test_module_tier_op_forwards_identity_to_the_default_receiver,
     test_module_tier_op_registration_precedes_definition_compilation;
-    commit=WORKTREE]
+    commit=fc7ec0b08cd8b5876a3f4105211c487185f6a9bf]
   - ``py(expr)`` is an identity in ordinary Python and the exact visible marker
     the definition compiler recognizes for an inline host island [tested:
     test_py_is_identity_outside_a_compiled_body,
-    test_py_host_island_executes_per_engine_application; commit=WORKTREE]
+    test_py_host_island_executes_per_engine_application; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - under scopes an algebra through ContextVar state and the exact counting,
     tropical, probability, provenance, and ranking carriers stay lazy root
     exports [tested:

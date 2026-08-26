@@ -46,7 +46,7 @@ Guarantees:
     and both public remedies [tested:
     test_py_host_island_executes_per_engine_application,
     test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
-    commit=WORKTREE]
+    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - keyword-bearing calls whose parameter names are known lower to positional
     applications, while unknown heads refuse with a positional remedy [tested:
     test_known_call_site_keywords_bind_to_positional_metta_arguments,

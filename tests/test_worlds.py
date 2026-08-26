@@ -20,12 +20,12 @@ Guarantees:
     test_world_coverage_admits_the_joined_plan,
     test_refused_custom_translator_runs_no_compile_time_effect,
     test_reify_refuses_an_effectful_captured_compilation_before_replay,
-    test_a_translator_expansion_cannot_hide_an_oracle_call; commit=WORKTREE]
+    test_a_translator_expansion_cannot_hide_an_oracle_call; commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - lowering cannot erase nondeterminism, freshening state, host operations,
     or a dynamic masked return from the admission plan [tested:
     test_lowered_nondeterminism_remains_visible_to_world_admission,
     test_sealed_freshening_requires_state_coverage,
-    test_a_masked_runtime_result_remains_dynamic; commit=WORKTREE]
+    test_a_masked_runtime_result_remains_dynamic; commit=173eeed021beb360b5e5f9f8461889e27190affc]
 Open Obligations:
   To Do: None
   Hacks: None

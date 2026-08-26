@@ -34,7 +34,7 @@ Guarantees:
     transaction and post-commit event doors [tested:
     test_world_coverage_admits_the_joined_plan,
     test_committed_effects_leave_queryable_receipts_and_failed_steps_leave_none;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - named space construction accepts a space-name Symbol as well as its text
     spelling [tested: test_space_factory_accepts_a_name_symbol; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - a Symbol or ground Expression names a source-visible atomic or parametric
@@ -108,7 +108,7 @@ Guarantees:
     policy and refuses an operation wrapper before definition registration
     [tested: test_a_cached_definition_preserves_duplicate_answers,
     test_cache_over_an_operation_refuses_before_definition_registration;
-    commit=WORKTREE]
+    commit=8d6131a9d9902c67ce8cac71e96e8362a8713561]
   - encoded generator tuple and sparse-dict yields are relational candidate
     bindings in every call direction [tested:
     test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
@@ -3738,7 +3738,7 @@ class Space(Handle):
 
         Result order is unspecified but result multiplicity is observable.
         ``a, a, b`` therefore remains ``a, a, b`` after caching [tested:
-        test_a_cached_definition_preserves_duplicate_answers; commit=WORKTREE].
+        test_a_cached_definition_preserves_duplicate_answers; commit=8d6131a9d9902c67ce8cac71e96e8362a8713561].
         """
         if fn is None:
             return lambda function: self._cache_define(function, name, unchecked=unchecked)

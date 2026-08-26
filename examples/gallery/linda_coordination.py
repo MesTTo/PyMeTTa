@@ -3,7 +3,7 @@
 Guarantees:
   - watch observes the committed add, peek leaves the tuple present, and take
     returns and removes exactly that occurrence
-    [tested: test_a_gallery_program_runs; commit=WORKTREE]
+    [tested: test_a_gallery_program_runs; commit=4b6f6bf075e80f794ebcb46a5748dba46dcd3522]
 Owns resources: one named tuple space and one watch iterator; close() and
   drop() release them on every normal path, while process exit releases them
   after an earlier failed claim.

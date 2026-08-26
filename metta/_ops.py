@@ -40,7 +40,7 @@ Guarantees:
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - each operation record carries its canonical EffectClass and exposes
     ``pure`` only as the structural-rank projection [tested:
-    test_every_effect_rank_registers_and_reflects; commit=WORKTREE]
+    test_every_effect_rank_registers_and_reflects; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - a scheduler context token scopes deterministic, streaming, forward, and
     inverse host dispatch alike [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
@@ -49,7 +49,7 @@ Guarantees:
     every successful writesState-or-stronger operation answer, including
     relational, inverse, and raw dispatch [tested:
     test_every_effectful_dispatch_shape_leaves_one_committed_receipt;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that

@@ -5,18 +5,18 @@ Assumes:
 Guarantees:
   - unclassified registration refuses before publishing any operation fact
     [tested: test_unclassified_operation_refuses_with_all_five_effect_remedies;
-    commit=WORKTREE]
+    commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - declaration-route classes must be symbols, so reflection cannot carry a
     grounded impostor [tested: test_effect_declaration_requires_a_symbol_class;
-    commit=WORKTREE]
+    commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - every rank registers and a composed definition reflects the strongest
     callee [tested: test_every_effect_rank_registers_and_reflects,
     test_a_definition_joins_every_called_operations_effect,
     test_stacked_clauses_join_again_in_definition_reflection,
-    test_definition_match_is_a_nondeterministic_read; commit=WORKTREE]
+    test_definition_match_is_a_nondeterministic_read; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - Python registration publishes the same canonical row consumed by
     ``petta_contract_fact/1`` [tested:
-    test_python_registered_effect_is_an_engine_contract_fact; commit=WORKTREE]
+    test_python_registered_effect_is_an_engine_contract_fact; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 """
 
 import itertools

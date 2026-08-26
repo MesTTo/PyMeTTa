@@ -66,7 +66,7 @@ Guarantees:
     functools.wraps chains so mutually exclusive definition doors can refuse
     before mutation [tested:
     test_cache_over_an_operation_refuses_before_definition_registration;
-    commit=WORKTREE]
+    commit=8d6131a9d9902c67ce8cac71e96e8362a8713561]
 Open Obligations:
   To Do: None
   Hacks: None

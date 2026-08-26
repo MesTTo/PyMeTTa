@@ -6,7 +6,7 @@ answer's annotation. Fuzzy, regex, semantic: all outside the library,
 a few lines each, composing with structural match through evaluation.
 Guarantees:
   - the unannotated ranked operation makes no synthetic type claim [tested:
-    test_example_runs_and_verifies_itself; commit=WORKTREE]
+    test_example_runs_and_verifies_itself; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 Open Obligations:
   To Do: None
   Hacks: None

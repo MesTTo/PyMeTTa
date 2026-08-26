@@ -29,7 +29,7 @@ Guarantees:
     is nondeterministicReadOnly [tested:
     test_every_array_operation_is_typed_and_a_shape_is_a_constraint,
     test_embedding_store_runs_on_numpy;
-    commit=WORKTREE]
+    commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 Guarded by:
   - _PROTOCOLS_LOCK serializes one-time protocol registration
     [tested test_array_protocol_registration_is_idempotent]

@@ -5,35 +5,35 @@ Guarantees:
     ``(did op args result)`` atoms [tested:
     test_committed_effects_leave_queryable_receipts_and_failed_steps_leave_none,
     test_a_discarded_step_runs_no_compensation;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - rollback preflights the complete receipt multiset and handler catalog,
     then compensates each occurrence in reverse commit order [tested:
     test_saga_compensates_in_reverse_commit_order,
     test_saga_preflights_missing_compensations_before_undo,
     test_duplicate_receipts_remain_distinct_recovery_obligations;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - a failed compensation retains its receipt and can be retried without
     repeating already committed recovery [tested:
     test_a_failed_compensation_can_be_retried_without_losing_its_receipt;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - structural operations cannot publish recovery policy and every host
     dispatch transport records the answer identity it actually committed
     [tested: test_a_structural_operation_cannot_declare_a_compensation,
     test_every_effectful_dispatch_shape_leaves_one_committed_receipt,
     test_first_compiled_call_journals_only_its_semantic_effects,
     test_a_pure_native_form_cannot_journal_its_runtime_helper;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - a provider-owned receipt space commits each receipt inside its own step,
     and a refused provider commit recovers the work it could not journal
     rather than standing as an obligation with no receipt [tested:
     test_a_provider_receipt_space_commits_the_receipt_before_recovery_reads_it,
     test_a_refused_provider_commit_recovers_the_step_it_could_not_journal;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - receipt instrumentation installs and retires as one set, so no step can
     leave a wrapper or a receipt sink behind [tested:
     test_a_refused_wrapper_installation_leaves_no_saga_instrumentation,
     test_saga_teardown_retires_every_wrapper_past_a_missing_one;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
 """
 
 from __future__ import annotations

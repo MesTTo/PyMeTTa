@@ -26,7 +26,7 @@ Guarantees:
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - an exact ``py`` marker binding is always oracleIO even if an engine symbol
     with the same spelling carries weaker metadata [tested:
-    test_py_host_island_executes_per_engine_application; commit=WORKTREE]
+    test_py_host_island_executes_per_engine_application; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - delete statements and augmented assignments on Space-typed parameters are
     classified as state writes [tested:
     test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;

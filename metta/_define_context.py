@@ -23,7 +23,7 @@ Guarantees:
   - nested compiler forks retain source coordinates and loop depth for host
     island diagnostics [tested:
     test_py_host_island_inside_loops_emits_exact_findings;
-    commit=WORKTREE]
+    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - expression lowering can request exact parameter names for a known call
     shape [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]

@@ -10,7 +10,7 @@ Guarantees:
     broadcast-shape works forwards and backwards as a CLP(FD) relation
     [tested: test_every_array_operation_is_typed_and_a_shape_is_a_constraint,
      test_embedding_store_runs_on_numpy;
-     commit=WORKTREE]
+     commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - the module fixture retires its process-global operation registrations, so
     later suites do not inherit array callables [tested: python -m pytest
     bindings/python/tests/test_arrays.py bindings/python/tests/test_operator_documentation.py;

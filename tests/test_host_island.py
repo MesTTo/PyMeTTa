@@ -3,17 +3,17 @@ Guarantees:
   - ordinary Python sees an identity while compiled definitions execute the
     enclosed host expression once per engine application [tested:
     test_py_is_identity_outside_a_compiled_body,
-    test_py_host_island_executes_per_engine_application; commit=WORKTREE]
+    test_py_host_island_executes_per_engine_application; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - exact marker identity prevents a parameter named ``py`` from silently
     becoming a host crossing [tested:
-    test_a_shadowed_py_name_remains_an_engine_callee; commit=WORKTREE]
+    test_a_shadowed_py_name_remains_an_engine_callee; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - for, while, and comprehension crossings each produce one loop lint
     finding while a crossing outside them does not [tested:
-    test_py_host_island_inside_loops_emits_exact_findings; commit=WORKTREE]
+    test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - an unmarked host callee refuses before registration with a file/caret span
     and both public remedies [tested:
     test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
-    commit=WORKTREE]
+    commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
 """  # noqa: D205, D415  -- the test contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations

@@ -34,7 +34,7 @@ Guarantees:
     test_async_worlds_stay_on_the_owning_worker; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
   - async coverage declarations and complete saga scopes stay on the owning
     worker [tested: test_async_saga_and_world_coverage_stay_on_the_owning_worker;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
 Open Obligations:
   To Do: None
   Hacks: None

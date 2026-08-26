@@ -15,7 +15,7 @@ Guarantees:
   - every ``python -m`` target named by a check.sh command reaches a real
     entry point, so no lane can exit 0 having run nothing [tested:
     test_every_module_invocation_in_the_gate_reaches_an_entry_point;
-    commit=WORKTREE]
+    commit=dfda5555bdc4b53a57da7084054826236ab1446e]
 Open Obligations:
   To Do: None
   Hacks: None

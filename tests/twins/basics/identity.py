@@ -259,7 +259,7 @@ Guarantees:
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: The parallel async-scheduler branch's own history of this pin,
 #: kept for the record; the merged value follows below:
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=c52da430787404cdcc8631bec9e913b19de899a4].
 #: RE-PINNED 2026-08-26, 2826 to 2801. The identity implementation is
 #: unchanged and its twin again costs exactly what the source example costs.
 #: The base worktree reads twin=2826 while this tree reads twin=2801, each
@@ -282,7 +282,7 @@ Guarantees:
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 #: RE-PINNED 2026-08-26, 2845 to 2821 (-24), by the arithmetic
 #: goal-expansion guard: engine/metta.pl replaces library(arithmetic)'s
 #: unguarded system:goal_expansion clause with a catch-wrapped
@@ -306,7 +306,7 @@ Guarantees:
 #: [measured: 2841 on the resolved merge tree with engine/reader.so;
 #: command=python -m pytest
 #: "tests/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[basics/identity.metta]";
-#: commit=WORKTREE].
+#: commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0].
 BUDGET = 2841
 def twin(m):
     """Define the square, then check it."""

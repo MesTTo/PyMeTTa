@@ -57,11 +57,11 @@ Guarantees:
   - cached definitions enter the compiled-call dispatch seam and expose their
     bag-preserving memo store through cache_clear/cache_info
     [tested: test_a_cached_definition_preserves_duplicate_answers;
-    commit=WORKTREE]
+    commit=8d6131a9d9902c67ce8cac71e96e8362a8713561]
   - exact ``py(expr)`` marker bindings become application-time host islands
     carrying current SSA locals, live globals, source spans and loop context
     [tested: test_py_host_island_executes_per_engine_application,
-    test_py_host_island_inside_loops_emits_exact_findings; commit=WORKTREE]
+    test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - a parameter whose resolved annotation names ``Space`` enters statement
     lowering as a space handle, so its augmented removal cannot become
     arithmetic [tested:

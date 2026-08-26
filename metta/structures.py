@@ -25,7 +25,7 @@ Guarantees:
     of reading the deliberately absent Grounded.value slot [tested:
     test_a_transaction_commits_async_launch_before_its_landing,
     test_matchindex_indexes_handles_without_unwrapping_them;
-    commit=WORKTREE]
+    commit=173eeed021beb360b5e5f9f8461889e27190affc]
   - AlphaSet membership is alpha_eq membership [tested
     test_alphaset_is_alpha_membership]
   - LiveView holds exactly what the space holds for its pattern, through
