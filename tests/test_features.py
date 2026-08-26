@@ -98,7 +98,7 @@ class _SubscriptionRuntime:
     def do(self, predicate, *inputs):
         assert predicate == "petta_py_contains"
         space, wire = inputs
-        assert space == "&petta"
+        assert space == "&metta"
         return any(fact.to_wire() == wire for fact in self.facts)
 
 
@@ -210,7 +210,7 @@ def test_subscription_cancel_waits_for_inflight_delivery(monkeypatch):  # noqa: 
 
 
 def test_identical_subscriptions_share_one_reflection_fact(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    reflection = m._at("&petta")
+    reflection = m._at("&metta")
     first = m.subscribe(S.identical(V.value))
     second = m.subscribe(S.identical(V.value))
     descriptor = S.subscription(S[m.name], V.pattern, V.on)

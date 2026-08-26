@@ -861,7 +861,7 @@ class Space(Handle):
 
     def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and
-        '&petta' from boot, every native space that has been written to,
+        '&metta' from boot, every native space that has been written to,
         and every foreign space currently bound. Naming a space never
         registers it, only writing or binding does, so a bind! token's
         target appears here once something is stored under it.
@@ -2921,7 +2921,7 @@ class Space(Handle):
                 declarations=[parse("(arguments inspect-atom atoms)")],
             )
 
-        The declaration is matchable in &petta and is retired with the
+        The declaration is matchable in &metta and is retired with the
         operation. Raw transport refuses this declaration because it bypasses
         the atom codec entirely.
 
@@ -3848,7 +3848,7 @@ class Space(Handle):
     ) -> Atom:
         """Declare how faithfully a space answers queries of one shape.
 
-        The declaration is one (handles ...) atom in &petta, and queries
+        The declaration is one (handles ...) atom in &metta, and queries
         are routed by the most specific declared shape that matches:
         Exact licenses pushing the caller's bound to the provider, Partial
         and Sound stay candidates the engine re-unifies, and Refuse makes
@@ -3862,7 +3862,7 @@ class Space(Handle):
         write: a new entry that can disagree with an existing one on some
         query fails here, naming both, rather than on the first query
         that falls into their overlap. The atom is returned; removing it
-        from &petta withdraws the declaration.
+        from &metta withdraws the declaration.
         """
         fidelity_values = Fidelity
         if fidelity not in fidelity_values:
@@ -3892,7 +3892,7 @@ class Space(Handle):
         atom = Expression(children)
         self._rt.must(
             "petta_py_declare_handles(Space, W, Ctx)",
-            Space="&petta",
+            Space="&metta",
             W=atom.to_wire(),
             Ctx=str(self.name),
         )
@@ -3934,7 +3934,7 @@ class Space(Handle):
             )
             msg = f"{refusal}({name}, {algebra}, missing={sorted(missing)!r})"
             raise algebra_api.AlgebraRequirementError(msg)
-        catalog = Space("&petta", _runtime=self._rt)
+        catalog = Space("&metta", _runtime=self._rt)
         for previous in catalog.atoms():
             if (
                 isinstance(previous, Expression)
@@ -4009,7 +4009,7 @@ class Space(Handle):
             while True:
                 removed = self._rt.apply_must(
                     "petta_py_remove",
-                    "&petta",
+                    "&metta",
                     previous.to_wire(),
                 )
                 result = _atom_from_wire(removed)
@@ -4017,12 +4017,12 @@ class Space(Handle):
                     break
             self._rt.must(
                 "petta_py_add(Space, W)",
-                Space="&petta",
+                Space="&metta",
                 W=atom.to_wire(),
             )
             return atom
 
-        return self._at("&petta").transaction(replace)
+        return self._at("&metta").transaction(replace)
 
     def covers(self, effect: EffectClass | str) -> Atom:
         """Declare the strongest effect this reified world can handle.
@@ -4117,14 +4117,14 @@ class Space(Handle):
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression(
             [Symbol("image"), Symbol(str(self.name)), Symbol(type_name), Symbol(setting)]
         )
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4174,12 +4174,12 @@ class Space(Handle):
         previous = Expression([Symbol("source"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("source"), Symbol(str(self.name)), Symbol(kind)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4212,7 +4212,7 @@ class Space(Handle):
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         atom = Expression([Symbol("on-error"), Symbol(str(name)), shape, Symbol(chosen)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4240,7 +4240,7 @@ class Space(Handle):
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         atom = Expression([Symbol("merge"), shape, Symbol(policy)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4265,12 +4265,12 @@ class Space(Handle):
         previous = Expression([Symbol("context"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("context"), Symbol(str(self.name)), Symbol(world)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4305,14 +4305,14 @@ class Space(Handle):
             raise ValueError(msg)
         previous = Expression([Symbol("agenda"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
-            "petta_py_remove(Space, W, _)", Space="&petta", W=previous.to_wire()
+            "petta_py_remove(Space, W, _)", Space="&metta", W=previous.to_wire()
         )
         previous_named = Expression(
             [Symbol("agenda"), Symbol(str(self.name)), Variable("old"), Variable("fn")]
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous_named.to_wire(),
         )
         parts = [Symbol("agenda"), Symbol(str(self.name)), Symbol(policy)]
@@ -4320,7 +4320,7 @@ class Space(Handle):
             parts.append(Symbol(str(function)))
         atom = Expression(parts)
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4357,7 +4357,7 @@ class Space(Handle):
             parts.append(Grounded(priority))
         atom = Expression(parts)
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         self._rt.must("petta_install_bridges")
         return atom
@@ -4382,12 +4382,12 @@ class Space(Handle):
         previous = Expression([Symbol("admits"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("admits"), Symbol(str(self.name)), Symbol(type_name)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         self._rt.must(
             "petta_admission_claim(Pool, Declarer)",
@@ -4404,12 +4404,12 @@ class Space(Handle):
         previous = Expression([Symbol("capacity"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("capacity"), Symbol(str(self.name)), Grounded(limit)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         self._rt.must(
             "petta_admission_claim(Pool, Declarer)",
@@ -4444,12 +4444,12 @@ class Space(Handle):
         previous = Expression([Symbol("writes"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("writes"), Symbol(str(self.name)), Symbol(atomicity)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4473,12 +4473,12 @@ class Space(Handle):
         previous = Expression([Symbol("emits"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("emits"), Symbol(str(self.name)), Symbol(policy)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4519,12 +4519,12 @@ class Space(Handle):
         )
         self._rt.once(
             "petta_py_remove(Space, W, _)",
-            Space="&petta",
+            Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("events"), Symbol(str(self.name)), Symbol(delivery), Symbol(order)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&petta", W=atom.to_wire()
+            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 

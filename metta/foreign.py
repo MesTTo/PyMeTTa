@@ -342,7 +342,7 @@ class SpaceProvider:
 
         `(delivery, order)` from the catalog's own words: delivery is
         "at-most-once", "at-least-once" or "per-write-exactly", and order is
-        "ordered" or "unordered". Registration writes the answer into &petta
+        "ordered" or "unordered". Registration writes the answer into &metta
         as `(events <space> <delivery> <order>)`, so a MeTTa program reads
         the same promise the engine acts on.
 

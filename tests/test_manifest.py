@@ -88,7 +88,7 @@ def test_bridge_declares_materializes_and_registers(metta, tmp_path):  # noqa: D
     ]
     (group,) = metta.run("!(collapse (match &mdb (medge x $to) $to))")
     assert [str(a) for a in group[0]] == ["y"]
-    (group,) = metta.run("!(collapse (match &petta (bridge &mdb $s $r) $s))")
+    (group,) = metta.run("!(collapse (match &metta (bridge &mdb $s $r) $s))")
     assert len(list(group[0])) == 1
 
 

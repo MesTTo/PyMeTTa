@@ -165,7 +165,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
         and atom.args[0] in prelude_names
         for atom in metta.atoms()
     )
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     assert {
         row.name
         for row in reflection.match(Expression(S.arguments, V.name, S.atoms))

@@ -65,7 +65,7 @@ Guarantees:
     than promoted root callbacks [tested:
     test_m7_satellites_are_lazy_and_identity_stable and
     test_strategy_exports_are_reified_atoms; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
-  - ``catalog`` names the queryable ``&petta`` space and ``fresh()`` supplies
+  - ``catalog`` names the queryable ``&metta`` space and ``fresh()`` supplies
     hygienic variables for helper-authored patterns [tested:
     test_catalog_is_the_root_queryable_reflection_space and
     test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
@@ -214,9 +214,9 @@ def __getattr__(name: str) -> _Any:
         module_name, attribute = _LAZY_ATTRIBUTES[name]
         module = _importlib.import_module(f".{module_name}", __name__)
         value = getattr(module, attribute)
-    # policy-inventory-exempt: mechanism-internal; reason=one handle's two documented module-attribute names for the &petta space, not a vocabulary a program selects from; evidence=bindings/python/metta/__init__.py:__getattr__
+    # policy-inventory-exempt: mechanism-internal; reason=one handle's two documented module-attribute names for the &metta space, not a vocabulary a program selects from; evidence=bindings/python/metta/__init__.py:__getattr__
     elif name in {"catalog", "reflection"}:
-        value = engine().space("&petta")
+        value = engine().space("&metta")
     else:
         msg = f"module {__name__!r} has no attribute {name!r}"
         raise AttributeError(msg)

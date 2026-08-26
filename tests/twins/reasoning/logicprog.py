@@ -3,7 +3,7 @@
 Six successor facts and a transitive closure over them, asked backwards: which
 letters come before `d`. The two dispatch policies go into the reflection space
 through the ordinary write door, `space += atom`, because that is what
-`add-atom` is; `metta.reflection` IS that space, so the `&petta` symbol is
+`add-atom` is; `metta.reflection` IS that space, so the `&metta` symbol is
 never written.
 
 Both relations are `@m.rules` bundles, the door for equations that COEXIST.
@@ -85,8 +85,8 @@ def twin(m):
     """State six facts, close them transitively, and search backwards."""
     # Reaching either relation's unmatched boundary must FAIL the search rather
     # than answering the P3 residual-call dispatch value.
-    # !(add-atom &petta (dispatch-policy successor NoMatchEnum NoMatchFail))
-    # !(add-atom &petta (dispatch-policy later-in-alphabet NoMatchEnum NoMatchFail))
+    # !(add-atom &metta (dispatch-policy successor NoMatchEnum NoMatchFail))
+    # !(add-atom &metta (dispatch-policy later-in-alphabet NoMatchEnum NoMatchFail))
     reflection = metta.reflection
     reflection += S.dispatch_policy(
         S.successor, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]

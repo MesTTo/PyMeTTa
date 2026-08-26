@@ -71,7 +71,7 @@ def test_a_declared_semiring_quadruple_serves_annotations_like_a_builtin_one(
     shipped = _join_annotation(metta, "&p4-shipped-product", "prob")
     assert custom == shipped == "6"
 
-    metta._at("&petta").add(
+    metta._at("&metta").add(
         parse("(algebra p4-direct-product + * 0 1 (laws) (carrier) (requires))")
     )
     direct = _join_annotation(metta, "&p4-direct-product", "p4-direct-product")

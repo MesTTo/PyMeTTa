@@ -182,7 +182,7 @@ def _automatic_tabling_sample(n: int, mode: str) -> int:
     try:
         space.run("!(pragma! max-stack-depth 100000000)")
         if mode == "plain":
-            space.run(f"!(add-atom &petta {declaration})")
+            space.run(f"!(add-atom &metta {declaration})")
         space.run(
             f"""
             (= ({name} $n)
@@ -199,7 +199,7 @@ def _automatic_tabling_sample(n: int, mode: str) -> int:
         return stats.inferences
     finally:
         if mode == "plain":
-            space.run(f"!(remove-atom &petta {declaration})")
+            space.run(f"!(remove-atom &metta {declaration})")
         space.drop()
 
 

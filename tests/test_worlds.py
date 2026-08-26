@@ -136,7 +136,7 @@ def test_world_coverage_admits_the_joined_plan(metta):
 def test_redeclaring_coverage_removes_every_stale_duplicate(metta):
     """The host declaration door replaces even manually duplicated rows."""
     parent = metta._new_space()
-    catalog = parent._at("&petta")
+    catalog = parent._at("&metta")
     subject = parent._name_atom or S[str(parent)]
     operation = _unique("world-coverage-downgrade")
     called = []

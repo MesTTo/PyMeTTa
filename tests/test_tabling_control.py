@@ -3,7 +3,7 @@ constructed module-qualified goals, so hyphenated and uppercase names
 genuinely table, named spaces instrument their own implementation module,
 repeated declarations are cumulative, clearing is per-predicate, untable
 removes instrumentation, and failures are loud. Live declarations
-reflect into &petta as (tabled space name arity) facts, and tabling
+reflect into &metta as (tabled space name arity) facts, and tabling
 state dies with the space life: a dropped pooled module's tables cannot
 answer its next life. Each test descends from a probe in
 ai-tabling-review.md or ai-tmp/tabling-probes/ that demonstrated the
@@ -118,7 +118,7 @@ def test_declaring_an_undefined_function_is_loud(m):
 
 
 def test_declarations_reflect_into_petta(m):
-    """A live declaration is a (tabled space name arity) fact in &petta,
+    """A live declaration is a (tabled space name arity) fact in &metta,
     input arity; repetition never duplicates it, and undeclaring removes
     it.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
@@ -139,9 +139,9 @@ def test_tabled_and_defined_catalog_rows_are_schema_checked(m):
     assert catalog.match(S.kind(S.tabled, S.symbol, S.symbol, S.integer))
     assert catalog.match(S.kind(S.defined, S.symbol, S.symbol))
     with pytest.raises(EngineError, match="does not fit its declared kind"):
-        m.run("!(add-atom &petta (tabled &bad missing-arity))")
+        m.run("!(add-atom &metta (tabled &bad missing-arity))")
     with pytest.raises(EngineError, match="does not fit its declared kind"):
-        m.run("!(add-atom &petta (defined &bad))")
+        m.run("!(add-atom &metta (defined &bad))")
 
 
 def test_live_call_populates_the_shared_table(m):
@@ -245,7 +245,7 @@ def test_pool_reuse_starts_tabling_clean(metta):
 
 def test_dropped_space_leaves_shared_tabling_alone(metta):
     """A pooled space dying resets ITS module only: a function tabled in
-    user through &self keeps its instrumentation and its &petta record.
+    user through &self keeps its instrumentation and its &metta record.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     metta.run("!(import! &self (library lib_tabling))")
     metta.run("(= (shared-keeper $n) (+ $n 3))")

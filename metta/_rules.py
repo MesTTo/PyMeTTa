@@ -165,7 +165,7 @@ class Rules(tuple[Expression, ...]):
             )
             for head in heads
         ]
-        catalog = space._at("&petta")
+        catalog = space._at("&metta")
         catalog.add(*declarations)
         for head in heads:
             answers = space.eval(Expression([Symbol("add-translator-rule!"), head]))

@@ -40,7 +40,7 @@ def _set_dispatch_policy(
 ) -> None:
     assert _answers(
         metta,
-        f"!(add-atom &petta (dispatch-policy {function} {axis} {value}))",
+        f"!(add-atom &metta (dispatch-policy {function} {axis} {value}))",
     ) == ["()"]
 
 
@@ -49,7 +49,7 @@ def _remove_dispatch_policy(
 ) -> None:
     assert _answers(
         metta,
-        f"!(remove-atom &petta (dispatch-policy {function} {axis} {value}))",
+        f"!(remove-atom &metta (dispatch-policy {function} {axis} {value}))",
     ) == ["()"]
 
 
@@ -66,7 +66,7 @@ def test_every_dispatch_axis_is_readable_settable_and_defaulted():  # noqa: D103
     assert set(
         _answers(
             metta,
-            "!(match &petta (dispatch-default $axis $value) ($axis $value))",
+            "!(match &metta (dispatch-default $axis $value) ($axis $value))",
         )
     ) == expected
 
@@ -82,7 +82,7 @@ def test_every_dispatch_axis_is_readable_settable_and_defaulted():  # noqa: D103
         _set_dispatch_policy(metta, "p31-readable", axis, value)
         assert _answers(
             metta,
-            f"!(match &petta "
+            f"!(match &metta "
             f"(dispatch-policy p31-readable {axis} $value) $value)",
         ) == [value]
         _remove_dispatch_policy(metta, "p31-readable", axis, value)

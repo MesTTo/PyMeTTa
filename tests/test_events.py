@@ -94,7 +94,7 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
     try:
         # The promise is an ordinary declaration atom, so a MeTTa program
         # reads what the engine acts on.
-        rows = metta._at("&petta").match(S.events(V.ctx, V.delivery, V.order))
+        rows = metta._at("&metta").match(S.events(V.ctx, V.delivery, V.order))
         promises = {str(row.ctx): (str(row.delivery), str(row.order)) for row in rows}
         assert promises["&ev-declared"] == ("per-write-exactly", "ordered")
         assert "&ev-silent" not in promises

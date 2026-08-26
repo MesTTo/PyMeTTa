@@ -126,10 +126,10 @@ __all__ = [
 #: (defined space name) per @define function, (subscription space pattern
 #: on) per standing query. It is a space like any other, so MeTTa programs
 #: can query the library's surface, and writing to it composes with
-#: subscriptions: a Python subscription on &petta reacts to control atoms
+#: subscriptions: a Python subscription on &metta reacts to control atoms
 #: a MeTTa program adds, which is steering the library from inside MeTTa
 #: without forking it.
-_REFLECTION_SPACE = "&petta"
+_REFLECTION_SPACE = "&metta"
 
 _EFFECT_NAMES = tuple(effect.value for effect in EffectClass)
 # PostgreSQL's volatility contract makes IMMUTABLE a pure computation,
@@ -464,11 +464,11 @@ def _partition_declarations(
     declarations: Iterable[Atom],
     effect: EffectClass | str | None,
 ) -> tuple[list[Expression], tuple[Expression, ...], EffectClass]:
-    """Split operation-local declarations from &petta policy facts.
+    """Split operation-local declarations from &metta policy facts.
 
     Type and documentation atoms govern compilation in the operation's own
     declaration space. Every other atom is catalog policy and therefore lives
-    in &petta. The registration owns both sets for rollback, replacement, and
+    in &metta. The registration owns both sets for rollback, replacement, and
     unregistration. `(op ...)` is reserved because arity and transport derive
     that fact from the callable and cannot safely disagree with it.
     """
@@ -605,7 +605,7 @@ def _rollback_registration(
         _release_declaration(runtime, operation.space or "&self", declaration)
     if previous is not None:
         # The added atoms are gone again, so the previous life's atoms are
-        # what &petta holds; recompiling from them IS the restoration, the
+        # what &metta holds; recompiling from them IS the restoration, the
         # same route forward registration takes.
         runtime.must("petta_py_compile_op(Name)", Name=previous.name)
         # The purity claim is part of the previous life too. Without this, a
@@ -650,7 +650,7 @@ def _register_transaction(
         # The atoms are the registration: reflect them first, then compile
         # the predicate FROM them. The keywords this function received are
         # sugar; petta_py_compile_op reads (op ...) and (inverse ...) back
-        # out of &petta, and the cube gate holds the compiled clause
+        # out of &metta, and the cube gate holds the compiled clause
         # identical to the passed-parameter route's.
         for fact in new_facts:
             if fact not in old_facts:
@@ -802,7 +802,7 @@ def register[**P, R](
     Additional declaration atoms are owned for
     the operation's complete lifecycle: type atoms live in its declaration
     space, while its canonical effect row and other policy atoms live in
-    &petta and can be matched there. Only ``pureStructural`` enters the
+    &metta and can be matched there. Only ``pureStructural`` enters the
     compatibility allow-list for tabled or memoized bodies.
     """
     metta_name = _metta_name(fn, name)

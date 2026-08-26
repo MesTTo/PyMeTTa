@@ -94,8 +94,8 @@ def test_unclassified_operation_refuses_with_all_five_effect_remedies(metta):
     for effect in EffectClass:
         assert f"EffectClass.{effect.value}" in message
     assert name not in registered()
-    assert not metta._at("&petta").match(parse(f"(op {name} $arity $kind)"))
-    assert not metta._at("&petta").match(parse(f"(effect {name} $effect)"))
+    assert not metta._at("&metta").match(parse(f"(op {name} $arity $kind)"))
+    assert not metta._at("&metta").match(parse(f"(effect {name} $effect)"))
 
 
 def test_every_effect_rank_registers_and_reflects(metta):
@@ -110,7 +110,7 @@ def test_every_effect_rank_registers_and_reflects(metta):
             operation = registered()[name]
             assert operation.effect is effect
             assert operation.pure is (effect is EffectClass.pureStructural)
-            rows = metta._at("&petta").match(parse(f"(effect {name} $e)"))
+            rows = metta._at("&metta").match(parse(f"(effect {name} $e)"))
             assert [str(row.e) for row in rows] == [effect.value]
             explanation = metta.run(f"!(explain ({name} probe))")
             reflected = {
@@ -173,7 +173,7 @@ def test_a_definition_joins_every_called_operations_effect(metta):
             return effect_join_write(looked_up)
 
         assert effect_join_definition.effect is EffectClass.writesState
-        rows = metta._at("&petta").match(
+        rows = metta._at("&metta").match(
             parse("(effect effect-join-definition $effect)")
         )
         assert [str(row.effect) for row in rows] == ["writesState"]
@@ -215,7 +215,7 @@ def test_stacked_clauses_join_again_in_definition_reflection(metta):
 
         assert effect_stack_read_clause.effect is EffectClass.readOnlyLookup
         assert effect_stack_write_clause.effect is EffectClass.writesState
-        rows = metta._at("&petta").match(parse("(effect effect-stack $effect)"))
+        rows = metta._at("&metta").match(parse("(effect effect-stack $effect)"))
         assert [str(row.effect) for row in rows] == ["writesState"]
     finally:
         metta.unregister_op("effect_stack_read")
@@ -229,7 +229,7 @@ def test_compiler_recognized_python_calls_remain_structural(metta):
         return len(values)
 
     assert effect_structural_length.effect is EffectClass.pureStructural
-    rows = metta._at("&petta").match(
+    rows = metta._at("&metta").match(
         parse("(effect effect-structural-length $effect)")
     )
     assert [str(row.effect) for row in rows] == ["pureStructural"]
@@ -247,7 +247,7 @@ def test_definition_match_is_a_nondeterministic_read(metta):
         effect_match_definition.effect
         is EffectClass.nondeterministicReadOnly
     )
-    rows = metta._at("&petta").match(
+    rows = metta._at("&metta").match(
         parse("(effect effect-match-definition $effect)")
     )
     assert [str(row.effect) for row in rows] == ["nondeterministicReadOnly"]
@@ -280,7 +280,7 @@ def test_legacy_effect_names_normalize_to_canonical_classes(
     )
     try:
         assert registered()[name].effect is canonical
-        rows = metta._at("&petta").match(parse(f"(effect {name} $effect)"))
+        rows = metta._at("&metta").match(parse(f"(effect {name} $effect)"))
         assert [str(row.effect) for row in rows] == [canonical.value]
     finally:
         metta.unregister_op(name)

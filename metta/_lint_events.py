@@ -1,7 +1,7 @@
 """Purpose: retain source-grounded advisory lint evidence and named intents.
 
 Assumes:
-  - ``&petta`` is the process reflection space and Python source positions use
+  - ``&metta`` is the process reflection space and Python source positions use
     the coordinates returned by ``inspect`` and ``ast``
 Guarantees:
   - ``# metta: ok(<rule>)`` comments are tokenized, bound to one statement,
@@ -78,7 +78,7 @@ _INTENT_AUTHORITY = (
 
 _DIRECTIVE = re.compile(r"#\s*metta:\s*ok\((?P<kind>[a-z0-9-]+)\)\s*$")
 _PACKAGE = Path(__file__).resolve().parent
-_REFLECTION_SPACE = "&petta"
+_REFLECTION_SPACE = "&metta"
 _LOCK = threading.RLock()
 _CO_COROUTINE = getattr(inspect, "CO_COROUTINE", 0x0080)
 _CO_ASYNC_GENERATOR = getattr(inspect, "CO_ASYNC_GENERATOR", 0x0200)

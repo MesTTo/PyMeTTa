@@ -84,7 +84,7 @@ class Subscription(Fold):
         )
         self.callback = callback
         self.queue_max = queue_max
-        self._fact: Expression | None = None  # the reflection atom in &petta, if any
+        self._fact: Expression | None = None  # the reflection atom in &metta, if any
 
     def _step_over(self, held: list[Event], event: Event) -> list[Event]:
         """Deliver, or queue. The two shipped delivery disciplines, as one
@@ -228,7 +228,7 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
     subscription = Subscription(space, pattern, callback, on, queue_max)
     # The standing query reflects into the library's own space, removed on
     # cancel, so MeTTa programs see what Python is watching. The fact goes
-    # in before the subscription activates: a watcher of &petta sees other
+    # in before the subscription activates: a watcher of &metta sees other
     # subscriptions arrive, never its own birth.
     subscription._fact = Expression([Symbol("subscription"), Symbol(space), pattern, Symbol(on)])
     with _TRANSACTION_LOCK:

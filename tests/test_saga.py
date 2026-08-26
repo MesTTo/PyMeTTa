@@ -68,7 +68,7 @@ def _quoted_receipt(value: Atom) -> Expression:
 def _remove_declaration(space, declaration: Atom | None) -> None:
     """Remove one test-owned catalog row if it was installed."""
     if declaration is not None:
-        space._at("&petta").remove(declaration)
+        space._at("&metta").remove(declaration)
 
 
 def _unregister(space, *names: str) -> None:
@@ -352,7 +352,7 @@ def test_a_structural_operation_cannot_declare_a_compensation(metta):
         with pytest.raises(PettaError, match="writesState or oracleIO"):
             space.compensates(operation, compensation)
         assert list(
-            space._at("&petta").match(
+            space._at("&metta").match(
                 S.compensates(S[operation], V.compensation)
             )
         ) == []

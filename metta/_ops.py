@@ -257,7 +257,7 @@ class Operation:
     pass_atoms: bool = False  # derived from (arguments name atoms)
     space: _SpaceId | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
-    catalog: tuple = ()  # policy atoms owned in &petta
+    catalog: tuple = ()  # policy atoms owned in &metta
     arities: tuple = ()  # every registered arity, for reflection facts
     inverse: Callable[..., Any] | None = None  # the backwards direction
     parameter_names: tuple[str, ...] = ()

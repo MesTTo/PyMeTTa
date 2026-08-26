@@ -17,7 +17,7 @@ Guarantees:
     calls, and synchronous async-body driving without refusing execution
     [tested: bindings/python/tests/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - exact named source intents suppress only their bound finding, while the
-    intent remains queryable in &petta [tested:
+    intent remains queryable in &metta [tested:
     test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - a compiled ``py(...)`` island retained under a repeated loop equation is
     reported once per source island with its Python coordinates [tested:
@@ -931,7 +931,7 @@ def analyze(
     findings = [
         *(
             []
-            if str(space.name) == "&petta"
+            if str(space.name) == "&metta"
             else _first_letter_role_findings(atoms, equations)
         ),
         *_interpreter_shadow_findings(equations, registry),

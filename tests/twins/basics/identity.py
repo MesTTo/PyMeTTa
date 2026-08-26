@@ -217,7 +217,7 @@ Guarantees:
 #: RE-PINNED 2026-08-26, 2826 to 2891, after materializing the callable
 #: visibility catalog. The identity definition and assertion are unchanged,
 #: and the MeTTa example remains 2801; the fixed movement is the engine image
-#: and &petta catalog layout, the same non-monotonic layout effect recorded by
+#: and &metta catalog layout, the same non-monotonic layout effect recorded by
 #: the preceding merge receipts [measured: 2891 inferences;
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged exact-spellings tree with

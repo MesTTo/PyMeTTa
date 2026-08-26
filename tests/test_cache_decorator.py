@@ -108,7 +108,7 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
     # the control uses its public refuse declaration.
     plain = MeTTa().space("&cachedecorator-plain")
     refusal = "(cache cachedec-plain refuse)"
-    plain.run(f"!(add-atom &petta {refusal})")
+    plain.run(f"!(add-atom &metta {refusal})")
     try:
 
         @plain.define
@@ -126,7 +126,7 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
         # ratio so another move away from direct answer-trie dispatch is red.
         assert untabled.inferences > 320 * cached.inferences
     finally:
-        plain.run(f"!(remove-atom &petta {refusal})")
+        plain.run(f"!(remove-atom &metta {refusal})")
 
     # The Python twin is untouched: a cached definition is still a definition.
     assert cachedec_fib.py(10) == 55
@@ -184,7 +184,7 @@ def test_exact_cache_matches_uncached_answer_bags() -> None:
     memo = MeTTa().space("&p14-differential-memo")
     plain = MeTTa().space("&p14-differential-plain")
     refusal = "(cache p14-diff-recursive-plain refuse)"
-    plain.run(f"!(add-atom &petta {refusal})")
+    plain.run(f"!(add-atom &metta {refusal})")
 
     memo_recursive, plain_recursive = _install_recursive_bag_pair(memo, plain)
 
@@ -263,7 +263,7 @@ def test_exact_cache_matches_uncached_answer_bags() -> None:
         )
         assert memo_state.cache_info() == {"entries": 1, "answers": 3}
     finally:
-        plain.run(f"!(remove-atom &petta {refusal})")
+        plain.run(f"!(remove-atom &metta {refusal})")
 
 
 def test_exact_memo_wrappers_keep_named_space_owners_separate() -> None:
@@ -373,7 +373,7 @@ def test_cache_over_an_operation_refuses_before_definition_registration() -> Non
         assert "@metta.op" in message
         assert "functools.cache" in message
         assert "functools.lru_cache" in message
-    assert metta.run("!(match &petta (defined &cache-over-op cache-op-value) yes)") == [[]]
+    assert metta.run("!(match &metta (defined &cache-over-op cache-op-value) yes)") == [[]]
     assert cache_op_value(3) == 3
 
     metta.unregister_op("cache-op-value")

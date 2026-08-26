@@ -136,7 +136,7 @@ def test_module_tier_op_requires_effect_before_registration() -> None:
     with pytest.raises(TypeError, match=r"requires effect=.*pureStructural.*oracleIO"):
         metta.op(root_op_without_effect, name="root-op-without-effect")
     assert metta.run(
-        "!(match &petta (op root-op-without-effect $arity $kind) $kind)"
+        "!(match &metta (op root-op-without-effect $arity $kind) $kind)"
     ) == [[]]
 
 

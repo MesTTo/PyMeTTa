@@ -101,15 +101,15 @@ class EngineRegistry:
     def tabled(self) -> frozenset[str]:
         """The function names tabled right now, in any space.
 
-        lib_tabling reflects each live declaration into &petta as a
+        lib_tabling reflects each live declaration into &metta as a
         (tabled Space Name Arity) fact, so this is one query rather than a
         walk. A space with tabling never loaded holds none and answers the
-        empty set, which is why the query is over &petta and not over a
+        empty set, which is why the query is over &metta and not over a
         predicate that would not exist.
         """
         if self._tabled is None:
             row = self._runtime.once(
-                "findall(_N, 'get-atoms'('&petta', [tabled, _S, _N, _A]), L)"
+                "findall(_N, 'get-atoms'('&metta', [tabled, _S, _N, _A]), L)"
             )
             raw = row.get("L")
             names = raw if isinstance(raw, (list, tuple)) else []
@@ -169,8 +169,8 @@ class EngineRegistry:
         if name in self._operations:
             return self._operations[name]
         row = self._runtime.once(
-            "findall(_E, ('get-atoms'('&petta', [op, F, _A, _K]), "
-            "             'get-atoms'('&petta', [effect, F, _E])), L)",
+            "findall(_E, ('get-atoms'('&metta', [op, F, _A, _K]), "
+            "             'get-atoms'('&metta', [effect, F, _E])), L)",
             F=name,
         )
         raw = row.get("L")

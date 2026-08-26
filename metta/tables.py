@@ -25,7 +25,7 @@ it with Prolog rules, Wadler's views are the in/out pair], and the lens
 round-trip laws are what check_space_provider verifies against the
 derived claims.
 
-Declarations may live in &petta, ctx-scoped like every other contract
+Declarations may live in &metta, ctx-scoped like every other contract
 atom: `declare(m, "&crm", "(bridge (edge $a $b) (row edges ...))")`
 writes `(bridge &crm (edge $a $b) (row edges ...))` there, MeTTa source
 can add the same atom itself, and `TableBridge.from_context(m, "&crm",
@@ -427,19 +427,19 @@ class TableBridge(SpaceProvider):
         connection: Executes,
     ) -> TableBridge:
         """The provider for every `(bridge <name> <shape> <row>)` atom in
-        &petta, so a schema declared from MeTTa source, or by declare()
+        &metta, so a schema declared from MeTTa source, or by declare()
         below, becomes a provider in one line.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         (group,) = m.run(
-            f"!(collapse (match &petta (bridge {name} $shape $row)"
+            f"!(collapse (match &metta (bridge {name} $shape $row)"
             f" (bridge $shape $row)))"
         )
         declarations = list(group[0])
         if not declarations:
-            msg = f"&petta declares no (bridge {name} ...) schema"
+            msg = f"&metta declares no (bridge {name} ...) schema"
             raise ValueError(msg)
         (image_group,) = m.run(
-            f"!(collapse (match &petta (image {name} $type $setting)"
+            f"!(collapse (match &metta (image {name} $type $setting)"
             f" ($type $setting)))"
         )
         images: dict[str, str] = {}
@@ -583,7 +583,7 @@ class TableBridge(SpaceProvider):
 
 
 def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
-    """Write one ctx-scoped bridge declaration into &petta, where explain
+    """Write one ctx-scoped bridge declaration into &metta, where explain
     and any program can read the schema, and from_context will.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     parsed = m.parse(declaration) if isinstance(declaration, str) else declaration
@@ -593,5 +593,5 @@ def declare(m: Any, name: str, declaration: Atom | str) -> Atom:
     _, atom_shape, row_shape = parsed.children
     stored = m.parse(f"(bridge {name} {atom_shape} {row_shape})")
     with m.bind(decl=stored):
-        m.run("!(add-atom &petta decl)")
+        m.run("!(add-atom &metta decl)")
     return stored

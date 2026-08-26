@@ -442,7 +442,7 @@ def test_ior_refuses_the_operands_add_would_lift(m):  # noqa: D103  -- pytest di
 def test_space_names_lists_the_registered_spaces(metta, m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     names = metta.space_names()
     assert names == sorted(names)
-    assert "&self" in names and "&petta" in names
+    assert "&self" in names and "&metta" in names
     assert "&named-but-never-written" not in names
     # Registration happens on WRITE, not on naming: a fresh new_space is
     # absent until its first atom lands.

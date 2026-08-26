@@ -403,7 +403,7 @@ def masking(m):
         """(: mask-example-holds (-> Atom Bool)), true of the written term 10."""
         return True
 
-    # !(add-atom &petta (dispatch-policy mask-example-holds NoMatchEnum NoMatchFail))
+    # !(add-atom &metta (dispatch-policy mask-example-holds NoMatchEnum NoMatchFail))
     metta.reflection += S.dispatch_policy(
         S.mask_example_holds, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
     )
@@ -419,7 +419,7 @@ def masking(m):
 
 def twin(m):
     """Walk negation from what `not` cannot say to a constrained domain."""
-    # !(add-atom &petta (dispatch-policy penguin NoMatchEnum NoMatchFail)), and eight more
+    # !(add-atom &metta (dispatch-policy penguin NoMatchEnum NoMatchFail)), and eight more
     reflection = metta.reflection
     for relation in FALLIBLE:
         reflection += S.dispatch_policy(

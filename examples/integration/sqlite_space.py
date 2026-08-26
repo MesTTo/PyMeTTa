@@ -1,6 +1,6 @@
 """Purpose: the standard-library SQL instance of the bridge: MeTTa
 declarations relate edge and document atoms to SQLite tables, metta.tables
-derives every provider operation from them, and the contract in &petta says
+derives every provider operation from them, and the contract in &metta says
 how far to trust each one and how a binary column crosses.
 
     (bridge (edge $a $b) (row edges (a $a) (b $b)))
@@ -77,7 +77,7 @@ def attach_sqlite(
     *,
     blob_image: Literal["opaque", "transparent", "auto"] = "opaque",
 ) -> TableBridge:
-    """Declare the schema in &petta, then read it back into a provider:
+    """Declare the schema in &metta, then read it back into a provider:
     the declaration is knowledge first, so explain and any program can
     query it, and MeTTa source that added its own (bridge ...) atoms has
     already declared a schema this attach will honour."""

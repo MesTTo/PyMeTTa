@@ -165,11 +165,11 @@ def test_async_saga_and_world_coverage_stay_on_the_owning_worker(m):
             finally:
                 if coverage is not None:
                     await am.call(
-                        lambda space: space._at("&petta").remove(coverage)
+                        lambda space: space._at("&metta").remove(coverage)
                     )
                 if declaration is not None:
                     await am.call(
-                        lambda space: space._at("&petta").remove(declaration)
+                        lambda space: space._at("&metta").remove(declaration)
                     )
                 await am.unregister_op(operation)
                 await am.unregister_op(compensation)

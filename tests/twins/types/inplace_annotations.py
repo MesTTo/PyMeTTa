@@ -114,7 +114,7 @@ def twin(m):
     """Declare types, then prune with them in heads and in queries."""
     # Reaching either relation's unmatched boundary must FAIL the search rather
     # than answering the P3 residual-call dispatch value.
-    # !(add-atom &petta (dispatch-policy shape-of NoMatchEnum NoMatchFail))
+    # !(add-atom &metta (dispatch-policy shape-of NoMatchEnum NoMatchFail))
     reflection = metta.reflection
     reflection += S.dispatch_policy(
         S.shape_of, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]

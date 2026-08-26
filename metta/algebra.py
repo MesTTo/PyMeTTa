@@ -458,8 +458,8 @@ def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
 
 
 def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
-    """Reify a direct ``&petta`` algebra row through the Python door."""
-    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+    """Reify a direct ``&metta`` algebra row through the Python door."""
+    for atom in Space("&metta", _runtime=metta.runtime).atoms():
         if not isinstance(atom, Expression) or len(atom.children) != 9:
             continue
         head, declared_name, combine, extend, zero, one, laws, carrier, requires = (
@@ -518,7 +518,7 @@ def _catalog_order(
 ) -> SemiringOrder | None:
     """Read the direction attached to an ordered semiring claim."""
     expected = (Symbol("claim"), Symbol("semiring"), Symbol(name), Symbol("ordered"))
-    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+    for atom in Space("&metta", _runtime=metta.runtime).atoms():
         if not isinstance(atom, Expression) or atom.children[:4] != expected:
             continue
         if len(atom.children) < 5 or not isinstance(atom.children[4], Symbol):
@@ -563,7 +563,7 @@ def require(metta: Space, name: str) -> DeclaredAlgebra:
 
 def _context_capabilities(metta: Space, algebra: str) -> frozenset[str]:
     context = Symbol(str(metta.name))
-    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+    for atom in Space("&metta", _runtime=metta.runtime).atoms():
         # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=bindings/python/metta/_space.py:annotations
         if not isinstance(atom, Expression) or len(atom.children) not in {3, 4}:
             continue
@@ -813,7 +813,7 @@ def declare(
             _symbol_list("requires", sorted(declaration.requires)),
         )
     )
-    Space("&petta", _runtime=metta.runtime).add(atom)
+    Space("&metta", _runtime=metta.runtime).add(atom)
     _REGISTRY[_key(metta, name)] = declaration
     return atom
 

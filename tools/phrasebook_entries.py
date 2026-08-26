@@ -205,7 +205,7 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
     ),
     PublicFace(
         "metta.catalog",
-        "query the runtime catalog as the ordinary &petta space",
+        "query the runtime catalog as the ordinary &metta space",
         "rows = metta.catalog.match(S.op(V.name, V.arity, V.kind))",
     ),
     PublicFace(
@@ -236,8 +236,8 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
     ),
     PublicFace(
         "(async-op <name> <future-space> launch|landing)",
-        "observe committed coroutine launch and landing records in &petta",
-        'events = metta._at("&petta").subscribe(\n'
+        "observe committed coroutine launch and landing records in &metta",
+        'events = metta._at("&metta").subscribe(\n'
         '    S["async-op"](S.fetch, V.space, V.phase), callback\n'
         ")",
     ),

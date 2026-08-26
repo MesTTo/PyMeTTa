@@ -128,7 +128,7 @@
 %     does, so a tag is a claim about its payload rather than a label
 %     [tested 2026-08-20:
 %     shim_wire_decoding:a_payload_outside_its_tags_class_fails]
-%   - the canonical &self and &petta handles cross under the p tag while other
+%   - the canonical &self and &metta handles cross under the p tag while other
 %     engine atoms retain the s tag, leaving Python to restore only names it
 %     registered as spaces without reclassifying an ampersand operator
 %     [tested: test_space_handles_are_term_operands_and_round_trip;
@@ -284,7 +284,7 @@ petta_py_encode(T, ["n", T])    :- number(T), !.
 petta_py_encode(T, ["g", T])    :- string(T), !.
 petta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
 petta_py_encode('&self', ["p", "&self"]) :- !.
-petta_py_encode('&petta', ["p", "&petta"]) :- !.
+petta_py_encode('&metta', ["p", "&metta"]) :- !.
 petta_py_encode(T, ["s", S])    :- atom(T), !, atom_string(T, S).
 petta_py_encode(T, ["o", T])    :- py_is_object(T), !.
 petta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(petta_py_encode, T, Es).
@@ -1375,7 +1375,7 @@ prolog:error_message(petta_saga_dynamic_operation(Term)) -->
        head so the effect and compensation boundary is known before execution'-
       [Term] ].
 prolog:error_message(petta_saga_catalog_policy_mutation(Term)) -->
-    [ 'Saga.run refuses target ~p because it mutates &petta policy while \c
+    [ 'Saga.run refuses target ~p because it mutates &metta policy while \c
        receipt eligibility is frozen; declare effects and compensations \c
        before entering the saga'-[Term] ].
 
@@ -1640,7 +1640,7 @@ petta_py_trace_event(event(Depth, exit, Term, Answer, Names),
     petta_py_encode_named(Answer, Names, EncodedAnswer).
 
 %Bulk cleanup of the reflection facts describing one space: every
-%(defined <Space> _) atom in &petta goes through the engine's own removal
+%(defined <Space> _) atom in &metta goes through the engine's own removal
 %funnel (hooks fire per fact), but in ONE crossing from Python; the
 %per-fact crossing measured 10,000 calls and 64ms for 10,000 defines.
 petta_py_reflect_clear_defined(SpaceName) :-
@@ -2829,7 +2829,7 @@ petta_py_dispatch_async(Name, Args, Space) :-
 %runs the later deferred start before rethrowing.
 petta_py_async_publish_launch(Name, Space, Token, Done) :-
     seam:observation_begin,
-    catch((   'add-atom'('&petta', ['async-op', Name, Space, launch], _),
+    catch((   'add-atom'('&metta', ['async-op', Name, Space, launch], _),
               seam:observation_defer(
                   petta_py_async_start(Token),
                   petta_py_async_discard(Token, Space, Done))
@@ -2892,7 +2892,7 @@ petta_py_async_land(Token, Status0, Payload) :-
 %A watcher failure is raised to the background publisher and logged there; it
 %cannot rewrite an operation outcome that was already committed to its future.
 petta_py_async_publish_landing(Name, Space) :-
-    (   'add-atom'('&petta', ['async-op', Name, Space, landing], _)
+    (   'add-atom'('&metta', ['async-op', Name, Space, landing], _)
     ->  true
     ;   throw(error(petta_async_landing_publish_failed(Name, Space),
                     context(petta_py_async_land/3,
@@ -3145,7 +3145,7 @@ petta_py_dispatch_raw_many(Name, Args, Result) :-
 %and every previously registered arity of the name is replaced rather than
 %left behind for calls the new callable no longer serves.
 %The dogfood route: registration parameters read from the contract atoms in
-%&petta rather than passed. The Python keywords are sugar that asserts the
+%&metta rather than passed. The Python keywords are sugar that asserts the
 %atoms ((op Name Arity Kind) per arity, (inverse Name) when a backwards
 %direction exists), and this compiles the predicate FROM them, through
 %exactly the builders the passed-parameter route uses, so the clause is
@@ -3182,7 +3182,7 @@ petta_py_declare_handles(Space, Tagged, Ctx0) :-
 :- multifile prolog:error_message//1.
 prolog:error_message(petta_contract_missing_op(Name)) -->
     [ 'compiling ~w from the contract found no (op ~w Arity Kind) atom in \c
-       &petta; the registration sugar asserts them before compiling, so \c
+       &metta; the registration sugar asserts them before compiling, so \c
        reaching this means the atoms and the compile call got out of \c
        order'-[Name, Name] ].
 prolog:error_message(petta_contract_conflict(Name, Pairs)) -->
@@ -4132,11 +4132,11 @@ petta_py_register_foreign(Space0, Capabilities, Delivery) :-
 %about one space: a re-registration that stops promising events must stop
 %the space being subscribable in the same step [P12.14].
 petta_py_declare_delivery(Space, Delivery) :-
-    metta_host_remove_reported('&petta', [events, Space, _, _], _),
+    metta_host_remove_reported('&metta', [events, Space, _, _], _),
     (   Delivery = [Delivery0, Order0]
     ->  ( atom(Delivery0) -> D = Delivery0 ; atom_string(D, Delivery0) ),
         ( atom(Order0) -> O = Order0 ; atom_string(O, Order0) ),
-        'add-atom'('&petta', [events, Space, D, O], _)
+        'add-atom'('&metta', [events, Space, D, O], _)
     ;   true
     ).
 

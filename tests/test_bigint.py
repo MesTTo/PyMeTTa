@@ -98,7 +98,7 @@ def test_mixed_bigint_number_equality_uses_exact_values(metta):  # noqa: D103  -
 
 def test_numeric_types_are_published_from_the_catalog(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert metta.run(
-        "!(match &petta (vocabulary numeric-type $first $second) "
+        "!(match &metta (vocabulary numeric-type $first $second) "
         "($first $second))"
     ) == [[parse("(Number BigInt)")]]
     assert tuple(NumericType) == ("Number", "BigInt")

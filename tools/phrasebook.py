@@ -413,7 +413,7 @@ def visibility_drift(engine: Any, entries: list[Entry]) -> list[str]:
     """Compare phrasebook row visibility with the live callable catalog."""
     import metta  # noqa: PLC0415  -- deferred so importing the lane stays inert
 
-    rows = engine._at("&petta").match(metta.S.visibility(metta.V.name, metta.V.level))
+    rows = engine._at("&metta").match(metta.S.visibility(metta.V.name, metta.V.level))
     pairs = [(str(row.name), str(row.level)) for row in rows]
     observed = dict(pairs)
     names = set(engine.builtins())

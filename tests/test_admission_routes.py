@@ -114,7 +114,7 @@ def test_two_declared_admission_checks_interact_over_one_store(metta):
                     pool += S.admits(S.RelativeWidget)
 
                 assert len(pool) == 0
-                catalog = metta._at("&petta")
+                catalog = metta._at("&metta")
                 pool_name = S[str(pool.name)]
                 assert S.admits(pool_name, S.RelativeWidget) in catalog
                 assert S.capacity(pool_name, 1) in catalog

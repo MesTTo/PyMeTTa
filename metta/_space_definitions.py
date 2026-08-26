@@ -43,7 +43,7 @@ Guarantees:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
   - generated class-method operations declare their Atom delivery policy in
-    &petta rather than passing a boolean registration flag [tested:
+    &metta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an annotation-derived declaration lands before the equation it governs

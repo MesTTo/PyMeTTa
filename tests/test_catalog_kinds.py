@@ -81,10 +81,10 @@ def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
     extension.write_text(EXTENSION)
     m.register_prolog(path=extension)
 
-    m.run("!(add-atom &petta (vocabulary freshness-level live cached stale))")
-    m.run("!(add-atom &petta (kind freshness symbol pattern (one-of freshness-level)))")
-    m.run("!(add-atom &petta (routed-by-shape freshness))")
-    m.run("!(add-atom &petta (freshness &fr-rows (edge $a $b) cached))")
+    m.run("!(add-atom &metta (vocabulary freshness-level live cached stale))")
+    m.run("!(add-atom &metta (kind freshness symbol pattern (one-of freshness-level)))")
+    m.run("!(add-atom &metta (routed-by-shape freshness))")
+    m.run("!(add-atom &metta (freshness &fr-rows (edge $a $b) cached))")
 
     assert m.run("!(freshness-of &fr-rows (edge x y))") == [[S.cached]]
 
@@ -95,8 +95,8 @@ def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
         "the candidates are re-unified"
     )
 
-    m.run("!(remove-atom &petta (freshness &fr-rows (edge $a $b) cached))")
-    m.run("!(add-atom &petta (freshness &fr-rows (edge $a $b) stale))")
+    m.run("!(remove-atom &metta (freshness &fr-rows (edge $a $b) cached))")
+    m.run("!(add-atom &metta (freshness &fr-rows (edge $a $b) stale))")
 
     with pytest.raises(EngineError, match="refuses"):
         list(m._at("&fr-rows").match(S.edge(V.x, V.y), limit=2))
@@ -104,10 +104,10 @@ def test_a_third_party_declaration_kind_changes_routing_through_published_seams(
 
 def test_a_malformed_third_party_declaration_is_refused_at_the_add(tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     m = MeTTa().self
-    m.run("!(add-atom &petta (vocabulary mood-level calm tense))")
-    m.run("!(add-atom &petta (kind mood symbol (one-of mood-level)))")
+    m.run("!(add-atom &metta (vocabulary mood-level calm tense))")
+    m.run("!(add-atom &metta (kind mood symbol (one-of mood-level)))")
     with pytest.raises(EngineError, match="does not fit its declared kind"):
-        m.run("!(add-atom &petta (mood &somewhere excited))")
+        m.run("!(add-atom &metta (mood &somewhere excited))")
 
 
 def test_the_vocabulary_module_is_generated(repo_root):
@@ -209,7 +209,7 @@ def test_the_ledger_rename_names_on_error(repo_root):
 
 def test_the_image_declaration_is_catalog_validated():
     """(image space type setting) now has a catalog kind row: the binding door
-    and a direct &petta write refuse the same junk word, and a member crosses
+    and a direct &metta write refuse the same junk word, and a member crosses
     as the symbol the vocabulary declares.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from metta.errors import EngineError
@@ -222,4 +222,4 @@ def test_the_image_declaration_is_catalog_validated():
     with pytest.raises(ValueError, match="opaque, transparent, auto"):
         m.image("VgBlob", "sideways")  # type: ignore[arg-type]
     with pytest.raises(EngineError, match=r"one-of image-mode"):
-        m.run("!(add-atom &petta (image x y sideways))")
+        m.run("!(add-atom &metta (image x y sideways))")

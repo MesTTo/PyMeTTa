@@ -10,7 +10,7 @@ Guarantees:
     [tested: test_fstrings_str_round_range_slices,
     test_mixed_numeric_equality_and_membership;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - the internal prelude publishes those policies in &petta without leaking
+  - the internal prelude publishes those policies in &metta without leaking
     implementation annotations or helper documentation into &self [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]

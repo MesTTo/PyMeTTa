@@ -60,7 +60,7 @@ from metta import S, V, lib
 #: allowance.
 #: RE-PINNED 2026-08-26, 90639 to 86995, when get_native_atom gained
 #: head-indexed clauses for open-tail bound-head patterns. The tabling
-#: library's per-equation `'get-atoms'('&petta', [tabled|_])` existence
+#: library's per-equation `'get-atoms'('&metta', [tabled|_])` existence
 #: probe had walked the whole catalog, 23.7 inferences per row over this
 #: load; the catalog's growth had silently pushed the twin to 99,336
 #: before the fix, and the 90639 pin itself already carried the walk over
