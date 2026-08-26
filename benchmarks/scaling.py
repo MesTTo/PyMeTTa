@@ -61,9 +61,9 @@ Guarantees:
     a regression. The C reader alone is worth 10.58x to 10.86x on parse-forms
     [measured 2026-08-27; command=python -m benchmarks.scaling parse-forms under
     PETTA_C_READER=off, recorded into a throwaway ledger; fixture=the parse-forms
-    ladder 200/400/800/1600; commit=WORKTREE]
+    ladder 200/400/800/1600; commit=75d75b1ea5ed229a598925111f8bdc759a3fbb6e]
     [tested: test_a_drifted_ledger_refuses_the_run_before_it_measures_anything;
-    commit=WORKTREE]
+    commit=75d75b1ea5ed229a598925111f8bdc759a3fbb6e]
 Fails when: a family exceeds its declared exponent, costs more than its pinned
   row by more than the allowed factor, leaves its route, or produces the wrong
   work. Also when a control stops failing, and when the ledger's configuration
@@ -269,7 +269,7 @@ def parse_forms(size: int) -> Workload:
     after this one ran, and none of them fail without it. The `&self` check
     itself lives in `selfcheck`, which that test drives as a subprocess
     [tested: test_the_families_keep_their_engine_invariants_in_their_own_process;
-    commit=WORKTREE].
+    commit=cbabce0e0871a2d5bbf53b8c0e520b50aeb1a984].
     """
     space = MeTTa().space()
     text = " ".join(f"(scaling-form {index} (nested {index}))" for index in range(size))
