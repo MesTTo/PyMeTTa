@@ -405,11 +405,19 @@ def _check_space_through_the_seam(space: Space) -> list[str]:
     subject space is inspected and never touched, and the answers cross
     back as the check strings the Prolog kit reports.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    # The with-block drops the scratch on exit. Left undropped, the kit's
+    # anonymous space and its imported conformance library outlived every
+    # call in the process, one leaked space per kit invocation. The handle
+    # is bound before entry because ``+=`` rebinds its target, and a
+    # rebound with-target is the PLW2901 defect class.
     scratch = space.metta.space()
-    scratch += lib.conformance
-    checks, = scratch.answers(S.check_space_provider(space))
-    return [str(check.value) if isinstance(check, Grounded) else str(check)
-            for check in checks]
+    with scratch:
+        scratch += lib.conformance
+        (answers,) = scratch.answers(S.check_space_provider(space))
+        return [
+            str(finding.value) if isinstance(finding, Grounded) else str(finding)
+            for finding in answers
+        ]
 
 
 def _check_round_trip(name: str, atoms_to_store, stored) -> list[str]:
