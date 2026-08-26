@@ -27,6 +27,10 @@ Guarantees:
     family is measured, which is checked on the wiring and not only on the
     helper that decides it
     [tested: test_a_drifted_ledger_refuses_the_run_before_it_measures_anything].
+  - the two gates COMPOSE as well as being independent: an O(log n) regression
+    in a family declared constant passes the exponent gate at 0.1434 against a
+    0.25 bound and is caught by the growth guard at 1.392x
+    [tested: test_the_growth_guard_catches_a_log_n_regression_the_exponent_gate_admits].
   - moving the curve arithmetic into benchmarks.curves left memory-scale's
     fits unchanged, checked against the committed pins that the previous
     implementation produced
@@ -34,6 +38,7 @@ Guarantees:
 """
 
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -213,6 +218,27 @@ def test_the_shared_curve_arithmetic_reproduces_every_pinned_memory_scale_fit():
         "a memory-scale pin's fit block stopped describing its own representative; "
         f"expected exactly {sorted(STALE_MEMORY_SCALE_FITS)}, found {sorted(stale)}"
     )
+
+
+def test_the_shared_power_fit_drops_zero_points_the_way_the_old_path_did():
+    """The 23 pins only prove the move on curves this lane happens to have run.
+
+    None of them carries a zero, and this lane has had one: table-reclamation
+    was pinned [0, 0, 0, 0] until 06380061 re-pinned it. The move replaced an
+    inline "keep the points with a positive value, fit their log-log slope" with
+    a call to curves.power_fit guarded by a COUNT of positive points rather than
+    a list of them, so the shapes where the two implementations could diverge
+    are exactly the ones no pin covers. The property is that a zero is dropped
+    and the rest is fitted, which is stated here rather than left to the pins.
+    """
+    sizes = [10, 100, 1000, 10000]
+
+    assert fit_curve(sizes, [0, 0, 0, 0])["power_exponent"] is None
+    assert fit_curve(sizes, [0, 0, 0, 7])["power_exponent"] is None
+    for values in ([0, 0, 5, 10], [4, 0, 16, 32], [4, 8, 16, 0], [7, 7, 7, 7]):
+        kept = [(size, value) for size, value in zip(sizes, values, strict=True) if value > 0]
+        expected = curves.power_fit([size for size, _ in kept], [value for _, value in kept])
+        assert fit_curve(sizes, values)["power_exponent"] == expected.exponent, values
 
 
 # ------------------------------------------------------------- the two controls
@@ -473,6 +499,40 @@ def test_the_constant_family_fails_when_its_lookup_starts_scanning():
     assert flat.failures == []
     assert scanning.kinds == {"exponent"}
     assert scanning.fit["exponent"] == pytest.approx(1.0, abs=1e-9)
+
+
+def test_the_growth_guard_catches_a_log_n_regression_the_exponent_gate_admits():
+    """The two gates COMPOSE, and the constant family needs both of them.
+
+    selective-query is declared constant with an exponent bound of 0.25, which
+    is deliberately loose: over an eightfold ladder an O(log n) lookup fits
+    exponent 0.1434, so the exponent gate lets it straight through. Tightening
+    the bound to exclude it is the wrong repair, because this tree already
+    carries two instruction lanes gated tighter than their own measured layout
+    noise and the recorded consequence is a re-pin past a real regression. The
+    growth guard covers it instead, at 1.392x the pinned row by the top size.
+
+    So the 0.25 bound is defensible only while the growth guard exists, and
+    loosening this family's maximum_growth past about 1.39 would leave a matcher
+    that swapped a hash index for a balanced tree undetected. That is a
+    different property from the two planted controls, which show each gate
+    catches something the other does not; this one shows a regression neither
+    catches alone.
+    """
+    sizes = [400, 800, 1600, 3200]
+    family = _family(name="selective-query", expected_class="constant", sizes=sizes)
+    family["maximum_exponent"] = 0.25
+    flat = [100, 97, 97, 97]
+    log_n = [round(flat[0] * math.log2(size) / math.log2(sizes[0])) for size in sizes]
+
+    admitted = evaluate(family, _measured(sizes, log_n), None)
+    caught = evaluate(family, _measured(sizes, log_n), _pinned(sizes, flat))
+
+    assert log_n == [100, 112, 123, 135]
+    assert admitted.fit["exponent"] == pytest.approx(0.1434, abs=5e-4)
+    assert admitted.failures == []
+    assert caught.kinds == {"growth"}
+    assert evaluate(family, _measured(sizes, flat), _pinned(sizes, flat)).failures == []
 
 
 # ------------------------------------------------------ policy and ledger shape
