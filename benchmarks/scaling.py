@@ -56,9 +56,18 @@ Guarantees:
   - `--record` never rewrites a control family's pinned row, because the constant
     control's plant IS its distance from that row
     [tested: test_recording_leaves_every_control_row_pinned; commit=906a4057ac57a340a3544ad909e829f851f35af3]
+  - a ledger recorded under another configuration refuses the whole run before
+    any family is measured, rather than reading the configuration's own cost as
+    a regression. The C reader alone is worth 10.58x to 10.86x on parse-forms
+    [measured 2026-08-27; command=python -m benchmarks.scaling parse-forms under
+    PETTA_C_READER=off, recorded into a throwaway ledger; fixture=the parse-forms
+    ladder 200/400/800/1600; commit=WORKTREE]
+    [tested: test_a_drifted_ledger_refuses_the_run_before_it_measures_anything;
+    commit=WORKTREE]
 Fails when: a family exceeds its declared exponent, costs more than its pinned
   row by more than the allowed factor, leaves its route, or produces the wrong
-  work. Also when a control stops failing.
+  work. Also when a control stops failing, and when the ledger's configuration
+  stamp does not match the live one.
 Owns resources: each repetition is a fresh process that runs one family's whole
   ladder and drops every space it creates; the parent joins, terminates or kills
   it through the lifecycle callback `bench.finish_process` supplies.
@@ -701,10 +710,15 @@ def configuration_drift(
 ) -> list[str]:
     """Name every configuration fact that moved since the ledger was recorded.
 
-    Deterministic counters only compare within one configuration: the C reader's
-    presence alone moved a file-load number by more than twelve times. The tree
-    already refuses a drifted comparison in `BenchmarkBaseline.observe_configuration`
-    and this is the same rule for this ledger, with the same two remedies.
+    Deterministic counters only compare within one configuration. Measured on
+    this lane's own parse-forms ladder, the C reader's presence alone is worth
+    10.58 to 10.86 times: [55248, 111250, 223254, 452062] on the Prolog reader
+    against [5222, 10422, 20822, 41624] on the C one. Both fit the same class,
+    so the exponent gate is unharmed either way, but the growth guard would fire
+    at 10x against a 1.1 bound and name a parser regression where only the box
+    differed. The tree already refuses a drifted comparison in
+    `BenchmarkBaseline.observe_configuration` and this is the same rule for this
+    ledger, with the same two remedies.
     """
     pinned = previous.get("configuration")
     if pinned is None:

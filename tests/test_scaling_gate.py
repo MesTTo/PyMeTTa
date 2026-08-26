@@ -23,6 +23,10 @@ Guarantees:
   - recording never rewrites a control's pinned row, because the constant
     control's plant IS its distance from that row
     [tested: test_recording_leaves_every_control_row_pinned].
+  - a ledger stamped under another configuration refuses the run before any
+    family is measured, which is checked on the wiring and not only on the
+    helper that decides it
+    [tested: test_a_drifted_ledger_refuses_the_run_before_it_measures_anything].
   - moving the curve arithmetic into benchmarks.curves left memory-scale's
     fits unchanged, checked against the committed pins that the previous
     implementation produced
@@ -649,10 +653,10 @@ def test_reduce_repetitions_reports_each_distinct_problem_once():
 def test_configuration_drift_names_every_fact_that_moved():
     """A ledger recorded under another configuration is not comparable.
 
-    The C reader's presence alone moves a file-load number by more than twelve
-    times, so comparing across it produces a confounded verdict. The tree
-    already refuses a drifted comparison for baseline.json; this is the same
-    rule for this ledger.
+    The C reader's presence alone moves this lane's own parse-forms ladder by
+    10.58 to 10.86 times, so comparing across it produces a confounded verdict.
+    The tree already refuses a drifted comparison for baseline.json; this is the
+    same rule for this ledger.
     """
     live = {"c_reader": True, "mork_backend": "foreign", "python_version": "3.14.4"}
 
@@ -664,6 +668,57 @@ def test_configuration_drift_names_every_fact_that_moved():
         "c_reader: pinned under False, measuring under True",
         "mork_backend: pinned under 'native', measuring under 'foreign'",
     ]
+
+
+def test_a_drifted_ledger_refuses_the_run_before_it_measures_anything(tmp_path, capsys):
+    """The refusal has to be WIRED IN, not merely available as a helper.
+
+    `configuration_drift` returning the right list decides nothing on its own:
+    move the call below the measurement loop, or drop the `return 1`, and every
+    other test here still passes while the lane silently compares across
+    configurations. Measured on 2026-08-27, that comparison is worth 10.58 to
+    10.86 times on parse-forms alone, and the growth guard would fire on it and
+    name a parser regression where only the box differed.
+
+    The pinned stamp is drifted on `python_version` rather than on a route,
+    which makes the test independent of whether this box has engine/reader.so or
+    the MORK artefact. It runs `run_suite` directly; the stamp it collects boots
+    an engine in a SPAWNED child, so this process stays engine-free.
+    """
+    import multiprocessing
+
+    from bench import finish_process
+    from benchmarks.scaling import run_suite
+
+    pinned = json.loads(LEDGER_PATH.read_text(encoding="utf-8"))
+    drifted = tmp_path / "drifted-ledger.json"
+    atomic_json(
+        drifted,
+        pinned | {"configuration": pinned["configuration"] | {"python_version": "0.0.0"}},
+    )
+
+    status = run_suite(
+        names=["selective-query"],
+        repetitions=1,
+        timeout=300.0,
+        output=None,
+        record=False,
+        paired=False,
+        cause_commit="TEST",
+        policy_path=POLICY_PATH,
+        ledger_path=drifted,
+        context=multiprocessing.get_context("spawn"),
+        finish_process=finish_process,
+    )
+    printed = capsys.readouterr().out
+
+    assert status == 1
+    assert "CONFIGURATION DRIFT python_version: pinned under '0.0.0'" in printed
+    assert "re-pin with --record" in printed
+    assert "selective-query" not in printed, (
+        "the run measured a family before refusing, so the drift check is below "
+        "the measurement loop instead of above it"
+    )
 
 
 def test_every_scaling_family_is_reachable_as_a_perf_sized_case():
