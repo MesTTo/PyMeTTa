@@ -16,7 +16,10 @@ Open Obligations:
 
 from __future__ import annotations
 
+import os
 import re
+import signal
+import subprocess
 import sys
 from pathlib import Path
 
@@ -62,6 +65,56 @@ def test_every_declared_skip_resolves_and_would_otherwise_run():
         assert reason, f"{path} has no reason"
         assert not (REPO / path).is_symlink(), f"{path} is an alias"
         assert "_fixtures" not in Path(path).parts, f"{path} is excluded anyway"
+
+
+def test_the_chess_example_is_skipped_for_the_reason_that_is_true():
+    """It needs a terminal; it was skipped as long-running and benchmarked.
+
+    The reason read "long-running, covered by benchmarks" until 2026-08-26
+    and neither half held: no benchmark in any baseline names it, and given
+    its quit command it loads, sets up the board and exits in about a
+    quarter second. What it cannot survive is a closed stdin. The file ends
+    in ``!(main_loop)``, whose ``(command-loop)`` reads with ``readln!/1``
+    and recurses on anything but ``q``, and ``readln!/1`` is
+    ``read_line_to_string/2``, which answers ``end_of_file`` for every read
+    once stdin is at EOF. Both halves are measured here, because a skip
+    reason nothing checks is how the wrong one survived.
+    """
+    example = "examples/reasoning/greedy_chess.metta"
+    assert "interactive terminal" in parity.skips()[example]
+
+    quits = subprocess.run(
+        ["sh", "run.sh", example],
+        cwd=REPO,
+        input="q\n",
+        capture_output=True,
+        text=True,
+        timeout=parity.TIMEOUT,
+        check=False,
+    )
+    assert quits.returncode == 0, quits.stderr[-2000:]
+    assert "Quitting MeTTa Greedy Chess." in quits.stdout
+
+    # A whole terminating run is 501,917 bytes and refuses three commands,
+    # so a process still producing refusals after four times that many
+    # bytes is not a program taking its time.
+    looping = subprocess.Popen(
+        ["sh", "run.sh", example],
+        cwd=REPO,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        head = looping.stdout.read(2_000_000)
+        unfinished = looping.poll() is None
+    finally:
+        os.killpg(looping.pid, signal.SIGKILL)
+        looping.wait(timeout=parity.TIMEOUT)
+    assert unfinished, "the command loop ended without a terminal"
+    assert head.count("Invalid command") > 1_000, "it blocked rather than looping"
 
 
 def test_example_parity_reports_a_planted_difference():
