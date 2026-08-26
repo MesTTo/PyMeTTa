@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pytest
 
-from metta import Expression, S, parse
+from metta import Expression, S, Space, V, parse
 from metta.errors import CompileError, EngineError
 from metta.vocabularies import EffectClass
 
@@ -1183,3 +1183,57 @@ def test_walrus_bindings_hoist_as_let(metta):
             @m.define
             def bad_term(x):
                 return S.cnt(inc := x + 1)  # noqa: F841  -- the refused binding IS the scenario
+
+
+def test_a_pep695_type_parameter_resolves_in_annotations(m):
+    """``def mid[T](x: T) -> T`` compiles: ``T`` lives in ``__type_params__``.
+
+    The type-parameter scope sits between the closure and the locals and
+    appears in neither ``__globals__`` nor ``__closure__``; leaving it out
+    of the annotation namespace made the eager space-parameter probe refuse
+    every generic definition with "the local annotation name 'T' is not
+    available".
+    """
+
+    @m.define
+    def generic_mid[T](x: T) -> T:
+        return x
+
+    assert list(generic_mid(S.a)) == [S.a]
+
+
+def test_an_unresolvable_annotation_is_not_a_space_parameter(m):
+    """A structured annotation the resolver cannot name is not a space handle.
+
+    A subscripted domain builder used to refuse the whole definition through
+    the eager probe; the strict refusal belongs only where an annotation is
+    consumed as a type. A bare NAME that resolves nowhere keeps refusing
+    loudly, because ``target: Space`` with the import missing must not
+    silently turn the body's removal into arithmetic. The positive control
+    keeps the probe honest: a resolvable ``Space`` parameter still enters
+    statement lowering as a space handle.
+    """
+    domain_builder = {"rows": object()}
+
+    @m.define
+    def carries(x: domain_builder["rows"]):  # noqa: F821  -- the subscripted domain builder IS the scenario
+        return x
+
+    assert list(carries(S.b)) == [S.b]
+
+    with pytest.raises(CompileError, match="not available"):
+
+        @m.define
+        def typo(target: SpaceHandle, atom):  # noqa: F821  -- the unresolvable bare name IS the scenario
+            target -= atom
+            return S.done
+
+    @m.define
+    def removes(target: Space, atom):
+        target -= atom
+        return S.done
+
+    held = m.metta.space()
+    held += S.marker(1)
+    assert list(removes(held, S.marker(1))) == [S.done]
+    assert list(held[S.marker(V.n)]) == []

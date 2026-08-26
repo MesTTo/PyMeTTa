@@ -636,13 +636,19 @@ def compile_function(
 
     def annotation_names_space(annotation: ast.expr) -> bool:
         # This eager probe only decides whether a parameter is a space
-        # handle. An annotation the resolver cannot name (a domain builder,
-        # a spelling outside the typing whitelist) is simply not one; the
-        # strict refusal still runs wherever the annotation is consumed as a
-        # type [tested: test_an_unresolvable_annotation_is_not_a_space_parameter].
+        # handle. A STRUCTURED annotation the resolver cannot name (a
+        # subscripted domain builder, a spelling outside the typing
+        # whitelist) is simply not one; the strict refusal still runs
+        # wherever the annotation is consumed as a type. A bare NAME that
+        # resolves nowhere keeps the loud refusal: `target: Space` with the
+        # import missing must not silently turn the body's removal
+        # statements into arithmetic
+        # [tested: test_an_unresolvable_annotation_is_not_a_space_parameter].
         try:
             return annotation_resolver(annotation) == Symbol("SpaceType")
         except CompileError:
+            if isinstance(annotation, ast.Name):
+                raise
             return False
 
     space_parameters = {
