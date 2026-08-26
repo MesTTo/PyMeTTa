@@ -296,7 +296,7 @@ Guarantees:
 #: [measured: the twin lane reading 2821 stable across the full suite
 #: run and a direct re-run; command=python -m pytest
 #: "tests/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[basics/identity.metta]";
-#: fixture=guarded-hook tree with engine/reader.so; commit=WORKTREE].
+#: fixture=guarded-hook tree with engine/reader.so; commit=87cc9f6c96a11bc06e307d3b2bec861cf0c1430e].
 BUDGET = 2821
 def twin(m):
     """Define the square, then check it."""
