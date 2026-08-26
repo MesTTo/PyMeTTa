@@ -68,7 +68,7 @@ from metta import S, V, fn, match, superpose
 #: min-of-3 after a canonical single-boot QLF regeneration].
 #: RE-PINNED 2026-08-26, 2027858 to 2396413 (+368555): 6917bef7's relational
 #: candidate rows, measured 2,027,856 to 2,394,524 at the exact pair;
-#: ai-brief-p14-relational-ops-fastpath carries the follow-up [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+#: ai-brief-p14-relational-ops-fastpath carries the follow-up [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 2396413
 
 

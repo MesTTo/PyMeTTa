@@ -68,7 +68,7 @@ from metta import S, V, lib
 #: example drops 16.7%, 73800 to 61464 [measured: metta=61464 twin=86995;
 #: command=python bindings/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/libraries/tabling_fib.metta; fixture=open-tail-index
-#: tree with engine/reader.so; commit=WORKTREE].
+#: tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 86995 to 86938 (-57), by the open-tail-index
 #: pricing pass, one sweep over the whole corpus after four attributed
 #: engine movements: the writable-specialization merge 5c731b03 prices
@@ -78,7 +78,7 @@ from metta import S, V, lib
 #: relational-candidate rows of 6917bef7, and the open-tail head-index
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 86938
 
 

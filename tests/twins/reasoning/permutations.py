@@ -57,7 +57,7 @@ SLOT = (V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"])
 #: RE-PINNED 2026-08-26, 50760323 to 27172201 (-23588122): c7468b27 routed the
 #: algebra carriers' counting through the algebra tower and this twin's
 #: enumeration got 1.87x cheaper; the improvement was never re-pinned
-#: when it landed [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+#: when it landed [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 27172201
 
 

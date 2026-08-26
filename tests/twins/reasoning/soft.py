@@ -66,7 +66,7 @@ from metta import Expression, S, V, lib
 #: 5c731b03's per-translated-equation specializer bookkeeping, plus
 #: 6917bef7's +1,411 measured at that pair
 #: (ai-brief-p14-specializer-translation-tax,
-#: ai-brief-p14-relational-ops-fastpath) [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+#: ai-brief-p14-relational-ops-fastpath) [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 303059
 
 

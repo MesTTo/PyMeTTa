@@ -167,7 +167,7 @@ is Python's own `assert`.
 #: number is the merged tree's own [measured: 2830 inferences;
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged tree with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 2822 to 2846, after the algebra carrier host
 #: services and catalog rows changed the compiled QLF layout. The ordinary
 #: identity workload does no carrier work and its one claim still agrees
@@ -181,7 +181,7 @@ is Python's own `assert`.
 #: image even though this workload does no carrier work [measured: 2861
 #: inferences; command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged tree with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 2822 to 2835, for mandatory operation-effect
 #: reflection. The first compiled definition publishes its canonical
 #: `(effect f pureStructural)` row beside `(defined ...)`; three direct
@@ -195,7 +195,7 @@ is Python's own `assert`.
 #: the parents above read 2830, 2846 and 2861 on their own
 #: [measured: 2801 inferences; command=tools/twin_coverage.py --measure
 #: --rounds 3 examples/basics/identity.metta; fixture=merged tree with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 2822 to 2880, on the post-commit observation,
 #: immutable-world, and State-fence tree. The reading prices the combined
 #: engine source and compiled QLF layout; three fresh serial processes each
@@ -208,7 +208,7 @@ is Python's own `assert`.
 #: rather than at its sum [measured: 2826 inferences;
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged tree with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 2826 to 2891, after materializing the callable
 #: visibility catalog. The identity definition and assertion are unchanged,
 #: and the MeTTa example remains 2801; the fixed movement is the engine image
@@ -241,7 +241,7 @@ is Python's own `assert`.
 #: non-monotonic layout composition both comments describe [measured:
 #: metta=2801 twin=2875; command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged tree with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 2875 to 2825 (-50), by the open-tail-index
 #: pricing pass, one sweep over the whole corpus after four attributed
 #: engine movements: the writable-specialization merge 5c731b03 prices
@@ -251,7 +251,7 @@ is Python's own `assert`.
 #: relational-candidate rows of 6917bef7, and the open-tail head-index
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 2825
 
 

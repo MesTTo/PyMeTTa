@@ -9,7 +9,7 @@ Guarantees:
   - an empty catalog answers every name through one process-wide apply-seam
     probe, with no per-name goal-string read [tested:
     test_an_empty_deprecation_catalog_costs_one_cheap_probe;
-    commit=WORKTREE]
+    commit=670917170da5800ba74346382ed4f47756bcfc29]
 """
 
 from __future__ import annotations
