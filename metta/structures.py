@@ -21,6 +21,10 @@ Guarantees:
     [measured 2026-08-19: register a, b; remove a; register c; the answer
     was c before b] [tested
     test_dispatch_through_the_index_delivers_the_same_subscribers_in_the_same_order]
+  - MatchIndex treats identity-only Grounded handles as opaque values instead
+    of reading the deliberately absent Grounded.value slot [tested:
+    test_a_transaction_commits_async_launch_before_its_landing;
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - AlphaSet membership is alpha_eq membership [tested
     test_alphaset_is_alpha_membership]
   - LiveView holds exactly what the space holds for its pattern, through
@@ -284,7 +288,12 @@ class MatchIndex:
             elif isinstance(node, Symbol):
                 out.append(("sym", node.name))
             else:
-                value = node.value if isinstance(node, Grounded) else node
+                if type(node) is Grounded:
+                    value = node.value
+                elif isinstance(node, Grounded):
+                    value = getattr(node, "value", node)
+                else:
+                    value = node
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     # Numeric atoms share one token kind because the kernel's
                     # equality is by numeric value: 0 and 0.0 must reach the

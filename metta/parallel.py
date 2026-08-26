@@ -37,8 +37,18 @@ Guarantees:
     tested test_pool_runs_work_concurrently]
   - every worker releases its engine on close, including after an exception
     [tested test_close_releases_every_engine]
-  - a closed pool refuses new work naming the cause rather than hanging
-    [tested test_closed_pool_refuses_work]
+  - every Python and engine-backed spawn door snapshots ContextVars at launch,
+    including EnginePool's OS-thread jobs [tested:
+    test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - pool submission is linearized with close, so every accepted Future reaches
+    a worker before its stop sentinel; a closed pool refuses new work naming
+    the cause rather than hanging [tested:
+    test_submit_and_close_linearize_accepted_work,
+    test_closed_pool_refuses_work; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+  - FutureSpace iteration performs a terminal drain after settlement and cannot
+    lose an answer inserted between its live snapshot and settled check [tested:
+    test_future_iteration_drains_the_terminal_snapshot; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Fails when:
   - the work is not engine-bound. A pool costs one thread and one engine per
     worker, so fanning out calls that are already fast buys queueing overhead
@@ -62,6 +72,7 @@ Open Obligations:
 
 from __future__ import annotations
 
+import contextvars
 import logging
 import os
 import queue
@@ -91,7 +102,13 @@ __all__ = [
 ]
 
 # What a worker takes off the queue: the future to settle, and the call.
-_Job = tuple["Future[Any]", Callable[..., Any], tuple[Any, ...], dict[str, Any]]
+_Job = tuple[
+    "Future[Any]",
+    contextvars.Context,
+    Callable[..., Any],
+    tuple[Any, ...],
+    dict[str, Any],
+]
 
 
 class EnginePool:
@@ -180,11 +197,11 @@ class EnginePool:
             job = self._work.get()
             if job is None:
                 return
-            future, fn, args, kwargs = job
+            future, context, fn, args, kwargs = job
             if not future.set_running_or_notify_cancel():
                 continue
             try:
-                result = fn(*args, **kwargs)
+                result = context.run(fn, *args, **kwargs)
             except BaseException as exc:  # noqa: BLE001
                 # A BaseException crosses to the caller too: a worker that
                 # swallowed KeyboardInterrupt would hide it entirely.
@@ -205,8 +222,10 @@ class EnginePool:
                 raise PettaError(
                     msg
                 )
-        future: Future[R] = Future()
-        self._work.put((future, fn, args, kwargs))
+            # ThreadPoolExecutor uses the same transition: accepting work and
+            # inserting it precede shutdown's sentinel under one state lock.
+            future: Future[R] = Future()
+            self._work.put((future, contextvars.copy_context(), fn, args, kwargs))
         return future
 
     def map[T, R](self, fn: Callable[[T], R], items: Iterable[T]) -> list[R]:
@@ -378,18 +397,26 @@ class FutureSpace(Space):
         try:
             while True:
                 current = self.atoms()
-                unmatched = list(seen)
-                for atom in current:
-                    try:
-                        unmatched.remove(atom)
-                    except ValueError:
-                        yield atom
+                yield from _unseen_occurrences(current, seen)
                 seen = current
                 if self.settled():
+                    # Settlement is terminal for future-produced answers. One
+                    # final snapshot closes the snapshot-to-settled race.
+                    yield from _unseen_occurrences(self.atoms(), seen)
                     return
                 subscription.wait(0.05)
         finally:
             subscription.cancel()
+
+
+def _unseen_occurrences(current: list[Atom], seen: list[Atom]) -> Iterator[Atom]:
+    """Yield the multiset difference from one ordered atom snapshot."""
+    unmatched = list(seen)
+    for atom in current:
+        try:
+            unmatched.remove(atom)
+        except ValueError:
+            yield atom
 
 
 def _future(owner: Space, head: str, *arguments: Any) -> FutureSpace:

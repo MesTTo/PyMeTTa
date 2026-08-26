@@ -75,9 +75,13 @@ RUNG = (
 #: pair: 32,666,762 at a58e3d17 and 116,491,178 at 6917bef7. The answers
 #: are unchanged; ai-brief-p14-relational-ops-fastpath carries the
 #: ground-direction fast path [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 124314210
-
-
+#: RE-PINNED 2026-08-26, 124314210 to 124314232 (+22), on the composed
+#: async-scheduler tree: a live operation call pays the six-inference
+#: admission probe the baseline's p14_async_scheduler_comment prices,
+#: and the scheduler, context-callback and exact-memo lifecycle clauses
+#: move compiled-image layout by tens, the class this file's chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 124314232
 def twin(m):
     """Run eighty expand-and-mate rounds, then count what the space holds."""
     nodup = S.add_atom_no_duplicate

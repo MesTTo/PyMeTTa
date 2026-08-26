@@ -272,11 +272,11 @@ def from_pattern(pattern, max_leaves: int = 8):
     st = _st()
     term = _encode(pattern)
     values = ground_atoms(max_leaves)
-    names = tuple(name for name in term.vars if name != "_")
+    variable_names = tuple(name for name in term.vars if name != "_")
 
     @st.composite
     def instances(draw):
-        bindings = {name: draw(values) for name in names}
+        bindings = {name: draw(values) for name in variable_names}
 
         def instantiate(atom):
             if not isinstance(atom, Variable):

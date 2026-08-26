@@ -8,6 +8,10 @@ spelling; and a free identifier must be a
 parameter, a known function, or read as a data constructor, so a compiled
 body is pure atoms that any evaluator can take whole.
 Guarantees:
+  - ``async def`` refuses with both executable alternatives: ``@op`` returns
+    a FutureSpace, while ``aio.AsyncMeTTa.call`` keeps orchestration in the
+    host event loop [tested:
+    test_define_async_refusal_names_both_actionable_remedies; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - the compiler resolves exact standard-module attribute callables from a
     function's globals and populated closure cells [tested:
     test_callable_mentions_share_operator_and_fourteen_math_names;
@@ -596,7 +600,11 @@ def compile_function(
         msg = f"{fn.__name__} is not a function definition"
         raise CompileError(msg, construct="def")
     if isinstance(definition, ast.AsyncFunctionDef):
-        msg = "an async function has no MeTTa equation; register it as an operation instead"
+        msg = (
+            "an async function has no MeTTa equation; register it with "
+            "@space.op(effect=...) to answer a FutureSpace, or run host-side "
+            "async orchestration through aio.AsyncMeTTa.call"
+        )
         raise CompileError(
             msg,
             construct="async def",

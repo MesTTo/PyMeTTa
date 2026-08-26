@@ -259,7 +259,7 @@ def call_parameter_names(space: Any, called: str, arity: int) -> tuple[str, ...]
     if operation is None or arity not in operation.arities:
         return None
     names = tuple(operation.parameter_names[:arity])
-    return names if len(names) == arity and len(set(names)) == arity else None
+    return names if len(names) == len(set(names)) == arity else None
 
 
 def _remember_defined_callable(space: Any, fn: types.FunctionType, name: str) -> None:

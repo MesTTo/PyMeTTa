@@ -37,6 +37,13 @@ import re
 #: reason beside the name.
 HOST_SERVICES = {
     "catch_recover/2",
+    # The callable doors' deprecation reads. The row lookup is the feature's
+    # own consult, and the shim's apply-seam emptiness probe rides the same
+    # published relation so an empty catalog costs one crossing per process
+    # rather than one goal-string read per name [measured 2026-08-26: 1,311
+    # inferences per name's first call through the goal-string read, double
+    # digits through the apply seam].
+    "petta_deprecation/3",
     # The modifier walk gained a fourth argument rather than a second walk:
     # it now also answers whether the pattern carries a sequence variable,
     # which the query door must know before it builds a candidate head, and
@@ -160,6 +167,7 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: "host-choice" is a consult whose answer only the host can make.
 FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
+    "petta_deprecation/3": "door",
     "lift_pattern_modifiers/4": "door",
     "petta_seq_query_plan/2": "door",
     "petta_with_under/2": "door",

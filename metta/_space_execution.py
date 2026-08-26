@@ -19,7 +19,7 @@ Guarantees:
     accounting across progressive pulls [tested:
     test_answers_project_caller_variables_and_slices_stay_answers,
     test_a_cached_definition_memoizes_its_complete_answer_bag;
-    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+    commit=WORKTREE]
   - lazy evaluation keeps the answer value distinct from its parallel caller
     bindings [tested: test_calls_keep_values_and_binding_rows;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]

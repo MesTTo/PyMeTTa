@@ -67,9 +67,13 @@ SUCCESSORS = ((S.b, S.a), (S.c, S.b), (S.d, S.c), (S.e, S.d), (S.f, S.e), (S.g, 
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 17474
-
-
+#: RE-PINNED 2026-08-26, 17474 to 17457 (-17), on the composed
+#: async-scheduler tree: a live operation call pays the six-inference
+#: admission probe the baseline's p14_async_scheduler_comment prices,
+#: and the scheduler, context-callback and exact-memo lifecycle clauses
+#: move compiled-image layout by tens, the class this file's chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 17457
 def twin(m):
     """State six facts, close them transitively, and search backwards."""
     # Reaching either relation's unmatched boundary must FAIL the search rather

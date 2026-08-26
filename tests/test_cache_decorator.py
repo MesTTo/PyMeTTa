@@ -7,19 +7,21 @@ Guarantees:
     functools.lru_cache's own names; the uncached control declares the
     automatic memo policy's explicit refusal.
   [tested: test_a_cached_definition_memoizes_its_complete_answer_bag;
-   commit=04b794b718563ebb114800abebfc6f1200d7b835]
+   commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - cached answer replay preserves duplicate occurrences because multiplicity
-    is part of the result law.
-  [tested: test_a_cached_definition_preserves_duplicate_answers;
-  commit=04b794b718563ebb114800abebfc6f1200d7b835]
+    is part of the result law, even after the owning space shadows the replay
+    loop's host spelling.
+  [tested: test_a_cached_definition_preserves_duplicate_answers,
+   test_exact_cache_replay_ignores_a_space_local_between_shadow; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - cached and uncached answer bags agree for ground recursion, open calls and
-    a dependency whose definition changes between calls.
-  [tested: test_exact_cache_matches_uncached_answer_bags;
-  commit=04b794b718563ebb114800abebfc6f1200d7b835]
+    a dependency whose definition changes between calls, including when an
+    already-live pool engine populated the old private answer table.
+  [tested: test_exact_cache_matches_uncached_answer_bags,
+   test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - stacking cache over op refuses before definition registration and sends
     host-only memoization to functools.
   [tested: test_cache_over_an_operation_refuses_before_definition_registration;
-   commit=04b794b718563ebb114800abebfc6f1200d7b835]
+   commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
   that were made and has no maxsize; `unchecked=True` is the staleness the
   engine's own `(cache <name> unchecked)` accepts, not a size.
@@ -35,6 +37,7 @@ from collections import Counter
 import pytest
 
 from metta import MeTTa, S, V
+from metta.parallel import EnginePool
 
 #: Big enough that the uncached twin cannot finish inside the default
 #: evaluation fuel, which is the point being made, and small enough that the
@@ -289,6 +292,66 @@ def test_exact_memo_wrappers_keep_named_space_owners_separate() -> None:
     assert right_shared.cache_info() == {"entries": 1, "answers": 3}
 
 
+def test_exact_cache_replay_ignores_a_space_local_between_shadow() -> None:
+    """Multiplicity uses the host builtin after a local operation is removed."""
+    metta = MeTTa().space("&cache-between-shadow")
+    metta.op(
+        lambda _low, _high: "shadow",
+        name="between",
+        effect="pureStructural",
+        arities=[2],
+    )
+    metta.unregister_op("between")
+
+    @metta.cache(name="cache-between-replay")
+    def replayed(left, right):
+        yield S.Pair(left, right)
+        yield S.Pair(left, right)
+
+    assert Counter(map(str, replayed(S.a, S.b))) == Counter({"(Pair a b)": 2})
+
+
+def test_exact_cache_invalidation_crosses_a_live_pool_engine() -> None:
+    """A worker that populated a private SWI table must see the next generation."""
+    metta = MeTTa().space("&cache-live-worker")
+
+    def install_before():
+        @metta.define(name="cache-live-source")
+        def source(value):
+            yield S.Before(value)
+            yield S.Before(value)
+
+        return source
+
+    source = install_before()
+
+    @metta.cache(name="cache-live-derived")
+    def derived(value):
+        yield source(value)
+
+    with EnginePool(workers=1) as workers:
+        first = workers.submit(
+            lambda: Counter(map(str, derived(S.seed)))
+        ).result(timeout=30)
+        assert first == Counter({"(Before seed)": 2})
+
+        def install_after():
+            @metta.define(name="cache-live-source")
+            def source(value):
+                yield S.After(value)
+                yield S.After(value)
+                yield S.Extra(value)
+
+            return source
+
+        install_after()
+
+        second = workers.submit(
+            lambda: Counter(map(str, derived(S.seed)))
+        ).result(timeout=30)
+        assert second == Counter({"(After seed)": 2, "(Extra seed)": 1})
+
+
 def test_cache_over_an_operation_refuses_before_definition_registration() -> None:
     """An operation is one definition door; host memoization names functools."""
     metta = MeTTa().space("&cache-over-op")
@@ -312,3 +375,7 @@ def test_cache_over_an_operation_refuses_before_definition_registration() -> Non
         assert "functools.lru_cache" in message
     assert metta.run("!(match &petta (defined &cache-over-op cache-op-value) yes)") == [[]]
     assert cache_op_value(3) == 3
+
+    metta.unregister_op("cache-op-value")
+    cached = metta.cache(cache_op_value, name="cache-after-op")
+    assert cached(3) == [3]

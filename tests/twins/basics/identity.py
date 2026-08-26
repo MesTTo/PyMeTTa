@@ -1,8 +1,13 @@
-"""examples/basics/identity.metta in Python: square a number, check the answer.
+"""Purpose: translate examples/basics/identity.metta into Python.
 
 The example defines `(= (f $x) (* $x $x))` and asserts `(f 1)` is 1. Here the
 definition is an ordinary Python function the engine compiles, and the claim
 is Python's own `assert`.
+
+Guarantees:
+  - the translated definition and assertion agree with the source example
+    inside the current inference budget [tested:
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 """
 
 #: Inferences this twin spends, its own tripwire.
@@ -252,9 +257,33 @@ is Python's own `assert`.
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 2825
-
-
+#: The parallel async-scheduler branch's own history of this pin,
+#: kept for the record; the merged value follows below:
+#: engine/reader.so; commit=WORKTREE].
+#: RE-PINNED 2026-08-26, 2826 to 2801. The identity implementation is
+#: unchanged and its twin again costs exactly what the source example costs.
+#: The base worktree reads twin=2826 while this tree reads twin=2801, each
+#: stable across three fresh processes
+#: [measured: 2801 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=6aa5a678 base worktree against
+#: p14-audit-async with engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+#: RE-PINNED 2026-08-26, 2801 to 2806, on the completed async-scheduler
+#: tree. The identity implementation and the example remain unchanged, and
+#: the example still reads 2801; the five-inference twin move is compiled
+#: program layout after the final lifecycle and exact-memo clauses landed.
+#: Three fresh serial processes agreed at 2806
+#: [measured: 2806 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=p14-audit-async with
+#: engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+#: RE-PINNED 2026-08-26, 2825 to 2845 (+20), on the composed
+#: async-scheduler tree: a live operation call pays the six-inference
+#: admission probe the baseline's p14_async_scheduler_comment prices,
+#: and the scheduler, context-callback and exact-memo lifecycle clauses
+#: move compiled-image layout by tens, the class this file's chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 2845
 def twin(m):
     """Define the square, then check it."""
     @m.define

@@ -446,7 +446,9 @@ class StatementCompilerMixin(CompilerContext):
             and isinstance(head.op, ast.Sub)
         ):
             removal = self._space_augmented_removal(head, self.block(rest))
-            assert removal is not None
+            if removal is None:
+                msg = "a guarded space-local augmented removal lowered to nothing"
+                raise AssertionError(msg)
             return removal
         pattern, value = self._binding(head)
         return Expression([Symbol("let*"), Expression([Expression([pattern, value])]), self.block(rest)])
@@ -876,7 +878,9 @@ class StatementCompilerMixin(CompilerContext):
             removal = self._space_augmented_removal(
                 head, _superpose(self.yield_answers(rest))
             )
-            assert removal is not None
+            if removal is None:
+                msg = "a guarded space-local augmented removal lowered to nothing"
+                raise AssertionError(msg)
             return [removal]
         pattern, value = self._binding(head)
         tail = _superpose(self.yield_answers(rest))

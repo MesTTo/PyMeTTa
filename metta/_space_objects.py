@@ -1051,7 +1051,14 @@ class _EngineFunction:
 class _CompositeEngineFunction:
     """One bound word whose public call expands to a composite MeTTa term."""
 
-    __slots__ = ("__name__", "__qualname__", "_recipe", "_space")
+    __slots__ = (
+        "__name__",
+        # The same pure-Python spelling of method.__qualname__'s C getset the
+        # bound-function class documents above its own slot.
+        "__qualname__",  # pylint: disable=class-variable-slots-conflict
+        "_recipe",
+        "_space",
+    )
 
     def __init__(self, space: MeTTa, recipe: OperatorRecipe) -> None:
         self._space = space

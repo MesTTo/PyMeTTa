@@ -93,9 +93,10 @@ def test_an_empty_deprecation_catalog_costs_one_cheap_probe(
     monkeypatch.setattr(space_module.Runtime, "once", counting_once)
     with metta._new_space() as space:
         for name in ("parse", "repr", "car-atom"):
-            answers = space.fn[name] if name == "car-atom" else getattr(
+            resolved = space.fn[name] if name == "car-atom" else getattr(
                 space.fn, name
             )
+            assert callable(resolved)
         [answer] = space.fn.parse('"probe"')
         [answer] = space.fn.repr(answer)
     assert reads == []

@@ -59,9 +59,13 @@ from metta import S, superpose
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 3175
-
-
+#: RE-PINNED 2026-08-26, 3175 to 3198 (+23), on the composed
+#: async-scheduler tree: a live operation call pays the six-inference
+#: admission probe the baseline's p14_async_scheduler_comment prices,
+#: and the scheduler, context-callback and exact-memo lifecycle clauses
+#: move compiled-image layout by tens, the class this file's chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 3198
 def twin(m):
     """One head, one branch, two answers."""
     # The def's own name IS the head, so `name=` is for heads Python cannot

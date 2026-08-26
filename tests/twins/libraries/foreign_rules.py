@@ -81,9 +81,13 @@ from metta import S, V, lib
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 36811
-
-
+#: RE-PINNED 2026-08-26, 36811 to 36833 (+22), on the composed
+#: async-scheduler tree: a live operation call pays the six-inference
+#: admission probe the baseline's p14_async_scheduler_comment prices,
+#: and the scheduler, context-callback and exact-memo lifecycle clauses
+#: move compiled-image layout by tens, the class this file's chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 36833
 #: The provider under test, thirteen lines. Its whole contribution is declaring
 #: the `rules` capability beside match, enumerate, add and remove. A path is
 #: a Path, never text.

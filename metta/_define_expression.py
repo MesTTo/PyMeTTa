@@ -817,6 +817,7 @@ class ExpressionCompilerMixin(CompilerContext):
         if not (
             isinstance(func, ast.Attribute)
             and isinstance(func.value, ast.Name)
+            # policy-inventory-exempt: mechanism-internal; reason=the two namespace-builder identities the compiler recognises lexically, a grammar fact rather than a selectable policy; evidence=bindings/python/tests/test_mention_doors.py:test_rejected_attributes_never_execute_host_objects
             and func.value.id in {"S", "fn"}
             and func.value.id not in self.scope
             and func.value.id in self.builders

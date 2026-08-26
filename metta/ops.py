@@ -28,10 +28,11 @@ Guarantees:
     [tested: test_each_remaining_annotation_shape_refuses_or_carries;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - callable code flags, through partials, wrappers, bound methods, and
-    callable objects, classify generators and refuse coroutine functions
+    callable objects, classify generators and route coroutine functions to
+    future-space dispatch
     before registration changes any engine or registry state [tested:
     test_register_op_reads_co_flags_and_refuses_or_awaits;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - generator signatures supply positional and sparse-dict relation row names
     after injected engine parameters are removed [tested:
     test_sparse_relational_dict_candidates_bind_parameter_names;
@@ -266,6 +267,9 @@ def _type_declarations(
     variadic: inspect.Parameter | None,
     arities: list[int],
     fn: Callable,
+    *,
+    result_type: Atom | None = None,
+    include_annotation_claims: bool = True,
 ) -> list[Expression]:
     """Everything a signature declares: the (-> ...) arrows over the full
     arity, one per Union combination, plus the declarations of every class
@@ -310,10 +314,33 @@ def _type_declarations(
             ]
         for argument_annotations in annotation_sets:
             all_annotations.extend((*argument_annotations, ret))
-            for atom in (
-                *declaration_exprs(name, argument_annotations, ret),
-                *annotation_exprs(name, argument_annotations, ret),
-            ):
+            arrows = declaration_exprs(name, argument_annotations, ret)
+            if result_type is not None:
+                arrows = [
+                    _expr(
+                        S[":"],
+                        S[name],
+                        Expression([*arrow.children[2].children[:-1], result_type]),
+                    )
+                    for arrow in arrows
+                ]
+            claims = (
+                annotation_exprs(name, argument_annotations, ret)
+                if include_annotation_claims
+                else []
+            )
+            if result_type is not None and claims:
+                # Annotation reflection describes the public call result, just
+                # as the arrow does; the coroutine's eventual Python value is
+                # encoded into that FutureSpace [tested:
+                # test_async_reflection_has_one_public_return_and_effect;
+                # commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+                claims[-1] = _expr(
+                    S.annotation,
+                    S[name],
+                    _expr(S["return"], result_type),
+                )
+            for atom in (*arrows, *claims):
                 if atom not in declared:
                     declared.append(atom)
     for cls in referenced_classes(all_annotations):
@@ -361,11 +388,13 @@ def _operation_kind(fn: Callable, transport: Literal["encoded", "raw"]) -> str:
         )
         raise TypeError(msg)
     if flags & _CO_COROUTINE:
-        msg = (
-            f"cannot register {name}: a coroutine function cannot run through "
-            "synchronous op"
-        )
-        raise TypeError(msg)
+        if transport == "raw":
+            msg = (
+                f"cannot register {name}: an async operation answers an "
+                "encoded future-space, so transport='raw' cannot carry it"
+            )
+            raise TypeError(msg)
+        return "async"
     if flags & _CO_ITERABLE_COROUTINE:
         msg = (
             f"cannot register {name}: a generator-based coroutine cannot run "
@@ -522,11 +551,20 @@ def _operation_declarations(
     arities: list[int],
     fn: Callable,
     supplied: list[Expression],
+    result_type: Atom | None = None,
 ) -> tuple[Expression, ...]:
     has_annotations = bool(resolved_annotations(fn) or typing.get_overloads(fn))
     declarations = (
-        _type_declarations(name, params, variadic, arities, fn)
-        if has_annotations
+        _type_declarations(
+            name,
+            params,
+            variadic,
+            arities,
+            fn,
+            result_type=result_type,
+            include_annotation_claims=has_annotations,
+        )
+        if has_annotations or result_type is not None
         else []
     )
     for declaration in supplied:
@@ -666,7 +704,7 @@ def _engine_positions(params: list[inspect.Parameter], fn: Callable) -> list[int
     return positions
 
 
-def _with_engine(fn: Callable, positions: list[int]) -> Callable:
+def _with_engine(runtime: Any, fn: Callable, positions: list[int]) -> Callable:
     """Wrap fn so the engine weaves itself into the injected slots at each
     call, bound to the CURRENT context's space: an operation called from a
     program running in &kb queries &kb, the &self reading, so the op
@@ -678,13 +716,47 @@ def _with_engine(fn: Callable, positions: list[int]) -> Callable:
     @functools.wraps(fn)
     def woven(*args):
         space_api = _importlib.import_module(f"{__package__}._space")
-        engine = space_api.MeTTa(_self_name=space_api.current_space())
+        # Delayed async injection must not reacquire the process runtime lock;
+        # the registration runtime already owns the calling space [tested:
+        # test_async_engine_injection_uses_the_registration_runtime;
+        # commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+        engine = space_api.MeTTa(
+            _self_name=space_api.current_space(),
+            _runtime=runtime,
+        )
         threaded = list(args)
         for position in positions:
             threaded.insert(position, engine)
         return fn(*threaded)
 
     return woven
+
+
+def _async_effective_declarations(
+    metta_name: str,
+    catalog: tuple[Expression, ...],
+    operation_effect: EffectClass,
+) -> tuple[tuple[Expression, ...], EffectClass]:
+    """Join writesState into a coroutine operation's declared effect.
+
+    A pure coroutine body still allocates and settles a distinct public
+    FutureSpace. Reflect that observable write so caches cannot merge two
+    cancellation handles [tested:
+    test_async_calls_are_effective_writes_with_independent_handles;
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+    """
+    effective = operation_effect.join(EffectClass.writesState)
+    if effective is operation_effect:
+        return catalog, operation_effect
+    declared_effect = _expr(S.effect, S[metta_name], S[operation_effect.value])
+    effective_effect = _expr(S.effect, S[metta_name], S[effective.value])
+    return (
+        tuple(
+            effective_effect if fact == declared_effect else fact
+            for fact in catalog
+        ),
+        effective,
+    )
 
 
 def register[**P, R](
@@ -738,6 +810,10 @@ def register[**P, R](
     supplied, catalog, operation_effect = _partition_declarations(
         metta_name, declarations, effect
     )
+    if kind == "async":
+        catalog, operation_effect = _async_effective_declarations(
+            metta_name, catalog, operation_effect
+        )
     explicit_arities = arities
     arities, params, variadic = _arities(fn, arities)
     injected = _engine_positions(params, fn)
@@ -757,6 +833,12 @@ def register[**P, R](
     # registry commits last.
     if inverse is not None and not callable(inverse):
         msg = f"the inverse of {metta_name} is not callable: {inverse!r}"
+        raise TypeError(msg)
+    if kind == "async" and inverse is not None:
+        msg = (
+            f"{metta_name} is async and cannot declare an inverse: its forward "
+            "result is a FutureSpace, while an inverse consumes a landed value"
+        )
         raise TypeError(msg)
     pass_atoms = _passes_atoms(metta_name, catalog)
     if pass_atoms and kind.startswith("raw_"):
@@ -782,16 +864,28 @@ def register[**P, R](
         arities=arities,
         fn=fn,
         supplied=supplied,
+        result_type=S.SpaceType if kind == "async" else None,
     )
     # The grammar check is the last read before the registration transaction:
     # every Python-side refusal above remains free, and an unreadable name has
     # not reflected a contract atom or opened a predicate when it is rejected.
     _require_readable_name(runtime, metta_name)
     conversion_hints = resolved_annotations(fn)
+    if kind == "async":
+        # Async operation settlement and FutureSpace lifecycle are lib_thread's
+        # scheduler surface. Load it into the operation's declaration space
+        # before compiling the host clause, so the first call cannot observe a
+        # half-installed future door [tested:
+        # test_an_async_operation_answers_a_future_space; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+        parallel_api = _importlib.import_module(f"{__package__}.parallel")
+        space_api = _importlib.import_module(f"{__package__}._space")
+        parallel_api._ensure_thread_library(
+            space_api.Space(space, _runtime=runtime)
+        )
     previous = REGISTRY.get(metta_name)
     operation = Operation(
         name=metta_name,
-        fn=_with_engine(fn, injected) if injected else fn,
+        fn=_with_engine(runtime, fn, injected) if injected else fn,
         kind=kind,
         arity=max(arities),
         effect=operation_effect,

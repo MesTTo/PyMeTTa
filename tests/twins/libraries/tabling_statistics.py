@@ -22,10 +22,11 @@ the held cursor's own SWI engine and SWI's tabling statistics are per-engine
 [measured again 2026-08-24; commit=1e264c186c531e69acde5ad03ff6a79210626df4]. So the counters come back through
 `eval`, the term door.
 
-A second thing does have to be forced: a call is LAZY, so `reach(S.a, V.y)` on
-its own performs no engine work and the counters below it would all read zero
-for that reason too. The example's own `(collapse (reach a $y))` is what forces
-it, and `list(...)` is that collapse.
+A second thing does have to be forced on the same engine that owns the table
+counters. A function call is lazy, and iterating it uses a held cursor engine;
+the example's collapse forces the call on the term door. The twin sends the
+inner call through `m.eval`, which yields the same answer values on the same
+engine before reading the per-engine counters there too.
 
 `reach` is written by `@m.define` and tabled through `lib.tabling`. `@m.cache`
 uses the distinct exact-bag memo substrate, whose `cache_info()` reports memo
@@ -77,8 +78,23 @@ from metta import S, V, lib, match
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 60177
-
+#: RE-PINNED 2026-08-26, 60177 to 59676. The twin now forces every tabled
+#: reach call through ``m.eval`` before reading ``table-stats`` through the
+#: same door, so both operations observe the same SWI engine's private table
+#: counters. The source example still costs 62847 and all six counter claims
+#: agree. Three fresh serial processes agreed at the new cost
+#: [measured: 59676 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/libraries/tabling_statistics.metta; fixture=p14-audit-async with
+#: engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+#: RE-PINNED 2026-08-26, 59676 to 55898 (-3778), on the composed
+#: async-scheduler tree, where this twin RUNS again: the scheduler
+#: admission seam routes live operation calls through the engine
+#: evaluator, so the tabled predicate is the one the call reaches and
+#: every counter counts; the declaration's reflection row and the
+#: dispatch ownership harden further on the tabling-seam branch
+#: measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 55898
 #: One call, one answer, nothing invalidated: what the first three claims all
 #: expect, because the two writes between them are writes the subgoal never read.
 UNTOUCHED = [
@@ -102,7 +118,7 @@ def twin(m):
     subgoal = S.table_stats(S.reach(V.x, V.y))
 
     # Nothing has happened yet: one call, one answer, no invalidation.
-    assert list(reach(S.a, V.y)) == [S.b]
+    assert m.eval(S.reach(S.a, V.y)) == [S.b]
     [counted] = m.eval(subgoal)
     assert list(counted) == UNTOUCHED
 
@@ -129,7 +145,7 @@ def twin(m):
     # Re-evaluation is on demand, so it takes a call. reevaluated LOWER than
     # invalidated would be SWI deciding a dependency changed without changing
     # this table's answers, which is the incremental win rather than a rebuild.
-    assert sorted(reach(S.a, V.y)) == [S.b, S.c]
+    assert sorted(m.eval(S.reach(S.a, V.y))) == [S.b, S.c]
     [counted] = m.eval(subgoal)
     assert list(counted) == [
         S.tables(1), S.answers(2), S.complete_call(3),

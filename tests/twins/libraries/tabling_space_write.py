@@ -91,9 +91,24 @@ from metta import S, V, equation, lib, match
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 59111
-
-
+#: The parallel async-scheduler branch's own history of this pin,
+#: kept for the record; the merged value follows below:
+#: RE-PINNED 2026-08-26, 63372 to 63560, on the completed async-scheduler
+#: tree. The six incremental-table claims and their answers are unchanged;
+#: the movement is the compiled QLF and predicate-index layout after adding
+#: scheduler, callback, and lifecycle clauses. Three fresh serial processes
+#: agreed at the new cost
+#: [measured: 63560 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/libraries/tabling_space_write.metta; fixture=p14-audit-async with
+#: engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+#: RE-PINNED 2026-08-26, 59111 to 59176 (+65), on the composed
+#: async-scheduler tree: a live operation call pays the six-inference
+#: admission probe the baseline's p14_async_scheduler_comment prices,
+#: and the scheduler, context-callback and exact-memo lifecycle clauses
+#: move compiled-image layout by tens, the class this file's chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 59176
 def twin(m):
     """Table two readers of a space, then write to the space under them."""
     m += lib.tabling

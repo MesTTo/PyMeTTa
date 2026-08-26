@@ -171,3 +171,16 @@ _.network
 # outside its sight rather than absent.
 _.observe_configuration
 _.remove_case
+
+# The scheduler's context-propagation callbacks: the engine invokes them by
+# name through _callbacks.py's string table ("fork_contexts" ->
+# ("_task_context", "fork_many"), "release_contexts" ->
+# ("_task_context", "release_many")), an indirection a reachability scan
+# cannot see; test_import_identity pins the table rows to these callables.
+fork_many
+release_many
+
+# The settled reacts declaration keeps reaction as the compatibility alias
+# on both the live Space and its async mirror; callers reach it by the old
+# spelling from user programs, never from inside the package.
+_.reaction

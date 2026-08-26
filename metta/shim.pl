@@ -4,6 +4,17 @@
 %   derivations on top of an unmodified PeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
+%   - async Python operations answer a future space immediately, publish their
+%     launch through the current observation frame, and publish landing only
+%     from the later event-loop completion [tested:
+%     test_an_async_operation_answers_a_future_space,
+%     test_a_transaction_commits_async_launch_before_its_landing;
+%     commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+%   - scheduler tasks dispatch Python callbacks under their copied ContextVars
+%     and detach oracleIO calls onto transient offload threads [tested:
+%     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
+%     test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
+%     commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 %   - atomic entry points publish atom hooks after commit, while speculative
 %     and reified-world entry points discard their buffered event segments;
 %     speculative and world execution also fence the non-backtrackable State
@@ -2362,7 +2373,7 @@ petta_py_dispatch_truthy(Value, Result) :-
 
 petta_py_dispatch_det(Name, Args, Result) :-
     maplist(petta_py_encode, Args, TA),
-    catch(py_call(petta_ops:dispatch(Name, TA), TR),
+    catch(petta_py_host_call(Name, petta_py_call_det(Name, TA, TR)),
           Error, TR = '$petta_op_error'(Error)),
     (   TR = '$petta_op_error'(DetError)
     ->  petta_py_op_erring(Name, Args, DetError, Result)
@@ -2379,6 +2390,224 @@ petta_py_dispatch_det(Name, Args, Result) :-
         ;   petta_py_decode_shared_(TR, Result, variables_of(Args), _)
         )
     ).
+
+%A scheduler engine owns one retained Python Context token. Direct host calls
+%have none and keep their old callback path. Context selection is outside the
+%Python registry's hot dispatch so unscheduled calls pay one b-value probe and
+%no copied Context.
+petta_py_call_det(Name, Args, Result) :-
+    (   nb_current('$petta_python_context', Context), integer(Context)
+    ->  py_call(petta_ops:dispatch_context(Context, Name, Args), Result)
+    ;   py_call(petta_ops:dispatch(Name, Args), Result)
+    ).
+
+petta_py_call_many(Name, Args, Mode, Result) :-
+    (   nb_current('$petta_python_context', Context), integer(Context)
+    ->  py_iter(petta_ops:dispatch_many_context(Context, Name, Args, Mode),
+                Result)
+    ;   py_iter(petta_ops:dispatch_many(Name, Args, Mode), Result)
+    ).
+
+petta_py_call_raw_det(Name, Args, Result) :-
+    (   nb_current('$petta_python_context', Context), integer(Context)
+    ->  py_call(petta_ops:dispatch_raw_context(Context, Name, Args), Result)
+    ;   py_call(petta_ops:dispatch_raw(Name, Args), Result)
+    ).
+
+petta_py_call_raw_many(Name, Args, Result) :-
+    (   nb_current('$petta_python_context', Context), integer(Context)
+    ->  py_iter(petta_ops:dispatch_raw_many_context(Context, Name, Args),
+                Result)
+    ;   py_iter(petta_ops:dispatch_raw_many(Name, Args), Result)
+    ).
+
+%Go's blocking-syscall handoff applied at the five-rank admission boundary:
+%oracleIO yields before entering Python; the scheduler detaches that engine
+%onto a transient worker and keeps every bounded normal carrier available.
+%writesState stays on normal carriers and serializes at the store write door;
+%the three read ranks remain eligible on every normal carrier. A deterministic
+%call reifies success, failure, or error and hands back to normal explicitly.
+%A nondeterministic call runs in a nested SWI engine: each pull happens after
+%a dirty handoff and each answer returns after a normal handoff, avoiding both
+%carrier pinning and a cleanup-time yield (SWI forbids engine_yield/1 from a
+%cleanup handler) [source:
+%https://github.com/golang/go/blob/c19862e5f8415b4f24b189d065ed739517c548ba/src/runtime/proc.go#L4781-L4831,
+%Go 1.26.5 entersyscallblock; tested:
+%test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
+%commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+petta_py_host_call(Name, Goal) :-
+    (   nb_current('$petta_scheduler_task', _),
+        petta_operation_effect(Name, oracleIO)
+    ->  (   petta_py_host_many(Name)
+        ->  petta_py_dirty_many(Goal)
+        ;   petta_py_dirty_once(Goal)
+        )
+    ;   call(Goal)
+    ).
+
+petta_py_host_many(Name) :-
+    once(petta_contract_fact([op, Name, _, Kind])),
+    % policy-inventory-exempt: mechanism-internal; reason=the two op kinds whose answers stream nondeterministically, a projection of the catalog's declared op-kind vocabulary rather than a second list; evidence=engine/spaces/catalog.pl:petta_catalog_preset/1
+    memberchk(Kind, [many, raw_many]).
+
+petta_py_dirty_once(Goal) :-
+    engine_yield('$petta_scheduler_lane'(dirty)),
+    catch(( once(call(Goal)) -> Outcome = success ; Outcome = failure ),
+          Error,
+          Outcome = error(Error)),
+    engine_yield('$petta_scheduler_lane'(normal)),
+    petta_py_dirty_outcome(Outcome).
+
+petta_py_dirty_outcome(success).
+petta_py_dirty_outcome(failure) :- fail.
+petta_py_dirty_outcome(error(Error)) :- throw(Error).
+
+petta_py_dirty_many(Goal) :-
+    term_variables(Goal, Variables),
+    (   nb_current('$petta_python_context', Context0)
+    ->  Context = Context0
+    ;   Context = none
+    ),
+    setup_call_cleanup(
+        engine_create(Variables,
+                      petta_py_dirty_inner(Context, Goal, Variables),
+                      HostEngine),
+        petta_py_dirty_many_next(HostEngine, Variables),
+        engine_destroy(HostEngine)).
+
+petta_py_dirty_inner(none, Goal, _) :- !,
+    call(Goal).
+petta_py_dirty_inner(Context, Goal, _) :-
+    b_setval('$petta_python_context', Context),
+    call(Goal).
+
+petta_py_dirty_many_next(HostEngine, Variables) :-
+    engine_yield('$petta_scheduler_lane'(dirty)),
+    engine_next_reified(HostEngine, Event),
+    petta_py_dirty_many_event(Event, HostEngine, Variables).
+
+petta_py_dirty_many_event(the(Values), HostEngine, Variables) :-
+    engine_yield('$petta_scheduler_lane'(normal)),
+    (   Variables = Values
+    ;   petta_py_dirty_many_next(HostEngine, Variables)
+    ).
+petta_py_dirty_many_event(no, _, _) :-
+    engine_yield('$petta_scheduler_lane'(normal)),
+    fail.
+petta_py_dirty_many_event(throw(Error), _, _) :-
+    engine_yield('$petta_scheduler_lane'(normal)),
+    throw(Error).
+
+%The coroutine itself is not created here. async_prepare retains decoded
+%arguments and a copied Context; observation_defer starts it only after the
+%outer transaction has committed and discards it on rollback. The launch atom
+%therefore rides the transaction's ordinary buffered event segment, while the
+%landing atom below is a later write from the event-loop thread.
+petta_py_dispatch_async(Name, Args, Space) :-
+    maplist(petta_py_encode, Args, Tagged),
+    petta_async_future_new(Space, Done),
+    (   catch(petta_py_async_prepare(Name, Tagged, Space, Done, Token),
+              Error,
+              ( petta_async_future_abandon(Space, Done), throw(Error) ))
+    ->  true
+    ;   petta_async_future_abandon(Space, Done),
+        fail
+    ),
+    petta_py_async_publish_launch(Name, Space, Token, Done).
+
+%A local observation frame makes the event and deferred start one ordered
+%segment even outside a user transaction. Nested commit merges the pair into
+%an outer frame; a direct commit publishes launch and then starts. If the
+%launch watcher fails after the write committed, observation_commit/0 still
+%runs the later deferred start before rethrowing.
+petta_py_async_publish_launch(Name, Space, Token, Done) :-
+    seam:observation_begin,
+    catch((   'add-atom'('&petta', ['async-op', Name, Space, launch], _),
+              seam:observation_defer(
+                  petta_py_async_start(Token),
+                  petta_py_async_discard(Token, Space, Done))
+          ->  Outcome = commit
+          ;   Outcome = discard
+          ),
+          Error,
+          Outcome = error(Error)),
+    petta_py_async_finish_launch(Outcome, Token, Space, Done).
+
+petta_py_async_finish_launch(commit, _, _, _) :- !,
+    seam:observation_commit.
+petta_py_async_finish_launch(discard, Token, Space, Done) :- !,
+    seam:observation_discard,
+    petta_py_async_discard(Token, Space, Done),
+    fail.
+petta_py_async_finish_launch(error(Error), Token, Space, Done) :-
+    seam:observation_discard,
+    petta_py_async_discard(Token, Space, Done),
+    throw(Error).
+
+petta_py_async_prepare(Name, Tagged, Space, Done, Token) :-
+    (   nb_current('$petta_python_context', Context), integer(Context)
+    ->  Parent = Context
+    ;   Parent = @(none)
+    ),
+    petta_py_host_call(
+        Name,
+        py_call(petta_ops:async_prepare(Name, Tagged, Parent), Token)),
+    petta_async_future_bind(Token, Name, Space, Done).
+
+petta_py_async_start(Token) :-
+    py_call(petta_ops:async_start(Token), Started),
+    petta_py_bool(Started, true), !.
+petta_py_async_start(Token) :-
+    throw(error(petta_async_start_failed(Token),
+                context(petta_py_async_start/1,
+                        'the prepared coroutine was absent at commit'))).
+
+petta_py_async_discard(Token) :-
+    catch(py_call(petta_ops:async_discard(Token), _), _, true),
+    petta_async_future_discard(Token).
+
+petta_py_async_discard(Token, Space, Done) :-
+    catch(py_call(petta_ops:async_discard(Token), _), _, true),
+    petta_async_future_discard(Token, Space, Done).
+
+petta_py_async_land(Token, Status0, Payload) :-
+    petta_py_tag(Status0, Status),
+    petta_async_future(Token, Name, Space, _),
+    catch(petta_py_async_outcome(Status, Payload, Space, Outcome),
+          Error,
+          Outcome = error(Error)),
+    %Terminal state precedes the landing notification: a synchronous landing
+    %observer may await the future it was told has landed without deadlocking
+    %the callback that still needs to settle it.
+    petta_async_future_settle(Token, Outcome, Name, Space),
+    petta_py_async_publish_landing(Name, Space).
+
+%A watcher failure is raised to the background publisher and logged there; it
+%cannot rewrite an operation outcome that was already committed to its future.
+petta_py_async_publish_landing(Name, Space) :-
+    (   'add-atom'('&petta', ['async-op', Name, Space, landing], _)
+    ->  true
+    ;   throw(error(petta_async_landing_publish_failed(Name, Space),
+                    context(petta_py_async_land/3,
+                            'the lifecycle write answered no result')))
+    ).
+
+petta_py_async_outcome(ok, Tagged, Space, done) :-
+    (   petta_py_declined(Tagged)
+    ->  true
+    ;   petta_py_decode_shared(Tagged, Result, _),
+        'add-atom'(Space, Result, _)
+    ).
+petta_py_async_outcome(cancelled, _, _, cancelled).
+petta_py_async_outcome(error, [Class0, Exception], _,
+                       error(error(python_error(Class, Exception), none))) :-
+    petta_py_tag(Class0, Class).
+
+:- multifile prolog:error_message//1.
+prolog:error_message(petta_async_start_failed(Token)) -->
+    [ 'async operation ~w was prepared but absent when its transaction committed'-[Token] ].
+prolog:error_message(petta_async_landing_publish_failed(Name, Space)) -->
+    [ 'async operation ~w could not publish its landing for ~w'-[Name, Space] ].
 
 %A differential-only name for the retained host route. Production generic
 %operations call petta_py_dispatch_det/3 directly, preserving their original
@@ -2473,7 +2702,9 @@ petta_py_dispatch_many(Name, Args, Result) :-
     ->  Mode = DeclaredMode
     ;   Mode = abort
     ),
-    catch(( py_iter(petta_ops:dispatch_many(Name, TA, Mode), TR0), TR = TR0 ),
+    catch(( petta_py_host_call(Name,
+                              petta_py_call_many(Name, TA, Mode, TR0)),
+            TR = TR0 ),
           Error, TR = '$petta_op_error'(Error)),
     (   TR = '$petta_op_error'(ManyError)
     ->  petta_py_op_erring(Name, Args, ManyError, Result)
@@ -2586,13 +2817,13 @@ petta_py_raw_norm(R, R).
 %a raw operation costs 0.87 microseconds where a MeTTa function costs 0.09
 %[measured 2026-08-17], so janus dominates it by an order of magnitude.
 petta_py_dispatch_raw_det(Name, Args, Result) :-
-    catch(py_call(petta_ops:dispatch_raw(Name, Args), R0),
+    catch(petta_py_host_call(Name, petta_py_call_raw_det(Name, Args, R0)),
           Error, petta_py_failure([Name|Args], Error)),
     R0 \== '@'(none),
     petta_py_raw_norm(R0, Result).
 
 petta_py_dispatch_raw_many(Name, Args, Result) :-
-    catch(py_iter(petta_ops:dispatch_raw_many(Name, Args), R0),
+    catch(petta_py_host_call(Name, petta_py_call_raw_many(Name, Args, R0)),
           Error, petta_py_failure([Name|Args], Error)),
     (   petta_py_stream_error(R0, StreamError)
     ->  petta_py_failure([Name|Args], StreamError)
@@ -2709,6 +2940,8 @@ seam:effect_operation_name(petta_py_dispatch_eq(_, _, _), 'py-eq', 2).
 seam:effect_operation_name(petta_py_dispatch_truthy(_, _), 'py-truthy', 1).
 seam:effect_operation_name(petta_py_dispatch_many(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
+seam:effect_operation_name(petta_py_dispatch_async(Name, Args, _), Name, Arity) :-
+    petta_py_dispatch_arity(Args, Arity).
 seam:effect_operation_name(petta_py_dispatch_raw_det(Name, Args, _), Name, Arity) :-
     petta_py_dispatch_arity(Args, Arity).
 seam:effect_operation_name(petta_py_dispatch_raw_many(Name, Args, _), Name, Arity) :-
@@ -2725,6 +2958,7 @@ petta_py_op_body(det,      'py-truthy', [Value], R,
                  petta_py_dispatch_truthy(Value, R)) :- !.
 petta_py_op_body(det,      Name, Args, R, petta_py_dispatch_det(Name, Args, R)).
 petta_py_op_body(many,     Name, Args, R, petta_py_dispatch_many(Name, Args, R)).
+petta_py_op_body(async,    Name, Args, R, petta_py_dispatch_async(Name, Args, R)).
 petta_py_op_body(raw_det,  Name, Args, R, petta_py_dispatch_raw_det(Name, Args, R)).
 petta_py_op_body(raw_many, Name, Args, R, petta_py_dispatch_raw_many(Name, Args, R)).
 
@@ -2788,16 +3022,33 @@ petta_py_raw_kind(raw_many).
 %against nothing and read as "no solution" rather than as the mistake it is.
 petta_py_dispatch_inverse(Name, Result, Args) :-
     petta_py_encode(Result, TR),
-    catch(py_iter(petta_ops:dispatch_inverse(Name, TR), TArgs),
+    catch(petta_py_host_call(
+              Name,
+              petta_py_call_inverse(Name, TR, TArgs)),
           Error, petta_py_failure([Name, Result], Error)),
     petta_py_inverse_width(Name, Args, TArgs),
     maplist(petta_py_decode_one, TArgs, Args).
 
 petta_py_dispatch_inverse_raw(Name, Result, Args) :-
-    catch(py_iter(petta_ops:dispatch_inverse_raw(Name, Result), RawArgs),
+    catch(petta_py_host_call(
+              Name,
+              petta_py_call_inverse_raw(Name, Result, RawArgs)),
           Error, petta_py_failure([Name, Result], Error)),
     petta_py_inverse_width(Name, Args, RawArgs),
     maplist(petta_py_raw_norm, RawArgs, Args).
+
+petta_py_call_inverse(Name, Result, Args) :-
+    (   nb_current('$petta_python_context', Context), integer(Context)
+    ->  py_iter(petta_ops:dispatch_inverse_context(Context, Name, Result), Args)
+    ;   py_iter(petta_ops:dispatch_inverse(Name, Result), Args)
+    ).
+
+petta_py_call_inverse_raw(Name, Result, Args) :-
+    (   nb_current('$petta_python_context', Context), integer(Context)
+    ->  py_iter(petta_ops:dispatch_inverse_raw_context(Context, Name, Result),
+                Args)
+    ;   py_iter(petta_ops:dispatch_inverse_raw(Name, Result), Args)
+    ).
 
 petta_py_inverse_width(Name, Args, Answered) :-
     length(Args, Arity),

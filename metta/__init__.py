@@ -214,6 +214,7 @@ def __getattr__(name: str) -> _Any:
         module_name, attribute = _LAZY_ATTRIBUTES[name]
         module = _importlib.import_module(f".{module_name}", __name__)
         value = getattr(module, attribute)
+    # policy-inventory-exempt: mechanism-internal; reason=one handle's two documented module-attribute names for the &petta space, not a vocabulary a program selects from; evidence=bindings/python/metta/__init__.py:__getattr__
     elif name in {"catalog", "reflection"}:
         value = engine().space("&petta")
     else:

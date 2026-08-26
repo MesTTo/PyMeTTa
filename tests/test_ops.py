@@ -20,6 +20,9 @@ Guarantees:
     test_sparse_relational_dict_candidates_bind_parameter_names,
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+  - coroutine functions, including wrapped and callable forms, register as
+    async operations and answer typed future spaces [tested:
+    test_register_op_reads_co_flags_and_refuses_or_awaits; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -457,8 +460,9 @@ def test_raw_generators_refuse_relational_rows(metta) -> None:
 
 
 def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
-    """The synchronous operation surface refuses every awaitable function."""
+    """Coroutine functions route to futures; unsupported async shapes refuse."""
     from metta.ops import registered
+    from metta.parallel import FutureSpace
 
     async def coroutine(value):
         return value
@@ -481,15 +485,29 @@ def test_register_op_reads_co_flags_and_refuses_or_awaits(metta):
 
         return wrapper
 
-    cases = [
-        ("coroutine function", coroutine, "pureStructural"),
-        ("coroutine function", functools.partial(coroutine), "pureStructural"),
-        ("coroutine function", CallableCoroutine(), "pureStructural"),
+    accepted = [
+        coroutine,
+        functools.partial(coroutine),
+        CallableCoroutine(),
+        wrapped(coroutine),
+    ]
+    for fn in accepted:
+        name = unique("awaitable")
+        metta.op(fn, name=name, effect="pureStructural")
+        try:
+            future = metta.eval(S[name](7))[0]
+            assert isinstance(future, FutureSpace)
+            assert list(future.wait()) == [7]
+            assert metta.type(S[name](7)) == S.SpaceType
+            assert registered()[name].kind == "async"
+        finally:
+            metta.unregister_op(name)
+
+    refused = [
         ("async-generator function", async_generator, "nondeterministicReadOnly"),
         ("generator-based coroutine", iterable_coroutine, "pureStructural"),
-        ("coroutine function", wrapped(coroutine), "pureStructural"),
     ]
-    for expected, fn, effect in cases:
+    for expected, fn, effect in refused:
         name = unique("awaitable")
         with pytest.raises(TypeError, match=expected):
             metta.op(fn, name=name, effect=effect)

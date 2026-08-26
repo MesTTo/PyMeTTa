@@ -3,7 +3,7 @@ Guarantees:
   - importing metta alone leaves optional integrations unloaded [tested
     test_optional_surfaces_load_only_when_requested]
   - the petta_ops callback facade re-exports without owning state [tested
-    test_callback_facade_owns_no_state_and_delegates; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_callback_facade_owns_no_state_and_delegates; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -50,12 +50,28 @@ def test_callback_facade_owns_no_state_and_delegates():
     owners = {
         name: importlib.import_module(f"metta.{module}")
         for name, module in {
+            "async_cancel": "_async_ops",
+            "async_discard": "_async_ops",
+            "async_prepare": "_async_ops",
+            "async_start": "_async_ops",
+            "capture_context": "_task_context",
+            "capture_contexts": "_task_context",
             "dispatch": "_ops",
+            "dispatch_context": "_ops",
             "dispatch_inverse": "_ops",
+            "dispatch_inverse_context": "_ops",
             "dispatch_inverse_raw": "_ops",
+            "dispatch_inverse_raw_context": "_ops",
             "dispatch_many": "_ops",
+            "dispatch_many_context": "_ops",
             "dispatch_raw": "_ops",
+            "dispatch_raw_context": "_ops",
             "dispatch_raw_many": "_ops",
+            "dispatch_raw_many_context": "_ops",
+            "fork_context": "_task_context",
+            "fork_contexts": "_task_context",
+            "release_context": "_task_context",
+            "release_contexts": "_task_context",
             "type_names": "_ops",
             "construct_token": "_tokens",
             "foreign_add": "foreign",
@@ -79,9 +95,19 @@ def test_callback_facade_owns_no_state_and_delegates():
     }
     assert sorted(facade.__all__) == sorted(owners)
     owner_names = {
+        "async_cancel": "cancel",
+        "async_discard": "discard",
+        "async_prepare": "prepare",
+        "async_start": "start",
+        "capture_context": "snapshot",
+        "capture_contexts": "snapshot_many",
+        "fork_context": "fork",
+        "fork_contexts": "fork_many",
         "path_begin": "_path_begin",
         "path_step": "_path_step",
         "path_value": "_path_value",
+        "release_context": "release",
+        "release_contexts": "release_many",
     }
     for name, owner in owners.items():
         assert getattr(facade, name) is getattr(owner, owner_names.get(name, name))

@@ -210,7 +210,8 @@
           "bench.py --memory-scale spawns join-projection in a fresh process",
           "instructions is selected by minimum of repetitions",
           "the intended complexity family is linear",
-          "RE-PINNED 2026-08-26 from [1316028, 6748655, 87766743, 1486937473] +/-1385 to [3487245, 13554620, 162524726, 1573221052] +/-321667 after d1421012's indexed 64-column decoder was composed with mainline's Segments query pipeline and the controlled workload was ported to materialize lazy Space.match Answers inside the measured interval; the fit improves from n_log_n to linear and the instruction curve stays O(rows times projected columns)"
+          "RE-PINNED 2026-08-26 from [1316028, 6748655, 87766743, 1486937473] +/-1385 to [3487245, 13554620, 162524726, 1573221052] +/-321667 after d1421012's indexed 64-column decoder was composed with mainline's Segments query pipeline and the controlled workload was ported to materialize lazy Space.match Answers inside the measured interval; the fit improves from n_log_n to linear and the instruction curve stays O(rows times projected columns)",
+          "RE-PINNED 2026-08-26 from [3487245, 13554620, 162524726, 1573221052] +/-321667 to [28511763, 38027872, 178246983, 3414307539] +/-15462, cause fcf1385d: the effect-lattice merge doubled the top-width instruction count while inference counts stayed linear, the inference-invisible C-level signature this counter exists to catch, bisected with the current harness transplanted onto each candidate tree (every tree from fcf1385d reads ~3.4G, the parent side ~1.57G; the fit reads n_log_n within nrms 0.022 for the same reason). The exact row-loop mechanism inside that merge is unattributed; ai-brief-p14-effect-rank-join-hoist carries the profiling and hoist. The lower sizes moved with the open-tail head-index recovery landed the same day."
         ],
         "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
       },
@@ -254,16 +255,16 @@
       },
       "gated": true,
       "noise": {
-        "absolute_max": 321667,
-        "relative_max": 0.00020446395602898403,
+        "absolute_max": 15462,
+        "relative_max": 4.528590299316912e-06,
         "resolution_bytes": 1
       },
       "primary_metric": "instructions",
       "representative": [
-        3487245,
-        13554620,
-        162524726,
-        1573221052
+        28511763,
+        38027872,
+        178246983,
+        3414307539
       ],
       "sizes": [
         1,

@@ -7,8 +7,8 @@ and require the lane to answer correctly about each. The coverage claim itself
 is checked the other way round: every name LeaTTa declares has exactly one row,
 so the denominator cannot quietly shrink.
 The supplemental table separately pins Python-first faces that have no LeaTTa
-manifest name [tested: test_python_first_world_faces_are_in_the_phrasebook;
-commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0].
+manifest name [tested: test_python_first_public_faces_are_in_the_phrasebook;
+commit=WORKTREE].
 Internal catalog rows never enter the public generated page [tested:
 test_internal_rows_are_absent_from_the_public_phrasebook;
 commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa].
@@ -131,11 +131,13 @@ def test_the_phrasebook_page_is_up_to_date():
     )
 
 
-def test_python_first_world_faces_are_in_the_phrasebook():
+def test_python_first_public_faces_are_in_the_phrasebook():
     """Supplemental faces stay exact without entering manifest coverage."""
     spellings = {face.spelling for face in PUBLIC_FACES}
     assert spellings == {
         "@metta.op(effect=...)",
+        '@space.op(effect="oracleIO")\nasync def fetch(url: str) -> str: ...',
+        "(async-op <name> <future-space> launch|landing)",
         "metta.speculate()",
         "py(expr)",
         "S.neg(atom), fn.neg(atom), space.fn.neg(atom)",
@@ -158,7 +160,7 @@ def test_python_first_world_faces_are_in_the_phrasebook():
     page = book.page(list(ENTRIES), json.loads(book.ANSWERS.read_text()))
     assert "## Python-first additions" in page
     for spelling in spellings:
-        assert f"`{spelling}`" in page
+        assert book._cell(spelling) in page
 
 
 def test_internal_rows_are_absent_from_the_public_phrasebook():

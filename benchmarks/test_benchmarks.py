@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c]
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None

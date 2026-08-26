@@ -23,9 +23,9 @@ Guarantees:
   - the matching, nondeterminism, fold, and state rows execute every public
     algebra-carrier spelling [tested: test_the_phrasebook_page_is_up_to_date;
     commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
-  - the Python-first additions table names the exact speculate and immutable
-    world spellings [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - the Python-first additions table names the exact speculate, immutable-world,
+    and coroutine-operation spellings [tested:
+    test_python_first_public_faces_are_in_the_phrasebook; commit=WORKTREE]
   - strategy rows import lib_strategy only on PeTTa and may name an equivalent
     unary LeaTTa oracle form when the reified PeTTa plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
@@ -33,18 +33,18 @@ Guarantees:
     by ``Space +=`` [tested: test_the_phrasebook_page_is_up_to_date;
     commit=012413efb73b4dd27c71354c7f654862f349c03f]
   - the Python-first additions table documents module-tier operation
-    registration [tested: test_python_first_world_faces_are_in_the_phrasebook;
+    registration [tested: test_python_first_public_faces_are_in_the_phrasebook;
     commit=WORKTREE]
   - the Python-first additions table documents the explicit inline host island
-    marker [tested: test_python_first_world_faces_are_in_the_phrasebook;
+    marker [tested: test_python_first_public_faces_are_in_the_phrasebook;
     commit=WORKTREE]
   - the Python-first table teaches the concise atom cast, root catalog,
     hygienic variable, pattern-instantiation, compiled reader-pattern,
     anonymous provenance, ``reacts`` declaration, composite operator words,
     compiled assertion/removal statements, signature-bound call keywords, and
     per-ask theory/interpreter selection plus catalog-driven deprecation
-    [tested: test_python_first_world_faces_are_in_the_phrasebook;
-    commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
+    [tested: test_python_first_public_faces_are_in_the_phrasebook;
+    commit=WORKTREE]
   - every stdlib row carries PUBLIC or INTERNAL visibility independently of
     reachability, so generated stubs and references never teach internal
     heads [tested: test_internal_rows_are_absent_from_the_public_phrasebook;
@@ -224,6 +224,19 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
         "space.reacts(pattern, operation)",
         "declare the space's (on ...) reaction using the settled word",
         "space.reacts(S.job(V.id), S.insert(S['&log'], S.seen(V.id)))",
+    ),
+    PublicFace(
+        '@space.op(effect="oracleIO")\nasync def fetch(url: str) -> str: ...',
+        "register a coroutine operation whose immediate answer is a FutureSpace",
+        'future = space.eval(S.fetch("https://example.test"))[0]\n'
+        "answers = list(future.wait())",
+    ),
+    PublicFace(
+        "(async-op <name> <future-space> launch|landing)",
+        "observe committed coroutine launch and landing records in &petta",
+        'events = metta._at("&petta").subscribe(\n'
+        '    S["async-op"](S.fetch, V.space, V.phase), callback\n'
+        ")",
     ),
     PublicFace(
         "metta.speculate()",

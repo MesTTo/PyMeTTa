@@ -15,7 +15,11 @@ Guarantees:
   - reader errors expose the reader's diagnostic instead of Janus's unknown
     wrapper text [tested test_run_syntax_error_is_loud]
   - engine_thread attaches only a bare foreign thread and detaches exactly
-    the engine it attached [tested test_engine_thread_owns_only_its_attachment]
+    the engine it attached; an async landing can attach without waiting for
+    a home-engine call that is itself awaiting that landing [tested:
+    test_engine_thread_owns_only_its_attachment,
+    test_a_transaction_commits_async_launch_before_its_landing;
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - a rehydrated PettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]
@@ -264,7 +268,12 @@ def engine_thread() -> Iterator[None]:
     engine. A bare foreign thread gets one engine and releases it on exit,
     including exceptional exit.
     """
-    janus = runtime()._janus
+    # Reading the already-published runtime needs no home-engine mutex. This
+    # matters when a foreign completion thread is the event that will unblock
+    # a home-engine call: taking _LOCK here would wait behind that call while
+    # that call waited for this thread, the async-landing deadlock.
+    active = active_runtime()
+    janus = (active if active is not None else runtime())._janus
     try:
         already_attached = janus.engine() >= 0
     except Exception as exc:
