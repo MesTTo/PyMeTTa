@@ -5,6 +5,13 @@ new provider attaches to the same path. On attach, an incomplete final
 record is copied to ``<journal>.tail`` and removed only when every earlier
 newline-terminated record validates. Earlier corruption is refused.
 Guarantees:
+  - rename= atomically materializes a one-time old-head to new-head journal
+    migration before attachment, requires every old head to occur, and leaves
+    no replay alias behind [tested:
+    test_a_replay_rename_migrates_every_journal_action_once,
+    test_a_replay_rename_with_an_absent_old_name_refuses_with_the_remedy,
+    test_a_second_replay_does_not_reapply_the_rename,
+    test_replay_rename_composes_with_terminal_tail_recovery; commit=WORKTREE]
   - removal subtracts ONE stored fact and journals one `retract(Fact)` for
     it, the same multiset law a native space obeys, so a provider swap does
     not change what `remove-atom` means
@@ -56,6 +63,8 @@ import hashlib
 import itertools
 import logging
 import os
+import stat
+import tempfile
 import threading
 from collections import Counter
 from collections.abc import Iterator, Mapping
@@ -111,6 +120,14 @@ _HELPER_ARITIES = {
     "validate_stream": 1,
     "validate": 1,
     "validate_text": 1,
+    "rename_fact": 4,
+    "rename_action": 4,
+    "validate_replay_stream": 4,
+    "validate_replay": 3,
+    "validate_replay_text": 3,
+    "write_action": 2,
+    "rewrite_replay_stream": 5,
+    "rewrite_replay": 4,
     "tail_status": 2,
     "attach": 2,
     "sync": 0,
@@ -162,6 +179,48 @@ def _validated_schema(schema: Mapping[str, int]) -> dict[str, int]:
         msg = "schema must declare at least one fact head"
         raise ValueError(msg)
     _validate_generated_updaters(copied)
+    return copied
+
+
+def _validated_replay_rename(
+    rename: Mapping[str, str] | None,
+    schema: Mapping[str, int],
+) -> dict[str, str]:
+    if rename is None:
+        return {}
+    if not isinstance(rename, Mapping):
+        msg = f"rename must map old journal heads to new schema heads, got {type(rename).__name__}"
+        raise TypeError(msg)
+
+    copied: dict[str, str] = {}
+    targets: set[str] = set()
+    for old, new in rename.items():
+        if not isinstance(old, str) or not isinstance(new, str):
+            msg = f"rename heads must be strings, got {old!r}: {new!r}"
+            raise TypeError(msg)
+        if "\x00" in old or "\x00" in new:
+            msg = f"rename head contains a null byte: {old!r}: {new!r}"
+            raise ValueError(msg)
+        if old == new:
+            msg = f"rename source and target are both {old!r}; remove that no-op from rename="
+            raise ValueError(msg)
+        if old in schema:
+            msg = (
+                f"rename source {old!r} is still declared in schema; remove the old "
+                "schema head so replay cannot retain a standing alias"
+            )
+            raise ValueError(msg)
+        if new not in schema:
+            msg = (
+                f"rename target {new!r} is not declared in schema; declare it with "
+                "the old head's arity, then reopen"
+            )
+            raise ValueError(msg)
+        if new in targets:
+            msg = f"rename target {new!r} has more than one old head; a rename must be one-to-one"
+            raise ValueError(msg)
+        copied[old] = new
+        targets.add(new)
     return copied
 
 
@@ -439,6 +498,98 @@ def _module_source(
 {helpers["validate_action"]}(Action) :-
     throw(error(domain_error(persistent_journal_action, Action), _)).
 
+%A journal schema name lives only as the top-level functor inside the action's
+%fact term. SWI's replay checks that whole term against persistent/3 before it
+%asserts or retracts it, so arguments are data and must remain untouched.
+%[source: https://github.com/SWI-Prolog/swipl-devel/blob/399af1d254797b944fa9940fb684020288d8b767/library/persistency.pl#L381-L413;
+%commit=WORKTREE]
+{helpers["rename_fact"]}(Original, Renames, Renamed, Seen) :-
+    Original =.. [Head | Args],
+    ( memberchk([Head, NewHead], Renames)
+    -> Renamed =.. [NewHead | Args],
+       Seen = [Head]
+    ;  Renamed = Original,
+       Seen = []
+    ).
+
+{helpers["rename_action"]}(created(Created), _, created(Created), []) :- !.
+{helpers["rename_action"]}(assert(Original), Renames, assert(Renamed), Seen) :- !,
+    {helpers["rename_fact"]}(Original, Renames, Renamed, Seen).
+{helpers["rename_action"]}(asserta(Original), Renames, asserta(Renamed), Seen) :- !,
+    {helpers["rename_fact"]}(Original, Renames, Renamed, Seen).
+{helpers["rename_action"]}(retract(Original), Renames, retract(Renamed), Seen) :- !,
+    {helpers["rename_fact"]}(Original, Renames, Renamed, Seen).
+{helpers["rename_action"]}(retractall(Original, Count), Renames,
+                           retractall(Renamed, Count), Seen) :- !,
+    {helpers["rename_fact"]}(Original, Renames, Renamed, Seen).
+{helpers["rename_action"]}(Action, _, Action, []).
+
+{helpers["validate_replay_stream"]}(Stream, Renames, Seen0, Seen) :-
+    read_term(Stream, Action, [module(db)]),
+    ( Action == end_of_file
+    -> Seen = Seen0
+    ;  {helpers["rename_action"]}(Action, Renames, Renamed, ActionSeen),
+       {helpers["validate_action"]}(Renamed),
+       ( ActionSeen = [Old], memberchk(Old, Seen0)
+       -> Seen1 = Seen0
+       ;  append(ActionSeen, Seen0, Seen1)
+       ),
+       {helpers["validate_replay_stream"]}(Stream, Renames, Seen1, Seen)
+    ).
+
+{helpers["validate_replay"]}(File, Renames, Seen) :-
+    ( exists_file(File)
+    -> setup_call_cleanup(
+           open(File, read, Stream, [encoding(utf8)]),
+           {helpers["validate_replay_stream"]}(Stream, Renames, [], Seen),
+           close(Stream))
+    ; Seen = []
+    ).
+
+{helpers["validate_replay_text"]}(Text, Renames, Seen) :-
+    setup_call_cleanup(
+        open_string(Text, Stream),
+        {helpers["validate_replay_stream"]}(Stream, Renames, [], Seen),
+        close(Stream)).
+
+%Use library(persistency)'s own canonical action format so the migrated file
+%is another ordinary journal, not a private second format.
+%[source: https://github.com/SWI-Prolog/swipl-devel/blob/399af1d254797b944fa9940fb684020288d8b767/library/persistency.pl#L526-L535;
+%commit=WORKTREE]
+{helpers["write_action"]}(Stream, Action) :-
+    \\+ \\+ ( numbervars(Action, 0, _, [singletons(true)]),
+            format(Stream, '~W.~n',
+                   [ Action,
+                     [ quoted(true),
+                       numbervars(true),
+                       module(db)
+                     ]
+                   ])
+          ).
+
+{helpers["rewrite_replay_stream"]}(In, Out, Renames, Seen0, Seen) :-
+    read_term(In, Action, [module(db)]),
+    ( Action == end_of_file
+    -> Seen = Seen0
+    ;  {helpers["rename_action"]}(Action, Renames, Renamed, ActionSeen),
+       {helpers["validate_action"]}(Renamed),
+       {helpers["write_action"]}(Out, Renamed),
+       ( ActionSeen = [Old], memberchk(Old, Seen0)
+       -> Seen1 = Seen0
+       ;  append(ActionSeen, Seen0, Seen1)
+       ),
+       {helpers["rewrite_replay_stream"]}(In, Out, Renames, Seen1, Seen)
+    ).
+
+{helpers["rewrite_replay"]}(File, Target, Renames, Seen) :-
+    setup_call_cleanup(
+        open(File, read, In, [encoding(utf8)]),
+        setup_call_cleanup(
+            open(Target, write, Out, [encoding(utf8)]),
+            {helpers["rewrite_replay_stream"]}(In, Out, Renames, [], Seen),
+            close(Out)),
+        close(In)).
+
 {helpers["validate_stream"]}(Stream) :-
     read_term(Stream, Action, [module(db)]),
     ( Action == end_of_file
@@ -585,6 +736,13 @@ class PersistentFactSpace(SpaceProvider):
     process may own a journal path at a time. This class also refuses a second
     live attachment to the same path within the current process.
 
+    ``rename={"old": "new"}`` is a one-open schema migration. Every old head
+    must occur in the journal and every new head must be the only declared
+    replacement. The constructor validates and atomically rewrites all replay
+    actions before attachment, then discards the map. Open the migrated journal
+    normally after that; passing the same map again refuses its now-absent old
+    name instead of installing an alias.
+
     `sync` picks the write-sync mode, performance by default: "none" (the
     default) buffers journal writes, the fastest mode; a clean close()
     flushes everything, and only a crash loses the buffered tail. When a
@@ -610,6 +768,8 @@ class PersistentFactSpace(SpaceProvider):
         path: str | os.PathLike[str],
         schema: Mapping[str, int],
         sync: str = "none",
+        *,
+        rename: Mapping[str, str] | None = None,
     ) -> None:
         if sync not in self._SYNC_MODES:
             msg = f"sync must be one of {list(self._SYNC_MODES)}, got {sync!r}"
@@ -617,6 +777,7 @@ class PersistentFactSpace(SpaceProvider):
         self._sync_mode = sync
         self._path = _journal_path(path)
         self._schema = _validated_schema(schema)
+        self._replay_rename = _validated_replay_rename(rename, self._schema)
         self._runtime = runtime()
         self._janus = self._runtime._janus
         self._module = ""
@@ -655,6 +816,7 @@ class PersistentFactSpace(SpaceProvider):
             with ExitStack() as unattached:
                 unattached.callback(self._release_module)
                 self._validate_or_repair_tail()
+                self._migrate_replay_rename()
                 self._call(
                     "attach",
                     "File, Sync",
@@ -788,6 +950,17 @@ class PersistentFactSpace(SpaceProvider):
             logger.debug("closed persistent journal %s", self._path)
 
     def _validate_journal(self) -> None:
+        if self._replay_rename:
+            self._call(
+                "validate_replay",
+                "File, Renames, _Seen",
+                {
+                    "File": str(self._path),
+                    "Renames": self._replay_rename_pairs(),
+                },
+                require_open=False,
+            )
+            return
         self._call(
             "validate",
             "File",
@@ -867,12 +1040,23 @@ class PersistentFactSpace(SpaceProvider):
             )
             raise EngineError(msg) from prefix_error
         try:
-            self._call(
-                "validate_text",
-                "Text",
-                {"Text": prefix},
-                require_open=False,
-            )
+            if self._replay_rename:
+                self._call(
+                    "validate_replay_text",
+                    "Text, Renames, _Seen",
+                    {
+                        "Text": prefix,
+                        "Renames": self._replay_rename_pairs(),
+                    },
+                    require_open=False,
+                )
+            else:
+                self._call(
+                    "validate_text",
+                    "Text",
+                    {"Text": prefix},
+                    require_open=False,
+                )
         except PettaError as prefix_error:
             msg = (
                 f"persistent journal {self._path} is corrupt before its "
@@ -953,6 +1137,96 @@ class PersistentFactSpace(SpaceProvider):
             len(tail),
             backup,
             boundary,
+        )
+
+    def _replay_rename_pairs(self) -> list[list[str]]:
+        return [[old, new] for old, new in self._replay_rename.items()]
+
+    def _raise_absent_replay_names(self, names: list[str]) -> None:
+        rendered = ", ".join(repr(name) for name in names)
+        msg = (
+            f"replay rename map for {self._path} names absent old "
+            f"head(s) {rendered}; remove the absent name(s) from rename= or "
+            "correct them, then reopen the journal"
+        )
+        raise PettaError(msg)
+
+    def _migrate_replay_rename(self) -> None:
+        """Materialize one validated name migration before SWI attaches."""
+        if not self._replay_rename:
+            return
+        if not self._path.exists():
+            self._raise_absent_replay_names(list(self._replay_rename))
+
+        try:
+            descriptor, temp_name = tempfile.mkstemp(
+                prefix=f".{self._path.name}.rename-",
+                dir=self._path.parent,
+            )
+        except OSError as exc:
+            msg = f"cannot stage replay rename for {self._path}: {exc}"
+            raise PettaError(msg) from exc
+        os.close(descriptor)
+        temporary = Path(temp_name)
+        replaced = False
+        rename_pairs = self._replay_rename_pairs()
+        try:
+            row = self._call(
+                "rewrite_replay",
+                "File, Target, Renames, Seen",
+                {
+                    "File": str(self._path),
+                    "Target": str(temporary),
+                    "Renames": rename_pairs,
+                },
+                require_open=False,
+            )
+            seen = row.get("Seen", _MISSING)
+            if not isinstance(seen, (list, tuple)) or not all(
+                isinstance(name, str) for name in seen
+            ):
+                msg = f"replay rename returned invalid seen heads: {seen!r}"
+                raise EngineError(msg)
+            missing = [name for name in self._replay_rename if name not in seen]
+            if missing:
+                self._raise_absent_replay_names(missing)
+
+            temporary.chmod(stat.S_IMODE(self._path.stat().st_mode))
+            with temporary.open("rb") as stream:
+                os.fsync(stream.fileno())
+            temporary.replace(self._path)
+            replaced = True
+            self._replay_rename = {}
+            _sync_directory(self._path.parent)
+            self._validate_journal()
+        except OSError as exc:
+            if replaced:
+                msg = (
+                    f"replay rename replaced {self._path}, but could not sync "
+                    f"its directory: {exc}. Inspect the journal, then reopen "
+                    "without rename=."
+                )
+            else:
+                msg = (
+                    f"cannot atomically migrate replay names in {self._path}: "
+                    f"{exc}. The journal was not replaced; correct the cause "
+                    "and retry with rename=."
+                )
+            raise PettaError(msg) from exc
+        finally:
+            if not replaced:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError:
+                    logger.exception(
+                        "could not remove failed replay-rename staging file %s",
+                        temporary,
+                    )
+
+        logger.info(
+            "migrated persistent journal %s replay heads: %s",
+            self._path,
+            rename_pairs,
         )
 
     def _write_call(
