@@ -46,7 +46,7 @@ Guarantees:
     into values crosses one integer rather than encoding every answer
     [tested: test_a_retained_count_replays_the_bag_the_cursor_would_have_answered,
     test_a_length_evaluates_an_effect_bearing_goal_exactly_once;
-    commit=WORKTREE]
+    commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -535,7 +535,7 @@ def evaluate_answers(
     answer [tested:
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list,
     test_a_retained_count_replays_the_bag_the_cursor_would_have_answered;
-    commit=WORKTREE].
+    commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
     """
     encoded_target = target if isinstance(target, str) else _to_atom(target).to_wire()
     columns = [] if isinstance(target, str) else _column_names((_to_atom(target),))

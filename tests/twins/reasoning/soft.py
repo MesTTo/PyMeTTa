@@ -86,7 +86,7 @@ from metta import Expression, S, V, lib
 #: walk itself, which is per-length rather than per-answer and is what
 #: chooses between the O(1)-memory count for an effect-safe goal and the
 #: holding evaluation for an effect-bearing one
-#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=WORKTREE].
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 BUDGET = 302740
 def twin(m):
     """Load soft matching, state two similarities, then check all seventeen claims."""

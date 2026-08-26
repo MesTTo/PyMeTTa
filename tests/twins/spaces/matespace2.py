@@ -90,7 +90,7 @@ RUNG = (
 #: residue over the pre-6917bef7 46,782,015 is the held bag: about 3
 #: inferences per answer for the boundary walk and the findall, which is what
 #: keeps `list()` correct
-#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=WORKTREE].
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 BUDGET = 50679104
 def twin(m):
     """Run eighty expand-and-mate rounds, then count what the space holds."""

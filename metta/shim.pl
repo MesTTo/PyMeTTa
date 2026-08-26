@@ -19,7 +19,7 @@
 %     cursor from ONE evaluation, so an effect-bearing goal fires once and a
 %     length nobody turns into values encodes nothing [tested:
 %     test_a_retained_count_replays_the_bag_the_cursor_would_have_answered;
-%     commit=WORKTREE].
+%     commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 %   - atomic entry points publish atom hooks after commit, while speculative
 %     and reified-world entry points discard their buffered event segments;
 %     speculative and world execution also fence the non-backtrackable State

@@ -94,7 +94,7 @@ from metta import S, V, equation, fn, if_, match
 #: holds its answers unencoded in the engine. Crossing an answer costs
 #: 9.1 + 8.0 per term node in engine inferences, measured over a depth sweep,
 #: and that whole product is what a discarded length used to pay
-#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=WORKTREE].
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 BUDGET = 74483636
 def twin(m):
     """Rewrite nineteen levels deep, then count what landed."""

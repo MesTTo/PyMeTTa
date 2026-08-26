@@ -93,7 +93,7 @@ RUNG = (
 #: whole evaluation and the repeatability question cannot arise. Asking it
 #: anyway sent this effect-bearing goal through a materializing pass that
 #: encoded and crossed all 1,063,919 answers to reach a number nobody kept
-#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=WORKTREE].
+#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 BUDGET = 32668415
 def twin(m):
     """Grow a space by 390 doublings, mate the branches, and count what is left."""
