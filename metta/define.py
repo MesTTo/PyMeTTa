@@ -151,14 +151,23 @@ _MISSING_HOST = object()
 
 
 def _function_namespace(fn: types.FunctionType) -> dict[str, Any]:
-    """Globals, builtins, and populated closure cells visible to ``fn``."""
+    """Globals, builtins, closure cells, and type parameters visible to ``fn``.
+
+    ``def mid[T](x: T) -> T`` places ``T`` in the PEP 695 type-parameter
+    scope, which sits between the closure and the local scope and appears in
+    neither ``__globals__`` nor ``__closure__``; only ``__type_params__``
+    carries it. Leaving it out made the eager ``Space``-annotation check
+    refuse every generic definition with "the local annotation name 'T' is
+    not available" [tested: test_a_pep695_type_parameter_resolves_in_annotations].
+    """
     nonlocals: dict[str, Any] = {}
     for name, cell in zip(fn.__code__.co_freevars, fn.__closure__ or (), strict=True):
         try:
             nonlocals[name] = cell.cell_contents
         except ValueError:
             continue
-    return {**_builtins_namespace(), **fn.__globals__, **nonlocals}
+    type_params = {parameter.__name__: parameter for parameter in fn.__type_params__}
+    return {**_builtins_namespace(), **fn.__globals__, **nonlocals, **type_params}
 
 
 def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:  # noqa: C901  -- _annotation_resolver keeps the annotation namespace and its resolvers together so its branches share one state
@@ -624,11 +633,23 @@ def compile_function(
         source_path = str(Path(source_path).resolve())
 
     annotation_resolver = _annotation_resolver(fn)
+
+    def annotation_names_space(annotation: ast.expr) -> bool:
+        # This eager probe only decides whether a parameter is a space
+        # handle. An annotation the resolver cannot name (a domain builder,
+        # a spelling outside the typing whitelist) is simply not one; the
+        # strict refusal still runs wherever the annotation is consumed as a
+        # type [tested: test_an_unresolvable_annotation_is_not_a_space_parameter].
+        try:
+            return annotation_resolver(annotation) == Symbol("SpaceType")
+        except CompileError:
+            return False
+
     space_parameters = {
         argument.arg
         for argument in definition.args.args
         if argument.annotation is not None
-        and annotation_resolver(argument.annotation) == Symbol("SpaceType")
+        and annotation_names_space(argument.annotation)
     }
     compiler = _Compiler(
         metta_name or fn.__name__,
