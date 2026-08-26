@@ -6,7 +6,8 @@ test_twin_depth_divergence_is_operational_not_an_answer_difference; commit=ee43d
 Guarantees: the pricing block sits at the end of every twin and a re-pin appends there.
 [tested: test_twin_docs_state_where_the_pricing_block_lives,
 test_the_layout_check_passes_the_shipped_twins,
-test_a_repin_appends_below_the_code_and_rewrites_the_number; commit=WORKTREE]
+test_a_repin_appends_below_the_code_and_rewrites_the_number;
+commit=845d851b7241ccea3b6a13f532172945bf6d8d9e]
 -->
 
 # Where a twin's pricing lives

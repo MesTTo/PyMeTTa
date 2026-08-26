@@ -106,7 +106,8 @@ Decides:
     the top it buries what the file is for: `basics/identity.py` opened with
     297 comment lines before its first statement [tested:
     test_a_twin_declaring_above_its_code_is_a_finding,
-    test_the_layout_check_passes_the_shipped_twins; commit=WORKTREE]
+    test_the_layout_check_passes_the_shipped_twins;
+    commit=845d851b7241ccea3b6a13f532172945bf6d8d9e]
   - an integer BUDGET is a point claim; a mapping BUDGET is an empirical
     envelope with exactly minimum, maximum, observations, and protocol, so a
     reviewer can falsify both its bounds and the conditions that produced it
@@ -1428,7 +1429,8 @@ def layout(twin: Path) -> list[str]:
 #: in the text as a claim ABOUT this file, and would then ask it for a date
 #: only the run has. Substituting the word keeps the template out of the lane's
 #: reach while the twin it writes carries a complete tag [source:
-#: tests/check_evidence_tags.py SOURCES and measured_problems; commit=WORKTREE].
+#: tests/check_evidence_tags.py SOURCES and measured_problems;
+#: commit=845d851b7241ccea3b6a13f532172945bf6d8d9e].
 _REPIN_TAG = (
     "[{kind} {date}: min-of-{rounds} serial fresh processes; "
     "command={command}; commit=WORKTREE]"
