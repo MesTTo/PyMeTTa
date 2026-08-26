@@ -217,7 +217,15 @@ is Python's own `assert`.
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged exact-spellings tree with
 #: engine/reader.so; commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6].
-BUDGET = 2891
+#: RE-PINNED 2026-08-26, 2891 to 2885, after the lexical declaration selector
+#: added the governing/reporting split to the compiled engine image. This twin
+#: has no inherited declaration and its answer remains 1, so the fixed
+#: six-inference drop is layout rather than a change in its work or result
+#: [measured: 2885 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=isolated p14-typed-shadowing
+#: worktree with engine/reader.so; commit=WORKTREE].
+BUDGET = 2885
 
 
 def twin(m):
