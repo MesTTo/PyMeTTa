@@ -29,6 +29,30 @@ Open Obligations:
 
 from metta import FALSE, TRUE, S, fn
 
+
+def twin(m):
+    """Give a condition three answers, twice."""
+    @m.define
+    def if_nondet(y):
+        # (= (if-nondet $y) (if (superpose $y) a b))
+        return S.a if fn.superpose(y) else S.b
+
+    # !(test (collapse (if-nondet (True False True))) (a b a))
+    assert if_nondet((TRUE, FALSE, TRUE)) == [S.a, S.b, S.a]
+
+    @m.define
+    def case_nondet(y):
+        # (= (case-nondet $y) (case (superpose $y) ((True a) (False b))))
+        match fn.superpose(y):
+            case True:
+                return S.a
+            case False:
+                return S.b
+
+    # !(test (collapse (case-nondet (True False True))) (a b a))
+    assert case_nondet((TRUE, FALSE, TRUE)) == [S.a, S.b, S.a]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -95,24 +119,3 @@ from metta import FALSE, TRUE, S, fn
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 12841
-def twin(m):
-    """Give a condition three answers, twice."""
-    @m.define
-    def if_nondet(y):
-        # (= (if-nondet $y) (if (superpose $y) a b))
-        return S.a if fn.superpose(y) else S.b
-
-    # !(test (collapse (if-nondet (True False True))) (a b a))
-    assert if_nondet((TRUE, FALSE, TRUE)) == [S.a, S.b, S.a]
-
-    @m.define
-    def case_nondet(y):
-        # (= (case-nondet $y) (case (superpose $y) ((True a) (False b))))
-        match fn.superpose(y):
-            case True:
-                return S.a
-            case False:
-                return S.b
-
-    # !(test (collapse (case-nondet (True False True))) (a b a))
-    assert case_nondet((TRUE, FALSE, TRUE)) == [S.a, S.b, S.a]

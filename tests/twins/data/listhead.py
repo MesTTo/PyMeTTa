@@ -14,6 +14,26 @@ where the engine's clause-by-clause walk and Python's own count agree.
 
 from metta import Expression, S
 
+
+def twin(m):
+    """Unpack an expression, then count one the long way and the short way."""
+
+    @m.define(name="len")
+    def length(e):                             # (= (len ()) 0)
+        match e:                               # (= (len (cons $Head $Tail))
+            case ():                           #    (let $N0 (len $Tail)
+                return 0                       #         (+ $N0 1)))
+            case (S.cons, _, tail):
+                return length(tail) + 1
+
+    head, *tail = Expression((1, 2, 3, 4, 5, 6))   # (let (cons $Head $Tail) ...)
+    assert (head, tail) == (1, [2, 3, 4, 5, 6])
+
+    counted = Expression((1, 2, 3))
+    assert length(counted).one() == len(counted) == 3   # [3], and Python's own 3
+    assert m.fn.cons(42, ()) == [Expression((42,))]   # [(42)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -82,20 +102,3 @@ from metta import Expression, S
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 8004
-def twin(m):
-    """Unpack an expression, then count one the long way and the short way."""
-
-    @m.define(name="len")
-    def length(e):                             # (= (len ()) 0)
-        match e:                               # (= (len (cons $Head $Tail))
-            case ():                           #    (let $N0 (len $Tail)
-                return 0                       #         (+ $N0 1)))
-            case (S.cons, _, tail):
-                return length(tail) + 1
-
-    head, *tail = Expression((1, 2, 3, 4, 5, 6))   # (let (cons $Head $Tail) ...)
-    assert (head, tail) == (1, [2, 3, 4, 5, 6])
-
-    counted = Expression((1, 2, 3))
-    assert length(counted).one() == len(counted) == 3   # [3], and Python's own 3
-    assert m.fn.cons(42, ()) == [Expression((42,))]   # [(42)]

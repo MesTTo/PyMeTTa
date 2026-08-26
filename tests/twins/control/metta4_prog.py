@@ -16,28 +16,6 @@ Open Obligations:
 
 from metta import S, V
 
-#: PLACEHOLDER, never measured in this worktree: the integrator's single
-#: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
-#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
-#: RE-PINNED 2026-08-25, 579 to 580, on the QLF-boot final
-#: tree: the engine now boots through engine/qlf_boot.pl, and any
-#: boot-content change moves twin counts a few tens through SWI's
-#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
-#: so the corpus re-pins once on the exact shipping tree
-#: [measured 2026-08-25 through tools/twin_coverage.py --measure
-#: min-of-3 on the final tree].
-#: RE-PINNED 2026-08-25, 580 to 582, at the release cut: the
-#: identity-wire merge (numeric ownership seams, exact-primitive
-#: wire, Python operator dispatch), the rules-body staging split
-#: (ground folds, op-call staging), and the door-combinations
-#: example growing the corpus each move counts through SWI's
-#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
-#: so the whole corpus re-pins once on the exact release tree
-#: [measured 2026-08-25 through tools/twin_coverage.py --measure
-#: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 582
-
 
 def twin(m):
     """Write a fact, take it back, write another, and read what is left."""
@@ -62,3 +40,26 @@ def twin(m):
     # !(test (progn 1 2 3) 3)
     # rung: a statement sequence IS progn, and three constants are no statements
     assert m.eval(S.progn(1, 2, 3)) == [3]
+
+
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 579 to 580, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 580 to 582, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+BUDGET = 582

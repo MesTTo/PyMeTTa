@@ -16,6 +16,26 @@ spelling difference.
 
 from metta import fn
 
+
+def twin(m):
+    """Define the xor guard, then check both of its true cases."""
+    # The MeTTa name really is `check_xor` with an underscore, which the
+    # naming ladder's own map does not produce: every door here, the decorator
+    # included, turns a Python underscore into a hyphen, so `@m.define` alone
+    # would store `check-xor` and the example's head would go unmatched. An
+    # exact non-mechanical name is what `name=` is for.
+    @m.define(name="check_xor")  # rung: def check_xor maps to check-xor, while the source head is check_xor
+    def check_xor(source, destination):
+        # Source: (= (check_xor $source $destination)
+        #             (if (xor (== $source $destination) (> $source $destination)) 42 0))
+        # Twin:   (= (check_xor $source $destination)
+        #             (if (xor (py-eq $source $destination) (> $source $destination)) 42 0))
+        return 42 if fn.xor(source == destination, source > destination) else 0
+
+    assert check_xor(2, 2) == [42]
+    assert check_xor(4, 2) == [42]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -76,20 +96,3 @@ from metta import fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 9221
-def twin(m):
-    """Define the xor guard, then check both of its true cases."""
-    # The MeTTa name really is `check_xor` with an underscore, which the
-    # naming ladder's own map does not produce: every door here, the decorator
-    # included, turns a Python underscore into a hyphen, so `@m.define` alone
-    # would store `check-xor` and the example's head would go unmatched. An
-    # exact non-mechanical name is what `name=` is for.
-    @m.define(name="check_xor")  # rung: def check_xor maps to check-xor, while the source head is check_xor
-    def check_xor(source, destination):
-        # Source: (= (check_xor $source $destination)
-        #             (if (xor (== $source $destination) (> $source $destination)) 42 0))
-        # Twin:   (= (check_xor $source $destination)
-        #             (if (xor (py-eq $source $destination) (> $source $destination)) 42 0))
-        return 42 if fn.xor(source == destination, source > destination) else 0
-
-    assert check_xor(2, 2) == [42]
-    assert check_xor(4, 2) == [42]

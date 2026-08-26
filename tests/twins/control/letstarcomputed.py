@@ -34,6 +34,68 @@ from metta.errors import MettaOperationError
 #: What the unapplied form prints as: expected printing is Python text.
 UNAPPLIED = "(partial let* (foo ok))"
 
+
+def twin(m):
+    """Hand bindings over, write them out, and refuse a list that is not one."""
+    # The top rung is a compiled definition whose bindings are assignments:
+    #
+    #     @m.define
+    #     def mylet(bindings, body): ...
+    #
+    # An assignment binds a name the AUTHOR wrote, so a definition whose
+    # bindings arrive as a value has no compiled spelling, and neither has a
+    # binding whose left side is a pattern. Residue: P14.4.
+    # (: mylet (-> Atom Atom %Undefined%))
+    # The body has to reach the definition unevaluated for the bindings to
+    # bind anything in it, and `Atom` is the metatype that says so.
+    m += typed(S.mylet, arrow(Atom, Atom, Undefined))
+    # (= (mylet $bindings $body) (let* $bindings $body))
+    m += equation(S.mylet(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
+
+    written = ((V.x, 1), (V.y, 2))
+
+    # !(test (mylet (($x 1) ($y 2)) (+ $x $y)) 3)
+    assert m.eval(S.mylet(written, V.x + V.y)) == [3]
+
+    # Handed over or written out, the same bindings answer the same thing.
+    # !(test (let* (($x 1) ($y 2)) (+ $x $y)) 3)
+    assert m.eval(S["let*"](written, V.x + V.y)) == [3]
+
+    # A binding is a (pattern value) pair, not only (variable value), and a
+    # pattern that does not match gives the whole form no answer.
+    # !(test (mylet ((($a $b) (1 2))) $b) 2)
+    assert m.eval(S.mylet((((V.a, V.b), (1, 2)),), V.b)) == [2]
+    # !(test (mylet ((5 5)) matched) matched)
+    assert m.eval(S.mylet(((5, 5),), S.matched)) == [S.matched]
+    # !(test (collapse (mylet ((5 6)) matched)) ())
+    assert m.eval(S.mylet(((5, 6),), S.matched)) == []
+
+    # Without the `Atom` metatype the arguments evaluate on the way in, so
+    # this is the other way to hand bindings over: `noeval` carries them as
+    # data, and the body is a variable the same call site wrote.
+    # (= (mylet-evaluating $bindings $body) (let* $bindings $body))
+    m += equation(S.mylet_evaluating(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
+
+    # !(test (mylet-evaluating (noeval (($x 1))) $x) 1)
+    assert m.eval(S.mylet_evaluating(S.noeval(((V.x, 1),)), V.x)) == [1]
+
+    # Bindings are checked when they arrive, because nothing after that point
+    # can check them.
+    # !(test (car-atom (catch (mylet-evaluating (noeval ((1 2 3))) done))) Error)
+    try:
+        m.eval(S.mylet_evaluating(S.noeval(((1, 2, 3),)), S.done))
+        refused = None
+    except MettaOperationError as error:
+        refused = error
+    assert refused is not None
+
+    # A bindings argument that is no list at all is not bindings, it is a
+    # program using the name as data, and it stays the unapplied form it
+    # always was.
+    # !(test (repr (let* foo ok)) "(partial let* (foo ok))")
+    assert str(m.eval(S["let*"](S.foo, S.ok))[0]) == UNAPPLIED
+
+
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 
@@ -103,62 +165,3 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 11300
-def twin(m):
-    """Hand bindings over, write them out, and refuse a list that is not one."""
-    # The top rung is a compiled definition whose bindings are assignments:
-    #
-    #     @m.define
-    #     def mylet(bindings, body): ...
-    #
-    # An assignment binds a name the AUTHOR wrote, so a definition whose
-    # bindings arrive as a value has no compiled spelling, and neither has a
-    # binding whose left side is a pattern. Residue: P14.4.
-    # (: mylet (-> Atom Atom %Undefined%))
-    # The body has to reach the definition unevaluated for the bindings to
-    # bind anything in it, and `Atom` is the metatype that says so.
-    m += typed(S.mylet, arrow(Atom, Atom, Undefined))
-    # (= (mylet $bindings $body) (let* $bindings $body))
-    m += equation(S.mylet(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
-
-    written = ((V.x, 1), (V.y, 2))
-
-    # !(test (mylet (($x 1) ($y 2)) (+ $x $y)) 3)
-    assert m.eval(S.mylet(written, V.x + V.y)) == [3]
-
-    # Handed over or written out, the same bindings answer the same thing.
-    # !(test (let* (($x 1) ($y 2)) (+ $x $y)) 3)
-    assert m.eval(S["let*"](written, V.x + V.y)) == [3]
-
-    # A binding is a (pattern value) pair, not only (variable value), and a
-    # pattern that does not match gives the whole form no answer.
-    # !(test (mylet ((($a $b) (1 2))) $b) 2)
-    assert m.eval(S.mylet((((V.a, V.b), (1, 2)),), V.b)) == [2]
-    # !(test (mylet ((5 5)) matched) matched)
-    assert m.eval(S.mylet(((5, 5),), S.matched)) == [S.matched]
-    # !(test (collapse (mylet ((5 6)) matched)) ())
-    assert m.eval(S.mylet(((5, 6),), S.matched)) == []
-
-    # Without the `Atom` metatype the arguments evaluate on the way in, so
-    # this is the other way to hand bindings over: `noeval` carries them as
-    # data, and the body is a variable the same call site wrote.
-    # (= (mylet-evaluating $bindings $body) (let* $bindings $body))
-    m += equation(S.mylet_evaluating(V.bindings, V.body)).to(S["let*"](V.bindings, V.body))
-
-    # !(test (mylet-evaluating (noeval (($x 1))) $x) 1)
-    assert m.eval(S.mylet_evaluating(S.noeval(((V.x, 1),)), V.x)) == [1]
-
-    # Bindings are checked when they arrive, because nothing after that point
-    # can check them.
-    # !(test (car-atom (catch (mylet-evaluating (noeval ((1 2 3))) done))) Error)
-    try:
-        m.eval(S.mylet_evaluating(S.noeval(((1, 2, 3),)), S.done))
-        refused = None
-    except MettaOperationError as error:
-        refused = error
-    assert refused is not None
-
-    # A bindings argument that is no list at all is not bindings, it is a
-    # program using the name as data, and it stays the unapplied form it
-    # always was.
-    # !(test (repr (let* foo ok)) "(partial let* (foo ok))")
-    assert str(m.eval(S["let*"](S.foo, S.ok))[0]) == UNAPPLIED

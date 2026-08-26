@@ -30,14 +30,6 @@ Open Obligations:
 import metta
 from metta import Expression, S, V
 
-#: Inferences this twin spends, its own tripwire. INTERIM PIN 2026-08-24,
-#: identity.py's own precedent: this file gates the pytest lane, so it is
-#: priced ahead of the corpus-wide pass and re-priced there with everything
-#: else. Min-of-3 on the integration merge of the Stage C branch, three
-#: identical readings [measured 2026-08-24 through the end-to-end twin test
-#: on the merged tree at 5a5054ca].
-BUDGET = 234
-
 
 def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the default handle stays untouched
     """Write two atoms, then ask four questions about them."""
@@ -58,3 +50,12 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
     every = [row.x for row in wuspace[V.x]]
     assert sorted(every) == sorted(wuspace)
     assert sorted(S.wu(child) for child in every) == [S.wu(S.wu()), S.wu(S.wu(42))]
+
+
+#: Inferences this twin spends, its own tripwire. INTERIM PIN 2026-08-24,
+#: identity.py's own precedent: this file gates the pytest lane, so it is
+#: priced ahead of the corpus-wide pass and re-priced there with everything
+#: else. Min-of-3 on the integration merge of the Stage C branch, three
+#: identical readings [measured 2026-08-24 through the end-to-end twin test
+#: on the merged tree at 5a5054ca].
+BUDGET = 234

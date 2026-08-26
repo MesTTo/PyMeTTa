@@ -24,6 +24,55 @@ implicit name is the mechanical image and `def expand_k` would install
 
 from metta import S, V, fn, match, superpose
 
+
+def twin(m):
+    """Expand the space 300 times, then count what is in it."""
+
+    @m.define
+    def add_atom_no_duplicate(space, atom):
+        """Write the atom unless the space already answers a match for it."""
+        # (= (add-atom-no-duplicate $Space $Atom)
+        #    (if (== () (collapse (once (match $Space $Atom $Atom))))
+        #        (add-atom $Space $Atom)
+        #        (empty)))
+        seen = S.collapse(S.once(match(space, atom, atom)))  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
+        if seen == ():
+            return fn.add_atom(space, atom)
+        return superpose()
+
+    @m.define
+    def expand_once():
+        """For every existing (num $t), add (num (S $t))."""
+        # (= (expand-once)
+        #    (case (match &self (num $t) $t)
+        #          (($x (add-atom-no-duplicate &self (num (S $x)))))))
+        found = match(S.num(V.t), V.t)
+        return add_atom_no_duplicate(m, S.num(S.S(found)))
+
+    @m.define(name="expandK")
+    def expand_k(n):
+        """Run expand-once n times, then answer done."""
+        # (= (expandK $n)
+        #    (if (== $n 0) done (let $temp1 (expand-once) (expandK (- $n 1)))))
+        if n == 0:
+            return S.done
+        _round = expand_once()
+        return expand_k(n - 1)
+
+    @m.define
+    def demo_peano(k):
+        """Seed the space with Z, expand it k times, and read every number."""
+        # (= (demo-peano $K)
+        #    (let* (($s (add-atom &self (num Z))) ($g (expandK $K)))
+        #          (match &self (num $1) $1)))
+        _seeded = fn.add_atom(m, S.num(S.Z))
+        _grown = expand_k(k)
+        return match(S.num(V.stored), V.stored)
+
+    # !(test (length (collapse (demo-peano 300))) 301)
+    assert len(demo_peano(300)) == 301
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -103,49 +152,3 @@ from metta import S, V, fn, match, superpose
 #: fixture=engine/reader.so and the MORK artefact present;
 #: commit=58d0332489da668251edcd52ccc5cb42ba2e57bb].
 BUDGET = 2031806
-def twin(m):
-    """Expand the space 300 times, then count what is in it."""
-
-    @m.define
-    def add_atom_no_duplicate(space, atom):
-        """Write the atom unless the space already answers a match for it."""
-        # (= (add-atom-no-duplicate $Space $Atom)
-        #    (if (== () (collapse (once (match $Space $Atom $Atom))))
-        #        (add-atom $Space $Atom)
-        #        (empty)))
-        seen = S.collapse(S.once(match(space, atom, atom)))  # rung: `collapse` is list(), which a compiled body has no lowering for (P14.4)
-        if seen == ():
-            return fn.add_atom(space, atom)
-        return superpose()
-
-    @m.define
-    def expand_once():
-        """For every existing (num $t), add (num (S $t))."""
-        # (= (expand-once)
-        #    (case (match &self (num $t) $t)
-        #          (($x (add-atom-no-duplicate &self (num (S $x)))))))
-        found = match(S.num(V.t), V.t)
-        return add_atom_no_duplicate(m, S.num(S.S(found)))
-
-    @m.define(name="expandK")
-    def expand_k(n):
-        """Run expand-once n times, then answer done."""
-        # (= (expandK $n)
-        #    (if (== $n 0) done (let $temp1 (expand-once) (expandK (- $n 1)))))
-        if n == 0:
-            return S.done
-        _round = expand_once()
-        return expand_k(n - 1)
-
-    @m.define
-    def demo_peano(k):
-        """Seed the space with Z, expand it k times, and read every number."""
-        # (= (demo-peano $K)
-        #    (let* (($s (add-atom &self (num Z))) ($g (expandK $K)))
-        #          (match &self (num $1) $1)))
-        _seeded = fn.add_atom(m, S.num(S.Z))
-        _grown = expand_k(k)
-        return match(S.num(V.stored), V.stored)
-
-    # !(test (length (collapse (demo-peano 300))) 301)
-    assert len(demo_peano(300)) == 301

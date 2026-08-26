@@ -19,6 +19,16 @@ Open Obligations:
 
 from metta import TRUE, V, and_, if_, or_
 
+
+def twin(m):
+    """Ask which pairs of booleans satisfy the condition."""
+    # (if (and (or $x True) $y) ($x $y)): the two-argument `if` is the FILTER
+    # that turns a solved condition into the pair that solved it, and nothing
+    # where it does not hold.
+    solutions = m.eval(if_(and_(or_(V.x, TRUE), V.y), (V.x, V.y)))
+    assert [tuple(pair) for pair in solutions] == [(True, True), (False, True)]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -52,12 +62,3 @@ from metta import TRUE, V, and_, if_, or_
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 1342
-
-
-def twin(m):
-    """Ask which pairs of booleans satisfy the condition."""
-    # (if (and (or $x True) $y) ($x $y)): the two-argument `if` is the FILTER
-    # that turns a solved condition into the pair that solved it, and nothing
-    # where it does not hold.
-    solutions = m.eval(if_(and_(or_(V.x, TRUE), V.y), (V.x, V.y)))
-    assert [tuple(pair) for pair in solutions] == [(True, True), (False, True)]

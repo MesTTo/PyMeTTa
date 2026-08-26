@@ -28,6 +28,35 @@ exactly this case; measured 2026-08-24, a body naming `solve` is refused,
 import metta
 from metta import S, V, equation, fn
 
+#: The two base names, which are parameters of a space's name rather than
+#: spaces: nothing in the program ever writes to `&primary-kb` itself.
+PRIMARY, SECONDARY = S["&primary-kb"], S["&secondary-kb"]  # rung: a parameter of a space name, not a space
+
+
+def twin(m):
+    """Make two instances of one cache shape, and read each one's parameters."""
+    primary = metta.space(S.cache(PRIMARY, 100))
+    secondary = metta.space(S.cache(SECONDARY, 10))
+
+    # The same equation reads the identifier of whichever instance owns it.
+    config = equation(S.cache_config()).to(
+        S.let(S.cache(V.base, V.limit), fn.context_space(), S.config(V.base, V.limit))  # rung: a let that DESTRUCTURES has no assignment spelling
+    )
+    primary += config
+    secondary += config
+
+    primary += S.entry(S.primary)
+    secondary += S.entry(S.secondary)
+
+    assert primary.eval(S.cache_config()) == [S.config(PRIMARY, 100)]
+    assert secondary.eval(S.cache_config()) == [S.config(SECONDARY, 10)]
+
+    assert [row.which for row in primary[S.entry(V.which)]] == [S.primary]
+    assert [row.which for row in secondary[S.entry(V.which)]] == [S.secondary]
+
+    assert m.type(primary) == S.SpaceType
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -95,30 +124,3 @@ from metta import S, V, equation, fn
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 9026
-#: The two base names, which are parameters of a space's name rather than
-#: spaces: nothing in the program ever writes to `&primary-kb` itself.
-PRIMARY, SECONDARY = S["&primary-kb"], S["&secondary-kb"]  # rung: a parameter of a space name, not a space
-
-
-def twin(m):
-    """Make two instances of one cache shape, and read each one's parameters."""
-    primary = metta.space(S.cache(PRIMARY, 100))
-    secondary = metta.space(S.cache(SECONDARY, 10))
-
-    # The same equation reads the identifier of whichever instance owns it.
-    config = equation(S.cache_config()).to(
-        S.let(S.cache(V.base, V.limit), fn.context_space(), S.config(V.base, V.limit))  # rung: a let that DESTRUCTURES has no assignment spelling
-    )
-    primary += config
-    secondary += config
-
-    primary += S.entry(S.primary)
-    secondary += S.entry(S.secondary)
-
-    assert primary.eval(S.cache_config()) == [S.config(PRIMARY, 100)]
-    assert secondary.eval(S.cache_config()) == [S.config(SECONDARY, 10)]
-
-    assert [row.which for row in primary[S.entry(V.which)]] == [S.primary]
-    assert [row.which for row in secondary[S.entry(V.which)]] == [S.secondary]
-
-    assert m.type(primary) == S.SpaceType

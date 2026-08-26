@@ -45,6 +45,39 @@ FACTS = {
     S.cat42: (S.living, S.being, S.small),
 }
 
+
+def twin(m):
+    """Filter ten facts through two chained relations."""
+    metta.reflection += S.dispatch_policy(
+        S.small, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
+    )
+
+    # (= (living garfield) True) ... (= (small cat42) True)
+    # rung: each head fixes a SYMBOL, and a stacked clause's literal default is a
+    #   bool, int, float or str (residue, P14.4)
+    m.add(*(equation(rel(who)).to(TRUE) for who, rels in FACTS.items() for rel in rels))
+
+    @m.define
+    def only(c, x):
+        # (= (only $C $X) (let* (($constraint $C)) $X))
+        _constraint = c
+        return x
+
+    @m.define
+    def animal(x):
+        # (= (animal $X) (only ((living $X) (being $X)) $X))
+        return only((S.living(x), S.being(x)), x)
+
+    @m.define
+    def cat(a):
+        # (= (cat $A) (let $A (animal $X) (only (small $X) $X)))
+        return S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
+            a, animal(V.x), only(S.small(V.x), V.x)
+        )
+
+    assert sorted(m.eval(S.cat(V.X))) == [S.cat42, S.garfield]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -112,33 +145,3 @@ FACTS = {
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 25525
-def twin(m):
-    """Filter ten facts through two chained relations."""
-    metta.reflection += S.dispatch_policy(
-        S.small, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
-    )
-
-    # (= (living garfield) True) ... (= (small cat42) True)
-    # rung: each head fixes a SYMBOL, and a stacked clause's literal default is a
-    #   bool, int, float or str (residue, P14.4)
-    m.add(*(equation(rel(who)).to(TRUE) for who, rels in FACTS.items() for rel in rels))
-
-    @m.define
-    def only(c, x):
-        # (= (only $C $X) (let* (($constraint $C)) $X))
-        _constraint = c
-        return x
-
-    @m.define
-    def animal(x):
-        # (= (animal $X) (only ((living $X) (being $X)) $X))
-        return only((S.living(x), S.being(x)), x)
-
-    @m.define
-    def cat(a):
-        # (= (cat $A) (let $A (animal $X) (only (small $X) $X)))
-        return S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
-            a, animal(V.x), only(S.small(V.x), V.x)
-        )
-
-    assert sorted(m.eval(S.cat(V.X))) == [S.cat42, S.garfield]

@@ -23,6 +23,36 @@ Open Obligations:
 
 from metta import Expression, S, equation, if_
 
+
+def twin(m):
+    """Install both cycles and ask each one through the same function value."""
+
+    @m.rules
+    def cyclic(f, a, n):
+        """The mutually recursive equations, admitted as one rule bundle."""
+        # (= (f1 $f $a) (if (< $a 0) ($f nevercalled 42)
+        #                   (if (== $a 0) (f2 $f (- $a 1)) finish)))
+        #
+        yield equation(S.f1(f, a)).to(
+            if_(
+                S.lt(a, 0),
+                Expression((f, S.nevercalled, 42)),
+                if_(S.eq(a, 0), S.f2(f, a - 1), S.finish),
+            )
+        )
+        # (= (f2 $f $a) (if (< $a 0) ($f nevercalled 42) (f1 $f $a)))
+        yield equation(S.f2(f, a)).to(
+            if_(S.lt(a, 0), Expression((f, S.nevercalled, 42)), S.f1(f, a))
+        )
+        # (= (f3 $f $n) (if (== $n 0) finish (f4 $f $n)))
+        yield equation(S.f3(f, n)).to(if_(S.eq(n, 0), S.finish, S.f4(f, n)))
+        # (= (f4 $f $n) (f3 $f (- $n 1)))
+        yield equation(S.f4(f, n)).to(S.f3(f, n - 1))
+
+    assert m.eval(S.f1(S.add, 2)) == [S.finish]
+    assert m.eval(S.f3(S.add, 1)) == [S.finish]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -83,32 +113,3 @@ BUDGET = {
     "observations": 20,
     "protocol": "full-lane/219/workers=32",
 }
-
-
-def twin(m):
-    """Install both cycles and ask each one through the same function value."""
-
-    @m.rules
-    def cyclic(f, a, n):
-        """The mutually recursive equations, admitted as one rule bundle."""
-        # (= (f1 $f $a) (if (< $a 0) ($f nevercalled 42)
-        #                   (if (== $a 0) (f2 $f (- $a 1)) finish)))
-        #
-        yield equation(S.f1(f, a)).to(
-            if_(
-                S.lt(a, 0),
-                Expression((f, S.nevercalled, 42)),
-                if_(S.eq(a, 0), S.f2(f, a - 1), S.finish),
-            )
-        )
-        # (= (f2 $f $a) (if (< $a 0) ($f nevercalled 42) (f1 $f $a)))
-        yield equation(S.f2(f, a)).to(
-            if_(S.lt(a, 0), Expression((f, S.nevercalled, 42)), S.f1(f, a))
-        )
-        # (= (f3 $f $n) (if (== $n 0) finish (f4 $f $n)))
-        yield equation(S.f3(f, n)).to(if_(S.eq(n, 0), S.finish, S.f4(f, n)))
-        # (= (f4 $f $n) (f3 $f (- $n 1)))
-        yield equation(S.f4(f, n)).to(S.f3(f, n - 1))
-
-    assert m.eval(S.f1(S.add, 2)) == [S.finish]
-    assert m.eval(S.f3(S.add, 1)) == [S.finish]

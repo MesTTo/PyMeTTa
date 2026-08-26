@@ -30,6 +30,37 @@ Open Obligations:
 
 from metta import Expression, S, V, fn
 
+
+def twin(m):
+    """Constrain an argument to be what a call produces, two ways."""
+
+    @m.define
+    def myfunc(a, b):
+        # (= (myfunc $A $B) (append (append (42) $A) $B))
+        return fn.append(fn.append((42,), a), b)
+
+    # The example's own head carries an underscore, which the naming ladder's
+    # total underscore-to-hyphen map does not produce, so this one door takes
+    # the exact name.
+    @m.define(name="h_old")  # rung: def h_old maps to h-old, while the source head is h_old
+    def h_old(a, c):
+        # (= (h_old $A $C) (if (= $A (myfunc (10) $B)) ($B $C) (empty)))
+        return (V.b, c) if fn["="](a, myfunc((10,), V.b)) else fn.empty()
+
+    @m.define
+    def h(a, c):
+        # (= (h $A $C) (let $A (myfunc (10) $B) ($B $C)))
+        return S.let(a, myfunc((10,), V.b), (V.b, c))  # rung: relational let
+
+    # Both claims call the decorated functions rather than naming their heads.
+    # `h_old`'s MeTTa name carries an underscore, and the factory's attribute
+    # door applies rung 4's total map, so `S.h_old` is the atom `h-old` and
+    # would ask about a head nothing defines; the exact spelling is
+    # `S["h_old"]`. Calling the Python name sidesteps the trap entirely.
+    assert h((42, 10, 40), 42000) == [Expression(((40,), 42000))]
+    assert h_old((42, 10, 40), 42000) == [Expression(((40,), 42000))]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -98,31 +129,3 @@ from metta import Expression, S, V, fn
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 21203
-def twin(m):
-    """Constrain an argument to be what a call produces, two ways."""
-
-    @m.define
-    def myfunc(a, b):
-        # (= (myfunc $A $B) (append (append (42) $A) $B))
-        return fn.append(fn.append((42,), a), b)
-
-    # The example's own head carries an underscore, which the naming ladder's
-    # total underscore-to-hyphen map does not produce, so this one door takes
-    # the exact name.
-    @m.define(name="h_old")  # rung: def h_old maps to h-old, while the source head is h_old
-    def h_old(a, c):
-        # (= (h_old $A $C) (if (= $A (myfunc (10) $B)) ($B $C) (empty)))
-        return (V.b, c) if fn["="](a, myfunc((10,), V.b)) else fn.empty()
-
-    @m.define
-    def h(a, c):
-        # (= (h $A $C) (let $A (myfunc (10) $B) ($B $C)))
-        return S.let(a, myfunc((10,), V.b), (V.b, c))  # rung: relational let
-
-    # Both claims call the decorated functions rather than naming their heads.
-    # `h_old`'s MeTTa name carries an underscore, and the factory's attribute
-    # door applies rung 4's total map, so `S.h_old` is the atom `h-old` and
-    # would ask about a head nothing defines; the exact spelling is
-    # `S["h_old"]`. Calling the Python name sidesteps the trap entirely.
-    assert h((42, 10, 40), 42000) == [Expression(((40,), 42000))]
-    assert h_old((42, 10, 40), 42000) == [Expression(((40,), 42000))]

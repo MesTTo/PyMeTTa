@@ -24,6 +24,24 @@ LIB_HE = lib.he
 BROKEN = S["examples/integration/_fixtures/imports/import_error_broken"]
 MISSING = S["examples/integration/_fixtures/imports/definitely_missing_import"]
 
+
+def twin(m):
+    """Import two files that cannot load, and read what came back."""
+    # (import! &self (library lib_he)): the write door imports, and the
+    # receiver is the target space.
+    m += LIB_HE
+
+    def caught(target):
+        """The atom `catch` hands back when importing `target` raises."""
+        answer, = m.eval(S.catch(S["import!"](m, target)))   # (catch (import! &self ...))
+        return answer
+
+    # (if-error (catch (import! ...)) Error NoError) is the head of the atom,
+    # which Python reads off the expression it already holds.
+    assert caught(BROKEN)[0] == S.Error
+    assert caught(MISSING)[0] == S.Error
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -69,20 +87,3 @@ MISSING = S["examples/integration/_fixtures/imports/definitely_missing_import"]
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 3580
-
-
-def twin(m):
-    """Import two files that cannot load, and read what came back."""
-    # (import! &self (library lib_he)): the write door imports, and the
-    # receiver is the target space.
-    m += LIB_HE
-
-    def caught(target):
-        """The atom `catch` hands back when importing `target` raises."""
-        answer, = m.eval(S.catch(S["import!"](m, target)))   # (catch (import! &self ...))
-        return answer
-
-    # (if-error (catch (import! ...)) Error NoError) is the head of the atom,
-    # which Python reads off the expression it already holds.
-    assert caught(BROKEN)[0] == S.Error
-    assert caught(MISSING)[0] == S.Error

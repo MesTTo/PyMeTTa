@@ -18,6 +18,22 @@ the exact door, so `S["add"]` is the head literally named `add`.
 
 from metta import G, S, V, equation, lib
 
+
+def twin(m):
+    """Store an equation with a literal head, then ask three equality questions."""
+    m += lib.he
+
+    m += equation(S["add"](1, 2)).to(3)
+
+    assert m.fn.id(5) == [5]
+
+    # Alpha equality is equality up to a consistent renaming of variables.
+    assert S.Father(V.X).alpha_eq(S.Father(V.Y))
+    assert not S.Father(V.X).alpha_eq(S.Son(V.X))
+
+    assert m.fn.if_equal(1, 1, G("Equal"), G("Not Equal")) == [G("Equal")]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -72,18 +88,3 @@ from metta import G, S, V, equation, lib
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 3083
-
-
-def twin(m):
-    """Store an equation with a literal head, then ask three equality questions."""
-    m += lib.he
-
-    m += equation(S["add"](1, 2)).to(3)
-
-    assert m.fn.id(5) == [5]
-
-    # Alpha equality is equality up to a consistent renaming of variables.
-    assert S.Father(V.X).alpha_eq(S.Father(V.Y))
-    assert not S.Father(V.X).alpha_eq(S.Son(V.X))
-
-    assert m.fn.if_equal(1, 1, G("Equal"), G("Not Equal")) == [G("Equal")]

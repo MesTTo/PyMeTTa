@@ -25,6 +25,40 @@ which both pulls them and says what they answered.
 from metta import S, lib
 from metta.vocabularies import MemoAggregate
 
+
+def twin(m):
+    """Ask for a summing cache, build the function, and read the mode back."""
+    m += lib.memo
+
+    config = m.fn.config_memoize
+    assert config(S.aggregate(S[MemoAggregate.sum])) == [True]
+
+    @m.define
+    def choices(x):
+        # (= (choices $x) $x), then (+ $x 1), then (+ $x 2)
+        yield x
+        yield x + 1
+        yield x + 2
+
+    m.eval(S.memoize(choices))
+
+    read_config = m.fn.get_memoize_config
+    [declared] = read_config()
+    assert S.aggregate(S[MemoAggregate.sum]) in declared
+
+    # Restore the default mode: the counters and the configuration are
+    # process-global, so a later run in the same process would inherit this one.
+    assert config(S.aggregate(S[MemoAggregate.none])) == [True]
+    [restored] = read_config()
+    assert S.aggregate(S[MemoAggregate.none]) in restored
+
+    # The fold the cache would do is what Python cannot reach, so the three
+    # alternatives answer separately here. Pinning that is the declined claim
+    # written down: when the dispatch hook reaches Python this line goes red,
+    # which is when the residue entry retires and the claim becomes 18.
+    assert sorted(choices(5)) == [5, 6, 7]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -83,34 +117,3 @@ from metta.vocabularies import MemoAggregate
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 36845
-def twin(m):
-    """Ask for a summing cache, build the function, and read the mode back."""
-    m += lib.memo
-
-    config = m.fn.config_memoize
-    assert config(S.aggregate(S[MemoAggregate.sum])) == [True]
-
-    @m.define
-    def choices(x):
-        # (= (choices $x) $x), then (+ $x 1), then (+ $x 2)
-        yield x
-        yield x + 1
-        yield x + 2
-
-    m.eval(S.memoize(choices))
-
-    read_config = m.fn.get_memoize_config
-    [declared] = read_config()
-    assert S.aggregate(S[MemoAggregate.sum]) in declared
-
-    # Restore the default mode: the counters and the configuration are
-    # process-global, so a later run in the same process would inherit this one.
-    assert config(S.aggregate(S[MemoAggregate.none])) == [True]
-    [restored] = read_config()
-    assert S.aggregate(S[MemoAggregate.none]) in restored
-
-    # The fold the cache would do is what Python cannot reach, so the three
-    # alternatives answer separately here. Pinning that is the declined claim
-    # written down: when the dispatch hook reaches Python this line goes red,
-    # which is when the residue entry retires and the claim becomes 18.
-    assert sorted(choices(5)) == [5, 6, 7]

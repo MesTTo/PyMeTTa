@@ -21,6 +21,23 @@ why no bracket spelling is needed for a name MeTTa writes as
 
 from metta import S, V, lib
 
+
+def twin(m):
+    """Ask a predicate a ground question, then a binding one."""
+    m += lib.spaces
+    succeeds = m.fn.succeedsPredicate
+
+    # Nothing matches, so the ground question is False.
+    assert succeeds((m, S.friend, S.tim, S.tom)).one() is False
+
+    m += (S.friend, S.a, S.b)
+
+    # The binding question answers what it bound, one row per solution.
+    assert [(row.a, row.b) for row in succeeds((m, S.friend, V.a, V.b)).rows] == [
+        (S.a, S.b)
+    ]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -66,19 +83,3 @@ from metta import S, V, lib
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 7413
-
-
-def twin(m):
-    """Ask a predicate a ground question, then a binding one."""
-    m += lib.spaces
-    succeeds = m.fn.succeedsPredicate
-
-    # Nothing matches, so the ground question is False.
-    assert succeeds((m, S.friend, S.tim, S.tom)).one() is False
-
-    m += (S.friend, S.a, S.b)
-
-    # The binding question answers what it bound, one row per solution.
-    assert [(row.a, row.b) for row in succeeds((m, S.friend, V.a, V.b)).rows] == [
-        (S.a, S.b)
-    ]

@@ -18,6 +18,31 @@ compiled body `type()` has no lowering, which is the friction P14.4 records.
 
 from metta import Expression, S, Symbol, fn, typed
 
+
+class OpaquePayload:
+    """The MeTTa type `OpaquePayload`, so a signature can name it."""
+
+
+def twin(m):
+    """Declare the lazy type, then read what the body was handed."""
+    # (: OpaquePayload DontEvalType)
+    m += typed(S.OpaquePayload, S.DontEvalType)
+
+    @m.define
+    def inspect_opaque(written: OpaquePayload) -> Symbol:
+        """(= (inspect-opaque $written) (get-metatype $written))."""
+        return fn.get_metatype(written)
+
+    sum_term = S.add(1, 2)
+
+    # !(test (inspect-opaque (+ 1 2)) Expression)
+    assert inspect_opaque(sum_term) == [S.Expression]
+
+    # The same question on the Python side of the seam: the metatype IS the
+    # class, so nothing crosses to ask it.
+    assert type(sum_term) is Expression
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -85,25 +110,3 @@ from metta import Expression, S, Symbol, fn, typed
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 3886
-class OpaquePayload:
-    """The MeTTa type `OpaquePayload`, so a signature can name it."""
-
-
-def twin(m):
-    """Declare the lazy type, then read what the body was handed."""
-    # (: OpaquePayload DontEvalType)
-    m += typed(S.OpaquePayload, S.DontEvalType)
-
-    @m.define
-    def inspect_opaque(written: OpaquePayload) -> Symbol:
-        """(= (inspect-opaque $written) (get-metatype $written))."""
-        return fn.get_metatype(written)
-
-    sum_term = S.add(1, 2)
-
-    # !(test (inspect-opaque (+ 1 2)) Expression)
-    assert inspect_opaque(sum_term) == [S.Expression]
-
-    # The same question on the Python side of the seam: the metatype IS the
-    # class, so nothing crosses to ask it.
-    assert type(sum_term) is Expression

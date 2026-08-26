@@ -25,6 +25,52 @@ Open Obligations:
 
 from metta import Expression, G, S, V, lib
 
+
+def twin(m):
+    """Ask each member of the assert family whether it holds."""
+    m += lib.he
+
+    assert m.fn.assertEqual(S.add(1, 2), S.sub(6, 3)) == [True]
+
+    # Comparing modulo variable renaming carries variables by definition, and
+    # the call answers the True this family reports all the same.
+    alpha_equal = m.fn.assertAlphaEqual
+    assert alpha_equal(S.h(V.x, V.y), S.h(V.a, V.b)) == [True]
+    assert alpha_equal(S.quote(V.x + V.y), S.quote(V.a + V.b)) == [True]
+
+    # The ToResult forms take the expected results as a tuple, not a bare
+    # value, and do not evaluate it. A single result is therefore (3), not 3.
+    to_result = m.fn.assertEqualToResult
+    assert to_result(S.add(1, 2), (3,)) == [True]
+    assert to_result(S.superpose((1, 2)), (1, 2)) == [True]
+
+    @m.define
+    def adder():
+        # (= (adder) ($x))
+        return (V.x,)
+
+    assert m.fn.assertAlphaEqualToResult(
+        S.adder(), (Expression((V.y,)),)
+    ) == [True]
+
+    # Every expected result must appear among those produced.
+    includes = m.fn.assertIncludes
+    assert includes(S.superpose((1, 2, 3)), (2,)) == [True]
+    assert includes(S.superpose((1, 2, 3)), (2, 3)) == [True]
+
+    # The Msg variants take a failure message and otherwise behave as their bases.
+    assert m.fn.assertEqualMsg(S.add(1, 2), S.sub(6, 3), G("sums differ")) == [True]
+    assert m.fn.assertAlphaEqualMsg(
+        S.h(V.x, V.y), S.h(V.a, V.b), G("not alpha equal")
+    ) == [True]
+    assert m.fn.assertEqualToResultMsg(
+        S.add(1, 2), (3,), G("not the expected result")
+    ) == [True]
+    assert m.fn.assertAlphaEqualToResultMsg(
+        S.adder(), (Expression((V.y,)),), G("not alpha equal")
+    ) == [True]
+
+
 #: Why this twin sits below the top rung: every claim here is about a member of
 #: the assert family, so naming them is the file's subject rather than MeTTa
 #: written in Python punctuation.
@@ -90,46 +136,3 @@ RUNG = "the assert family is this file's subject, so each claim names one of its
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 19944
-def twin(m):
-    """Ask each member of the assert family whether it holds."""
-    m += lib.he
-
-    assert m.fn.assertEqual(S.add(1, 2), S.sub(6, 3)) == [True]
-
-    # Comparing modulo variable renaming carries variables by definition, and
-    # the call answers the True this family reports all the same.
-    alpha_equal = m.fn.assertAlphaEqual
-    assert alpha_equal(S.h(V.x, V.y), S.h(V.a, V.b)) == [True]
-    assert alpha_equal(S.quote(V.x + V.y), S.quote(V.a + V.b)) == [True]
-
-    # The ToResult forms take the expected results as a tuple, not a bare
-    # value, and do not evaluate it. A single result is therefore (3), not 3.
-    to_result = m.fn.assertEqualToResult
-    assert to_result(S.add(1, 2), (3,)) == [True]
-    assert to_result(S.superpose((1, 2)), (1, 2)) == [True]
-
-    @m.define
-    def adder():
-        # (= (adder) ($x))
-        return (V.x,)
-
-    assert m.fn.assertAlphaEqualToResult(
-        S.adder(), (Expression((V.y,)),)
-    ) == [True]
-
-    # Every expected result must appear among those produced.
-    includes = m.fn.assertIncludes
-    assert includes(S.superpose((1, 2, 3)), (2,)) == [True]
-    assert includes(S.superpose((1, 2, 3)), (2, 3)) == [True]
-
-    # The Msg variants take a failure message and otherwise behave as their bases.
-    assert m.fn.assertEqualMsg(S.add(1, 2), S.sub(6, 3), G("sums differ")) == [True]
-    assert m.fn.assertAlphaEqualMsg(
-        S.h(V.x, V.y), S.h(V.a, V.b), G("not alpha equal")
-    ) == [True]
-    assert m.fn.assertEqualToResultMsg(
-        S.add(1, 2), (3,), G("not the expected result")
-    ) == [True]
-    assert m.fn.assertAlphaEqualToResultMsg(
-        S.adder(), (Expression((V.y,)),), G("not alpha equal")
-    ) == [True]

@@ -29,6 +29,46 @@ from metta import S, ground
 np_abs, np_array, np_arange = ground(np.absolute), ground(np.array), ground(np.arange)
 np_random = np.random
 
+
+def twin(m):
+    """Hold four numpy objects, apply them in the engine, read the answers."""
+    # A numpy scalar stays the same Python object through the answer seam, and
+    # Python's addition keeps the library result class. The engine-side class
+    # question mirrors the tutorial while the direct assertions pin the
+    # Python view that used to be lost.
+    scalar = (np_abs, -5)
+    class_of = S.py_dot(scalar, S["__class__"])
+    assert m.fn.py_dot(class_of, S["__name__"]) == [ground("int64")]
+    scalar_answer = m.answers(scalar).one()
+    assert type(scalar_answer) is np.int64
+
+    # An applied bound method: the HEAD is itself a term, which no name at the
+    # function namespace can spell, so this one is asked as the term it is.
+    assert m.eval((S.py_dot(scalar, S.item),)) == [5]
+
+    addition = m.answers(S["+"](scalar, 10)).one()
+    assert type(addition) is np.int64
+    assert addition == np.int64(15)
+
+    # An array crosses by reference, so Python can ask about it directly. The
+    # example's `(py-atom "[1, 2, 3]")` evaluates Python source text; a Python
+    # program writes the list.
+    assert isinstance(m.answers((np_array, ground([1, 2, 3]))).one(), np.ndarray)
+
+    # arange means different things by how many arguments you give it, and
+    # a keyword argument is Python's own concept, so Python's own syntax
+    # reaches it: applying a head with keywords builds the seam's
+    # `(Kwargs (name value)...)` tail, the exact form py-call splits, and
+    # the names stay exact because they are Python parameter names.
+    assert m.answers(np_arange(4)).one().tolist() == [0, 1, 2, 3]
+    assert m.answers(np_arange(step=2, stop=8)).one().tolist() == [0, 2, 4, 6]
+    assert m.answers(np_arange(start=2, stop=10, step=3)).one().tolist() == [2, 5, 8]
+
+    # A submodule held once, reached into for the function wanted: randint
+    # answers a Python int, not a numpy one.
+    assert isinstance(m.answers((ground(np_random.randint), 25)).one(), int)
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -78,42 +118,3 @@ np_random = np.random
 #: examples/integration/py_numpy.metta; provisional on the merged tree,
 #: the final release measure re-prices].
 BUDGET = 3932
-
-
-def twin(m):
-    """Hold four numpy objects, apply them in the engine, read the answers."""
-    # A numpy scalar stays the same Python object through the answer seam, and
-    # Python's addition keeps the library result class. The engine-side class
-    # question mirrors the tutorial while the direct assertions pin the
-    # Python view that used to be lost.
-    scalar = (np_abs, -5)
-    class_of = S.py_dot(scalar, S["__class__"])
-    assert m.fn.py_dot(class_of, S["__name__"]) == [ground("int64")]
-    scalar_answer = m.answers(scalar).one()
-    assert type(scalar_answer) is np.int64
-
-    # An applied bound method: the HEAD is itself a term, which no name at the
-    # function namespace can spell, so this one is asked as the term it is.
-    assert m.eval((S.py_dot(scalar, S.item),)) == [5]
-
-    addition = m.answers(S["+"](scalar, 10)).one()
-    assert type(addition) is np.int64
-    assert addition == np.int64(15)
-
-    # An array crosses by reference, so Python can ask about it directly. The
-    # example's `(py-atom "[1, 2, 3]")` evaluates Python source text; a Python
-    # program writes the list.
-    assert isinstance(m.answers((np_array, ground([1, 2, 3]))).one(), np.ndarray)
-
-    # arange means different things by how many arguments you give it, and
-    # a keyword argument is Python's own concept, so Python's own syntax
-    # reaches it: applying a head with keywords builds the seam's
-    # `(Kwargs (name value)...)` tail, the exact form py-call splits, and
-    # the names stay exact because they are Python parameter names.
-    assert m.answers(np_arange(4)).one().tolist() == [0, 1, 2, 3]
-    assert m.answers(np_arange(step=2, stop=8)).one().tolist() == [0, 2, 4, 6]
-    assert m.answers(np_arange(start=2, stop=10, step=3)).one().tolist() == [2, 5, 8]
-
-    # A submodule held once, reached into for the function wanted: randint
-    # answers a Python int, not a numpy one.
-    assert isinstance(m.answers((ground(np_random.randint), 25)).one(), int)

@@ -12,6 +12,21 @@ sequence; where the pair's head is a symbol the term is built by calling it.
 
 from metta import Expression, S, lib
 
+
+def twin(m):
+    """Import lib_roman, define inc, then move it over each side of a pair."""
+    m += lib.roman
+
+    @m.define
+    def inc(x):
+        # (= (inc $x) (+ $x 1))
+        return x + 1
+
+    assert m.fn.first(S.inc, (1, 9)) == [Expression((2, 9))]
+    assert m.fn.second(S.inc, (1, 9)) == [Expression((1, 10))]
+    assert m.fn.flip((S.left, S.right)) == [S.right(S.left)]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -80,15 +95,3 @@ from metta import Expression, S, lib
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 27848
-def twin(m):
-    """Import lib_roman, define inc, then move it over each side of a pair."""
-    m += lib.roman
-
-    @m.define
-    def inc(x):
-        # (= (inc $x) (+ $x 1))
-        return x + 1
-
-    assert m.fn.first(S.inc, (1, 9)) == [Expression((2, 9))]
-    assert m.fn.second(S.inc, (1, 9)) == [Expression((1, 10))]
-    assert m.fn.flip((S.left, S.right)) == [S.right(S.left)]

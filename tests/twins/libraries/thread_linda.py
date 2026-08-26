@@ -39,6 +39,58 @@ Open Obligations:
 import metta
 from metta import S, V, lib, spawn
 
+
+def twin(m):
+    """Peek twice, take once, drain a queue, and rendezvous with a thread."""
+    m += lib.thread
+
+    @m.define
+    def inc(x):
+        # (= (inc $x) (+ $x 1))
+        return x + 1
+
+    # A peek leaves the atom, so two peeks answer the same job.
+    jobs = metta.space(S.jobs)
+    jobs += S.job(7)
+    assert jobs.peek(S.job(V.n)) == S.job(7)
+    assert jobs.peek(S.job(V.n)) == S.job(7)
+
+    # await-atom is the older name for the same thing and stays as sugar.
+    assert m.fn.await_atom(jobs, S.job(V.n)) == [S.job(7)]
+
+    # A take removes the one it answers, so the second finds nothing and gives
+    # up on its deadline instead of answering the same job twice.
+    assert jobs.take(S.job(V.n)) == S.job(7)
+    try:
+        jobs.take(S.job(V.n), deadline=0.05)
+    except TimeoutError:
+        gave_up = True
+    else:
+        gave_up = False
+    assert gave_up
+    assert list(jobs) == []
+
+    # A worker is the point: take a job, do it, take the next. Each take
+    # consumes its own job, so two takes drain two.
+    work = metta.space(S.work)
+    work += S.job(1)
+    work += S.job(2)
+    first = work.take(S.job(V.a), deadline=1)
+    second = work.take(S.job(V.b), deadline=1)
+    assert first[1].value + second[1].value == 3
+    assert list(work) == []
+
+    # Blocking means blocking: the take below starts before the atom exists and
+    # another thread writes it, which is the rendezvous a channel would
+    # otherwise be needed for.
+    inbox = metta.space(S.inbox)
+    writer = spawn(S.add_atom(inbox, S.msg(S.hello)))  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
+    seen = inbox.take(S.msg(V.what), deadline=10)
+    writer.wait()
+    assert seen == S.msg(S.hello)
+    assert list(inbox) == []
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree. This one
 #: needs an EMPIRICAL ENVELOPE rather than a point: its cost moved across
@@ -100,54 +152,3 @@ BUDGET = {
     "observations": 20,
     "protocol": "full-lane/219/workers=32",
 }
-
-
-def twin(m):
-    """Peek twice, take once, drain a queue, and rendezvous with a thread."""
-    m += lib.thread
-
-    @m.define
-    def inc(x):
-        # (= (inc $x) (+ $x 1))
-        return x + 1
-
-    # A peek leaves the atom, so two peeks answer the same job.
-    jobs = metta.space(S.jobs)
-    jobs += S.job(7)
-    assert jobs.peek(S.job(V.n)) == S.job(7)
-    assert jobs.peek(S.job(V.n)) == S.job(7)
-
-    # await-atom is the older name for the same thing and stays as sugar.
-    assert m.fn.await_atom(jobs, S.job(V.n)) == [S.job(7)]
-
-    # A take removes the one it answers, so the second finds nothing and gives
-    # up on its deadline instead of answering the same job twice.
-    assert jobs.take(S.job(V.n)) == S.job(7)
-    try:
-        jobs.take(S.job(V.n), deadline=0.05)
-    except TimeoutError:
-        gave_up = True
-    else:
-        gave_up = False
-    assert gave_up
-    assert list(jobs) == []
-
-    # A worker is the point: take a job, do it, take the next. Each take
-    # consumes its own job, so two takes drain two.
-    work = metta.space(S.work)
-    work += S.job(1)
-    work += S.job(2)
-    first = work.take(S.job(V.a), deadline=1)
-    second = work.take(S.job(V.b), deadline=1)
-    assert first[1].value + second[1].value == 3
-    assert list(work) == []
-
-    # Blocking means blocking: the take below starts before the atom exists and
-    # another thread writes it, which is the rendezvous a channel would
-    # otherwise be needed for.
-    inbox = metta.space(S.inbox)
-    writer = spawn(S.add_atom(inbox, S.msg(S.hello)))  # rung: the write is DATA handed to another engine thread, not a store this process mutates, so `space += atom` cannot say it
-    seen = inbox.take(S.msg(V.what), deadline=10)
-    writer.wait()
-    assert seen == S.msg(S.hello)
-    assert list(inbox) == []

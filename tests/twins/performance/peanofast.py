@@ -20,6 +20,33 @@ commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 
 from metta import S, V, counting, fn
 
+
+def twin(m):
+    """Build 2500 Peano successors, then count them."""
+
+    # `expandK` is camelCase, which the naming ladder's underscore map does
+    # not produce from any Python identifier, so this one door states the
+    # exact name while the Python side stays snake_case.
+    @m.define(name="expandK")
+    def expand_k(expression, n):
+        if n == 0:
+            return S.done
+        space = fn.context_space()
+        space += S.num(expression)
+        return expand_k(S.S(expression), n - 1)
+
+    @m.define
+    def demo_peano(k):
+        """Expand from zero, k times."""
+        # One rule at both call sites: a compiled body naming a bound
+        # `Defined` sibling emits the MeTTa name that object was installed
+        # under, so this stores `(expandK Z $k)`.
+        return expand_k(S.Z, k)
+
+    assert demo_peano(2500) == [S.done]
+    assert m.match(S.num(V.stored), under=counting).one() == 2500
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -85,27 +112,3 @@ from metta import S, V, counting, fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 103161
-def twin(m):
-    """Build 2500 Peano successors, then count them."""
-
-    # `expandK` is camelCase, which the naming ladder's underscore map does
-    # not produce from any Python identifier, so this one door states the
-    # exact name while the Python side stays snake_case.
-    @m.define(name="expandK")
-    def expand_k(expression, n):
-        if n == 0:
-            return S.done
-        space = fn.context_space()
-        space += S.num(expression)
-        return expand_k(S.S(expression), n - 1)
-
-    @m.define
-    def demo_peano(k):
-        """Expand from zero, k times."""
-        # One rule at both call sites: a compiled body naming a bound
-        # `Defined` sibling emits the MeTTa name that object was installed
-        # under, so this stores `(expandK Z $k)`.
-        return expand_k(S.Z, k)
-
-    assert demo_peano(2500) == [S.done]
-    assert m.match(S.num(V.stored), under=counting).one() == 2500

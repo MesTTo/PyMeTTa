@@ -23,6 +23,38 @@ from typing import Any
 import metta
 from metta import Atom, S, V, arrow, equation, ground, if_, typed
 
+#: The words the rule declines with, which are its own.
+TOO_STRONG = ground("a dose above 1000 is not a milligram strength")
+
+
+def twin(m):
+    """Register a rule that declines above a threshold, then cross it."""
+    m += typed(S.strength, arrow(Atom, Atom, Any))   # (: strength (-> Atom Atom %Undefined%))
+
+    @m.rules
+    def dosing(n):
+        # (= (strength (dose $n) (unit mg))
+        #    (if (> $n 1000) (refuse "...") (noeval (mg $n))))
+        yield equation(S.strength(S.dose(n), S.unit(S.mg))).to(
+            if_(S.gt(n, 1000), S.refuse(TOO_STRONG), S.noeval(S.mg(n))))
+        # A refusal is a decline, so a rule with another equation tries that one.
+        yield equation(S.strength(S.dose(n), S.unit(S.mg))).to(
+            S.noeval(S.grams(n / 1000)))       # (= ... (noeval (grams (/ $n 1000))))
+
+    # The directive's MeTTa name ends in `!`, so calling it is the whole of
+    # performing it and the statement needs no forcing read.
+    m.fn.add_translator_rule(S.strength)
+
+    # A match the rule can honour rewrites.
+    assert m.fn.strength(S.dose(250), S.unit(S.mg)) == [S.mg(250)]
+    # A match it declines falls through to the second equation.
+    assert m.fn.strength(S.dose(5000), S.unit(S.mg)) == [S.grams(5)]
+
+    # And the words are the rule's own, published where a program can ask.
+    assert [row.why for row in
+            metta.reflection[S.translator_rule_refusal(S.strength, V.why)]] == [TOO_STRONG]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -68,35 +100,3 @@ from metta import Atom, S, V, arrow, equation, ground, if_, typed
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 10192
-
-
-#: The words the rule declines with, which are its own.
-TOO_STRONG = ground("a dose above 1000 is not a milligram strength")
-
-
-def twin(m):
-    """Register a rule that declines above a threshold, then cross it."""
-    m += typed(S.strength, arrow(Atom, Atom, Any))   # (: strength (-> Atom Atom %Undefined%))
-
-    @m.rules
-    def dosing(n):
-        # (= (strength (dose $n) (unit mg))
-        #    (if (> $n 1000) (refuse "...") (noeval (mg $n))))
-        yield equation(S.strength(S.dose(n), S.unit(S.mg))).to(
-            if_(S.gt(n, 1000), S.refuse(TOO_STRONG), S.noeval(S.mg(n))))
-        # A refusal is a decline, so a rule with another equation tries that one.
-        yield equation(S.strength(S.dose(n), S.unit(S.mg))).to(
-            S.noeval(S.grams(n / 1000)))       # (= ... (noeval (grams (/ $n 1000))))
-
-    # The directive's MeTTa name ends in `!`, so calling it is the whole of
-    # performing it and the statement needs no forcing read.
-    m.fn.add_translator_rule(S.strength)
-
-    # A match the rule can honour rewrites.
-    assert m.fn.strength(S.dose(250), S.unit(S.mg)) == [S.mg(250)]
-    # A match it declines falls through to the second equation.
-    assert m.fn.strength(S.dose(5000), S.unit(S.mg)) == [S.grams(5)]
-
-    # And the words are the rule's own, published where a program can ask.
-    assert [row.why for row in
-            metta.reflection[S.translator_rule_refusal(S.strength, V.why)]] == [TOO_STRONG]

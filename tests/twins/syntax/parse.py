@@ -16,6 +16,27 @@ two characters rather than a newline.
 
 from metta import ground
 
+
+def twin(m):
+    """Print three awkward strings, and read each of them back."""
+    read = m.fn.parse
+
+    # A Windows path: every backslash is a backslash, doubled on the way out
+    # and single again on the way back.
+    # !(test (parse (repr "C:\\Users\\bob")) "C:\\Users\\bob")
+    assert read(str(ground("C:\\Users\\bob"))) == ["C:\\Users\\bob"]
+
+    # Quotes inside the string, escaped by the printer and unescaped by
+    # the reader.
+    # !(test (parse (repr "say \"hi\"")) "say \"hi\"")
+    assert read(str(ground('say "hi"'))) == ['say "hi"']
+
+    # Backslash-n as two characters, which survives because the printer
+    # escapes the backslash rather than the n.
+    # !(test (parse (repr "a\\nb")) "a\\nb")
+    assert read(str(ground("a\\nb"))) == ["a\\nb"]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -60,23 +81,3 @@ from metta import ground
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 404
-
-
-def twin(m):
-    """Print three awkward strings, and read each of them back."""
-    read = m.fn.parse
-
-    # A Windows path: every backslash is a backslash, doubled on the way out
-    # and single again on the way back.
-    # !(test (parse (repr "C:\\Users\\bob")) "C:\\Users\\bob")
-    assert read(str(ground("C:\\Users\\bob"))) == ["C:\\Users\\bob"]
-
-    # Quotes inside the string, escaped by the printer and unescaped by
-    # the reader.
-    # !(test (parse (repr "say \"hi\"")) "say \"hi\"")
-    assert read(str(ground('say "hi"'))) == ['say "hi"']
-
-    # Backslash-n as two characters, which survives because the printer
-    # escapes the backslash rather than the n.
-    # !(test (parse (repr "a\\nb")) "a\\nb")
-    assert read(str(ground("a\\nb"))) == ["a\\nb"]

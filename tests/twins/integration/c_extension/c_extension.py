@@ -35,6 +35,22 @@ LIB_IMPORT, LIB_FILE = lib["lib_import"], lib.file
 CBUMP_SO = Path("examples/integration/c_extension/cbump.so")
 LOADER_PL = Path("examples/integration/c_extension/loader.pl")
 
+
+def twin(m):
+    """Load the C predicate, then call it."""
+    # (import! &self (library lib_import)) and (library lib_file): the write
+    # door imports, and the receiver is the target space.
+    for library in (LIB_IMPORT, LIB_FILE):
+        m += library
+
+    if not CBUMP_SO.exists():
+        # The example prints its skip here. A twin has no door for prose.
+        return
+
+    m.register_prolog(path=LOADER_PL, names=["c-bump"])
+    assert m.fn.c_bump(41) == [42]   # (test (eval (c-bump 41)) 42)
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -80,18 +96,3 @@ LOADER_PL = Path("examples/integration/c_extension/loader.pl")
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 69320
-
-
-def twin(m):
-    """Load the C predicate, then call it."""
-    # (import! &self (library lib_import)) and (library lib_file): the write
-    # door imports, and the receiver is the target space.
-    for library in (LIB_IMPORT, LIB_FILE):
-        m += library
-
-    if not CBUMP_SO.exists():
-        # The example prints its skip here. A twin has no door for prose.
-        return
-
-    m.register_prolog(path=LOADER_PL, names=["c-bump"])
-    assert m.fn.c_bump(41) == [42]   # (test (eval (c-bump 41)) 42)

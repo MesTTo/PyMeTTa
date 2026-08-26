@@ -14,6 +14,20 @@ against P14.4.
 
 from metta import S, equation
 
+
+def twin(m):
+    """Call before the definition, then after it."""
+    respond = S.p121_example_respond
+
+    # Nothing defines it yet, so the call answers ITSELF.
+    assert m.eval(respond(S.me)) == [respond(S.me)]
+
+    # (= (p121-example-respond me) hello)
+    m += equation(respond(S.me)).to(S.hello)  # rung: the head fixes a SYMBOL
+
+    assert m.eval(respond(S.me)) == [S.hello]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -58,16 +72,3 @@ from metta import S, equation
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
 BUDGET = 1017
-
-
-def twin(m):
-    """Call before the definition, then after it."""
-    respond = S.p121_example_respond
-
-    # Nothing defines it yet, so the call answers ITSELF.
-    assert m.eval(respond(S.me)) == [respond(S.me)]
-
-    # (= (p121-example-respond me) hello)
-    m += equation(respond(S.me)).to(S.hello)  # rung: the head fixes a SYMBOL
-
-    assert m.eval(respond(S.me)) == [S.hello]

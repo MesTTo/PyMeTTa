@@ -220,6 +220,16 @@ def test_twin_docs_state_python_stack_engine_lco_and_answer_equality() -> None:
     assert "Whenever both routes finish, they must answer the same value" in text
 
 
+def test_twin_docs_state_where_the_pricing_block_lives() -> None:
+    """The convention a twin author reads, and the door that keeps it true."""
+    path = _REPOSITORY / "bindings" / "python" / "tests" / "twins" / "README.md"
+    text = " ".join(path.read_text(encoding="utf-8").split())
+    assert "sit at the END of the file" in text
+    assert "a re-pin APPENDS one more paragraph there" in text
+    assert "opened with 297 comment lines" in text
+    assert "twin_coverage.py --repin" in text
+
+
 def test_twin_depth_divergence_is_operational_not_an_answer_difference(tmp_path) -> None:
     """Shallow answers agree; only the Python route exhausts its depth fuel."""
     probe = tmp_path / "twin_depth_probe.py"

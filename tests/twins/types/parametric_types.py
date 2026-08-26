@@ -17,6 +17,26 @@ from collections.abc import Callable
 
 from metta import FALSE, S, V, arrow, fn
 
+
+def twin(m):
+    """Apply a function through a parametrically typed applier."""
+
+    @m.define
+    def apply[X, Y](f: Callable[[X], Y], x: X) -> Y:
+        """(: apply (-> (-> $tx $ty) $tx $ty)), (= (apply $f $x) ($f $x))."""
+        return f(x)
+
+    # !(apply not False)
+    assert apply(S["not"], FALSE) == [True]
+
+    # The example's last claim instantiates the arrow at `(-> Bool Bool)` and
+    # `Bool` and reads the result type off it, a `let` whose PATTERN carries
+    # the answer variable.
+    # !(test (let (get-type apply) (-> (-> Bool Bool) Bool $result) $result) Bool)
+    assert m.solve(arrow(arrow(bool, bool), bool, V.result),
+                   fn.get_type(S.apply)).result == S.Bool
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -84,20 +104,3 @@ from metta import FALSE, S, V, arrow, fn
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 9248
-def twin(m):
-    """Apply a function through a parametrically typed applier."""
-
-    @m.define
-    def apply[X, Y](f: Callable[[X], Y], x: X) -> Y:
-        """(: apply (-> (-> $tx $ty) $tx $ty)), (= (apply $f $x) ($f $x))."""
-        return f(x)
-
-    # !(apply not False)
-    assert apply(S["not"], FALSE) == [True]
-
-    # The example's last claim instantiates the arrow at `(-> Bool Bool)` and
-    # `Bool` and reads the result type off it, a `let` whose PATTERN carries
-    # the answer variable.
-    # !(test (let (get-type apply) (-> (-> Bool Bool) Bool $result) $result) Bool)
-    assert m.solve(arrow(arrow(bool, bool), bool, V.result),
-                   fn.get_type(S.apply)).result == S.Bool

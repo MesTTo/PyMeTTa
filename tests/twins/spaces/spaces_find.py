@@ -21,6 +21,41 @@ why no bracket spelling is needed for a name MeTTa writes as
 
 from metta import S, V, lib
 
+
+def chains(space, find):
+    """Every friendship chain the space holds, with the original's fallbacks."""
+    found = []
+    starts = find(space, S.friend(V.a, V.b))
+    for started, start in zip(starts, starts.rows, strict=True):
+        if not started:
+            return [S.MissedAllPieces()]
+        onward = find(space, S.friend(start.b, V.c))
+        for continued, row in zip(onward, onward.rows, strict=True):
+            found.append(
+                S.FoundChain(start.a, start.b, row.c)
+                if continued
+                else S.MissedSecondPiece()
+            )
+    return found
+
+
+def twin(m):
+    """Import lib_spaces, store two friendships, then walk them."""
+    m += lib.spaces
+    find = m.fn.find
+
+    m += (S.friend, S.a, S.b)
+    m += (S.friend, S.b, S.c)
+
+    # What `find` says at this door: one row per solution, bound.
+    assert [(row.a, row.b) for row in find(m, S.friend(V.a, V.b)).rows] == [
+        (S.a, S.b),
+        (S.b, S.c),
+    ]
+
+    assert chains(m, find) == [S.FoundChain(S.a, S.b, S.c), S.MissedSecondPiece()]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -74,37 +109,3 @@ from metta import S, V, lib
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 9896
-
-
-def chains(space, find):
-    """Every friendship chain the space holds, with the original's fallbacks."""
-    found = []
-    starts = find(space, S.friend(V.a, V.b))
-    for started, start in zip(starts, starts.rows, strict=True):
-        if not started:
-            return [S.MissedAllPieces()]
-        onward = find(space, S.friend(start.b, V.c))
-        for continued, row in zip(onward, onward.rows, strict=True):
-            found.append(
-                S.FoundChain(start.a, start.b, row.c)
-                if continued
-                else S.MissedSecondPiece()
-            )
-    return found
-
-
-def twin(m):
-    """Import lib_spaces, store two friendships, then walk them."""
-    m += lib.spaces
-    find = m.fn.find
-
-    m += (S.friend, S.a, S.b)
-    m += (S.friend, S.b, S.c)
-
-    # What `find` says at this door: one row per solution, bound.
-    assert [(row.a, row.b) for row in find(m, S.friend(V.a, V.b)).rows] == [
-        (S.a, S.b),
-        (S.b, S.c),
-    ]
-
-    assert chains(m, find) == [S.FoundChain(S.a, S.b, S.c), S.MissedSecondPiece()]

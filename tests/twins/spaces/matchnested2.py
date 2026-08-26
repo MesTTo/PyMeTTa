@@ -15,6 +15,35 @@ is a single loop with no inner query in it.
 
 from metta import S, V, fn
 
+#: The four friendships the original stores, in its own order.
+FRIENDS = [(S.tim, S.tom), (S.tom, S.tam), (S.sim, S.som), (S.som, S.sam)]
+
+
+def twin(m):
+    """Store four friendships, then rewrite every chain the join finds."""
+
+    @m.define
+    def hide(_x):
+        # (= (hide $1) (empty)): a body that answers nothing prunes.
+        return fn.empty()
+
+    assert hide(S.anything) == []
+
+    for left, right in FRIENDS:
+        m += S.friend(left, right)
+
+    for row in m[S.friend(V.a, V.b), S.friend(V.b, V.c)]:
+        m += S.transitive(row.a, row.b, row.c)
+        m -= S.friend(row.a, row.b)
+        m -= S.friend(row.b, row.c)
+
+    chains = [S.transitive(row.a, row.b, row.c) for row in m[S.transitive(V.a, V.b, V.c)]]
+    assert sorted(chains) == [
+        S.transitive(S.sim, S.som, S.sam),
+        S.transitive(S.tim, S.tom, S.tam),
+    ]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -65,30 +94,3 @@ from metta import S, V, fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 3052
-#: The four friendships the original stores, in its own order.
-FRIENDS = [(S.tim, S.tom), (S.tom, S.tam), (S.sim, S.som), (S.som, S.sam)]
-
-
-def twin(m):
-    """Store four friendships, then rewrite every chain the join finds."""
-
-    @m.define
-    def hide(_x):
-        # (= (hide $1) (empty)): a body that answers nothing prunes.
-        return fn.empty()
-
-    assert hide(S.anything) == []
-
-    for left, right in FRIENDS:
-        m += S.friend(left, right)
-
-    for row in m[S.friend(V.a, V.b), S.friend(V.b, V.c)]:
-        m += S.transitive(row.a, row.b, row.c)
-        m -= S.friend(row.a, row.b)
-        m -= S.friend(row.b, row.c)
-
-    chains = [S.transitive(row.a, row.b, row.c) for row in m[S.transitive(V.a, V.b, V.c)]]
-    assert sorted(chains) == [
-        S.transitive(S.sim, S.som, S.sam),
-        S.transitive(S.tim, S.tom, S.tam),
-    ]

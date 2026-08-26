@@ -26,6 +26,43 @@ Open Obligations:
 
 from metta import Expression, S
 
+
+def twin(m):
+    """Ask five heads what they do with a function as an argument."""
+
+    @m.define
+    def f(x):
+        # (= (f $x) (* $x 2))
+        return x * 2
+
+    @m.define
+    def g(f, x):
+        # (= (g $f $x) (justdata $f $x)): `justdata` defines nothing, so it is
+        # data, and the mention door says so.
+        return S.justdata(f, x)
+
+    @m.define
+    def h(f, x):
+        # (= (h $f $x) ($f $x))
+        return f(x)
+
+    @m.define
+    def notjustdata(_x):
+        # (= (notjustdata $x) f)
+        return S.f
+
+    @m.define
+    def datawithnondatacomponent():
+        # (= (datawithnondatacomponent) ((lol (f 42))))
+        return (S.lol(S.f(42)),)
+
+    assert f(21) == [42]
+    assert m.eval(S.g(S.f, 2)) == [S.justdata(S.f, 2)]
+    assert h(S.f, 2) == [4]
+    assert m.eval((S.notjustdata(42), 21)) == [42]
+    assert m.eval(S.datawithnondatacomponent()) == [Expression((S.lol(84),))]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -101,37 +138,3 @@ from metta import Expression, S
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 15160
-def twin(m):
-    """Ask five heads what they do with a function as an argument."""
-
-    @m.define
-    def f(x):
-        # (= (f $x) (* $x 2))
-        return x * 2
-
-    @m.define
-    def g(f, x):
-        # (= (g $f $x) (justdata $f $x)): `justdata` defines nothing, so it is
-        # data, and the mention door says so.
-        return S.justdata(f, x)
-
-    @m.define
-    def h(f, x):
-        # (= (h $f $x) ($f $x))
-        return f(x)
-
-    @m.define
-    def notjustdata(_x):
-        # (= (notjustdata $x) f)
-        return S.f
-
-    @m.define
-    def datawithnondatacomponent():
-        # (= (datawithnondatacomponent) ((lol (f 42))))
-        return (S.lol(S.f(42)),)
-
-    assert f(21) == [42]
-    assert m.eval(S.g(S.f, 2)) == [S.justdata(S.f, 2)]
-    assert h(S.f, 2) == [4]
-    assert m.eval((S.notjustdata(42), 21)) == [42]
-    assert m.eval(S.datawithnondatacomponent()) == [Expression((S.lol(84),))]

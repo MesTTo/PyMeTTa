@@ -15,6 +15,26 @@ the other side, refusing an unknown callee and naming `S.g` as the remedy.
 
 from metta import S
 
+
+def twin(m):
+    """Install the three nullary equations in their original order."""
+
+    @m.define
+    def f():
+        return S.g()        # (= (f) (g)): g is not a function yet, so it is data
+
+    @m.define
+    def g():                # (= (g) 42)
+        return 42
+
+    @m.define
+    def h():
+        return g()          # (= (h) (g)): now g is a name a body can call
+
+    assert f() == [42]   # [42]
+    assert h() == [42]   # [42]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -73,22 +93,3 @@ BUDGET = {
     "observations": 21,
     "protocol": "full-lane/219/workers=32",
 }
-
-
-def twin(m):
-    """Install the three nullary equations in their original order."""
-
-    @m.define
-    def f():
-        return S.g()        # (= (f) (g)): g is not a function yet, so it is data
-
-    @m.define
-    def g():                # (= (g) 42)
-        return 42
-
-    @m.define
-    def h():
-        return g()          # (= (h) (g)): now g is a name a body can call
-
-    assert f() == [42]   # [42]
-    assert h() == [42]   # [42]

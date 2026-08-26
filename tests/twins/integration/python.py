@@ -21,6 +21,65 @@ import math
 
 from metta import G, S, fn, ground
 
+
+def twin(m):
+    """Wrap the seam five ways, then use it: objects, methods, keywords,
+    an opaque collection, and reflection.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+
+    @m.define
+    def make_object():                       # (= (make-object)
+        return fn.py_call(S["types.SimpleNamespace"]())   # (py-call (types.SimpleNamespace)))
+
+    @m.define
+    def get_attribute(obj, name):            # (= (get-attribute $obj $name)
+        return fn.py_call(S.getattr(obj, name))           # (py-call (getattr $obj $name)))
+
+    @m.define
+    def set_attribute(obj, name, value):     # (= (set-attribute $obj $name $value)
+        return fn.py_call(S.setattr(obj, name, value))    # (py-call (setattr $obj $name $value)))
+
+    @m.define(name="import")
+    def import_module(name):                 # (= (import $name)
+        return fn.py_call(S["importlib.import_module"](name))  # (py-call (importlib.import_module $name)))
+
+    @m.define(name="math.pi")
+    def math_pi():                           # (= (math.pi)
+        return get_attribute(import_module(S.math), S.pi)      # (get-attribute (import math) pi))
+
+    # Make an object, give it an attribute, read the attribute back: three
+    # Python statements, the object in a Python name between them, which is
+    # this file's whole point. The crossed atom re-enters as an argument and
+    # arrives unwrapped (py_arg_norm runs the same _unwrap the apply route
+    # runs), so the chain no longer needs a single let* term.
+    obj, = m.eval(S.make_object())
+    m.eval(S.set_attribute(obj, S.foo, S["math.pi"]()))
+    assert m.eval(S.get_attribute(obj, S.foo)) == [math.pi]   # [3.141592653589793]
+
+    # A bound method is a head like any other, and its receiver is the argument.
+    py = m.fn.py_call
+    assert py(S[".upper"](ground("abc"))) == [S.ABC]   # (py-call (.upper "abc")) is ABC
+    assert py(S[".__add__"](5, 3)) == [8]   # (py-call (.__add__ 5 3)) is 8
+
+    # Keyword arguments ride a bound callable, and Python's own keyword
+    # syntax builds the seam's (Kwargs ...) form at the call: applying the
+    # handle splits it into Python keywords, while py-call itself keeps
+    # upstream's plain positional semantics.
+    py_round, = m.eval(S.py_atom(S.round))          # (bind! py-round (py-atom round))
+    assert m.eval(py_round(3.14159, ndigits=2)) == [3.14]
+
+    # A Python collection stays ONE object on this surface: the dict is held
+    # whole, and reading it is asking it, the same method-call shape as above.
+    prefs, = m.eval(S.py_atom(ground("dict(colour='green', size=7)")))
+    assert py(S[".get"](prefs, S.size)) == [7]
+
+    # The object loop closes with reflection: type answers the class, and the
+    # class is an object with attributes like any other.
+    cls, = py(S.type(S.make_object()))
+    named, = m.eval(S.py_dot(cls, S["__name__"]))
+    assert named == G("SimpleNamespace")
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -82,59 +141,3 @@ from metta import G, S, fn, ground
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 26117
-def twin(m):
-    """Wrap the seam five ways, then use it: objects, methods, keywords,
-    an opaque collection, and reflection.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-
-    @m.define
-    def make_object():                       # (= (make-object)
-        return fn.py_call(S["types.SimpleNamespace"]())   # (py-call (types.SimpleNamespace)))
-
-    @m.define
-    def get_attribute(obj, name):            # (= (get-attribute $obj $name)
-        return fn.py_call(S.getattr(obj, name))           # (py-call (getattr $obj $name)))
-
-    @m.define
-    def set_attribute(obj, name, value):     # (= (set-attribute $obj $name $value)
-        return fn.py_call(S.setattr(obj, name, value))    # (py-call (setattr $obj $name $value)))
-
-    @m.define(name="import")
-    def import_module(name):                 # (= (import $name)
-        return fn.py_call(S["importlib.import_module"](name))  # (py-call (importlib.import_module $name)))
-
-    @m.define(name="math.pi")
-    def math_pi():                           # (= (math.pi)
-        return get_attribute(import_module(S.math), S.pi)      # (get-attribute (import math) pi))
-
-    # Make an object, give it an attribute, read the attribute back: three
-    # Python statements, the object in a Python name between them, which is
-    # this file's whole point. The crossed atom re-enters as an argument and
-    # arrives unwrapped (py_arg_norm runs the same _unwrap the apply route
-    # runs), so the chain no longer needs a single let* term.
-    obj, = m.eval(S.make_object())
-    m.eval(S.set_attribute(obj, S.foo, S["math.pi"]()))
-    assert m.eval(S.get_attribute(obj, S.foo)) == [math.pi]   # [3.141592653589793]
-
-    # A bound method is a head like any other, and its receiver is the argument.
-    py = m.fn.py_call
-    assert py(S[".upper"](ground("abc"))) == [S.ABC]   # (py-call (.upper "abc")) is ABC
-    assert py(S[".__add__"](5, 3)) == [8]   # (py-call (.__add__ 5 3)) is 8
-
-    # Keyword arguments ride a bound callable, and Python's own keyword
-    # syntax builds the seam's (Kwargs ...) form at the call: applying the
-    # handle splits it into Python keywords, while py-call itself keeps
-    # upstream's plain positional semantics.
-    py_round, = m.eval(S.py_atom(S.round))          # (bind! py-round (py-atom round))
-    assert m.eval(py_round(3.14159, ndigits=2)) == [3.14]
-
-    # A Python collection stays ONE object on this surface: the dict is held
-    # whole, and reading it is asking it, the same method-call shape as above.
-    prefs, = m.eval(S.py_atom(ground("dict(colour='green', size=7)")))
-    assert py(S[".get"](prefs, S.size)) == [7]
-
-    # The object loop closes with reflection: type answers the class, and the
-    # class is an object with attributes like any other.
-    cls, = py(S.type(S.make_object()))
-    named, = m.eval(S.py_dot(cls, S["__name__"]))
-    assert named == G("SimpleNamespace")

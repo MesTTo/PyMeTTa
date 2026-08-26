@@ -20,6 +20,48 @@ line that writes it.
 
 from metta import S, equation, lib
 
+#: How strongly each concept holds on its own, in the example's own order.
+STRENGTHS = ((S.A, 0.5), (S.B, 0.25), (S.C, 0.25), (S.D, 0.5))
+
+#: The four premises: a link, its truth value, and its one-item evidence stamp.
+PREMISES = ((S.A, S.B, 0.25, 1), (S.A, S.C, 0.25, 2),
+            (S.B, S.D, 0.5, 3), (S.C, S.D, 0.5, 4))
+
+
+def _sentence(left, right, strength, identifier):
+    """Build one PLN sentence with its truth value and one-item evidence stamp."""
+    return S.Sentence(
+        (S.Inheritance(left, right), S.stv(strength, 0.9)),
+        (identifier,),
+    )
+
+
+def twin(m):
+    """Load PLN, state the Roman-diamond knowledge base, and ask for A to D."""
+    # !(import! &self (library lib_pln))
+    m += lib.pln
+
+    @m.rules
+    def strengths():
+        """(= (STV A) (stv 0.5 0.9)), and three more with a symbol in the head."""
+        for concept, strength in STRENGTHS:
+            yield equation(S.STV(concept)).to(S.stv(strength, 0.9))
+
+    # (= (kb) ((Sentence ((Inheritance A B) (stv 0.25 0.9)) (1)) ...))
+    m += equation(S.kb()).to(tuple(_sentence(*premise) for premise in PREMISES))
+
+    # !(test (with-pragma! ((max-stack-depth 100000000))
+    #                      (PLN.Query (kb) (Inheritance A D)))
+    #        ((stv 0.5 0.9473684210526316) (1 2 3 4)))
+    raised_stack = ((S.max_stack_depth, 100_000_000),)
+    answer = m.fn.with_pragma(
+        raised_stack,
+        S["PLN.Query"](S.kb(), S.Inheritance(S.A, S.D)),
+    ).one()
+    assert answer[0] == S.stv(0.5, 0.9473684210526316)
+    assert tuple(answer[1]) == (1, 2, 3, 4)
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here. THIS TWIN'S
@@ -98,43 +140,3 @@ from metta import S, equation, lib
 #: first-order now, at 4.0 inferences per position against 17.0.
 #: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 30640083
-#: How strongly each concept holds on its own, in the example's own order.
-STRENGTHS = ((S.A, 0.5), (S.B, 0.25), (S.C, 0.25), (S.D, 0.5))
-
-#: The four premises: a link, its truth value, and its one-item evidence stamp.
-PREMISES = ((S.A, S.B, 0.25, 1), (S.A, S.C, 0.25, 2),
-            (S.B, S.D, 0.5, 3), (S.C, S.D, 0.5, 4))
-
-
-def _sentence(left, right, strength, identifier):
-    """Build one PLN sentence with its truth value and one-item evidence stamp."""
-    return S.Sentence(
-        (S.Inheritance(left, right), S.stv(strength, 0.9)),
-        (identifier,),
-    )
-
-
-def twin(m):
-    """Load PLN, state the Roman-diamond knowledge base, and ask for A to D."""
-    # !(import! &self (library lib_pln))
-    m += lib.pln
-
-    @m.rules
-    def strengths():
-        """(= (STV A) (stv 0.5 0.9)), and three more with a symbol in the head."""
-        for concept, strength in STRENGTHS:
-            yield equation(S.STV(concept)).to(S.stv(strength, 0.9))
-
-    # (= (kb) ((Sentence ((Inheritance A B) (stv 0.25 0.9)) (1)) ...))
-    m += equation(S.kb()).to(tuple(_sentence(*premise) for premise in PREMISES))
-
-    # !(test (with-pragma! ((max-stack-depth 100000000))
-    #                      (PLN.Query (kb) (Inheritance A D)))
-    #        ((stv 0.5 0.9473684210526316) (1 2 3 4)))
-    raised_stack = ((S.max_stack_depth, 100_000_000),)
-    answer = m.fn.with_pragma(
-        raised_stack,
-        S["PLN.Query"](S.kb(), S.Inheritance(S.A, S.D)),
-    ).one()
-    assert answer[0] == S.stv(0.5, 0.9473684210526316)
-    assert tuple(answer[1]) == (1, 2, 3, 4)

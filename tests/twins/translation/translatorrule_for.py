@@ -23,6 +23,28 @@ from typing import Any
 
 from metta import Atom, S, V
 
+
+def twin(m):
+    """Register a `for` form, then write a definition that uses it."""
+
+    @m.define(name="for")
+    def for_form(var: Atom, collection: Atom, body: Atom) -> Any:
+        # (= (for $var $collection $body)
+        #    (noeval (let $var (superpose $collection) $body)))
+        return S.noeval(S.let(var, S.superpose(collection), body))  # rung: the bound NAME arrives in a parameter, where Python's assignment binds a name it can see
+
+    m.fn.add_translator_rule(S["for"])       # (add-translator-rule! for)
+
+    @m.define
+    def myfun(items):
+        # (= (myfun $L) (for $x $L (if (== (% $x 2) 0) (even $x) (odd $x))))
+        return S["for"](
+            V.x, items, S.even(V.x) if V.x % 2 == 0 else S.odd(V.x)
+        )
+
+    assert myfun((3, 4)) == [S.odd(3), S.even(4)]   # ((odd 3) (even 4))
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -91,22 +113,3 @@ from metta import Atom, S, V
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 10426
-def twin(m):
-    """Register a `for` form, then write a definition that uses it."""
-
-    @m.define(name="for")
-    def for_form(var: Atom, collection: Atom, body: Atom) -> Any:
-        # (= (for $var $collection $body)
-        #    (noeval (let $var (superpose $collection) $body)))
-        return S.noeval(S.let(var, S.superpose(collection), body))  # rung: the bound NAME arrives in a parameter, where Python's assignment binds a name it can see
-
-    m.fn.add_translator_rule(S["for"])       # (add-translator-rule! for)
-
-    @m.define
-    def myfun(items):
-        # (= (myfun $L) (for $x $L (if (== (% $x 2) 0) (even $x) (odd $x))))
-        return S["for"](
-            V.x, items, S.even(V.x) if V.x % 2 == 0 else S.odd(V.x)
-        )
-
-    assert myfun((3, 4)) == [S.odd(3), S.even(4)]   # ((odd 3) (even 4))

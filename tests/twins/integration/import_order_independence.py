@@ -17,6 +17,15 @@ from metta import S, lib
 #: name is a NAME, so it is minted at the naming factory.
 INDEX = S["examples/integration/_fixtures/imports/import_order/index"]
 
+
+def twin(m):
+    """Import the index and ask the caller whose callee arrived second."""
+    # (import! &self examples/integration/_fixtures/imports/import_order/index)
+    m += lib(INDEX)
+
+    assert m.fn.import_order_caller() == [S.import_order_ok]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -62,11 +71,3 @@ INDEX = S["examples/integration/_fixtures/imports/import_order/index"]
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 6466
-
-
-def twin(m):
-    """Import the index and ask the caller whose callee arrived second."""
-    # (import! &self examples/integration/_fixtures/imports/import_order/index)
-    m += lib(INDEX)
-
-    assert m.fn.import_order_caller() == [S.import_order_ok]

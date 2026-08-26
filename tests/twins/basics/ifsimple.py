@@ -14,6 +14,24 @@ ladder wants is affordable and the residue entry that recorded the block is
 retired.
 """
 
+#: The two conditions, named rather than written inline: a bare boolean in an
+#: argument list reads as a Python FLAG, and these are the example's data.
+HOLDS, FAILS = True, False
+
+
+def twin(m):
+    """Answer under a condition that holds, and nothing under one that does not."""
+    @m.define
+    def keep(condition, value):
+        # (if $condition $value), the two-argument form: yielding nothing is
+        # what "no else branch" means.
+        if condition:
+            yield value
+
+    assert keep(HOLDS, 42) == [42]
+    assert keep(FAILS, 42) == []
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -74,19 +92,3 @@ retired.
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 4688
-#: The two conditions, named rather than written inline: a bare boolean in an
-#: argument list reads as a Python FLAG, and these are the example's data.
-HOLDS, FAILS = True, False
-
-
-def twin(m):
-    """Answer under a condition that holds, and nothing under one that does not."""
-    @m.define
-    def keep(condition, value):
-        # (if $condition $value), the two-argument form: yielding nothing is
-        # what "no else branch" means.
-        if condition:
-            yield value
-
-    assert keep(HOLDS, 42) == [42]
-    assert keep(FAILS, 42) == []

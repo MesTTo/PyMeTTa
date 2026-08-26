@@ -23,6 +23,59 @@ Open Obligations:
   Future Enhancements: None.
 """
 
+
+def twin(m):
+    """Take each arm of four conditionals whose arms bind."""
+    @m.define
+    def pick_else(a, b):
+        # (= (pick-else $a $b) (if (< $a $a) (let* (($c $a)) $a) $b))
+        if a < a:  # noqa: PLR0124 -- comparing the parameter with itself is the fixture: the then arm must never run, and the else arm must still unify its own output
+            _c = a
+            return a
+        return b
+
+    # !(test (pick-else 1 2) 2)
+    assert pick_else(1, 2) == [2]
+
+    @m.define
+    def pick_then(a, b):
+        # (= (pick-then $a $b) (if (> $a 0) (let* (($c $a)) $a) $b))
+        if a > 0:
+            _c = a
+            return a
+        return b
+
+    # !(test (pick-then 1 2) 1)
+    assert pick_then(1, 2) == [1]
+
+    @m.define
+    def case_else(a, b):
+        # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
+        match a < a:  # noqa: PLR0124 -- the same fixture, asked through `case` rather than through `if`
+            case True:
+                _c = a
+                return a
+            case False:
+                return b
+
+    # !(test (case-else 3 4) 4)
+    assert case_else(3, 4) == [4]
+
+    @m.define
+    def both(a, b):
+        # (= (both $a $b) (if (> $a $b) (let* (($c 1)) $a) (let* (($d 1)) $b)))
+        if a > b:
+            _c = 1
+            return a
+        _d = 1
+        return b
+
+    # !(test (both 5 2) 5)
+    assert both(5, 2) == [5]
+    # !(test (both 2 5) 5)
+    assert both(2, 5) == [5]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -81,53 +134,3 @@ Open Obligations:
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 22129
-def twin(m):
-    """Take each arm of four conditionals whose arms bind."""
-    @m.define
-    def pick_else(a, b):
-        # (= (pick-else $a $b) (if (< $a $a) (let* (($c $a)) $a) $b))
-        if a < a:  # noqa: PLR0124 -- comparing the parameter with itself is the fixture: the then arm must never run, and the else arm must still unify its own output
-            _c = a
-            return a
-        return b
-
-    # !(test (pick-else 1 2) 2)
-    assert pick_else(1, 2) == [2]
-
-    @m.define
-    def pick_then(a, b):
-        # (= (pick-then $a $b) (if (> $a 0) (let* (($c $a)) $a) $b))
-        if a > 0:
-            _c = a
-            return a
-        return b
-
-    # !(test (pick-then 1 2) 1)
-    assert pick_then(1, 2) == [1]
-
-    @m.define
-    def case_else(a, b):
-        # (= (case-else $a $b) (case (< $a $a) ((True (let* (($c $a)) $a)) (False $b))))
-        match a < a:  # noqa: PLR0124 -- the same fixture, asked through `case` rather than through `if`
-            case True:
-                _c = a
-                return a
-            case False:
-                return b
-
-    # !(test (case-else 3 4) 4)
-    assert case_else(3, 4) == [4]
-
-    @m.define
-    def both(a, b):
-        # (= (both $a $b) (if (> $a $b) (let* (($c 1)) $a) (let* (($d 1)) $b)))
-        if a > b:
-            _c = 1
-            return a
-        _d = 1
-        return b
-
-    # !(test (both 5 2) 5)
-    assert both(5, 2) == [5]
-    # !(test (both 2 5) 5)
-    assert both(2, 5) == [5]

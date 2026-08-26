@@ -22,6 +22,41 @@ from pathlib import Path
 import metta
 from metta import G, S, V, lib
 
+#: The provider under test, complete in eight lines. It declares an EXTENSION
+#: and exports nothing, which is the shape of a provider-only file:
+#: metta_export is for functions and a provider has none.
+PROVIDER = Path("./examples/libraries/_fixtures/demo_provider.pl")
+
+
+def twin(m):
+    """Run the seam's own conformance checks, then query through the seam."""
+    m += lib.conformance
+    m.register_prolog(path=PROVIDER)
+
+    demo = metta.space(S["demo_provider"])
+
+    # The checks that ran, in order: one per declared capability, then the
+    # match family (each position opened, repeated variables folded), the
+    # source discipline, the round trip (not asked here: no add/remove),
+    # the pushdown claim, and the plan split.
+    [checked] = m.fn.check_space_provider(demo)
+    assert list(checked) == [
+        G("match: declared, seam:foreign_match/3 has clauses"),
+        G("enumerate: declared, seam:foreign_atoms/2 has clauses"),
+        G("match: over-approximation holds over 2 atoms and their pattern families"),
+        G("source: repeated, two enumerations agree"),
+        G(
+            "round trip: not asked, the provider does not declare add, "
+            "remove and enumerate together"
+        ),
+        G("pushdown: 0 of 2 patterns claimed exact, and are"),
+        G("plan: not declared, so a conjunction takes the engine's split"),
+    ]
+
+    # And it answers through the seam, which is the point of proving it.
+    assert sorted(row.y for row in demo.match(S.edge(S.a, V.y))) == [S.b]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -67,38 +102,3 @@ from metta import G, S, V, lib
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 56881
-
-
-#: The provider under test, complete in eight lines. It declares an EXTENSION
-#: and exports nothing, which is the shape of a provider-only file:
-#: metta_export is for functions and a provider has none.
-PROVIDER = Path("./examples/libraries/_fixtures/demo_provider.pl")
-
-
-def twin(m):
-    """Run the seam's own conformance checks, then query through the seam."""
-    m += lib.conformance
-    m.register_prolog(path=PROVIDER)
-
-    demo = metta.space(S["demo_provider"])
-
-    # The checks that ran, in order: one per declared capability, then the
-    # match family (each position opened, repeated variables folded), the
-    # source discipline, the round trip (not asked here: no add/remove),
-    # the pushdown claim, and the plan split.
-    [checked] = m.fn.check_space_provider(demo)
-    assert list(checked) == [
-        G("match: declared, seam:foreign_match/3 has clauses"),
-        G("enumerate: declared, seam:foreign_atoms/2 has clauses"),
-        G("match: over-approximation holds over 2 atoms and their pattern families"),
-        G("source: repeated, two enumerations agree"),
-        G(
-            "round trip: not asked, the provider does not declare add, "
-            "remove and enumerate together"
-        ),
-        G("pushdown: 0 of 2 patterns claimed exact, and are"),
-        G("plan: not declared, so a conjunction takes the engine's split"),
-    ]
-
-    # And it answers through the seam, which is the point of proving it.
-    assert sorted(row.y for row in demo.match(S.edge(S.a, V.y))) == [S.b]

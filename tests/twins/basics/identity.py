@@ -10,6 +10,16 @@ Guarantees:
     test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 """
 
+
+def twin(m):
+    """Define the square, then check it."""
+    @m.define
+    def f(x):
+        return x * x
+
+    assert f(1) == [1]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -308,10 +318,3 @@ Guarantees:
 #: "tests/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[basics/identity.metta]";
 #: commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0].
 BUDGET = 2841
-def twin(m):
-    """Define the square, then check it."""
-    @m.define
-    def f(x):
-        return x * x
-
-    assert f(1) == [1]

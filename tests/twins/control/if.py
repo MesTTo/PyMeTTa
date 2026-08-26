@@ -17,6 +17,18 @@ Open Obligations:
 
 from metta import Expression
 
+
+def twin(m):
+    """Ask a false question and read the arm it takes."""
+    @m.define
+    def pick():
+        # (if (> 1 2) (3 4) (5 6))
+        return (3, 4) if 1 > 2 else (5, 6)  # noqa: PLR0133  -- comparing two constants is the example's own program: the engine reduces `(> 1 2)`, and folding it in Python would leave the `if` nothing to decide
+
+    # !(test (if (> 1 2) (3 4) (5 6)) (5 6))
+    assert pick() == [Expression((5, 6))]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -65,12 +77,3 @@ from metta import Expression
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 5441
-def twin(m):
-    """Ask a false question and read the arm it takes."""
-    @m.define
-    def pick():
-        # (if (> 1 2) (3 4) (5 6))
-        return (3, 4) if 1 > 2 else (5, 6)  # noqa: PLR0133  -- comparing two constants is the example's own program: the engine reduces `(> 1 2)`, and folding it in Python would leave the `if` nothing to decide
-
-    # !(test (if (> 1 2) (3 4) (5 6)) (5 6))
-    assert pick() == [Expression((5, 6))]

@@ -36,6 +36,25 @@ LIB_IMPORT = lib["lib_import"]
 FIXTURE_URL = S["git_fixture_url"]
 FIXTURE_LIB = lib["petta_fixture_lib"]
 
+
+def twin(m):
+    """Build a repository, clone it, import it, ask it a question."""
+    # (import! &self (library lib_import)): the write door imports, and the
+    # receiver is the target space.
+    m += LIB_IMPORT
+
+    # The URL comes from Prolog, which register_prolog installs as a MeTTa
+    # function of one argument: the base directory in, the clone URL out.
+    m.register_prolog(path=FIXTURE_PL, names=["git_fixture_url"])
+    m.fn["git-import!"](FIXTURE_URL(REPOS))     # (git-import! (git_fixture_url "./repos"))
+
+    # The clone is now an ordinary named library, and the dotted part is the
+    # two-argument (library petta_fixture_lib fixture) form.
+    m += FIXTURE_LIB.fixture
+
+    assert m.fn.fixture_answer(14) == [42]   # [42]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -81,21 +100,3 @@ FIXTURE_LIB = lib["petta_fixture_lib"]
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 34108
-
-
-def twin(m):
-    """Build a repository, clone it, import it, ask it a question."""
-    # (import! &self (library lib_import)): the write door imports, and the
-    # receiver is the target space.
-    m += LIB_IMPORT
-
-    # The URL comes from Prolog, which register_prolog installs as a MeTTa
-    # function of one argument: the base directory in, the clone URL out.
-    m.register_prolog(path=FIXTURE_PL, names=["git_fixture_url"])
-    m.fn["git-import!"](FIXTURE_URL(REPOS))     # (git-import! (git_fixture_url "./repos"))
-
-    # The clone is now an ordinary named library, and the dotted part is the
-    # two-argument (library petta_fixture_lib fixture) form.
-    m += FIXTURE_LIB.fixture
-
-    assert m.fn.fixture_answer(14) == [42]   # [42]

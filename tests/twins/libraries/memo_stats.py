@@ -14,6 +14,22 @@ divergence is in the residue table with its reproduction.
 
 from metta import S, lib
 
+
+def twin(m):
+    """Square nine three times over a memoized definition."""
+    m += lib.memo
+
+    @m.define
+    def sq(x):
+        return x * x
+
+    m.eval(S.memoize(sq))
+
+    assert sq(9) == [81]
+    assert sq(9) == [81]
+    assert sq(9) == [81]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -74,16 +90,3 @@ from metta import S, lib
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 27034
-def twin(m):
-    """Square nine three times over a memoized definition."""
-    m += lib.memo
-
-    @m.define
-    def sq(x):
-        return x * x
-
-    m.eval(S.memoize(sq))
-
-    assert sq(9) == [81]
-    assert sq(9) == [81]
-    assert sq(9) == [81]

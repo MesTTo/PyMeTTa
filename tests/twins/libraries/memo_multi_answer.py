@@ -19,6 +19,26 @@ raise. `str` is the ordering that spans both kinds.
 
 from metta import S, lib
 
+#: Both answers for `(choose 7)`, in the order `sorted(key=str)` puts them.
+BOTH = [S.Pair(7, 7), 7]
+
+
+def twin(m):
+    """Two answers for one call, before and after the cache."""
+    m += lib.memo
+
+    @m.define
+    def choose(x):
+        # (= (choose $x) $x), then (= (choose $x) (Pair $x $x))
+        yield x
+        yield S.Pair(x, x)
+
+    m.eval(S.memoize(choose))
+
+    assert sorted(choose(7), key=str) == BOTH
+    assert sorted(choose(7), key=str) == BOTH
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -79,21 +99,3 @@ from metta import S, lib
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 36459
-#: Both answers for `(choose 7)`, in the order `sorted(key=str)` puts them.
-BOTH = [S.Pair(7, 7), 7]
-
-
-def twin(m):
-    """Two answers for one call, before and after the cache."""
-    m += lib.memo
-
-    @m.define
-    def choose(x):
-        # (= (choose $x) $x), then (= (choose $x) (Pair $x $x))
-        yield x
-        yield S.Pair(x, x)
-
-    m.eval(S.memoize(choose))
-
-    assert sorted(choose(7), key=str) == BOTH
-    assert sorted(choose(7), key=str) == BOTH

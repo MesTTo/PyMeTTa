@@ -19,6 +19,46 @@ arrives from the errors satellite rather than from the narrow root.
 from metta import S, ground
 from metta.errors import EngineError
 
+
+def twin(m):
+    """Read eleven fragments, and refuse the twelfth."""
+    read = m.fn.parse_command
+
+    assert read(ground("(f a)")) == [S.complete(S.f(S.a))]
+
+    # Still typing. More text could finish any of these.
+    assert read(ground("(f a")) == [S.incomplete]
+    assert read(ground("(a (b (c")) == [S.incomplete]
+    assert read(ground("(= (f $x)")) == [S.incomplete]
+
+    # An empty line re-prompts rather than erroring, which is the commonest
+    # input in any console.
+    assert read(ground("")) == [S.incomplete]
+    assert read(ground("   ")) == [S.incomplete]
+    assert read(ground("; only a comment")) == [S.incomplete]
+
+    # A bare atom is a whole form.
+    assert read(ground("hello")) == [S.complete(S.hello)]
+
+    # Not "just count parens": a bracket inside a string or a comment must
+    # not count.
+    assert read(ground('(f "a)b")')) == [S.complete(S.f(ground("a)b")))]
+    assert read(ground("(f a) ; )))")) == [S.complete(S.f(S.a))]
+
+    # An unterminated string IS incomplete, because a MeTTa string may span
+    # lines.
+    assert read(ground('(f "a')) == [S.incomplete]
+
+    # One bracket too many is not incomplete: no amount of further typing
+    # repairs it, so the reader refuses and Python sees an exception.
+    refused = False
+    try:
+        read(ground("(f a))")).one()
+    except EngineError:
+        refused = True
+    assert refused
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -64,42 +104,3 @@ from metta.errors import EngineError
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 3554
-
-
-def twin(m):
-    """Read eleven fragments, and refuse the twelfth."""
-    read = m.fn.parse_command
-
-    assert read(ground("(f a)")) == [S.complete(S.f(S.a))]
-
-    # Still typing. More text could finish any of these.
-    assert read(ground("(f a")) == [S.incomplete]
-    assert read(ground("(a (b (c")) == [S.incomplete]
-    assert read(ground("(= (f $x)")) == [S.incomplete]
-
-    # An empty line re-prompts rather than erroring, which is the commonest
-    # input in any console.
-    assert read(ground("")) == [S.incomplete]
-    assert read(ground("   ")) == [S.incomplete]
-    assert read(ground("; only a comment")) == [S.incomplete]
-
-    # A bare atom is a whole form.
-    assert read(ground("hello")) == [S.complete(S.hello)]
-
-    # Not "just count parens": a bracket inside a string or a comment must
-    # not count.
-    assert read(ground('(f "a)b")')) == [S.complete(S.f(ground("a)b")))]
-    assert read(ground("(f a) ; )))")) == [S.complete(S.f(S.a))]
-
-    # An unterminated string IS incomplete, because a MeTTa string may span
-    # lines.
-    assert read(ground('(f "a')) == [S.incomplete]
-
-    # One bracket too many is not incomplete: no amount of further typing
-    # repairs it, so the reader refuses and Python sees an exception.
-    refused = False
-    try:
-        read(ground("(f a))")).one()
-    except EngineError:
-        refused = True
-    assert refused

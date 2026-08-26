@@ -21,6 +21,32 @@ the two definitions and `fn.cons` names the constructor.
 
 from metta import Expression, S, V, fn
 
+#: The list every claim destructures, and the head and tail it splits into.
+ITEMS = (1, 2, 3, 4, 5, 6)
+SPLIT = (1, Expression((2, 3, 4, 5, 6)))
+
+
+def twin(m):
+    """Destructure a list three ways, one of them through arithmetic."""
+
+    @m.define
+    def f(x, y):
+        # (= (f $X $Y) (append ($X) $Y))
+        return fn.append((x,), y)
+
+    @m.define
+    def g(x, y, z):
+        # (= (g $X $Y $Z) (append ((#+ $X $Z)) $Y))
+        return fn.append((fn["#+"](x, z),), y)
+
+    # List destructuring, through the cons constructor.
+    assert tuple(m.solve(ITEMS, fn.cons(V.Head, V.Tail)).one()) == SPLIT
+    # And through an ordinary user function, which is the point.
+    assert tuple(m.solve(ITEMS, S.f(V.Head, V.Tail)).one()) == SPLIT
+    # A more complex case: the constraint solves 42 = $X + 35.
+    assert tuple(m.solve((42, 2, 3), S.g(V.X, V.Y, 35)).one()) == (7, Expression((2, 3)))
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -71,27 +97,3 @@ from metta import Expression, S, V, fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 14670
-#: The list every claim destructures, and the head and tail it splits into.
-ITEMS = (1, 2, 3, 4, 5, 6)
-SPLIT = (1, Expression((2, 3, 4, 5, 6)))
-
-
-def twin(m):
-    """Destructure a list three ways, one of them through arithmetic."""
-
-    @m.define
-    def f(x, y):
-        # (= (f $X $Y) (append ($X) $Y))
-        return fn.append((x,), y)
-
-    @m.define
-    def g(x, y, z):
-        # (= (g $X $Y $Z) (append ((#+ $X $Z)) $Y))
-        return fn.append((fn["#+"](x, z),), y)
-
-    # List destructuring, through the cons constructor.
-    assert tuple(m.solve(ITEMS, fn.cons(V.Head, V.Tail)).one()) == SPLIT
-    # And through an ordinary user function, which is the point.
-    assert tuple(m.solve(ITEMS, S.f(V.Head, V.Tail)).one()) == SPLIT
-    # A more complex case: the constraint solves 42 = $X + 35.
-    assert tuple(m.solve((42, 2, 3), S.g(V.X, V.Y, 35)).one()) == (7, Expression((2, 3)))

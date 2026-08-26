@@ -8,6 +8,19 @@ clause does not use are marked as unused rather than named and dropped.
 
 from metta import S
 
+
+def twin(m):
+    """Define the doubly-nested clause and take the second element with it."""
+
+    @m.define
+    def f(cell):                              # (= (f (cons $a (cons $b $L)))
+        match cell:                           #    $b)
+            case (S.cons, _, (S.cons, b, _)):
+                return b
+
+    assert f(S.a(S.b, S.c, S.d)) == [S.b]   # [b]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -76,13 +89,3 @@ from metta import S
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 5115
-def twin(m):
-    """Define the doubly-nested clause and take the second element with it."""
-
-    @m.define
-    def f(cell):                              # (= (f (cons $a (cons $b $L)))
-        match cell:                           #    $b)
-            case (S.cons, _, (S.cons, b, _)):
-                return b
-
-    assert f(S.a(S.b, S.c, S.d)) == [S.b]   # [b]

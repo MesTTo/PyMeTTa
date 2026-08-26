@@ -18,6 +18,26 @@ Open Obligations:
 
 from metta import S, superpose
 
+
+def twin(m):
+    """One head, one branch, two answers."""
+    # The def's own name IS the head, so `name=` is for heads Python cannot
+    # spell, and `compile` is one of them HERE: the identifier shadows a
+    # builtin, which this repository's gate refuses by budget rather than by
+    # taste (the A family's burn-down maximum is 8 and is full), so writing
+    # `def compile` would cost a suppression the gate does not have
+    # [measured 2026-08-24: `GATE_ONLY=1 sh check.sh` failed with
+    # "P0.13 suppression burn-down increased (observed, maximum): {'A': (9, 8)}";
+    # commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
+    @m.define(name="compile")
+    def compiled(_stmt):
+        # (= (compile $stmt) (case $stmt (($stmt (superpose (what what2))))))
+        return superpose(S.what, S.what2)
+
+    # !(test (collapse (compile wat)) (what what2))
+    assert compiled(S.wat) == [S.what, S.what2]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -66,20 +86,3 @@ from metta import S, superpose
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 3198
-def twin(m):
-    """One head, one branch, two answers."""
-    # The def's own name IS the head, so `name=` is for heads Python cannot
-    # spell, and `compile` is one of them HERE: the identifier shadows a
-    # builtin, which this repository's gate refuses by budget rather than by
-    # taste (the A family's burn-down maximum is 8 and is full), so writing
-    # `def compile` would cost a suppression the gate does not have
-    # [measured 2026-08-24: `GATE_ONLY=1 sh check.sh` failed with
-    # "P0.13 suppression burn-down increased (observed, maximum): {'A': (9, 8)}";
-    # commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
-    @m.define(name="compile")
-    def compiled(_stmt):
-        # (= (compile $stmt) (case $stmt (($stmt (superpose (what what2))))))
-        return superpose(S.what, S.what2)
-
-    # !(test (collapse (compile wat)) (what what2))
-    assert compiled(S.wat) == [S.what, S.what2]

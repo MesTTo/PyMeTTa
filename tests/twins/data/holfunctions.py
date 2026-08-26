@@ -25,6 +25,67 @@ import functools
 
 from metta import Expression, fn
 
+
+def twin(m):
+    """Fold, map and filter, first with the work inline and then with it named."""
+
+    @m.define
+    def foldfun(a, b):                    # (= (foldfun $a $b) (+ $a $b))
+        return a + b
+
+    @m.define
+    def mapfun(a):                        # (= (mapfun $a) (+ $a 1))
+        return a + 1
+
+    @m.define
+    def filterfun(x):                     # (= (filterfun $x) (> $x 3))
+        return x > 3
+
+    @m.define
+    def f1a():                            # (= (f1a) (foldl-atom (1 2 3 4) 0
+        return functools.reduce(lambda acc, x: acc + x, (1, 2, 3, 4), 0)  # $acc $x (+ $acc $x)))
+
+    @m.define
+    def f2a():                            # (= (f2a) (map-atom (1 2 3) $x (+ $x 1)))
+        return [x + 1 for x in (1, 2, 3)]
+
+    @m.define
+    def f3a():                            # (= (f3a) (filter-atom (1 2 3 4 5) $x (> $x 3)))
+        return [x for x in (1, 2, 3, 4, 5) if x > 3]
+
+    @m.define
+    def f1b():                            # (= (f1b) (foldl-atom (1 2 3 4) 0 foldfun))
+        return functools.reduce(foldfun, (1, 2, 3, 4), 0)
+
+    @m.define
+    def f2b():                            # (= (f2b) (map-atom (1 2 3) mapfun))
+        return [mapfun(x) for x in (1, 2, 3)]
+
+    @m.define
+    def f3b():                            # (= (f3b) (filter-atom (1 2 3 4 5) filterfun))
+        return [x for x in (1, 2, 3, 4, 5) if filterfun(x)]
+
+    @m.define
+    def foldfun2(a, b):                   # (= (foldfun2 $a $b) (append $a $b))
+        return fn.append(a, b)
+
+    @m.define
+    def joined(parts):                    # the bare runnable, named:
+        # (foldl-atom ((1 2) (3 4) (5 6)) () $acc $x (append $acc $x))
+        return functools.reduce(lambda acc, x: fn.append(acc, x), parts, ())
+
+    assert f1a() == [10]   # [10]
+    assert f2a() == [Expression((2, 3, 4))]   # [(2 3 4)]
+    assert f3a() == [Expression((4, 5))]   # [(4 5)]
+
+    assert f1b() == [10]   # [10]
+    assert f2b() == [Expression((2, 3, 4))]   # [(2 3 4)]
+    assert f3b() == [Expression((4, 5))]   # [(4 5)]
+
+    parts = Expression((Expression((1, 2)), Expression((3, 4)), Expression((5, 6))))
+    assert joined(parts) == [Expression((1, 2, 3, 4, 5, 6))]   # [(1 2 3 4 5 6)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -100,61 +161,3 @@ from metta import Expression, fn
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 55354
-def twin(m):
-    """Fold, map and filter, first with the work inline and then with it named."""
-
-    @m.define
-    def foldfun(a, b):                    # (= (foldfun $a $b) (+ $a $b))
-        return a + b
-
-    @m.define
-    def mapfun(a):                        # (= (mapfun $a) (+ $a 1))
-        return a + 1
-
-    @m.define
-    def filterfun(x):                     # (= (filterfun $x) (> $x 3))
-        return x > 3
-
-    @m.define
-    def f1a():                            # (= (f1a) (foldl-atom (1 2 3 4) 0
-        return functools.reduce(lambda acc, x: acc + x, (1, 2, 3, 4), 0)  # $acc $x (+ $acc $x)))
-
-    @m.define
-    def f2a():                            # (= (f2a) (map-atom (1 2 3) $x (+ $x 1)))
-        return [x + 1 for x in (1, 2, 3)]
-
-    @m.define
-    def f3a():                            # (= (f3a) (filter-atom (1 2 3 4 5) $x (> $x 3)))
-        return [x for x in (1, 2, 3, 4, 5) if x > 3]
-
-    @m.define
-    def f1b():                            # (= (f1b) (foldl-atom (1 2 3 4) 0 foldfun))
-        return functools.reduce(foldfun, (1, 2, 3, 4), 0)
-
-    @m.define
-    def f2b():                            # (= (f2b) (map-atom (1 2 3) mapfun))
-        return [mapfun(x) for x in (1, 2, 3)]
-
-    @m.define
-    def f3b():                            # (= (f3b) (filter-atom (1 2 3 4 5) filterfun))
-        return [x for x in (1, 2, 3, 4, 5) if filterfun(x)]
-
-    @m.define
-    def foldfun2(a, b):                   # (= (foldfun2 $a $b) (append $a $b))
-        return fn.append(a, b)
-
-    @m.define
-    def joined(parts):                    # the bare runnable, named:
-        # (foldl-atom ((1 2) (3 4) (5 6)) () $acc $x (append $acc $x))
-        return functools.reduce(lambda acc, x: fn.append(acc, x), parts, ())
-
-    assert f1a() == [10]   # [10]
-    assert f2a() == [Expression((2, 3, 4))]   # [(2 3 4)]
-    assert f3a() == [Expression((4, 5))]   # [(4 5)]
-
-    assert f1b() == [10]   # [10]
-    assert f2b() == [Expression((2, 3, 4))]   # [(2 3 4)]
-    assert f3b() == [Expression((4, 5))]   # [(4 5)]
-
-    parts = Expression((Expression((1, 2)), Expression((3, 4)), Expression((5, 6))))
-    assert joined(parts) == [Expression((1, 2, 3, 4, 5, 6))]   # [(1 2 3 4 5 6)]

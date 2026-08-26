@@ -11,6 +11,32 @@ where the bound `m.fn` would be a host attribute the body cannot close over.
 
 from metta import G, S, fn, lib
 
+#: The digest of "hello", which the file claims twice: once from the library
+#: call and once through the content key built on top of it.
+HELLO_SHA256 = G("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")
+
+HELLO_SHA512 = G(
+    "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7"
+    "2323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043"
+)
+
+
+def twin(m):
+    """Hash a string two ways, then define a key that hashes its own payload."""
+    m += lib.crypto
+
+    crypto_hash = m.fn.crypto_hash
+    assert crypto_hash(S.sha256, G("hello")) == [HELLO_SHA256]
+    assert crypto_hash(S.sha512, G("hello")) == [HELLO_SHA512]
+
+    @m.define
+    def content_key(text):
+        # (= (content-key $text) (crypto-hash sha256 $text))
+        return fn.crypto_hash(S.sha256, text)
+
+    assert content_key(G("hello")) == [HELLO_SHA256]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -71,27 +97,3 @@ from metta import G, S, fn, lib
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 28225
-#: The digest of "hello", which the file claims twice: once from the library
-#: call and once through the content key built on top of it.
-HELLO_SHA256 = G("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")
-
-HELLO_SHA512 = G(
-    "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7"
-    "2323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043"
-)
-
-
-def twin(m):
-    """Hash a string two ways, then define a key that hashes its own payload."""
-    m += lib.crypto
-
-    crypto_hash = m.fn.crypto_hash
-    assert crypto_hash(S.sha256, G("hello")) == [HELLO_SHA256]
-    assert crypto_hash(S.sha512, G("hello")) == [HELLO_SHA512]
-
-    @m.define
-    def content_key(text):
-        # (= (content-key $text) (crypto-hash sha256 $text))
-        return fn.crypto_hash(S.sha256, text)
-
-    assert content_key(G("hello")) == [HELLO_SHA256]

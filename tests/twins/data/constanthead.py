@@ -9,6 +9,19 @@ built by hand.
 
 from metta import S
 
+
+def twin(m):
+    """Define the structural clause, then feed it the structure it wants."""
+
+    @m.define
+    def h(data, c):                       # (= (h (justdata haha $B) $C)
+        match data:                       #    (+ $B $C))
+            case (S.justdata, S.haha, b):
+                return b + c
+
+    assert h(S.justdata(S.haha, 30), 40) == [70]   # [70]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -77,13 +90,3 @@ from metta import S
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 5594
-def twin(m):
-    """Define the structural clause, then feed it the structure it wants."""
-
-    @m.define
-    def h(data, c):                       # (= (h (justdata haha $B) $C)
-        match data:                       #    (+ $B $C))
-            case (S.justdata, S.haha, b):
-                return b + c
-
-    assert h(S.justdata(S.haha, 30), 40) == [70]   # [70]

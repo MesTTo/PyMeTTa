@@ -21,6 +21,45 @@ from metta import S
 from metta.errors import SpaceCapabilityError
 from metta.vocabularies import SpaceCapability
 
+#: The file the example asks about: a path, which is what pathlib is for.
+SOURCE = Path("examples/spaces/restricted_spaces.metta")
+
+
+def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handle stays untouched
+    """Lock a space, watch it refuse a file read, then grant the capability."""
+    # GAP: the original NAMES its spaces, `!(new-space &locked (restricted))`,
+    # and the answer of that form IS the name it created. metta.space refuses
+    # the pair: "inherits, restricted, and grants apply only to anonymous
+    # space()" [measured 2026-08-24, unchanged; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT:
+    # `locked = metta.space(S.locked, restricted=True)`. Residue P14.10;
+    # until it lands the handle carries every door instead.
+    locked = metta.space(restricted=True)
+
+    @locked.define
+    def double(x):
+        return x * 2
+
+    # A restricted space retains ordinary computation and its own equations.
+    assert locked.eval(S.double(21)) == [42]
+
+    # A path crosses the call door as the atom its codec makes of it, so
+    # nothing quotes it into a string first.
+    asked = S["exists_file"](SOURCE)
+
+    # The file operation reaches a refusal that names what is missing.
+    refusal = None
+    try:
+        locked.eval(asked)
+    except SpaceCapabilityError as error:
+        refusal = error
+    assert refusal is not None
+
+    # A capability is granted explicitly when the space is created, as the
+    # vocabulary's own value rather than as the word for it.
+    reader = metta.space(restricted=True, grants=[SpaceCapability.file])
+    assert reader.eval(asked) == [True]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -88,40 +127,3 @@ from metta.vocabularies import SpaceCapability
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 56798
-#: The file the example asks about: a path, which is what pathlib is for.
-SOURCE = Path("examples/spaces/restricted_spaces.metta")
-
-
-def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handle stays untouched
-    """Lock a space, watch it refuse a file read, then grant the capability."""
-    # GAP: the original NAMES its spaces, `!(new-space &locked (restricted))`,
-    # and the answer of that form IS the name it created. metta.space refuses
-    # the pair: "inherits, restricted, and grants apply only to anonymous
-    # space()" [measured 2026-08-24, unchanged; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT:
-    # `locked = metta.space(S.locked, restricted=True)`. Residue P14.10;
-    # until it lands the handle carries every door instead.
-    locked = metta.space(restricted=True)
-
-    @locked.define
-    def double(x):
-        return x * 2
-
-    # A restricted space retains ordinary computation and its own equations.
-    assert locked.eval(S.double(21)) == [42]
-
-    # A path crosses the call door as the atom its codec makes of it, so
-    # nothing quotes it into a string first.
-    asked = S["exists_file"](SOURCE)
-
-    # The file operation reaches a refusal that names what is missing.
-    refusal = None
-    try:
-        locked.eval(asked)
-    except SpaceCapabilityError as error:
-        refusal = error
-    assert refusal is not None
-
-    # A capability is granted explicitly when the space is created, as the
-    # vocabulary's own value rather than as the word for it.
-    reader = metta.space(restricted=True, grants=[SpaceCapability.file])
-    assert reader.eval(asked) == [True]

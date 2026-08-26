@@ -32,6 +32,66 @@ entries and answer occurrences rather than SWI table counters.
 
 from metta import S, V, lib, match
 
+#: One call, one answer, nothing invalidated: what the first three claims all
+#: expect, because the two writes between them are writes the subgoal never read.
+UNTOUCHED = [
+    S.tables(1), S.answers(1), S.complete_call(1),
+    S.invalidated(0), S.reevaluated(0),
+]
+
+
+def twin(m):
+    """Call a tabled reader once, then write around it and watch its counters."""
+    m += lib.tabling
+
+    m += S.edge(S.a, S.b)
+
+    @m.define
+    def reach(x, y):
+        # (= (reach $x $y) (match &self (edge $x $y) $y))
+        return match(m, S.edge(x, y), y)
+
+    m.eval(S.tabled(S.reach(V.x, V.y)))
+    call = S.reach(V.x, V.y)
+
+    def stats():
+        [counted] = m.fn.table_stats(call)
+        return list(counted)
+
+    # Nothing has happened yet: one call, one answer, no invalidation.
+    # Iterating the view explicitly avoids list()'s separate cardinality hint:
+    # this is one live call, and complete-call therefore reads one.
+    assert list(iter(reach(S.a, V.y))) == [S.b]
+    assert stats() == UNTOUCHED
+
+    # A write under a key this subgoal does not read leaves the table alone.
+    # Not "leaves the answers alone", which a rebuild would too: the table is
+    # never invalidated at all.
+    m += S.edge(S.b, S.d)
+    assert stats() == UNTOUCHED
+
+    # Nor does an atom with a different head in the same space.
+    m += S.unrelated(S.x, S.y)
+    assert stats() == UNTOUCHED
+
+    # A write under a key it DOES read invalidates, and only that.
+    m += S.edge(S.a, S.c)
+    assert stats() == [
+        S.tables(1), S.answers(1), S.complete_call(1),
+        S.invalidated(1), S.reevaluated(0),
+    ]
+
+    # Re-evaluation is on demand, so it takes a call. reevaluated LOWER than
+    # invalidated would be SWI deciding a dependency changed without changing
+    # this table's answers, which is the incremental win rather than a rebuild.
+    # The shared table has completed one original call and one re-evaluation.
+    assert sorted(reach(S.a, V.y)) == [S.b, S.c]
+    assert stats() == [
+        S.tables(1), S.answers(2), S.complete_call(2),
+        S.invalidated(1), S.reevaluated(1),
+    ]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -92,61 +152,3 @@ from metta import S, V, lib, match
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 66441
-#: One call, one answer, nothing invalidated: what the first three claims all
-#: expect, because the two writes between them are writes the subgoal never read.
-UNTOUCHED = [
-    S.tables(1), S.answers(1), S.complete_call(1),
-    S.invalidated(0), S.reevaluated(0),
-]
-
-
-def twin(m):
-    """Call a tabled reader once, then write around it and watch its counters."""
-    m += lib.tabling
-
-    m += S.edge(S.a, S.b)
-
-    @m.define
-    def reach(x, y):
-        # (= (reach $x $y) (match &self (edge $x $y) $y))
-        return match(m, S.edge(x, y), y)
-
-    m.eval(S.tabled(S.reach(V.x, V.y)))
-    call = S.reach(V.x, V.y)
-
-    def stats():
-        [counted] = m.fn.table_stats(call)
-        return list(counted)
-
-    # Nothing has happened yet: one call, one answer, no invalidation.
-    # Iterating the view explicitly avoids list()'s separate cardinality hint:
-    # this is one live call, and complete-call therefore reads one.
-    assert list(iter(reach(S.a, V.y))) == [S.b]
-    assert stats() == UNTOUCHED
-
-    # A write under a key this subgoal does not read leaves the table alone.
-    # Not "leaves the answers alone", which a rebuild would too: the table is
-    # never invalidated at all.
-    m += S.edge(S.b, S.d)
-    assert stats() == UNTOUCHED
-
-    # Nor does an atom with a different head in the same space.
-    m += S.unrelated(S.x, S.y)
-    assert stats() == UNTOUCHED
-
-    # A write under a key it DOES read invalidates, and only that.
-    m += S.edge(S.a, S.c)
-    assert stats() == [
-        S.tables(1), S.answers(1), S.complete_call(1),
-        S.invalidated(1), S.reevaluated(0),
-    ]
-
-    # Re-evaluation is on demand, so it takes a call. reevaluated LOWER than
-    # invalidated would be SWI deciding a dependency changed without changing
-    # this table's answers, which is the incremental win rather than a rebuild.
-    # The shared table has completed one original call and one re-evaluation.
-    assert sorted(reach(S.a, V.y)) == [S.b, S.c]
-    assert stats() == [
-        S.tables(1), S.answers(2), S.complete_call(2),
-        S.invalidated(1), S.reevaluated(1),
-    ]

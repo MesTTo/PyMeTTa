@@ -13,6 +13,26 @@ for yet (friction, P14.4). Out here the answer is an expression and Python
 unpacks it, so three steps are a loop rather than three copies of one line.
 """
 
+
+def twin(m):
+    """Step a natural-number iterator three times and read off the values."""
+
+    @m.define
+    def make_nat_iter():                  # (= (make-nat-iter) 0)
+        return 0
+
+    @m.define
+    def iter_next(n):                     # (= (iter-next $N)
+        return (n, n + 1)                 #    (let* (($X $N) ($Next (+ $N 1))) ($X $Next)))
+
+    state, seen = make_nat_iter().one(), []
+    for _ in range(3):
+        value, state = iter_next(state).one()   # ($x1 $it1), then ($x2 $it2), then ($x3 $it3)
+        seen.append(value)
+
+    assert seen == [0, 1, 2]              # ($x1 $x2 $x3) is (0 1 2)
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -73,20 +93,3 @@ unpacks it, so three steps are a loop rather than three copies of one line.
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 4907
-def twin(m):
-    """Step a natural-number iterator three times and read off the values."""
-
-    @m.define
-    def make_nat_iter():                  # (= (make-nat-iter) 0)
-        return 0
-
-    @m.define
-    def iter_next(n):                     # (= (iter-next $N)
-        return (n, n + 1)                 #    (let* (($X $N) ($Next (+ $N 1))) ($X $Next)))
-
-    state, seen = make_nat_iter().one(), []
-    for _ in range(3):
-        value, state = iter_next(state).one()   # ($x1 $it1), then ($x2 $it2), then ($x3 $it3)
-        seen.append(value)
-
-    assert seen == [0, 1, 2]              # ($x1 $x2 $x3) is (0 1 2)

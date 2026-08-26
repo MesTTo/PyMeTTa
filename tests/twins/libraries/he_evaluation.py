@@ -19,6 +19,29 @@ return is None, the unit's Python spelling.
 
 from metta import G, lib
 
+
+def twin(m):
+    """Evaluate a call, a term, a chain, and a print over six items."""
+    m += lib.he
+
+    @m.define
+    def double(x):
+        # (= (double $x) (+ $x $x))
+        return x + x
+
+    assert double(5) == [10]
+    assert m.eval(G(5) + 5) == [10]
+
+    # chain binds one instruction's result and runs the continuation, which is
+    # what an assignment and the next statement already are.
+    summed = m.answers(G(2) + 3).one()
+    assert m.answers(G(summed) * 2) == [10]
+
+    # Printing answers the unit value, once per item.
+    printed = [print(item) for item in (1, 3, 5, 62, 2, 5)]
+    assert printed == [None] * 6
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -79,23 +102,3 @@ from metta import G, lib
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 4621
-def twin(m):
-    """Evaluate a call, a term, a chain, and a print over six items."""
-    m += lib.he
-
-    @m.define
-    def double(x):
-        # (= (double $x) (+ $x $x))
-        return x + x
-
-    assert double(5) == [10]
-    assert m.eval(G(5) + 5) == [10]
-
-    # chain binds one instruction's result and runs the continuation, which is
-    # what an assignment and the next statement already are.
-    summed = m.answers(G(2) + 3).one()
-    assert m.answers(G(summed) * 2) == [10]
-
-    # Printing answers the unit value, once per item.
-    printed = [print(item) for item in (1, 3, 5, 62, 2, 5)]
-    assert printed == [None] * 6

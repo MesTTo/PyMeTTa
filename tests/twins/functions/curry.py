@@ -45,6 +45,68 @@ Open Obligations:
 
 from metta import Expression, S, fn
 
+
+def twin(m):
+    """Apply four functions with too few arguments, and three with too many."""
+
+    @m.define
+    def f(a, b):
+        # (= (f $a $b) (+ $a $b))
+        return a + b
+
+    @m.define
+    def g(a, b, c):
+        # (= (g $a $b $c) (+ $c (+ $a $b)))
+        return c + (a + b)
+
+    @m.define
+    def show():
+        # (= (show) (repr (f 1)))
+        return fn.repr(f(1))
+
+    assert m.fn.repr(S.f(1)) == ["(partial f (1))"]
+    assert m.eval((S.f(1), 2)) == [3]
+    assert m.fn.repr(S.g(1, 2)) == ["(partial g (1 2))"]
+
+    @m.define
+    def h(a, b):
+        # (= (h $A $B) (append ($A) $B))
+        return fn.append((a,), b)
+
+    assert m.eval((S.h(42), (1, 2, 3))) == [Expression((42, 1, 2, 3))]
+    assert m.fn.repr(S.h(42)) == ["(partial h (42))"]
+
+    # (map-atom (1 2 3) (+ 1)): a comprehension builds the applications and
+    # one evaluation runs them.
+    add_one = S.add(1)
+    assert m.eval(tuple((add_one, x) for x in (1, 2, 3))) == [Expression((2, 3, 4))]
+
+    # Too many arguments are an error, both for compiled and for
+    # runtime-dispatched calls, and the error is an ANSWER: no catch stands
+    # between the call and it. A head nothing TYPES is left as written
+    # instead, because there is no arity to be wrong about.
+    too_many = S.add(1, 2, 3)
+    wrong_count = S.Error(too_many, S.IncorrectNumberOfArguments)
+    assert m.eval(too_many) == [wrong_count]
+    assert m.eval(S.reduce(too_many)) == [wrong_count]
+    assert m.eval(S.empty(1, 2)) == [S.empty(1, 2)]
+
+    # A gap between overloaded arities is still a valid partial application.
+    # (= (overloaded-curry $a) $a)
+    @m.define
+    def overloaded_curry(a):
+        return a
+
+    # (= (overloaded-curry $a $b $c) (+ $a (+ $b $c)))
+    @m.define(name="overloaded-curry")
+    def overloaded_curry_3(a, b, c):
+        return a + (b + c)
+
+    assert m.fn.repr(S.overloaded_curry(1, 2)) == [
+        "(partial overloaded-curry (1 2))"
+    ]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -113,62 +175,3 @@ from metta import Expression, S, fn
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 25580
-def twin(m):
-    """Apply four functions with too few arguments, and three with too many."""
-
-    @m.define
-    def f(a, b):
-        # (= (f $a $b) (+ $a $b))
-        return a + b
-
-    @m.define
-    def g(a, b, c):
-        # (= (g $a $b $c) (+ $c (+ $a $b)))
-        return c + (a + b)
-
-    @m.define
-    def show():
-        # (= (show) (repr (f 1)))
-        return fn.repr(f(1))
-
-    assert m.fn.repr(S.f(1)) == ["(partial f (1))"]
-    assert m.eval((S.f(1), 2)) == [3]
-    assert m.fn.repr(S.g(1, 2)) == ["(partial g (1 2))"]
-
-    @m.define
-    def h(a, b):
-        # (= (h $A $B) (append ($A) $B))
-        return fn.append((a,), b)
-
-    assert m.eval((S.h(42), (1, 2, 3))) == [Expression((42, 1, 2, 3))]
-    assert m.fn.repr(S.h(42)) == ["(partial h (42))"]
-
-    # (map-atom (1 2 3) (+ 1)): a comprehension builds the applications and
-    # one evaluation runs them.
-    add_one = S.add(1)
-    assert m.eval(tuple((add_one, x) for x in (1, 2, 3))) == [Expression((2, 3, 4))]
-
-    # Too many arguments are an error, both for compiled and for
-    # runtime-dispatched calls, and the error is an ANSWER: no catch stands
-    # between the call and it. A head nothing TYPES is left as written
-    # instead, because there is no arity to be wrong about.
-    too_many = S.add(1, 2, 3)
-    wrong_count = S.Error(too_many, S.IncorrectNumberOfArguments)
-    assert m.eval(too_many) == [wrong_count]
-    assert m.eval(S.reduce(too_many)) == [wrong_count]
-    assert m.eval(S.empty(1, 2)) == [S.empty(1, 2)]
-
-    # A gap between overloaded arities is still a valid partial application.
-    # (= (overloaded-curry $a) $a)
-    @m.define
-    def overloaded_curry(a):
-        return a
-
-    # (= (overloaded-curry $a $b $c) (+ $a (+ $b $c)))
-    @m.define(name="overloaded-curry")
-    def overloaded_curry_3(a, b, c):
-        return a + (b + c)
-
-    assert m.fn.repr(S.overloaded_curry(1, 2)) == [
-        "(partial overloaded-curry (1 2))"
-    ]

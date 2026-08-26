@@ -8,6 +8,19 @@ different multiplicity laws.
 
 from metta import S, V, lib
 
+
+def twin(m):
+    """Define fib, table it, and take the thirtieth in linear time."""
+    m += lib.tabling
+
+    @m.define
+    def fib(n):
+        return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+    m.eval(S.tabled(S.fib(V.n)))
+    assert fib(30) == [832040]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -113,13 +126,3 @@ from metta import S, V, lib
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 96272
-def twin(m):
-    """Define fib, table it, and take the thirtieth in linear time."""
-    m += lib.tabling
-
-    @m.define
-    def fib(n):
-        return n if n < 2 else fib(n - 1) + fib(n - 2)
-
-    m.eval(S.tabled(S.fib(V.n)))
-    assert fib(30) == [832040]

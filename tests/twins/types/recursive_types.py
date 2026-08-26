@@ -14,6 +14,32 @@ has.
 
 from metta import S, arrow, typed
 
+
+def twin(m):
+    """Declare two arrows for one name, then ask four questions."""
+    kind = m.fn.get_type
+    sword = arrow(S.Metal, S.Sword)
+    paperclip = arrow(S.Metal, S.Paperclip)
+
+    # (: blacksmith (-> Metal Sword)) (: blacksmith (-> Metal Paperclip))
+    # (: iron Metal) (: gold Metal)
+    m += typed(S.blacksmith, sword)
+    m += typed(S.blacksmith, paperclip)
+    m += typed(S.iron, S.Metal)
+    m += typed(S.gold, S.Metal)
+
+    # !(test (get-type iron) Metal)
+    assert m.type(S.iron) == S.Metal
+    # !(test (collapse (get-type blacksmith))
+    #        ((-> Metal Sword) (-> Metal Paperclip)))
+    assert kind(S.blacksmith) == [sword, paperclip]
+    # !(test (collapse (get-type (blacksmith iron))) (Sword Paperclip))
+    assert kind(S.blacksmith(S.iron)) == [S.Sword, S.Paperclip]
+    # !(test (collapse (get-type (iron blacksmith)))
+    #        ((Metal (-> Metal Sword)) (Metal (-> Metal Paperclip))))
+    assert kind(S.iron(S.blacksmith)) == [S.Metal(sword), S.Metal(paperclip)]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -56,28 +82,3 @@ from metta import S, arrow, typed
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 3088
-
-
-def twin(m):
-    """Declare two arrows for one name, then ask four questions."""
-    kind = m.fn.get_type
-    sword = arrow(S.Metal, S.Sword)
-    paperclip = arrow(S.Metal, S.Paperclip)
-
-    # (: blacksmith (-> Metal Sword)) (: blacksmith (-> Metal Paperclip))
-    # (: iron Metal) (: gold Metal)
-    m += typed(S.blacksmith, sword)
-    m += typed(S.blacksmith, paperclip)
-    m += typed(S.iron, S.Metal)
-    m += typed(S.gold, S.Metal)
-
-    # !(test (get-type iron) Metal)
-    assert m.type(S.iron) == S.Metal
-    # !(test (collapse (get-type blacksmith))
-    #        ((-> Metal Sword) (-> Metal Paperclip)))
-    assert kind(S.blacksmith) == [sword, paperclip]
-    # !(test (collapse (get-type (blacksmith iron))) (Sword Paperclip))
-    assert kind(S.blacksmith(S.iron)) == [S.Sword, S.Paperclip]
-    # !(test (collapse (get-type (iron blacksmith)))
-    #        ((Metal (-> Metal Sword)) (Metal (-> Metal Paperclip))))
-    assert kind(S.iron(S.blacksmith)) == [S.Metal(sword), S.Metal(paperclip)]

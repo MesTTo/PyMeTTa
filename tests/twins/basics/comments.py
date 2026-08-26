@@ -5,6 +5,19 @@ The original is about MeTTa's comment syntax, and the definition it comments,
 file puts them where the original puts them and says the same thing with them.
 """
 
+
+def twin(m):
+    """Define a function of no arguments, then check what it answers."""
+    # let's comment
+    @m.define
+    def f():  # with a comment
+        # this is a line with just a comment
+        return 42  # overall we tested systematically several comments
+
+    assert f() == [42]  # and added an evil comment for fun
+    # anything else to comment?
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -55,13 +68,3 @@ file puts them where the original puts them and says the same thing with them.
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 2215
-def twin(m):
-    """Define a function of no arguments, then check what it answers."""
-    # let's comment
-    @m.define
-    def f():  # with a comment
-        # this is a line with just a comment
-        return 42  # overall we tested systematically several comments
-
-    assert f() == [42]  # and added an evil comment for fun
-    # anything else to comment?

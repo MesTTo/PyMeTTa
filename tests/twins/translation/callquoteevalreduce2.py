@@ -19,6 +19,44 @@ makes each one a term to evaluate rather than a call to make.
 
 from metta import S
 
+
+def twin(m):
+    """Wrap one term four ways, and see which of them reduce."""
+
+    @m.define
+    def fib(n):                          # (= (fib $N) (if (< $N 2) $N
+        if n < 2:                        #     (+ (fib (- $N 1)) (fib (- $N 2)))))
+            return n
+        return fib(n - 1) + fib(n - 2)
+
+    @m.define
+    def myfunc():                        # (= (myfunc) 5)
+        return 5
+
+    @m.define
+    def call_fib():                      # (= (call-fib) (call (fib (myfunc))))
+        return S.call(fib(myfunc()))
+
+    @m.define
+    def quote_fib():                     # (= (quote-fib) (quote (fib (myfunc))))
+        return S.quote(fib(myfunc()))
+
+    @m.define
+    def eval_fib():                      # (= (eval-fib) (eval (fib (myfunc))))
+        return S.eval(fib(myfunc()))
+
+    @m.define
+    def reduce_fib():                    # (= (reduce-fib) (reduce (fib (myfunc))))
+        return S.reduce(fib(myfunc()))
+
+    inner = S.fib(S.myfunc())
+    assert m.answers(S.fib_call(S.call_fib())) == [S.fib_call(5)]
+    # quote keeps its wrapper AND the term under it, unreduced.
+    assert m.answers(S.fib_quote(S.quote_fib())) == [S.fib_quote(S.quote(inner))]
+    assert m.answers(S.fib_eval(S.eval_fib())) == [S.fib_eval(5)]
+    assert m.answers(S.fib_reduce(S.reduce_fib())) == [S.fib_reduce(5)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -76,38 +114,3 @@ from metta import S
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 52859
-def twin(m):
-    """Wrap one term four ways, and see which of them reduce."""
-
-    @m.define
-    def fib(n):                          # (= (fib $N) (if (< $N 2) $N
-        if n < 2:                        #     (+ (fib (- $N 1)) (fib (- $N 2)))))
-            return n
-        return fib(n - 1) + fib(n - 2)
-
-    @m.define
-    def myfunc():                        # (= (myfunc) 5)
-        return 5
-
-    @m.define
-    def call_fib():                      # (= (call-fib) (call (fib (myfunc))))
-        return S.call(fib(myfunc()))
-
-    @m.define
-    def quote_fib():                     # (= (quote-fib) (quote (fib (myfunc))))
-        return S.quote(fib(myfunc()))
-
-    @m.define
-    def eval_fib():                      # (= (eval-fib) (eval (fib (myfunc))))
-        return S.eval(fib(myfunc()))
-
-    @m.define
-    def reduce_fib():                    # (= (reduce-fib) (reduce (fib (myfunc))))
-        return S.reduce(fib(myfunc()))
-
-    inner = S.fib(S.myfunc())
-    assert m.answers(S.fib_call(S.call_fib())) == [S.fib_call(5)]
-    # quote keeps its wrapper AND the term under it, unreduced.
-    assert m.answers(S.fib_quote(S.quote_fib())) == [S.fib_quote(S.quote(inner))]
-    assert m.answers(S.fib_eval(S.eval_fib())) == [S.fib_eval(5)]
-    assert m.answers(S.fib_reduce(S.reduce_fib())) == [S.fib_reduce(5)]

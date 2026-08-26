@@ -12,6 +12,34 @@ is what lets `-=` and `+=` take it as the atom it is.
 
 from metta import S, V, equation
 
+
+def twin(m):
+    """Remove one clause of a specialized function, then put it back."""
+
+    @m.define
+    def g(x):
+        # (= (g $x) (+ $x 1))
+        return x + 1
+
+    @m.define
+    def f(g):
+        # (= (f $g) ($g 1))
+        yield (g, 1)
+        # (= (f $g) ($g 2))
+        yield (g, 2)
+
+    one = equation(S.f(V.g)).to((V.g, 1))
+
+    assert m.eval(S.f(S.g)) == [2, 3]
+
+    m -= one
+    # The specialized call still runs, over the one clause left.
+    assert m.eval(S.f(S.g)) == [3]
+
+    m += one
+    assert m.eval(S.f(S.g)) == [3, 2]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -80,28 +108,3 @@ from metta import S, V, equation
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 19873
-def twin(m):
-    """Remove one clause of a specialized function, then put it back."""
-
-    @m.define
-    def g(x):
-        # (= (g $x) (+ $x 1))
-        return x + 1
-
-    @m.define
-    def f(g):
-        # (= (f $g) ($g 1))
-        yield (g, 1)
-        # (= (f $g) ($g 2))
-        yield (g, 2)
-
-    one = equation(S.f(V.g)).to((V.g, 1))
-
-    assert m.eval(S.f(S.g)) == [2, 3]
-
-    m -= one
-    # The specialized call still runs, over the one clause left.
-    assert m.eval(S.f(S.g)) == [3]
-
-    m += one
-    assert m.eval(S.f(S.g)) == [3, 2]

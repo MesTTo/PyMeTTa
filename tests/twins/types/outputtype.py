@@ -14,6 +14,33 @@ from typing import Any
 
 from metta import Atom, S
 
+
+def twin(m):
+    """One body, three signatures, three answers."""
+
+    @m.define
+    def f(x: int) -> Any:
+        """(: f (-> Number %Undefined%)), (= (f $x) (+ $x 42))."""
+        return x + 42
+
+    @m.define
+    def g(x: int) -> Atom:
+        """(: g (-> Number Atom)), the same body under a lazy OUTPUT."""
+        return x + 42
+
+    @m.define
+    def h(x: Atom) -> Atom:
+        """(: h (-> Atom Atom)), lazy on both sides."""
+        return x + 42
+
+    # !(test (f (+ 1 1)) 44)
+    assert f(S.add(1, 1)) == [44]
+    # !(test (g (+ 1 1)) (noeval (+ 2 42)))
+    assert g(S.add(1, 1)) == [S.add(2, 42)]
+    # !(test (h (+ 1 1)) (noeval (+ (+ 1 1) 42)))
+    assert h(S.add(1, 1)) == [S.add(S.add(1, 1), 42)]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -81,27 +108,3 @@ from metta import Atom, S
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 8658
-def twin(m):
-    """One body, three signatures, three answers."""
-
-    @m.define
-    def f(x: int) -> Any:
-        """(: f (-> Number %Undefined%)), (= (f $x) (+ $x 42))."""
-        return x + 42
-
-    @m.define
-    def g(x: int) -> Atom:
-        """(: g (-> Number Atom)), the same body under a lazy OUTPUT."""
-        return x + 42
-
-    @m.define
-    def h(x: Atom) -> Atom:
-        """(: h (-> Atom Atom)), lazy on both sides."""
-        return x + 42
-
-    # !(test (f (+ 1 1)) 44)
-    assert f(S.add(1, 1)) == [44]
-    # !(test (g (+ 1 1)) (noeval (+ 2 42)))
-    assert g(S.add(1, 1)) == [S.add(2, 42)]
-    # !(test (h (+ 1 1)) (noeval (+ (+ 1 1) 42)))
-    assert h(S.add(1, 1)) == [S.add(S.add(1, 1), 42)]

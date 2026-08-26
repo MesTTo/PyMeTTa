@@ -18,6 +18,30 @@ where it is written and needs no forcing read.
 
 from metta import Expression, S, fn
 
+
+def twin(m):
+    """Write one computation three ways, and see which of them runs when."""
+
+    @m.define
+    def runtime42(arg):                   # (= (runtime42 $arg) (cons 42 $arg))
+        return fn.cons(42, arg)
+
+    @m.define
+    def compileeval42(arg):               # (= (compileeval42 $arg) (cons 42 $arg))
+        return fn.cons(42, arg)
+
+    @m.define
+    def compile42(arg):                   # (= (compile42 $arg) (noeval (cons 42 $arg)))
+        return fn.noeval(fn.cons(42, arg))
+
+    m.fn.add_translator_rule(S.compileeval42)   # (add-translator-rule! compileeval42)
+    m.fn.add_translator_rule(S.compile42)       # (add-translator-rule! compile42)
+
+    assert runtime42((43,)) == [Expression((42, 43))]   # [(42 43)]
+    assert compileeval42((43,)) == [Expression((42, 43))]   # [(42 43)]
+    assert compile42((43,)) == [Expression((42, 43))]   # [(42 43)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -86,24 +110,3 @@ from metta import Expression, S, fn
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 10482
-def twin(m):
-    """Write one computation three ways, and see which of them runs when."""
-
-    @m.define
-    def runtime42(arg):                   # (= (runtime42 $arg) (cons 42 $arg))
-        return fn.cons(42, arg)
-
-    @m.define
-    def compileeval42(arg):               # (= (compileeval42 $arg) (cons 42 $arg))
-        return fn.cons(42, arg)
-
-    @m.define
-    def compile42(arg):                   # (= (compile42 $arg) (noeval (cons 42 $arg)))
-        return fn.noeval(fn.cons(42, arg))
-
-    m.fn.add_translator_rule(S.compileeval42)   # (add-translator-rule! compileeval42)
-    m.fn.add_translator_rule(S.compile42)       # (add-translator-rule! compile42)
-
-    assert runtime42((43,)) == [Expression((42, 43))]   # [(42 43)]
-    assert compileeval42((43,)) == [Expression((42, 43))]   # [(42 43)]
-    assert compile42((43,)) == [Expression((42, 43))]   # [(42 43)]

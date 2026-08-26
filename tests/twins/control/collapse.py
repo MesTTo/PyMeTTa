@@ -16,6 +16,13 @@ Open Obligations:
 
 from metta import Expression
 
+
+def twin(m):
+    """Evaluate a term nothing reduces, and count the answers it gives."""
+    # !(test (collapse (1 2 3)) ((1 2 3)))
+    assert m.eval(Expression((1, 2, 3))) == [Expression((1, 2, 3))]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -28,9 +35,3 @@ from metta import Expression
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 on the final tree].
 BUDGET = 228
-
-
-def twin(m):
-    """Evaluate a term nothing reduces, and count the answers it gives."""
-    # !(test (collapse (1 2 3)) ((1 2 3)))
-    assert m.eval(Expression((1, 2, 3))) == [Expression((1, 2, 3))]

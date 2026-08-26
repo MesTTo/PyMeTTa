@@ -21,6 +21,55 @@ from typing import Any
 
 from metta import Atom, Expression, S, arrow, equation, typed
 
+
+def twin(m):
+    """Register both direction policies, exercise them, then withdraw one."""
+    m += typed(S.celsius, arrow(Atom, Any))     # (: celsius (-> Atom %Undefined%))
+
+    @m.rules
+    def scale(c):                               # (= (celsius (degrees $c))
+        yield equation(S.celsius(S.degrees(c))).to(
+            S.noeval(S.kelvin(c + 273)))        #    (noeval (kelvin (+ $c 273))))
+
+    m.fn.add_translator_rule(S.celsius, Expression((S.direction(S.forward),)))
+
+    assert m.fn.celsius(S.degrees(27)) == [S.kelvin(300)]   # (kelvin 300)
+
+    m += typed(S.unpack, arrow(Atom, Any))      # (: unpack (-> Atom %Undefined%))
+
+    @m.rules
+    def unwrapping(x):                          # (= (unpack (wrap (box $x)))
+        yield equation(S.unpack(S.wrap(S.box(x)))).to(
+            S.noeval(S.twin(x, x)))             #    (noeval (twin $x $x)))
+
+    m.fn.add_translator_rule(S.unpack, Expression((S.direction(S.bidirectional),)))
+
+    small, small_unpack = S.twin(1, 1), S.unpack(S.wrap(S.box(1)))
+    large = S.a(S.b, S.c)
+    large_twin, large_unpack = S.twin(large, large), S.unpack(S.wrap(S.box(large)))
+
+    # Four nodes against three, so this call goes forwards.
+    assert m.eval(small_unpack) == [small]
+    # Seven against six, because the argument is written twice on one side and
+    # once on the other, so this one goes back.
+    assert m.eval(large_twin) == [large_unpack]
+
+    # A form already at its cheapest is left alone, exactly as the prose
+    # says: `(twin 1 1)` is three nodes and its rewrite is four, so the
+    # backward direction is BLOCKED by cost, and the fixed door shows it.
+    # The old pin here recorded the pre-P14.32 fast path running the
+    # derived equation raw, past the orientation gate that only lives in
+    # translation; a rule-owned head's call now routes through the rule.
+    assert m.eval(small) == [small]
+    assert m.eval(large_unpack) == [large_unpack]
+
+    # Withdrawing the rule withdraws the derived equation with it, so the
+    # inverse never outlives the declaration that produced it.
+    m.fn.remove_translator_rule(S.unpack)       # (remove-translator-rule! unpack)
+
+    assert m.eval(large_twin) == [large_twin]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -79,51 +128,3 @@ BUDGET = {
     "observations": 20,
     "protocol": "full-lane/219/workers=32",
 }
-
-
-def twin(m):
-    """Register both direction policies, exercise them, then withdraw one."""
-    m += typed(S.celsius, arrow(Atom, Any))     # (: celsius (-> Atom %Undefined%))
-
-    @m.rules
-    def scale(c):                               # (= (celsius (degrees $c))
-        yield equation(S.celsius(S.degrees(c))).to(
-            S.noeval(S.kelvin(c + 273)))        #    (noeval (kelvin (+ $c 273))))
-
-    m.fn.add_translator_rule(S.celsius, Expression((S.direction(S.forward),)))
-
-    assert m.fn.celsius(S.degrees(27)) == [S.kelvin(300)]   # (kelvin 300)
-
-    m += typed(S.unpack, arrow(Atom, Any))      # (: unpack (-> Atom %Undefined%))
-
-    @m.rules
-    def unwrapping(x):                          # (= (unpack (wrap (box $x)))
-        yield equation(S.unpack(S.wrap(S.box(x)))).to(
-            S.noeval(S.twin(x, x)))             #    (noeval (twin $x $x)))
-
-    m.fn.add_translator_rule(S.unpack, Expression((S.direction(S.bidirectional),)))
-
-    small, small_unpack = S.twin(1, 1), S.unpack(S.wrap(S.box(1)))
-    large = S.a(S.b, S.c)
-    large_twin, large_unpack = S.twin(large, large), S.unpack(S.wrap(S.box(large)))
-
-    # Four nodes against three, so this call goes forwards.
-    assert m.eval(small_unpack) == [small]
-    # Seven against six, because the argument is written twice on one side and
-    # once on the other, so this one goes back.
-    assert m.eval(large_twin) == [large_unpack]
-
-    # A form already at its cheapest is left alone, exactly as the prose
-    # says: `(twin 1 1)` is three nodes and its rewrite is four, so the
-    # backward direction is BLOCKED by cost, and the fixed door shows it.
-    # The old pin here recorded the pre-P14.32 fast path running the
-    # derived equation raw, past the orientation gate that only lives in
-    # translation; a rule-owned head's call now routes through the rule.
-    assert m.eval(small) == [small]
-    assert m.eval(large_unpack) == [large_unpack]
-
-    # Withdrawing the rule withdraws the derived equation with it, so the
-    # inverse never outlives the declaration that produced it.
-    m.fn.remove_translator_rule(S.unpack)       # (remove-translator-rule! unpack)
-
-    assert m.eval(large_twin) == [large_twin]

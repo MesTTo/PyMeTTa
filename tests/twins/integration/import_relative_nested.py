@@ -18,6 +18,16 @@ from metta import S, lib
 #: are what rung 5's bracket is for.
 ROOT = S["examples/integration/_fixtures/imports/relative/root"]
 
+
+def twin(m):
+    """Import the root, then ask the two files it reached."""
+    # (import! &self examples/integration/_fixtures/imports/relative/root)
+    m += lib(ROOT)
+
+    assert m.fn.from_sibling() == [42]   # [42]
+    assert m.fn.from_second() == [7]   # [7]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -63,12 +73,3 @@ ROOT = S["examples/integration/_fixtures/imports/relative/root"]
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 7285
-
-
-def twin(m):
-    """Import the root, then ask the two files it reached."""
-    # (import! &self examples/integration/_fixtures/imports/relative/root)
-    m += lib(ROOT)
-
-    assert m.fn.from_sibling() == [42]   # [42]
-    assert m.fn.from_second() == [7]   # [7]

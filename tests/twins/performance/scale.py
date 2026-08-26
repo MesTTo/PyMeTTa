@@ -31,6 +31,43 @@ condition alone, or a stack-depth mode block. Residue P14.4 and P14.14.
 
 from metta import S, V, equation, fn, if_
 
+#: What a million atoms answer to the five shapes, in the driver's own order.
+REPORT = S["all:"](1_000_000, S["first:"], 1, S["second:"], 100_000,
+                   S["rel:"], 1, S["both:"], 1)
+
+
+def twin(m):
+    """Load a million atoms, then ask five differently-shaped questions."""
+    m += equation(S.addK(V.k)).to(
+        if_(S.eq(V.k, 0),  # rung: the compiled body answers StackOverflow at this depth
+                S.done,
+                S["let*"](((V.k10, V.k % 10),  # rung: as above
+                           (V.written, S.add_atom(m, S.r(V.k, V.k10)))),  # rung: as above
+                          S.addK(V.k - 1))))
+
+    # Five shapes over one store: nothing bound, first bound, second bound,
+    # both bound, and the relation itself a variable.
+    m += equation(S.q_all()).to(S.collapse(S.match(m, S.r(V.x, V.y), S.r(V.x, V.y))))  # rung: a compiled body has no spelling for collapse
+    m += equation(S.q_first(V.a)).to(S.collapse(S.match(m, S.r(V.a, V.y), S.r(V.a, V.y))))  # rung: as above
+    m += equation(S.q_second(V.b)).to(S.collapse(S.match(m, S.r(V.x, V.b), S.r(V.x, V.b))))  # rung: as above
+    m += equation(S.q_both(V.a, V.b)).to(S.collapse(S.match(m, S.r(V.a, V.b), S.r(V.a, V.b))))  # rung: as above
+    m += equation(S.q_rel(V.r)).to(S.collapse(S.match(m, (V.r, 643, 3), (V.r, 643, 3))))  # rung: as above
+
+    @m.define
+    def indexing_demo(k):
+        _loaded = fn.addK(k)
+        everything = fn.q_all()
+        first = fn.q_first(7)
+        second = fn.q_second(3)
+        rel = fn.q_rel(S.r)
+        both = fn.q_both(42, 2)
+        return S["all:"](fn.length(everything), S["first:"], fn.length(first),
+                         S["second:"], fn.length(second), S["rel:"], fn.length(rel),
+                         S["both:"], fn.length(both))
+
+    assert indexing_demo(1_000_000) == [REPORT]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -91,38 +128,3 @@ from metta import S, V, equation, fn, if_
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 26335555
-#: What a million atoms answer to the five shapes, in the driver's own order.
-REPORT = S["all:"](1_000_000, S["first:"], 1, S["second:"], 100_000,
-                   S["rel:"], 1, S["both:"], 1)
-
-
-def twin(m):
-    """Load a million atoms, then ask five differently-shaped questions."""
-    m += equation(S.addK(V.k)).to(
-        if_(S.eq(V.k, 0),  # rung: the compiled body answers StackOverflow at this depth
-                S.done,
-                S["let*"](((V.k10, V.k % 10),  # rung: as above
-                           (V.written, S.add_atom(m, S.r(V.k, V.k10)))),  # rung: as above
-                          S.addK(V.k - 1))))
-
-    # Five shapes over one store: nothing bound, first bound, second bound,
-    # both bound, and the relation itself a variable.
-    m += equation(S.q_all()).to(S.collapse(S.match(m, S.r(V.x, V.y), S.r(V.x, V.y))))  # rung: a compiled body has no spelling for collapse
-    m += equation(S.q_first(V.a)).to(S.collapse(S.match(m, S.r(V.a, V.y), S.r(V.a, V.y))))  # rung: as above
-    m += equation(S.q_second(V.b)).to(S.collapse(S.match(m, S.r(V.x, V.b), S.r(V.x, V.b))))  # rung: as above
-    m += equation(S.q_both(V.a, V.b)).to(S.collapse(S.match(m, S.r(V.a, V.b), S.r(V.a, V.b))))  # rung: as above
-    m += equation(S.q_rel(V.r)).to(S.collapse(S.match(m, (V.r, 643, 3), (V.r, 643, 3))))  # rung: as above
-
-    @m.define
-    def indexing_demo(k):
-        _loaded = fn.addK(k)
-        everything = fn.q_all()
-        first = fn.q_first(7)
-        second = fn.q_second(3)
-        rel = fn.q_rel(S.r)
-        both = fn.q_both(42, 2)
-        return S["all:"](fn.length(everything), S["first:"], fn.length(first),
-                         S["second:"], fn.length(second), S["rel:"], fn.length(rel),
-                         S["both:"], fn.length(both))
-
-    assert indexing_demo(1_000_000) == [REPORT]

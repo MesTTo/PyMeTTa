@@ -22,6 +22,31 @@ engine's order, so the ordinary spelling is the correct one again
 
 from metta import S, V
 
+
+def twin(m):
+    """Store four facts, run two forms, then collect what the space holds."""
+    m += (S.foo, 1)
+    m += (S.foo, 2)
+    m += (S.foo, 42, 42)
+    m += (S.foo, (42, 42))
+
+    # Nothing defines bar, so each form answers itself, and neither is stored.
+    assert m.eval(S.bar(42)) == [S.bar(42)]
+    assert m.eval(S.bar(43)) == [S.bar(43)]
+
+    @m.define
+    def answer():
+        return 42
+
+    held = (
+        [S.foo(row.x) for row in m[S.foo(V.x)]]
+        + [S.foo(row.x, row.y) for row in m[S.foo(V.x, V.y)]]
+        + [S.bar(row.x) for row in m[S.bar(V.x)]]
+    )
+    assert sorted(held) == [S.foo(1), S.foo(2), S.foo(42, 42), S.foo((42, 42))]
+    assert answer() == [42]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -82,25 +107,3 @@ from metta import S, V
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 2813
-def twin(m):
-    """Store four facts, run two forms, then collect what the space holds."""
-    m += (S.foo, 1)
-    m += (S.foo, 2)
-    m += (S.foo, 42, 42)
-    m += (S.foo, (42, 42))
-
-    # Nothing defines bar, so each form answers itself, and neither is stored.
-    assert m.eval(S.bar(42)) == [S.bar(42)]
-    assert m.eval(S.bar(43)) == [S.bar(43)]
-
-    @m.define
-    def answer():
-        return 42
-
-    held = (
-        [S.foo(row.x) for row in m[S.foo(V.x)]]
-        + [S.foo(row.x, row.y) for row in m[S.foo(V.x, V.y)]]
-        + [S.bar(row.x) for row in m[S.bar(V.x)]]
-    )
-    assert sorted(held) == [S.foo(1), S.foo(2), S.foo(42, 42), S.foo((42, 42))]
-    assert answer() == [42]

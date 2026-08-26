@@ -22,6 +22,30 @@ Yes and No.
 
 from metta import S, V, equation, lib, typed
 
+
+def twin(m):
+    """Write one definition each way, read both back, then type and unify."""
+    m += lib.he
+
+    m += equation(S.addnormal()).to(S.add(1, 3))
+    m += equation(S.addreduct()).to(m.answers(S.add(1, 3)).one())
+
+    # The stored body, as written.
+    assert [row.body for row in m[equation(S.addnormal()).to(V.body)]] == [S.add(1, 3)]
+    # And reduced, because add-reduct's Python spelling evaluates first.
+    assert [row.body for row in m[equation(S.addreduct()).to(V.body)]] == [4]
+
+    # A declared type is an ordinary atom, and the space that holds it is the
+    # receiver: which space you ask is what decides the answer.
+    m += typed(S.a, S.A)
+    assert m.type(S.a) == S.A
+
+    # Containment is a match, so it is Python's `in`.
+    m += S.hello(S.world)
+    assert S.hello(S.world) in m
+    assert S.hello(S.dream) not in m
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -67,26 +91,3 @@ from metta import S, V, equation, lib, typed
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 3872
-
-
-def twin(m):
-    """Write one definition each way, read both back, then type and unify."""
-    m += lib.he
-
-    m += equation(S.addnormal()).to(S.add(1, 3))
-    m += equation(S.addreduct()).to(m.answers(S.add(1, 3)).one())
-
-    # The stored body, as written.
-    assert [row.body for row in m[equation(S.addnormal()).to(V.body)]] == [S.add(1, 3)]
-    # And reduced, because add-reduct's Python spelling evaluates first.
-    assert [row.body for row in m[equation(S.addreduct()).to(V.body)]] == [4]
-
-    # A declared type is an ordinary atom, and the space that holds it is the
-    # receiver: which space you ask is what decides the answer.
-    m += typed(S.a, S.A)
-    assert m.type(S.a) == S.A
-
-    # Containment is a match, so it is Python's `in`.
-    m += S.hello(S.world)
-    assert S.hello(S.world) in m
-    assert S.hello(S.dream) not in m

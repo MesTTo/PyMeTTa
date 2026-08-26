@@ -23,6 +23,28 @@ superpose_primes.py beside this file carries the measurement.
 
 from metta import fn
 
+
+def twin(m):
+    """Fan three numbers out over threads, and put the primes back together."""
+
+    @m.define
+    def find_divisor(n, test_divisor):
+        if test_divisor * test_divisor > n:
+            return n
+        if fn.eq(0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
+            return test_divisor
+        return find_divisor(n, test_divisor + 1)
+
+    @m.define(name="prime?")
+    def prime(n):
+        return fn.eq(n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
+
+    # hyperpose takes its branches through a variable as happily as inline, and
+    # the answers come back in whatever order the threads finish.
+    xs = (3, 1, 2)
+    assert sorted(m.hyperpose(*xs)) == [1, 2, 3]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -85,22 +107,3 @@ from metta import fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 26667
-def twin(m):
-    """Fan three numbers out over threads, and put the primes back together."""
-
-    @m.define
-    def find_divisor(n, test_divisor):
-        if test_divisor * test_divisor > n:
-            return n
-        if fn.eq(0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
-            return test_divisor
-        return find_divisor(n, test_divisor + 1)
-
-    @m.define(name="prime?")
-    def prime(n):
-        return fn.eq(n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
-
-    # hyperpose takes its branches through a variable as happily as inline, and
-    # the answers come back in whatever order the threads finish.
-    xs = (3, 1, 2)
-    assert sorted(m.hyperpose(*xs)) == [1, 2, 3]

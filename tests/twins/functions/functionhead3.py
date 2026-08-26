@@ -27,6 +27,44 @@ of calling, because a `let`-as-guard has to wrap the call.
 
 from metta import TRUE, S, V, fn
 
+
+def twin(m):
+    """Constrain both arguments and the result, then run it every way."""
+
+    @m.define(name="in")
+    def is_in(x, items):
+        # (= (in $x $L) (let True (is-member $x $L) $x))
+        return S.let(True, fn.is_member(x, items), x)  # noqa: FBT003  -- True is the ATOM the membership check answers, matched against, not a flag  # rung: let as a guard
+
+    @m.define
+    def myplus(a, b):
+        # (= (myplus $A $B)
+        #    (let $A (in $X (1 2 3))
+        #      (let $B (in $Y (2 3))
+        #        (in (+ $X $Y) (3 4 5)))))
+        return S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
+            a,
+            is_in(V.x, (1, 2, 3)),
+            S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
+                b, is_in(V.y, (2, 3)), is_in(V.x + V.y, (3, 4, 5))
+            ),
+        )
+
+    # fine:
+    assert myplus(1, 3) == [4]
+    # output out of range:
+    assert myplus(3, 3) == []
+    # input out of range:
+    assert myplus(3, 4) == []
+    # what can be reached when adding $X to 3:
+    assert myplus(V.x, 3) == [4, 5]
+    # what can be reached when adding $X to $Y:
+    assert myplus(V.x, V.y) == [3, 4, 4, 5, 5]
+    # with which $x added to 2 can we reach values above 3?
+    guard = S.gt(S.myplus(V.x, 2), 3)
+    assert m.eval(S.let(TRUE, guard, V.x)) == [2, 3]  # rung: let as a guard
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -95,38 +133,3 @@ from metta import TRUE, S, V, fn
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 16263
-def twin(m):
-    """Constrain both arguments and the result, then run it every way."""
-
-    @m.define(name="in")
-    def is_in(x, items):
-        # (= (in $x $L) (let True (is-member $x $L) $x))
-        return S.let(True, fn.is_member(x, items), x)  # noqa: FBT003  -- True is the ATOM the membership check answers, matched against, not a flag  # rung: let as a guard
-
-    @m.define
-    def myplus(a, b):
-        # (= (myplus $A $B)
-        #    (let $A (in $X (1 2 3))
-        #      (let $B (in $Y (2 3))
-        #        (in (+ $X $Y) (3 4 5)))))
-        return S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
-            a,
-            is_in(V.x, (1, 2, 3)),
-            S.let(  # rung: solve(pattern, subject) has no expression-position form inside a compiled body
-                b, is_in(V.y, (2, 3)), is_in(V.x + V.y, (3, 4, 5))
-            ),
-        )
-
-    # fine:
-    assert myplus(1, 3) == [4]
-    # output out of range:
-    assert myplus(3, 3) == []
-    # input out of range:
-    assert myplus(3, 4) == []
-    # what can be reached when adding $X to 3:
-    assert myplus(V.x, 3) == [4, 5]
-    # what can be reached when adding $X to $Y:
-    assert myplus(V.x, V.y) == [3, 4, 4, 5, 5]
-    # with which $x added to 2 can we reach values above 3?
-    guard = S.gt(S.myplus(V.x, 2), 3)
-    assert m.eval(S.let(TRUE, guard, V.x)) == [2, 3]  # rung: let as a guard

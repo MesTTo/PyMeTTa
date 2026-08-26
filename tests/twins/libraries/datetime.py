@@ -18,6 +18,42 @@ check `format-date`'s output itself.
 
 from metta import G, S, lib
 
+#: 2025-01-01T00:00:00Z, a date already past, so a live clock is after it.
+NEW_YEAR_2025 = 1735689600
+
+#: strftime patterns are text, and text is what a string is for.
+ISO_DAY, CLOCK, MONTH_NAME = G("%Y-%m-%d"), G("%H:%M:%S"), G("%B")
+
+
+def twin(m):
+    """Read the clock, then format and name three fixed timestamps."""
+    m += lib.datetime
+
+    now = m.fn.now
+    # (let $ts (now) (< 1735689600 $ts))
+    assert now().one() > NEW_YEAR_2025
+
+    # One reading, formatted twice: a live clock is stable within one reading
+    # and would not be across two.
+    format_date = m.fn.format_date
+    reading = now().one()
+    assert format_date(reading, ISO_DAY).one() == format_date(reading, ISO_DAY).one()
+
+    # (let* (($ts 1766188800) ($dow (day-of-week $ts))) ($dow))
+    a_saturday = 1766188800
+    assert m.fn.day_of_week(a_saturday) == [S.Saturday]
+
+    # (let* (($ts1 ...) ($ts2 ...) ($diff (- $ts2 $ts1))) ($diff)): both
+    # operands are ground, so the subtraction is Python's own.
+    assert 1736294400 - NEW_YEAR_2025 == 604800
+
+    # (let* (($ts 1735725045) ($time-only (format-date $ts "%H:%M:%S"))) ($time-only)):
+    # a wall-clock reading, so what it prints moves with the machine's zone.
+    print(format_date(1735725045, CLOCK))
+
+    assert format_date(NEW_YEAR_2025, MONTH_NAME) == [S.January]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -63,39 +99,3 @@ from metta import G, S, lib
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 24419
-
-
-#: 2025-01-01T00:00:00Z, a date already past, so a live clock is after it.
-NEW_YEAR_2025 = 1735689600
-
-#: strftime patterns are text, and text is what a string is for.
-ISO_DAY, CLOCK, MONTH_NAME = G("%Y-%m-%d"), G("%H:%M:%S"), G("%B")
-
-
-def twin(m):
-    """Read the clock, then format and name three fixed timestamps."""
-    m += lib.datetime
-
-    now = m.fn.now
-    # (let $ts (now) (< 1735689600 $ts))
-    assert now().one() > NEW_YEAR_2025
-
-    # One reading, formatted twice: a live clock is stable within one reading
-    # and would not be across two.
-    format_date = m.fn.format_date
-    reading = now().one()
-    assert format_date(reading, ISO_DAY).one() == format_date(reading, ISO_DAY).one()
-
-    # (let* (($ts 1766188800) ($dow (day-of-week $ts))) ($dow))
-    a_saturday = 1766188800
-    assert m.fn.day_of_week(a_saturday) == [S.Saturday]
-
-    # (let* (($ts1 ...) ($ts2 ...) ($diff (- $ts2 $ts1))) ($diff)): both
-    # operands are ground, so the subtraction is Python's own.
-    assert 1736294400 - NEW_YEAR_2025 == 604800
-
-    # (let* (($ts 1735725045) ($time-only (format-date $ts "%H:%M:%S"))) ($time-only)):
-    # a wall-clock reading, so what it prints moves with the machine's zone.
-    print(format_date(1735725045, CLOCK))
-
-    assert format_date(NEW_YEAR_2025, MONTH_NAME) == [S.January]

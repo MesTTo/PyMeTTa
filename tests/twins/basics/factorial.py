@@ -10,6 +10,18 @@ keeping the comparison inside the engine. The digest lane reports that
 spelling difference.
 """
 
+
+def twin(m):
+    """Define the factorial and run it."""
+    @m.define(name="facF")
+    def fac_f(n):
+        # Source: (= (facF $n) (if (== $n 0) 1 (* $n (facF (- $n 1)))))
+        # Twin:   (= (facF $n) (if (py-eq $n 0) 1 (* $n (facF (- $n 1)))))
+        return 1 if n == 0 else n * fac_f(n - 1)
+
+    assert fac_f(10) == [3628800]
+
+
 #: Inferences this twin spends, its own tripwire. INTERIM PIN 2026-08-24,
 #: identity.py's and spaces3.py's own precedent: two lane tests fixture on
 #: this file's REAL point budget, so it is priced ahead of the corpus-wide
@@ -73,12 +85,3 @@ spelling difference.
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 7578
-def twin(m):
-    """Define the factorial and run it."""
-    @m.define(name="facF")
-    def fac_f(n):
-        # Source: (= (facF $n) (if (== $n 0) 1 (* $n (facF (- $n 1)))))
-        # Twin:   (= (facF $n) (if (py-eq $n 0) 1 (* $n (facF (- $n 1)))))
-        return 1 if n == 0 else n * fac_f(n - 1)
-
-    assert fac_f(10) == [3628800]

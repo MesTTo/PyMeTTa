@@ -49,6 +49,43 @@ Open Obligations:
 import metta
 from metta import UNIT, S, equation, rules, superpose
 
+
+def twin(m):
+    """Fan a range into two spaces, then fold three answers into one."""
+    @m.define(name="range")
+    def counter(k, n):
+        # (= (range $K $N) (if (< $K $N) (superpose ($K (range (+ $K 1) $N))) (empty)))
+        return superpose(k, counter(k + 1, n)) if k < n else empty()  # noqa: F821  -- `empty` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
+
+    s1 = metta.space("&s1")
+    s2 = metta.space("&s2")
+
+    # !(forall (range 1 5) (|-> ($x) (add-atom &s1 (num $x))))
+    for x in counter(1, 5):
+        s1 += S.num(x)
+
+    # !(let $x (once (range 1 5)) (add-atom &s2 (num $x)))
+    s2 += S.num(counter(1, 5).first(default=UNIT))
+
+    # !(test (collapse (get-atoms &s1)) ((num 1) (num 2) (num 3) (num 4)))
+    assert list(s1) == [S.num(1), S.num(2), S.num(3), S.num(4)]
+
+    # !(test (collapse (get-atoms &s2)) ((num 1)))
+    assert list(s2) == [S.num(1)]
+
+    @rules
+    def gen():
+        # (= (gen) 1) (= (gen) 2) (= (gen) 3)
+        yield equation(S.gen()).to(1)
+        yield equation(S.gen()).to(2)
+        yield equation(S.gen()).to(3)
+
+    m += gen
+
+    # !(test (foldall (|-> ($x $y) (+ $x $y)) (gen) 0) 6)
+    assert sum(answer.value for answer in m.fn.gen()) == 6
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -107,37 +144,3 @@ from metta import UNIT, S, equation, rules, superpose
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 11820
-def twin(m):
-    """Fan a range into two spaces, then fold three answers into one."""
-    @m.define(name="range")
-    def counter(k, n):
-        # (= (range $K $N) (if (< $K $N) (superpose ($K (range (+ $K 1) $N))) (empty)))
-        return superpose(k, counter(k + 1, n)) if k < n else empty()  # noqa: F821  -- `empty` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
-
-    s1 = metta.space("&s1")
-    s2 = metta.space("&s2")
-
-    # !(forall (range 1 5) (|-> ($x) (add-atom &s1 (num $x))))
-    for x in counter(1, 5):
-        s1 += S.num(x)
-
-    # !(let $x (once (range 1 5)) (add-atom &s2 (num $x)))
-    s2 += S.num(counter(1, 5).first(default=UNIT))
-
-    # !(test (collapse (get-atoms &s1)) ((num 1) (num 2) (num 3) (num 4)))
-    assert list(s1) == [S.num(1), S.num(2), S.num(3), S.num(4)]
-
-    # !(test (collapse (get-atoms &s2)) ((num 1)))
-    assert list(s2) == [S.num(1)]
-
-    @rules
-    def gen():
-        # (= (gen) 1) (= (gen) 2) (= (gen) 3)
-        yield equation(S.gen()).to(1)
-        yield equation(S.gen()).to(2)
-        yield equation(S.gen()).to(3)
-
-    m += gen
-
-    # !(test (foldall (|-> ($x $y) (+ $x $y)) (gen) 0) 6)
-    assert sum(answer.value for answer in m.fn.gen()) == 6

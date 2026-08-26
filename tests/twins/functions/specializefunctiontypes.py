@@ -22,6 +22,37 @@ that against P14.9.
 
 from metta import Atom, S, arrow, fn, typed
 
+
+def twin(m):
+    """Declare two arrows for one head, specialize it, and find both on the copy."""
+
+    @m.define
+    def g(x):
+        # (= (g $x) $x)
+        return x
+
+    # (: f (-> Atom Number Atom)) and (: f (-> Atom String Atom))
+    # rung: below the ANNOTATION door, both declarations: this head carries two
+    #   arrows and a Python signature emits one (residue, P14.9)
+    m += typed(S.f, arrow(Atom, int, Atom))
+    m += typed(S.f, arrow(Atom, str, Atom))
+
+    @m.define
+    def f(g, x):
+        # (= (f $g $x) (repra ($g $x)))
+        return fn.repra(g(x))
+
+    # !(f g 42), the call that specializes it. A call answers a LAZY view and
+    # creating one performs no engine work, so the answer has to be READ for
+    # the specialization to happen at all; `.one()` reads it and states its
+    # cardinality in the same breath.
+    assert f(S.g, 42) == [S.repra(S.g(42))]
+
+    specialized = S["f_Spec_[g]"]
+    assert m[typed(specialized, arrow(Atom, int, Atom))]
+    assert m[typed(specialized, arrow(Atom, str, Atom))]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -90,31 +121,3 @@ from metta import Atom, S, arrow, fn, typed
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 7228
-def twin(m):
-    """Declare two arrows for one head, specialize it, and find both on the copy."""
-
-    @m.define
-    def g(x):
-        # (= (g $x) $x)
-        return x
-
-    # (: f (-> Atom Number Atom)) and (: f (-> Atom String Atom))
-    # rung: below the ANNOTATION door, both declarations: this head carries two
-    #   arrows and a Python signature emits one (residue, P14.9)
-    m += typed(S.f, arrow(Atom, int, Atom))
-    m += typed(S.f, arrow(Atom, str, Atom))
-
-    @m.define
-    def f(g, x):
-        # (= (f $g $x) (repra ($g $x)))
-        return fn.repra(g(x))
-
-    # !(f g 42), the call that specializes it. A call answers a LAZY view and
-    # creating one performs no engine work, so the answer has to be READ for
-    # the specialization to happen at all; `.one()` reads it and states its
-    # cardinality in the same breath.
-    assert f(S.g, 42) == [S.repra(S.g(42))]
-
-    specialized = S["f_Spec_[g]"]
-    assert m[typed(specialized, arrow(Atom, int, Atom))]
-    assert m[typed(specialized, arrow(Atom, str, Atom))]

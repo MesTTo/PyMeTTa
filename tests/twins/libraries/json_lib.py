@@ -19,6 +19,48 @@ them and no name ever spelled as text.
 import metta
 from metta import G, S, V, lib
 
+
+def twin(m):
+    """Decode objects, arrays and scalars, then encode them back."""
+    m += lib.json
+
+    decode, encode = m.fn.json_decode, m.fn.json_encode
+
+    def opened(answers):
+        """The handle for the space json-decode or dict-space answered by name."""
+        return metta.space(answers.one())
+
+    # An object becomes a space, so its keys are the heads of its atoms.
+    doc = opened(decode(G('{"a":1,"b":2}')))
+    assert [atom[0] for atom in doc] == [S.a, S.b]
+    assert [row.v for row in doc[S.a(V.v)]] == [1]
+    # An absent key answers nothing at all rather than a null.
+    assert [row.v for row in opened(decode(G('{"a":1}')))[S.missing(V.v)]] == []
+
+    # Arrays become expressions, scalars stay themselves.
+    assert list(decode(G("[1,2,3]")).one()) == [1, 2, 3]
+    assert decode(G('"plain"')) == [G("plain")]
+    assert decode(G("42")) == [42]
+    assert decode(G("true")) == [True]
+    assert decode(G("null")) == [S.Null]
+
+    # Nesting decodes all the way down, so an inner object is a space too.
+    outer = opened(decode(G('{"c":{"d":2}}')))
+    [nested] = [row.v for row in outer[S.c(V.v)]]
+    inner = metta.space(nested)
+    assert [row.v for row in inner[S.d(V.v)]] == [2]
+
+    # Encoding inverts decoding.
+    assert list(decode(encode((1, 2, 3))).one()) == [1, 2, 3]
+    assert decode(encode(G("text"))) == [G("text")]
+    round_trip = opened(decode(encode(m.fn.dict_space(((S.k, 1),)))))
+    assert [row.v for row in round_trip[S.k(V.v)]] == [1]
+
+    # dict-space builds one from pairs directly, without going through text.
+    pairs = opened(m.fn.dict_space(((S.name, G("ann")), (S.age, 3))))
+    assert [row.v for row in pairs[S.name(V.v)]] == [G("ann")]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -73,44 +115,3 @@ from metta import G, S, V, lib
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 64464
-
-
-def twin(m):
-    """Decode objects, arrays and scalars, then encode them back."""
-    m += lib.json
-
-    decode, encode = m.fn.json_decode, m.fn.json_encode
-
-    def opened(answers):
-        """The handle for the space json-decode or dict-space answered by name."""
-        return metta.space(answers.one())
-
-    # An object becomes a space, so its keys are the heads of its atoms.
-    doc = opened(decode(G('{"a":1,"b":2}')))
-    assert [atom[0] for atom in doc] == [S.a, S.b]
-    assert [row.v for row in doc[S.a(V.v)]] == [1]
-    # An absent key answers nothing at all rather than a null.
-    assert [row.v for row in opened(decode(G('{"a":1}')))[S.missing(V.v)]] == []
-
-    # Arrays become expressions, scalars stay themselves.
-    assert list(decode(G("[1,2,3]")).one()) == [1, 2, 3]
-    assert decode(G('"plain"')) == [G("plain")]
-    assert decode(G("42")) == [42]
-    assert decode(G("true")) == [True]
-    assert decode(G("null")) == [S.Null]
-
-    # Nesting decodes all the way down, so an inner object is a space too.
-    outer = opened(decode(G('{"c":{"d":2}}')))
-    [nested] = [row.v for row in outer[S.c(V.v)]]
-    inner = metta.space(nested)
-    assert [row.v for row in inner[S.d(V.v)]] == [2]
-
-    # Encoding inverts decoding.
-    assert list(decode(encode((1, 2, 3))).one()) == [1, 2, 3]
-    assert decode(encode(G("text"))) == [G("text")]
-    round_trip = opened(decode(encode(m.fn.dict_space(((S.k, 1),)))))
-    assert [row.v for row in round_trip[S.k(V.v)]] == [1]
-
-    # dict-space builds one from pairs directly, without going through text.
-    pairs = opened(m.fn.dict_space(((S.name, G("ann")), (S.age, 3))))
-    assert [row.v for row in pairs[S.name(V.v)]] == [G("ann")]

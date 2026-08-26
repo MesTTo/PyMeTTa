@@ -18,6 +18,55 @@ data there, where a bare `result` would be read as a call.
 
 from metta import S, fn, ground
 
+
+def twin(m):
+    """Send nine awkward strings through the engine, then define a function."""
+    # A lone paren is a string, not punctuation.
+    # !(test ")" ")")
+    # !(test "(" "(")
+    close, open_ = ground(")"), ground("(")
+    assert m.eval(close) == [close]
+    assert m.eval(open_) == [open_]
+
+    # A lone semicolon is a string, not the start of a comment.
+    # !(test ";" ";")
+    semicolon = ground(";")
+    assert m.eval(semicolon) == [semicolon]
+
+    # `quote` holds its argument rather than reducing it, so the semicolon
+    # survives one level in as well.
+    # !(test (quote ";") (quote ";"))
+    quoted = fn.quote(semicolon)
+    assert m.eval(quoted) == [quoted]
+
+    # A semicolon in the middle, three of them, one at each end.
+    # !(test "foo;bar" "foo;bar")
+    # !(test ";;;" ";;;")
+    middle, three = ground("foo;bar"), ground(";;;")
+    assert m.eval(middle) == [middle]
+    assert m.eval(three) == [three]
+    # !(test ";start" ";start")
+    # !(test "end;" "end;")
+    first, last = ground(";start"), ground("end;")
+    assert m.eval(first) == [first]
+    assert m.eval(last) == [last]
+
+    # An escaped quote, and a backslash.
+    # !(test "quote: \"" "quote: \"")
+    # !(test "path\\file" "path\\file")
+    escaped, backslash = ground('quote: "'), ground("path\\file")
+    assert m.eval(escaped) == [escaped]
+    assert m.eval(backslash) == [backslash]
+
+    @m.define
+    def test_func():
+        """(= (test-func) result), whose body is one lowercase symbol."""
+        return S.result
+
+    # !(test (test-func) result)
+    assert test_func() == [S.result]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -67,49 +116,3 @@ from metta import S, fn, ground
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 3583
-def twin(m):
-    """Send nine awkward strings through the engine, then define a function."""
-    # A lone paren is a string, not punctuation.
-    # !(test ")" ")")
-    # !(test "(" "(")
-    close, open_ = ground(")"), ground("(")
-    assert m.eval(close) == [close]
-    assert m.eval(open_) == [open_]
-
-    # A lone semicolon is a string, not the start of a comment.
-    # !(test ";" ";")
-    semicolon = ground(";")
-    assert m.eval(semicolon) == [semicolon]
-
-    # `quote` holds its argument rather than reducing it, so the semicolon
-    # survives one level in as well.
-    # !(test (quote ";") (quote ";"))
-    quoted = fn.quote(semicolon)
-    assert m.eval(quoted) == [quoted]
-
-    # A semicolon in the middle, three of them, one at each end.
-    # !(test "foo;bar" "foo;bar")
-    # !(test ";;;" ";;;")
-    middle, three = ground("foo;bar"), ground(";;;")
-    assert m.eval(middle) == [middle]
-    assert m.eval(three) == [three]
-    # !(test ";start" ";start")
-    # !(test "end;" "end;")
-    first, last = ground(";start"), ground("end;")
-    assert m.eval(first) == [first]
-    assert m.eval(last) == [last]
-
-    # An escaped quote, and a backslash.
-    # !(test "quote: \"" "quote: \"")
-    # !(test "path\\file" "path\\file")
-    escaped, backslash = ground('quote: "'), ground("path\\file")
-    assert m.eval(escaped) == [escaped]
-    assert m.eval(backslash) == [backslash]
-
-    @m.define
-    def test_func():
-        """(= (test-func) result), whose body is one lowercase symbol."""
-        return S.result
-
-    # !(test (test-func) result)
-    assert test_func() == [S.result]

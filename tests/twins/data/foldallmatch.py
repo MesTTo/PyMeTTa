@@ -24,6 +24,32 @@ fold sees 2 and 3 and answers 5.
 
 from metta import S, V, fn, match
 
+
+def twin(m):
+    """Fold a query's rows, then fold a function's two answers."""
+    m += [(S.kb, 1), (S.kb, 2)]                  # (kb 1) and (kb 2)
+
+    @m.define
+    def f():                                     # (= (f) 1)
+        yield 1                                  # (= (f) 2)
+        yield 2
+
+    @m.define
+    def bumped():                                # (= (bumped)
+        return S.foldall(fn.add,                 #    (foldall +
+                         match(m, S.kb(V.n), V.n + 1),  # (match &self (kb $n) (+ $n 1))
+                         0)                      #     0))
+
+    @m.define
+    def raised():                                # (= (raised)
+        return S.foldall(fn.add,                 #    (foldall +
+                         S.let(V.x, S.f(), 1 + V.x),  # rung: this `let` scopes the branching inside foldall's generator slot, where no Python statement can stand
+                         0)                      # (let $x (f) (+ 1 $x)), then 0
+
+    assert bumped() == [5]   # [5]
+    assert raised() == [5]   # [5]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -91,26 +117,3 @@ from metta import S, V, fn, match
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 10592
-def twin(m):
-    """Fold a query's rows, then fold a function's two answers."""
-    m += [(S.kb, 1), (S.kb, 2)]                  # (kb 1) and (kb 2)
-
-    @m.define
-    def f():                                     # (= (f) 1)
-        yield 1                                  # (= (f) 2)
-        yield 2
-
-    @m.define
-    def bumped():                                # (= (bumped)
-        return S.foldall(fn.add,                 #    (foldall +
-                         match(m, S.kb(V.n), V.n + 1),  # (match &self (kb $n) (+ $n 1))
-                         0)                      #     0))
-
-    @m.define
-    def raised():                                # (= (raised)
-        return S.foldall(fn.add,                 #    (foldall +
-                         S.let(V.x, S.f(), 1 + V.x),  # rung: this `let` scopes the branching inside foldall's generator slot, where no Python statement can stand
-                         0)                      # (let $x (f) (+ 1 $x)), then 0
-
-    assert bumped() == [5]   # [5]
-    assert raised() == [5]   # [5]

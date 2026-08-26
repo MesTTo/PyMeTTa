@@ -13,6 +13,39 @@ callable.
 
 from metta import S, lib
 
+
+def twin(m):
+    """Cache one arity of a name, then the other, and watch both report."""
+    m += lib.memo
+
+    @m.define
+    def mix(x):
+        # (= (mix $x) (+ $x 1))
+        return x + 1
+
+    @m.define(name="mix")
+    def mix_2(x, y):
+        # (= (mix $x $y) (+ $x $y))
+        return x + y
+
+    m.eval(S.memoize(mix, 1))
+
+    memoized = m.fn.is_memoized
+    assert memoized(S.mix, 1) == [True]
+    assert memoized(S.mix, 2) == [False]
+
+    assert mix(5) == [6]
+    assert mix(5) == [6]
+
+    assert mix_2(3, 4) == [7]
+    assert mix_2(3, 4) == [7]
+
+    m.eval(S.memoize(mix_2, 2))
+    assert memoized(S.mix, 2) == [True]
+    assert mix_2(8, 9) == [17]
+    assert mix_2(8, 9) == [17]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -73,33 +106,3 @@ from metta import S, lib
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 37035
-def twin(m):
-    """Cache one arity of a name, then the other, and watch both report."""
-    m += lib.memo
-
-    @m.define
-    def mix(x):
-        # (= (mix $x) (+ $x 1))
-        return x + 1
-
-    @m.define(name="mix")
-    def mix_2(x, y):
-        # (= (mix $x $y) (+ $x $y))
-        return x + y
-
-    m.eval(S.memoize(mix, 1))
-
-    memoized = m.fn.is_memoized
-    assert memoized(S.mix, 1) == [True]
-    assert memoized(S.mix, 2) == [False]
-
-    assert mix(5) == [6]
-    assert mix(5) == [6]
-
-    assert mix_2(3, 4) == [7]
-    assert mix_2(3, 4) == [7]
-
-    m.eval(S.memoize(mix_2, 2))
-    assert memoized(S.mix, 2) == [True]
-    assert mix_2(8, 9) == [17]
-    assert mix_2(8, 9) == [17]

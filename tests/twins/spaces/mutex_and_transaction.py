@@ -31,6 +31,39 @@ functions.
 import metta
 from metta import S, V, equation, fn
 
+
+def twin(m):
+    """Increment a shared counter five times at once, then roll one back."""
+    temp = metta.space(S.temp)
+    temp += (S.cnt, 37)
+
+    def increment(*tail):
+        """The read-modify-write all three definitions share.
+
+        `(match &temp (cnt $x) ((remove-atom &temp (cnt $x))
+                                (let $inc (+ $x 1) (add-atom &temp (cnt $inc)))))`,
+        with anything in `tail` appended to the template.
+        """
+        take = fn.remove_atom(temp, S.cnt(V.x))
+        put = S.let(V.inc, V.x + 1, fn.add_atom(temp, S.cnt(V.inc)))  # rung: the two translator wrappers remain stored equation terms
+        return S.match(temp, S.cnt(V.x), (take, put, *tail))  # rung: an equation body is one term, where the container doors are Python statements
+
+    # This only works predictably single-threaded, else there is a data race.
+    m += equation(S.sloppyinc()).to(increment())
+    # The mutex is what makes concurrent increments safe: every place that
+    # modifies (cnt $n) takes the same one.
+    m += equation(S.mutexinc()).to(S["with_mutex"](S.testmutex, increment()))
+    # A transaction undoes the removal when the branch inside it fails.
+    rollback = S["Transaction_rollback_fail_to_inc"]
+    m += equation(rollback()).to(S.transaction(increment(S.empty())))
+
+    m.hyperpose(*(S.mutexinc() for _ in range(5)))
+    assert list(temp) == [S.cnt(42)]
+
+    m.eval(rollback())
+    assert list(temp) == [S.cnt(42)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -93,33 +126,3 @@ from metta import S, V, equation, fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 24256
-def twin(m):
-    """Increment a shared counter five times at once, then roll one back."""
-    temp = metta.space(S.temp)
-    temp += (S.cnt, 37)
-
-    def increment(*tail):
-        """The read-modify-write all three definitions share.
-
-        `(match &temp (cnt $x) ((remove-atom &temp (cnt $x))
-                                (let $inc (+ $x 1) (add-atom &temp (cnt $inc)))))`,
-        with anything in `tail` appended to the template.
-        """
-        take = fn.remove_atom(temp, S.cnt(V.x))
-        put = S.let(V.inc, V.x + 1, fn.add_atom(temp, S.cnt(V.inc)))  # rung: the two translator wrappers remain stored equation terms
-        return S.match(temp, S.cnt(V.x), (take, put, *tail))  # rung: an equation body is one term, where the container doors are Python statements
-
-    # This only works predictably single-threaded, else there is a data race.
-    m += equation(S.sloppyinc()).to(increment())
-    # The mutex is what makes concurrent increments safe: every place that
-    # modifies (cnt $n) takes the same one.
-    m += equation(S.mutexinc()).to(S["with_mutex"](S.testmutex, increment()))
-    # A transaction undoes the removal when the branch inside it fails.
-    rollback = S["Transaction_rollback_fail_to_inc"]
-    m += equation(rollback()).to(S.transaction(increment(S.empty())))
-
-    m.hyperpose(*(S.mutexinc() for _ in range(5)))
-    assert list(temp) == [S.cnt(42)]
-
-    m.eval(rollback())
-    assert list(temp) == [S.cnt(42)]

@@ -19,6 +19,25 @@ answer values.
 
 from metta import TRUE, S, V, equation, fn
 
+
+def twin(m):
+    """Say what the set is, then let the search find one."""
+
+    @m.rules
+    def membership(members):
+        """The one equation, as a term: (and (and (member a $M) (member b $M)) (== (size-atom $M) 2))."""
+        yield equation(S.myf(members)).to(
+            fn.member(S.a, members)
+            & fn.member(S.b, members)
+            & S.eq(fn.size_atom(members), 2)  # rung: `len()` needs a value; $M is a variable the search has not bound yet
+        )
+
+    # `(a b)` is the two-member SET the search found. Calling the head is the
+    # shorter spelling of that same two-element atom.
+    # !(test (if (once (myf $M)) $M) (a b))
+    assert m.solve(TRUE, fn.once(S.myf(V.M))).M == S.a(S.b)
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -42,21 +61,3 @@ from metta import TRUE, S, V, equation, fn
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 11708
-
-
-def twin(m):
-    """Say what the set is, then let the search find one."""
-
-    @m.rules
-    def membership(members):
-        """The one equation, as a term: (and (and (member a $M) (member b $M)) (== (size-atom $M) 2))."""
-        yield equation(S.myf(members)).to(
-            fn.member(S.a, members)
-            & fn.member(S.b, members)
-            & S.eq(fn.size_atom(members), 2)  # rung: `len()` needs a value; $M is a variable the search has not bound yet
-        )
-
-    # `(a b)` is the two-member SET the search found. Calling the head is the
-    # shorter spelling of that same two-element atom.
-    # !(test (if (once (myf $M)) $M) (a b))
-    assert m.solve(TRUE, fn.once(S.myf(V.M))).M == S.a(S.b)

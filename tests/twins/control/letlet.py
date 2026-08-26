@@ -23,6 +23,32 @@ Open Obligations:
 
 from metta import Expression, S, V, equation
 
+
+def twin(m):
+    """Unify a three-element pattern with a three-element value."""
+    # The top rung is Python's own destructuring assignment, which IS a
+    # `let*` binding whose left side is a pattern:
+    #
+    #     @m.define
+    #     def f():
+    #         f1, c1, _three = 1, 2, d1
+    #         return f1, c1, d1
+    #
+    # A compiled body refuses it: "a compiled body binds plain names;
+    # destructuring and attribute assignment have no let* form", and even
+    # then the assignment carries only the left-to-right half. Residue: P14.4.
+    # (= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1)))
+    m += equation(S.f()).to(
+        S["let*"](
+            (((V.f1, V.c1, 3), (1, 2, V.d1)),),
+            (V.f1, V.c1, V.d1),
+        )
+    )
+
+    # !(test (f) (1 2 3))
+    assert m.eval(S.f()) == [Expression((1, 2, 3))]
+
+
 #: Why this twin sits below the top rung; see the module docstring.
 RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling"
 
@@ -59,28 +85,3 @@ RUNG = "a `let*` binding whose left side is a PATTERN has no assignment spelling
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
 BUDGET = 2946
-
-
-def twin(m):
-    """Unify a three-element pattern with a three-element value."""
-    # The top rung is Python's own destructuring assignment, which IS a
-    # `let*` binding whose left side is a pattern:
-    #
-    #     @m.define
-    #     def f():
-    #         f1, c1, _three = 1, 2, d1
-    #         return f1, c1, d1
-    #
-    # A compiled body refuses it: "a compiled body binds plain names;
-    # destructuring and attribute assignment have no let* form", and even
-    # then the assignment carries only the left-to-right half. Residue: P14.4.
-    # (= (f) (let* ((($f1 $c1 3) (1 2 $d1))) ($f1 $c1 $d1)))
-    m += equation(S.f()).to(
-        S["let*"](
-            (((V.f1, V.c1, 3), (1, 2, V.d1)),),
-            (V.f1, V.c1, V.d1),
-        )
-    )
-
-    # !(test (f) (1 2 3))
-    assert m.eval(S.f()) == [Expression((1, 2, 3))]

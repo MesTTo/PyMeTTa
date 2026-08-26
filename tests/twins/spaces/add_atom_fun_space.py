@@ -22,6 +22,23 @@ the container door again: iterating the space the function named is
 import metta
 from metta import S
 
+
+def twin(m):
+    """Answer a space from a function, then write into what it answered."""
+    target = metta.space(S["my_space_name"])  # rung: the source name contains literal underscores
+
+    # (= (space) &my_space_name)
+    @m.define
+    def space():
+        return target
+
+    # !(add-atom (space) (my test atom)): the space argument is EVALUATED, so
+    # the write goes where the function points rather than where a handle does.
+    m.fn.add_atom(S.space(), (S.my, S.test, S.atom)).one()  # rung: the write's target is a term, so `space += atom` has no handle to take
+
+    assert list(target) == [S.my(S.test, S.atom)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -62,17 +79,3 @@ from metta import S
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 3035
-def twin(m):
-    """Answer a space from a function, then write into what it answered."""
-    target = metta.space(S["my_space_name"])  # rung: the source name contains literal underscores
-
-    # (= (space) &my_space_name)
-    @m.define
-    def space():
-        return target
-
-    # !(add-atom (space) (my test atom)): the space argument is EVALUATED, so
-    # the write goes where the function points rather than where a handle does.
-    m.fn.add_atom(S.space(), (S.my, S.test, S.atom)).one()  # rung: the write's target is a term, so `space += atom` has no handle to take
-
-    assert list(target) == [S.my(S.test, S.atom)]

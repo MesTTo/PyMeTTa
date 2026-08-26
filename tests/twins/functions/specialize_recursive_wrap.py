@@ -18,6 +18,29 @@ which the digest lane reports.
 
 from metta import S
 
+
+def twin(m):
+    """Wrap a function twice and evolve it, without diverging at compile time."""
+
+    @m.define
+    def derive(g):
+        # (= (derive $g) $g)
+        return g
+
+    @m.define
+    def twice(r, g):
+        # (= (twice $r $g) ($r ($r $g)))
+        return r(r(g))
+
+    @m.define
+    def evolve(r, n, g):
+        # Source: (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
+        # Twin: the same equation with py-eq in the condition.
+        return g if n == 0 else evolve(twice(r), n - 1, g)
+
+    assert evolve(S.derive, 2, S.stmt) == [S.stmt]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -86,23 +109,3 @@ from metta import S
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 20170
-def twin(m):
-    """Wrap a function twice and evolve it, without diverging at compile time."""
-
-    @m.define
-    def derive(g):
-        # (= (derive $g) $g)
-        return g
-
-    @m.define
-    def twice(r, g):
-        # (= (twice $r $g) ($r ($r $g)))
-        return r(r(g))
-
-    @m.define
-    def evolve(r, n, g):
-        # Source: (= (evolve $r $n $g) (if (== $n 0) $g (evolve (twice $r) (- $n 1) $g)))
-        # Twin: the same equation with py-eq in the condition.
-        return g if n == 0 else evolve(twice(r), n - 1, g)
-
-    assert evolve(S.derive, 2, S.stmt) == [S.stmt]

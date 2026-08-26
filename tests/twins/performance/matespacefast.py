@@ -31,6 +31,28 @@ is an ordinary term operand.
 
 from metta import S, V, equation, fn, if_, match
 
+
+def twin(m):
+    """Rewrite nineteen levels deep, then count what landed."""
+    m += equation(S.rewriteK(V.t, V.n)).to(
+        if_(V.n.eq(0),  # rung: the compiled body answers StackOverflow at this depth
+                S.done,
+                S["let*"](((V["_1"], S.add_atom(m, S.num(S.M(V.t)))),  # rung: as above
+                           (V["_2"], S.add_atom(m, S.num(S.W(V.t)))),  # rung: as above
+                           (V["_3"], S.add_atom(m, S.num(S.C(V.t))))),  # rung: as above
+                          (S.rewriteK(S.M(V.t), V.n - 1),
+                           S.rewriteK(S.W(V.t), V.n - 1)))))
+
+    @m.define
+    def mate_space_demo(k):
+        space = fn.context_space()
+        space += S.num(S.Z)
+        _rewritten = fn.rewriteK(S.Z, k)
+        return match(space, S.num(V.stored), S.num(V.stored))
+
+    assert len(m.fn.mate_space_demo(19)) == 1572862
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -96,22 +118,3 @@ from metta import S, V, equation, fn, if_, match
 #: and that whole product is what a discarded length used to pay
 #: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 BUDGET = 74483636
-def twin(m):
-    """Rewrite nineteen levels deep, then count what landed."""
-    m += equation(S.rewriteK(V.t, V.n)).to(
-        if_(V.n.eq(0),  # rung: the compiled body answers StackOverflow at this depth
-                S.done,
-                S["let*"](((V["_1"], S.add_atom(m, S.num(S.M(V.t)))),  # rung: as above
-                           (V["_2"], S.add_atom(m, S.num(S.W(V.t)))),  # rung: as above
-                           (V["_3"], S.add_atom(m, S.num(S.C(V.t))))),  # rung: as above
-                          (S.rewriteK(S.M(V.t), V.n - 1),
-                           S.rewriteK(S.W(V.t), V.n - 1)))))
-
-    @m.define
-    def mate_space_demo(k):
-        space = fn.context_space()
-        space += S.num(S.Z)
-        _rewritten = fn.rewriteK(S.Z, k)
-        return match(space, S.num(V.stored), S.num(V.stored))
-
-    assert len(m.fn.mate_space_demo(19)) == 1572862

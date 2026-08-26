@@ -27,6 +27,27 @@ import metta
 from metta import S, equation
 from metta.vocabularies import NoMatchEnum
 
+
+def twin(m):
+    """Read one call under the default policy, the override, and the default again."""
+    only_a = S.only_a
+
+    # (= (only-a A) hit)
+    m += equation(only_a(S.A)).to(S.hit)  # rung: the head fixes a SYMBOL
+
+    # The catalogued default: a call nothing matches answers itself.
+    assert m.eval(only_a(S.B)) == [only_a(S.B)]
+
+    reflection = metta.reflection
+    policy = S.dispatch_policy(S.only_a, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail])
+
+    reflection += policy
+    assert m.eval(only_a(S.B)) == []
+
+    reflection -= policy
+    assert m.eval(only_a(S.B)) == [only_a(S.B)]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -87,21 +108,3 @@ from metta.vocabularies import NoMatchEnum
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 1835
-def twin(m):
-    """Read one call under the default policy, the override, and the default again."""
-    only_a = S.only_a
-
-    # (= (only-a A) hit)
-    m += equation(only_a(S.A)).to(S.hit)  # rung: the head fixes a SYMBOL
-
-    # The catalogued default: a call nothing matches answers itself.
-    assert m.eval(only_a(S.B)) == [only_a(S.B)]
-
-    reflection = metta.reflection
-    policy = S.dispatch_policy(S.only_a, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail])
-
-    reflection += policy
-    assert m.eval(only_a(S.B)) == []
-
-    reflection -= policy
-    assert m.eval(only_a(S.B)) == [only_a(S.B)]

@@ -40,6 +40,83 @@ from typing import Any
 
 from metta import FALSE, Atom, Expression, S, V, arrow, equation, fn, or_, typed
 
+
+def twin(m):
+    """Apply a lambda that is data, then five that are functions."""
+    # (: apply (-> Atom %Undefined% %Undefined%))
+    # rung: below the ANNOTATION door: the annotation door needs a decorated
+    #   function, and `apply`'s head is a pattern (residue, P14.4)
+    m += typed(S.apply, arrow(Atom, Any, Any))
+
+    @m.rules
+    def fake(var, body, arg):
+        # (= (apply (lambda $var $body) $arg) (eval (let $var $arg $body)))
+        yield equation(S.apply(S["lambda"](var, body), arg)).to(
+            S.eval(S.let(var, arg, body))  # rung: let as substitution
+        )
+
+    # The MeTTa names are camel-cased and Python's are not, so `name=` carries
+    # the example's own spelling and the Python side stays PEP 8.
+    @m.define(name="applyL1")
+    def apply_l1():
+        # (= (applyL1) (apply (lambda $x (+ $x 1)) 2))
+        return S.apply(S["lambda"](V.x, V.x + 1), 2)
+
+    @m.define(name="applyL2")
+    def apply_l2():
+        # (= (applyL2) (apply (lambda ($x $y) (+ $x $y)) (2 7)))
+        return S.apply(S["lambda"]((V.x, V.y), V.x + V.y), (2, 7))
+
+    assert apply_l1() == [3]
+    assert apply_l2() == [9]
+
+    # A real lambda, mapped over a list: Python's own lambda IS `|->`.
+    @m.define
+    def increment_all(items):
+        # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
+        return fn.maplist(lambda a: 1 + a, items)
+
+    assert increment_all((1, 2, 3)) == [Expression((2, 3, 4))]
+
+    # Applied where it stands, which a compiled body will not do.
+    folding = S["|->"]((V.acc, V.e), or_(S.eq(1, V.e), V.acc))
+    assert m.eval((folding, FALSE, 1)) == [True]
+
+    @m.define
+    def myfunc(a, b):
+        # (= (myfunc $a $b) (cons $a $b))
+        return fn.cons(a, b)
+
+    # A lambda over a PARTIAL application bound above it.
+    @m.define
+    def through_partial():
+        # (let $f (myfunc 42) ((|-> ($x) ($f ($x 2 3))) 43))
+        f = myfunc(42)
+        g = lambda x: f((x, 2, 3))  # noqa: E731  -- the binding IS the point: it stores (|-> ($x) ...)
+        return g(43)
+
+    assert through_partial() == [Expression((42, 43, 2, 3))]
+
+    # Partially applied: one argument now, the other later.
+    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [
+        Expression((42, 43, 44))
+    ]
+
+    @m.define
+    def myfunc2(mylambda):
+        # (= (myfunc2 $mylambda) ($mylambda 43 44))
+        return mylambda(43, 44)
+
+    # A lambda CLOSING over a binding above it, which is the original's let*.
+    @m.define
+    def closed():
+        # (let* (($k 45) ($lambda (|-> ($x $y) (42 $x $y $k)))) (myfunc2 $lambda))
+        k = 45
+        return myfunc2(lambda x, y: (42, x, y, k))
+
+    assert closed() == [Expression((42, 43, 44, 45))]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -115,77 +192,3 @@ from metta import FALSE, Atom, Expression, S, V, arrow, equation, fn, or_, typed
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 46781
-def twin(m):
-    """Apply a lambda that is data, then five that are functions."""
-    # (: apply (-> Atom %Undefined% %Undefined%))
-    # rung: below the ANNOTATION door: the annotation door needs a decorated
-    #   function, and `apply`'s head is a pattern (residue, P14.4)
-    m += typed(S.apply, arrow(Atom, Any, Any))
-
-    @m.rules
-    def fake(var, body, arg):
-        # (= (apply (lambda $var $body) $arg) (eval (let $var $arg $body)))
-        yield equation(S.apply(S["lambda"](var, body), arg)).to(
-            S.eval(S.let(var, arg, body))  # rung: let as substitution
-        )
-
-    # The MeTTa names are camel-cased and Python's are not, so `name=` carries
-    # the example's own spelling and the Python side stays PEP 8.
-    @m.define(name="applyL1")
-    def apply_l1():
-        # (= (applyL1) (apply (lambda $x (+ $x 1)) 2))
-        return S.apply(S["lambda"](V.x, V.x + 1), 2)
-
-    @m.define(name="applyL2")
-    def apply_l2():
-        # (= (applyL2) (apply (lambda ($x $y) (+ $x $y)) (2 7)))
-        return S.apply(S["lambda"]((V.x, V.y), V.x + V.y), (2, 7))
-
-    assert apply_l1() == [3]
-    assert apply_l2() == [9]
-
-    # A real lambda, mapped over a list: Python's own lambda IS `|->`.
-    @m.define
-    def increment_all(items):
-        # (= (increment-all $items) (maplist (|-> ($a) (+ 1 $a)) $items))
-        return fn.maplist(lambda a: 1 + a, items)
-
-    assert increment_all((1, 2, 3)) == [Expression((2, 3, 4))]
-
-    # Applied where it stands, which a compiled body will not do.
-    folding = S["|->"]((V.acc, V.e), or_(S.eq(1, V.e), V.acc))
-    assert m.eval((folding, FALSE, 1)) == [True]
-
-    @m.define
-    def myfunc(a, b):
-        # (= (myfunc $a $b) (cons $a $b))
-        return fn.cons(a, b)
-
-    # A lambda over a PARTIAL application bound above it.
-    @m.define
-    def through_partial():
-        # (let $f (myfunc 42) ((|-> ($x) ($f ($x 2 3))) 43))
-        f = myfunc(42)
-        g = lambda x: f((x, 2, 3))  # noqa: E731  -- the binding IS the point: it stores (|-> ($x) ...)
-        return g(43)
-
-    assert through_partial() == [Expression((42, 43, 2, 3))]
-
-    # Partially applied: one argument now, the other later.
-    assert m.eval(((S["|->"]((V.x, V.y), (42, V.x, V.y)), 43), 44)) == [
-        Expression((42, 43, 44))
-    ]
-
-    @m.define
-    def myfunc2(mylambda):
-        # (= (myfunc2 $mylambda) ($mylambda 43 44))
-        return mylambda(43, 44)
-
-    # A lambda CLOSING over a binding above it, which is the original's let*.
-    @m.define
-    def closed():
-        # (let* (($k 45) ($lambda (|-> ($x $y) (42 $x $y $k)))) (myfunc2 $lambda))
-        k = 45
-        return myfunc2(lambda x, y: (42, x, y, k))
-
-    assert closed() == [Expression((42, 43, 44, 45))]

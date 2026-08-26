@@ -20,6 +20,58 @@ ambient handle comes from `context-space`, and its seed write is `space +=`.
 
 from metta import S, V, counting, equation, fn, if_, match
 
+
+def twin(m):
+    """Grow a space by 390 doublings, mate the branches, and count what is left."""
+    nodup = S.add_atom_no_duplicate
+
+    # (= (add-atom-no-duplicate $Space $Atom)
+    #    (if (== () (collapse (once (match $Space $Atom $Atom))))
+    #        (add-atom $Space $Atom)
+    #        (empty)))
+    seen = S.collapse(S.once(S.match(V.space, V.atom, V.atom)))
+    m += equation(nodup(V.space, V.atom)).to(
+        if_(S.eq((), seen), S.add_atom(V.space, V.atom), S.empty())
+    )
+
+    # (= (expand) (case (match &self (num $t) $t) (($t ((add-atom-no-duplicate ...))))))
+    m += equation(S.expand()).to(
+        S.case(
+            S.match(m, S.num(V.t), V.t),
+            ((V.t, (nodup(m, S.num(S.M(V.t))), nodup(m, S.num(S.W(V.t))))),),
+        )
+    )
+
+    # (= (mate) (case (match &self (num (M $t)) $t) (($t (case (once ...) ...)))))
+    paired = S.case(
+        S.once(S.match(m, S.num(S.W(V.t)), V.t)),
+        ((V.t, nodup(m, S.num(S.C(V.t)))),),
+    )
+    m += equation(S.mate()).to(
+        S.case(S.match(m, S.num(S.M(V.t)), V.t), ((V.t, paired),))
+    )
+
+    # (= (expandK $n) (if (== $n 0) done (let $temp1 (expand) (expandK (- $n 1)))))
+    @m.define(name="expandK")  # camelCase is outside the underscore map
+    def expand_k(n):
+        if fn.eq(n, 0):
+            return S.done
+        _step = fn.expand()
+        return expand_k(n - 1)
+
+    # (= (mate-space-demo $K) (let* (($s (add-atom ...)) ($g (expandK $K)) ($h (mate)))
+    #                               (match &self (num $1) (num $1))))
+    @m.define
+    def mate_space_demo(k):
+        space = fn.context_space()
+        space += S.num(S.Z)
+        _grown = fn.expandK(k)
+        _mated = fn.mate()
+        return match(space, S.num(V.x), S.num(V.x))
+
+    assert m.answers(S.mate_space_demo(390), under=counting).one() == 1063919
+
+
 #: Why this twin sits below the top rung, stated once for the whole file.
 RUNG = (
     "expand, mate and add-atom-no-duplicate are built as terms: their bodies "
@@ -115,52 +167,3 @@ RUNG = (
 #: fixture=engine/reader.so and the MORK artefact present;
 #: commit=58d0332489da668251edcd52ccc5cb42ba2e57bb].
 BUDGET = 32666910
-def twin(m):
-    """Grow a space by 390 doublings, mate the branches, and count what is left."""
-    nodup = S.add_atom_no_duplicate
-
-    # (= (add-atom-no-duplicate $Space $Atom)
-    #    (if (== () (collapse (once (match $Space $Atom $Atom))))
-    #        (add-atom $Space $Atom)
-    #        (empty)))
-    seen = S.collapse(S.once(S.match(V.space, V.atom, V.atom)))
-    m += equation(nodup(V.space, V.atom)).to(
-        if_(S.eq((), seen), S.add_atom(V.space, V.atom), S.empty())
-    )
-
-    # (= (expand) (case (match &self (num $t) $t) (($t ((add-atom-no-duplicate ...))))))
-    m += equation(S.expand()).to(
-        S.case(
-            S.match(m, S.num(V.t), V.t),
-            ((V.t, (nodup(m, S.num(S.M(V.t))), nodup(m, S.num(S.W(V.t))))),),
-        )
-    )
-
-    # (= (mate) (case (match &self (num (M $t)) $t) (($t (case (once ...) ...)))))
-    paired = S.case(
-        S.once(S.match(m, S.num(S.W(V.t)), V.t)),
-        ((V.t, nodup(m, S.num(S.C(V.t)))),),
-    )
-    m += equation(S.mate()).to(
-        S.case(S.match(m, S.num(S.M(V.t)), V.t), ((V.t, paired),))
-    )
-
-    # (= (expandK $n) (if (== $n 0) done (let $temp1 (expand) (expandK (- $n 1)))))
-    @m.define(name="expandK")  # camelCase is outside the underscore map
-    def expand_k(n):
-        if fn.eq(n, 0):
-            return S.done
-        _step = fn.expand()
-        return expand_k(n - 1)
-
-    # (= (mate-space-demo $K) (let* (($s (add-atom ...)) ($g (expandK $K)) ($h (mate)))
-    #                               (match &self (num $1) (num $1))))
-    @m.define
-    def mate_space_demo(k):
-        space = fn.context_space()
-        space += S.num(S.Z)
-        _grown = fn.expandK(k)
-        _mated = fn.mate()
-        return match(space, S.num(V.x), S.num(V.x))
-
-    assert m.answers(S.mate_space_demo(390), under=counting).one() == 1063919

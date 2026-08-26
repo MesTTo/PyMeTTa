@@ -26,6 +26,54 @@ from collections import Counter
 import metta
 from metta import S, V, fn
 
+#: Upstream's own example, verbatim: three links form a loop, the fourth does
+#: not.
+LINKS = [(S.A, S.B), (S.B, S.C), (S.C, S.A), (S.C, S.E)]
+
+
+def twin(m):
+    """Reverse every link of a cycle, then watch two templates delete each other."""
+    for tail, head in LINKS:
+        m += S.link(tail, head)
+
+    # All three rows are found before the first reversal breaks the cycle, so
+    # all three are reverted and (link C E) is left alone.
+    loop = m[S.link(V.x, V.y), S.link(V.y, V.z), S.link(V.z, V.x)]
+    assert len(loop) == 3
+    for row in loop:
+        m -= S.link(row.x, row.y)
+        m += S.link(row.y, row.x)
+
+    assert Counter(S.link(row.x, row.y) for row in m[S.link(V.x, V.y)]) == Counter(
+        [S.link(S.C, S.E), S.link(S.B, S.A), S.link(S.C, S.B), S.link(S.A, S.C)]
+    )
+
+    # The single-pattern case, reduced to its detector: two rows, and each
+    # template removes the OTHER one. A lazy query would lose the row it had
+    # not reached yet and answer once.
+    snapshot = metta.space(S.snapshot)
+    snapshot += S.item(S.alpha)
+    snapshot += S.item(S.beta)
+
+    # (= (visit alpha) (let () (remove-atom &snapshot (item beta)) alpha))
+    # (= (visit beta)  (let () (remove-atom &snapshot (item alpha)) beta))
+    @m.define
+    def visit(item):
+        match item:
+            case S.alpha:
+                _gone = fn.remove_atom(snapshot, S.item(S.beta))
+                return S.alpha
+            case S.beta:
+                _gone = fn.remove_atom(snapshot, S.item(S.alpha))
+                return S.beta
+
+    assert [visit(row.x).one() for row in snapshot[S.item(V.x)]] == [S.alpha, S.beta]
+
+    # Both removals happened, so the space is empty: each row's template ran,
+    # and ran against the space the other row's template had written to.
+    assert not list(snapshot)
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -86,49 +134,3 @@ from metta import S, V, fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 7128
-#: Upstream's own example, verbatim: three links form a loop, the fourth does
-#: not.
-LINKS = [(S.A, S.B), (S.B, S.C), (S.C, S.A), (S.C, S.E)]
-
-
-def twin(m):
-    """Reverse every link of a cycle, then watch two templates delete each other."""
-    for tail, head in LINKS:
-        m += S.link(tail, head)
-
-    # All three rows are found before the first reversal breaks the cycle, so
-    # all three are reverted and (link C E) is left alone.
-    loop = m[S.link(V.x, V.y), S.link(V.y, V.z), S.link(V.z, V.x)]
-    assert len(loop) == 3
-    for row in loop:
-        m -= S.link(row.x, row.y)
-        m += S.link(row.y, row.x)
-
-    assert Counter(S.link(row.x, row.y) for row in m[S.link(V.x, V.y)]) == Counter(
-        [S.link(S.C, S.E), S.link(S.B, S.A), S.link(S.C, S.B), S.link(S.A, S.C)]
-    )
-
-    # The single-pattern case, reduced to its detector: two rows, and each
-    # template removes the OTHER one. A lazy query would lose the row it had
-    # not reached yet and answer once.
-    snapshot = metta.space(S.snapshot)
-    snapshot += S.item(S.alpha)
-    snapshot += S.item(S.beta)
-
-    # (= (visit alpha) (let () (remove-atom &snapshot (item beta)) alpha))
-    # (= (visit beta)  (let () (remove-atom &snapshot (item alpha)) beta))
-    @m.define
-    def visit(item):
-        match item:
-            case S.alpha:
-                _gone = fn.remove_atom(snapshot, S.item(S.beta))
-                return S.alpha
-            case S.beta:
-                _gone = fn.remove_atom(snapshot, S.item(S.alpha))
-                return S.beta
-
-    assert [visit(row.x).one() for row in snapshot[S.item(V.x)]] == [S.alpha, S.beta]
-
-    # Both removals happened, so the space is empty: each row's template ran,
-    # and ran against the space the other row's template had written to.
-    assert not list(snapshot)

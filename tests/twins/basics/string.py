@@ -12,6 +12,12 @@ from metta import ground
 #: is what says so: every other string in a twin would be program text.
 TEXT = ground("a test (with newlines and parentheses)")
 
+
+def twin(m):
+    """Reduce a string literal, and get the same string back."""
+    assert m.eval(TEXT) == [TEXT]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -26,8 +32,3 @@ TEXT = ground("a test (with newlines and parentheses)")
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 on the final tree].
 BUDGET = 141
-
-
-def twin(m):
-    """Reduce a string literal, and get the same string back."""
-    assert m.eval(TEXT) == [TEXT]

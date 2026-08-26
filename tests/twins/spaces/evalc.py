@@ -34,6 +34,63 @@ import metta
 from metta import G, S, V, equation
 from metta.errors import MettaOperationError
 
+
+def twin(m):
+    """Give one name two meanings, one per space, and ask each of them."""
+    metric = metta.space(S.metric)
+
+    @metric.define
+    def distance(x):
+        return x * 1000
+
+    assert distance(2) == [2000]
+    del distance
+
+    @m.define
+    def distance(x):
+        return x * 5280
+
+    # The ambient space answers in feet, the named one in metres.
+    assert distance(2) == [10560]
+    assert metric.eval(S.distance(2)) == [2000]
+
+    # &self names the ambient space, so evalc there is eval, and the two doors
+    # say so: this handle's own eval, and the engine's `eval` by name.
+    assert m.eval(G(5) + 5) == [10]
+    assert m.fn.eval(G(5) + 5) == [10]
+
+    # The expression is handed over unevaluated. Were it not, it would already
+    # have been reduced here before the space argument could select another.
+    assert metric.eval(S.distance(G(1) + 1)) == [2000]
+
+    # context-space, read inside evalc, reports the space evalc selected, and
+    # it answers the HANDLE, so the claim compares handles rather than names.
+    assert m.fn.context_space() == [m]
+    assert metric.fn.context_space() == [metric]
+
+    # The space argument is evaluated, so a function answering a space can name
+    # it, and that call is not a handle: it goes to `evalc` by name.
+    @m.define
+    def preferred_space():
+        return metric
+
+    assert m.fn.evalc(S.distance(2), S.preferred_space()) == [2000]
+
+    # A space is an atom beginning with &; anything else is refused with a
+    # sentence rather than read as a silently empty space.
+    refusal = None
+    try:
+        m.fn.evalc(S.distance(2), 7).one()
+    except MettaOperationError as error:
+        refusal = error
+    assert str(refusal) == "evalc: SpaceType expected, found 7"
+
+    # The removal funnel owns the stored equation and its compiled clause, so
+    # the metric answer leaves and the inherited &self one becomes visible.
+    metric -= equation(S.distance(V.x)).to(V.x * 1000)
+    assert metric.eval(S.distance(2)) == [10560]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -94,57 +151,3 @@ from metta.errors import MettaOperationError
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 9700
-def twin(m):
-    """Give one name two meanings, one per space, and ask each of them."""
-    metric = metta.space(S.metric)
-
-    @metric.define
-    def distance(x):
-        return x * 1000
-
-    assert distance(2) == [2000]
-    del distance
-
-    @m.define
-    def distance(x):
-        return x * 5280
-
-    # The ambient space answers in feet, the named one in metres.
-    assert distance(2) == [10560]
-    assert metric.eval(S.distance(2)) == [2000]
-
-    # &self names the ambient space, so evalc there is eval, and the two doors
-    # say so: this handle's own eval, and the engine's `eval` by name.
-    assert m.eval(G(5) + 5) == [10]
-    assert m.fn.eval(G(5) + 5) == [10]
-
-    # The expression is handed over unevaluated. Were it not, it would already
-    # have been reduced here before the space argument could select another.
-    assert metric.eval(S.distance(G(1) + 1)) == [2000]
-
-    # context-space, read inside evalc, reports the space evalc selected, and
-    # it answers the HANDLE, so the claim compares handles rather than names.
-    assert m.fn.context_space() == [m]
-    assert metric.fn.context_space() == [metric]
-
-    # The space argument is evaluated, so a function answering a space can name
-    # it, and that call is not a handle: it goes to `evalc` by name.
-    @m.define
-    def preferred_space():
-        return metric
-
-    assert m.fn.evalc(S.distance(2), S.preferred_space()) == [2000]
-
-    # A space is an atom beginning with &; anything else is refused with a
-    # sentence rather than read as a silently empty space.
-    refusal = None
-    try:
-        m.fn.evalc(S.distance(2), 7).one()
-    except MettaOperationError as error:
-        refusal = error
-    assert str(refusal) == "evalc: SpaceType expected, found 7"
-
-    # The removal funnel owns the stored equation and its compiled clause, so
-    # the metric answer leaves and the inherited &self one becomes visible.
-    metric -= equation(S.distance(V.x)).to(V.x * 1000)
-    assert metric.eval(S.distance(2)) == [10560]
