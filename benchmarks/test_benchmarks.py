@@ -10,7 +10,7 @@ Guarantees:
     inference growth from exponential to linear, with both improvements and
     regressions pinned to the measured floor [tested:
     test_automatic_tabling_growth;
-    commit=WORKTREE]
+    commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -140,7 +140,7 @@ _ROWS = 2_000
 #: 1091182/29568, 8660937/30728, 34614276/31510; command=python -c
 #: "from benchmarks.test_benchmarks import _automatic_tabling_observations;
 #: print(_automatic_tabling_observations())"; fixture=isolated candidate and
-#: base worktrees, min-of-three per cell; commit=WORKTREE].
+#: base worktrees, min-of-three per cell; commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c].
 _AUTOMATIC_TABLING_PINS = {
     12: {"plain": 144_938, "automatic": 28_422},
     15: {"plain": 1_091_182, "automatic": 29_568},

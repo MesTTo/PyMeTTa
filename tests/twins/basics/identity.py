@@ -224,7 +224,7 @@ is Python's own `assert`.
 #: [measured: 2885 inferences; command=python
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=isolated p14-typed-shadowing
-#: worktree with engine/reader.so; commit=WORKTREE].
+#: worktree with engine/reader.so; commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c].
 BUDGET = 2885
 
 
