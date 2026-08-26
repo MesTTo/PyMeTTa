@@ -5,6 +5,11 @@ space-relatively, spells Python types the way get-type does (bool
 before int), passes the translator's unchecked targets unchecked,
 reaches metatypes through the same fallback a typed call compiles, and
 ducks through protocol types registered on the integrate surface.
+Guarantees:
+  - ``atom.cast(type_)`` uses the ambient space and agrees with the explicit
+    ``space.cast(atom, type_)`` spelling [tested:
+    test_atom_cast_delegates_to_the_ambient_space;
+    commit=162214d7a703e9108dd2422f4f18f3b9c007d367]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -86,6 +91,17 @@ def test_declarations_are_space_relative(metta):  # noqa: D103  -- pytest discov
         assert a.cast(S.Bob, "Person") is S.Bob
         with pytest.raises(CastError):
             b.cast(S.Bob, "Person")
+
+
+def test_atom_cast_delegates_to_the_ambient_space(metta):
+    """The method keeps cast admission relative to the active space."""
+    with metta._new_space() as declared, metta._new_space() as undeclared:
+        declared.run("(: Bob Person)")
+        with declared:
+            assert S.Bob.cast("Person") is declared.cast(S.Bob, "Person")
+            assert declared.cast("Atom") is declared
+        with undeclared, pytest.raises(CastError):
+            S.Bob.cast("Person")
 
 
 def test_the_module_function_takes_the_space_first(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

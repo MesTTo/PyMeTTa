@@ -26,6 +26,14 @@ Guarantees:
     lower to ``change-state!`` while preserving Python's read-before-write
     order [tested: test_compiled_state_properties_round_trip_through_engine_heads;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - assertions continue on truth and otherwise answer ``(Error call reason)``,
+    including message and generator continuations [tested:
+    test_compiled_assert_lowers_to_the_error_algebra;
+    commit=6a695598aaf5951530cb8efe9afe46977afe541c]
+  - ``del space[pattern]`` removes every snapshotted match while annotated
+    space ``-=`` removes one, with missing removals kept loud [tested:
+    test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
+    commit=6a695598aaf5951530cb8efe9afe46977afe541c]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -205,6 +213,12 @@ class StatementCompilerMixin(CompilerContext):
         if isinstance(head, ast.Return):
             return self._return_statement(head, rest)
 
+        if isinstance(head, ast.Assert):
+            return self._assert_statement(head, rest)
+
+        if isinstance(head, ast.Delete):
+            return self._delete_statement(head, rest)
+
         if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
             return self._bound_block(head, rest)
 
@@ -249,6 +263,121 @@ class StatementCompilerMixin(CompilerContext):
                 line=head.lineno,
             )
         return self.expression(head.value)
+
+    def _assert_statement(self, node: ast.Assert, rest: list[ast.stmt]) -> Atom:
+        """Continue on a true condition and produce the language's Error value."""
+        return self._assertion(node, self.block(rest))
+
+    def _assertion(self, node: ast.Assert, continuation: Atom) -> Expression:
+        """Build one lazy failure branch shared by value and generator blocks."""
+        culprit = self.expression(node.test)
+        if node.msg is None:
+            failure: Atom = Expression(
+                [Symbol("Error"), culprit, Symbol("AssertionError")]
+            )
+        else:
+            reason_name = self._temp("assert-reason")
+            reason = Variable(reason_name)
+            failure = Expression(
+                [
+                    Symbol("let*"),
+                    Expression(
+                        [Expression([reason, self.expression(node.msg)])]
+                    ),
+                    Expression([Symbol("Error"), culprit, reason]),
+                ]
+            )
+        return Expression(
+            [Symbol("if"), self._truthy(node.test), continuation, failure]
+        )
+
+    def _delete_statement(self, node: ast.Delete, rest: list[ast.stmt]) -> Atom:
+        """Sequence each pattern deletion before the block's continuation."""
+        continuation = self.block(rest)
+        for target in reversed(node.targets):
+            result = Variable(self._temp("delete-result"))
+            continuation = Expression(
+                [
+                    Symbol("let*"),
+                    Expression([Expression([result, self._delete_target(target)])]),
+                    Expression([Symbol("if-error"), result, result, continuation]),
+                ]
+            )
+        return continuation
+
+    def _delete_target(self, target: ast.expr) -> Expression:
+        """Snapshot one subscript pattern, refuse empty, then remove every row."""
+        if not isinstance(target, ast.Subscript) or isinstance(target.slice, ast.Slice):
+            msg = "a compiled del target is space[pattern], with one nonslice pattern"
+            raise CompileError(
+                msg,
+                construct="delete",
+                line=getattr(target, "lineno", None),
+            )
+
+        space = Variable(self._temp("delete-space"))
+        pattern = Variable(self._temp("delete-pattern"))
+        matches = Variable(self._temp("delete-matches"))
+        item = Variable(self._temp("delete-item"))
+        removed = Variable(self._temp("delete-map"))
+        removal = Expression([Symbol("remove-atom"), space, item])
+        missing = Expression(
+            [
+                Symbol("Error"),
+                Expression([Symbol("remove-atom"), space, pattern]),
+                Grounded("remove-atom: atom is not in the space"),
+            ]
+        )
+        remove_all = Expression(
+            [
+                Symbol("let*"),
+                Expression(
+                    [
+                        Expression(
+                            [
+                                removed,
+                                Expression(
+                                    [Symbol("map-atom"), matches, item, removal]
+                                ),
+                            ]
+                        )
+                    ]
+                ),
+                Expression([]),
+            ]
+        )
+        return Expression(
+            [
+                Symbol("let*"),
+                Expression(
+                    [
+                        Expression([space, self.expression(target.value)]),
+                        Expression([pattern, self.expression(target.slice)]),
+                        Expression(
+                            [
+                                matches,
+                                Expression(
+                                    [
+                                        Symbol("collapse"),
+                                        Expression(
+                                            [Symbol("match"), space, pattern, pattern]
+                                        ),
+                                    ]
+                                ),
+                            ]
+                        ),
+                    ]
+                ),
+                Expression(
+                    [
+                        Symbol("if"),
+                        Expression([Symbol("=="), matches, Expression([])]),
+                        missing,
+                        remove_all,
+                    ]
+                ),
+            ]
+        )
 
     def _builder_rooted(self, node: ast.AST) -> bool:
         """Whether this subtree BUILDS a term: an S-rooted call, whose
@@ -310,8 +439,43 @@ class StatementCompilerMixin(CompilerContext):
         head: ast.Assign | ast.AnnAssign | ast.AugAssign,
         rest: list[ast.stmt],
     ) -> Expression:
+        if (
+            isinstance(head, ast.AugAssign)
+            and isinstance(head.target, ast.Name)
+            and head.target.id in self.space_locals
+            and isinstance(head.op, ast.Sub)
+        ):
+            removal = self._space_augmented_removal(head, self.block(rest))
+            assert removal is not None
+            return removal
         pattern, value = self._binding(head)
         return Expression([Symbol("let*"), Expression([Expression([pattern, value])]), self.block(rest)])
+
+    def _space_augmented_removal(
+        self, head: ast.AugAssign, continuation: Atom
+    ) -> Expression | None:
+        """Remove one from a known space and propagate its missing Error."""
+        if not (
+            isinstance(head.target, ast.Name)
+            and head.target.id in self.space_locals
+            and isinstance(head.op, ast.Sub)
+        ):
+            return None
+        result = Variable(self._temp("remove-result"))
+        removal = Expression(
+            [
+                Symbol("remove-atom"),
+                Variable(self.scope[head.target.id]),
+                self.expression(head.value),
+            ]
+        )
+        return Expression(
+            [
+                Symbol("let*"),
+                Expression([Expression([result, removal])]),
+                Expression([Symbol("if-error"), result, result, continuation]),
+            ]
+        )
 
     def _compound_statement(
         self,
@@ -645,6 +809,10 @@ class StatementCompilerMixin(CompilerContext):
         if isinstance(head, ast.Expr):
             return self._yield_expression(head, rest)
 
+        if isinstance(head, ast.Assert):
+            continuation = _superpose(self.yield_answers(rest))
+            return [self._assertion(head, continuation)]
+
         if isinstance(head, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
             return self._yield_binding(head, rest)
 
@@ -699,6 +867,17 @@ class StatementCompilerMixin(CompilerContext):
         head: ast.Assign | ast.AnnAssign | ast.AugAssign,
         rest: list[ast.stmt],
     ) -> list[Atom]:
+        if (
+            isinstance(head, ast.AugAssign)
+            and isinstance(head.target, ast.Name)
+            and head.target.id in self.space_locals
+            and isinstance(head.op, ast.Sub)
+        ):
+            removal = self._space_augmented_removal(
+                head, _superpose(self.yield_answers(rest))
+            )
+            assert removal is not None
+            return [removal]
         pattern, value = self._binding(head)
         tail = _superpose(self.yield_answers(rest))
         return [Expression([Symbol("let*"), Expression([Expression([pattern, value])]), tail])]

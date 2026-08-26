@@ -1,10 +1,19 @@
 """Purpose: prove reader token classes are declared and extensible from both APIs.
 
+Guarantees:
+  - compiled text patterns retain the supported Python regex flags through
+    registration and removal, while bytes and untranslatable flags refuse
+    before mutating the reader [tested:
+    test_compiled_reader_patterns_preserve_flags_and_unregister;
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
+
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None
 """
+
+import re
 
 import pytest
 
@@ -79,6 +88,23 @@ def test_token_registration_refuses_invalid_inputs_without_changing_the_reader(m
         metta.register_token("[", lambda token: token)
 
     assert metta.parse("not-a-token") == before
+
+
+def test_compiled_reader_patterns_preserve_flags_and_unregister(metta):
+    """Compiled patterns carry their semantic flags into the engine PCRE."""
+    pattern = re.compile(r"(?P<amount>[0-9]+)kg", re.IGNORECASE)
+    metta.unregister_token(pattern)
+    try:
+        metta.register_token(pattern, lambda token: S.mass(token))
+        assert metta.parse("12KG") == S.mass("12KG")
+    finally:
+        metta.unregister_token(pattern)
+    assert metta.parse("12KG") == S["12KG"]
+
+    with pytest.raises(ValueError, match="flags"):
+        metta.register_token(re.compile(r"[a-z]+", re.ASCII), S.word)
+    with pytest.raises(TypeError, match="text, not bytes"):
+        metta.register_token(re.compile(b"[a-z]+"), S.word)
 
 
 def test_a_token_constructor_failure_is_a_reader_error_not_a_symbol_fallback(metta):

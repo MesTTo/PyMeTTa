@@ -209,7 +209,15 @@ is Python's own `assert`.
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged tree with
 #: engine/reader.so; commit=WORKTREE].
-BUDGET = 2826
+#: RE-PINNED 2026-08-26, 2826 to 2891, after materializing the callable
+#: visibility catalog. The identity definition and assertion are unchanged,
+#: and the MeTTa example remains 2801; the fixed movement is the engine image
+#: and &petta catalog layout, the same non-monotonic layout effect recorded by
+#: the preceding merge receipts [measured: 2891 inferences;
+#: command=tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=merged exact-spellings tree with
+#: engine/reader.so; commit=918e4eaae8b99077f8b8b293b4ec5c3e0e2b2cf6].
+BUDGET = 2891
 
 
 def twin(m):

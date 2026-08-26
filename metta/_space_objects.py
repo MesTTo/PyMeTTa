@@ -17,8 +17,9 @@ Guarantees:
     access [tested: test_bound_function_namespace_validates_at_access;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
   - bound function attributes consult the operator word table before the
-    mechanical map [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    mechanical map and evaluate composite ``neg`` through its canonical term
+    [tested: test_operator_words_precede_the_mechanical_name_map;
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - a resolved bang call completes before the call returns while retaining a
     replayable answer view [tested: test_resolved_bang_call_is_eager;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -28,6 +29,14 @@ Guarantees:
     AsyncMeTTa lint as direct Space calls [tested:
     test_a_sync_engine_call_inside_async_def_is_linted_not_refused;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - bound functions place call-site keywords against their exact definition or
+    operation signature [tested:
+    test_known_call_site_keywords_bind_to_positional_metta_arguments;
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
+  - direct and composite callable doors warn from the shared deprecation
+    catalog with the declared since/remedy [tested:
+    test_deprecation_catalog_rows_drive_warnings_and_explanations;
+    commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
 Owns:
   - Cursor owns one engine query until exhaustion, close, or finalization
     and warns when finalization reaps an open query [tested
@@ -50,8 +59,10 @@ from collections.abc import Iterable
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
 
+from ._call_binding import bind_positional_call, refuse_unknown_keywords
 from ._engine import Runtime
-from ._name_mapping import operator_attribute_target
+from ._name_mapping import OperatorRecipe, operator_attribute_target
+from ._space_definitions import call_parameter_names
 from .atoms import (
     Atom,
     Expression,
@@ -923,7 +934,7 @@ class _EngineFunction:
     def _term(self, args: tuple) -> Expression:
         return Expression([Symbol(self._name), *(_encode(a) for a in args)])
 
-    def __call__(self, *args: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Evaluate this call and return its replayable Answers.
 
         MeTTa's trailing ``!`` is its effect marker, not a Python convention
@@ -937,6 +948,14 @@ class _EngineFunction:
             from ._lint_events import record_sync_engine_call  # noqa: PLC0415 -- lint is optional
 
             record_sync_engine_call(self._space, self._name, caller)
+        if kwargs:
+            parameters = call_parameter_names(
+                self._space, self._name, len(args) + len(kwargs)
+            )
+            if parameters is None:
+                raise refuse_unknown_keywords(self._name, tuple(kwargs))
+            args = bind_positional_call(self._name, parameters, args, kwargs)
+        self._space._warn_deprecated(self._name, stacklevel=3)
         answers = self._space.answers(self._term(args))
         if self._name.endswith("!"):
             answers._materialize()
@@ -1029,6 +1048,25 @@ class _EngineFunction:
         return f"<engine function {self._name} on {self._space.name}>"
 
 
+class _CompositeEngineFunction:
+    """One bound word whose public call expands to a composite MeTTa term."""
+
+    __slots__ = ("__name__", "__qualname__", "_recipe", "_space")
+
+    def __init__(self, space: MeTTa, recipe: OperatorRecipe) -> None:
+        self._space = space
+        self._recipe = recipe
+        self.__name__ = recipe.word
+        self.__qualname__ = f"{space.name}.{recipe.word}"
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        self._space._warn_deprecated(self._recipe.word, stacklevel=3)
+        return self._space.answers(self._recipe(*args, **kwargs))
+
+    def __repr__(self) -> str:
+        return f"<composite engine function {self._recipe.word} on {self._space.name}>"
+
+
 class _FunctionNamespace:
     """Functions visible to one space, resolved when an attribute is read.
 
@@ -1060,10 +1098,12 @@ class _FunctionNamespace:
                 raise AttributeError(msg)
         return _EngineFunction(self._space, resolved)
 
-    def __getattr__(self, name: str) -> _EngineFunction:
+    def __getattr__(self, name: str) -> _EngineFunction | _CompositeEngineFunction:
         if name.startswith("_"):
             raise AttributeError(name)
         resolved = operator_attribute_target(name)
+        if isinstance(resolved, OperatorRecipe):
+            return _CompositeEngineFunction(self._space, resolved)
         target = name.replace("_", "-") if resolved is None else resolved
         return self._resolve(target, attribute=name)
 
@@ -1079,6 +1119,11 @@ class _FunctionNamespace:
             for name in self._space.builtins()
             if name and name.replace("-", "_").removesuffix("!").isidentifier()
         }
+        names.update(
+            name
+            for name in ("neg",)
+            if isinstance(operator_attribute_target(name), OperatorRecipe)
+        )
         return sorted(set(super().__dir__()) | names)
 
     def __repr__(self) -> str:

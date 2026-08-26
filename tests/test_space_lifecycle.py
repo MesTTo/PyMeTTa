@@ -20,14 +20,22 @@ Guarantees:
     across those layers, and mutates only its own store
     [tested: test_a_child_space_reads_through_its_parent_and_writes_locally;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - anonymous handles report the external file and line that created their
+    current life, while named handles retain their compact representation
+    [tested: test_anonymous_space_repr_carries_its_creation_site;
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import inspect
+from pathlib import Path
+
 import pytest
 
+import metta as metta_package
 from metta import PettaError, S, V
 
 
@@ -56,6 +64,18 @@ def test_a_dropped_name_comes_back(drained):
     second = drained._new_space()
     assert second.name == name
     second.drop()
+
+
+def test_anonymous_space_repr_carries_its_creation_site():
+    """A gensym handle points back to the source line that minted its life."""
+    line = inspect.currentframe().f_lineno + 1
+    anonymous = metta_package.space()
+    try:
+        site = f"{Path(__file__).resolve()}:{line}"
+        assert repr(anonymous) == f"Space({anonymous.name!r}, created_at={site!r})"
+        assert repr(metta_package.space("&repr-named")) == "Space('&repr-named')"
+    finally:
+        anonymous.drop()
 
 
 def test_a_named_space_drop_never_enters_the_anonymous_pool(drained):

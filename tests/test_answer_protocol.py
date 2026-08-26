@@ -16,6 +16,9 @@ Guarantees:
     projections and the rows face [tested:
     test_answers_project_caller_variables_and_slices_stay_answers;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - the settled ``reacts`` declaration spelling installs an ``(on ...)``
+    bridge that runs under matched bindings [tested:
+    test_a_bridge_inserts_under_the_matched_bindings; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -837,7 +840,7 @@ def test_declare_merge_validates(metta):  # noqa: D103  -- pytest discovers or i
 
 
 def test_a_bridge_inserts_under_the_matched_bindings(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta._at("&br-src").reaction("(fact $x $y)", "(insert &br-mirror (mirrored $y $x))")
+    metta._at("&br-src").reacts("(fact $x $y)", "(insert &br-mirror (mirrored $y $x))")
     metta.run("!(add-atom &br-src (fact one two))")
     out = metta.run("!(collapse (match &br-mirror (mirrored $a $b) ($a $b)))")
     assert str(out[0][0]) == "((two one))"

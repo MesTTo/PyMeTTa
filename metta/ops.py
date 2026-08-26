@@ -69,8 +69,7 @@ Guarantees:
 Open Obligations:
   To Do: None
   Hacks: None
-  Future Enhancements: keyword-argument call forms once PeTTa itself grows a
-    spelling for them; today MeTTa call sites are positional.
+  Future Enhancements: None.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations

@@ -38,6 +38,17 @@ Guarantees:
   - the Python-first additions table documents the explicit inline host island
     marker [tested: test_python_first_world_faces_are_in_the_phrasebook;
     commit=WORKTREE]
+  - the Python-first table teaches the concise atom cast, root catalog,
+    hygienic variable, pattern-instantiation, compiled reader-pattern,
+    anonymous provenance, ``reacts`` declaration, composite operator words,
+    compiled assertion/removal statements, signature-bound call keywords, and
+    per-ask theory/interpreter selection plus catalog-driven deprecation
+    [tested: test_python_first_world_faces_are_in_the_phrasebook;
+    commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
+  - every stdlib row carries PUBLIC or INTERNAL visibility independently of
+    reachability, so generated stubs and references never teach internal
+    heads [tested: test_internal_rows_are_absent_from_the_public_phrasebook;
+    commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row
@@ -73,6 +84,8 @@ BUCKETS = {
     ),
     "absent": "a user-facing operation with no Python spelling today: the residue",
 }
+
+VISIBILITIES = {"PUBLIC", "INTERNAL"}
 
 SECTIONS = {
     "arith": "Arithmetic",
@@ -115,6 +128,16 @@ class Entry:
     petta_setup: str | None = None
     oracle_metta: str | None = None
     petta_inferences: int | None = None
+    visibility: str = ""
+
+    def __post_init__(self) -> None:
+        """Materialize the existing bucket split as explicit row data."""
+        if not self.visibility:
+            object.__setattr__(
+                self,
+                "visibility",
+                "INTERNAL" if self.bucket == "internal" else "PUBLIC",
+            )
 
 
 @dataclass(frozen=True)
@@ -136,6 +159,71 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
         "py(expr)",
         "mark one compiled-body expression for application-time host execution",
         "@metta.define\ndef status(url):\n    return py(requests.get(url).status_code)",
+    ),
+    PublicFace(
+        "metta.catalog.add(S.deprecated(name, since, remedy))",
+        "warn at callable doors and carry the same retirement into explain",
+        "metta.catalog.add(S.deprecated(S.old, S['0.2.0'], S.use(S.new)))",
+    ),
+    PublicFace(
+        "space.answers(term, theory=laws); space.answers(term, interpreter=interpret)",
+        "select a complete theory value or full interpreter for one ask",
+        "answers = space.answers(query, theory=rules)",
+    ),
+    PublicFace(
+        "defined(right=value, left=value); space.fn.op(right=value, left=value)",
+        "place call-site keywords in a known definition or operation signature",
+        "answer = relation(destination=S.Bob, source=S.Ada)",
+    ),
+    PublicFace(
+        "assert condition, reason",
+        "continue on truth or answer (Error condition reason) from a compiled body",
+        "@space.define\ndef positive(x):\n    assert x > 0, 'positive'\n    return x",
+    ),
+    PublicFace(
+        "del space[pattern]; space -= atom",
+        "remove every pattern match or one exact occurrence inside a compiled body",
+        "del target[S.edge(V.x, V.y)]\ntarget -= S.marker",
+    ),
+    PublicFace(
+        "S.neg(atom), fn.neg(atom), space.fn.neg(atom)",
+        "build or evaluate unary negation through its canonical (- 0 atom) image",
+        "term = S.neg(V.x)\nassert term == S['-'](0, V.x)",
+    ),
+    PublicFace(
+        "atom.cast(type_)",
+        "admit an atom through the ambient space's type discipline",
+        "with space:\n    person = S.Ann.cast('Person')",
+    ),
+    PublicFace(
+        "fresh()",
+        "mint a helper-local variable that cannot capture a caller's names",
+        "private = fresh()\npattern = S.edge(private, V.value)",
+    ),
+    PublicFace(
+        "metta.catalog",
+        "query the runtime catalog as the ordinary &petta space",
+        "rows = metta.catalog.match(S.op(V.name, V.arity, V.kind))",
+    ),
+    PublicFace(
+        "repr(space())",
+        "show the file and line that minted an anonymous space",
+        "origin = repr(metta.space())",
+    ),
+    PublicFace(
+        "space.register_token(re.compile(pattern), constructor)",
+        "register a compiled text regex while preserving supported flags",
+        "space.register_token(re.compile(r'kg', re.I), parse_mass)",
+    ),
+    PublicFace(
+        "testing.from_pattern(pattern)",
+        "generate ground instances with repeated variable identity preserved",
+        "instances = testing.from_pattern(S.edge(V.x, V.x))",
+    ),
+    PublicFace(
+        "space.reacts(pattern, operation)",
+        "declare the space's (on ...) reaction using the settled word",
+        "space.reacts(S.job(V.id), S.insert(S['&log'], S.seen(V.id)))",
     ),
     PublicFace(
         "metta.speculate()",

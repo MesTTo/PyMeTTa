@@ -24,6 +24,9 @@ Guarantees:
     island diagnostics [tested:
     test_py_host_island_inside_loops_emits_exact_findings;
     commit=WORKTREE]
+  - expression lowering can request exact parameter names for a known call
+    shape [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments;
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
 Guarded by:
   - _AUX_LOCK protects the process-wide helper serial [tested
     test_define_from_two_threads_is_serialized]
@@ -92,6 +95,14 @@ class CompilerContext:
         raise NotImplementedError
 
     def _bound_defined_name(self, identifier: str) -> str | None:
+        raise NotImplementedError
+
+    def call_parameters(self, called: str, arity: int) -> tuple[str, ...] | None:
+        raise NotImplementedError
+
+    def _bound_call_parameters(
+        self, identifier: str, arity: int
+    ) -> tuple[str, ...] | None:
         raise NotImplementedError
 
     def _fork(self) -> CompilerContext:

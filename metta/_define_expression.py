@@ -15,6 +15,9 @@ Guarantees:
     callees ask for exact, hyphenated, then banged catalog spellings [tested:
     test_compiled_bodies_reach_all_four_mention_families,
     test_banged_catalog_names_take_the_mechanical_fallback; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+  - the composite operator word ``neg`` lowers to ``(- 0 x)`` at both S and
+    fn call doors [tested: test_compiled_operator_word_calls_preserve_composite_images;
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - a host-bound Defined mention lowers to the sibling's declared MeTTa name
     [tested: test_compiled_body_calls_renamed_defined_sibling;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -44,6 +47,11 @@ Guarantees:
     test_py_host_island_executes_per_engine_application,
     test_unknown_host_callee_refusal_has_file_caret_and_both_remedies;
     commit=WORKTREE]
+  - keyword-bearing calls whose parameter names are known lower to positional
+    applications, while unknown heads refuse with a positional remedy [tested:
+    test_known_call_site_keywords_bind_to_positional_metta_arguments,
+    test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -60,11 +68,13 @@ import operator
 import types
 from collections.abc import Callable
 
+from ._call_binding import bind_positional_call, refuse_unknown_keywords
 from ._callable_mentions import callable_arities, callable_mention
 from ._define_context import CompilerContext, next_aux_serial
 from ._host_island import _HostIsland
 from ._host_island import py as _py_marker
 from ._name_mapping import (
+    OperatorRecipe,
     attribute_name,
     operator_attribute_target,
     resolve_known_name,
@@ -241,15 +251,15 @@ class ExpressionCompilerMixin(CompilerContext):
         return Symbol(resolved)
 
     @staticmethod
-    def _operator_word_target(node: ast.Attribute) -> str | None:
+    def _operator_word_target(node: ast.Attribute) -> str | OperatorRecipe | None:
         """Resolve one operator word at an S/fn attribute mention.
 
         The word table first, exactly as _atom_namespace consults it, so
         S.eq is == at the live factory AND inside a compiled body, and
         fn.eq resolves through the catalog's own ==. The bracket door stays
         exact by construction (only the attribute branch consults), V never
-        consults (V.eq is the variable $eq), and the two composite words
-        refuse here as a CompileError the way every other refusal does.
+        consults (V.eq is the variable $eq), and an unsettled composite word
+        refuses here as a CompileError the way every other refusal does.
         """
         try:
             return operator_attribute_target(node.attr)
@@ -296,7 +306,18 @@ class ExpressionCompilerMixin(CompilerContext):
             # V never consults the word table: V.eq is the variable $eq.
             return Variable(target)
         if isinstance(node, ast.Attribute):
-            target = self._operator_word_target(node) or target
+            operator_target = self._operator_word_target(node)
+            if isinstance(operator_target, OperatorRecipe):
+                msg = (
+                    f"{ast.unparse(node)} is the composite image "
+                    f"{operator_target.image}; call it with one operand"
+                )
+                raise CompileError(
+                    msg,
+                    construct="operator word",
+                    line=node.lineno,
+                )
+            target = operator_target or target
         if root.id == "fn":
             resolved = resolve_known_name(
                 target,
@@ -591,12 +612,11 @@ class ExpressionCompilerMixin(CompilerContext):
             return self._host_island_call(node)
         if self._is_functools_reduce(node.func):
             return self._reduce_call(node)
+        composite = self._composite_operator_call(node)
+        if composite is not None:
+            return composite
         if node.keywords:
-            msg = (
-                "a call in a compiled body passes positional arguments; MeTTa "
-                "application has no keywords"
-            )
-            raise CompileError(msg, construct="keyword argument", line=node.lineno)
+            return self._keyword_call(node)
         mentioned = self._mention(node.func)
         if mentioned is not None:
             return Expression([mentioned, *(self.expression(a) for a in node.args)])
@@ -737,6 +757,78 @@ class ExpressionCompilerMixin(CompilerContext):
             function=self.pyname,
             annotation="not a parameter, a known function, or a data constructor",
         )
+    def _keyword_call(self, node: ast.Call) -> Atom:
+        """Place keywords against a known signature before emitting the term."""
+        if any(isinstance(argument, ast.Starred) for argument in node.args) or any(
+            keyword.arg is None for keyword in node.keywords
+        ):
+            msg = "compiled call-site keywords do not accept *args or **kwargs expansion"
+            raise CompileError(msg, construct="keyword argument", line=node.lineno)
+
+        display = ast.unparse(node.func)
+        total = len(node.args) + len(node.keywords)
+        parameters: tuple[str, ...] | None = None
+        callee: Atom | None = None
+        if isinstance(node.func, ast.Name):
+            resolved = self._resolved_name(node.func.id)
+            if resolved is not None:
+                parameters = self._bound_call_parameters(node.func.id, total)
+                if parameters is None:
+                    parameters = self.call_parameters(resolved, total)
+                callee = self._x_Name(node.func)
+        else:
+            mentioned = self._mention(node.func)
+            if isinstance(mentioned, Symbol):
+                callee = mentioned
+                if self._builder_root(node.func) == "fn":
+                    parameters = self.call_parameters(mentioned.name, total)
+
+        if parameters is None or callee is None:
+            refusal = refuse_unknown_keywords(
+                display, tuple(keyword.arg for keyword in node.keywords if keyword.arg)
+            )
+            raise CompileError(
+                str(refusal), construct="keyword argument", line=node.lineno
+            )
+        try:
+            ordered = bind_positional_call(
+                display,
+                parameters,
+                node.args,
+                {keyword.arg: keyword.value for keyword in node.keywords if keyword.arg},
+            )
+        except TypeError as error:
+            raise CompileError(
+                str(error), construct="keyword argument", line=node.lineno
+            ) from error
+        return Expression([callee, *(self.expression(argument) for argument in ordered)])
+
+    @staticmethod
+    def _builder_root(node: ast.expr) -> str | None:
+        if isinstance(node, (ast.Attribute, ast.Subscript)) and isinstance(
+            node.value, ast.Name
+        ):
+            return node.value.id
+        return None
+
+    def _composite_operator_call(self, node: ast.Call) -> Atom | None:
+        """Lower an unshadowed S/fn call whose operator image is a recipe."""
+        func = node.func
+        if not (
+            isinstance(func, ast.Attribute)
+            and isinstance(func.value, ast.Name)
+            and func.value.id in {"S", "fn"}
+            and func.value.id not in self.scope
+            and func.value.id in self.builders
+        ):
+            return None
+        target = self._operator_word_target(func)
+        if not isinstance(target, OperatorRecipe):
+            return None
+        if node.keywords or len(node.args) != 1:
+            msg = f"{ast.unparse(func)} compiles with exactly one positional operand"
+            raise CompileError(msg, construct="operator word", line=node.lineno)
+        return target(self.expression(node.args[0]))
 
     def _is_functools_reduce(self, node: ast.expr) -> bool:
         """Recognize the imported callable by identity, including an alias."""

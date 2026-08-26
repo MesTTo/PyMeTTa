@@ -71,8 +71,13 @@ FINAL_METTA_METHODS = 20
 # each combinator as a reified term rather than another root callable; +1 for
 # the module-tier ``@metta.op`` primitive required by
 # ``ai-python-conventions.md:290``; +1 for the visible inline-host marker
-# ``py(expr)`` required by ``ai-python-conventions.md:1194-1212``.
-FINAL_METTA_EXPORTS = 102
+# ``py(expr)`` required by ``ai-python-conventions.md:1194-1212``;
+# +2 for ``catalog`` and ``fresh``, the exact public doors required by
+# ai-python-conventions.md:1811-1814 and
+# ai-python-first-revamp-discussion.md:3742-3748. Two sibling branches each
+# moved this pin 100 -> 102 for their own pair, which merged clean and wrong;
+# the merged surface carries all four.
+FINAL_METTA_EXPORTS = 104
 
 SATELLITES = {
     "aio",

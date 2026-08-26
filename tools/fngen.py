@@ -12,11 +12,15 @@ Guarantees:
     test_generated_aliases_keep_exact_only_spellings_on_the_bracket_door;
     commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - operator word aliases are generated from the same fixed vocabulary as
-    both runtime fn doors [tested:
-    test_operator_words_precede_the_mechanical_name_map; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    both runtime fn doors, including composite ``neg`` [tested:
+    test_operator_words_precede_the_mechanical_name_map; commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - executable phrasebook rows supply inert runtime and stub documentation
     without starting the engine [tested: test_generated_fn_help_is_offline;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - runtime exact names include INTERNAL catalog rows while generated docs and
+    typed members include PUBLIC rows only [tested:
+    test_internal_catalog_names_stay_exact_but_leave_public_outputs;
+    commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -41,13 +45,17 @@ from phrasebook_entries import (  # noqa: E402  -- sibling generator rows are th
 )
 
 from metta._name_mapping import (  # noqa: E402  -- derive the source root before importing it
+    OPERATOR_WORDS,
+    OperatorRecipe,
     generated_aliases,
 )
 
 
-def catalog_documentation(names: list[str]) -> dict[str, str]:
+def catalog_documentation(
+    names: list[str], public_names: set[str] | None = None
+) -> dict[str, str]:
     """Format the phrasebook's executable catalog rows as offline help."""
-    allowed = set(names)
+    allowed = set(names) if public_names is None else set(names) & public_names
     documented: dict[str, str] = {}
     for entry in ENTRIES:
         if entry.name not in allowed or entry.name in documented:
@@ -57,9 +65,16 @@ def catalog_documentation(names: list[str]) -> dict[str, str]:
     return documented
 
 
-def catalog_names() -> list[str]:
-    """Read a fresh runtime's complete function and special-form catalog."""
-    source = "import json\nfrom metta import MeTTa\nprint(json.dumps(MeTTa().self.builtins()))\n"
+def catalog_snapshot() -> tuple[list[str], dict[str, str]]:
+    """Read callable names and their visibility from one fresh runtime."""
+    source = (
+        "import json\n"
+        "from metta import MeTTa, S, V\n"
+        "space = MeTTa().self\n"
+        "rows = space._at('&petta').match(S.visibility(V.name, V.level))\n"
+        "print(json.dumps({'names': space.builtins(), 'visibility': "
+        "[(str(row.name), str(row.level)) for row in rows]}))\n"
+    )
     environment = os.environ | {"PYTHONPATH": str(ROOT / "bindings" / "python")}
     completed = subprocess.run(  # noqa: S603  -- fixed interpreter and source, no untrusted input
         [sys.executable, "-c", source],
@@ -69,11 +84,38 @@ def catalog_names() -> list[str]:
         text=True,
         check=True,
     )
-    names = json.loads(completed.stdout)
+    snapshot = json.loads(completed.stdout)
+    names = snapshot.get("names") if isinstance(snapshot, dict) else None
     if not isinstance(names, list) or not names or not all(isinstance(n, str) for n in names):
         msg = "the engine answered no valid function catalog"
         raise RuntimeError(msg)
-    return sorted(set(names))
+    rows = snapshot.get("visibility")
+    if (
+        not isinstance(rows, list)
+        or not all(
+            isinstance(row, list)
+            and len(row) == 2
+            and all(isinstance(value, str) for value in row)
+            for row in rows
+        )
+    ):
+        msg = "the engine answered no valid visibility catalog"
+        raise RuntimeError(msg)
+    visibility = dict(rows)
+    unique_names = sorted(set(names))
+    if len(rows) != len(visibility) or set(unique_names) != visibility.keys():
+        msg = "every callable must have exactly one catalog visibility row"
+        raise RuntimeError(msg)
+    if set(visibility.values()) - {"PUBLIC", "INTERNAL"}:
+        msg = "callable visibility must be PUBLIC or INTERNAL"
+        raise RuntimeError(msg)
+    return unique_names, visibility
+
+
+def catalog_names() -> list[str]:
+    """Read a fresh runtime's complete function and special-form catalog."""
+    names, _ = catalog_snapshot()
+    return names
 
 
 def runtime_text(names: list[str], documentation: dict[str, str] | None = None) -> str:
@@ -99,9 +141,13 @@ Guarantees:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - generated operator word attributes resolve through the shared fixed table
     [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - documented catalog rows remain available to help() before an engine starts
     [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - INTERNAL catalog names remain exact runtime mentions but carry no generated
+    documentation [tested:
+    test_internal_catalog_names_stay_exact_but_leave_public_outputs;
+    commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -138,18 +184,28 @@ fn = _Namespace(
 '''
 
 
-def stub_text(names: list[str], documentation: dict[str, str] | None = None) -> str:
+def stub_text(
+    names: list[str],
+    documentation: dict[str, str] | None = None,
+    public_names: set[str] | None = None,
+) -> str:
     """Render explicit members; no catch-all may erase typo checking.
 
     PEP 484 makes the colocated .pyi authoritative to type checkers, so the
     generated class lists every safe alias instead of advertising dynamic Any.
     [source: https://peps.python.org/pep-0484/#stub-files; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
     """
-    aliases = generated_aliases(names)
+    aliases = generated_aliases(names if public_names is None else public_names)
     documentation = documentation or {}
     rows = []
     for alias, target in aliases.items():
-        row = f"    {alias}: Symbol"
+        target_kind = OPERATOR_WORDS.get(alias)
+        annotation = (
+            "Callable[[object], Expression]"
+            if isinstance(target_kind, OperatorRecipe)
+            else "Symbol"
+        )
+        row = f"    {alias}: {annotation}"
         if alias[:1].islower() and alias != alias.lower():
             row += "  # noqa: N815"
         if target in documentation:
@@ -162,17 +218,22 @@ def stub_text(names: list[str], documentation: dict[str, str] | None = None) -> 
 #     [tested: test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
 #   - operator word aliases are explicit members generated from the runtime
 #     catalog [tested: test_operator_words_precede_the_mechanical_name_map;
-#     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+#     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
 #   - catalog-row documentation is attached to explicit members for static
 #     help [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+#   - INTERNAL names have no static member while their exact runtime bracket
+#     door remains available [tested:
+#     test_internal_catalog_names_stay_exact_but_leave_public_outputs;
+#     commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 # Open Obligations:
 #   To Do: None
 #   Hacks: None
 #   Future Enhancements: None.
 
+from collections.abc import Callable
 from typing import Final
 
-from .atoms import Symbol
+from .atoms import Expression, Symbol
 
 class _FunctionNamespace:
 {members}
@@ -184,11 +245,12 @@ fn: Final[_FunctionNamespace]
 
 def main(argv: list[str]) -> int:
     """Check generated outputs, or replace both together from one snapshot."""
-    names = catalog_names()
-    documentation = catalog_documentation(names)
+    names, visibility = catalog_snapshot()
+    public_names = {name for name in names if visibility[name] == "PUBLIC"}
+    documentation = catalog_documentation(names, public_names)
     wanted = {
         RUNTIME: runtime_text(names, documentation),
-        STUB: stub_text(names, documentation),
+        STUB: stub_text(names, documentation, public_names),
     }
     stale = [
         path

@@ -32,10 +32,11 @@ Guarantees:
   - async head-named declaration methods reuse the catalog-generated policy aliases and
     own no duplicate Literal lists [tested: tests/check_policy_inventory.py;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - all fifteen synchronous declaration names have asynchronous head-named
-    mirrors and no ``declare_*`` aliases [tested:
+  - all fifteen synchronous declaration heads have asynchronous mirrors,
+    including ``reacts`` for ``(on ...)`` while ``reaction`` remains, and no
+    ``declare_*`` aliases [tested:
     test_aio_covers_the_whole_synchronous_surface,
-    test_m7_narrow_core_surface; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    test_m7_narrow_core_surface; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
   - async cast preserves a concrete target class as its static return type and
     keeps the target positional-only [tested
     test_target_type_overloads_preserve_the_requested_class,
@@ -48,17 +49,19 @@ Guarantees:
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - reader-token registration and removal run on the owning engine worker and
     mirror the synchronous surface [tested:
-    test_aio_plain_methods_forward_on_the_worker; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_aio_plain_methods_forward_on_the_worker and
+    test_async_anonymous_space_repr_keeps_the_submitting_site;
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
   - async eval mirrors the synchronous single answer shape without a
     residuals flag [tested:
     test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async function handles consume the synchronous Answers surface on their
-    owning worker [tested: test_aio_structural_surface_behaves;
-    commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+    owning worker, including the composite ``neg`` operator word [tested:
+    test_aio_structural_surface_behaves; commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - async operation registration requires and forwards the canonical effect
     argument [tested: test_aio_declare_and_register_delegations_land;
-    commit=WORKTREE]
+    commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - execution-policy scopes cross the worker hop and never change awaited
     return shapes [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -100,6 +103,7 @@ import logging
 import math
 import os
 import queue
+import re as _re
 import threading
 import warnings
 import weakref
@@ -108,8 +112,9 @@ from typing import Any, Final, Literal, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
-from ._name_mapping import operator_attribute_target
+from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space import Space as MeTTa
+from ._space import _creation_site
 from ._under import _UNSET
 from .atoms import Atom
 from .errors import Interrupted, PettaError
@@ -815,11 +820,15 @@ class AsyncMeTTa:
         """Parse one MeTTa term without evaluating it."""
         return await self.call(lambda m: m.parse(source))
 
-    async def register_token(self, pattern: str, constructor: Callable[[str], Any]) -> None:
+    async def register_token(
+        self,
+        pattern: str | _re.Pattern[str],
+        constructor: Callable[[str], Any],
+    ) -> None:
         """Register a full-lexeme reader class on the engine worker."""
         return await self.call(lambda m: m.register_token(pattern, constructor))
 
-    async def unregister_token(self, pattern: str) -> None:
+    async def unregister_token(self, pattern: str | _re.Pattern[str]) -> None:
         """Remove a reader class from the engine worker."""
         return await self.call(lambda m: m.unregister_token(pattern))
 
@@ -912,11 +921,13 @@ class AsyncMeTTa:
         if name is None:
             parent = None if inherits is None else inherits._m
             requested_grants = tuple(grants)
+            created_at = _creation_site()
             handle = await self.call(
                 lambda m: m._new_space(
                     inherits=parent,
                     restricted=restricted,
                     grants=requested_grants,
+                    _created_at=created_at,
                 )
             )
         else:
@@ -1146,15 +1157,23 @@ class AsyncMeTTa:
             lambda m: m.on_error(subject_or_pattern, pattern_or_mode, mode)
         )
 
-    async def reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def reacts(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         pattern: str | Atom,
         operation: str | Atom,
         priority: int | None = None,
     ) -> Atom:
         return await self.call(
-            lambda m: m.reaction(pattern, operation, priority)
+            lambda m: m.reacts(pattern, operation, priority)
         )
+
+    async def reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+        self,
+        pattern: str | Atom,
+        operation: str | Atom,
+        priority: int | None = None,
+    ) -> Atom:
+        return await self.reacts(pattern, operation, priority)
 
     async def agenda(
         self, policy: AgendaPolicy, function: str | None = None
@@ -1471,7 +1490,7 @@ class AsyncMeTTa:
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         state = "closed" if self._closed else self._worker.state
-        return f"AsyncMeTTa({self._m.name!r}, {state})"
+        return f"AsyncMeTTa({self._m!r}, {state})"
 
 
 class AsyncWorld:
@@ -1805,10 +1824,12 @@ class _AsyncFunctionNamespace:
     def __init__(self, am: AsyncMeTTa) -> None:
         self._am = am
 
-    def __getattr__(self, name: str) -> _AsyncEngineFunction:
+    def __getattr__(self, name: str) -> _AsyncEngineFunction | _AsyncCompositeEngineFunction:
         if name.startswith("_"):
             raise AttributeError(name)
         resolved = operator_attribute_target(name)
+        if isinstance(resolved, OperatorRecipe):
+            return _AsyncCompositeEngineFunction(self._am, resolved)
         target = name.replace("_", "-") if resolved is None else resolved
         return _AsyncEngineFunction(self._am, target)
 
@@ -1854,6 +1875,34 @@ class _AsyncEngineFunction:
 
     def __repr__(self) -> str:
         return f"<async engine function {self._name} on {self._am.name}>"
+
+
+class _AsyncCompositeEngineFunction:
+    """Async callable for a word represented by a composite term recipe."""
+
+    def __init__(self, am: AsyncMeTTa, recipe: OperatorRecipe) -> None:
+        self._am = am
+        self._recipe = recipe
+        self.__name__ = recipe.word
+        self.__qualname__ = f"{am.name}.{recipe.word}"
+
+    async def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return await self.one(*args, **kwargs)
+
+    async def one(self, *args: Any, **kwargs: Any) -> Any:
+        recipe = self._recipe
+        return await self._am.call(lambda m: m.answers(recipe(*args, **kwargs)).one())
+
+    async def first(self, *args: Any, **kwargs: Any) -> Any:
+        recipe = self._recipe
+        return await self._am.call(lambda m: m.answers(recipe(*args, **kwargs)).first())
+
+    async def all(self, *args: Any, **kwargs: Any) -> list:
+        recipe = self._recipe
+        return await self._am.call(lambda m: list(m.answers(recipe(*args, **kwargs))))
+
+    def __repr__(self) -> str:
+        return f"<async composite engine function {self._recipe.word} on {self._am.name}>"
 
 
 async def connect(

@@ -74,10 +74,11 @@ Guarantees:
     test_query_surfaces_share_column_order,
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms,
     test_the_python_remove_door_subtracts_one_copy; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - all fifteen declaration verbs use the atom head as the method name,
-    inject the receiver where it is the subject, and expose no ``declare_*``
-    aliases [tested: test_declarations_use_their_atom_heads_on_the_receiver,
-    test_m7_narrow_core_surface; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - all fifteen declaration heads use their settled receiver spellings,
+    including ``reacts`` for ``(on ...)``; the former ``reaction`` spelling
+    remains as a compatibility alias and no ``declare_*`` alias returns
+    [tested: test_declarations_use_their_atom_heads_on_the_receiver and
+    test_m7_narrow_core_surface; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
   - Expression recognizes Space as the one iterable Handle whose listing is
     collected as an assembly-order snapshot [tested:
     test_expression_of_a_space_is_an_assembly_order_snapshot; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -112,6 +113,18 @@ Guarantees:
     test_bound_function_namespace_validates_at_access,
     test_function_calls_pull_engine_answers_only_as_demanded;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4]
+  - ``Space.answers`` can evaluate one ask against a theory value or through
+    an explicit full-interpreter head without mutating the receiver [tested:
+    test_answers_selects_a_theory_or_interpreter_per_ask;
+    commit=7c4ddf46d4e23de8390a9f2baddbf96f7575da46]
+  - ``Space.cast`` preserves the inherited one-argument atom cast while its
+    two-argument form keeps explicit context-relative casting [tested:
+    test_atom_cast_delegates_to_the_ambient_space;
+    commit=162214d7a703e9108dd2422f4f18f3b9c007d367]
+  - callable doors cache live deprecation declarations until the next write
+    and issue the catalog's since/remedy warning [tested:
+    test_deprecation_catalog_rows_drive_warnings_and_explanations;
+    commit=d74e2e828cd9272882dcf907cfaf095d2d147ce0]
   - builtin discovery is cached per logical space, with namespace reads
     comparing the engine's function generation and explicit Python mutation
     doors retaining eager invalidation [tested:
@@ -126,6 +139,14 @@ Guarantees:
     to the anonymous allocation pool [tested:
     test_a_named_space_drop_never_enters_the_anonymous_pool;
     commit=d843bb6d17a525c36afd21cab077d63b34447535]
+  - compiled ``re.Pattern`` reader classes preserve supported semantic flags,
+    reject untranslatable flags, and unregister through the same normalized
+    key [tested: test_compiled_reader_patterns_preserve_flags_and_unregister;
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
+  - an anonymous space representation records the external file and line that
+    created that life, while named-space representations remain stable
+    [tested: test_anonymous_space_repr_carries_its_creation_site;
+    commit=50d1de4d0ead4a0c3997f9b2ef58631bbafaede3]
 Owns resources:
   - ``Space.save`` owns its sibling temporary file and removes it after every
     failed operation [tested: test_save_failure_preserves_existing_file;
@@ -143,8 +164,10 @@ import functools
 import hashlib
 import importlib as _importlib
 import os
+import re as _re
 import sys
 import threading
+import warnings
 import weakref
 from collections import abc as _abc
 from collections.abc import Callable, Iterable, Iterator
@@ -268,6 +291,9 @@ _BUILTINS_CACHE_LOCK = threading.RLock()
 _BUILTINS_CACHE: weakref.WeakKeyDictionary[
     Runtime, tuple[int, int, dict[str, tuple[str, ...]]]
 ] = weakref.WeakKeyDictionary()
+_DEPRECATION_CACHE: weakref.WeakKeyDictionary[
+    Runtime, dict[str, tuple[str, str] | None]
+] = weakref.WeakKeyDictionary()
 
 
 def _invalidate_builtins_cache(rt: Runtime) -> None:
@@ -275,6 +301,31 @@ def _invalidate_builtins_cache(rt: Runtime) -> None:
     with _BUILTINS_CACHE_LOCK:
         epoch, function_generation, _ = _BUILTINS_CACHE.get(rt, (0, -1, {}))
         _BUILTINS_CACHE[rt] = (epoch + 1, function_generation, {})
+        _DEPRECATION_CACHE.pop(rt, None)
+
+
+def _catalog_text(value: Any) -> str:
+    """Render a catalog term the way its MeTTa source reads."""
+    if isinstance(value, list):
+        return f"({' '.join(_catalog_text(child) for child in value)})"
+    return str(value)
+
+
+def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
+    """Read one live declaration and cache it until the next explicit write."""
+    with _BUILTINS_CACHE_LOCK:
+        cache = _DEPRECATION_CACHE.setdefault(rt, {})
+        if name in cache:
+            return cache[name]
+    row = rt.once("petta_deprecation(Name, Since, Remedy)", Name=name)
+    declaration = (
+        None
+        if not row
+        else (_catalog_text(row["Since"]), _catalog_text(row["Remedy"]))
+    )
+    with _BUILTINS_CACHE_LOCK:
+        _DEPRECATION_CACHE.setdefault(rt, {})[name] = declaration
+    return declaration
 
 
 def _function_generation(rt: Runtime) -> int:
@@ -327,6 +378,63 @@ _RUN_BINDINGS: ContextVar[dict[str, Any] | None] = ContextVar(
 def _satellite(name: str) -> Any:
     """Import one optional surface only when its handle verb is called."""
     return _importlib.import_module(f"{__package__}.{name}")
+
+
+def _creation_site() -> tuple[str, int]:
+    """Return the first caller frame outside the metta package."""
+    import inspect  # noqa: PLC0415  -- anonymous construction alone pays
+
+    frame = inspect.currentframe()
+    try:
+        frame = None if frame is None else frame.f_back
+        package_prefix = f"{__package__}."
+        while frame is not None:
+            module = str(frame.f_globals.get("__name__", ""))
+            if module != __package__ and not module.startswith(package_prefix):
+                filename = frame.f_code.co_filename
+                if not filename.startswith("<"):
+                    filename = str(Path(filename).resolve())
+                return filename, frame.f_lineno
+            frame = frame.f_back
+    finally:
+        del frame
+    return "<unknown>", 0
+
+
+_READER_PATTERN_FLAGS = (
+    (_re.IGNORECASE, "i"),
+    (_re.MULTILINE, "m"),
+    (_re.DOTALL, "s"),
+    (_re.VERBOSE, "x"),
+)
+_READER_PATTERN_SUPPORTED = _re.NOFLAG
+for _reader_flag, _reader_letter in _READER_PATTERN_FLAGS:
+    _READER_PATTERN_SUPPORTED |= _reader_flag
+
+
+def _reader_pattern(pattern: str | _re.Pattern[str]) -> str:
+    """Normalize Python's compiled regex contract to the engine's PCRE text."""
+    if isinstance(pattern, str):
+        return pattern
+    if not isinstance(pattern, _re.Pattern):
+        msg = f"a reader-token pattern is str or re.Pattern, not {type(pattern).__name__}"
+        raise TypeError(msg)
+    if not isinstance(pattern.pattern, str):
+        msg = "a reader-token re.Pattern must compile text, not bytes"
+        raise TypeError(msg)
+    flags = _re.RegexFlag(pattern.flags) & ~_re.UNICODE
+    unsupported = flags & ~_READER_PATTERN_SUPPORTED
+    if unsupported:
+        msg = (
+            f"reader-token re.Pattern flags {unsupported!s} have no exact PCRE "
+            "translation; use IGNORECASE, MULTILINE, DOTALL, VERBOSE, or "
+            "write an inline PCRE pattern"
+        )
+        raise ValueError(msg)
+    letters = "".join(
+        letter for flag, letter in _READER_PATTERN_FLAGS if flags & flag
+    )
+    return f"(?{letters}){pattern.pattern}" if letters else pattern.pattern
 
 
 def current_space(default: str = _DEFAULT_SPACE) -> _SpaceId:
@@ -633,6 +741,7 @@ class Space(Handle):
         verbose: bool = False,
         petta_path: str | None = None,
         _runtime: Runtime | None = None,
+        _created_at: tuple[str, int] | None = None,
     ) -> None:
         super().__init__()
         self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
@@ -682,6 +791,7 @@ class Space(Handle):
         self._ephemeral = False
         self._backing: Any = None
         self._owns_backing = False
+        self._created_at = _created_at
         self._context_tokens: list[Any] = []
         if isinstance(engine_name, str):
             _remember_space_name(self._name)
@@ -734,6 +844,7 @@ class Space(Handle):
         inherits: Space | None = None,
         restricted: bool = False,
         grants: _abc.Iterable[str] = (),
+        _created_at: tuple[str, int] | None = None,
     ) -> Space:
         """An anonymous space with a name nothing else is using.
 
@@ -765,7 +876,10 @@ class Space(Handle):
             row = self._rt.must(
                 "petta_py_new_space(Parent, Name)", Parent=inherits._space
             )
-        fresh = Space(str(row["Name"]))
+        fresh = Space(
+            str(row["Name"]),
+            _created_at=_creation_site() if _created_at is None else _created_at,
+        )
         fresh._ephemeral = True
         return fresh
 
@@ -819,7 +933,12 @@ class Space(Handle):
     def __repr__(self) -> str:
         state = ", dropped" if self._dropped else ""
         shown = self._name_atom if self._name_atom is not None else self._name
-        return f"Space({shown!r}{state})"
+        created = (
+            ""
+            if self._created_at is None
+            else f", created_at={f'{self._created_at[0]}:{self._created_at[1]}'!r}"
+        )
+        return f"Space({shown!r}{state}{created})"
 
     def __str__(self) -> str:
         return str(self._name_atom if self._name_atom is not None else self._name)
@@ -1126,7 +1245,11 @@ class Space(Handle):
         """Read one form into an atom without evaluating it."""
         return parse(source)
 
-    def register_token(self, pattern: str, constructor: Callable[[str], Any]) -> None:
+    def register_token(
+        self,
+        pattern: str | _re.Pattern[str],
+        constructor: Callable[[str], Any],
+    ) -> None:
         """Register a full-token regex and its Atom constructor.
 
         The constructor receives the complete matched lexeme. It may return an
@@ -1134,24 +1257,21 @@ class Space(Handle):
         of the same pattern replaces the constructor. Only future parses read
         the new mapping; atoms already returned are immutable values.
         """
-        if not isinstance(pattern, str):
-            msg = f"a reader-token pattern is str, not {type(pattern).__name__}"
-            raise TypeError(msg)
+        normalized = _reader_pattern(pattern)
         if not callable(constructor):
             msg = "a reader-token constructor must be callable"
             raise TypeError(msg)
         self._rt.must(
             "petta_py_register_token(Pattern, Constructor)",
-            Pattern=pattern,
+            Pattern=normalized,
             Constructor=constructor,
         )
 
-    def unregister_token(self, pattern: str) -> None:
+    def unregister_token(self, pattern: str | _re.Pattern[str]) -> None:
         """Remove a reader-token class; an absent pattern is already removed."""
-        if not isinstance(pattern, str):
-            msg = f"a reader-token pattern is str, not {type(pattern).__name__}"
-            raise TypeError(msg)
-        self._rt.must("petta_py_unregister_token(Pattern)", Pattern=pattern)
+        self._rt.must(
+            "petta_py_unregister_token(Pattern)", Pattern=_reader_pattern(pattern)
+        )
 
     # ------------------------------------------------------------- space edits
 
@@ -1289,20 +1409,32 @@ class Space(Handle):
             raise EngineError(msg)
         return answer
 
+    # Space is an Atom subtype, so its overload family retains every base call
+    # shape and adds the explicit-context form. An overload implementation must
+    # accept every advertised input shape. [source:
+    # https://github.com/python/typing/blob/44f42629df028aebb783917a393172e4234ad2e7/docs/spec/overload.rst#L150-L160;
+    # commit=162214d7a703e9108dd2422f4f18f3b9c007d367]
+    @overload
+    def cast(self, type_: _builtins.type[_CastT], /) -> _CastT: ...
+
+    @overload
+    def cast(self, type_: Atom | str, /) -> Any: ...
+
     @overload
     def cast(self, value: Any, type_: _builtins.type[_CastT], /) -> _CastT: ...
 
     @overload
     def cast(self, value: Any, type_: Atom | str, /) -> Any: ...
 
-    def cast(self, value: Any, type_: Any, /) -> Any:
-        """Answer value, narrowed to its Python-most spelling, when this
-        space's type discipline admits it as type_: the same acceptance
-        a typed call compiles, ':' declarations in this space and &self
-        in scope, protocol types included. A refused cast raises
-        metta.CastError naming the value's actual types, the loud
-        spelling of what a typed call does silently.
+    def cast(self, value: Any, type_: Any = ..., /) -> Any:
+        """Cast this space atom ambiently with one argument, or answer value
+        narrowed by this space's type discipline with two arguments. The
+        explicit form has the same acceptance a typed call compiles, ':'
+        declarations here and &self in scope, protocol types included. A
+        refusal raises metta.CastError naming the value's actual types.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        if type_ is ...:
+            return super().cast(value)
         return _satellite("casting").cast(self, value, type_)
 
     def trace(self, source: str, max_events: int = 1_000_000):
@@ -2198,6 +2330,8 @@ class Space(Handle):
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
+        theory: Any | None = None,
+        interpreter: Any | None = None,
     ) -> Answers[Any]:
         """Evaluate lazily as an immutable, cached and replayable view.
 
@@ -2213,9 +2347,48 @@ class Space(Handle):
         order their annotated ``TaggedAnswer`` values before a slice pulls
         its prefix. A surrounding ``metta.under(carrier)`` is used only when
         this call does not pass an explicit carrier.
+
+        ``theory=`` treats an atom or iterable of atoms as the complete
+        equational program for this ask. It installs that value in an isolated
+        scratch space on the first pull, evaluates there, and drops the space
+        when the view is exhausted or abandoned. The receiver is unchanged.
+        This mirrors reflective descent functions whose inputs are a reified
+        module and term [source:
+        https://maude.cs.illinois.edu/maude1/manual/maude-manual-html/maude-manual_24.html;
+        commit=0d49980b03d507f9bae0354786ab826a146c20df].
+
+        ``interpreter=`` instead evaluates the explicit full-interpreter
+        application ``(interpreter target %Undefined% receiver)`` for this ask.
+        The selectors are mutually exclusive because each decides what
+        evaluation relation the answer cursor runs.
         """
         _record_sync_engine_call(self, "answers", sys._getframe(1))
+        if theory is not None and interpreter is not None:
+            msg = (
+                "theory= and interpreter= each select the evaluation relation; "
+                "pass one of them per answers() ask"
+            )
+            raise TypeError(msg)
+        if interpreter is not None:
+            interpreted_target = parse(target) if isinstance(target, str) else _to_atom(target)
+            target = Expression(
+                [
+                    _to_atom(interpreter),
+                    interpreted_target,
+                    Symbol("%Undefined%"),
+                    self,
+                ]
+            )
         carrier = _selected_under(under)
+        if theory is not None:
+            return self._answers_with_theory(
+                target,
+                theory,
+                using=using,
+                timeout=timeout,
+                inferences=inferences,
+                carrier=carrier,
+            )
         if carrier is None:
             return evaluate_answers(
                 self._rt,
@@ -2311,6 +2484,72 @@ class Space(Handle):
             space=self._space,
             target=target,
         )
+
+    def _answers_with_theory(
+        self,
+        target: Any,
+        theory: Any,
+        *,
+        using: dict[str, Any] | None,
+        timeout: float | None,
+        inferences: int | None,
+        carrier: Any | None,
+    ) -> Answers[Any]:
+        """Defer an isolated theory ask and own its scratch-space lifetime."""
+        columns = () if isinstance(target, str) else tuple(_column_names((_to_atom(target),)))
+
+        def source() -> Iterator[_AnswerItem]:
+            scratch = self._new_space()
+            inner: Answers[Any] | None = None
+            try:
+                atoms = self._theory_atoms(theory)
+                if atoms:
+                    scratch.add(*atoms)
+                if carrier is None:
+                    inner = scratch.answers(
+                        target,
+                        using=using,
+                        timeout=timeout,
+                        inferences=inferences,
+                    )
+                else:
+                    inner = scratch.answers(
+                        target,
+                        using=using,
+                        timeout=timeout,
+                        inferences=inferences,
+                        under=carrier,
+                    )
+                yield from inner._items()
+            finally:
+                if inner is not None:
+                    close = getattr(inner._source, "close", None)
+                    if callable(close):
+                        close()
+                scratch.drop()
+
+        return Answers(source(), columns=columns, space=self._space, target=target)
+
+    @staticmethod
+    def _theory_atoms(theory: Any) -> tuple[Atom, ...]:
+        """Normalize one data-valued theory without accepting source text."""
+        if isinstance(theory, Space):
+            values: Iterable[Any] = theory.atoms()
+        elif isinstance(theory, Atom):
+            values = (theory,)
+        elif isinstance(theory, str) or not isinstance(theory, Iterable):
+            msg = (
+                "theory= needs an atom, Space, or iterable of atoms as data; "
+                "source text belongs at run()"
+            )
+            raise TypeError(msg)
+        else:
+            values = theory
+        try:
+            return tuple(_to_atom(value) for value in values)
+        except (TypeError, ValueError) as error:
+            msg = f"theory= contains a value that is not an atom: {error}"
+            raise TypeError(msg) from error
 
     def parallel(
         self,
@@ -2733,6 +2972,18 @@ class Space(Handle):
     def _invalidate_builtins(self) -> None:
         """Discard cached catalogues after an engine-side mutation."""
         _invalidate_builtins_cache(self._rt)
+
+    def _warn_deprecated(self, name: str, *, stacklevel: int) -> None:
+        """Warn from the caller's frame when the catalog retires ``name``."""
+        declaration = _deprecation(self._rt, name)
+        if declaration is None:
+            return
+        since, remedy = declaration
+        warnings.warn(
+            f"{name} is deprecated since {since}; {remedy}",
+            DeprecationWarning,
+            stacklevel=stacklevel,
+        )
 
     def is_function(self, name: str) -> bool:
         """Report whether a function is visible from this space."""
@@ -3900,8 +4151,8 @@ class Space(Handle):
         SCORES a reaction, highest first. Every policy breaks ties on
         declaration order.
 
-            alarms.reaction("(alert $w)", "(insert &log (all $w))")
-            alarms.reaction("(alert fire)", "(insert &log (fire))", priority=9)
+            alarms.reacts("(alert $w)", "(insert &log (all $w))")
+            alarms.reacts("(alert fire)", "(insert &log (fire))", priority=9)
             alarms.agenda("priority")
         """
         policies = AgendaPolicy
@@ -3935,7 +4186,7 @@ class Space(Handle):
         )
         return atom
 
-    def reaction(
+    def reacts(
         self,
         pattern: str | Atom,
         operation: str | Atom,
@@ -3972,6 +4223,15 @@ class Space(Handle):
         )
         self._rt.must("petta_install_bridges")
         return atom
+
+    def reaction(
+        self,
+        pattern: str | Atom,
+        operation: str | Atom,
+        priority: int | None = None,
+    ) -> Atom:
+        """Compatibility spelling for :meth:`reacts`; new code uses reacts."""
+        return self.reacts(pattern, operation, priority)
 
     def admits(self, type_name: str) -> Atom:
         """Type a pool's membership: only TYPE-carrying atoms enter.

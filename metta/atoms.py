@@ -35,6 +35,9 @@ Guarantees:
   - seg() builds the named segment and refuses anything but a Variable, since
     a non-variable second position is ordinary data to the engine [tested:
     test_seg_builds_a_named_segment; commit=a3dff3abc83b9d82f3652093246e1d693d526cdb]
+  - fresh() mints process-independent variable names for library-authored
+    patterns, so helper-local holes never capture caller names [tested:
+    test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
   - two-argument unify is symmetric and returns one normalized substitution
     over variables from either operand [tested:
     test_unify_binds_a_ground_term_and_pattern_in_both_orders,
@@ -113,6 +116,7 @@ __all__ = [
     "Variable",
     "and_",
     "arrow",
+    "fresh",
     "ground",
     "if_",
     "in_",
@@ -143,6 +147,13 @@ def ground(value: Any) -> Grounded:
     identity instead of turning it into an expression.
     """
     return Grounded(value)
+
+
+def fresh() -> Variable:
+    """Mint a variable for a library-authored pattern without name capture."""
+    from uuid import uuid4  # noqa: PLC0415  -- keep UUID machinery off import
+
+    return Variable(f"__petta_fresh_{uuid4().hex}")
 
 
 class _GroundFactory:

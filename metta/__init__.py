@@ -65,6 +65,10 @@ Guarantees:
     than promoted root callbacks [tested:
     test_m7_satellites_are_lazy_and_identity_stable and
     test_strategy_exports_are_reified_atoms; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+  - ``catalog`` names the queryable ``&petta`` space and ``fresh()`` supplies
+    hygienic variables for helper-authored patterns [tested:
+    test_catalog_is_the_root_queryable_reflection_space and
+    test_fresh_variables_keep_library_patterns_hygienic; commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -105,6 +109,7 @@ from .atoms import (
     Variable,
     and_,
     arrow,
+    fresh,
     ground,
     if_,
     in_,
@@ -209,7 +214,7 @@ def __getattr__(name: str) -> _Any:
         module_name, attribute = _LAZY_ATTRIBUTES[name]
         module = _importlib.import_module(f".{module_name}", __name__)
         value = getattr(module, attribute)
-    elif name == "reflection":
+    elif name in {"catalog", "reflection"}:
         value = engine().space("&petta")
     else:
         msg = f"module {__name__!r} has no attribute {name!r}"
@@ -482,6 +487,7 @@ __all__ = [
     "boot",
     "cache",
     "casting",
+    "catalog",
     "channel",
     "config",
     "convert",
@@ -499,6 +505,7 @@ __all__ = [
     "fn",
     "foreign",
     "forms",
+    "fresh",
     "ground",
     "if_",
     "in_",

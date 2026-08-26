@@ -19,7 +19,7 @@ Guarantees:
   - compiler-recognized Python calls remain structural while effects in their
     arguments are joined independently [tested:
     test_compiler_recognized_python_calls_remain_structural,
-    test_definition_match_is_a_nondeterministic_read; commit=WORKTREE]
+    test_definition_match_is_a_nondeterministic_read; commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
   - a ``.value`` access is conservatively mutable-state dependent, so a
     compiled State read or write cannot be advertised as immutable [tested:
     test_compiled_state_properties_round_trip_through_engine_heads;
@@ -27,6 +27,10 @@ Guarantees:
   - an exact ``py`` marker binding is always oracleIO even if an engine symbol
     with the same spelling carries weaker metadata [tested:
     test_py_host_island_executes_per_engine_application; commit=WORKTREE]
+  - delete statements and augmented assignments on Space-typed parameters are
+    classified as state writes [tested:
+    test_compiled_removal_statements_preserve_one_many_missing_and_target_scope;
+    commit=79e9635b6c20e046ace8fc82bd3edf062c7ae9b2]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -144,11 +148,13 @@ class _EffectAnalysis(ast.NodeVisitor):
         known: Callable[[str], bool],
         effect: Callable[[str], EffectClass],
         host_island_names: frozenset[str],
+        space_locals: set[str],
     ) -> None:
         self.local_functions = local_functions
         self.known = known
         self.declared_effect = effect
         self.host_island_names = host_island_names
+        self.space_locals = space_locals
         self.result = EffectClass.pureStructural
 
     def _join(self, effect: EffectClass) -> None:
@@ -196,6 +202,15 @@ class _EffectAnalysis(ast.NodeVisitor):
         self._join(EffectClass.nondeterministicReadOnly)
         self.generic_visit(node)
 
+    def visit_Delete(self, node: ast.Delete) -> None:
+        self._join(EffectClass.writesState)
+        self.generic_visit(node)
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        if isinstance(node.target, ast.Name) and node.target.id in self.space_locals:
+            self._join(EffectClass.writesState)
+        self.generic_visit(node)
+
     def visit_Attribute(self, node: ast.Attribute) -> None:
         # A `.value` attribute is the State cell surface, which the compiler
         # lowers to the engine's own state heads. Its context says which one:
@@ -223,6 +238,7 @@ def derive_definition_facts(
     known: Callable[[str], bool],
     effect: Callable[[str], EffectClass],
     host_island_names: frozenset[str],
+    space_locals: set[str] | None = None,
 ) -> DefinitionFacts:
     """Derive facts from the same syntax tree compilation consumes."""
     path = inspect.getsourcefile(fn) or inspect.getfile(fn)
@@ -251,7 +267,9 @@ def derive_definition_facts(
         for node in ast.walk(definition)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
-    effects = _EffectAnalysis(local_functions, known, effect, host_island_names)
+    effects = _EffectAnalysis(
+        local_functions, known, effect, host_island_names, space_locals or set()
+    )
     for statement in definition.body:
         effects.visit(statement)
 

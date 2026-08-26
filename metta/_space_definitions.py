@@ -38,6 +38,10 @@ Guarantees:
   - a successful compiled definition publishes advisory operation crossings
     found under its loop bodies [tested:
     test_an_operation_call_inside_a_compiled_loop_is_linted; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+  - compiled and bound calls share exact parameter names for each unambiguous
+    definition or operation arity [tested:
+    test_known_call_site_keywords_bind_to_positional_metta_arguments;
+    commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
   - generated class-method operations declare their Atom delivery policy in
     &petta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
@@ -239,6 +243,23 @@ def _returns_bool(space: Any, called: str) -> bool:
         and declared.children[0] == Symbol("->")
         and declared.children[-1] == Symbol("Bool")
     )
+
+
+def call_parameter_names(space: Any, called: str, arity: int) -> tuple[str, ...] | None:
+    """Return one exact parameter roster, or None when placement is ambiguous."""
+    with _DEFINE_LOCK:
+        clause_names = {
+            tuple(clause["params"])
+            for clause in _DEFINE_CLAUSES.get((space.name, called), ())
+            if clause["arity"] == arity
+        }
+    if len(clause_names) == 1:
+        return next(iter(clause_names))
+    operation = REGISTRY.get(called)
+    if operation is None or arity not in operation.arities:
+        return None
+    names = tuple(operation.parameter_names[:arity])
+    return names if len(names) == arity and len(set(names)) == arity else None
 
 
 def _remember_defined_callable(space: Any, fn: types.FunctionType, name: str) -> None:
@@ -704,6 +725,7 @@ def _install_define_locked(space: Any, fn: Callable[..., Any], name: str | None 
         returns_bool=partial(_returns_bool, space),
         metta_name=name,
         defined_name=partial(_installed_callable_name, space),
+        call_parameters=partial(call_parameter_names, space),
     )
     params, patterns = compiled.params, compiled.patterns
     # Clause stacking is per (space, name), process-wide: equations live

@@ -16,6 +16,9 @@ Guarantees:
     test_define_decorator_declares_field_types; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - root ``metta.catalog`` is the ordinary queryable ``&petta`` reflection
+    space [tested: test_catalog_is_the_root_queryable_reflection_space;
+    commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -28,8 +31,8 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from metta import Answer, Expression, S, V, ground
-from metta import reflection as catalog
+import metta as metta_package
+from metta import Answer, Expression, S, V, catalog, ground
 from metta.atoms import Grounded, Variable
 from metta.ops import referenced_classes, type_atoms_for
 
@@ -287,6 +290,14 @@ def test_a_weighted_relation_is_an_annotated_op(m):  # noqa: D103  -- pytest dis
 
 
 # --------------------------------------------------------- reflection space
+
+
+def test_catalog_is_the_root_queryable_reflection_space():
+    """The settled root spelling exposes catalog data through Space.match."""
+    assert catalog.name == "&petta"
+    assert metta_package.catalog is catalog
+    assert metta_package.reflection == catalog
+    assert catalog.match(S.kind(V.name, V.subject, V.shape))
 
 
 def test_the_library_reflects_into_its_own_space(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -10,9 +10,13 @@ Guarantees:
     test_the_fn_namespace_is_generated; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - generated operator word attributes resolve through the shared fixed table
     [tested: test_operator_words_precede_the_mechanical_name_map;
-    commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - documented catalog rows remain available to help() before an engine starts
     [tested: test_generated_fn_help_is_offline; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - INTERNAL catalog names remain exact runtime mentions but carry no generated
+    documentation [tested:
+    test_internal_catalog_names_stay_exact_but_leave_public_outputs;
+    commit=8779452fed89853c3f77c3469f7a6ec7b12e9efa]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -437,6 +441,7 @@ _ALIASES.update(
         ("msort", "msort"),
         ("mul", "*"),
         ("ne", "!="),
+        ("neg", "neg"),
         ("new_space", "new-space"),
         ("new_state", "new-state"),
         ("noeval", "noeval"),
@@ -595,10 +600,6 @@ _DOCUMENTATION = {
     "function": "function: (-> Atom Atom)\n\nThe core's function frame, which `return` closes. PeTTa's compiled definitions do not go through this instruction and it is not implemented.",
     "get-atoms": "get-atoms: (-> SpaceType Atom)\n\n`space.atoms()`, or `for atom in space` when you want to walk them.",
     "get-doc": "get-doc: (-> SpaceType Atom %Undefined%)\n\nPython's builtin `help`, over the docstring a decorated function already carries. PeTTa answers nothing here because no documentation atoms are written yet, which is the doc-vocabulary gap.",
-    "get-doc-atom": "get-doc-atom: (-> SpaceType Atom %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`.",
-    "get-doc-function": "get-doc-function: (-> SpaceType Atom Type %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`.",
-    "get-doc-params": "get-doc-params: (-> Expression Atom Expression (Expression Atom))\n\nLeaTTa's internal dispatch behind `get-doc`.",
-    "get-doc-single-atom": "get-doc-single-atom: (-> SpaceType Atom %Undefined%)\n\nLeaTTa's internal dispatch behind `get-doc`.",
     "get-metatype": "get-metatype: (-> Atom Atom)\n\nPython's own builtin `type`: the four atom classes ARE the four metatypes, so `type(a).__name__` is the metatype by construction.",
     "get-state": "get-state: (-> (StateMonad $tgso) $tgso)\n\nReading the cell is the typed handle's `state.value` property.",
     "get-type": "get-type: (-> Atom %Undefined%)\n\nDeclared types are space-relative, so `space.type(atom)` asks the space. Class declarations use the consolidated `@space.define` decorator.",
@@ -612,7 +613,6 @@ _DOCUMENTATION = {
     "import!": "import!: (-> Atom Atom (->))\n\nPython's own `import`, and for a MeTTa library the boot manifest or `m.load(path)`. The module catalog IS Python packaging.",
     "include": "include: (-> Atom %Undefined%)\n\n`space.load(path)` reads a file into that space, which is what include does; Python's own `import` is the spelling for a Python module.",
     "index-atom": "index-atom: (-> Expression Number Atom)\n\nIndexing again, with the index you want.",
-    "interpret": "interpret: (-> Atom Type SpaceType Atom)\n\nLeaTTa's typed interpreter, written in MeTTa: `interpret` and the equations that implement it. This is the machinery that makes LeaTTa an oracle rather than a second implementation, and PeTTa writes its interpreter in Prolog, so none of these names is on either surface",
     "intersection": "intersection: (-> Atom Atom %Undefined%)\n\n`collections.Counter` IS the multiset algebra, and `&` is its intersection.",
     "intersection-atom": "intersection-atom: (-> Expression Expression Atom)\n\n`Counter` over children, answering an expression.",
     "is-function": "is-function: (-> Type Bool)\n\nAsking whether a type is an arrow. In Python the same question is asked of the annotation, and `m.is_function(name)` asks it of a defined name.",
