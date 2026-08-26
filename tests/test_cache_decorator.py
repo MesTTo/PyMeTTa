@@ -7,14 +7,19 @@ Guarantees:
     functools.lru_cache's own names; the uncached control declares the
     automatic memo policy's explicit refusal.
   [tested: test_a_cached_definition_memoizes_its_complete_answer_bag;
-   commit=WORKTREE]
+   commit=04b794b718563ebb114800abebfc6f1200d7b835]
   - cached answer replay preserves duplicate occurrences because multiplicity
     is part of the result law.
-  [tested: test_a_cached_definition_preserves_duplicate_answers; commit=WORKTREE]
+  [tested: test_a_cached_definition_preserves_duplicate_answers;
+  commit=04b794b718563ebb114800abebfc6f1200d7b835]
+  - cached and uncached answer bags agree for ground recursion, open calls and
+    a dependency whose definition changes between calls.
+  [tested: test_exact_cache_matches_uncached_answer_bags;
+  commit=04b794b718563ebb114800abebfc6f1200d7b835]
   - stacking cache over op refuses before definition registration and sends
     host-only memoization to functools.
   [tested: test_cache_over_an_operation_refuses_before_definition_registration;
-   commit=WORKTREE]
+   commit=04b794b718563ebb114800abebfc6f1200d7b835]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
   that were made and has no maxsize; `unchecked=True` is the staleness the
   engine's own `(cache <name> unchecked)` accepts, not a size.
@@ -25,15 +30,55 @@ Open Obligations:
 """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
 
 import functools
+from collections import Counter
 
 import pytest
 
-from metta import MeTTa
+from metta import MeTTa, S, V
 
 #: Big enough that the uncached twin cannot finish inside the default
 #: evaluation fuel, which is the point being made, and small enough that the
 #: memoized one is instant.
 _N = 25
+
+
+def _assert_ground_bags_equal(memoized, plain, values) -> None:
+    for value in values:
+        assert Counter(map(str, memoized(value))) == Counter(map(str, plain(value)))
+
+
+def _assert_alpha_bags_equal(memoized, plain) -> None:
+    remaining = list(plain)
+    for answer in memoized:
+        match = next(
+            (
+                index
+                for index, candidate in enumerate(remaining)
+                if answer.alpha_eq(candidate)
+            ),
+            None,
+        )
+        assert match is not None
+        remaining.pop(match)
+    assert remaining == []
+
+
+def _install_recursive_bag_pair(memo, plain):
+    @memo.cache(name="p14-diff-recursive")
+    def memo_recursive(n):
+        yield n
+        yield n
+        if n > 0:
+            yield from memo_recursive(n - 1)
+
+    @plain.define(name="p14-diff-recursive-plain")
+    def plain_recursive(n):
+        yield n
+        yield n
+        if n > 0:
+            yield from plain_recursive(n - 1)
+
+    return memo_recursive, plain_recursive
 
 
 def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
@@ -71,14 +116,12 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
             overrun = list(cachedec_plain(_N))
 
         assert [str(atom) for atom in overrun] == ["(Error 1 StackOverflow)"]
-        # Measured 2026-08-26: 830,676 inferences uncached against 11,433
-        # cached, a ratio of 72.7. The floor sits just under that rather than
-        # far below it, because a floor picked with room to spare is what
-        # hides the next regression. Routing the decorator off the C-level
-        # set table and onto the exact Prolog memo, which is what makes the
-        # bag survive, cost 1,622 -> 11,433 cached inferences and took this
-        # ratio from 512 to 73.
-        assert untabled.inferences > 60 * cached.inferences
+        # Measured 2026-08-26: 830,770 inferences uncached against 2,548
+        # cached, a ratio of 326.0. The bag-counting trie costs 1.57x the old
+        # 1,622-inference set table and recovers 4.49x from the 11,433-
+        # inference Prolog-list memo. The floor stays just below the measured
+        # ratio so another move away from direct answer-trie dispatch is red.
+        assert untabled.inferences > 320 * cached.inferences
     finally:
         plain.run(f"!(remove-atom &petta {refusal})")
 
@@ -131,6 +174,93 @@ def test_a_cached_definition_preserves_duplicate_answers() -> None:
         metta.run(
             "!(config-memoize (answer-limit 2048) (aggregate none) (float 12))"
         )
+
+
+def test_exact_cache_matches_uncached_answer_bags() -> None:
+    """Match an uncached oracle across duplicate, open, recursive, and changed calls."""
+    memo = MeTTa().space("&p14-differential-memo")
+    plain = MeTTa().space("&p14-differential-plain")
+    refusal = "(cache p14-diff-recursive-plain refuse)"
+    plain.run(f"!(add-atom &petta {refusal})")
+
+    memo_recursive, plain_recursive = _install_recursive_bag_pair(memo, plain)
+
+    @memo.cache(name="p14-diff-open")
+    def memo_open(value):
+        yield value
+        yield value
+        yield S.Pair(value, value)
+
+    @plain.define(name="p14-diff-open-plain")
+    def plain_open(value):
+        yield value
+        yield value
+        yield S.Pair(value, value)
+
+    def install_memo_source_before():
+        @memo.define(name="p14-diff-state-source")
+        def memo_source(value):
+            yield S.Before(value)
+            yield S.Before(value)
+
+        return memo_source
+
+    def install_plain_source_before():
+        @plain.define(name="p14-diff-state-source-plain")
+        def plain_source(value):
+            yield S.Before(value)
+            yield S.Before(value)
+
+        return plain_source
+
+    memo_source = install_memo_source_before()
+    plain_source = install_plain_source_before()
+
+    @memo.cache(name="p14-diff-state")
+    def memo_state(value):
+        yield memo_source(value)
+
+    @plain.define(name="p14-diff-state-plain")
+    def plain_state(value):
+        yield plain_source(value)
+
+    try:
+        _assert_ground_bags_equal(memo_recursive, plain_recursive, (0, 1, 3))
+        _assert_alpha_bags_equal(memo_open(V.x), plain_open(V.x))
+
+        assert Counter(map(str, memo_state(S.seed))) == Counter(
+            map(str, plain_state(S.seed))
+        )
+        assert memo_state.cache_info() == {"entries": 1, "answers": 2}
+
+        def install_memo_source_after():
+            @memo.define(name="p14-diff-state-source")
+            def memo_source(value):
+                yield S.After(value)
+                yield S.After(value)
+                yield S.Extra(value)
+
+            return memo_source
+
+        def install_plain_source_after():
+            @plain.define(name="p14-diff-state-source-plain")
+            def plain_source(value):
+                yield S.After(value)
+                yield S.After(value)
+                yield S.Extra(value)
+
+            return plain_source
+
+        install_memo_source_after()
+        install_plain_source_after()
+
+        assert memo_state.cache_info() == {"entries": 0, "answers": 0}
+        assert Counter(map(str, memo_state(S.seed))) == Counter(
+            map(str, plain_state(S.seed))
+        )
+        assert memo_state.cache_info() == {"entries": 1, "answers": 3}
+    finally:
+        plain.run(f"!(remove-atom &petta {refusal})")
 
 
 def test_exact_memo_wrappers_keep_named_space_owners_separate() -> None:
