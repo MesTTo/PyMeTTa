@@ -73,7 +73,8 @@ Guarantees:
     test_the_phrasebook_page_is_up_to_date]
   - Python-first additions that have no LeaTTa stdlib declaration are rendered
     in a separate exact-spelling table rather than corrupting manifest coverage
-    [tested: test_python_first_world_faces_are_in_the_phrasebook; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+    [tested: test_python_first_public_faces_are_in_the_phrasebook;
+    commit=WORKTREE]
   - a row may run a PeTTa-only setup and an explicitly recorded equivalent
     LeaTTa form; neither is silently sent to the other engine [tested:
     python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
@@ -559,7 +560,7 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         "|---|---|---|",
     ]
     out += [
-        f"| `{face.spelling}` | {face.meaning} | {_cell(face.example)} |"
+        f"| {_cell(face.spelling)} | {face.meaning} | {_cell(face.example)} |"
         for face in PUBLIC_FACES
     ]
     priced = [

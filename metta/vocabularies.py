@@ -255,11 +255,12 @@ class OnError(_AtomStrEnum):
     empty = "empty"
     abort = "abort"
 
-#: (vocabulary op-kind det many raw_det raw_many)
+#: (vocabulary op-kind det many async raw_det raw_many)
 class OpKind(_AtomStrEnum):
     """Typed values of the op-kind vocabulary."""
     det = "det"
     many = "many"
+    async_ = "async"
     raw_det = "raw_det"
     raw_many = "raw_many"
 

@@ -1,8 +1,13 @@
-"""examples/basics/identity.metta in Python: square a number, check the answer.
+"""Purpose: translate examples/basics/identity.metta into Python.
 
 The example defines `(= (f $x) (* $x $x))` and asserts `(f 1)` is 1. Here the
 definition is an ordinary Python function the engine compiles, and the claim
 is Python's own `assert`.
+
+Guarantees:
+  - the translated definition and assertion agree with the source example
+    inside the current inference budget [tested:
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
 """
 
 #: Inferences this twin spends, its own tripwire.
@@ -209,7 +214,24 @@ is Python's own `assert`.
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged tree with
 #: engine/reader.so; commit=WORKTREE].
-BUDGET = 2826
+#: RE-PINNED 2026-08-26, 2826 to 2801. The identity implementation is
+#: unchanged and its twin again costs exactly what the source example costs.
+#: The base worktree reads twin=2826 while this tree reads twin=2801, each
+#: stable across three fresh processes
+#: [measured: 2801 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=6aa5a678 base worktree against
+#: p14-audit-async with engine/reader.so; commit=WORKTREE].
+#: RE-PINNED 2026-08-26, 2801 to 2806, on the completed async-scheduler
+#: tree. The identity implementation and the example remain unchanged, and
+#: the example still reads 2801; the five-inference twin move is compiled
+#: program layout after the final lifecycle and exact-memo clauses landed.
+#: Three fresh serial processes agreed at 2806
+#: [measured: 2806 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=p14-audit-async with
+#: engine/reader.so; commit=WORKTREE].
+BUDGET = 2806
 
 
 def twin(m):

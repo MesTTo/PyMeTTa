@@ -1,14 +1,12 @@
-"""examples/libraries/tabling_fib.metta in Python: memoised recursion, declared once.
+"""examples/libraries/tabling_fib.metta in Python: tabled recursion, declared once.
 
-`@m.cache` is the whole file. It is the `functools.lru_cache` shape lowered onto
-the engine's tabling declaration, so it compiles the equations and declares the
-table in one act, in the order tabling requires: the function must exist before
-the name can be instrumented, which is why the example declares AFTER defining
-and why a decorator cannot get that wrong.
-
-Nothing here imports lib_tabling by hand. The declaration needs it and the
-decorator asks for it, which is what a declaration over a call means.
+The source example asks for SWI set tabling explicitly, so the twin does too.
+`@m.cache` instead promises an exact answer bag and uses the engine memo store;
+the two mechanisms agree on this exclusive Fibonacci definition but have
+different multiplicity laws.
 """
+
+from metta import S, V, lib
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
@@ -53,13 +51,32 @@ decorator asks for it, which is what a declaration over a call means.
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 91134
+#: RE-PINNED 2026-08-26, 91134 to 90639, because this twin now
+#: declares the example's SWI set table through `m += lib.tabling`
+#: and `(tabled (fib $n))`; `@m.cache` moved to the distinct exact-
+#: bag memo substrate and is no longer an equivalent spelling.
+#: Measured through tools/twin_coverage.py --measure --rounds 3 on
+#: this reader.so-bearing tree under the suite's two-sided +-4
+#: allowance.
+#: RE-PINNED 2026-08-26, 90639 to 90892, on the completed async-scheduler
+#: tree. This twin still uses the example's SWI set table and returns 832040;
+#: the movement is the compiled QLF and predicate-index layout after adding
+#: the scheduler, context callback, and exact-memo lifecycle clauses. Three
+#: fresh serial processes agreed at the new cost
+#: [measured: 90892 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/libraries/tabling_fib.metta; fixture=p14-audit-async with
+#: engine/reader.so; commit=WORKTREE].
+BUDGET = 90892
 
 
 def twin(m):
     """Define fib, table it, and take the thirtieth in linear time."""
-    @m.cache
+    m += lib.tabling
+
+    @m.define
     def fib(n):
         return n if n < 2 else fib(n - 1) + fib(n - 2)
 
+    m.eval(S.tabled(S.fib(V.n)))
     assert fib(30) == [832040]

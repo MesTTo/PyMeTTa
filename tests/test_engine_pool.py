@@ -13,6 +13,9 @@ Guarantees:
     [tested test_map_raises_every_failure_in_input_order]
   - close releases every engine and is idempotent
     [tested test_close_releases_every_engine, test_close_is_idempotent]
+  - submit and close are one linearized transition: every accepted job enters
+    the queue before worker stop sentinels [tested:
+    test_submit_and_close_linearize_accepted_work; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -218,6 +221,64 @@ def test_close_is_idempotent():  # noqa: D103  -- pytest discovers or injects th
     engine_pool.close()
     engine_pool.close()
     assert engine_pool.closed
+
+
+def test_submit_and_close_linearize_accepted_work():
+    """The accepted job precedes close's sentinel under the state lock."""
+    engine_pool = pool(workers=1)
+    job_reached_put = threading.Event()
+    allow_job_put = threading.Event()
+    accepted = []
+    submit_errors: list[BaseException] = []
+    original_lock = engine_pool._state_lock
+    original_put = engine_pool._work.put
+    closer: threading.Thread | None = None
+
+    class ObservedLock:
+        def __enter__(self):
+            if threading.current_thread() is closer and original_lock.locked():
+                # Fixed submit still owns the transition lock here, so let its
+                # delayed queue insertion finish before close can acquire it.
+                allow_job_put.set()
+            original_lock.acquire()
+            return self
+
+        def __exit__(self, *_exc_info):
+            original_lock.release()
+
+    def ordered_put(item, *args, **kwargs):
+        if item is None:
+            result = original_put(item, *args, **kwargs)
+            # In the broken ordering close reaches this sentinel while the job
+            # is delayed outside the state lock, deterministically putting it last.
+            allow_job_put.set()
+            return result
+        job_reached_put.set()
+        assert allow_job_put.wait(10)
+        return original_put(item, *args, **kwargs)
+
+    engine_pool._state_lock = ObservedLock()
+    engine_pool._work.put = ordered_put
+
+    def submit() -> None:
+        try:
+            accepted.append(engine_pool.submit(lambda: 42))
+        except BaseException as error:
+            submit_errors.append(error)
+
+    submitter = threading.Thread(target=submit)
+    submitter.start()
+    assert job_reached_put.wait(10)
+    closer = threading.Thread(target=engine_pool.close)
+    closer.start()
+    submitter.join(10)
+    closer.join(10)
+    assert not submitter.is_alive()
+    assert not closer.is_alive()
+    assert submit_errors == []
+    assert len(accepted) == 1
+    assert accepted[0].result(timeout=10) == 42
+    assert engine_pool._work.empty()
 
 
 def test_closed_pool_refuses_work():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

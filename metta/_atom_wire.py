@@ -25,6 +25,12 @@ Guarantees:
     restores only space names registered by Space plus the reserved future
     namespace [tested: test_an_ampersand_symbol_is_not_reclassified_as_a_space;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - a reserved future name decodes to FutureSpace with the active space as its
+    lifecycle owner, reusing the published runtime so a foreign landing
+    thread never waits behind the home call it is completing [tested:
+    test_an_async_operation_answers_a_future_space,
+    test_a_transaction_commits_async_launch_before_its_landing;
+    commit=WORKTREE]
   - object decoding removes every __petta_wire_value__ carrier by protocol,
     so transport classes cannot replace the carried object's identity
     [tested: test_bridge_answers_preserve_python_object_identity;
@@ -131,8 +137,16 @@ def _space_from_wire(payload: Any) -> Atom:
     if not payload.startswith("&"):
         msg = f"wire space payload must start with &, got {payload!r}"
         raise ValueError(msg)
-    space_type = importlib.import_module(f"{__package__}._space").Space
-    return space_type(payload)
+    engine_module = importlib.import_module(f"{__package__}._engine")
+    space_module = importlib.import_module(f"{__package__}._space")
+    active = engine_module.active_runtime()
+    engine = active if active is not None else engine_module.runtime()
+    space = space_module.Space(payload, _runtime=engine)
+    if payload.startswith("&future-"):
+        future_type = importlib.import_module(f"{__package__}.parallel").FutureSpace
+        owner = space_module.Space(space_module.current_space(), _runtime=space.runtime)
+        return future_type(space, owner)
+    return space
 
 
 def _string_from_wire(payload: Any) -> Atom:

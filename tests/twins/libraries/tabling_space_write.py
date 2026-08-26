@@ -9,10 +9,9 @@ two patterns.
 expression-position `match(space, pattern, template)` is read as syntax and
 emits the instruction, so `match(m, S.edge(x, y), y)` stores exactly the
 example's `(match &self (edge $x $y) $y)`, and `match(m, p, p)` passes its
-pattern straight through as a PARAMETER. The `@m.cache` door would declare the
-table in the same act, and does in tabling_fib; it cannot here, because caching
-refuses the two-argument form that lowers to `(context-space)` and this file's
-readers name their space.
+pattern straight through as a PARAMETER. SWI tabling stays an explicit
+`lib.tabling` declaration because `@m.cache` has the distinct exact-bag memo
+law.
 
 `twohop` stays at the container door, which is the residue entry this file
 carries. A conjunction pattern `(, p q)` has no compiled spelling: the receiver
@@ -82,7 +81,16 @@ from metta import S, V, equation, lib, match
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 63372
+#: RE-PINNED 2026-08-26, 63372 to 63560, on the completed async-scheduler
+#: tree. The six incremental-table claims and their answers are unchanged;
+#: the movement is the compiled QLF and predicate-index layout after adding
+#: scheduler, callback, and lifecycle clauses. Three fresh serial processes
+#: agreed at the new cost
+#: [measured: 63560 inferences; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/libraries/tabling_space_write.metta; fixture=p14-audit-async with
+#: engine/reader.so; commit=WORKTREE].
+BUDGET = 63560
 
 
 def twin(m):

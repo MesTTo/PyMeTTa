@@ -127,7 +127,7 @@ def test_the_ontology_loads_once(metta):  # noqa: D103  -- pytest discovers or i
 
 
 def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, monkeypatch):
-    """All four operation kinds are typed; docs follow the full lifecycle."""
+    """All five operation kinds are typed; docs follow the full lifecycle."""
     suffix = uuid.uuid4().hex
 
     def deterministic(value):
@@ -137,6 +137,10 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
     def nondeterministic(value):
         """Nondeterministic operation documentation."""
         yield value
+
+    async def asynchronous(value):
+        """Asynchronous operation documentation."""
+        return value
 
     functions = (
         (
@@ -167,9 +171,17 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
             "raw_many",
             EffectClass.nondeterministicReadOnly,
         ),
+        (
+            f"p5-async-{suffix}",
+            asynchronous,
+            "encoded",
+            "async",
+            EffectClass.pureStructural,
+        ),
     )
     reflection = metta._at("&petta")
     assert parse("(: OpKind Type)") in reflection
+    assert reflection.run("!(get-type async)") == [[parse("OpKind")]]
     assert parse("(: op (-> Symbol Number OpKind OpDecl))") in reflection
     for name, fn, transport, kind, effect in functions:
         metta.op(fn, name=name, transport=transport, effect=effect)

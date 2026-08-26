@@ -41,6 +41,10 @@ Guarantees:
   - each operation record carries its canonical EffectClass and exposes
     ``pure`` only as the structural-rank projection [tested:
     test_every_effect_rank_registers_and_reflects; commit=WORKTREE]
+  - a scheduler context token scopes deterministic, streaming, forward, and
+    inverse host dispatch alike [tested:
+    test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
+    commit=WORKTREE]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that
@@ -71,6 +75,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from typing import Any
 
+from . import _task_context
 from ._api_types import _OperationName, _SpaceId
 from ._atoms_core import _is_primitive, _unbox_wire_value, boxed
 from ._convert_build import build
@@ -84,11 +89,17 @@ __all__ = [
     "REGISTRY",
     "Operation",
     "dispatch",
+    "dispatch_context",
     "dispatch_inverse",
+    "dispatch_inverse_context",
     "dispatch_inverse_raw",
+    "dispatch_inverse_raw_context",
     "dispatch_many",
+    "dispatch_many_context",
     "dispatch_raw",
+    "dispatch_raw_context",
     "dispatch_raw_many",
+    "dispatch_raw_many_context",
 ]
 
 # The wire form the shim treats as failure rather than a value: the operation
@@ -102,7 +113,7 @@ class Operation:
 
     name: _OperationName
     fn: Callable[..., Any]
-    kind: str  # det | many | raw_det | raw_many
+    kind: str  # det | many | async | raw_det | raw_many
     arity: int
     effect: EffectClass
     pass_atoms: bool = False  # derived from (arguments name atoms)
@@ -177,15 +188,25 @@ def _encode_result(value: Any, annotation: Any = Any) -> list:
 def dispatch(name: str, tagged_args: list) -> list:
     """One answer, encoded; the declined sentinel for no answer."""
     op = REGISTRY[name]
-    annotations = (*op.parameter_annotations, *(Any for _ in tagged_args))
-    args = [
-        _decode_arg(argument, op.pass_atoms, annotation)
-        for argument, annotation in zip(tagged_args, annotations, strict=False)
-    ]
+    args = _decode_args(op, tagged_args)
     try:
         return _encode_result(op.fn(*args), op.return_annotation)
     except NotReducible:
         return _DECLINED
+
+
+def _decode_args(op: Operation, tagged_args: list) -> list[Any]:
+    """Decode one registered call using its annotation-derived boundary."""
+    annotations = (*op.parameter_annotations, *(Any for _ in tagged_args))
+    return [
+        _decode_arg(argument, op.pass_atoms, annotation)
+        for argument, annotation in zip(tagged_args, annotations, strict=False)
+    ]
+
+
+def dispatch_context(token: int, name: str, tagged_args: list) -> list:
+    """Run deterministic encoded dispatch in a spawned child Context."""
+    return _task_context.run(token, dispatch, name, tagged_args)
 
 
 def dispatch_inverse(name: str, tagged_result: Any):
@@ -214,6 +235,11 @@ def dispatch_inverse(name: str, tagged_result: Any):
         ]
 
 
+def dispatch_inverse_context(token: int, name: str, tagged_result: Any):
+    """Enumerate inverse rows under the spawned child Context."""
+    yield from _context_stream(token, dispatch_inverse(name, tagged_result))
+
+
 def dispatch_inverse_raw(name: str, result: Any):
     """The same relation for a raw operation, with janus's own conversions.
 
@@ -224,6 +250,11 @@ def dispatch_inverse_raw(name: str, result: Any):
     """
     for arguments in _preimages(name, _unbox(result)):
         yield [_rebox(argument) for argument in arguments]
+
+
+def dispatch_inverse_raw_context(token: int, name: str, result: Any):
+    """Enumerate raw inverse rows under the spawned child Context."""
+    yield from _context_stream(token, dispatch_inverse_raw(name, result))
 
 
 def _preimages(name: str, result: Any):
@@ -271,11 +302,7 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
     handler and pass through untouched.
     """
     op = REGISTRY[name]
-    annotations = (*op.parameter_annotations, *(Any for _ in tagged_args))
-    args = [
-        _decode_arg(argument, op.pass_atoms, annotation)
-        for argument, annotation in zip(tagged_args, annotations, strict=False)
-    ]
+    args = _decode_args(op, tagged_args)
     relation_schema = _relation_schema(op, len(tagged_args))
     # closing/1 rather than a bare loop: the stream is one-shot and this is
     # what consumed it. A "many" operation is a generator function by
@@ -314,6 +341,30 @@ def dispatch_many(name: str, tagged_args: list, mode: str = "abort"):
             )
             reason = f"{type(error).__name__}: {error}"
             yield Expression([Symbol("Error"), call, Grounded(reason)]).to_wire()
+
+
+def dispatch_many_context(
+    token: int,
+    name: str,
+    tagged_args: list,
+    mode: str = "abort",
+):
+    """Pull every encoded stream item in the spawned child Context."""
+    yield from _context_stream(token, dispatch_many(name, tagged_args, mode))
+
+
+def _context_stream(token: int, stream: Any):
+    """Enter one retained Context for every pull and for stream release."""
+    try:
+        while True:
+            try:
+                yield _task_context.run(token, next, stream)
+            except StopIteration:
+                return
+    finally:
+        close = getattr(stream, "close", None)
+        if close is not None:
+            _task_context.run(token, close)
 
 
 class _RelationContractError(PettaError):
@@ -489,6 +540,11 @@ def dispatch_raw(name: str, args: list) -> Any:
         return None
 
 
+def dispatch_raw_context(token: int, name: str, args: list) -> Any:
+    """Run deterministic raw dispatch in a spawned child Context."""
+    return _task_context.run(token, dispatch_raw, name, args)
+
+
 def dispatch_raw_many(name: str, args: list):
     try:
         with closing(REGISTRY[name].fn(*[_unbox(a) for a in args])) as answers:
@@ -499,6 +555,11 @@ def dispatch_raw_many(name: str, args: list):
         if _failed_during_generator_close(error):
             raise
         yield _stream_error(error)
+
+
+def dispatch_raw_many_context(token: int, name: str, args: list):
+    """Pull every raw stream item in a spawned child Context."""
+    yield from _context_stream(token, dispatch_raw_many(name, args))
 
 
 def _refuse_raw_relation_candidate(value: Any) -> None:
