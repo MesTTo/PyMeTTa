@@ -685,6 +685,58 @@ def test_check_instructions_reports_every_failing_case(tmp_path):
     assert "gamma" in failures[1]
 
 
+def test_a_declared_instruction_band_survives_a_re_pin(tmp_path):
+    """Re-pinning re-measures the count and leaves the declared band standing.
+
+    A row's instruction count is measured; the noise percent beside it is
+    declared by hand with the measurement that justified it. Every
+    ``--update`` wrote the 1.0 default back over both declarations in
+    baseline.json: typed-call's 5.0, raised for a code-layout swing measured
+    at 3.13%, and json-wire's 2.5, widened for one measured at 1.56%. Each
+    lane was left gated inside its own noise, where it goes red for layout
+    and is then re-pinned past a real regression. This drives the re-pin
+    route the runner uses, ``observe_all`` against an update-mode baseline,
+    with a second row that declares nothing as the control.
+    """
+    from benchmarks.check_instructions import observe_all
+
+    path = tmp_path / "baseline.json"
+    updating = BenchmarkBaseline(path, update=True)
+    for name in ("layout-sensitive", "ordinary"):
+        updating.observe_counter(name, unit="calls", operations=1, samples=None)
+        updating.observe_instructions(name, [1_000, 1_000, 1_000])
+    updating.finish()
+
+    document = json.loads(path.read_text())
+    assert document["benchmarks"]["ordinary"]["instruction_noise_percent"] == 1.0
+    document["benchmarks"]["layout-sensitive"]["instruction_noise_percent"] = 5.0
+    path.write_text(json.dumps(document))
+
+    repinning = BenchmarkBaseline(path, update=True)
+    assert (
+        observe_all(
+            repinning,
+            ["layout-sensitive", "ordinary"],
+            lambda _name: [2_000, 2_000, 2_000],
+        )
+        == []
+    )
+    repinning.finish()
+
+    rows = json.loads(path.read_text())["benchmarks"]
+    assert rows["layout-sensitive"]["instructions"] == 2_000
+    assert rows["layout-sensitive"]["instruction_noise_percent"] == 5.0
+    assert rows["ordinary"]["instructions"] == 2_000
+    assert rows["ordinary"]["instruction_noise_percent"] == 1.0
+
+    # The declaration reaches the gate and not only the file: 4% over the
+    # fresh pin passes on the widened row and fails on the row that kept 1.0.
+    comparing = BenchmarkBaseline(path)
+    assert comparing.observe_instructions("layout-sensitive", [2_080] * 3) == 2_080
+    with pytest.raises(AssertionError, match="instruction regression"):
+        comparing.observe_instructions("ordinary", [2_080] * 3)
+
+
 def test_baseline_remove_case_is_update_only(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / "baseline.json"
     updating = BenchmarkBaseline(path, update=True)

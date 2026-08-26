@@ -10,8 +10,11 @@ Guarantees:
   - counter slopes compare the inference growth between two fixed workload
     sizes, with fresh state at each point and the same two-sided band
     [tested test_benchmark_counter_slope_uses_fresh_state_and_gates_growth]
-  - instruction pins band on both sides of the noise allowance [tested
-    test_baseline_bands_instructions_on_both_sides]
+  - instruction pins band on both sides of the noise allowance, and a row's
+    DECLARED band survives every re-pin: the count is measured, the band is
+    declared, and an update writes only the count [tested
+    test_baseline_bands_instructions_on_both_sides,
+    test_a_declared_instruction_band_survives_a_re_pin]
   - counter comparisons declare their measurement configuration and refuse a
     missing or differing stamp, because artifact presence alone has moved a
     pin 12x with zero code change [tested
@@ -60,6 +63,14 @@ _COUNTER_SAMPLES = 3
 # magnitude below anything worth catching, while a real per-operation shift
 # still lands far above the allowance.
 _COUNTER_TOLERANCE = 4
+# The band an instruction row gets when it declares none. It is a DEFAULT and
+# never a policy the measurement path imposes: a row whose layout noise was
+# measured wider declares its own percent beside the reason, and re-pinning
+# re-measures the count while leaving that declaration standing. Writing this
+# value back on every update reverted typed-call's measured 5.0 and json-wire's
+# 2.5 in silence, so both lanes stood gated tighter than their own documented
+# noise (3.13% and 1.56%) and would go red for code layout alone.
+_INSTRUCTION_NOISE_PERCENT = 1.0
 
 
 def count_atoms(atom: Any) -> int:
@@ -262,21 +273,11 @@ def _compare_counter_slope(
     return observed
 
 
-def _instruction_observation(
-    name: str,
-    samples: Sequence[int],
-    noise_percent: float,
-) -> int:
-    invalid_samples = len(samples) < _COUNTER_SAMPLES or any(
+def _instruction_observation(name: str, samples: Sequence[int]) -> int:
+    if len(samples) < _COUNTER_SAMPLES or any(
         not isinstance(value, int) or isinstance(value, bool) or value <= 0
         for value in samples
-    )
-    invalid_noise = (
-        isinstance(noise_percent, bool)
-        or not isinstance(noise_percent, (int, float))
-        or noise_percent < 0
-    )
-    if invalid_samples or invalid_noise:
+    ):
         msg = f"invalid instruction samples for {name}: {samples!r}"
         raise ValueError(msg)
     return min(samples)
@@ -293,7 +294,11 @@ def _compare_instructions(
     if not isinstance(baseline, int) or baseline <= 0:
         msg = f"{name} has no valid instruction baseline"
         raise AssertionError(msg)
-    if not isinstance(allowance, (int, float)) or allowance < 0:
+    if (
+        isinstance(allowance, bool)
+        or not isinstance(allowance, (int, float))
+        or allowance < 0
+    ):
         msg = f"{name} has no valid instruction noise allowance"
         raise AssertionError(msg)
     ceiling = baseline * (1.0 + allowance / 100.0)
@@ -344,7 +349,9 @@ class BenchmarkBaseline:
                     "slopes decide; wall time advises"
                 ),
                 "instruction_policy": (
-                    "perf instructions:u minimum of three, one percent noise allowance"
+                    "perf instructions:u minimum of three, one percent noise "
+                    "allowance unless a row declares its own beside the "
+                    "measurement that justified it"
                 ),
                 "benchmarks": {},
             }
@@ -503,22 +510,23 @@ class BenchmarkBaseline:
         if self.update:
             case["wall_seconds_per_operation"] = seconds_per_operation
 
-    def observe_instructions(
-        self,
-        name: str,
-        samples: Sequence[int],
-        *,
-        noise_percent: float = 1.0,
-    ) -> int:
-        """Record or compare perf's retired-instruction counter."""
-        observed = _instruction_observation(name, samples, noise_percent)
+    def observe_instructions(self, name: str, samples: Sequence[int]) -> int:
+        """Record or compare perf's retired-instruction counter.
+
+        The count is measured; the noise band beside it is DECLARED, so an
+        update writes the fresh count and leaves the declaration standing.
+        A row whose band was widened for measured layout noise keeps that
+        band across every re-pin, and a row that declares none is filled
+        with the default once.
+        """
+        observed = _instruction_observation(name, samples)
         if self.update:
             case = self._document["benchmarks"].get(name)
             if case is None:
                 msg = f"benchmark {name!r} has no wall/counter baseline"
                 raise KeyError(msg)
             case["instructions"] = observed
-            case["instruction_noise_percent"] = noise_percent
+            case.setdefault("instruction_noise_percent", _INSTRUCTION_NOISE_PERCENT)
             return observed
 
         case = self._document["benchmarks"].get(name)
