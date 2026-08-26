@@ -20,6 +20,8 @@ Guarantees:
     - a length costs one evaluation of an effect-bearing goal, whether or not
       the values are then wanted [tested:
       test_a_length_evaluates_an_effect_bearing_goal_exactly_once]
+    - the values-wanted hint a count source is given picks a route and never
+      an answer [tested: test_taking_an_iterator_first_does_not_change_the_answers]
     - the retained bag survives an arbitrary generated answer multiset
       [tested: test_a_generated_answer_bag_survives_both_routes]
 Open Obligations:
@@ -199,6 +201,37 @@ def test_a_repeatable_count_still_leaves_its_cursor_to_run(metta) -> None:
     # Nothing was held, so this pull is the goal's own evaluation and reads
     # the row written after the count.
     assert bag(view) == Counter({"1": 1, "2": 1})
+
+
+def test_taking_an_iterator_first_does_not_change_the_answers(metta) -> None:
+    """The values-wanted hint picks a route and nothing else.
+
+    ``list(view)`` asks for an iterator before it asks for a length hint, and
+    a count source may use that to skip holding answers the caller is about
+    to read. Whether it does or not, the length and the bag are the same, and
+    an effect fires once. What the hint IS worth is a cost the corpus lane
+    measures, not a different answer.
+    """
+    name = unique("route-hint")
+    fired: list[int] = []
+
+    @metta.op(name=name, effect="writesState")
+    def hinted(limit):
+        for index in range(limit):
+            fired.append(index)
+            yield index
+
+    hinted_first = metta.fn[name](3)
+    rows = iter(hinted_first)
+    assert len(hinted_first) == 3
+    assert [str(answer) for answer in rows] == ["0", "1", "2"]
+    assert fired == [0, 1, 2]
+
+    fired.clear()
+    counted_first = metta.fn[name](3)
+    assert len(counted_first) == 3
+    assert [str(answer) for answer in counted_first] == ["0", "1", "2"]
+    assert fired == [0, 1, 2]
 
 
 @settings(deadline=None, max_examples=25)

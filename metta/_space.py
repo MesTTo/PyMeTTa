@@ -1852,7 +1852,10 @@ class Space(Handle):
             space=self._space,
             target=patterns,
             query=query_context,
-            count=lambda: query_count(
+            # A pattern query reads and writes nothing, so counting it is
+            # always the cheap engine aggregate; the route hints a count
+            # source may be given change nothing here.
+            count=lambda **_route: query_count(
                 self._rt,
                 self._space,
                 patterns,

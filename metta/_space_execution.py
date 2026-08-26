@@ -553,7 +553,7 @@ def evaluate_answers(
     #: every pull, and only while the view is still pristine.
     retained: list[Any] = []
 
-    def count_answers() -> int | None:
+    def count_answers(*, values_wanted: bool) -> int | None:
         counted = evaluate_count_if_repeatable(
             rt,
             space,
@@ -563,10 +563,13 @@ def evaluate_answers(
             using=using,
             under=under,
         )
-        if counted is not None or under is not None:
-            # A carrier cursor answers an annotation beside every value, a
-            # shape the retaining door does not hold, so its declined count
-            # still counts through one materializing pass.
+        if counted is not None or under is not None or values_wanted:
+            # Three ways this count is already the cheapest one available.
+            # An effect-safe goal counts on its own engine. A carrier cursor
+            # answers an annotation beside every value, a shape the holding
+            # door does not carry. And a caller that has taken an iterator is
+            # about to read the answers, so holding them to avoid a second
+            # evaluation buys nothing that one materializing pass does not.
             return counted
         count, handle = _retain_and_count(
             rt,
