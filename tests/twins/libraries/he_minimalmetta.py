@@ -67,7 +67,11 @@ from metta import S, V, equation, lib
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 105850672
+#: RE-PINNED 2026-08-26, 105850672 to 104380670 (-1470002): an unre-pinned
+#: improvement of the same era as c7468b27's algebra-tower routing,
+#: stable across every later bracket probe [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 104380670
+
 
 #: The 70,000-step interpreter exercise states a budget above the engine default.
 DEEP_STACK = (S.max_stack_depth(1_000_000),)

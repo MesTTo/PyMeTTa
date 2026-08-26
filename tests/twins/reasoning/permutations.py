@@ -54,7 +54,11 @@ SLOT = (V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"])
 #: shipping tree [measured 2026-08-25 through
 #: tools/twin_coverage.py --measure min-of-3 after a canonical
 #: single-boot QLF regeneration].
-BUDGET = 50760323
+#: RE-PINNED 2026-08-26, 50760323 to 27172201 (-23588122): c7468b27 routed the
+#: algebra carriers' counting through the algebra tower and this twin's
+#: enumeration got 1.87x cheaper; the improvement was never re-pinned
+#: when it landed [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 27172201
 
 
 def ne(left, right):

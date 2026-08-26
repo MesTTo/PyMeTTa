@@ -58,7 +58,28 @@ from metta import S, V, lib
 #: Measured through tools/twin_coverage.py --measure --rounds 3 on
 #: this reader.so-bearing tree under the suite's two-sided +-4
 #: allowance.
-BUDGET = 90639
+#: RE-PINNED 2026-08-26, 90639 to 86995, when get_native_atom gained
+#: head-indexed clauses for open-tail bound-head patterns. The tabling
+#: library's per-equation `'get-atoms'('&petta', [tabled|_])` existence
+#: probe had walked the whole catalog, 23.7 inferences per row over this
+#: load; the catalog's growth had silently pushed the twin to 99,336
+#: before the fix, and the 90639 pin itself already carried the walk over
+#: the smaller pre-visibility catalog, so the twin recovers past it. The
+#: example drops 16.7%, 73800 to 61464 [measured: metta=61464 twin=86995;
+#: command=python bindings/python/tools/twin_coverage.py --measure
+#: --rounds 3 examples/libraries/tabling_fib.metta; fixture=open-tail-index
+#: tree with engine/reader.so; commit=WORKTREE].
+#: RE-PINNED 2026-08-26, 86995 to 86938 (-57), by the open-tail-index
+#: pricing pass, one sweep over the whole corpus after four attributed
+#: engine movements: the writable-specialization merge 5c731b03 prices
+#: each lazily translated match-bearing equation (~+1,500, first-call
+#: probe 2,208 to 3,724 across that merge alone;
+#: ai-brief-p14-specializer-translation-tax names the follow-up), the
+#: relational-candidate rows of 6917bef7, and the open-tail head-index
+#: and deprecation apply-seam fixes recovering their shares; the
+#: remainder is compiled-image layout, the class this file's own chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 86938
 
 
 def twin(m):

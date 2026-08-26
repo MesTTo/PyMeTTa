@@ -68,7 +68,17 @@ from metta import S, V, counting, fn
 #: Peano answers are never materialized and counting stays linear [measured:
 #: 103089 inferences; command=python bindings/python/tools/twin_coverage.py;
 #: fixture=full-lane 2500 successors; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
-BUDGET = 103089
+#: RE-PINNED 2026-08-26, 103089 to 103139 (+50), by the open-tail-index
+#: pricing pass, one sweep over the whole corpus after four attributed
+#: engine movements: the writable-specialization merge 5c731b03 prices
+#: each lazily translated match-bearing equation (~+1,500, first-call
+#: probe 2,208 to 3,724 across that merge alone;
+#: ai-brief-p14-specializer-translation-tax names the follow-up), the
+#: relational-candidate rows of 6917bef7, and the open-tail head-index
+#: and deprecation apply-seam fixes recovering their shares; the
+#: remainder is compiled-image layout, the class this file's own chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 103139
 
 
 def twin(m):

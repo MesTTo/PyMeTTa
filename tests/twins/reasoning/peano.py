@@ -66,7 +66,10 @@ from metta import S, V, fn, match, superpose
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 2027858
+#: RE-PINNED 2026-08-26, 2027858 to 2396413 (+368555): 6917bef7's relational
+#: candidate rows, measured 2,027,856 to 2,394,524 at the exact pair;
+#: ai-brief-p14-relational-ops-fastpath carries the follow-up [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 2396413
 
 
 def twin(m):

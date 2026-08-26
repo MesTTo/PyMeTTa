@@ -72,7 +72,11 @@ from metta import Expression, S, V, lib
 #: so the whole corpus re-pins once on the exact release tree
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
-BUDGET = 763218
+#: RE-PINNED 2026-08-26, 763218 to 800064 (+36846): ~30 definitions each
+#: paying 5c731b03's per-translated-equation specializer bookkeeping
+#: (ai-brief-p14-specializer-translation-tax), plus 6917bef7's small
+#: share and layout [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 800064
 
 
 def twin(m):

@@ -74,7 +74,14 @@ RUNG = (
 #: [measured: 32666757 inferences;
 #: command=python bindings/python/tools/twin_coverage.py;
 #: fixture=full-lane 390 doublings and 1063919 answers; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
-BUDGET = 32666757
+#: RE-PINNED 2026-08-26, 32666757 to 116492891 (+83826134): 6917bef7 made encoded
+#: generator tuple yields cross as relational candidate rows the engine
+#: unifies per row, where they had been direct emissions; this twin's
+#: move generators pay it on every yielded move. Measured at the exact
+#: pair: 32,666,762 at a58e3d17 and 116,491,178 at 6917bef7. The answers
+#: are unchanged; ai-brief-p14-relational-ops-fastpath carries the
+#: ground-direction fast path [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 116492891
 
 
 def twin(m):
