@@ -77,10 +77,22 @@ def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the 
     ] == [S.one_of(S.fidelity)]
 
     # Orderedness is a claim on a semiring value, which is what (top k ...)
-    # consults rather than a word list compiled into the engine.
+    # consults rather than a word list compiled into the engine. The claim
+    # carries the DIRECTION beside the property, because ordered alone does
+    # not say which end a top-k slice takes: ranked counts down from the
+    # best, tropical counts up from the cheapest.
     assert [
-        row.p for row in reflection[S.claim(S.semiring, S[Semiring.ranked], V.p)]
-    ] == [S.ordered]
+        (row.p, row.direction)
+        for row in reflection[
+            S.claim(S.semiring, S[Semiring.ranked], V.p, V.direction)
+        ]
+    ] == [(S.ordered, S.descending)]
+    assert [
+        (row.p, row.direction)
+        for row in reflection[
+            S.claim(S.semiring, S[Semiring.tropical], V.p, V.direction)
+        ]
+    ] == [(S.ordered, S.ascending)]
 
     # A third-party kind is the same machinery: declare its vocabulary and its
     # shape, and the same checker guards it.
