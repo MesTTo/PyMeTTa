@@ -13,14 +13,12 @@ asserting a clause invalidates all affected tables" and closes with "Future
 versions may implement a more fine grained approach". Reading the counters
 BEFORE the next call is what shows it, because they are cumulative.
 
-DEFECT, and it decides how the counters are read. Each of the six reads ought
-to be `m.fn.table_stats(S.reach(V.x, V.y))`, the call door. Every LAZY door,
-the function namespace and `m.answers` alike, answers all five counters as
-zero where `m.eval` answers `(tables 1) (answers 1) (complete-call 1)` for the
-same subgoal, inside a `m.stats()` scope and outside one: a lazy pull runs on
-the held cursor's own SWI engine and SWI's tabling statistics are per-engine
-[measured again 2026-08-24; commit=1e264c186c531e69acde5ad03ff6a79210626df4]. So the counters come back through
-`eval`, the term door.
+Each counter read uses `m.fn.table_stats(S.reach(V.x, V.y))`, the live call
+door. A lazy pull runs on the held cursor's own SWI engine, so lib_tabling
+declares shared SWI tables: the cursor, the source runner and the next cursor
+all enter one answer trie and see one set of statistics. A private table here
+answered the right values while disappearing with its cursor, leaving every
+counter at zero at the next door.
 
 A second thing does have to be forced: a call is LAZY, so `reach(S.a, V.y)` on
 its own performs no engine work and the counters below it would all read zero
@@ -99,29 +97,31 @@ def twin(m):
         return match(m, S.edge(x, y), y)
 
     m.eval(S.tabled(S.reach(V.x, V.y)))
-    subgoal = S.table_stats(S.reach(V.x, V.y))
+    call = S.reach(V.x, V.y)
+
+    def stats():
+        [counted] = m.fn.table_stats(call)
+        return list(counted)
 
     # Nothing has happened yet: one call, one answer, no invalidation.
-    assert list(reach(S.a, V.y)) == [S.b]
-    [counted] = m.eval(subgoal)
-    assert list(counted) == UNTOUCHED
+    # Iterating the view explicitly avoids list()'s separate cardinality hint:
+    # this is one live call, and complete-call therefore reads one.
+    assert list(iter(reach(S.a, V.y))) == [S.b]
+    assert stats() == UNTOUCHED
 
     # A write under a key this subgoal does not read leaves the table alone.
     # Not "leaves the answers alone", which a rebuild would too: the table is
     # never invalidated at all.
     m += S.edge(S.b, S.d)
-    [counted] = m.eval(subgoal)
-    assert list(counted) == UNTOUCHED
+    assert stats() == UNTOUCHED
 
     # Nor does an atom with a different head in the same space.
     m += S.unrelated(S.x, S.y)
-    [counted] = m.eval(subgoal)
-    assert list(counted) == UNTOUCHED
+    assert stats() == UNTOUCHED
 
     # A write under a key it DOES read invalidates, and only that.
     m += S.edge(S.a, S.c)
-    [counted] = m.eval(subgoal)
-    assert list(counted) == [
+    assert stats() == [
         S.tables(1), S.answers(1), S.complete_call(1),
         S.invalidated(1), S.reevaluated(0),
     ]
@@ -129,9 +129,9 @@ def twin(m):
     # Re-evaluation is on demand, so it takes a call. reevaluated LOWER than
     # invalidated would be SWI deciding a dependency changed without changing
     # this table's answers, which is the incremental win rather than a rebuild.
+    # The shared table has completed one original call and one re-evaluation.
     assert sorted(reach(S.a, V.y)) == [S.b, S.c]
-    [counted] = m.eval(subgoal)
-    assert list(counted) == [
-        S.tables(1), S.answers(2), S.complete_call(3),
+    assert stats() == [
+        S.tables(1), S.answers(2), S.complete_call(2),
         S.invalidated(1), S.reevaluated(1),
     ]

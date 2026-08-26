@@ -16,7 +16,7 @@ Open Obligations:
 
 import pytest
 
-from metta import S, V, reflection
+from metta import S, V, catalog, match, reflection
 from metta.errors import EngineError
 
 
@@ -125,11 +125,83 @@ def test_declarations_reflect_into_petta(m):
     m.run("(= (reflected-fn $n) (+ $n 1))")
     assert m.run("!(tabled (reflected-fn $n))") == [[True]]
     pattern = S.tabled(S[m.name], S["reflected-fn"], V.a)
-    assert [row.a for row in reflection.match(pattern)] == [1]
+    assert [row.a for row in catalog.match(pattern)] == [1]
     assert m.run("!(tabled (reflected-fn $n))") == [[True]]
-    assert len(reflection.match(pattern)) == 1
+    assert len(catalog.match(pattern)) == 1
     assert m.run("!(untabled (reflected-fn $n))") == [[True]]
-    assert not reflection.match(pattern)
+    assert not catalog.match(pattern)
+
+
+def test_tabled_and_defined_catalog_rows_are_schema_checked(m):
+    """The two reflection heads are declared catalog vocabulary, so their
+    stored rows are queryable and malformed lookalikes are refused at write.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    assert catalog.match(S.kind(S.tabled, S.symbol, S.symbol, S.integer))
+    assert catalog.match(S.kind(S.defined, S.symbol, S.symbol))
+    with pytest.raises(EngineError, match="does not fit its declared kind"):
+        m.run("!(add-atom &petta (tabled &bad missing-arity))")
+    with pytest.raises(EngineError, match="does not fit its declared kind"):
+        m.run("!(add-atom &petta (defined &bad))")
+
+
+def test_live_call_populates_the_shared_table(m):
+    """The Python Answers door runs on a held SWI engine cursor. Its first
+    pull enters the declared predicate and leaves a shared table visible to
+    the next door, including the engine's statistics service.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    m.add(S.live_route_edge(S.a, S.b))
+
+    @m.define(name="live-route-reach")
+    def live_route_reach(x, y):
+        return match(m, S.live_route_edge(x, y), y)
+
+    call = S["live-route-reach"](V.x, V.y)
+    assert m.eval(S.tabled(call)) == [True]
+    try:
+        assert list(iter(live_route_reach(S.a, V.y))) == [S.b]
+        [counted] = m.fn.table_stats(call)
+        assert list(counted) == [
+            S.tables(1),
+            S.answers(1),
+            S.complete_call(1),
+            S.invalidated(0),
+            S.reevaluated(0),
+        ]
+    finally:
+        assert m.eval(S.untabled(call)) == [True]
+
+
+def test_a_second_live_call_reuses_the_table_but_an_undeclared_control_does_not(m):
+    """Measure the routing consequence, not only the table property: an
+    identical live call reuses completed shared subgoals while the same
+    undeclared recursion performs its exponential work again.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    refusal = S.cache(S["live-reuse-control"], S.refuse)
+    catalog.add(refusal)
+
+    @m.define(name="live-reuse-tabled")
+    def live_reuse_tabled(n):
+        return n if n < 2 else live_reuse_tabled(n - 1) + live_reuse_tabled(n - 2)
+
+    @m.define(name="live-reuse-control")
+    def live_reuse_control(n):
+        return n if n < 2 else live_reuse_control(n - 1) + live_reuse_control(n - 2)
+
+    declaration = S["live-reuse-tabled"](V.n)
+    assert m.eval(S.tabled(declaration)) == [True]
+    try:
+        assert list(iter(live_reuse_tabled(18))) == [2584]
+        with m.stats() as tabled_second:
+            assert list(iter(live_reuse_tabled(18))) == [2584]
+
+        assert list(iter(live_reuse_control(18))) == [2584]
+        with m.stats() as control_second:
+            assert list(iter(live_reuse_control(18))) == [2584]
+
+        assert tabled_second.inferences < control_second.inferences / 20
+    finally:
+        assert m.eval(S.untabled(declaration)) == [True]
+        catalog.remove(refusal)
 
 
 def _module_table_count(runtime, space_name):
