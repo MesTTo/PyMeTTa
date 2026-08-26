@@ -57,7 +57,7 @@ Guarantees:
     about to read them [measured 2026-08-26: without the hint, list() on an
     effect-bearing view paid the holding evaluation and ten corpus twins rose
     by 9 to 256 inferences; command=python
-    bindings/python/tools/twin_coverage.py; commit=WORKTREE]
+    bindings/python/tools/twin_coverage.py; commit=bbadc684deb3bdbe3426c44b64685717692c1dbc]
   - one(default=) distinguishes absence from multiplicity for both eager and
     lazy faces, while first without a default never returns None [tested:
     test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
