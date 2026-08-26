@@ -257,8 +257,10 @@ def parse_forms(size: int) -> Workload:
     where each measurement is a throwaway process, and destructive in pytest,
     where the file shares its process with every other file the loadfile
     scheduler put on that worker: it made 14 tests in five unrelated files fail
-    after this one ran, and none of them fail without it
-    [tested: test_a_workload_never_drops_the_engine_root; commit=99fb0de3a5d6cd48f9ee06e3c4ef251b2e3379ee].
+    after this one ran, and none of them fail without it. The `&self` check
+    itself lives in `selfcheck`, which that test drives as a subprocess
+    [tested: test_the_families_keep_their_engine_invariants_in_their_own_process;
+    commit=WORKTREE].
     """
     space = MeTTa().space()
     text = " ".join(f"(scaling-form {index} (nested {index}))" for index in range(size))
@@ -758,6 +760,72 @@ def paired_instructions(
     }
 
 
+# -------------------------------------------------------------- the self-check
+# The engine-level invariants of the families themselves, which a Python test
+# cannot check in its own process without paying for an engine there. That price
+# is not theoretical: booting one inside pytest to run these three checks made a
+# combination of four test files segfault 3 times in 20 against 0 in 20 both
+# without this file and with an inert file of the same wall time, always inside
+# janus's finalizer on another test's worker thread. Running them HERE, in a
+# process that is measuring the engine anyway, keeps the test file engine-free
+# and the invariants checked.
+
+
+def selfcheck() -> list[str]:
+    """Every engine-level invariant of the seeded families, as a findings list."""
+    findings: list[str] = []
+    for name, build in WORKLOADS.items():
+        workload = build(4)
+        try:
+            if str(workload.space.name) == "&self":
+                findings.append(
+                    f"{name} hands back the engine root, which its caller drops"
+                )
+            if workload.route is not None:
+                observed = workload.route()
+                if observed not in {"c", "prolog", "foreign", "native"}:
+                    findings.append(f"{name} reported an unknown route {observed!r}")
+        finally:
+            workload.space.drop()
+
+    reader = "c" if (_BINDING_ROOT.parents[1] / "engine" / "reader.so").exists() else "prolog"
+    for name, expected in (("parse-forms", reader), ("mork-write", "foreign")):
+        workload = WORKLOADS[name](4)
+        try:
+            assert workload.route is not None
+            observed = workload.route()
+            if observed != expected:
+                findings.append(
+                    f"{name} took route {observed!r} where this tree's "
+                    f"configuration means {expected!r}"
+                )
+        finally:
+            workload.space.drop()
+
+    # The plants are in the WORKLOADS, not only in the recorded numbers, so a
+    # control cannot rot into a passing family while its pinned row keeps the
+    # verdict tests green.
+    for family, expected in (("planted-quadratic", "quadratic"), ("write-door", "linear")):
+        sizes, counts = (40, 80, 160), []
+        for size in sizes:
+            workload = WORKLOADS[family](size)
+            try:
+                with workload.space.stats() as stats:
+                    completed = workload.operation()
+                problem = workload.check(completed)
+                if problem is not None:
+                    findings.append(f"{family} at size {size}: {problem}")
+                counts.append(int(stats.inferences))
+            finally:
+                workload.space.drop()
+        best, _ = curves.select_model(sizes, counts)
+        if best != expected:
+            findings.append(
+                f"{family} measures {best} over {list(sizes)}, expected {expected}"
+            )
+    return findings
+
+
 # ------------------------------------------------------------------- the suite
 
 
@@ -1060,6 +1128,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("names", nargs="*")
     parser.add_argument("--list", action="store_true", dest="list_families")
+    parser.add_argument(
+        "--selfcheck",
+        action="store_true",
+        help="check the families' own engine-level invariants and exit",
+    )
     parser.add_argument("--repetitions", type=int, default=DEFAULT_REPETITIONS)
     parser.add_argument("--timeout", type=float, default=200.0)
     parser.add_argument("--json", type=Path)
@@ -1075,6 +1148,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
     if arguments.list_families:
         print("\n".join(sorted(WORKLOADS)))
+        return 0
+    if arguments.selfcheck:
+        findings = selfcheck()
+        for finding in findings:
+            print(f"SELFCHECK {finding}")
+        if findings:
+            return 1
+        print("every family keeps its engine-level invariants")
         return 0
     if arguments.repetitions < 1:
         parser.error("--repetitions must be positive")

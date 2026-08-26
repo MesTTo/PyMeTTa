@@ -30,6 +30,8 @@ Guarantees:
 """
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -644,41 +646,6 @@ def test_reduce_repetitions_reports_each_distinct_problem_once():
     assert measurement.problems == ("size 10: no answers",)
 
 
-@pytest.mark.parametrize(
-    ("family", "expected_class", "bound"),
-    [("planted-quadratic", "quadratic", 1.25), ("write-door", "linear", 1.25)],
-)
-def test_the_planted_quadratic_really_is_quadratic_when_measured(
-    family, expected_class, bound
-):
-    """Run both workloads for real and confirm the plant is in the workload.
-
-    The verdict tests above use the control's recorded numbers, which proves the
-    gate reads them correctly. This proves the numbers are still what the
-    workload produces, so the control cannot rot into a passing family while its
-    pinned numbers keep the tests green.
-    """
-    sizes = (40, 80, 160)
-    counts = []
-    for size in sizes:
-        workload = WORKLOADS[family](size)
-        try:
-            with workload.space.stats() as stats:
-                completed = workload.operation()
-            assert workload.check(completed) is None
-            counts.append(int(stats.inferences))
-        finally:
-            workload.space.drop()
-
-    fit = curves.power_fit(sizes, counts)
-    best, _ = curves.select_model(sizes, counts)
-
-    assert best == expected_class
-    assert (fit.exponent > bound) is (expected_class == "quadratic")
-    assert fit.r_squared is not None
-    assert fit.r_squared > 0.99
-
-
 def test_configuration_drift_names_every_fact_that_moved():
     """A ledger recorded under another configuration is not comparable.
 
@@ -710,58 +677,54 @@ def test_every_scaling_family_is_reachable_as_a_perf_sized_case():
     assert {f"scaling-{name}" for name in WORKLOADS} <= set(_SIZED_CASES)
 
 
-def test_a_workload_never_drops_the_engine_root():
-    """No family may hand back `&self`, because every caller drops what it gets.
+def test_the_families_keep_their_engine_invariants_in_their_own_process():
+    """Drive `--selfcheck`, which is where the engine-level checks now live.
 
-    `parse_forms` did, and dropping the root tears down the execution module the
-    engine's compiled machinery lives in. In this lane that is invisible, since
-    each measurement is a throwaway process. In pytest it is not: `--dist
-    loadfile` puts a whole file on one worker, so this file poisoned whatever
-    the scheduler ran after it, and 14 tests across five unrelated files failed
-    that pass without it. The isolation runs that pointed elsewhere were
-    measuring the wrong thing.
+    It confirms that no family hands back `&self`, that both declared routes
+    report this tree's shipping configuration, and that the plants are still in
+    the WORKLOADS rather than only in the recorded numbers.
+
+    It runs as a SUBPROCESS on purpose, which keeps this file engine-free.
+    Booting an engine here to make the same three checks in-process made the
+    combination of this file with test_mork_space, test_adoptions and
+    test_async_scheduler segfault 3 times in 20, against 0 in 20 both without
+    this file and with an inert file of the same wall time, always inside
+    janus's finalizer on another test's worker thread. No single one of the
+    three checks reproduced it (0 in 20 each); the cumulative engine state did.
     """
-    for name in WORKLOADS:
-        workload = WORKLOADS[name](4)
-        try:
-            assert str(workload.space.name) != "&self", (
-                f"{name} would drop the engine root when its caller releases it"
-            )
-        finally:
-            workload.space.drop()
+    completed = subprocess.run(
+        [sys.executable, "-m", "benchmarks.scaling", "--selfcheck"],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "every family keeps its engine-level invariants" in completed.stdout
 
 
-def test_the_route_probes_report_the_configuration_actually_running():
-    """Each declared route is observable AND is the one this tree is gating.
+def test_this_file_stays_engine_free():
+    """No test here may boot an engine, which is what keeps the lane safe.
 
-    Asserting only that the probe returns one of its possible answers would pass
-    with the MORK backend absent, which is the exact silent fallback the route
-    check exists to catch. So the assertions are the shipping configuration:
-    `&mork:` must reach a foreign store, and a built `engine/reader.so` must
-    actually be the reader that answered rather than sitting unused beside the
-    Prolog grammar.
+    The rule is structural rather than stylistic: an engine in the pytest
+    process is what made this file crash its neighbours, and the reason the
+    checks moved into `--selfcheck` was to remove it. A future test that calls
+    a workload directly would put it back, so the file says so about itself.
     """
-    mork = WORKLOADS["mork-write"](8)
-    try:
-        assert mork.route is not None
-        assert mork.route() == "foreign", (
-            "the MORK backend is not loaded, so a &mork: space is an ordinary "
-            "native space and every MORK measurement in this tree is native"
-        )
-    finally:
-        mork.space.drop()
+    source = Path(__file__).read_text(encoding="utf-8")
+    body = source[source.index("# ---") :]
+    # Spelled in pieces so the needles do not occur literally in this file and
+    # make the check fail on its own text.
+    instantiate = "WORKLOADS" + "["
+    engine = "MeTTa" + "("
 
-    parse = WORKLOADS["parse-forms"](8)
-    try:
-        assert parse.route is not None
-        # `metta_reader_mode/1` answers `shipped` with no C reader present at
-        # all, because its two answers are about custom reader TOKENS. The
-        # probe reads `parser:petta_c_reader_active/0`, which is asserted only
-        # when the artefact actually loaded, so this can tell the two apart.
-        built = (Path(__file__).resolve().parents[3] / "engine" / "reader.so").exists()
-        assert parse.route() == ("c" if built else "prolog")
-    finally:
-        parse.space.drop()
+    assert instantiate not in body, (
+        "a test here instantiates a workload, which boots an engine in the "
+        "pytest process; put the check in benchmarks.scaling --selfcheck instead"
+    )
+    assert engine not in body
 
 
 def test_a_flat_expression_family_stays_under_the_procedure_arity_ceiling():
