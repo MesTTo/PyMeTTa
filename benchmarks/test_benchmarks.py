@@ -505,6 +505,25 @@ def test_wire_codec(benchmark, inference_baseline):
     )
 
 
+def _json_wire_state():
+    """The counter door and the payload.
+
+    This codec is the engine's: _json.dumps and _json.loads each cross into
+    library(json) through janus, so a trip is two crossings and two Prolog
+    passes and the row is not engine-free. It was registered as one, which
+    pinned its inferences at null and made the comparator require them to
+    stay null, leaving the largest crossing in the roster measured only in
+    retired instructions. The space is here for its stats() door, since the
+    counter it reads is the process's rather than any one space's.
+    """
+    return _empty_space(), json_payload()
+
+
+def _json_wire(state):
+    _space, payload = state
+    return json_wire(payload)
+
+
 def test_json_wire(benchmark, inference_baseline):
     benchmark_case(
         benchmark,
@@ -512,10 +531,10 @@ def test_json_wire(benchmark, inference_baseline):
         name="json-wire",
         unit="payload round-trips",
         operations=JSON_TRIPS,
-        operation=json_wire,
-        setup=json_payload,
-        teardown=lambda _payload: None,
-        engine=None,
+        operation=_json_wire,
+        setup=_json_wire_state,
+        teardown=_drop_pair,
+        engine=lambda state: state[0],
     )
 
 

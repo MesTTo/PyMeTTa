@@ -633,6 +633,47 @@ def test_the_benchmark_suite_prices_a_file_load():
     assert isinstance(entry["inferences"], int) and entry["inferences"] > 0
 
 
+def test_the_json_wire_row_is_not_registered_engine_free():
+    """The JSON codec crosses into the engine, so its row carries inferences.
+
+    metta/_json.py IS the engine's codec: dumps and loads each reach
+    library(json) through janus, so one round trip is two crossings and two
+    Prolog passes. The bench registered ``engine=None`` anyway, which pinned
+    the row at ``"inferences": null`` and made ``_compare_counter`` require
+    it to STAY null, so the heaviest crossing in the roster was gated on
+    retired instructions alone. This measures one trip through the case's
+    own payload and requires the engine to have been charged for it, then
+    requires the shipped row to carry the integer pin. That pin is what
+    defends the wiring: with it in place, registering the row engine-free
+    again raises "json-wire is engine-free but its baseline has inferences"
+    instead of passing green.
+    """
+    import json
+    from pathlib import Path
+
+    from metta import MeTTa
+
+    space = MeTTa().space()
+    try:
+        with space.stats() as stats:
+            assert json_wire(json_payload(), trips=1) == 1
+    finally:
+        space.drop()
+    # One trip measured 84,668 inferences over the pinned 2,000-trip
+    # workload, so a floor three orders below that separates "crosses the
+    # boundary" from the null this row used to claim without being brittle.
+    assert stats.inferences > 1_000, "the JSON codec charged the engine nothing"
+
+    root = Path(__file__).resolve().parents[3]
+    assert '"json-wire": "test_json_wire"' in (
+        root / "bindings" / "python" / "bench.py"
+    ).read_text()
+    entry = json.loads(
+        (root / "bindings" / "python" / "benchmarks" / "baseline.json").read_text()
+    )["benchmarks"]["json-wire"]
+    assert isinstance(entry["inferences"], int) and entry["inferences"] > 0
+
+
 def test_check_instructions_reports_every_failing_case(tmp_path):
     """A regression in one case never hides another.
 
