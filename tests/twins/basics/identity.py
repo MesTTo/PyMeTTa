@@ -283,7 +283,21 @@ Guarantees:
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 2845
+#: RE-PINNED 2026-08-26, 2845 to 2821 (-24), by the arithmetic
+#: goal-expansion guard: engine/metta.pl replaces library(arithmetic)'s
+#: unguarded system:goal_expansion clause with a catch-wrapped
+#: replacement, and the wrapper plus the replaced clause's image move
+#: per-goal expansion cost by small deterministic amounts in both
+#: directions. NOT clause order: asserta and assertz of the
+#: replacement measure identically on this twin and on source-load,
+#: which reads +15 over 1,000 forms while this define-and-run workload
+#: reads -24; the paired baseline comment is
+#: p14_arithmetic_guard_comment on source-load
+#: [measured: the twin lane reading 2821 stable across the full suite
+#: run and a direct re-run; command=python -m pytest
+#: "tests/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[basics/identity.metta]";
+#: fixture=guarded-hook tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 2821
 def twin(m):
     """Define the square, then check it."""
     @m.define
