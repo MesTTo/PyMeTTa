@@ -110,7 +110,16 @@ DIRECTIONS = ((S.U, -3), (S.L, -1), (S.R, 1), (S.D, 3))
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=WORKTREE].
-BUDGET = 197555874
+#: RE-PINNED 2026-08-26, 197555874 to 197554482 (-1392), by the
+#: specializer argument-walk fix this file's own chain named as the
+#: follow-up. Planning a specialization grafts a call argument onto the
+#: equation's head pattern one position at a time, and that walk
+#: metacalled a yall lambda per position, so each fresh process paid
+#: '>>'/4's one-time resolution wherever its first binding plan landed
+#: and 13 further inferences at every later position. The walk is
+#: first-order now, at 4.0 inferences per position against 17.0.
+#: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=WORKTREE].
+BUDGET = 197554482
 def _legal(blank, direction):
     """Whether ``direction`` stays on the three-by-three board from ``blank``."""
     row, column = divmod(blank, 3)

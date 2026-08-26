@@ -73,7 +73,15 @@ from metta import Expression, S, V, equation, if_, lib
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 43052
+#: RE-PINNED 2026-08-26, 43052 to 41508 (-1544), by the specializer
+#: argument-walk fix this file's own chain named as the follow-up.
+#: Planning a specialization grafts a call argument onto the equation's
+#: head pattern one position at a time, and that walk metacalled a yall
+#: lambda per position, so each fresh process paid '>>'/4's one-time
+#: resolution wherever its first binding plan landed and 13 further
+#: inferences at every later position. The walk is first-order now, at
+#: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=WORKTREE].
+BUDGET = 41508
 
 
 def twin(m):
