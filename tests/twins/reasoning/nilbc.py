@@ -139,7 +139,7 @@ KB, RULE = V["knowledge_base"], V["proof_rule"]
 #: '>>'/4's one-time resolution wherever its first binding plan landed
 #: and 13 further inferences at every later position. The walk is
 #: first-order now, at 4.0 inferences per position against 17.0.
-#: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=WORKTREE].
+#: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 130066359
 def eq(left, right):
     """`(⟨=⟩ left right)`, Metamath equality."""
