@@ -11,7 +11,7 @@ Guarantees:
     test_a_replay_rename_migrates_every_journal_action_once,
     test_a_replay_rename_with_an_absent_old_name_refuses_with_the_remedy,
     test_a_second_replay_does_not_reapply_the_rename,
-    test_replay_rename_composes_with_terminal_tail_recovery; commit=WORKTREE]
+    test_replay_rename_composes_with_terminal_tail_recovery; commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
   - removal subtracts ONE stored fact and journals one `retract(Fact)` for
     it, the same multiset law a native space obeys, so a provider swap does
     not change what `remove-atom` means
@@ -502,7 +502,7 @@ def _module_source(
 %fact term. SWI's replay checks that whole term against persistent/3 before it
 %asserts or retracts it, so arguments are data and must remain untouched.
 %[source: https://github.com/SWI-Prolog/swipl-devel/blob/399af1d254797b944fa9940fb684020288d8b767/library/persistency.pl#L381-L413;
-%commit=WORKTREE]
+%commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
 {helpers["rename_fact"]}(Original, Renames, Renamed, Seen) :-
     Original =.. [Head | Args],
     ( memberchk([Head, NewHead], Renames)
@@ -555,7 +555,7 @@ def _module_source(
 %Use library(persistency)'s own canonical action format so the migrated file
 %is another ordinary journal, not a private second format.
 %[source: https://github.com/SWI-Prolog/swipl-devel/blob/399af1d254797b944fa9940fb684020288d8b767/library/persistency.pl#L526-L535;
-%commit=WORKTREE]
+%commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
 {helpers["write_action"]}(Stream, Action) :-
     \\+ \\+ ( numbervars(Action, 0, _, [singletons(true)]),
             format(Stream, '~W.~n',

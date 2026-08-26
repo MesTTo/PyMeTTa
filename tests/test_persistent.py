@@ -8,7 +8,7 @@ Guarantees:
     test_a_replay_rename_migrates_every_journal_action_once,
     test_a_replay_rename_with_an_absent_old_name_refuses_with_the_remedy,
     test_a_second_replay_does_not_reapply_the_rename,
-    test_replay_rename_composes_with_terminal_tail_recovery; commit=WORKTREE]
+    test_replay_rename_composes_with_terminal_tail_recovery; commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
   - live State cells are refused before journal append and leave no replayable
     residue after close and reopen [tested:
     test_a_live_state_cell_never_enters_the_persistent_journal;

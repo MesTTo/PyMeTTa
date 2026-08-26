@@ -8,7 +8,7 @@ Guarantees:
     pins one concrete depth divergence, and preserves answer equality below it
     [tested: test_twin_docs_state_python_stack_engine_lco_and_answer_equality,
     test_twin_depth_divergence_is_operational_not_an_answer_difference;
-    commit=WORKTREE]
+    commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
   - a walrus-bound nondeterministic call uses call-time choice, so both uses
     in one pair share one answer [tested:
     test_walrus_call_time_choice_shares_one_nondeterministic_value;

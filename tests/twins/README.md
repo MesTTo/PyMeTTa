@@ -2,7 +2,7 @@
 Purpose: state the answer and resource laws shared by the Python twin corpus.
 Guarantees: the fib depth divergence remains concrete, operational, and separate from answer equality.
 [tested: test_twin_docs_state_python_stack_engine_lco_and_answer_equality,
-test_twin_depth_divergence_is_operational_not_an_answer_difference; commit=WORKTREE]
+test_twin_depth_divergence_is_operational_not_an_answer_difference; commit=ee43d4a0585593b4f40d0c3c0557db8214688829]
 -->
 
 # Twin depth and fuel
