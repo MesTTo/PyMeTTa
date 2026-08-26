@@ -24,7 +24,7 @@ Guarantees:
   - MatchIndex treats identity-only Grounded handles as opaque values instead
     of reading the deliberately absent Grounded.value slot [tested:
     test_a_transaction_commits_async_launch_before_its_landing;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - AlphaSet membership is alpha_eq membership [tested
     test_alphaset_is_alpha_membership]
   - LiveView holds exactly what the space holds for its pattern, through

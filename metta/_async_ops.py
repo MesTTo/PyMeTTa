@@ -5,28 +5,28 @@ Guarantees:
     schedules it on one process event loop only after the engine publishes the
     launch event [tested:
     test_a_transaction_commits_async_launch_before_its_landing;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - success, failure, and cancellation each land exactly once through
     ``petta_py_async_land/3`` and release the copied launch Context [tested:
     test_an_async_operation_answers_a_future_space,
     test_a_transaction_commits_async_launch_before_its_landing,
     test_cancelling_from_the_launch_observer_keeps_a_settled_future;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - delayed MeTTa injection sees the named space that launched the operation,
     and a landing observer sees terminal state before notification [tested:
     test_async_engine_injection_keeps_the_calling_named_space,
     test_a_landing_observer_can_await_the_future_it_observes;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - an accepted running cancellation remains cancelled even when the coroutine
     suppresses ``CancelledError``, and blocking landing observers do not stop
     unrelated coroutine tasks from landing [tested:
     test_accepted_async_cancellation_overrides_a_suppressed_cancel,
-    test_a_landing_observer_can_await_another_async_future; commit=WORKTREE]
+    test_a_landing_observer_can_await_another_async_future; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - a stopped loop drains or cancels every task, clears its published state,
     and a later launch starts a new loop; interpreter shutdown runs coroutine
     finalizers before closing the loop [tested:
     test_the_async_loop_recovers_from_stop_and_thread_start_failure,
-    test_async_loop_shutdown_finalizes_pending_coroutines; commit=WORKTREE]
+    test_async_loop_shutdown_finalizes_pending_coroutines; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Owns resources:
   - one daemon asyncio-loop thread from first launch until it stops or process
     exit, one transient attached-engine landing thread per completion, and one
@@ -34,7 +34,7 @@ Owns resources:
     operation until landing or discard; the atexit handler drains and joins
     them [tested: test_async_loop_shutdown_finalizes_pending_coroutines,
     test_the_async_loop_recovers_from_stop_and_thread_start_failure,
-    test_a_landing_observer_can_await_another_async_future; commit=WORKTREE].
+    test_a_landing_observer_can_await_another_async_future; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 Guarded by:
   - ``_LOCK`` protects pending/running/cancelling records, landing threads, and
     event-loop publication; asyncio owns each Task after it enters ``_RUNNING``.

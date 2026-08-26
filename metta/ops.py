@@ -32,7 +32,7 @@ Guarantees:
     future-space dispatch
     before registration changes any engine or registry state [tested:
     test_register_op_reads_co_flags_and_refuses_or_awaits;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - generator signatures supply positional and sparse-dict relation row names
     after injected engine parameters are removed [tested:
     test_sparse_relational_dict_candidates_bind_parameter_names;
@@ -66,7 +66,7 @@ Guarantees:
     functools.wraps chains so mutually exclusive definition doors can refuse
     before mutation [tested:
     test_cache_over_an_operation_refuses_before_definition_registration;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -338,7 +338,7 @@ def _type_declarations(
                 # as the arrow does; the coroutine's eventual Python value is
                 # encoded into that FutureSpace [tested:
                 # test_async_reflection_has_one_public_return_and_effect;
-                # commit=WORKTREE].
+                # commit=39092863ae34184a9f955f185ff57c1ff177ec40].
                 claims[-1] = _expr(
                     S.annotation,
                     S[name],
@@ -723,7 +723,7 @@ def _with_engine(runtime: Any, fn: Callable, positions: list[int]) -> Callable:
         # Delayed async injection must not reacquire the process runtime lock;
         # the registration runtime already owns the calling space [tested:
         # test_async_engine_injection_uses_the_registration_runtime;
-        # commit=WORKTREE].
+        # commit=39092863ae34184a9f955f185ff57c1ff177ec40].
         engine = space_api.MeTTa(
             _self_name=space_api.current_space(),
             _runtime=runtime,
@@ -792,7 +792,7 @@ def register[**P, R](
         # FutureSpace. Reflect that observable write so caches cannot merge two
         # cancellation handles [tested:
         # test_async_calls_are_effective_writes_with_independent_handles;
-        # commit=WORKTREE].
+        # commit=39092863ae34184a9f955f185ff57c1ff177ec40].
         effective = operation_effect.join(EffectClass.writesState)
         if effective is not operation_effect:
             declared_effect = _expr(S.effect, S[metta_name], S[operation_effect.value])
@@ -864,7 +864,7 @@ def register[**P, R](
         # scheduler surface. Load it into the operation's declaration space
         # before compiling the host clause, so the first call cannot observe a
         # half-installed future door [tested:
-        # test_an_async_operation_answers_a_future_space; commit=WORKTREE].
+        # test_an_async_operation_answers_a_future_space; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
         parallel_api = _importlib.import_module(f"{__package__}.parallel")
         space_api = _importlib.import_module(f"{__package__}._space")
         parallel_api._ensure_thread_library(

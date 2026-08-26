@@ -9,12 +9,12 @@
 %     from the later event-loop completion [tested:
 %     test_an_async_operation_answers_a_future_space,
 %     test_a_transaction_commits_async_launch_before_its_landing;
-%     commit=WORKTREE].
+%     commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 %   - scheduler tasks dispatch Python callbacks under their copied ContextVars
 %     and detach oracleIO calls onto transient offload threads [tested:
 %     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
 %     test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
-%     commit=WORKTREE].
+%     commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 %   - atomic entry points publish atom hooks after commit, while speculative
 %     and reified-world entry points discard their buffered event segments;
 %     speculative and world execution also fence the non-backtrackable State
@@ -2434,7 +2434,7 @@ petta_py_call_raw_many(Name, Args, Result) :-
 %https://github.com/golang/go/blob/c19862e5f8415b4f24b189d065ed739517c548ba/src/runtime/proc.go#L4781-L4831,
 %Go 1.26.5 entersyscallblock; tested:
 %test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work;
-%commit=WORKTREE].
+%commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 petta_py_host_call(Name, Goal) :-
     (   nb_current('$petta_scheduler_task', _),
         petta_operation_effect(Name, oracleIO)

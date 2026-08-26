@@ -15,7 +15,7 @@ Guarantees:
   - registered synchronous and coroutine operation kinds inhabit OpKind and
     `(op ...)` terms inhabit OpDecl [tested:
     test_every_register_op_writes_its_declaration_and_get_doc_answers,
-    test_an_async_operation_answers_a_future_space; commit=WORKTREE]
+    test_an_async_operation_answers_a_future_space; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - compiled-definition source, capture, and effect facts are typed ordinary
     declarations [tested: test_each_ast_derived_fact_replaces_the_flag_it_supersedes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]

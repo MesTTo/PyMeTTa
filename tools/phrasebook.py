@@ -74,7 +74,7 @@ Guarantees:
   - Python-first additions that have no LeaTTa stdlib declaration are rendered
     in a separate exact-spelling table rather than corrupting manifest coverage
     [tested: test_python_first_public_faces_are_in_the_phrasebook;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - a row may run a PeTTa-only setup and an explicitly recorded equivalent
     LeaTTa form; neither is silently sent to the other engine [tested:
     python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]

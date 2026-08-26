@@ -5,15 +5,15 @@ Guarantees:
     and callbacks for that token observe changes made by earlier callbacks in
     the same child computation [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - a released token cannot be entered again [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
-    test_context_release_linearizes_before_a_waiting_entry; commit=WORKTREE]
+    test_context_release_linearizes_before_a_waiting_entry; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Owns resources:
   - token entries from ``snapshot`` or ``fork`` until ``release``; scheduler
     settlement and structured thread joins release them on every exit path
     [tested: test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
-    test_context_release_linearizes_before_a_waiting_entry; commit=WORKTREE].
+    test_context_release_linearizes_before_a_waiting_entry; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 Guarded by:
   - ``_LOCK`` protects the registry and each entry's reentrant lock prevents
     the same Context from being entered concurrently by two carrier threads.

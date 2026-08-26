@@ -28,7 +28,7 @@ Guarantees:
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - the Python-first additions table names the exact speculate, immutable-world,
     and coroutine-operation spellings [tested:
-    test_python_first_public_faces_are_in_the_phrasebook; commit=WORKTREE]
+    test_python_first_public_faces_are_in_the_phrasebook; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Decides:
   - a row's bucket is a CLAIM about the translation, not a comment: the lane
     refuses a `dissolves` or `method` row with no spelling and an `absent` row

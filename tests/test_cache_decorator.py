@@ -7,21 +7,21 @@ Guarantees:
     functools.lru_cache's own names; the uncached control declares the
     automatic memo policy's explicit refusal.
   [tested: test_a_cached_definition_memoizes_its_complete_answer_bag;
-   commit=WORKTREE]
+   commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - cached answer replay preserves duplicate occurrences because multiplicity
     is part of the result law, even after the owning space shadows the replay
     loop's host spelling.
   [tested: test_a_cached_definition_preserves_duplicate_answers,
-   test_exact_cache_replay_ignores_a_space_local_between_shadow; commit=WORKTREE]
+   test_exact_cache_replay_ignores_a_space_local_between_shadow; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - cached and uncached answer bags agree for ground recursion, open calls and
     a dependency whose definition changes between calls, including when an
     already-live pool engine populated the old private answer table.
   [tested: test_exact_cache_matches_uncached_answer_bags,
-   test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=WORKTREE]
+   test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - stacking cache over op refuses before definition registration and sends
     host-only memoization to functools.
   [tested: test_cache_over_an_operation_refuses_before_definition_registration;
-   commit=WORKTREE]
+   commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
   that were made and has no maxsize; `unchecked=True` is the staleness the
   engine's own `(cache <name> unchecked)` accepts, not a size.

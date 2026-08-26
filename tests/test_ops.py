@@ -22,7 +22,7 @@ Guarantees:
     commit=6917bef7ca902671999eafcae3a7a86db8f69723]
   - coroutine functions, including wrapped and callable forms, register as
     async operations and answer typed future spaces [tested:
-    test_register_op_reads_co_flags_and_refuses_or_awaits; commit=WORKTREE]
+    test_register_op_reads_co_flags_and_refuses_or_awaits; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Open Obligations:
   To Do: None
   Hacks: None

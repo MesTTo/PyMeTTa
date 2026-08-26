@@ -44,7 +44,7 @@ Guarantees:
   - a scheduler context token scopes deterministic, streaming, forward, and
     inverse host dispatch alike [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Owns:
   - the answer stream a nondeterministic operation returns. It is one-shot
     and can hold a file, a cursor or a lock between yields, so the code that

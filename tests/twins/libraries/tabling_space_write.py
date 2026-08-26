@@ -89,7 +89,7 @@ from metta import S, V, equation, lib, match
 #: [measured: 63560 inferences; command=python
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/libraries/tabling_space_write.metta; fixture=p14-audit-async with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 BUDGET = 63560
 
 

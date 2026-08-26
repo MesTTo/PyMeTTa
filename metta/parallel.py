@@ -40,15 +40,15 @@ Guarantees:
   - every Python and engine-backed spawn door snapshots ContextVars at launch,
     including EnginePool's OS-thread jobs [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - pool submission is linearized with close, so every accepted Future reaches
     a worker before its stop sentinel; a closed pool refuses new work naming
     the cause rather than hanging [tested:
     test_submit_and_close_linearize_accepted_work,
-    test_closed_pool_refuses_work; commit=WORKTREE]
+    test_closed_pool_refuses_work; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - FutureSpace iteration performs a terminal drain after settlement and cannot
     lose an answer inserted between its live snapshot and settled check [tested:
-    test_future_iteration_drains_the_terminal_snapshot; commit=WORKTREE]
+    test_future_iteration_drains_the_terminal_snapshot; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Fails when:
   - the work is not engine-bound. A pool costs one thread and one engine per
     worker, so fanning out calls that are already fast buys queueing overhead

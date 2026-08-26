@@ -19,7 +19,7 @@ Guarantees:
     a home-engine call that is itself awaiting that landing [tested:
     test_engine_thread_owns_only_its_attachment,
     test_a_transaction_commits_async_launch_before_its_landing;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - a rehydrated PettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]

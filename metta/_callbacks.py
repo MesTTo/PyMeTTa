@@ -10,7 +10,7 @@ Guarantees:
   - scheduler context and async-operation callbacks resolve lazily to their
     owning satellites [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
-    test_an_async_operation_answers_a_future_space; commit=WORKTREE]
+    test_an_async_operation_answers_a_future_space; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Open Obligations:
   To Do: None
   Hacks: None

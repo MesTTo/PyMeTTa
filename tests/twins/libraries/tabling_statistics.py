@@ -86,7 +86,7 @@ from metta import S, V, lib, match
 #: [measured: 59676 inferences; command=python
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/libraries/tabling_statistics.metta; fixture=p14-audit-async with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 BUDGET = 59676
 
 #: One call, one answer, nothing invalidated: what the first three claims all

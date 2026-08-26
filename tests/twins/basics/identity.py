@@ -7,7 +7,7 @@ is Python's own `assert`.
 Guarantees:
   - the translated definition and assertion agree with the source example
     inside the current inference budget [tested:
-    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=WORKTREE]
+    test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 """
 
 #: Inferences this twin spends, its own tripwire.
@@ -221,7 +221,7 @@ Guarantees:
 #: [measured: 2801 inferences; command=python
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=6aa5a678 base worktree against
-#: p14-audit-async with engine/reader.so; commit=WORKTREE].
+#: p14-audit-async with engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 #: RE-PINNED 2026-08-26, 2801 to 2806, on the completed async-scheduler
 #: tree. The identity implementation and the example remain unchanged, and
 #: the example still reads 2801; the five-inference twin move is compiled
@@ -230,7 +230,7 @@ Guarantees:
 #: [measured: 2806 inferences; command=python
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=p14-audit-async with
-#: engine/reader.so; commit=WORKTREE].
+#: engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 BUDGET = 2806
 
 

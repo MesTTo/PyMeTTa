@@ -15,7 +15,7 @@ Guarantees:
     [tested test_close_releases_every_engine, test_close_is_idempotent]
   - submit and close are one linearized transition: every accepted job enters
     the queue before worker stop sentinels [tested:
-    test_submit_and_close_linearize_accepted_work; commit=WORKTREE]
+    test_submit_and_close_linearize_accepted_work; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 Open Obligations:
   To Do: None
   Hacks: None

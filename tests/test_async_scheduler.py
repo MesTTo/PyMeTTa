@@ -14,7 +14,7 @@ Guarantees:
     test_cancelling_from_the_launch_observer_keeps_a_settled_future,
     test_async_engine_injection_keeps_the_calling_named_space,
     test_async_engine_injection_uses_the_registration_runtime;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - an enclosing transaction publishes an async launch before starting the
     coroutine, then publishes landing independently; rollback discards the
     prepared call without starting it [tested:
@@ -22,19 +22,19 @@ Guarantees:
     test_a_direct_launch_watcher_failure_still_starts_and_lands,
     test_a_failed_launch_watcher_does_not_strand_committed_async_work,
     test_a_rolled_back_async_launch_never_starts_or_lands;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - oracleIO bodies detach onto transient workers while normal scheduled work
     keeps making progress, running cancellation remains truthful, and
     nondeterministic bodies hand off for every pull without losing answers [tested:
     test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work,
     test_an_oracle_generator_preserves_all_answers_across_dirty_handoffs;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - every public coordination or worker spawn door copies its launch Context,
     including scheduler engines, timer and race threads, EnginePool workers,
     AsyncMeTTa, coroutine tasks, and a nested spawn after child-local mutation [tested:
     test_context_snapshot_crosses_every_spawn_door_including_thread_workers,
     test_context_release_linearizes_before_a_waiting_entry;
-    commit=WORKTREE]
+    commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - FutureSpace iteration drains its terminal snapshot, async reflection names
     the public SpaceType and effective writesState contract, and loop teardown
     finalizes pending coroutines and permits recovery after unexpected stop or
@@ -42,7 +42,7 @@ Guarantees:
     test_future_iteration_drains_the_terminal_snapshot,
     test_async_reflection_has_one_public_return_and_effect,
     test_the_async_loop_recovers_from_stop_and_thread_start_failure,
-    test_async_loop_shutdown_finalizes_pending_coroutines; commit=WORKTREE]
+    test_async_loop_shutdown_finalizes_pending_coroutines; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 """
 
 from __future__ import annotations
