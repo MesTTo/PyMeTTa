@@ -849,7 +849,7 @@ def _linear_fit(xs: Sequence[float], ys: Sequence[float]) -> tuple[float, float,
     computed with, and `benchmarks.scaling` uses google's own rule for its own
     report. Keeping two rules is only defensible while they agree
     [tested: test_the_span_and_mean_normalisations_reach_the_same_memory_scale_verdicts;
-    commit=WORKTREE].
+    commit=906a4057ac57a340a3544ad909e829f851f35af3].
     """
     fit = curves.least_squares(xs, ys)
     return fit.intercept, fit.slope, fit.residual / max(fit.span, abs(fit.mean), 1.0)

@@ -25,16 +25,16 @@ Guarantees:
     ``o1`` taken as the default best, and a strict ``<`` comparison so a tie
     keeps the earlier and simpler model
     [source: https://github.com/google/benchmark/blob/eddb0241389718a23a42db6af5f0164b6e0139af/src/complexity.cc#L81-L152;
-    commit=WORKTREE]
+    commit=906a4057ac57a340a3544ad909e829f851f35af3]
   - ``power_fit`` reports ``r_squared`` as None rather than a number when the
     observations do not vary, because the total sum of squares is then zero and
     every residual ratio is undefined. This is not hypothetical: one call
     against a head carrying n equations costs a flat 129 inferences at every
     size once the equations are compiled, so the whole ladder is one value
     [tested: test_curves_power_fit_reports_no_r_squared_for_a_flat_curve;
-    commit=WORKTREE]
+    commit=906a4057ac57a340a3544ad909e829f851f35af3]
   - the arithmetic is pure: no counter is read and no process is spawned here
-    [tested: test_curves_power_fit_recovers_a_planted_exponent; commit=WORKTREE]
+    [tested: test_curves_power_fit_recovers_a_planted_exponent; commit=906a4057ac57a340a3544ad909e829f851f35af3]
 Fails when: fewer than two points are supplied, which cannot determine a slope.
 Decides: log-log regression for the exponent and google/benchmark's rule for the
   shape, with each lane keeping its own normalisation policy at its own call

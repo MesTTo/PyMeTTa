@@ -5,7 +5,7 @@ Guarantees:
     interrupted run cannot leave a half-written pin behind for the next run to
     compare against
     [tested: test_atomic_json_keeps_the_previous_document_when_a_write_fails;
-    commit=WORKTREE].
+    commit=906a4057ac57a340a3544ad909e829f851f35af3].
 Open Obligations:
   To Do: None
   Hacks: None

@@ -43,19 +43,19 @@ Guarantees:
     machine between 10 and 21
     [measured 2026-08-26; command=python -m benchmarks.scaling --json;
     fixture=the seeded ladders with engine/reader.so and libmork_ffi.so present;
-    commit=WORKTREE]
+    commit=906a4057ac57a340a3544ad909e829f851f35af3]
   - a family whose declared route was not taken at some size is refused rather
     than fitted [tested: test_a_family_that_left_its_route_is_refused_not_fitted;
-    commit=WORKTREE]
+    commit=906a4057ac57a340a3544ad909e829f851f35af3]
   - the two planted controls stay armed: a quadratic planted in a family declared
     linear fails the exponent gate, and a 3x constant-factor loss fails the growth
     gate while passing the exponent gate, and the lane fails if either control
     stops failing in its declared way
     [tested: test_the_planted_quadratic_fails_only_the_exponent_gate,
-    test_the_planted_constant_factor_fails_only_the_growth_gate; commit=WORKTREE]
+    test_the_planted_constant_factor_fails_only_the_growth_gate; commit=906a4057ac57a340a3544ad909e829f851f35af3]
   - `--record` never rewrites a control family's pinned row, because the constant
     control's plant IS its distance from that row
-    [tested: test_recording_leaves_every_control_row_pinned; commit=WORKTREE]
+    [tested: test_recording_leaves_every_control_row_pinned; commit=906a4057ac57a340a3544ad909e829f851f35af3]
 Fails when: a family exceeds its declared exponent, costs more than its pinned
   row by more than the allowed factor, leaves its route, or produces the wrong
   work. Also when a control stops failing.
@@ -77,11 +77,11 @@ one checks every size.
 
 [source: google/benchmark model selection, transcribed in `curves.select_model`,
 https://github.com/google/benchmark/blob/eddb0241389718a23a42db6af5f0164b6e0139af/src/complexity.cc#L81-L152;
-commit=WORKTREE]
+commit=906a4057ac57a340a3544ad909e829f851f35af3]
 [source: trend-prof (Goldsmith, Aiken, Wilkerson, FSE 2007) is why the exponent
 is compared against a DECLARED class rather than judged alone; the same linear
 cost was a defect at R-squared 0.95 in one program and not a defect at 0.65 in
-another; ai-benchmark-prior-art.md:467-479; commit=WORKTREE]
+another; ai-benchmark-prior-art.md:467-479; commit=906a4057ac57a340a3544ad909e829f851f35af3]
 """
 
 from __future__ import annotations
@@ -118,9 +118,9 @@ LEDGER_PATH = Path(__file__).resolve().parent / "scaling-baseline.json"
 #: `assertz/2: Cannot represent due to 'max_procedure_arity' (limit is 1024,
 #: request = 1601)`. Read it back with
 #: `swipl -g "current_prolog_flag(max_procedure_arity,X),print(X)" -t halt`
-#: [source: SWI-Prolog flag max_procedure_arity; commit=WORKTREE]
+#: [source: SWI-Prolog flag max_procedure_arity; commit=906a4057ac57a340a3544ad909e829f851f35af3]
 #: [tested: test_a_flat_expression_family_stays_under_the_procedure_arity_ceiling;
-#: commit=WORKTREE]
+#: commit=906a4057ac57a340a3544ad909e829f851f35af3]
 MAX_FLAT_CHILDREN = 1024
 
 
@@ -167,7 +167,7 @@ def _reader_route(space: Space) -> Callable[[], str]:
     question: its two answers are `custom` and `shipped`, and they distinguish
     custom reader TOKENS, so it says `shipped` with no C reader present at all
     [source: engine/parser.pl:131-147 petta_try_load_c_reader/0, and
-    engine/parser.pl:190-191 metta_reader_mode/1; commit=WORKTREE].
+    engine/parser.pl:190-191 metta_reader_mode/1; commit=906a4057ac57a340a3544ad909e829f851f35af3].
     """
     return lambda: str(
         space.runtime.once(

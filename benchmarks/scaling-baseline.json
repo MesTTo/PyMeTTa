@@ -14,7 +14,7 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
       },
       "counter": "inferences",
       "expected_class": "linear",
@@ -73,7 +73,7 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
       },
       "counter": "inferences",
       "expected_class": "linear",
@@ -132,7 +132,7 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
       },
       "counter": "inferences",
       "expected_class": "linear",
@@ -191,7 +191,7 @@
           "The distance between this row and the control's measurement is the planted constant-factor loss, so it is copied rather than measured and never reflects the control's own cost.",
           "The class is untouched, so the control passes the exponent gate and fails only the growth gate."
         ],
-        "commit": "WORKTREE"
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
       },
       "counter": "inferences",
       "expected_class": "linear",
@@ -250,7 +250,7 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
       },
       "counter": "inferences",
       "expected_class": "linear",
@@ -309,7 +309,7 @@
           "minimum of 3 fresh processes per size",
           "the declared class is constant"
         ],
-        "commit": "WORKTREE"
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
       },
       "counter": "inferences",
       "expected_class": "constant",
@@ -368,7 +368,7 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
       },
       "counter": "inferences",
       "expected_class": "linear",
