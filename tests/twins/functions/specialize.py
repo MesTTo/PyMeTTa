@@ -108,7 +108,15 @@ from metta import Atom, Expression, S, V, arrow, equation, fn, if_, typed
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=WORKTREE].
-BUDGET = 200065
+#: RE-PINNED 2026-08-26, 200065 to 197929 (-2136), by the specializer
+#: argument-walk fix this file's own chain named as the follow-up.
+#: Planning a specialization grafts a call argument onto the equation's
+#: head pattern one position at a time, and that walk metacalled a yall
+#: lambda per position, so each fresh process paid '>>'/4's one-time
+#: resolution wherever its first binding plan landed and 13 further
+#: inferences at every later position. The walk is first-order now, at
+#: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
+BUDGET = 197929
 #: The partial application the file maps with. `+` needs both operands to be
 #: a Python operator at all, so a partial is written by CALLING the symbol,
 #: which is what builds an expression out of a head and its arguments.

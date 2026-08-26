@@ -89,7 +89,15 @@ from metta import Expression, S, V, lib
 #: bindings/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=WORKTREE].
-BUDGET = 799574
+#: RE-PINNED 2026-08-26, 799574 to 793257 (-6317), by the specializer
+#: argument-walk fix this file's own chain named as the follow-up.
+#: Planning a specialization grafts a call argument onto the equation's
+#: head pattern one position at a time, and that walk metacalled a yall
+#: lambda per position, so each fresh process paid '>>'/4's one-time
+#: resolution wherever its first binding plan landed and 13 further
+#: inferences at every later position. The walk is first-order now, at
+#: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
+BUDGET = 793257
 def twin(m):
     """Import lib_roman, then exercise its three families and its inverses."""
     m += lib.roman
