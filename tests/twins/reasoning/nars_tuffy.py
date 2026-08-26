@@ -85,7 +85,14 @@ from metta import Expression, S, V, equation, lib
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 586174992
+#: RE-PINNED 2026-08-26, 586174992 to 586174869 (-123), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=WORKTREE].
+BUDGET = 586174869
 def inheritance(subject, predicate):
     """`(--> subject predicate)`, NARS inheritance."""
     return S["-->"](subject, predicate)

@@ -124,7 +124,14 @@ KB, RULE = V["knowledge_base"], V["proof_rule"]
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 130071194
+#: RE-PINNED 2026-08-26, 130071194 to 130071186 (-8), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=WORKTREE].
+BUDGET = 130071186
 def eq(left, right):
     """`(⟨=⟩ left right)`, Metamath equality."""
     return S["⟨=⟩"](left, right)

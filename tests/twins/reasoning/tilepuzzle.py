@@ -103,7 +103,14 @@ DIRECTIONS = ((S.U, -3), (S.L, -1), (S.R, 1), (S.D, 3))
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 197555920
+#: RE-PINNED 2026-08-26, 197555920 to 197555874 (-46), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=WORKTREE].
+BUDGET = 197555874
 def _legal(blank, direction):
     """Whether ``direction`` stays on the three-by-three board from ``blank``."""
     row, column = divmod(blank, 3)

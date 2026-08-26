@@ -70,7 +70,14 @@ from metta.vocabularies import AgendaPolicy, Delivery, EventOrder
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 2432
+#: RE-PINNED 2026-08-26, 2432 to 2437 (+5), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=WORKTREE].
+BUDGET = 2437
 def twin(m):  # noqa: ARG001  -- the declarations live in the reflection space; the default handle stays untouched
     """Read the event declarations, then try to write an unsayable one."""
     reflection = metta.reflection

@@ -87,7 +87,14 @@ SCALED = S["|->"]((V.x,), 100 * S.g(V.x))
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 51941
+#: RE-PINNED 2026-08-26, 51941 to 51429 (-512), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=WORKTREE].
+BUDGET = 51429
 def below(limit):
     """`(|-> ($v) (< $v <limit>))`, the check the original writes inline.
 

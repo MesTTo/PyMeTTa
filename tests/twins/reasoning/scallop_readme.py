@@ -102,7 +102,14 @@ NAMES = ((1, S.giraffe), (1, S.tiger), (2, S.giraffe), (2, S.tiger))
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 132703
+#: RE-PINNED 2026-08-26, 132703 to 132575 (-128), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=WORKTREE].
+BUDGET = 132575
 def paths(m):
     """Transitive paths over two edges. README result {(0,1), (0,2), (1,2)}."""
     # (sc-edge 0 1) (sc-edge 1 2)

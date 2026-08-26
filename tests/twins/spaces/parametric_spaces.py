@@ -87,7 +87,14 @@ from metta import S, V, equation, fn
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 9031
+#: RE-PINNED 2026-08-26, 9031 to 9026 (-5), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=WORKTREE].
+BUDGET = 9026
 #: The two base names, which are parameters of a space's name rather than
 #: spaces: nothing in the program ever writes to `&primary-kb` itself.
 PRIMARY, SECONDARY = S["&primary-kb"], S["&secondary-kb"]  # rung: a parameter of a space name, not a space

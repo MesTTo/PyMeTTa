@@ -96,7 +96,15 @@ from metta import S, V, lib
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 86978
+#: RE-PINNED 2026-08-26, 86978 to 97711 (+10733), at the
+#: tabling-seam merge: declarations now table `as shared` (checked
+#: readers `as (incremental, shared)`) so a live Answers cursor, the
+#: source runner, and a later statistics call enter one answer trie
+#: instead of a cursor-engine-private one, and calls route through
+#: the declared dispatch ownership seam. The shared scope is what
+#: SWI charges for cross-engine visibility; a private-when-unwatched
+#: refinement is recorded as follow-up [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=tabling-seam merged tree with engine/reader.so; commit=WORKTREE].
+BUDGET = 97711
 def twin(m):
     """Define fib, table it, and take the thirtieth in linear time."""
     m += lib.tabling

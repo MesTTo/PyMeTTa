@@ -69,7 +69,14 @@ from metta.vocabularies import Fidelity, Semiring
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=WORKTREE].
-BUDGET = 767
+#: RE-PINNED 2026-08-26, 767 to 787 (+20), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=WORKTREE].
+BUDGET = 787
 def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the default handle stays untouched
     """Read four shipped catalog rows, then declare a kind of your own."""
     reflection = metta.reflection
