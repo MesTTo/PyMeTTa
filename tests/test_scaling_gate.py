@@ -710,6 +710,27 @@ def test_every_scaling_family_is_reachable_as_a_perf_sized_case():
     assert {f"scaling-{name}" for name in WORKLOADS} <= set(_SIZED_CASES)
 
 
+def test_a_workload_never_drops_the_engine_root():
+    """No family may hand back `&self`, because every caller drops what it gets.
+
+    `parse_forms` did, and dropping the root tears down the execution module the
+    engine's compiled machinery lives in. In this lane that is invisible, since
+    each measurement is a throwaway process. In pytest it is not: `--dist
+    loadfile` puts a whole file on one worker, so this file poisoned whatever
+    the scheduler ran after it, and 14 tests across five unrelated files failed
+    that pass without it. The isolation runs that pointed elsewhere were
+    measuring the wrong thing.
+    """
+    for name in WORKLOADS:
+        workload = WORKLOADS[name](4)
+        try:
+            assert str(workload.space.name) != "&self", (
+                f"{name} would drop the engine root when its caller releases it"
+            )
+        finally:
+            workload.space.drop()
+
+
 def test_the_route_probes_report_the_configuration_actually_running():
     """Each declared route is observable AND is the one this tree is gating.
 

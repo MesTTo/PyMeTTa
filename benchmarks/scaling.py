@@ -249,8 +249,18 @@ def scan_per_write(size: int) -> Workload:
 
 
 def parse_forms(size: int) -> Workload:
-    """The reader over one program text holding `size` forms."""
-    space = MeTTa().self
+    """The reader over one program text holding `size` forms.
+
+    A CHILD space, never `MeTTa().self`. Every caller drops `Workload.space`
+    when it is done, and dropping the ROOT tears down the execution module the
+    engine's own compiled machinery lives in. That is invisible in this lane,
+    where each measurement is a throwaway process, and destructive in pytest,
+    where the file shares its process with every other file the loadfile
+    scheduler put on that worker: it made 14 tests in five unrelated files fail
+    after this one ran, and none of them fail without it
+    [tested: test_a_workload_never_drops_the_engine_root; commit=WORKTREE].
+    """
+    space = MeTTa().space()
     text = " ".join(f"(scaling-form {index} (nested {index}))" for index in range(size))
     parsed: list[Any] = []
 
