@@ -77,5 +77,5 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: because a round taken while this worktree's MORK link was dangling read 240
 #: and 234 instead and would have pinned a configuration the gate does not run
 #: [measured 2026-08-28: min-of-3 serial fresh processes; command=python
-#: bindings/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: bindings/python/tools/twin_coverage.py --repin; commit=0289cbd162aeb0380fbbe502129bca3b976b32c7].
 BUDGET = 242
