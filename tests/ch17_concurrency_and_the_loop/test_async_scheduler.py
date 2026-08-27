@@ -112,7 +112,7 @@ def _isolated_python(repo_root, source: str) -> subprocess.CompletedProcess[str]
     """Run a singleton-lifecycle probe in a fresh interpreter."""
     environment = os.environ | {
         "METTA_PATH": str(repo_root),
-        "PYTHONPATH": str(repo_root / "bindings" / "python"),
+        "PYTHONPATH": str(repo_root / "extensions" / "python"),
         "PYTHONDONTWRITEBYTECODE": "1",
     }
     return subprocess.run(

@@ -93,7 +93,7 @@ def twin(m):
 #: RE-PINNED 2026-08-26, 25104027 to 103089: under=counting now omits
 #: caller-row encoding before the engine aggregate, so the 2,500 depth-growing
 #: Peano answers are never materialized and counting stays linear [measured:
-#: 103089 inferences; command=python bindings/python/tools/twin_coverage.py;
+#: 103089 inferences; command=python extensions/python/tools/twin_coverage.py;
 #: fixture=full-lane 2500 successors; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 #: RE-PINNED 2026-08-26, 103089 to 103139 (+50), by the open-tail-index
 #: pricing pass, one sweep over the whole corpus after four attributed
@@ -104,11 +104,11 @@ def twin(m):
 #: relational-candidate rows of 6917bef7, and the open-tail head-index
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 103139 to 103161 (+22), on the composed
 #: async-scheduler tree: a live operation call pays the six-inference
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 103161

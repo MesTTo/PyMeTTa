@@ -160,7 +160,7 @@ def main(argv: list[str]) -> int:
         return 0
     print(
         f"{DOCUMENT.name}'s tables no longer match tests/codec/corpus.json: "
-        f"run `python bindings/python/tools/codecdoc.py --write`"
+        f"run `python extensions/python/tools/codecdoc.py --write`"
     )
     return 1
 

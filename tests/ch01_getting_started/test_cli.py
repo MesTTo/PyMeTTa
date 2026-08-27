@@ -64,7 +64,7 @@ def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):  # noqa
             "--",
             "program with spaces.metta",
             "--example",
-            "backends",
+            "extensions",
         ]
     )
 
@@ -115,14 +115,14 @@ def test_main_retains_the_upstream_optional_mork_preload(monkeypatch, tmp_path):
 
 
 def test_main_asks_for_native_backends_and_names_none(monkeypatch, tmp_path):
-    """The launcher asks the engine to load every backend that is built, and
-    knows about no backend in particular.
+    """The launcher asks the engine to load every seat whose needs hold, and
+    knows about no seat in particular.
 
     It used to test for MORK's shared library and LD_PRELOAD it, so a second
     native backend needed a second branch in a file that has nothing to do with
-    backends. Which backends exist is backends/*.pl now, and whether one is
-    usable is that backend's own business. The preload went with it: a backend
-    opens its own library with global symbol visibility.
+    backends. Which seats exist is extensions/*/extension.pl now, and whether
+    one is usable is that seat's own declaration. The preload went with it: a
+    backend opens its own library with global symbol visibility.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     runtime = tmp_path / "runtime"
     call = Mock(return_value=0)
@@ -132,7 +132,7 @@ def test_main_asks_for_native_backends_and_names_none(monkeypatch, tmp_path):
     assert cli.main(["program.metta"]) == 0
 
     command = call.call_args.args[0]
-    assert command[-2:] == ["program.metta", "backends"]
+    assert command[-2:] == ["program.metta", "extensions"]
     assert not any("mork" in part for part in command)
     assert "env" not in call.call_args.kwargs
 
@@ -159,14 +159,14 @@ def test_the_bare_demo_runs_the_interop_example_and_backend_selftests():
     listing raised across two green batteries, while the MORK selftest had
     failed silently since add-atom's answer became unit, swallowed by
     forall/2 over solutions. Exit 0, the printed answer, and the selftest's
-    own output line pin all three, in the bare form and the backends form
+    own output line pin all three, in the bare form and the extensions form
     the packaged launcher passes.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     repo = Path(__file__).resolve().parents[4]
     mork_built = (
-        repo / "backends" / "mork" / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
+        repo / "extensions" / "mork" / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
     ).exists()
-    for extra in ([], ["--", "backends"]):
+    for extra in ([], ["--", "extensions"]):
         done = subprocess.run(
             ["swipl", "-q", "-s", str(repo / "engine" / "main.pl"), *extra],
             capture_output=True,

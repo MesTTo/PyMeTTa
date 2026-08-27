@@ -243,7 +243,7 @@ def demo() -> None:
     IMPORTED. A module that connects and queries at import time cannot be
     pointed at by a test, and metta.testing.SpaceComplianceSuite is pointed at
     DuckDBSpace in
-    bindings/python/tests/ch19_spaces_backed_by_anything/test_compliance_duckdb.py.
+    extensions/python/tests/ch19_spaces_backed_by_anything/test_compliance_duckdb.py.
     """
     m = MeTTa().space()
     conn = duckdb.connect(":memory:")

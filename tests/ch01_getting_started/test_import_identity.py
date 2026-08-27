@@ -35,7 +35,7 @@ for name in lazy:
     assert exposed is importlib.import_module(f'metta.{name}')
 assert lazy <= set(dir(metta))
 """
-    environment = os.environ | {"PYTHONPATH": str(root / "bindings" / "python")}
+    environment = os.environ | {"PYTHONPATH": str(root / "extensions" / "python")}
     subprocess.run(
         [sys.executable, "-c", source],
         cwd=root,

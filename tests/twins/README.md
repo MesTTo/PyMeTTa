@@ -22,7 +22,7 @@ Re-pin through the door rather than by hand, which is what put the chain on top
 in the first place:
 
 ```sh
-python bindings/python/tools/twin_coverage.py --repin \
+python extensions/python/tools/twin_coverage.py --repin \
     --reason "the mechanism that moved the count" examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta
 ```
 

@@ -287,7 +287,7 @@ class ExpressionCompilerMixin(CompilerContext):
         elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name):
             root = node.value
             if not (isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str)):
-                # policy-inventory-exempt: mechanism-internal; reason=S V and fn are the three fixed quotation-tier builders recognized by compiled-body syntax rather than selectable runtime policy; evidence=bindings/python/metta/_define_expression.py:_mention
+                # policy-inventory-exempt: mechanism-internal; reason=S V and fn are the three fixed quotation-tier builders recognized by compiled-body syntax rather than selectable runtime policy; evidence=extensions/python/metta/_define_expression.py:_mention
                 if root.id in {"S", "V", "fn"}:
                     msg = f"{root.id}[...] takes a literal exact target name"
                     raise CompileError(
@@ -817,7 +817,7 @@ class ExpressionCompilerMixin(CompilerContext):
         if not (
             isinstance(func, ast.Attribute)
             and isinstance(func.value, ast.Name)
-            # policy-inventory-exempt: mechanism-internal; reason=the two namespace-builder identities the compiler recognises lexically, a grammar fact rather than a selectable policy; evidence=bindings/python/tests/ch11_python_as_a_notation/test_mention_doors.py:test_rejected_attributes_never_execute_host_objects
+            # policy-inventory-exempt: mechanism-internal; reason=the two namespace-builder identities the compiler recognises lexically, a grammar fact rather than a selectable policy; evidence=extensions/python/tests/ch11_python_as_a_notation/test_mention_doors.py:test_rejected_attributes_never_execute_host_objects
             and func.value.id in {"S", "fn"}
             and func.value.id not in self.scope
             and func.value.id in self.builders

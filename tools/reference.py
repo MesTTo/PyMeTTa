@@ -16,7 +16,7 @@ Guarantees:
     [tested: test_an_indented_prose_continuation_escapes_tags; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - only public module-level classes and functions, and public methods of
     those classes, are documented, which is the set the pages already carried
-    [source: bindings/python/tools/reference.py:entries, the three
+    [source: extensions/python/tools/reference.py:entries, the three
     `startswith("_")` refusals at module level, class level and method level;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Fails when:
@@ -231,7 +231,7 @@ def main(argv: list[str]) -> int:
     print(
         f"{len(stale)} reference page(s) no longer match their source: "
         f"{', '.join(stale)}\n"
-        f"run `python bindings/python/tools/reference.py --write` to regenerate"
+        f"run `python extensions/python/tools/reference.py --write` to regenerate"
     )
     return 1
 

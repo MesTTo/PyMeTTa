@@ -8,13 +8,13 @@ worst possible failure for a file whose whole purpose is to be believed
 without being verified.
 
 Assumes:
-  - metta imports here, unlike bindings/python/tools/reference.py, which reads the AST
+  - metta imports here, unlike extensions/python/tools/reference.py, which reads the AST
     so it can run without janus. Builtin names come from the running self-space
     handle and there is no static inventory exposed to this checker
     [assumed: the supported builtin inventory is runtime-defined; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - a backticked token containing a slash and ending in a known extension is
     a path claim, and nothing else in the file is shaped that way
-    [source: bindings/python/tools/llmsdoc.py:PATH_LIKE and check; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [source: extensions/python/tools/llmsdoc.py:PATH_LIKE and check; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - every metta name, MeTTa method, path, count, special form, derived form,
     builtin and library named in llms.txt exists, the engine counts and special
@@ -22,7 +22,7 @@ Guarantees:
     are gone really are gone
     [tested: GATE_ONLY=1 sh check.sh llms; commit=9a116762fb4372d55675e2ef64b7657092bc136d]
   - all failures are reported at once, not just the first
-    [source: bindings/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [source: extensions/python/tools/llmsdoc.py:check and main; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - repository paths such as ``engine/metta.pl`` are not mistaken for Python
     submodules [tested: test_the_llms_module_scanner_ignores_engine_paths;
     commit=b962cf7c06b2680f94174515e24a3b6afd5ee5c4]
@@ -98,7 +98,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
     names engine/prelude.metta registers with add-translator-rule!, read the same
     way, which is where a form goes when it leaves the compiler.
     """
-    sys.path.insert(0, str(ROOT / "bindings" / "python"))
+    sys.path.insert(0, str(ROOT / "extensions" / "python"))
     from metta import MeTTa
 
     builtins = set(MeTTa().self.builtins())
@@ -125,7 +125,7 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
 def counts() -> list[tuple[str, int]]:
     """Each dated count in llms.txt, with what the tree says it is now."""
     src_lines = sum(len(path.read_text().splitlines()) for path in engine_sources())
-    main = (ROOT / "bindings" / "python" / "metta" / "__main__.py").read_text()
+    main = (ROOT / "extensions" / "python" / "metta" / "__main__.py").read_text()
     # The example count comes from the runners' own definition rather than a
     # glob. A bare examples/**/*.metta counts the fixtures, which are inputs
     # rather than programs, and once counted two dozen flat symlink aliases
@@ -134,18 +134,18 @@ def counts() -> list[tuple[str, int]]:
     # discovered, 200 run; the aliases are gone since 2026-08-27].
     # examples/README.md and this file disagreed with each other and with
     # the runner, each by a different amount.
-    sys.path.insert(0, str(ROOT / "bindings" / "python" / "tools"))
+    sys.path.insert(0, str(ROOT / "extensions" / "python" / "tools"))
     from example_parity import corpus
 
     return [
         (r"(\d+) executable programs", len(corpus())),
         (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/metta-*.md")))),
         (r"(\d+) plunit suites", len(list(ROOT.glob("tests/prolog/suites/*/*.plt")))),
-        (r"(\d+) files, blackbox", len(list(ROOT.glob("bindings/python/tests/*/test_*.py")))),
-        (r"(\d+) Python twins", len(list(ROOT.glob("bindings/python/tests/twins/**/*.py")))),
+        (r"(\d+) files, blackbox", len(list(ROOT.glob("extensions/python/tests/*/test_*.py")))),
+        (r"(\d+) Python twins", len(list(ROOT.glob("extensions/python/tests/twins/**/*.py")))),
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
-        (r"(\d+) runnable Python programs", len(list(ROOT.glob("bindings/python/examples/*/*.py")))),
+        (r"(\d+) runnable Python programs", len(list(ROOT.glob("extensions/python/examples/*/*.py")))),
         (r"([\d,]+) lines: `engine/metta.pl`", src_lines),
         (r"(\d+) MeTTa libraries loaded", len(list(ROOT.glob("lib/lib_*/lib_*.metta")))),
         (r"(\d+) libraries load with", len(list(ROOT.glob("lib/lib_*/lib_*.metta")))),
@@ -160,26 +160,39 @@ WORDS = {"five": 5, "six": 6, "seven": 7}
 def _absent_artefact_diagnosis(stated: int, actual: int, root: pathlib.Path = ROOT) -> str | None:
     """The missing-build-product reading of a builtin-count mismatch.
 
-    Each backend under backends/ loads only where its artefact exists and
-    declares what it would register as seam:extension_builtin/2 facts in its
-    implementation file. When the stated count exceeds the live one by
-    exactly the declarations of backends whose artefacts are absent here,
-    the mismatch is this checkout's configuration, not documentation drift,
-    and the answer is to name the artefact rather than fail the claim.
+    A seat that rests on a build product declares it, `needs(artefact(Rel))`
+    in its own extension.pl, and loads only where that file exists; what it
+    would register is its seam:extension_builtin/2 facts. When the stated
+    count exceeds the live one by exactly the declarations of the seats whose
+    artefacts are absent here, the mismatch is this checkout's configuration,
+    not documentation drift, and the answer is to name the artefact rather
+    than fail the claim.
+
+    The artefact need is what makes a seat eligible, which is why it is read
+    rather than guessed at `target/release/lib<seat>.so`. Every seat sits in
+    one folder now, and the Python seat declares seven of these facts while
+    resting on library(janus) rather than on anything built: guessing would
+    read those seven as an absent build product on a tree that registers them.
     """
     absent: list[tuple[str, list[str]]] = []
     fact = re.compile(r"^seam:extension_builtin\('?([^',)]+)'?\s*,[^)]*\)\.", re.MULTILINE)
-    # Per-integration discovery: any fact-bearing implementation under a
-    # backend's folder, its artefact the crate build beside it, so a new
-    # backend is a new folder and this diagnosis needs no edit.
-    for backend in sorted(root.glob("backends/*/**/*.pl")):
-        names = fact.findall(backend.read_text())
+    need = re.compile(r"^needs\(artefact\('([^']+)'\)\)\.", re.MULTILINE)
+    # Per-seat discovery through the control file the engine itself reads, so
+    # a new seat is a new folder and this diagnosis needs no edit.
+    for control in sorted(root.glob("extensions/*/extension.pl")):
+        seat = control.parent
+        declared = need.findall(control.read_text())
+        unbuilt = [rel for rel in declared if not (seat / rel).exists()]
+        if not unbuilt:
+            continue
+        names = [
+            name
+            for source in sorted(seat.rglob("*.pl"))
+            for name in fact.findall(source.read_text())
+        ]
         if not names:
             continue
-        release = backend.parent / "target" / "release"
-        if release.is_dir() and any(release.glob("*.so")):
-            continue
-        artefact = release / f"lib{backend.parent.name}.so"
+        artefact = seat / unbuilt[0]
         absent.append((str(artefact.relative_to(root)), names))
     missing = sum(len(names) for _, names in absent)
     if missing and stated == actual + missing:
@@ -203,7 +216,7 @@ def check() -> list[str]:
     parts = sections(text)
     bad: list[str] = []
 
-    sys.path.insert(0, str(ROOT / "bindings" / "python"))
+    sys.path.insert(0, str(ROOT / "extensions" / "python"))
     import metta
     from metta import MeTTa, Space
 
@@ -232,7 +245,7 @@ def check() -> list[str]:
     # have covered for a later paragraph using it as though it were live.
     denial = paragraph(parts["The MeTTa language surface"], r"\d+ libraries load with")
     for module in sorted(gone):
-        if (ROOT / "bindings" / "python" / "metta" / f"{module}.py").exists():
+        if (ROOT / "extensions" / "python" / "metta" / f"{module}.py").exists():
             bad.append(f"llms.txt says metta.{module} is gone, but the module is back")
         elif text.count(f"metta.{module}") != denial.count(f"metta.{module}"):
             bad.append(f"metta.{module} is deleted but llms.txt names it outside the sentence saying so")
@@ -274,11 +287,11 @@ def check() -> list[str]:
         value = WORDS.get(stated, None) or int(stated.replace(",", ""))
         if value != actual:
             # The builtin count is the one claim that carries a CONFIGURATION:
-            # a backend registers builtins only where its artefact is built,
-            # so a worktree without the build product reads falsely red. The
-            # backends declare those registrations as seam:extension_builtin/2
-            # facts, so a mismatch that the absent artefact fully explains is
-            # diagnosed by name instead of reported as doc drift
+            # a seat registers builtins only where its declared artefact is
+            # built, so a worktree without the build product reads falsely
+            # red. Such a seat declares those registrations as
+            # seam:extension_builtin/2 facts, so a mismatch that the absent
+            # artefact fully explains is diagnosed by name rather than as drift
             # [tested:
             # test_the_llms_builtin_claim_holds_in_a_bare_configuration].
             diagnosis = _absent_artefact_diagnosis(value, actual) if builtins_claim else None

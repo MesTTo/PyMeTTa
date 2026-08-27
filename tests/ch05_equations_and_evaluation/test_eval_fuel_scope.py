@@ -33,7 +33,7 @@ _SETUP = (
 
 _PROBE = f"""
 import sys
-sys.path.insert(0, {str(REPO / "bindings" / "python")!r})
+sys.path.insert(0, {str(REPO / "extensions" / "python")!r})
 from metta import MeTTa, S
 
 metta = MeTTa().self

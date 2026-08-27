@@ -31,7 +31,7 @@ Guarantees:
     test_python_first_public_faces_are_in_the_phrasebook; commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0]
   - strategy rows import lib_strategy only on MeTTa and may name an equivalent
     unary LeaTTa oracle form when this engine's reified plan has a different arity
-    [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+    [tested: python extensions/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - space write rows teach the scalar-atom versus fact-stream boundary shipped
     by ``Space +=`` [tested: test_the_phrasebook_page_is_up_to_date;
     commit=012413efb73b4dd27c71354c7f654862f349c03f]

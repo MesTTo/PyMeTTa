@@ -15,7 +15,7 @@ Guarantees:
   - nine adopted advisory kinds cover first-letter roles, interpreter
     shadows, Python/engine crossings, unordered answer views, import-time
     calls, and synchronous async-body driving without refusing execution
-    [tested: bindings/python/tests/ch14_seeing_your_program/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+    [tested: extensions/python/tests/ch14_seeing_your_program/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - exact named source intents suppress only their bound finding, while the
     intent remains queryable in &metta [tested:
     test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=acb40f1912f131ae088083d1af29b4b283019bea]
@@ -220,7 +220,7 @@ def _operation_in_higher_order_call(
     head = _symbol_head(call)
     candidate: Atom | None = None
     body: Atom | None = None
-    # policy-inventory-exempt: mechanism-internal; reason=map-atom and filter-atom are the two higher-order engine iterator heads whose callback position has the same crossing shape; evidence=bindings/python/metta/_lint_analysis.py:_operation_in_higher_order_call
+    # policy-inventory-exempt: mechanism-internal; reason=map-atom and filter-atom are the two higher-order engine iterator heads whose callback position has the same crossing shape; evidence=extensions/python/metta/_lint_analysis.py:_operation_in_higher_order_call
     if head in {"map-atom", "filter-atom"}:
         if len(call) == 3:
             candidate = call[2]

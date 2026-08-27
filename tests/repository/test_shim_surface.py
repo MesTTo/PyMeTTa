@@ -83,7 +83,7 @@ HOST_SERVICES = {
     # The one row here that makes the floor SHRINK by being added. The engine
     # decides silent/1 from argv at load time, an embedded host has no argv,
     # and two seats had each written the same retract-then-assert privately
-    # (metta_py_set_silent/1 here, petta_c_set_silent/1 in bindings/cetta),
+    # (metta_py_set_silent/1 here, petta_c_set_silent/1 in extensions/cetta),
     # with engine/filereader.pl's own export comment naming the first. One
     # engine-side door replaces both copies and the engine stops depending on
     # a binding's internals.
@@ -162,7 +162,7 @@ HOST_SERVICES = {
     # The platform census. Not shim orchestration moving host-side: it is a
     # fact about the running build that only the engine can answer, and a host
     # that cannot read it recovers the same knowledge by parsing SWI's boot
-    # transcript, which is what bindings/node does today.
+    # transcript, which is what extensions/node does today.
     "metta_platform/4",
     # The recursion charge the translator writes in front of every recursive
     # equation's body, recognised in a clause body a host is WALKING rather

@@ -1,6 +1,6 @@
 """Purpose: turn "how much of MeTTa can be written in pure Python today" into a
 measured number with a derived backlog. Each example under `examples/` may gain
-a Python TWIN under `bindings/python/tests/twins/`, mirroring its path; this
+a Python TWIN under `extensions/python/tests/twins/`, mirroring its path; this
 lane runs the example and its twin, requires the twin to prove every claim the
 example makes, to make the example's definitions matchable, to use no MeTTa
 source text, and to spell in Python what Python already spells. Whatever a twin
@@ -91,7 +91,7 @@ Guarantees:
     [tested: test_an_empirical_envelope_cannot_license_another_protocol;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Decides:
-  - twins live under `bindings/python/tests/twins/<folder>/<name>.py`, the
+  - twins live under `extensions/python/tests/twins/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
     path transform over the corpus, which is why there is no second walker;
     and `tests/**` is already inside ruff's and codespell's reach, so the
@@ -167,7 +167,7 @@ from metta.atoms import Atom, _alpha_eq, _encode
 import example_parity as parity
 
 REPO = parity.REPO
-TWINS = REPO / "bindings" / "python" / "tests" / "twins"
+TWINS = REPO / "extensions" / "python" / "tests" / "twins"
 RESIDUE = TWINS / "residue.json"
 
 
@@ -233,7 +233,7 @@ DEFINITION_COST = 765
 
 #: The tree's own POINT-counter allowance. It applies to an integer BUDGET
 #: only; adding it to empirical extrema would silently widen what was observed
-#: [source: bindings/python/metta/benchmarking.py _COUNTER_TOLERANCE;
+#: [source: extensions/python/metta/benchmarking.py _COUNTER_TOLERANCE;
 #: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 TOLERANCE = 4
 
@@ -345,7 +345,7 @@ NAMING_NAMESPACES = frozenset({"S", "V", "fn"})
 #: The subset that mints ANY name, where attribute access reaches the same atom
 #: the bracket spells. `fn` is deliberately absent: its catalog is generated and
 #: closed, so a bracket name it does not alias has no attribute spelling at all
-#: [source: bindings/python/metta/_name_mapping.py generated_aliases;
+#: [source: extensions/python/metta/_name_mapping.py generated_aliases;
 #: commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 MINTING_NAMESPACES = frozenset({"S", "V"})
 
@@ -530,7 +530,7 @@ RETIRED_HANDLE = {
 #: and `fn` survives as the namespace and died as a function of a name string,
 #: 366 times in the old corpus. Only a call through a RECEIVER is read, so a
 #: twin's own local helper named `one` is nobody's business but its own
-#: [source: bindings/python/metta/results.py Answers.one, Answers.first and
+#: [source: extensions/python/metta/results.py Answers.one, Answers.first and
 #: Answers.count; ai-report-p14-r3.md corpus counts; commit=8c057bb8055459cc13127d89b418deb634b90ae4]
 #: [measured 2026-08-24: `Answers.one` and `Answers.first` are
 #: `(self, *, default=...)`, so both defaults are KEYWORD-only and neither
@@ -690,7 +690,7 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 #: care where the call sits. `cache` compiles a body exactly as `define` does,
 #: and `pre_add` compiles a RAW judge into the space before claiming the write
 #: door, so a judge written without a `@define` beneath it is lowered too
-#: [source: bindings/python/metta/_space.py Space.pre_add, "A raw function is
+#: [source: extensions/python/metta/_space.py Space.pre_add, "A raw function is
 #: compiled into this space before claiming the hook"]
 #: [measured 2026-08-24: a bare `@space.pre_add` judge stores
 #: `(= (intake $a) (case ...))`, its match statement lowered to the case tower
@@ -713,7 +713,7 @@ COMPILING_DECORATORS = frozenset({"define", "cache", "pre_add", "rules"})
 #: `(+ $a $b)`. A `@rules` body is EXECUTED instead, so its `a == b` is
 #: Python's own structural equality and `.eq(...)` is the building spelling
 #: there; the operator rule below would report a correct bundle
-#: [source: bindings/python/metta/_rules.py rules, which calls the generator
+#: [source: extensions/python/metta/_rules.py rules, which calls the generator
 #: with Variable arguments; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 LOWERING_DECORATORS = frozenset({"define", "cache", "pre_add"})
 
@@ -994,7 +994,7 @@ RUNG_LINE = re.compile(r"#\s*rung:\s*\S")
 #: emits `(py-in a b)`, `not a` emits `(not (py-truthy a))`, and `a and b`
 #: emits a `let*` over `py-truthy`; `a // b` and `a & b` REFUSE, naming
 #: `floor_math(a / b)` and "MeTTa has no bitwise operators";
-#: source: bindings/python/metta/_define_expression.py _BINOPS, _COMPARE,
+#: source: extensions/python/metta/_define_expression.py _BINOPS, _COMPARE,
 #: _INSTEAD and _compare_link; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 #:
 #: So `**` and `//` are NOT here: neither is an engine head, and demanding an
@@ -1035,7 +1035,7 @@ def _subscripted_name(node: ast.Subscript) -> tuple[str, str, str] | None:
     `my_var` while `S.my_var` is `my-var`; and Python normalizes an identifier
     to NFKC while parsing, so a non-ASCII spelling changes at the attribute
     door too. Both keep the bracket, which is rung 5 doing its job
-    [source: bindings/python/metta/_name_mapping.py attribute_name;
+    [source: extensions/python/metta/_name_mapping.py attribute_name;
     commit=8c057bb8055459cc13127d89b418deb634b90ae4]
     [tested: test_an_exact_bracket_spelling_is_not_the_attribute_one;
     commit=8c057bb8055459cc13127d89b418deb634b90ae4].
@@ -1172,7 +1172,7 @@ def idiom(twin: Path) -> list[str]:
             reached = _factory(node)
             # A MINTING factory only: the engine's own catalog holds function
             # names such as `&&&` and `&^&`, so `fn["&&&"]` names a combinator
-            # and not a space [source: bindings/python/tests/twins/libraries/
+            # and not a space [source: extensions/python/tests/twins/libraries/
             # roman_test.py; tested: test_an_engine_function_may_be_named_with_
             # an_ampersand; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
             if (
@@ -1433,7 +1433,7 @@ _REPIN_TAG = (
     "[{kind} {date}: min-of-{rounds} serial fresh processes; "
     "command={command}; commit=WORKTREE]"
 )
-_REPIN_COMMAND = "python bindings/python/tools/twin_coverage.py --repin"
+_REPIN_COMMAND = "python extensions/python/tools/twin_coverage.py --repin"
 
 
 def repinned(
@@ -1522,7 +1522,7 @@ class Run:
 
 
 _PREAMBLE = (
-    "import json, sys; sys.path.insert(0, 'bindings/python')\n"
+    "import json, sys; sys.path.insert(0, 'extensions/python')\n"
     "from metta import Expression, MeTTa, S, V\n"
     "from metta.structures import _canonical\n"
     "def _key(head):\n"
@@ -1593,7 +1593,7 @@ def _launch(source: str, root: Path) -> Run:
 #: `os.environ` is what the first version did, and under pytest that escaped
 #: the lane: `test_twin_coverage.py` calls run_twin, so every later test in the
 #: same process lost `~/.elan/bin` from PATH and the two LeaTTa conformance
-#: tests failed to find `lake` [source: bindings/python/metta/benchmarking.py
+#: tests failed to find `lake` [source: extensions/python/metta/benchmarking.py
 #: builds its child environment the same way and says why; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 MEASURED_PATH = (str(Path(sys.executable).resolve().parent), "/usr/bin", "/bin")
 
@@ -2232,7 +2232,7 @@ def main() -> int:
     parser.add_argument("paths", nargs="*", help="examples, default every twinned one")
     arguments = parser.parse_args()
 
-    sys.path.insert(0, str(REPO / "bindings" / "python"))
+    sys.path.insert(0, str(REPO / "extensions" / "python"))
     named = [Path(p).resolve() for p in arguments.paths]
     for example in named:
         if not twin_for(example).is_file():

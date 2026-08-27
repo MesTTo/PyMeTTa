@@ -622,12 +622,12 @@ def test_the_benchmark_suite_prices_a_file_load():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[4]
-    registry = (root / "bindings" / "python" / "bench.py").read_text()
+    registry = (root / "extensions" / "python" / "bench.py").read_text()
     assert '"file-load": "test_file_load"' in registry
-    suite = (root / "bindings" / "python" / "benchmarks" / "test_benchmarks.py").read_text()
+    suite = (root / "extensions" / "python" / "benchmarks" / "test_benchmarks.py").read_text()
     assert "def test_file_load(" in suite
     data = json.loads(
-        (root / "bindings" / "python" / "benchmarks" / "baseline.json").read_text()
+        (root / "extensions" / "python" / "benchmarks" / "baseline.json").read_text()
     )
     entry = data["benchmarks"]["file-load"]
     assert isinstance(entry["inferences"], int) and entry["inferences"] > 0
@@ -666,10 +666,10 @@ def test_the_json_wire_row_is_not_registered_engine_free():
 
     root = Path(__file__).resolve().parents[4]
     assert '"json-wire": "test_json_wire"' in (
-        root / "bindings" / "python" / "bench.py"
+        root / "extensions" / "python" / "bench.py"
     ).read_text()
     entry = json.loads(
-        (root / "bindings" / "python" / "benchmarks" / "baseline.json").read_text()
+        (root / "extensions" / "python" / "benchmarks" / "baseline.json").read_text()
     )["benchmarks"]["json-wire"]
     assert isinstance(entry["inferences"], int) and entry["inferences"] > 0
 

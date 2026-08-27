@@ -69,8 +69,13 @@ for group in groups:
 
 def _cli_output(example: Path) -> str:
     result = subprocess.run(
+        # `extensions` is what run.sh and the packaged CLI pass, so it is the
+        # configuration this side has to be. The library side always has the
+        # Python seat; without the token the engine side would be the pure
+        # kernel and the two would differ over py-call rather than over
+        # anything the comparison is about.
         ["swipl", "--stack_limit=8g", "-q", "-s", str(REPO / "engine" / "main.pl"),
-         "--", str(example), "silent"],
+         "--", str(example), "silent", "extensions"],
         capture_output=True,
         text=True,
         timeout=120,
@@ -81,14 +86,14 @@ def _cli_output(example: Path) -> str:
 
 
 def _library_output(example: Path) -> str:
-    script = _LIBRARY_RUNNER.format(python_dir=str(REPO / "bindings" / "python"), repo=str(REPO))
+    script = _LIBRARY_RUNNER.format(python_dir=str(REPO / "extensions" / "python"), repo=str(REPO))
     result = subprocess.run(
         [sys.executable, "-c", script, str(example)],
         capture_output=True,
         text=True,
         timeout=120,
         cwd=str(REPO),
-        env={**os.environ, "PYTHONPATH": str(REPO / "bindings" / "python")},
+        env={**os.environ, "PYTHONPATH": str(REPO / "extensions" / "python")},
     )
     assert result.returncode == 0, f"library failed on {example.name}: {result.stderr[:500]}"
     return result.stdout

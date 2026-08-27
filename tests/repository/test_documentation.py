@@ -49,7 +49,7 @@ def _load_reference():
     would ship a build-time script in the wheel.
     """
     spec = importlib.util.spec_from_file_location(
-        "metta_reference_tool", _REPO / "bindings" / "python" / "tools" / "reference.py"
+        "metta_reference_tool", _REPO / "extensions" / "python" / "tools" / "reference.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -129,7 +129,7 @@ def test_the_reference_pages_are_up_to_date():
     ]
     assert not stale, (
         f"{stale} no longer match their source; run "
-        f"`python bindings/python/tools/reference.py --write`"
+        f"`python extensions/python/tools/reference.py --write`"
     )
 
 
@@ -154,14 +154,14 @@ def test_an_overloaded_method_is_documented_once():
     """@overload declares a type, not a definition. All four gave Space.run
     four identical reference entries.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    page = _reference.page_for("bindings/python/metta/_space.py", "metta.Space")
+    page = _reference.page_for("extensions/python/metta/_space.py", "metta.Space")
     assert page.count("### `Space.run`") == 1
 
 
 def test_the_legacy_reference_generator_tracks_the_narrow_public_modules():
     """Both checked-in generators must agree on deleted and private doors."""
     modules = {spec.name: spec.source for spec in _site_reference_generator.MODULES}
-    assert modules["metta.Space"] == "bindings/python/metta/_space.py"
+    assert modules["metta.Space"] == "extensions/python/metta/_space.py"
     assert "metta.space" not in modules
     assert "metta.das" not in modules
     assert "metta.persistent" not in modules
@@ -208,7 +208,7 @@ def _load_libdoc():
     import importlib.util as _importlib_util
 
     specification = _importlib_util.spec_from_file_location(
-        "metta_libdoc_tool", _REPO / "bindings" / "python" / "tools" / "libdoc.py"
+        "metta_libdoc_tool", _REPO / "extensions" / "python" / "tools" / "libdoc.py"
     )
     module = _importlib_util.module_from_spec(specification)
     specification.loader.exec_module(module)
@@ -221,7 +221,7 @@ def test_the_metta_library_page_is_up_to_date():
     current = libdoc._PAGE.read_text(encoding="utf-8")
     assert current == libdoc.page(), (
         "metta-libraries.md no longer matches the libraries' @doc atoms; "
-        "run `python bindings/python/tools/libdoc.py --write`"
+        "run `python extensions/python/tools/libdoc.py --write`"
     )
 
 
@@ -233,7 +233,7 @@ def _lint_kinds() -> set[str]:
     argument and through a simplifier's (kind, detail, replacement) triple,
     and both shapes are matched here.
     """
-    tree = ast.parse((_REPO / "bindings" / "python" / "metta" / "_lint_analysis.py").read_text())
+    tree = ast.parse((_REPO / "extensions" / "python" / "metta" / "_lint_analysis.py").read_text())
     kinds: set[str] = set()
     for node in ast.walk(tree):
         first = None
@@ -294,7 +294,7 @@ _CONTRIBUTING_CLAUSES = (
     "obligation header",
     "evidence tag",
     "a tag on a gate-green tree",
-    "python -m pytest bindings/python/tests/ -q --rootdir=bindings/python -c bindings/python/pyproject.toml",
+    "python -m pytest extensions/python/tests/ -q --rootdir=extensions/python -c extensions/python/pyproject.toml",
     "cd tests/prolog",
 )
 _FORM_TYPES = {"markdown", "textarea", "input", "dropdown", "checkboxes"}
@@ -403,7 +403,7 @@ def test_the_extension_cost_tables_match_the_committed_pins():
     from benchmarks.extension_cost import _case_name
 
     pins = json.loads(
-        (_REPO / "bindings/python/benchmarks/extension-baseline.json").read_text()
+        (_REPO / "extensions/python/benchmarks/extension-baseline.json").read_text()
     )["benchmarks"]
     page = _PAGE.read_text()
 

@@ -18,7 +18,7 @@ Why both sides run at all: a phrasebook that only shows Python proves nothing
 about the translation, and one nobody runs rots within a week. Running the
 MeTTa form beside its Python spelling makes each row a DIFFERENTIAL, the same
 instrument the twins lane and `example_parity` use one level up
-[source: bindings/python/tools/twin_coverage.py, the count-against-count
+[source: extensions/python/tools/twin_coverage.py, the count-against-count
 contract; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
 
 The five buckets, and what each CLAIMS:
@@ -77,7 +77,7 @@ Guarantees:
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - a row may run a MeTTa-only setup and an explicitly recorded equivalent
     LeaTTa form; neither is silently sent to the other engine [tested:
-    python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
+    python extensions/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - PUBLIC/INTERNAL is row data, all live catalog names carry it, and the
     rendered reference includes PUBLIC rows only [tested:
     test_internal_rows_are_absent_from_the_public_phrasebook;
@@ -135,7 +135,7 @@ VENDORED_MANIFEST = TOOLS / "leatta-stdlib-manifest.json"
 LEATTA_BINARY = LEATTA / ".lake" / "build" / "bin" / "LeaTTa"
 
 sys.path.insert(0, str(TOOLS))
-sys.path.insert(0, str(REPO / "bindings" / "python"))
+sys.path.insert(0, str(REPO / "extensions" / "python"))
 
 from phrasebook_entries import (  # noqa: E402
     BUCKETS,
@@ -189,7 +189,7 @@ def _one(value: Any) -> str:
 #: What an ordinary row may spend before the lane calls it a runaway. Strategy
 #: rows override this because each fresh row compiles lib_strategy and its
 #: recursive traversal equations before evaluating the small witness
-#: [measured: 2026-08-26, 11079816; command=python bindings/python/tools/phrasebook.py
+#: [measured: 2026-08-26, 11079816; command=python extensions/python/tools/phrasebook.py
 #: --learn --markdown --gate;
 #: fixture=bottomup row after ten prior strategy imports; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa].
 FUEL = 2_000_000
@@ -473,7 +473,7 @@ def drift(entries: list[Entry]) -> tuple[str, list[str]]:
     deliberate re-vendor rather than something a sibling checkout can trigger:
 
         cd /path/to/LeaTTa && git show <commit>:tests/conformance/stdlib-manifest.json \
-            > bindings/python/tools/leatta-stdlib-manifest.json
+            > extensions/python/tools/leatta-stdlib-manifest.json
 
     then advance LEATTA_COMMIT and LEATTA_ENTRY_COUNT with the rows.
     """
@@ -630,7 +630,7 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         "The names and their types are LeaTTa's, measured against its built binary rather",
         f"than transcribed: manifest {LEATTA_VERSION} at commit `{LEATTA_COMMIT}`, "
         f"{LEATTA_ENTRY_COUNT} declarations",
-        f"over {len(entries)} distinct names. `bindings/python/tools/phrasebook.py` runs the",
+        f"over {len(entries)} distinct names. `extensions/python/tools/phrasebook.py` runs the",
         "rows and fails when a spelling stops answering what it says it answers.",
         "",
         "## How to read a row",
@@ -952,7 +952,7 @@ def _page_state(wanted: str, *, write: bool) -> str:
     if PAGE.read_text(encoding="utf-8") != wanted:
         return (
             "no longer matches the rows; run "
-            "`python bindings/python/tools/phrasebook.py --markdown`"
+            "`python extensions/python/tools/phrasebook.py --markdown`"
         )
     return ""
 

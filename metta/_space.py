@@ -3,7 +3,7 @@
 Assumes:
   - the six extracted ``_space_*`` modules own query, definition, execution,
     persistence, eager decoding, and diagnostic implementation [source:
-    bindings/python/metta/_space_query.py, _space_definitions.py,
+    extensions/python/metta/_space_query.py, _space_definitions.py,
     _space_execution.py, _space_persistence.py, _space_objects.py, and
     _space_diagnostics.py; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
@@ -2841,7 +2841,7 @@ class Space(Handle):
         /,
         *,
         name: str | None = ...,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = ...,
         effect: EffectClass | str,
         declarations: Iterable[Atom] = ...,
@@ -2854,7 +2854,7 @@ class Space(Handle):
         self,
         *,
         name: str | None = ...,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = ...,
         effect: EffectClass | str,
         declarations: Iterable[Atom] = ...,
@@ -2867,7 +2867,7 @@ class Space(Handle):
         fn: Callable | None = None,
         *,
         name: str | None = None,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
         effect: EffectClass | str | None = None,
         declarations: Iterable[Atom] = (),

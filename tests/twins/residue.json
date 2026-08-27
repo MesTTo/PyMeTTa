@@ -3164,7 +3164,7 @@
       "missing": "a lane-visible way to pass a NAME as a Python keyword argument",
       "row": "P14.1",
       "section": "§7 the examples-twin coverage lane",
-      "detail": "CLOSED by the lane. `_call_strings` permits every keyword argument's text, so `metta.space(restricted=True, grants=[\"file\"])` reads clean and the twin no longer writes `S.file.name` [source: bindings/python/tools/twin_coverage.py _call_strings; measured 2026-08-23].",
+      "detail": "CLOSED by the lane. `_call_strings` permits every keyword argument's text, so `metta.space(restricted=True, grants=[\"file\"])` reads clean and the twin no longer writes `S.file.name` [source: extensions/python/tools/twin_coverage.py _call_strings; measured 2026-08-23].",
       "retired": "2026-08-23"
     },
     {
@@ -3877,7 +3877,7 @@
       "form": null,
       "missing": "a symbol whose name begins with `__` through the S factory",
       "row": "P14.5",
-      "detail": "CLOSED. `S['___']` builds the hole symbol: the subscript door no longer forwards a leading-double-underscore name to the attribute guard, so the twin needs no lowercase escape [measured 2026-08-23: PYTHONPATH=bindings/python python -c \"from metta import S; print(S['___'])\" answers `___`].",
+      "detail": "CLOSED. `S['___']` builds the hole symbol: the subscript door no longer forwards a leading-double-underscore name to the attribute guard, so the twin needs no lowercase escape [measured 2026-08-23: PYTHONPATH=extensions/python python -c \"from metta import S; print(S['___'])\" answers `___`].",
       "retired": "2026-08-23"
     },
     {
@@ -4562,7 +4562,7 @@
       "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
       "row": "P14.7",
       "section": "§9e the performance note; §5 the three lanes",
-      "detail": "AS FILED, superseded by the retirement line below. RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `collapse` is `list()` and `length` is `len()`, so the claim reads `len(m.fn.demo_peano(300)) == 301` and costs 2,833,146 inferences against the engine's 2,195,554, +29%, past the lane's 10% band. The answers are Peano terms up to 300 deep, so building them in Python is the cost. The missing door is a query that projects or aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/ch07-control-flow/07-05-recursion/06-peano.metta].",
+      "detail": "AS FILED, superseded by the retirement line below. RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `collapse` is `list()` and `length` is `len()`, so the claim reads `len(m.fn.demo_peano(300)) == 301` and costs 2,833,146 inferences against the engine's 2,195,554, +29%, past the lane's 10% band. The answers are Peano terms up to 300 deep, so building them in Python is the cost. The missing door is a query that projects or aggregates before it crosses [measured 2026-08-23: python extensions/python/tools/twin_coverage.py examples/ch07-control-flow/07-05-recursion/06-peano.metta].",
       "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 17; `len(m.fn.demo_peano(300))` counts through the engine count cursor"
     },
     {
@@ -5122,7 +5122,7 @@
       "missing": "a query that projects or aggregates engine-side, so counting matches does not materialise them",
       "row": "P14.7",
       "section": "§9e the performance note; §5 the three lanes",
-      "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `len(m[conjuncts])` counts the 362,880-row join through Python's own conjunction door and costs 55,719,867 inferences against the engine's own 32,521,598, +71%, past the lane's 10% band, because every row's ten bindings become Python atoms. The missing door is a query that aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/ch06-many-answers/08-permutations.metta].",
+      "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `len(m[conjuncts])` counts the 362,880-row join through Python's own conjunction door and costs 55,719,867 inferences against the engine's own 32,521,598, +71%, past the lane's 10% band, because every row's ten bindings become Python atoms. The missing door is a query that aggregates before it crosses [measured 2026-08-23: python extensions/python/tools/twin_coverage.py examples/ch06-many-answers/08-permutations.metta].",
       "retired": "2026-08-24: `len(answers)` counts wholly inside the engine through `metta_py_query_count` and pulls no atom into Python, so the claim is `len(m.match(*conjuncts))`. What it costs is a LIBRARY item rather than a missing spelling: measured in one process over the same 29-way conjunction, the Python count spent 50,757,468 inferences against 27,170,677 for the engine's own (length (collapse (match ...))), 1.87x."
     },
     {

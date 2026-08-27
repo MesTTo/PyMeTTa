@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
+sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 
 import phrasebook as book  # noqa: E402
 from phrasebook_entries import ENTRIES, PUBLIC_FACES, Entry  # noqa: E402
@@ -153,7 +153,7 @@ def test_the_phrasebook_page_is_up_to_date():
     """The checked-in page is what the rows produce."""
     answers = json.loads(book.ANSWERS.read_text(encoding="utf-8"))
     assert book.PAGE.read_text(encoding="utf-8") == book.page(list(ENTRIES), answers), (
-        "run `python bindings/python/tools/phrasebook.py --markdown`"
+        "run `python extensions/python/tools/phrasebook.py --markdown`"
     )
 
 

@@ -48,7 +48,7 @@ def _manifest() -> dict:
 
 
 def test_package_and_tools_share_one_manifest():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert (ROOT / "bindings" / "python" / "pyproject.toml").samefile(ROOT / "pyproject.toml")
+    assert (ROOT / "extensions" / "python" / "pyproject.toml").samefile(ROOT / "pyproject.toml")
     project = _manifest()["project"]
     assert project["name"] == "pymetta"
     assert project["dynamic"] == ["version"]
@@ -284,7 +284,7 @@ def test_every_runtime_resource_reaches_the_source_archive(repo_root):
     `python -m build` builds the wheel FROM the sdist, so a resource the sdist
     drops is one the wheel build cannot find. Measured 2026-08-23: five of the
     nine `RUNTIME_RESOURCES` entries were absent from `MANIFEST.in` and
-    `python -m build` died on the first of them, `backends/mork/decider.pl`,
+    `python -m build` died on the first of them, `extensions/mork/extension.pl`,
     while `python -m build --wheel` succeeded because it reads the working tree
     directly. CI ran only the second, so the path every installer takes was the
     one path never exercised.
@@ -314,7 +314,7 @@ def test_every_runtime_resource_reaches_the_source_archive(repo_root):
     def covered(resource: str) -> bool:
         # setuptools also ships a package's own declared package-data, which is
         # why metta/shim.pl needs no directive of its own.
-        if resource.startswith("bindings/python/metta/"):
+        if resource.startswith("extensions/python/metta/"):
             return True
         for directive in directives:
             verb = directive[0]

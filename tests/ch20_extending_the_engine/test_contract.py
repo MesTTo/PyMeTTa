@@ -442,7 +442,7 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noq
     import sys
 
     script = (
-        "import sys; sys.path.insert(0, 'bindings/python')\n"
+        "import sys; sys.path.insert(0, 'extensions/python')\n"
         "import metta\n"
         "from metta import convert, parse\n"
         "class Early: pass\n"

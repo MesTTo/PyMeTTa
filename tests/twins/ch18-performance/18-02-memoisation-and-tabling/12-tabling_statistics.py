@@ -142,7 +142,7 @@ def twin(m):
 #: instead of a cursor-engine-private one, and calls route through
 #: the declared dispatch ownership seam. The shared scope is what
 #: SWI charges for cross-engine visibility; a private-when-unwatched
-#: refinement is recorded as follow-up [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=tabling-seam merged tree with engine/reader.so; commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
+#: refinement is recorded as follow-up [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=tabling-seam merged tree with engine/reader.so; commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 #: RE-PINNED 2026-08-26, 67893 to 66441 (-1452), by the specializer
 #: argument-walk fix.
 #: Planning a specialization grafts a call argument onto the equation's
@@ -150,5 +150,5 @@ def twin(m):
 #: lambda per position, so each fresh process paid '>>'/4's one-time
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
-#: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
+#: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 66441

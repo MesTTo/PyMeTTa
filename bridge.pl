@@ -77,7 +77,7 @@ metta_py_bridge :- metta_py_dir(Dir),
 %Janus converts None and only exact bool, int, float, str and tuple values
 %under this option; primitive subclasses remain references, which is the
 %identity law this bridge requires [tested:
-%bindings/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
+%extensions/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
 %commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f].
 metta_py_opts([py_object(true), py_string_as(string)]).
 
@@ -108,7 +108,7 @@ metta_py_call(Call, Goal, Result) :-
 %A control signal is NOT converted. An interrupt, a time limit and an inference
 %limit stay uncatchable, which is a guarantee the engine makes and tests: "A
 %program's own (catch ...) cannot eat the signal either" [source:
-%bindings/python/tests/ch07_control_flow/test_control_signals.py].
+%extensions/python/tests/ch07_control_flow/test_control_signals.py].
 %KeyboardInterrupt arrives from Python as an ordinary python_error and would
 %have been converted into a catchable one, which is the same hole by another
 %door.
@@ -268,7 +268,7 @@ seam:grounded_structure(Obj, Elements) :-
 %An earlier version of this comment put a number on that, 402 million
 %instructions on alpha-unique. The number was wrong and is withdrawn: that
 %benchmark was bimodal at the time and the measurement was cluster assignment
-%rather than cause [see bindings/python/benchmarks/baseline.json, alpha-unique's
+%rather than cause [see extensions/python/benchmarks/baseline.json, alpha-unique's
 %instruction_noise_comment]. Doing less work before failing is still right; it
 %is just not worth 10%.
 metta_py_tuple_arguments(Tuple, Arguments) :-
@@ -688,7 +688,7 @@ bind_python_call_spec(Spec, Spec).
 %`(== "abc" (py-call (str "abc")))` is False and a (-> String Number)
 %parameter rejects it.
 %
-%Every one of those is fixed in bindings/python/bridge.pl, which is the language's own
+%Every one of those is fixed in extensions/python/bridge.pl, which is the language's own
 %surface rather than this one: `py-atom` RESOLVES where this APPLIES, and that
 %split is what makes a Python callable a value. Reach for that. Changing this
 %operator's defaults was tried and measured and it works, and it changes what

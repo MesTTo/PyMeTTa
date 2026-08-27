@@ -124,6 +124,6 @@ def test_backend_startup_does_not_change_process_working_directory(monkeypatch, 
     assert "set_prolog_flag(stack_limit, 64000000)" in bridge.queries
     # Every native backend that is built, naming none of them: the embedding
     # host used to test for MORK's shared library and pass `mork`.
-    assert "set_prolog_flag(argv, ['backends'])" in bridge.queries
+    assert "set_prolog_flag(argv, ['extensions'])" in bridge.queries
     assert bridge.consulted == [str(main_file)]
     assert consulted is bridge

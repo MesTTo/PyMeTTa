@@ -162,7 +162,7 @@ def test_module_tier_verbs_are_inert_until_called() -> None:
     subprocess.run(
         [sys.executable, "-c", source],
         cwd=root,
-        env=os.environ | {"PYTHONPATH": str(root / "bindings" / "python")},
+        env=os.environ | {"PYTHONPATH": str(root / "extensions" / "python")},
         check=True,
     )
 

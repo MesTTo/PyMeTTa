@@ -150,7 +150,7 @@ def test_generated_fn_help_is_offline() -> None:
     completed = subprocess.run(
         [sys.executable, "-c", source],
         cwd=root,
-        env=os.environ | {"PYTHONPATH": str(root / "bindings" / "python")},
+        env=os.environ | {"PYTHONPATH": str(root / "extensions" / "python")},
         capture_output=True,
         text=True,
         check=True,

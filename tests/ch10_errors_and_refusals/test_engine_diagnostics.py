@@ -7,7 +7,7 @@ Assumes:
   - capfd, not capsys. The engine writes through SWI's own streams onto file
     descriptors 1 and 2; nothing it prints passes through Python's
     sys.stdout, so the fd-level fixture is the only one that sees it
-    [source: bindings/python/tests/ch20_extending_the_engine/test_p2b_matching_core.py, which reads
+    [source: extensions/python/tests/ch20_extending_the_engine/test_p2b_matching_core.py, which reads
     engine annotations the same way]
 Guarantees:
   - a failing assertEqual leaves the embedding process's stdout carrying only
@@ -117,7 +117,7 @@ def test_verbosity_is_a_published_engine_door(metta, capfd, _verbosity_restored)
 def test_no_binding_carries_its_own_verbosity_setter(metta, repo_root):
     """One writer for the flag, and it is the engine's.
 
-    bindings/python and bindings/cetta each carried the identical
+    extensions/python and extensions/cetta each carried the identical
     retract-then-assert under a private name, and engine/filereader.pl's own
     export comment named the first of them, so the engine depended on a
     binding's internals. The scoreboard in test_shim_surface.py pins that the
@@ -134,11 +134,11 @@ def test_no_binding_carries_its_own_verbosity_setter(metta, repo_root):
             f"replaces was supposed to leave with the door's arrival"
         )
 
-    bindings = repo_root / "bindings"
+    seats = repo_root / "extensions"
     offenders = sorted(
         str(path.relative_to(repo_root))
         for pattern in _BINDING_SOURCE
-        for path in bindings.rglob(pattern)
+        for path in seats.rglob(pattern)
         if "node_modules" not in path.parts
         and _WRITES_THE_FLAG.search(path.read_text(encoding="utf-8", errors="ignore"))
     )

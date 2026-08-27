@@ -79,7 +79,7 @@ def twin(m):
 #: before the fix, and the 90639 pin itself already carried the walk over
 #: the smaller pre-visibility catalog, so the twin recovers past it. The
 #: example drops 16.7%, 73800 to 61464 [measured: metta=61464 twin=86995;
-#: command=python bindings/python/tools/twin_coverage.py --measure
+#: command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch18-performance/18-02-memoisation-and-tabling/09-tabling_fib.metta; fixture=open-tail-index
 #: tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 86995 to 86938 (-57), by the open-tail-index
@@ -91,7 +91,7 @@ def twin(m):
 #: relational-candidate rows of 6917bef7, and the open-tail head-index
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: The parallel async-scheduler branch's own history of this pin,
 #: kept for the record; the merged value follows below:
 #: RE-PINNED 2026-08-26, 90639 to 90892, on the completed async-scheduler
@@ -100,7 +100,7 @@ def twin(m):
 #: the scheduler, context callback, and exact-memo lifecycle clauses. Three
 #: fresh serial processes agreed at the new cost
 #: [measured: 90892 inferences; command=python
-#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch18-performance/18-02-memoisation-and-tabling/09-tabling_fib.metta; fixture=p14-audit-async with
 #: engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 #: RE-PINNED 2026-08-26, 86938 to 86978 (+40), on the composed
@@ -108,7 +108,7 @@ def twin(m):
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 #: RE-PINNED 2026-08-26, 86978 to 97711 (+10733), at the
 #: tabling-seam merge: declarations now table `as shared` (checked
 #: readers `as (incremental, shared)`) so a live Answers cursor, the
@@ -116,7 +116,7 @@ def twin(m):
 #: instead of a cursor-engine-private one, and calls route through
 #: the declared dispatch ownership seam. The shared scope is what
 #: SWI charges for cross-engine visibility; a private-when-unwatched
-#: refinement is recorded as follow-up [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=tabling-seam merged tree with engine/reader.so; commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
+#: refinement is recorded as follow-up [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=tabling-seam merged tree with engine/reader.so; commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 #: RE-PINNED 2026-08-26, 97711 to 96272 (-1439), by the specializer
 #: argument-walk fix this file's own chain named as the follow-up.
 #: Planning a specialization grafts a call argument onto the equation's
@@ -124,5 +124,5 @@ def twin(m):
 #: lambda per position, so each fresh process paid '>>'/4's one-time
 #: resolution wherever its first binding plan landed and 13 further
 #: inferences at every later position. The walk is first-order now, at
-#: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
+#: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 96272
