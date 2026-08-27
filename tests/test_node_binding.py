@@ -54,8 +54,8 @@ from metta import wire
 _BINDING = Path(__file__).resolve().parents[3] / "bindings" / "node"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
 
-# What the WebAssembly build refuses at boot, as bindings/node/index.mjs names
-# it. Restated here so the two have to agree: a refusal that appears in one
+# What the WebAssembly build refuses at boot, as bindings/node/src/engine.ts
+# names it. Restated here so the two have to agree: a refusal that appears in one
 # and not the other is a capability that moved without anyone saying so.
 _EXPECTED_REFUSALS = [
     ("engine/metta.pl", "library(thread)"),
@@ -278,7 +278,7 @@ class NodeBinding:
 def node_driver():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _need_node()
     process = subprocess.Popen(
-        ["node", str(_BINDING / "kit" / "driver.mjs")],
+        ["node", str(_BINDING / "build" / "kit" / "driver.js")],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
@@ -296,13 +296,20 @@ def _need_node() -> None:
         pytest.skip("node is not installed")
     if not (_BINDING / "node_modules" / "swipl-wasm").is_dir():
         pytest.skip("run npm ci in bindings/node to fetch swipl-wasm")
+    if not (_BINDING / "build" / "kit" / "run.js").is_file():
+        # The binding is TypeScript, and this lane runs its BUILD rather than
+        # its sources: a distro Node may be compiled without type stripping
+        # (`node_use_amaro` false), and a lane that only ran on the official
+        # build would not run here at all. `npm ci` builds through the package's
+        # own prepare script, so this note is the same shape as the one above.
+        pytest.skip("run npm ci in bindings/node to build its TypeScript")
 
 
 @pytest.fixture(scope="module")
 def node_report() -> dict:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _need_node()
     finished = subprocess.run(
-        ["node", str(_BINDING / "kit" / "run.mjs")],
+        ["node", str(_BINDING / "build" / "kit" / "run.js")],
         capture_output=True,
         text=True,
         timeout=240,
