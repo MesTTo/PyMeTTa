@@ -152,6 +152,23 @@ def test_mm2_exec_transforms_inside_mork(mork, metta):  # noqa: D103  -- pytest 
     assert not mork.match(S.friend(S.sam, V.x))
 
 
+def test_lib_mm2_requires_the_mork_seat_and_still_stores_and_reads(mork, metta):
+    """The require door passes and the notation is unchanged.
+
+    lib_mm2's first form is now a require of the mork seat, the named refusal
+    for the half that may be missing. With the seat loaded, which this
+    module's own skipif guarantees, it answers the unit and the five
+    operators store and read exactly as before. The refusal side is
+    tests/prolog/suites/seams/extensions.plt, where a seat's records can be
+    staged to look like a tree that never ran build.sh.
+    """
+    metta.run("!(import! &self (library lib_mm2))")
+    # The add operator is MeTTa's fullwidth plus, which is lib_mm2's own
+    # spelling and not a lookalike for the arithmetic one.
+    metta.run("!(＋ (owns sam cat))")  # noqa: RUF001
+    assert [row.x for row in mork.match(S.owns(S.sam, V.x))] == [S.cat]
+
+
 @pytest.fixture()
 def named_pair(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     alpha = metta._at("&mork:iso-alpha")
