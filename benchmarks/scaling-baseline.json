@@ -70,7 +70,7 @@
     "mork-write": {
       "cause": {
         "chain": [
-          "the C writer in engine/writer.c: the MORK bridge converts every atom it stores through swrite/2 (backends/mork/mork_ffi/morkspaces.pl), so the whole ladder halves, 30010 to 15609 at size 200 and 240401 to 124809 at size 1600, -48.1% at every size. The declared LINEAR class still holds and is unchanged in kind: the exponent reads 1.000 against 1.001 before, and r-squared rises to 0.99999998, because the port removes a constant per atom rather than a term in the size. Control: METTA_C_WRITER=off in this same worktree reads [31410, 62697, 125501, 251705], within 4.7% of the prior pin, so the move is this change and not the box",
+          "the C writer in engine/writer.c: the MORK bridge converts every atom it stores through swrite/2 (backends/mork/mork_ffi/morkspaces.pl), so the whole ladder halves, 30010 to 15609 at size 200 and 240505 to 124809 at size 1600, -47.99% to -48.11% across the four sizes. The declared LINEAR class still holds and is unchanged in kind: the exponent reads 1.000 against 1.001 before, and r-squared rises to 0.99999998, because the port removes a constant per atom rather than a term in the size. Control: METTA_C_WRITER=off in this same worktree reads [31410, 62697, 125501, 251705], within 4.7% of the prior pin, so the move is this change and not the box",
           "python -m benchmarks.scaling --record measured mork-write",
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
