@@ -4242,15 +4242,6 @@ seam:grounded_type_names(X, Names) :-
 %[tested: specializer_invalidation:writing_in_one_space_leaves_another_alone,
 %test_adding_in_one_space_never_removes_atoms_from_another].
 
-%%%%%%%%%% Silence %%%%%%%%%%
-%
-% filereader.pl decides silent/1 from the CLI argv at load time; a library run
-% has no argv, so the bridge sets it explicitly. Retract first, because two
-% contradictory silent/1 clauses would leave the engine on whichever is first.
-petta_py_set_silent(Silent) :-
-    retractall(silent(_)),
-    assertz(silent(Silent)).
-
 %%%%%%%%%% Trusted fast cache I/O %%%%%%%%%%
 %
 %One fast_write carries the whole atom list. The text header pins both this

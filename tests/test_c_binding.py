@@ -24,7 +24,9 @@ Guarantees:
   - the two seats' metatypes agree except where _KNOWN_METATYPE_DIVERGENCES
     names the disagreement and says why
     [tested test_the_c_binding_and_the_python_host_answer_the_same_programs]
-  - the C seat's own suite passes against the same tree
+  - the C seat's own suite passes against the same tree, and its process
+    stdout carries only its own writes while the engine's assertion report
+    goes to stderr
     [tested test_the_c_binding_suite_passes]
 Open Obligations:
   To Do: None
@@ -130,13 +132,31 @@ def c_report(built: Path) -> dict[str, Any]:
 
 
 def test_the_c_binding_suite_passes(built: Path) -> None:
-    """The seat's own C suite, run against this tree rather than a built one."""
+    """The seat's own C suite, run against this tree rather than a built one.
+
+    Its streams are read as well as its status. That suite runs a failing
+    assertEqual, and the engine used to print "Assertion failed: ..." to
+    current_output before raising, which for a host that embeds SWI in its own
+    process is the HOST's stdout with no way to suppress it (C12 in
+    ai-cetta-c-constraints.md, filed from here). The process has exited by the
+    time these strings are read, so every stream is flushed: what is absent
+    from stdout was never written to it, and the summary line below is the
+    proof that stdout is being read at all.
+    """
     done = subprocess.run(
         [str(built / "tests" / "test_cetta")],
         capture_output=True, text=True, check=False,
     )
     assert done.returncode == 0, f"{done.stdout}\n{done.stderr}"
     assert "0 failures" in done.stdout
+    assert "Assertion failed" not in done.stdout, (
+        f"the engine wrote its assertion report to the C host's stdout: "
+        f"{done.stdout!r}"
+    )
+    assert "MeTTa assertion failed" in done.stderr, (
+        f"the assertion failure was not reported at all; moving it off stdout "
+        f"must not mean losing it: {done.stderr!r}"
+    )
 
 
 def test_the_c_binding_and_the_python_host_answer_the_same_programs(
