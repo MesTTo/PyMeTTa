@@ -43,6 +43,18 @@ HOST_SERVICES = {
     # rather than one goal-string read per name [measured 2026-08-26: 1,311
     # inferences per name's first call through the goal-string read, double
     # digits through the apply seam].
+    # Space ownership, and the one pair of rows this list GREW rather than
+    # shed. The shim registers Python foreign spaces, and it used to record
+    # that only in metta_py_foreign/1, a registry of its own that MORK's and
+    # redis's equivalents could not see: two providers matching one name then
+    # resolved by clause order and an atom landed in whichever store loaded
+    # first. Taking the name through an engine door is what makes the second
+    # claim a refusal, so these belong on the floor for the same reason
+    # metta_release_space/1 does — a lifecycle transition the engine owns and
+    # any host drives.
+    "metta_claim_space/2",
+    "metta_disclaim_space/2",
+    "metta_space_claim/2",
     "metta_deprecation/3",
     # The modifier walk gained a fourth argument rather than a second walk:
     # it now also answers whether the pattern carries a sequence variable,
@@ -221,6 +233,9 @@ FLOOR_REASONS = {
     "match_foreign/5": "door",
     "metta_add_atoms/2": "door",
     "metta_assert_space_releasable/1": "door",
+    "metta_claim_space/2": "door",
+    "metta_disclaim_space/2": "door",
+    "metta_space_claim/2": "door",
     "metta_declare_restricted_space/2": "door",
     "metta_declare_space_parent/2": "door",
     "metta_host_adopt_function/4": "host-orchestration",

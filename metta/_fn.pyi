@@ -266,6 +266,7 @@ class _FunctionNamespace:
     remove_typing_rule: Symbol
     repr: Symbol
     repra: Symbol
+    require_extension: Symbol
     residual_goals: Symbol
     return_on_error: Symbol
     "return-on-error: (-> Atom Atom %Undefined%)\n\nEarly return, which is Python's own `return` inside an `if`. Indexing needs the guard because a leaf atom is not indexable here."

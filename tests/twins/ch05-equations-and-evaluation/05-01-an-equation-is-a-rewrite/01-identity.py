@@ -377,4 +377,40 @@ def twin(m):
 #: command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
 #: fixture=this checkout with engine/reader.so and the MORK backend loaded;
 #: commit=bdd7de39a6604f9712254fa406d9da798137e452]. metta=2800, unchanged.
-BUDGET = 2826
+#: RE-PINNED 2026-08-28, 2826 to 2836, by THREE names added to
+#: engine/spaces.pl's module export list: metta_claim_space/2,
+#: metta_disclaim_space/2 and metta_space_claim/2, the space-ownership claim
+#: door. Attributed by bisect and by a sweep, both on a tree that already
+#: carries the door's ~120 clauses: with the clauses present and NONE of the
+#: three exported the reading is 2826, and exporting 1, 2 and 3 of them reads
+#: 2831, 2841 and 2836. So the move is the export list, it is about 5
+#: inferences a row, and it is NON-MONOTONIC in the row count, which is the
+#: same class every entry above records for a scanned declaration row. It is
+#: not the twin's work and not the door's clauses: 40 inert facts planted in
+#: engine/spaces/foreign.pl on the unmodified base move the reading not at
+#: all, this twin never calls the door, and the example itself reads 2800 in
+#: every variant. The door's own cost to a space OPERATION is zero, measured
+#: separately: 2,000 MORK adds plus a flush, 2,000 MORK matches and a
+#: 2,000-atom native write-and-match read 256,979, 531,796 and 78,028
+#: inferences identically before and after, five runs each
+#: [measured: 2836 inferences; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: fixture=this worktree with engine/reader.so and the MORK backend loaded,
+#: against a pristine archive of the parent commit with the same artifacts;
+#: commit=402d8126d3ce32e9035ce0709822297b012721df]. metta=2800, unchanged.
+#: RE-PINNED 2026-08-28, 2836 to 2841, at the extension-doors merge, both
+#: parents' chains kept: the doors branch measured 2836 on its own tree (the
+#: three engine/spaces.pl exports, its entry above), and the integration side
+#: sat within the allowance of 2826 carrying two further kind/2 rows
+#: (seam:host_transport_failure/1 and seam:host_error_reason/2, engine-declared
+#: at the seam-module fix). The merged tree reads 2841, and the same one-inert-
+#: kind-row control that priced every earlier move confirms the mechanism HERE:
+#: planting one row beside the new declarations reads 2846, +5 exactly. Row
+#: effects compose non-monotonically across the two parents, which is why the
+#: merged value is measured rather than summed
+#: [measured 2026-08-28: 2841 on the merged tree, 2846 with one inert row
+#: planted; command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
+#: fixture=the p14-integration checkout with engine/reader.so and the MORK
+#: backend loaded; commit=WORKTREE]. metta=2800, unchanged.
+BUDGET = 2841

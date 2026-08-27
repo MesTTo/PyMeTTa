@@ -4208,6 +4208,13 @@ seam:foreign_remove(Space, Term, Removed) :-
 
 metta_py_register_foreign(Space0, Capabilities, Delivery) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
+    %The engine-side claim comes first, so a name another provider already owns
+    %is refused by name here instead of landing in metta_py_foreign/1 and then
+    %resolving against MORK's or redis's clauses by load order. A
+    %re-registration of a name this side already holds is the same owner and
+    %the same extent, which the door treats as idempotent exactly as the line
+    %below does.
+    metta_claim_space(Space, python),
     ( metta_py_foreign(Space) -> true ; assertz(metta_py_foreign(Space)) ),
     %A newly registered provider is a new source: the linear-consumption
     %mark belongs to the drained OBJECT, and this is the door a fresh one
@@ -4238,7 +4245,8 @@ metta_py_unregister_foreign(Space0) :-
     ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ),
     retractall(metta_py_capability(Space, _)),
     metta_py_declare_delivery(Space, []),
-    retractall(metta_py_foreign(Space)).
+    retractall(metta_py_foreign(Space)),
+    metta_disclaim_space(Space, python).
 
 %%%%%%%%%% Subscriptions %%%%%%%%%%
 %
