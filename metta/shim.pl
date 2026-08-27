@@ -76,6 +76,10 @@
 %     recursive proof depth remains bounded and one equation yields one proof
 %     [tested: test_depth_exhaustion_returns_a_partial_proof;
 %     commit=0d90e628b1f90c4b4464a2907efcb357d74b13d3]
+%   - a proof node is an equation, a stored atom or a goal the program called,
+%     never the recursion charge metta_instrument_recursive_clause/3 writes in
+%     front of a recursive equation's body
+%     [tested: test_a_recursive_proof_omits_the_engine_stack_charge]
 %   - metta_py_load/3 loads under the engine's own source-load lifecycle, so
 %     the library's door and import! replace each other's loads of a file and
 %     not only their own [tested 2026-08-19:
@@ -3841,7 +3845,8 @@ metta_py_solve_clause(M, Goal, D, Tree, Status, Barrier) :-
     catch_recover(clause(Owner:Goal, Body, Ref), fail),
     ( translated_from(Ref, Source)
       -> metta_py_next_depth(D, D1),
-         metta_py_solve_(Owner, Body, D1, Sub, Status, Barrier),
+         metta_py_body_after_stack_charge(Owner, Body, Premises),
+         metta_py_solve_(Owner, Premises, D1, Sub, Status, Barrier),
          Tree = [step(Goal, Source, Sub)]
     ; call(Owner:Body),
       %The LEAF keeps the caller's module, because what it names is the space
@@ -3862,6 +3867,47 @@ metta_py_clause_owner(M, Goal, Owner) :-
     ->  Owner = Definer
     ;   Owner = M
     ).
+
+%A recursive equation's clause opens with the stack charge that
+%engine/spaces/foreign.pl's metta_instrument_recursive_clause/3 writes in front
+%of the translated body, built by engine/metta/control.pl's
+%metta_fuel_step_goal/3. That charge is the engine counting its own recursion
+%depth, not a premise of the program being proved, so it contributes no node.
+%Walked as ordinary goals it put `builtin
+%system:b_getval('$metta_fuel_remaining',off)` and `builtin off==off` in front
+%of every premise of every recursive equation
+%[tested: test_a_recursive_proof_omits_the_engine_stack_charge].
+%
+%CALLED rather than skipped, at the point the body would have run it. A proof
+%walk opens no fuel scope of its own, so the balance reads `off` and the charge
+%decides nothing today; derivation bounds its search with the timeout and
+%inference guards instead [tested:
+%test_unbounded_derivation_obeys_resource_guards]. Calling it keeps that a
+%property of the SCOPE rather than of this predicate, so a proof walked inside
+%an open scope is charged exactly as evaluation is.
+%
+%The FIRST conjunct is matched against the generator so a change to the charge
+%cannot leave the recognizer behind, and the branch is tied to it by variable
+%identity rather than by shape: it must test the very variable the read bound.
+%Matching the branch against the generated template instead does not work,
+%because clause/2 DECOMPILES and SWI's arithmetic instructions do not regenerate
+%the source spelling, `Remaining is Limit - Cost` reading back as `Remaining is
+%Limit + -2` [measured 2026-08-27, swipl 10 clause/2 over a compiled recursive
+%equation]. A charge this no longer recognizes becomes visible again, which is
+%noise in a tree rather than a wrong tree.
+metta_py_body_after_stack_charge(Owner, Body, Premises) :-
+    nonvar(Body),
+    Body = (Read, Branch, Premises),
+    control:metta_fuel_step_goal(_, _, (Template, _)),
+    subsumes_term(Template, Read),
+    Read = _:b_getval(_, Balance),
+    nonvar(Branch),
+    Branch = (Condition -> true ; _),
+    Condition == (Balance == off),
+    !,
+    call(Owner:Read),
+    call(Owner:Branch).
+metta_py_body_after_stack_charge(_, Body, Body).
 
 metta_py_findall_results([], [], [], complete).
 metta_py_findall_results(

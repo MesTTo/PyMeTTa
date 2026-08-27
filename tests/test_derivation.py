@@ -217,6 +217,40 @@ def test_derivation_facts_deduplicate_in_first_seen_order():  # noqa: D103  -- p
     assert [fact.atom for fact in proof.facts] == [S.a(1), S.b(2)]
 
 
+def test_a_recursive_proof_omits_the_engine_stack_charge(metta):
+    """The engine's recursion counter is not a premise of the program.
+
+    engine/spaces/foreign.pl's metta_instrument_recursive_clause/3 opens
+    every recursive equation's clause with the stack charge that
+    engine/metta/control.pl's metta_fuel_step_goal/3 builds. Walked as
+    ordinary goals, it put `builtin
+    system:b_getval('$metta_fuel_remaining',off)` and `builtin off==off`
+    in front of the premises of every recursive step, so the tour's own
+    ancestor proof read three lines of engine plumbing to five of
+    program.
+    """
+    metta.run(
+        "(par-c Tom Bob)\n(par-c Bob Ann)\n"
+        "(= (anc-c $x $y) (match &self (par-c $x $y) $y))\n"
+        "(= (anc-c $x $y) (let $m (match &self (par-c $x $m0) $m0) (anc-c $m $y)))"
+    )
+    (proof,) = metta.derivation(S["anc-c"](S.Tom, S.Ann))
+
+    leaves = [
+        node.text
+        for node in _walk_nodes(proof.children)
+        if isinstance(node, Builtin)
+    ]
+    assert not any("metta_fuel_remaining" in leaf for leaf in leaves)
+    assert not any("off==off" in leaf for leaf in leaves)
+    # the recursive step itself is still there, with both its premises
+    assert len(proof.rules) == 2
+    assert {f.atom for f in proof.facts} == {
+        S["par-c"](S.Tom, S.Bob),
+        S["par-c"](S.Bob, S.Ann),
+    }
+
+
 def _walk_nodes(nodes):
     for node in nodes:
         yield node
