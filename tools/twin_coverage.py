@@ -1427,7 +1427,7 @@ def layout(twin: Path) -> list[str]:
 #: in the text as a claim ABOUT this file, and would then ask it for a date
 #: only the run has. Substituting the word keeps the template out of the lane's
 #: reach while the twin it writes carries a complete tag [source:
-#: tests/check_evidence_tags.py SOURCES and measured_problems;
+#: tests/checks/check_evidence_tags.py SOURCES and measured_problems;
 #: commit=845d851b7241ccea3b6a13f532172945bf6d8d9e].
 _REPIN_TAG = (
     "[{kind} {date}: min-of-{rounds} serial fresh processes; "
@@ -1450,7 +1450,7 @@ def repinned(
     is the thing the whole chain exists to prevent.
 
     The evidence tag it writes carries `commit=WORKTREE`, the lawful
-    in-progress spelling, so `RELEASE=1 tests/check_evidence_tags.py` refuses
+    in-progress spelling, so `RELEASE=1 tests/checks/check_evidence_tags.py` refuses
     a tree that ships one before the provenance pin.
     """
     tree = ast.parse(source)

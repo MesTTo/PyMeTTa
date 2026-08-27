@@ -294,7 +294,7 @@ _CONTRIBUTING_CLAUSES = (
     "obligation header",
     "evidence tag",
     "a tag on a gate-green tree",
-    "python -m pytest bindings/python/tests/ -q --rootdir=python -c bindings/python/pyproject.toml",
+    "python -m pytest bindings/python/tests/ -q --rootdir=bindings/python -c bindings/python/pyproject.toml",
     "cd tests/prolog",
 )
 _FORM_TYPES = {"markdown", "textarea", "input", "dropdown", "checkboxes"}

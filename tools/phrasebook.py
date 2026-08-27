@@ -58,7 +58,7 @@ Assumes:
   - LeaTTa lives outside this repository and CI never clones it, so its column
     is frozen into `phrasebook_answers.json` and re-measured only under
     `--learn`, exactly as the upstream parity baseline freezes its numbers
-    [source: tests/check_upstream_parity.py; tests/conformance/leatta.py, its
+    [source: tests/checks/check_upstream_parity.py; tests/conformance/leatta.py, its
     Assumes block; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - every LeaTTa stdlib name has exactly one row, so the coverage denominator

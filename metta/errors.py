@@ -19,7 +19,7 @@ Guarantees:
   - semantic refusals carry a structured Python-reference or MeTTa-law ground,
     and every CompileError derives one from its construct [tested:
     bindings/python/tests/test_refusal_grounds.py,
-    tests/check_refusal_grounds.py;
+    tests/checks/check_refusal_grounds.py;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - a reified-world effect refusal carries the named EffectSafety law as its
     machine-readable ground [tested:

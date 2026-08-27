@@ -15,7 +15,7 @@ by the most ordinary route there is, copy and paste.
 
 The class below is derived from Python's own character database rather than
 transcribed, which makes it a second authority: the engine's table is
-written out code by code and `tests/prolog/parser.plt` checks it against a
+written out code by code and `tests/prolog/suites/reader/parser.plt` checks it against a
 transcription of PropList's ranges, so three readings of one file have to
 agree before this suite is green.
 Open Obligations:
@@ -125,7 +125,8 @@ def test_the_class_does_not_move_with_the_locale(locale):
     is the only place the other one is exercised.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     done = subprocess.run(
-        ["swipl", "-g", "run_tests(parser_unicode_layout)", "-t", "halt", "parser.plt"],
+        ["swipl", "-g", "run_tests(parser_unicode_layout)", "-t", "halt",
+         "suites/reader/parser.plt"],
         cwd=REPO_ROOT / "tests" / "prolog",
         env=os.environ | {"LC_ALL": locale},
         capture_output=True,

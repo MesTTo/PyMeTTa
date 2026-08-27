@@ -30,7 +30,7 @@ Guarantees:
     types [tested: test_canonical_context_types_replace_public_newtypes;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - async head-named declaration methods reuse the catalog-generated policy aliases and
-    own no duplicate Literal lists [tested: tests/check_policy_inventory.py;
+    own no duplicate Literal lists [tested: tests/checks/check_policy_inventory.py;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - all fifteen synchronous declaration heads have asynchronous mirrors,
     including ``reacts`` for ``(on ...)`` while ``reaction`` remains, and no

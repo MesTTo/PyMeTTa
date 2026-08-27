@@ -131,7 +131,7 @@
 %     spelling Janus may deliver, sharing a variable by name and never
 %     sharing an anonymous one, and a malformed wire term fails rather than
 %     decoding to something [tested 2026-08-16: shim_wire_decoding,
-%     shim_wire_variable_sharing in tests/prolog/shim.plt]
+%     shim_wire_variable_sharing in tests/prolog/suites/host/shim.plt]
 %   - A payload outside the class its tag names fails as a malformed shape
 %     does, so a tag is a claim about its payload rather than a label
 %     [tested 2026-08-20:

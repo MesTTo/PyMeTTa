@@ -9,7 +9,7 @@ Assumes:
 Guarantees:
   - resolve() imports the longest importable prefix of a dotted path and
     getattrs the rest, so a path of any depth works [tested: B26 in
-    tests/prolog/python_surface.plt]
+    tests/prolog/suites/host/python_surface.plt]
   - resolve_grounded() and evaluate_grounded() retain an exact Python tuple
     behind a Python object reference, despite Janus translating base tuples
     eagerly [tested: test_a_python_tuple_answers_the_same_through_both_doors;

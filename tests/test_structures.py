@@ -183,7 +183,7 @@ def test_structures_are_engine_free():  # noqa: D103  -- pytest discovers or inj
     # cwd=python/, because a bare subprocess inherits THIS process's working
     # directory and `metta` is only importable from there. The pytest gate
     # lane happens to run from python/ and passed; the invocation the docs
-    # give, `pytest bindings/python/tests/ --rootdir=python` from the repo root,
+    # give, `pytest bindings/python/tests/ --rootdir=bindings/python` from the repo root,
     # failed this one test and nothing else [measured 2026-08-19]. A test
     # that passes or fails on where it was launched from is not testing what
     # it claims to.

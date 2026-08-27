@@ -989,7 +989,7 @@ def test_define_needs_a_function_or_prolog_and_then_one(m):  # noqa: D103  -- py
 # arbitrary MeTTa, and the Python that @m.define compiles participates on
 # both sides of a verdict: a comparison the engine evaluates decides
 # admission, and a constructor-minting transform names the granted form.
-# The mechanism itself is tested in tests/prolog/hooks.plt; this witnesses
+# The mechanism itself is tested in tests/prolog/suites/spaces/hooks.plt; this witnesses
 # that "write the policy in Python" is registration plus the existing door,
 # not a second mechanism.
 def test_a_hook_body_is_arbitrary_metta_and_python_compiles_to_it(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

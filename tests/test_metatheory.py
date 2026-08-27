@@ -424,8 +424,8 @@ COVERAGE = {
     # derived inverse are rewriting, and `extra-variables-exempt` is written
     # for the narrowing termination analysis alone.
     "engine/translator_rules.pl": {"REWRITING", "NARROWING"},
-    "tests/prolog/trs.plt": {"REWRITING"},
-    "tests/prolog/narrowing.plt": {"NARROWING"},
+    "tests/prolog/suites/translator/trs.plt": {"REWRITING"},
+    "tests/prolog/suites/translator/narrowing.plt": {"NARROWING"},
     "tests/prolog/translator_confluence.pl": {"REWRITING", "NARROWING"},
     "tests/prolog/README.md": {"REWRITING", "NARROWING"},
     "tests/conformance/critical_pairs_run.pl": {"REWRITING"},

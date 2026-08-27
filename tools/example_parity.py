@@ -64,7 +64,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-SKIPS = REPO / "tests" / "example_skips.txt"
+SKIPS = REPO / "tests" / "data" / "example_skips.txt"
 VERDICT = " should "
 
 #: How long one example may take in one configuration. The slowest example
