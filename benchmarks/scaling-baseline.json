@@ -2,6 +2,7 @@
   "configuration": {
     "c_extension": true,
     "c_reader": true,
+    "c_writer": true,
     "mork_backend": "foreign",
     "python_version": "3.14.4",
     "swipl_version": "10.1.13"
@@ -69,48 +70,49 @@
     "mork-write": {
       "cause": {
         "chain": [
+          "the C writer in engine/writer.c: the MORK bridge converts every atom it stores through swrite/2 (backends/mork/mork_ffi/morkspaces.pl), so the whole ladder halves, 30010 to 15609 at size 200 and 240401 to 124809 at size 1600, -48.1% at every size. The declared LINEAR class still holds and is unchanged in kind: the exponent reads 1.000 against 1.001 before, and r-squared rises to 0.99999998, because the port removes a constant per atom rather than a term in the size. Control: METTA_C_WRITER=off in this same worktree reads [31410, 62697, 125501, 251705], within 4.7% of the prior pin, so the move is this change and not the box",
           "python -m benchmarks.scaling --record measured mork-write",
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "linear",
       "fit": {
         "best_model": "linear",
-        "coefficient": 149.14980265309504,
-        "exponent": 1.0008918964960085,
+        "coefficient": 78.12947767009452,
+        "exponent": 0.9997746507195127,
         "growth": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
+          0.5201,
+          0.521,
+          0.5205,
+          0.5189
         ],
         "normalised_rms": {
-          "constant": 0.716311,
-          "cubic": 0.485494,
-          "linear": 0.001642,
-          "log_n": 0.596174,
-          "n_log_n": 0.071982,
-          "quadratic": 0.343045
+          "constant": 0.714839,
+          "cubic": 0.486681,
+          "linear": 7.1e-05,
+          "log_n": 0.594643,
+          "n_log_n": 0.073446,
+          "quadratic": 0.344376
         },
         "pair_slopes": [
-          0.997,
-          1.0013,
-          1.0042
+          0.9994,
+          0.9999,
+          0.9999
         ],
-        "r_squared": 0.9999973923550471
+        "r_squared": 0.9999999825399544
       },
       "noise": {
         "absolute_max": 0,
         "relative_max": 0.0
       },
       "representative": [
-        30010,
-        59897,
-        119899,
-        240505
+        15609,
+        31205,
+        62407,
+        124809
       ],
       "sizes": [
         200,

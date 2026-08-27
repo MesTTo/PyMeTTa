@@ -117,7 +117,8 @@
   },
   "counter_configuration": {
     "c_extension": true,
-    "c_reader": true
+    "c_reader": true,
+    "c_writer": true
   },
   "counter_policy": "stats().inferences minimum of three and fixed two-point growth slopes decide; wall time advises",
   "instruction_policy": "perf instructions:u minimum of three, one percent noise allowance",
