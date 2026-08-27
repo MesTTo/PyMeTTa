@@ -362,5 +362,6 @@ def twin(m):
 #: nothing; command=python bindings/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=this worktree with engine/reader.so, the C extension objects and
-#: the MORK backend loaded; commit=WORKTREE]. metta=2800, unchanged.
+#: the MORK backend loaded;
+#: commit=6c1a6a9ff5420791bd6e7004283949b005ea5c8e]. metta=2800, unchanged.
 BUDGET = 2831
