@@ -15,7 +15,7 @@ Guarantees:
   - nine adopted advisory kinds cover first-letter roles, interpreter
     shadows, Python/engine crossings, unordered answer views, import-time
     calls, and synchronous async-body driving without refusing execution
-    [tested: bindings/python/tests/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+    [tested: bindings/python/tests/ch14_seeing_your_program/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - exact named source intents suppress only their bound finding, while the
     intent remains queryable in &metta [tested:
     test_a_named_metta_ok_intent_suppresses_only_its_bound_rule; commit=acb40f1912f131ae088083d1af29b4b283019bea]

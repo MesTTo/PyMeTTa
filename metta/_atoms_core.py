@@ -5,12 +5,14 @@ Guarantees:
     test_callable_mentions_share_operator_and_fourteen_math_names and
     test_atom_comparisons_are_only_ordering; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
   - atom/plain ordering and comparison-term truthiness refuse with structured
-    Python-reference grounds; chained comparisons name the explicit
-    conjunction remedy [tested: bindings/python/tests/test_refusal_grounds.py;
+    Python-reference grounds; chained comparisons name the explicit conjunction
+    remedy [tested:
+    bindings/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - Grounded preserves every non-primitive Python value by identity; only
     exact bool, int, float and str values use native wire terms [tested:
-    bindings/python/tests/test_identity_wire.py; commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
+    bindings/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
+    commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - engine rational wire values decode to exact Fraction payloads, while a
     Python-created Fraction follows the non-primitive identity law [tested:
     test_rational_payloads_cross_the_scalar_door and

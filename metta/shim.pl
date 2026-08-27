@@ -945,7 +945,8 @@ metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
 %engine_create defers execution until the first pull. Ordered carriers collect
 %and stably sort in the engine; Answers slicing then reads a genuine best
 %prefix rather than sorting a Python materialisation [tested:
-%bindings/python/tests/test_under_algebra.py; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
+%bindings/python/tests/ch06_many_answers/test_under_algebra.py;
+%commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 metta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
                            Limit, Inf, Algebra, Direction, prolog(Engine)) :-
     (   Direction \== none

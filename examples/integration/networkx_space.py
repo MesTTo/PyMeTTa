@@ -13,7 +13,7 @@ shape needs projection="pairwise" (consecutive argument pairs) or
 "bipartite" (the expression itself becomes a node linked to each
 argument, the hypergraph-faithful reading). Anything else is refused
 rather than guessed.
-[tested: bindings/python/tests/test_networkx_space.py]
+[tested: bindings/python/tests/ch13_a_queryable_dataset/test_networkx_space.py]
 Open Obligations:
   To Do: None
   Hacks: None

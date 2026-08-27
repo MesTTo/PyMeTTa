@@ -79,7 +79,7 @@ def metta_path(repo_root):  # noqa: D103  -- pytest discovers or injects this ca
 
 @pytest.fixture(scope="session")
 def dummy_metta_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    return repo_root / "bindings" / "python" / "tests" / "data" / "dummy.metta"
+    return repo_root / "bindings" / "python" / "tests" / "fixtures" / "dummy.metta"
 
 
 @pytest.fixture(scope="session")

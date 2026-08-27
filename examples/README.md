@@ -1,6 +1,6 @@
 # Examples by topic
 
-Every example asserts its own outputs. `bindings/python/tests/test_examples.py`
+Every example asserts its own outputs. `bindings/python/tests/repository/test_examples.py`
 discovers them recursively and excludes only the shared `_common.py`, so a
 stopped example fails the build. Run any example from the repository root:
 

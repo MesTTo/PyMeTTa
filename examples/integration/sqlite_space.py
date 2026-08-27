@@ -25,7 +25,7 @@ Declared Exact is trusted: the engine hands the bound down and a whole
 join can be claimed without re-derivation. The unification the engine
 still performs per answer is how bindings ENTER the local program, not
 a verification pass; for an Exact shape it never rejects.
-[tested: bindings/python/tests/test_sqlite_space.py]
+[tested: bindings/python/tests/ch13_a_queryable_dataset/test_sqlite_space.py]
 Guarantees:
   - a Blob column follows its per-context image declaration, so opaque keeps
     the row object whole and transparent projects its bytes [tested:

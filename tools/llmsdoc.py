@@ -141,7 +141,7 @@ def counts() -> list[tuple[str, int]]:
         (r"(\d+) executable programs", len(corpus())),
         (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/metta-*.md")))),
         (r"(\d+) plunit suites", len(list(ROOT.glob("tests/prolog/suites/*/*.plt")))),
-        (r"(\d+) files, blackbox", len(list(ROOT.glob("bindings/python/tests/*.py")))),
+        (r"(\d+) files, blackbox", len(list(ROOT.glob("bindings/python/tests/*/test_*.py")))),
         (r"(\d+) Python twins", len(list(ROOT.glob("bindings/python/tests/twins/**/*.py")))),
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),

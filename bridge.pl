@@ -72,11 +72,12 @@ metta_py_bridge :- metta_py_dir(Dir),
                    assertz(metta_py_ready).
 
 %Everything crosses as an OBJECT. That is the whole policy of this surface and
-%it is why it composes: resolving gives an atom, applying an atom gives an atom,
-%and a program says when it wants MeTTa data by asking for it. Current Janus
-%converts None and only exact bool, int, float, str and tuple values under this
-%option; primitive subclasses remain references, which is the identity law
-%this bridge requires [tested: bindings/python/tests/test_identity_wire.py;
+%it is why it composes: resolving gives an atom, applying an atom gives an
+%atom, and a program says when it wants MeTTa data by asking for it. Current
+%Janus converts None and only exact bool, int, float, str and tuple values
+%under this option; primitive subclasses remain references, which is the
+%identity law this bridge requires [tested:
+%bindings/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
 %commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f].
 metta_py_opts([py_object(true), py_string_as(string)]).
 
@@ -106,10 +107,11 @@ metta_py_call(Call, Goal, Result) :-
 %
 %A control signal is NOT converted. An interrupt, a time limit and an inference
 %limit stay uncatchable, which is a guarantee the engine makes and tests: "A
-%program's own (catch ...) cannot eat the signal either"
-%[source: bindings/python/tests/test_control_signals.py]. KeyboardInterrupt arrives from
-%Python as an ordinary python_error and would have been converted into a
-%catchable one, which is the same hole by another door.
+%program's own (catch ...) cannot eat the signal either" [source:
+%bindings/python/tests/ch07_control_flow/test_control_signals.py].
+%KeyboardInterrupt arrives from Python as an ordinary python_error and would
+%have been converted into a catchable one, which is the same hole by another
+%door.
 metta_py_guard(Call, Goal) :-
     catch(Goal, Error, metta_py_failure(Call, Error)).
 

@@ -43,19 +43,18 @@ lazy one really is lazy: measured over a thousand-atom space, taking
 two answers unified against two atoms and the eager door against all
 thousand. `website/live/remote-protocol.md` is the full contract.
 
-A wire atom is a tagged array, and `CODEC.md` in the repository root is
-the grammar for it. This server is run against that page's golden
-corpus by `bindings/python/tests/test_codec_typescript.py`, which also pins the
-places it diverges: it does not check the `g` payload, and JavaScript's
-single number type turns an integral float back into an integer. Errors are
-`{"error": "..."}` with a 4xx status. Refusals mirror `serve()` exactly:
-401 before the body is read when a Bearer token is configured and
-missing or wrong (constant-time compare), 411 without content-length,
-413 over the 16 MiB limit, 400 for ambiguous lengths, invalid JSON,
-non-object payloads, unknown operations and malformed wire atoms.
-Integers past IEEE-754 exact range are refused with a 400 rather than
-silently rounded, because `JSON.parse` hands back doubles and a store
-that rounds an atom would answer a different atom.
+A wire atom is a tagged array, and `CODEC.md` in the repository root is the
+grammar for it. This server is run against that page's golden corpus by
+`bindings/python/tests/ch21_another_language_at_the_seam/test_codec_typescript.py`,
+which also pins the places it diverges: it does not check the `g` payload, and
+JavaScript's single number type turns an integral float back into an integer.
+Errors are `{"error": "..."}` with a 4xx status. Refusals mirror `serve()`
+exactly: 401 before the body is read when a Bearer token is configured and
+missing or wrong (constant-time compare), 411 without content-length, 413 over
+the 16 MiB limit, 400 for ambiguous lengths, invalid JSON, non-object payloads,
+unknown operations and malformed wire atoms. Integers past IEEE-754 exact range
+are refused with a 400 rather than silently rounded, because `JSON.parse` hands
+back doubles and a store that rounds an atom would answer a different atom.
 
 Removal takes every stored occurrence that UNIFIES with the sent atom,
 the multiset reading `remove-atom` has everywhere; both servers carry a
@@ -99,11 +98,10 @@ esbuild space_server.test.ts --bundle --platform=node --format=esm \
         --outfile=space_server.test.js && node --test space_server.test.js
 ```
 
-`bindings/python/tests/test_typescript_space.py` drives the whole story from
-MeTTa: MeTTa-driven queries, the conformance kit over the attached
-provider, a thread pool, the async surface, one-request batches, and
-the MeTTaScript backend when `METTA_METTASCRIPT_CORE` names its core
-module. Both servers are also certified by
-`metta.testing.GatewayComplianceSuite`, the protocol's own conformance
-suite, which any implementation in any language can subclass against a
-URL.
+`bindings/python/tests/ch19_spaces_backed_by_anything/test_typescript_space.py`
+drives the whole story from MeTTa: MeTTa-driven queries, the conformance kit
+over the attached provider, a thread pool, the async surface, one-request
+batches, and the MeTTaScript backend when `METTA_METTASCRIPT_CORE` names its
+core module. Both servers are also certified by
+`metta.testing.GatewayComplianceSuite`, the protocol's own conformance suite,
+which any implementation in any language can subclass against a URL.
