@@ -833,11 +833,11 @@ python_object_blob_name('PyObject').
 %This host's transport-failure shape, and the reason text for an error it
 %threw: janus wraps a Python exception as python_error(Class, Value), and
 %the value may be a live exception object only this bridge can render.
-:- multifile metta_host_transport_failure/1.
-metta_host_transport_failure(error(python_error('TransportFailure', _), _)).
+:- multifile seam:host_transport_failure/1.
+seam:host_transport_failure(error(python_error('TransportFailure', _), _)).
 
-:- multifile metta_host_error_reason/2.
-metta_host_error_reason(error(python_error(Class, Message0), _), Reason) :-
+:- multifile seam:host_error_reason/2.
+seam:host_error_reason(error(python_error(Class, Message0), _), Reason) :-
     (   string(Message0) -> Message = Message0
     ;   metta_py_exception_message(Message0, Message)
     ),
