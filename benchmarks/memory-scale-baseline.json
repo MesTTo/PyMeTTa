@@ -891,47 +891,49 @@
           "bench.py --memory-scale spawns save-fast in a fresh process",
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear",
-          "RE-PINNED 2026-08-26 from [2869, 11149, 93953, 921983] +/-0 to [2842, 10854, 90956, 891986] +/-0 after 5655d253's bulk store door removed repeated per-atom save traversal; the saving scales with atoms and the resulting curve remains linear"
+          "RE-PINNED 2026-08-27 from [2842, 10854, 90956, 891986] +/-0 to [2913, 11553, 97957, 961989] +/-0, by petta_py_encode/2 asking petta_space_operand/1 of every atom it encodes: that is the species question the wire's p tag carries and the one metatype_of/2 itself asks, and it costs 7 inferences on an atom that is no space, measured over 100,000 iterations against a bare loop. The move is +70,003 and +70,001 at the largest size and +71 at the smallest, which is per ATOM SAVED, so the curve stays linear and best_model stays linear; the same command reads green on every case at 5d8769c7.",
+          "RE-PINNED 2026-08-27 from [2842, 10854, 90956, 891986] +/-0 to [2913, 11553, 97957, 961989] +/-0, by petta_py_encode/2 asking petta_space_operand/1 of every atom it encodes: that is the species question the wire's p tag carries and the one metatype_of/2 itself asks, and it costs 7 inferences on an atom that is no space, measured over 100,000 iterations against a bare loop. The move is per ATOM SAVED, +70003 at the largest size and +71 at the smallest, so the curve stays linear and best_model stays linear. Re-measured with `$CHECK_PY bench.py --memory-scale save-fast save-metta --memory-repetitions 3 --update-baseline` and merged into this ledger by hand, because that flag rewrites the document with only the SELECTED cases and would otherwise have dropped the other twenty-one. The same command reads green on every case at 5d8769c7."
         ],
-        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
+        "commit": "dee7dd651135f124376c183977b31320e1f9b3a1"
       },
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 9.806785698579533,
+        "last_ratio": 9.82052329083169,
         "models": {
           "capped_linear": {
-            "intercept": 1952.7709750566864,
-            "nrms": 6.79403913084365e-07,
-            "slope": 89.00332278125772
+            "intercept": 1952.987042436027,
+            "nrms": 2.8032148944539874e-07,
+            "slope": 96.00360502522555
           },
           "constant": {
-            "intercept": 249159.5,
-            "nrms": 0.4192030013634471,
+            "intercept": 268603.0,
+            "nrms": 0.4192033872984632,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 1952.7709750566864,
-            "nrms": 6.79403913084365e-07,
-            "slope": 89.00332278125772
+            "intercept": 1952.987042436027,
+            "nrms": 2.8032148944539874e-07,
+            "slope": 96.00360502522555
           },
           "log_n": {
-            "intercept": -437724.0,
-            "nrms": 0.23743007213535905,
-            "slope": 119323.88550415692
+            "intercept": -472305.0,
+            "nrms": 0.2374304306652155,
+            "slope": 128708.9023991898
           },
           "n_log_n": {
-            "intercept": 10951.112641706743,
-            "nrms": 0.009453034650434044,
-            "slope": 9.57672651449008
+            "intercept": 11659.068127022183,
+            "nrms": 0.009453228954648356,
+            "slope": 10.329954341213545
           },
           "quadratic": {
-            "intercept": 31818.396511242754,
-            "nrms": 0.03483063814261714,
-            "slope": 0.008606707784221864
+            "intercept": 34167.6127791084,
+            "nrms": 0.03483091391525756,
+            "slope": 0.009283641426783722
           }
         },
-        "power_exponent": 0.8413443429104328
+        "power_exponent": 0.8484829567058553,
+        "r_squared": 0.9883828860280348
       },
       "gated": true,
       "noise": {
@@ -941,10 +943,10 @@
       },
       "primary_metric": "inferences",
       "representative": [
-        2842,
-        10854,
-        90956,
-        891986
+        2913,
+        11553,
+        97957,
+        961989
       ],
       "sizes": [
         10,
@@ -959,47 +961,49 @@
           "bench.py --memory-scale spawns save-metta in a fresh process",
           "inferences is selected by minimum of repetitions",
           "the intended complexity family is linear",
-          "RE-PINNED 2026-08-26 from [1845, 5265, 39467, 381479] +/-0 to [1846, 5266, 39468, 381482] +/-0 after the merged lifecycle adds one fixed receipt boundary around text save; the +1/+1/+1/+3 movement is layout-scale and the curve remains linear"
+          "RE-PINNED 2026-08-27 from [1846, 5266, 39468, 381482] +/-0 to [1917, 5967, 46469, 451483] +/-0, by petta_py_encode/2 asking petta_space_operand/1 of every atom it encodes: that is the species question the wire's p tag carries and the one metatype_of/2 itself asks, and it costs 7 inferences on an atom that is no space, measured over 100,000 iterations against a bare loop. The move is +70,003 and +70,001 at the largest size and +71 at the smallest, which is per ATOM SAVED, so the curve stays linear and best_model stays linear; the same command reads green on every case at 5d8769c7.",
+          "RE-PINNED 2026-08-27 from [1846, 5266, 39468, 381482] +/-0 to [1917, 5967, 46469, 451483] +/-0, by petta_py_encode/2 asking petta_space_operand/1 of every atom it encodes: that is the species question the wire's p tag carries and the one metatype_of/2 itself asks, and it costs 7 inferences on an atom that is no space, measured over 100,000 iterations against a bare loop. The move is per ATOM SAVED, +70001 at the largest size and +71 at the smallest, so the curve stays linear and best_model stays linear. Re-measured with `$CHECK_PY bench.py --memory-scale save-fast save-metta --memory-repetitions 3 --update-baseline` and merged into this ledger by hand, because that flag rewrites the document with only the SELECTED cases and would otherwise have dropped the other twenty-one. The same command reads green on every case at 5d8769c7."
         ],
-        "commit": "d843bb6d17a525c36afd21cab077d63b34447535"
+        "commit": "dee7dd651135f124376c183977b31320e1f9b3a1"
       },
       "expected": "linear",
       "fit": {
         "best_model": "linear",
-        "last_ratio": 9.6656025134286,
+        "last_ratio": 9.715789020637414,
         "models": {
           "capped_linear": {
-            "intercept": 1466.0654356980958,
-            "nrms": 5.47016168178226e-07,
-            "slope": 38.00159660280897
+            "intercept": 1467.0654356980958,
+            "nrms": 4.619277926322475e-07,
+            "slope": 45.00159660280897
           },
           "constant": {
-            "intercept": 107015.5,
-            "nrms": 0.4192033259484639,
+            "intercept": 126459.0,
+            "nrms": 0.419203334525809,
             "slope": 0.0
           },
           "linear": {
-            "intercept": 1466.0654356980958,
-            "nrms": 5.47016168178226e-07,
-            "slope": 38.00159660280897
+            "intercept": 1467.0654356980958,
+            "nrms": 4.619277926322475e-07,
+            "slope": 45.00159660280897
           },
           "log_n": {
-            "intercept": -186262.0,
-            "nrms": 0.23743021135494374,
-            "slope": 50947.519966552376
+            "intercept": -220841.0,
+            "nrms": 0.23743026373100734,
+            "slope": 60332.18942599974
           },
           "n_log_n": {
-            "intercept": 5308.074496171117,
-            "nrms": 0.009453498498352466,
-            "slope": 4.088958450812214
+            "intercept": 6016.782766257427,
+            "nrms": 0.009453420621682295,
+            "slope": 4.842156013219823
           },
           "quadratic": {
-            "intercept": 14217.750103741084,
-            "nrms": 0.03483118233066357,
-            "slope": 0.003674790932639762
+            "intercept": 16567.64420211056,
+            "nrms": 0.034831103030860025,
+            "slope": 0.004351697733113399
           }
         },
-        "power_exponent": 0.7820491327237439
+        "power_exponent": 0.800746515670972,
+        "r_squared": 0.9799304172609505
       },
       "gated": true,
       "noise": {
@@ -1009,10 +1013,10 @@
       },
       "primary_metric": "inferences",
       "representative": [
-        1846,
-        5266,
-        39468,
-        381482
+        1917,
+        5967,
+        46469,
+        451483
       ],
       "sizes": [
         10,

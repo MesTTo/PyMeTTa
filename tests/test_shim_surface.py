@@ -70,8 +70,24 @@ HOST_SERVICES = {
     "metta_host_run_source_status/3",
     # The host scopes SWI's thread-local byte ceiling through one engine door.
     "metta_host_with_stack_limit/2",
+    # An inference budget over a goal an engine will RESUME. A host cannot
+    # place this bound correctly from outside: the engine counts its own
+    # inferences and the host thread cannot see them, so a meter around
+    # engine_next/2 charges the pull loop and reads as working. Two seats
+    # wrote it independently and both made that mistake, and the Node seat
+    # still has to grow one, so the wrapper is built engine-side and handed
+    # back rather than described.
+    "metta_host_inference_budget/3",
     # Cache validation reads the function registry's engine-owned generation.
     "metta_host_function_generation/1",
+    # The one row here that makes the floor SHRINK by being added. The engine
+    # decides silent/1 from argv at load time, an embedded host has no argv,
+    # and two seats had each written the same retract-then-assert privately
+    # (petta_py_set_silent/1 here, petta_c_set_silent/1 in bindings/cetta),
+    # with engine/filereader.pl's own export comment naming the first. One
+    # engine-side door replaces both copies and the engine stops depending on
+    # a binding's internals.
+    "metta_host_set_silent/1",
     # list() asks for a length hint before it pulls. The engine's shared
     # effect classifier decides whether that second evaluation is safe; the
     # host must not reconstruct its private queue protocol.
@@ -117,6 +133,7 @@ HOST_SERVICES = {
     "metta_typed_dispatch_applies/2",
     "metta_source_declarations/2",
     "metta_space_names/1",
+    "petta_space_operand/1",
     "metta_string_declarations/2",
     "metta_substitute_self/3",
     "metta_trace_source/4",
@@ -142,6 +159,11 @@ HOST_SERVICES = {
     "petta_transport_failure/1",
     "petta_with_state_write_fence/1",
     "petta_live_state_cell/1",
+    # The platform census. Not shim orchestration moving host-side: it is a
+    # fact about the running build that only the engine can answer, and a host
+    # that cannot read it recovers the same knowledge by parsing SWI's boot
+    # transcript, which is what bindings/node does today.
+    "petta_platform/4",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -179,7 +201,9 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: is a text or wire need of the transport itself; "host-orchestration" is
 #: the engine-side surface the shrink moves BUILT (the metta_host_* rows);
 #: "error-vocabulary" is the failure contract a transport classifies by;
-#: "host-choice" is a consult whose answer only the host can make.
+#: "host-choice" is a consult whose answer only the host can make; "census"
+#: is a fact about the running build that the engine alone observes and a
+#: host would otherwise recover by parsing the boot transcript.
 FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
     "petta_deprecation/3": "door",
@@ -213,7 +237,9 @@ FLOOR_REASONS = {
     "metta_host_run_source/4": "host-orchestration",
     "metta_host_run_source_status/3": "host-orchestration",
     "metta_host_with_stack_limit/2": "door",
+    "metta_host_inference_budget/3": "host-orchestration",
     "metta_host_function_generation/1": "host-orchestration",
+    "metta_host_set_silent/1": "door",
     "metta_host_goal_repeatable/2": "host-orchestration",
     "metta_host_goal_effect_plan/4": "host-orchestration",
     "metta_host_source_effect_plan/4": "host-orchestration",
@@ -228,6 +254,9 @@ FLOOR_REASONS = {
     "metta_typed_dispatch_applies/2": "door",
     "metta_source_declarations/2": "codec",
     "metta_space_names/1": "door",
+    # The species decision behind the wire's p tag: an encoder asks what
+    # metatype_of/2 asks, so get-metatype and the wire agree on every atom.
+    "petta_space_operand/1": "codec",
     "metta_string_declarations/2": "codec",
     "metta_substitute_self/3": "door",
     "metta_trace_source/4": "door",
@@ -247,6 +276,7 @@ FLOOR_REASONS = {
     "petta_transport_failure/1": "error-vocabulary",
     "petta_with_state_write_fence/1": "door",
     "petta_live_state_cell/1": "door",
+    "petta_platform/4": "census",
     "sread_with_names/3": "codec",
     "swrite_with_names/3": "codec",
     "translate_cached_expr/3": "codec",
@@ -278,7 +308,7 @@ def test_the_shim_surface_shrank_to_the_transport_floor():
         f"{over_classified}"
     )
     allowed = {"door", "codec", "host-orchestration", "error-vocabulary",
-               "host-choice"}
+               "host-choice", "census"}
     stray = {name: why for name, why in FLOOR_REASONS.items()
              if why not in allowed}
     assert not stray, f"a reason outside the floor taxonomy: {stray}"

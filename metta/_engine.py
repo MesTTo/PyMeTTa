@@ -341,7 +341,7 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:  #
             if verbose != _STATE.runtime.verbose:
                 _STATE.runtime.verbose = verbose
                 _STATE.runtime.once(
-                    "petta_py_set_silent(S)", S="false" if verbose else "true"
+                    "metta_host_set_silent(S)", S="false" if verbose else "true"
                 )
         return _STATE.runtime
 
@@ -434,7 +434,8 @@ class Runtime:
         logger.debug("consulting the Python bridge shim from %s", shim)
         self._janus.consult(shim)
         self._janus.query_once(
-            "petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"}
+            "metta_host_set_silent(S)",
+            {"S": "false" if self.verbose else "true"},
         )
         _SHIM_LOADED.set()
         # The runtime-backed prelude compiled Python leans on; registered

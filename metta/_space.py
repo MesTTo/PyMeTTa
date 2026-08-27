@@ -196,7 +196,6 @@ from typing import (
 
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
-from ._atom_wire import _remember_space_name
 from ._engine import Runtime, bridge, runtime, started
 from ._library import Library, import_library
 from ._lint_events import record_sync_engine_call as _record_sync_engine_call
@@ -767,7 +766,7 @@ class Space(Handle):
 
     def __init__(
         self,
-        name: str | Symbol | Expression = _DEFAULT_SPACE,
+        name: str | Symbol | Expression | Space = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
         petta_path: str | None = None,
@@ -777,9 +776,19 @@ class Space(Handle):
         super().__init__()
         self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
         self._name_atom: Symbol | Expression | None = None
-        if isinstance(name, Symbol):
+        if isinstance(name, Space):
+            # Opening a space is idempotent, so this door takes back what it
+            # answers. A dropped handle still refuses, because _space is what
+            # reads the name. It matters now that an engine answer naming a
+            # space arrives AS a Space: `metta.space(json_decode(...).one())`
+            # used to hand a Symbol here and would otherwise have started
+            # raising the moment the codec began classifying that atom
+            # correctly.
+            self._name_atom = name._name_atom
+            engine_name: str | _HashableSpaceTerm = name._space
+        elif isinstance(name, Symbol):
             self._name_atom = name
-            engine_name: str | _HashableSpaceTerm = (
+            engine_name = (
                 name.name if name.name.startswith("&") else f"&{name.name}"
             )
         elif isinstance(name, Expression):
@@ -824,8 +833,6 @@ class Space(Handle):
         self._owns_backing = False
         self._created_at = _created_at
         self._context_tokens: list[Any] = []
-        if isinstance(engine_name, str):
-            _remember_space_name(self._name)
 
     @property
     def _space(self) -> _SpaceId:
@@ -861,10 +868,11 @@ class Space(Handle):
 
     def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and
-        '&petta' from boot, every native space that has been written to,
-        and every foreign space currently bound. Naming a space never
-        registers it, only writing or binding does, so a bind! token's
-        target appears here once something is stored under it.
+        '&petta' from boot, every native space something created or wrote to,
+        and every foreign space currently bound. (new-space) and (spawn ...)
+        create, so their answers are here at once; naming a space never
+        registers it, so Space('&kb') is not here until a write, and a bind!
+        token's target appears once something is stored under it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         row = self._rt.once("petta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
@@ -2066,10 +2074,13 @@ class Space(Handle):
         so a huge join costs one row of work per row actually taken where
         match() computes and decodes every answer up front. `timeout`
         bounds each pull's wall time; `inferences` is one budget for the
-        cursor's whole engine work, spent across pulls, because an
-        engine's inferences are its own. The cursor enumerates under the
-        engine's logical update view: writes made after the first pull
-        are not seen by this cursor.
+        cursor's whole engine work, spent across pulls, and the cursor
+        stops on the answer that passes it. Because the budget counts the
+        cursor's own engine, it is not the number ``stats()`` reports for
+        the same work: ``stats()`` reads the calling thread's counters,
+        which see the pull loop rather than the engine. The cursor
+        enumerates under the engine's logical update view: writes made
+        after the first pull are not seen by this cursor.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return Cursor(self, patterns, where, timeout, inferences)
 
@@ -2797,11 +2808,19 @@ class Space(Handle):
             s.gc_count, s.gc_freed, s.gc_time
             s.table_bytes       # answer-table bytes grown, tabling's memory
 
-        The counters are the engine's statistics/2, and the engine is one
-        per process, so a block that runs other threads' engine work counts
-        that work too; the honest reading is "what the engine did while
-        this block ran". The z3py Solver.statistics() reading, on the
-        engine this library actually has.
+        The counters are SWI's statistics/2 read on the CALLING thread, so
+        a block that runs other threads' engine work counts that work too;
+        the honest reading is "what this thread saw the engine do while the
+        block ran". A lazy cursor is the exception, and a large one: its
+        goal runs in an SWI engine, an engine counts its own inferences,
+        and this thread cannot see them. Draining 20,000 rows through the
+        match cursor reports 40,049 inferences against about 381,000 the
+        cursor's engine really spent, 10.5% of the work; the real cost is
+        readable off the `inferences` budget, which does count the engine
+        [measured 2026-08-27]. The evaluation cursor behind `answers()`
+        does report its engine's spend, so that one is whole. The z3py
+        Solver.statistics() reading, on the engine this library actually
+        has.
         """
         return _StatsBlock(self._rt)
 
@@ -4600,7 +4619,7 @@ class MeTTa:
 
     def space(
         self,
-        name: str | None = None,
+        name: str | Symbol | Expression | Space | None = None,
         backing: Any = None,
         *,
         journal: str | os.PathLike[str] | None = None,
@@ -4608,10 +4627,13 @@ class MeTTa:
     ) -> Space:
         """Create one native, provider-backed, remote, or journaled space.
 
-        With no name, the engine mints an anonymous handle. A ``SpaceProvider``
-        backing is attached directly, an HTTP(S) URL becomes a remote provider,
-        and ``journal=`` constructs ``PersistentFactSpace`` from ``schema=`` or
-        a schema mapping supplied as ``backing``.
+        With no name, the engine mints an anonymous handle and creates the
+        space, so ``(get-type ...)`` on it is ``SpaceType`` before anything is
+        written. A ``Space`` reopens that same space, which is what an engine
+        answer naming one arrives as. A ``SpaceProvider`` backing is attached
+        directly, an HTTP(S) URL becomes a remote provider, and ``journal=``
+        constructs ``PersistentFactSpace`` from ``schema=`` or a schema mapping
+        supplied as ``backing``.
         """
         inherits = options.pop("inherits", None)
         restricted = options.pop("restricted", False)

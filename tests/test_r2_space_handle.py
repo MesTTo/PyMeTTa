@@ -8,6 +8,12 @@ Guarantees:
     fast snapshots, and content digest without becoming a Symbol or object
     [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - the wire tag alone decides the species, so an s payload is a Symbol
+    however it is spelled, a space the engine made arrives as a Space, and an
+    ampersand name that is no space, a State cell included, does not
+    [tested: test_the_s_tag_stays_a_symbol_however_it_is_spelled,
+    test_a_space_the_engine_made_crosses_as_a_space,
+    test_the_ampersand_alone_does_not_make_a_space; commit=dee7dd651135f124376c183977b31320e1f9b3a1]
 Open Obligations:
   To Do: None.
   Hacks: None.
@@ -126,15 +132,44 @@ def test_a_python_self_constant_is_the_space_handle_itself(spaces):  # noqa: D10
     assert stored.children[1] == self_handle
 
 
-def test_an_ampersand_symbol_is_not_reclassified_as_a_space(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    _context, host, target = spaces
+def test_the_s_tag_stays_a_symbol_however_it_is_spelled(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    _context, _host, target = spaces
 
-    operator = metta.parse("&&&")
-    assert type(operator) is metta.Symbol
-    assert type(host.eval(operator)[0]) is metta.Symbol
-    explicit_symbol = wire.atom_from_wire(["s", target.name])
-    assert type(explicit_symbol) is metta.Symbol
+    # The tag decides alone: a host that means the symbol writes s and gets
+    # the Symbol back, at the root and inside an expression alike. The decoder
+    # used to re-read an ampersand payload against a Python-side registry.
+    assert type(wire.atom_from_wire(["s", target.name])) is metta.Symbol
+    nested = wire.atom_from_wire(["e", [["s", "f"], ["s", target.name]]])
+    assert type(nested.children[1]) is metta.Symbol
     assert wire.atom_from_wire(["p", target.name]) == target
+
+
+def test_a_space_the_engine_made_crosses_as_a_space(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    _context, host, _target = spaces
+
+    # The encoder tagged exactly &self and &petta, so this crossed as an
+    # ordinary Symbol and could not be used as a space.
+    (made,) = host.eval(S["new-space"]())
+    assert isinstance(made, Space)
+    assert host.eval(S["get-metatype"](made)) == [S.Grounded]
+    made.add(S.kept())
+    assert S.kept() in made
+
+
+def test_the_ampersand_alone_does_not_make_a_space(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    _context, host, _target = spaces
+
+    # p is a species, so it follows get-metatype rather than the spelling.
+    # is-space answers the wider operand question and says True for both.
+    assert host.eval(S["get-metatype"](S["&&&"])) == [S.Symbol]
+    assert host.eval(S["is-space"](S["&&&"])) == [metta.TRUE]
+    assert type(metta.parse("&&&")) is metta.Symbol
+    assert type(host.eval(S.quote(S["&&&"]))[0].children[1]) is metta.Symbol
+
+    # A State cell wears the same &-handle spelling and is no space either.
+    (cell,) = host.eval(S["new-state"](1))
+    assert type(cell) is metta.Symbol
+    assert str(cell).startswith("&state-#")
 
 
 @pytest.mark.parametrize("save_format", ["metta", "fast"])
