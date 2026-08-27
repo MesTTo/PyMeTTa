@@ -127,12 +127,13 @@ def counts() -> list[tuple[str, int]]:
     src_lines = sum(len(path.read_text().splitlines()) for path in engine_sources())
     main = (ROOT / "bindings" / "python" / "metta" / "__main__.py").read_text()
     # The example count comes from the runners' own definition rather than a
-    # glob. A bare examples/**/*.metta answers 242, which counts 24 symlink
-    # aliases for files already in the list and 12 fixtures that are inputs
-    # rather than programs, so the gate endorsed a number no runner uses
-    # [measured 2026-08-18: 242 paths, 218 regular files, 206 discovered,
-    # 200 run]. examples/README.md and this file disagreed with each other
-    # and with the runner, each by a different amount.
+    # glob. A bare examples/**/*.metta counts the fixtures, which are inputs
+    # rather than programs, and once counted two dozen flat symlink aliases
+    # for files already in the list, so the gate endorsed a number no runner
+    # uses [measured 2026-08-18: 242 paths, 218 regular files, 206
+    # discovered, 200 run; the aliases are gone since 2026-08-27].
+    # examples/README.md and this file disagreed with each other and with
+    # the runner, each by a different amount.
     sys.path.insert(0, str(ROOT / "bindings" / "python" / "tools"))
     from example_parity import corpus
 

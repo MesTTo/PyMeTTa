@@ -16,13 +16,16 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 
-# The .metta test files this library contributed.
+# The .metta test files this library contributed, by their path under
+# examples/. They used to be named by basename alone, which resolved through
+# the flat aliases at the top of examples/; those aliases are gone, so each
+# names the file itself.
 FILES = [
-    "measure.metta",
-    "soft.metta",
-    "python_booleans.metta",
-    "math_exp_random.metta",
-    "if_branch_binding.metta",
+    "reasoning/measure.metta",
+    "reasoning/soft.metta",
+    "integration/python_booleans.metta",
+    "basics/math_exp_random.metta",
+    "control/if_branch_binding.metta",
 ]
 
 
