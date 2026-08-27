@@ -56,3 +56,53 @@ def test_json_codec_refuses_trailing_content():  # noqa: D103  -- pytest discove
     with pytest.raises(ValueError):
         _json.loads('{"a": 1} {"b": 2}')
     assert _json.loads('{"a": 1}  \n ') == {"a": 1}
+
+
+def test_json_codec_keeps_a_key_named_py():
+    """A document is data, and no key of it belongs to the codec.
+
+    The decoder passed `tag(py)` to json_read_dict/3 under a comment about
+    crossing janus, but that option names the object KEY whose value becomes
+    the dict's tag: a document with a "py" key lost it, silently, in both
+    directions of a round trip.
+    """
+    assert _json.loads('{"py": "x", "a": 1}') == {"py": "x", "a": 1}
+    payload = {"py": {"py": ["py"]}, "other": 1}
+    assert _json.loads(_json.dumps(payload)) == payload
+
+
+def test_json_codec_refuses_a_key_that_is_not_a_string():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # JSON has no spelling for a non-string key, and inventing "1" for the
+    # integer 1 would make two different objects encode to one document.
+    with pytest.raises(TypeError):
+        _json.dumps({1: "int key"})
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"a": "\\ud83d\\ude00"}',
+        '{"a": "\\u00e9"}',
+        '{"a": "</script>"}',
+        '{"a": "\\u0000\\u001f"}',
+        '{"a": 1.7976931348623157e308}',
+        '{"a": 5e-324}',
+        '{"a": -0.0}',
+        '{"a": 123456789012345678901234567890}',
+        '{"a": {"b": [1, {"c": []}]}}',
+        "{}",
+        "[]",
+    ],
+)
+def test_json_codec_round_trips_the_hazard_corpus(text):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    value = _json.loads(text)
+    assert _json.loads(_json.dumps(value)) == value
+
+
+@pytest.mark.parametrize(
+    "text",
+    ['{"a": "\\ud800"}', '{"a": "\\udc00"}', '{"a": "\\ud800\\u0041"}'],
+)
+def test_json_codec_refuses_a_lone_surrogate(text):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    with pytest.raises((ValueError, TypeError)):
+        _json.loads(text)

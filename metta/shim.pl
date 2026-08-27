@@ -1089,84 +1089,52 @@ metta_py_handle_release(Id) :-
 
 %%%%%%%%%% JSON %%%%%%%%%%
 %
-%The JSON codec is the engine's own reader and writer, library(json),
-%under the janus value conventions: @(true), @(false) and @(none) are
-%what janus makes of Python True, False and None, and the option list
-%teaches the reader and writer that exact vocabulary, so a Python value
-%crosses, serializes and comes back with no Python-side JSON
-%implementation existing anywhere. SWI integers are unbounded, which is
-%what makes wide integers exact in both directions without any guard.
+%The JSON codec is the engine's own, through the one JSON door in
+%engine/json_codec.pl, which is library(json) with a C fast path beside
+%it. What this file adds is the janus value conventions: @(true),
+%@(false) and @(none) are what janus makes of Python True, False and
+%None, and naming them here teaches the reader and writer that exact
+%vocabulary, so a Python value crosses, serializes and comes back with
+%no Python-side JSON implementation existing anywhere. SWI integers are
+%unbounded, which is what makes wide integers exact in both directions
+%without any guard.
 
-:- use_module(library(json), [json_read_dict/3, json_write_dict/3]).
+:- use_module('../../../engine/json_codec',
+              [ json_codec_read/3, json_codec_write/3 ]).
 
-metta_py_json_options([true(@(true)), false(@(false)), null(@(none))]).
+metta_py_json_options([shape(dicts), true(@(true)), false(@(false)),
+                       null(@(none))]).
 
-%Encode one janus-shaped value to JSON text. Non-finite floats are
-%refused before writing, because json_write_dict serializes NaN and the
-%infinities in SWI's own float syntax, which no JSON reader accepts
-%back. Errors leave through the reserved envelope so the Python side
-%raises ValueError and TypeError by kind rather than by message text.
+%Encode one janus-shaped value to JSON text. Errors leave through the
+%reserved envelope so the Python side raises ValueError and TypeError by
+%kind rather than by message text; the refusals themselves, of a
+%non-finite number and of a term JSON cannot carry, belong to the codec.
 metta_py_json_encode(Value, Text) :-
     catch(metta_py_json_encode_(Value, Text), Error,
           metta_py_json_rethrow(Error)).
 
 metta_py_json_encode_(Value, Text) :-
-    metta_py_json_finite(Value),
     metta_py_json_options(Options),
-    with_output_to(string(Text),
-                   json_write_dict(current_output, Value,
-                                   [width(0)|Options])).
+    json_codec_write(Value, Text, Options).
 
-metta_py_json_finite(Value) :-
-    (   is_dict(Value)
-    ->  dict_pairs(Value, _, Pairs),
-        metta_py_json_finite_pairs(Pairs)
-    ;   is_list(Value)
-    ->  maplist(metta_py_json_finite, Value)
-    ;   float(Value)
-    ->  (   float_class(Value, Class),
-            ( Class == nan ; Class == infinite )
-        ->  throw(error(domain_error(finite_number, Value),
-                        context(metta_py_json_encode/2, _)))
-        ;   true
-        )
-    ;   true
-    ).
-
-metta_py_json_finite_pairs([]).
-metta_py_json_finite_pairs([_-Value|Pairs]) :-
-    metta_py_json_finite(Value),
-    metta_py_json_finite_pairs(Pairs).
-
-%Decode JSON text to a janus-shaped value. The reader stops after one
-%value, so the remainder must hold nothing but layout: a second value
-%in the same text is refused here, not silently dropped. The tag makes
-%read dicts cross janus exactly as written dicts arrive.
+%Decode JSON text to a janus-shaped value. The codec stops after one
+%value and refuses a remainder that is not layout, so a second value in
+%the same text is an error rather than silently dropped.
+%
+%This used to pass tag(py) to json_read_dict/3, which does not do what
+%its comment claimed. tag/1 names the object KEY whose value becomes the
+%dict's tag, so a document with a "py" key lost it: '{"py": "x", "a": 1}'
+%decoded to {'a': 1} [measured 2026-08-28]. Nothing needed the option --
+%an ordinary object never has that key, so the tag stayed unbound either
+%way, and janus makes a Python dict of a tagged and an untagged dict
+%alike [tested: test_json_codec_keeps_a_key_named_py].
 metta_py_json_decode(Text, Value) :-
     catch(metta_py_json_decode_(Text, Value), Error,
           metta_py_json_rethrow(Error)).
 
 metta_py_json_decode_(Text, Value) :-
     metta_py_json_options(Options),
-    open_string(Text, Stream),
-    call_cleanup(metta_py_json_read(Stream, Value, Options),
-                 close(Stream)).
-
-metta_py_json_read(Stream, Value, Options) :-
-    json_read_dict(Stream, Value, [tag(py)|Options]),
-    (   metta_py_json_rest_layout(Stream)
-    ->  true
-    ;   throw(error(syntax_error(json(trailing_content)),
-                    context(metta_py_json_decode/2, _)))
-    ).
-
-metta_py_json_rest_layout(Stream) :-
-    get_char(Stream, Char),
-    (   Char == end_of_file
-    ->  true
-    ;   char_type(Char, space),
-        metta_py_json_rest_layout(Stream)
-    ).
+    json_codec_read(Text, Value, Options).
 
 %Each error class keeps its own clause, so Python raises by kind: a
 %value that JSON cannot carry is a ValueError, a term that is not JSON
