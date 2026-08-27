@@ -37,9 +37,9 @@ def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
         msg = "the op broke"
         raise RuntimeError(msg)
 
-    m.op(boom, name="petta-broken-op", effect="pureStructural")
+    m.op(boom, name="metta-broken-op", effect="pureStructural")
     with pytest.raises(EngineError) as fault:
-        m.run("!(petta-broken-op)")
+        m.run("!(metta-broken-op)")
 
     assert not isinstance(fault.value, AssertionFailure)
     assert not isinstance(failed_test.value, EngineError)

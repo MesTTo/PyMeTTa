@@ -20,7 +20,7 @@ from metta import MeTTa
 
 
 def _counting_engine():
-    """An engine whose (petta-effectful) op records every call it gets."""
+    """An engine whose (metta-effectful) op records every call it gets."""
     m = MeTTa().self
     fired: list[int] = []
 
@@ -28,7 +28,7 @@ def _counting_engine():
         fired.append(1)
         return 1
 
-    m.op(effectful, name="petta-effectful", effect="writesState")
+    m.op(effectful, name="metta-effectful", effect="writesState")
     return m, fired
 
 
@@ -38,7 +38,7 @@ def test_get_type_does_not_run_its_arguments_effects():
     and every REPL inspection was invisibly effectful.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     m, fired = _counting_engine()
-    answer = m.run("!(get-type (petta-effectful))")
+    answer = m.run("!(get-type (metta-effectful))")
     assert fired == [], f"get-type ran its argument {len(fired)} time(s)"
     # Number was the old answer, and it could only come from the value the
     # op returned; nothing declares the expression itself.
@@ -46,7 +46,7 @@ def test_get_type_does_not_run_its_arguments_effects():
     assert "Number" not in answers, answers
 
     m, fired = _counting_engine()
-    m.run("!(get-type-space &self (petta-effectful))")
+    m.run("!(get-type-space &self (metta-effectful))")
     assert fired == [], "get-type-space ran its argument"
 
 

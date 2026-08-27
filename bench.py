@@ -274,7 +274,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps
 
     context = multiprocessing.get_context("spawn")
     failures: list[str] = []
-    with tempfile.TemporaryDirectory(prefix="petta-benchmark-json-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="metta-benchmark-json-") as temporary:
         json_paths: list[Path] = []
         for index, name in enumerate(selected):
             json_path = Path(temporary) / f"{index:03d}-{name}.json" if json_target else None
@@ -290,7 +290,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps
                     ),
                 ),
                 kwargs={"update": arguments.update_baseline},
-                name=f"petta-benchmark-{name}",
+                name=f"metta-benchmark-{name}",
             )
             process.start()
             process_failure = finish_process(process, arguments.timeout)

@@ -167,8 +167,8 @@ def test_the_legacy_reference_generator_tracks_the_narrow_public_modules():
     assert "metta.persistent" not in modules
     assert "metta.matching" not in modules
     assert "metta.measure" not in modules
-    assert not (_REPO / "website" / "reference" / "petta-das.md").exists()
-    assert not (_REPO / "website" / "reference" / "petta-persistent.md").exists()
+    assert not (_REPO / "website" / "reference" / "metta-das.md").exists()
+    assert not (_REPO / "website" / "reference" / "metta-persistent.md").exists()
     assert not (_REPO / "website" / "live" / "das.md").exists()
 
 

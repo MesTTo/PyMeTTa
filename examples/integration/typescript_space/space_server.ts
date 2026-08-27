@@ -46,7 +46,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 // ---------------------------------------------------------------------------
-// The wire atom grammar, as petta's own to_wire()/atom_from_wire() speak it.
+// The wire atom grammar, as metta's own to_wire()/atom_from_wire() speak it.
 
 export type WireAtom =
   | ["s", string]      // symbol

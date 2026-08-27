@@ -117,7 +117,7 @@ def test_declaring_an_undefined_function_is_loud(m):
         m.run("!(tabled (never-defined $x $y))")
 
 
-def test_declarations_reflect_into_petta(m):
+def test_declarations_reflect_into_metta(m):
     """A live declaration is a (tabled space name arity) fact in &metta,
     input arity; repetition never duplicates it, and undeclaring removes
     it.

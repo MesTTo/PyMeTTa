@@ -41,7 +41,7 @@ class SpaceStateMachine(RuleBasedStateMachine):
         self._owner = MeTTa().self
         self.space = self._owner._new_space()
         self.model = Counter()
-        self._temporary = TemporaryDirectory(prefix="petta-stateful-")
+        self._temporary = TemporaryDirectory(prefix="metta-stateful-")
 
     @rule(atom=testing.expressions(max_leaves=5, ground=True))
     def add(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol

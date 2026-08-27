@@ -95,7 +95,7 @@ CAPABILITIES = (
     "match", "enumerate", "add", "add-many", "remove", "clear", "subscribe",
     "plan", "rules",
 )
-MARKER = Symbol("petta-compliance-marker")
+MARKER = Symbol("metta-compliance-marker")
 
 _NAMES = itertools.count()
 
@@ -471,7 +471,7 @@ class SpaceComplianceSuite:
         Written this way round on purpose. The suite does not get to choose
         what a backend can store: an invented marker atom is a shape a
         schema-bound provider has no table for, and DuckDB refused exactly
-        that with "no table 'petta-compliance-marker' in this DuckDB space".
+        that with "no table 'metta-compliance-marker' in this DuckDB space".
         An atom the provider already holds is the one thing every backend is
         certainly able to accept, so the round trip uses that.
         """
@@ -606,11 +606,11 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         with space._new_space() as native:
-            native.add(Expression([Symbol("petta-compliance-native"), atom.args[0]]))
+            native.add(Expression([Symbol("metta-compliance-native"), atom.args[0]]))
             answered = native.run(
                 f"!(collapse (match {space.name} {open_pattern(atom)} "
                 f"(match (context-space) "
-                f"(petta-compliance-native $shared) (reached $shared))))"
+                f"(metta-compliance-native $shared) (reached $shared))))"
             )
         assert answered and answered[0] and answered[0][0].children, (
             "a join between a native space and the provider answered nothing"

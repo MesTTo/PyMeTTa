@@ -657,31 +657,29 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
 
 
 def test_a_retired_module_import_is_a_finding(tmp_path):
-    """The rename left no module behind, so the import itself is the finding.
+    """The distribution name is not the module name, so importing it is a finding.
 
-    `ModuleNotFoundError: No module named 'petta'` says something is missing
-    and nothing about the rename that removed it, and a twin carried over from
-    the old surface writes that line before it writes anything else.
+    `ModuleNotFoundError: No module named 'pymetta'` says something is missing
+    and nothing about which name to write instead, and reaching for the name
+    you installed is the natural mistake.
     """
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "import petta\n"
         "import pymetta\n"
-        "from petta import S, V\n"
-        "from petta.atoms import Expression\n"
+        "from pymetta import S, V\n"
+        "from pymetta.atoms import Expression\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
-        "    assert petta.space() is not None\n",
+        "    assert metta.space() is not None\n",
         encoding="utf-8",
     )
     findings = coverage.retired(planted)
-    assert "line 2: petta is retired; write import metta" in findings
-    assert "line 3: pymetta is retired; write import metta" in findings
-    assert "line 4: petta is retired; import from metta" in findings
-    assert "line 5: petta.atoms is retired; import from metta" in findings
+    assert "line 2: pymetta is retired; write import metta" in findings
+    assert "line 3: pymetta is retired; import from metta" in findings
+    assert "line 4: pymetta.atoms is retired; import from metta" in findings
 
-    # And the live module is not reported for sharing four of its letters,
+    # And the live module is not reported for sharing five of its letters,
     # satellites included.
     live = tmp_path / "live.py"
     live.write_text(
@@ -1423,7 +1421,7 @@ def test_a_shipped_twin_agrees_with_its_example_end_to_end(name):
 def test_the_residue_json_is_the_one_definition_of_what_is_missing():
     """The lane's own file, read the way every runner reads example_skips."""
     document = json.loads(coverage.RESIDUE.read_text(encoding="utf-8"))
-    assert document["schema"] == "petta-twin-residue-1"
+    assert document["schema"] == "metta-twin-residue-1"
     assert document["entries"] == coverage.residue()
 
 

@@ -102,7 +102,7 @@ from .atoms import (
 from .convert import auto_image, project
 from .foreign import SpaceProvider
 
-_ATOM_CELL_PREFIX = "\x00petta-atom-v1\x00"
+_ATOM_CELL_PREFIX = "\x00metta-atom-v1\x00"
 
 
 def _row_values(row: Any, keys: list[Any]) -> Any:

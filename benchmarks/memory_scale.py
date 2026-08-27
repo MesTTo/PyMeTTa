@@ -742,7 +742,7 @@ def _save_or_load(
     format_name: Literal["metta", "fast"],
     load: bool,
 ) -> dict[str, int]:
-    directory = tempfile.TemporaryDirectory(prefix="petta-memory-scale-")
+    directory = tempfile.TemporaryDirectory(prefix="metta-memory-scale-")
     suffix = ".metta" if format_name == "metta" else ".pfc"
     path = Path(directory.name) / f"space{suffix}"
     engine = MeTTa()
@@ -1069,7 +1069,7 @@ def run_suite(  # noqa: C901  -- the loop keeps each process, payload, and failu
                 process = context.Process(
                     target=sample_worker,
                     args=(name, size, child),
-                    name=f"petta-memory-{name}-{size}-{repetition}",
+                    name=f"metta-memory-{name}-{size}-{repetition}",
                 )
                 process.start()
                 child.close()

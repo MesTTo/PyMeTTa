@@ -3953,7 +3953,7 @@ seam:matchable_value(Blob) :-
 seam:custom_match(Blob, Other) :-
     metta_py_encode(Other, W),
     py_iter(metta_ops:match_object(Blob, W), CW),
-    metta_py_answer_match(CW, Other, '$petta-matchable').
+    metta_py_answer_match(CW, Other, '$metta-matchable').
 
 %Transactional participation for Python providers, driven by (writes Ctx
 %transactional): the provider's own begin/commit/rollback methods.

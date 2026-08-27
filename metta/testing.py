@@ -482,16 +482,16 @@ def _claim_patterns(atom):
     positions = range(len(children))
     for index in positions:
         opened = children.copy()
-        opened[index] = Variable(f"petta-check-{index}")
+        opened[index] = Variable(f"metta-check-{index}")
         yield Expression(opened)
     if len(children) > 2:
-        yield Expression([children[0], *(Variable(f"petta-check-{i}") for i in positions if i)])
+        yield Expression([children[0], *(Variable(f"metta-check-{i}") for i in positions if i)])
     for low in positions:
         for high in positions:
             if high <= low:
                 continue
             folded = children.copy()
-            folded[low] = folded[high] = Variable("petta-check-fold")
+            folded[low] = folded[high] = Variable("metta-check-fold")
             yield Expression(folded)
 
 
@@ -516,8 +516,8 @@ def _joined(pattern, atom):
     (the arbiter's variable cases, LeaTTa matchAtomsWith), and
     match_native guards every answer with acyclic_term/1, so a
     rational-tree instantiation is never an answer there. Check-side
-    variables are named petta-check-*, so a collision would need a stored
-    $petta-check-* variable.
+    variables are named metta-check-*, so a collision would need a stored
+    $metta-check-* variable.
     [source: bindings/python/metta/atoms.py:unify and
     engine/spaces/bounded_matching.pl:metta_match_atoms/2; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

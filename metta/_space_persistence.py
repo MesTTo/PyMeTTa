@@ -45,7 +45,7 @@ from .atoms import Atom, Expression, Grounded, Handle, Symbol, _atom_from_wire
 from .errors import EngineError, ResourceLimitError
 from .vocabularies import SaveFormat
 
-_FAST_PREFIX = b"PETTA-CACHE\t"
+_FAST_PREFIX = b"METTA-CACHE\t"
 _FAST_ERRORS = (
     "metta_fast_header_mismatch",
     "metta_fast_integrity_header",
@@ -71,7 +71,7 @@ def _open_maybe_gz(path: str | os.PathLike[str], mode: Literal["rb", "wt"]):
 
 def _temporary_sibling(target: Path) -> Path:
     descriptor, name = tempfile.mkstemp(
-        prefix=".petta-save-", suffix=target.suffix, dir=target.parent
+        prefix=".metta-save-", suffix=target.suffix, dir=target.parent
     )
     os.close(descriptor)
     temporary = Path(name)

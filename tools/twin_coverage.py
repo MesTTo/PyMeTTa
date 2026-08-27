@@ -48,10 +48,10 @@ Guarantees:
     `HERE`, `m.query(...)` and every `declare_*` method cannot pass as
     vocabulary [tested:
     test_a_retired_name_is_a_finding_naming_its_replacement; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
-  - a twin importing the module the rename deleted is a finding, whichever
-    spelling it reaches for: the distribution is `pymetta` and the module it
-    installs is `metta`, so neither `petta` nor `pymetta` imports
-    [tested: test_a_retired_module_import_is_a_finding; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
+  - a twin importing the DISTRIBUTION name is a finding: the distribution is
+    `pymetta` and the module it installs is `metta`, so `import pymetta`
+    imports nothing
+    [tested: test_a_retired_module_import_is_a_finding; commit=WORKTREE]
   - every door the surface tracks landed reads clean: the naming factories,
     the answer view with its defaulted cells, the keyword builders, the
     coordination verbs, the class door, the verdict builders under
@@ -544,15 +544,13 @@ RETIRED_CALL_SHAPES = {
     "stream": (1, "iterating the answers"),
 }
 
-#: Import roots the rename deleted. The distribution is `pymetta` and the
-#: module it installs is `metta`, so a twin that imports either of the old
-#: names imports nothing at all; the finding says which name to write, where
+#: Import roots that are not importable. The distribution is `pymetta` and the
+#: module it installs is `metta`, so a twin reaching for the distribution name
+#: imports nothing at all; the finding says which name to write, where
 #: `ModuleNotFoundError` says only that something is missing
 #: [source: CHANGELOG.md "Rename the Python distribution to `pymetta` and its
-#: import module to `metta` ... Neither `petta` nor `pymetta` remains an
-#: importable module"; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
+#: import module to `metta`"; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 RETIRED_MODULES = {
-    "petta": "metta",
     "pymetta": "metta",
 }
 
@@ -1331,7 +1329,7 @@ def retired(twin: Path) -> list[str]:
 
     The MODULE is read the same way and for the same reason. A twin written
     against the old package imports a name that no longer exists at all, and
-    `ModuleNotFoundError: No module named 'petta'` says nothing about the
+    `ModuleNotFoundError: No module named 'metta'` says nothing about the
     rename that caused it.
 
     A FACTORY access is never either one, whatever it spells: `V.query` is the

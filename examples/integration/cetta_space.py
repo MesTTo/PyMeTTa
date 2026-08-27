@@ -34,7 +34,7 @@ from _common import check, done, skip
 
 from metta.foreign import SpaceProvider
 
-_PROBE = "petta-cetta-probe"
+_PROBE = "metta-cetta-probe"
 
 
 class CettaSpace(SpaceProvider):
@@ -88,7 +88,7 @@ class CettaSpace(SpaceProvider):
             "-e",
             " ".join(f"({_PROBE} {i} {atom})" for i, atom in enumerate(self._atoms)),
             "-e",
-            f"!(match &self ({_PROBE} $petta-cetta-i {pattern}) $petta-cetta-i)",
+            f"!(match &self ({_PROBE} $metta-cetta-i {pattern}) $metta-cetta-i)",
         ]
         answer, errors = self._run(program)
         if not answer:

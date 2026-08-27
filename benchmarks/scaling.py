@@ -1021,7 +1021,7 @@ def run_suite(
     stamp = _collect(
         stamp_worker,
         (),
-        label="petta-scaling-stamp",
+        label="metta-scaling-stamp",
         timeout=timeout,
         context=context,
         finish_process=finish_process,
@@ -1055,7 +1055,7 @@ def run_suite(
             _collect(
                 sample_worker,
                 (name, sizes),
-                label=f"petta-scaling-{name}-{index}",
+                label=f"metta-scaling-{name}-{index}",
                 timeout=timeout,
                 context=context,
                 finish_process=finish_process,

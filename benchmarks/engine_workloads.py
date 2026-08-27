@@ -378,7 +378,7 @@ def save_load_case(format: Literal["fast", "metta"], atoms: int = SAVE_LOAD_ATOM
     The space is rebuilt per case rather than shared, so the file it writes is
     the same size every round.
     """
-    directory = tempfile.TemporaryDirectory(prefix="petta-benchmark-")
+    directory = tempfile.TemporaryDirectory(prefix="metta-benchmark-")
     source = _space()
     target = _space()
     try:

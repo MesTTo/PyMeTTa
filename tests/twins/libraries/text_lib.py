@@ -27,7 +27,7 @@ import metta
 from metta import G, S, V, lib
 
 #: Written, appended to, read back four ways, then removed.
-SCRATCH = Path("/tmp/petta-text-twin.txt")
+SCRATCH = Path("/tmp/metta-text-twin.txt")
 
 
 def twin(m):

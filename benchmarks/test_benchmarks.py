@@ -902,7 +902,7 @@ def test_space_name(benchmark, inference_baseline):
 
 
 def _save_state(format):
-    directory = TemporaryDirectory(prefix="petta-benchmark-")
+    directory = TemporaryDirectory(prefix="metta-benchmark-")
     source = _empty_space()
     target = _empty_space()
     source.add(*(S["benchmark-save-node"](i, i + 1) for i in range(20_000)))
@@ -945,7 +945,7 @@ def _save_case(benchmark, baseline, format):
 
 
 def _file_load_state():
-    directory = TemporaryDirectory(prefix="petta-benchmark-")
+    directory = TemporaryDirectory(prefix="metta-benchmark-")
     source = _empty_space()
     source.add(*(S["benchmark-load-node"](i, i + 1) for i in range(20_000)))
     source.run("(= (benchmark-load-next $x) (+ $x 1))")

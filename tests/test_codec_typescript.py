@@ -53,7 +53,7 @@ _NODE = shutil.which("node")
 #
 #   isWireAtom validates the g tag with `case "g": return true`, so a number
 #   and a whole JSON object are both stored under a tag CODEC.md says
-#   carries text and both petta-side codecs refuse.
+#   carries text and both metta-side codecs refuse.
 #
 #   JSON.stringify(1.0) writes 1, JavaScript having one number type, so an
 #   integral float comes back an integer. !(== 1.0 1) answers False, so that

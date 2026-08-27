@@ -513,8 +513,8 @@ def test_benchmark_cli_spawns_each_case(monkeypatch):  # noqa: D103  -- pytest d
 
     assert benchmark_main(["add-batch", "add-single", "--counter-only"]) == 0
     assert [process.options["name"] for process in processes] == [
-        "petta-benchmark-add-batch",
-        "petta-benchmark-add-single",
+        "metta-benchmark-add-batch",
+        "metta-benchmark-add-single",
     ]
     assert all(process.joined == [120.0] for process in processes)
 

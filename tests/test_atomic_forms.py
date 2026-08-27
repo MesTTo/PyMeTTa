@@ -39,21 +39,21 @@ def three(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = metta._new_space()
     for answer in (1, 2, 3):
-        space.run(f"(= (petta-three) {answer})")
+        space.run(f"(= (metta-three) {answer})")
     return space
 
 
 def test_a_transaction_preserves_every_answer_of_its_body(three):
-    """Reproduced 2026-08-19: `!(collapse (petta-three))` answered `(1 2 3)`
-    and `!(collapse (transaction (petta-three)))` answered `(1)`. Two of the
+    """Reproduced 2026-08-19: `!(collapse (metta-three))` answered `(1 2 3)`
+    and `!(collapse (transaction (metta-three)))` answered `(1)`. Two of the
     three answers were gone and nothing said so, because SWI's transaction/1
     runs its goal as once/1.
 
     Dropping them is an opacity violation in the transactional-memory sense:
     a reader of the result sees a state no serial run of the body produces.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    assert _answers(three, "!(collapse (petta-three))") == ["1", "2", "3"]
-    assert _answers(three, "!(collapse (transaction (petta-three)))") == ["1", "2", "3"]
+    assert _answers(three, "!(collapse (metta-three))") == ["1", "2", "3"]
+    assert _answers(three, "!(collapse (transaction (metta-three)))") == ["1", "2", "3"]
     # A superpose body is the same claim written without equations.
     assert _answers(three, "!(collapse (transaction (superpose (a b c))))") == [
         "a",
@@ -62,10 +62,10 @@ def test_a_transaction_preserves_every_answer_of_its_body(three):
     ]
     # An answer that binds a caller variable replays its own binding rather
     # than a copy of whichever one came first.
-    three.run("(= (petta-tag 1) one)")
-    three.run("(= (petta-tag 2) two)")
+    three.run("(= (metta-tag 1) one)")
+    three.run("(= (metta-tag 2) two)")
     assert _answers(
-        three, "!(collapse (transaction (petta-tag (superpose (1 2)))))"
+        three, "!(collapse (transaction (metta-tag (superpose (1 2)))))"
     ) == ["one", "two"]
 
 
@@ -87,11 +87,11 @@ def test_a_transaction_rolls_back_every_answers_writes_together(three):
 
     # Two answers write and then the body ends with none: both writes go.
     three.run(
-        "(= (petta-write-then-fail) (progn (superpose ("
+        "(= (metta-write-then-fail) (progn (superpose ("
         "(add-atom (context-space) (gone 1)) (add-atom (context-space) (gone 2)))) "
         "(empty)))"
     )
-    assert _answers(three, "!(collapse (transaction (petta-write-then-fail)))") == []
+    assert _answers(three, "!(collapse (transaction (metta-write-then-fail)))") == []
     assert _answers(three, "!(collapse (match (context-space) (gone $x) $x))") == []
 
     # Two answers write and then the body raises: both writes go, and the
@@ -100,14 +100,14 @@ def test_a_transaction_rolls_back_every_answers_writes_together(three):
         msg = "the host operation failed"
         raise RuntimeError(msg)
 
-    three.op(blow, name="petta-blow", effect="pureStructural")
+    three.op(blow, name="metta-blow", effect="pureStructural")
     three.run(
-        "(= (petta-write-then-raise) (progn (superpose ("
+        "(= (metta-write-then-raise) (progn (superpose ("
         "(add-atom (context-space) (lost 1)) (add-atom (context-space) (lost 2)))) "
-        "(petta-blow)))"
+        "(metta-blow)))"
     )
     with pytest.raises(EngineError):
-        three.run("!(collapse (transaction (petta-write-then-raise)))")
+        three.run("!(collapse (transaction (metta-write-then-raise)))")
     assert _answers(three, "!(collapse (match (context-space) (lost $x) $x))") == []
 
 
@@ -119,7 +119,7 @@ def test_a_nested_transaction_preserves_answers_too(three):
     assert _answers(
         three, "!(collapse (transaction (transaction (superpose (7 8)))))"
     ) == ["7", "8"]
-    assert _answers(three, "!(collapse (transaction (transaction (petta-three))))") == [
+    assert _answers(three, "!(collapse (transaction (transaction (metta-three))))") == [
         "1",
         "2",
         "3",
@@ -133,7 +133,7 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
     atomically.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert [str(a) for a in three.run("!(atomically (+ 1 1))")[0]] == ["2"]
-    assert _answers(three, "!(collapse (atomically (petta-three)))") == ["1", "2", "3"]
+    assert _answers(three, "!(collapse (atomically (metta-three)))") == ["1", "2", "3"]
 
     # Commits whole.
     assert _answers(
@@ -148,11 +148,11 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
 
     # Rolls back whole.
     three.run(
-        "(= (petta-a-fail) (progn (superpose ("
+        "(= (metta-a-fail) (progn (superpose ("
         "(add-atom (context-space) (a-gone 1)) (add-atom (context-space) (a-gone 2)))) "
         "(empty)))"
     )
-    assert _answers(three, "!(collapse (atomically (petta-a-fail)))") == []
+    assert _answers(three, "!(collapse (atomically (metta-a-fail)))") == []
     assert _answers(three, "!(collapse (match (context-space) (a-gone $x) $x))") == []
 
     # A raise rolls back and is not swallowed.
@@ -160,14 +160,14 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
         msg = "the host operation failed"
         raise RuntimeError(msg)
 
-    three.op(blow, name="petta-a-blow", effect="pureStructural")
+    three.op(blow, name="metta-a-blow", effect="pureStructural")
     three.run(
-        "(= (petta-a-raise) (progn (superpose ("
+        "(= (metta-a-raise) (progn (superpose ("
         "(add-atom (context-space) (a-lost 1)) (add-atom (context-space) (a-lost 2)))) "
-        "(petta-a-blow)))"
+        "(metta-a-blow)))"
     )
     with pytest.raises(EngineError):
-        three.run("!(collapse (atomically (petta-a-raise)))")
+        three.run("!(collapse (atomically (metta-a-raise)))")
     assert _answers(three, "!(collapse (match (context-space) (a-lost $x) $x))") == []
 
     # Nesting keeps both, the same way transaction's does.
@@ -188,10 +188,10 @@ def test_atomically_takes_a_body_that_is_data_where_transaction_cannot(three):
     separate them are what evaluating a runtime term costs against compiling
     the body in place, which is why both forms exist rather than one.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    three.run("(= (petta-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))")
+    three.run("(= (metta-body) (noeval (superpose ((+ 1 1) (+ 2 2)))))")
     assert _answers(
-        three, "!(collapse (let $body (petta-body) (atomically $body)))"
+        three, "!(collapse (let $body (metta-body) (atomically $body)))"
     ) == ["2", "4"]
     assert _answers(
-        three, "!(collapse (let $body (petta-body) (transaction $body)))"
+        three, "!(collapse (let $body (metta-body) (transaction $body)))"
     ) == ["(superpose ((+ 1 1) (+ 2 2)))"]

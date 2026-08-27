@@ -105,11 +105,11 @@ def test_source_and_path_are_exclusive(space, tmp_path):  # noqa: D103  -- pytes
 # second one.
 def test_a_missing_file_is_named(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(SourceNotFound, match="no Prolog source"):
-        space.register_prolog(path="/nonexistent/petta/none.pl", names=["rp-x"])
+        space.register_prolog(path="/nonexistent/metta/none.pl", names=["rp-x"])
     with pytest.raises(FileNotFoundError):
-        space.register_prolog(path="/nonexistent/petta/none.pl", names=["rp-x"])
+        space.register_prolog(path="/nonexistent/metta/none.pl", names=["rp-x"])
     with pytest.raises(MettaError):
-        space.register_prolog(path="/nonexistent/petta/none.pl", names=["rp-x"])
+        space.register_prolog(path="/nonexistent/metta/none.pl", names=["rp-x"])
 
 
 def test_a_non_string_name_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

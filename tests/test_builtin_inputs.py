@@ -76,7 +76,7 @@ engine = context.self
 rows = context.runtime.once(TABLE)["Rows"]
 report = {"probed": 0, "unnamed": [], "answered": [], "raised": []}
 for name, position, kinds in rows:
-    written = [("$petta-hole" if index + 1 == position else FILLER[kind])
+    written = [("$metta-hole" if index + 1 == position else FILLER[kind])
                for index, kind in enumerate(kinds)]
     source = "!({} {})".format(name, " ".join(written))
     report["probed"] += 1
