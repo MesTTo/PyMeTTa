@@ -77,6 +77,24 @@ def test_release_and_citation_metadata_ship_in_source_archives():  # noqa: D103 
     assert {"include CHANGELOG.md", "include CITATION.cff"} <= set(source_manifest)
 
 
+def _resolved_extra(extras: dict, name: str) -> set[str]:
+    """One extra's requirements with any `pymetta[other]` self-reference expanded.
+
+    `checks` is a strict superset of `test` and says so with the PEP 508
+    self-reference rather than repeating six pins, so a membership test against
+    the literal list would now read false for every one of them. What the extra
+    INSTALLS is the contract; how it spells the overlap is not.
+    """
+    resolved: set[str] = set()
+    for requirement in extras[name]:
+        reference = re.fullmatch(r"pymetta\[([\w-]+)\]", requirement)
+        if reference:
+            resolved |= _resolved_extra(extras, reference.group(1))
+        else:
+            resolved.add(requirement)
+    return resolved
+
+
 def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     extras = _manifest()["project"]["optional-dependencies"]
     assert set(extras["arrays"]) == {"array-api-compat", "faiss-cpu", "numpy"}
@@ -85,13 +103,19 @@ def test_optional_integrations_have_installable_extras():  # noqa: D103  -- pyte
     # No orjson extra: the JSON codec is the engine's library(json), and
     # no Python-side JSON implementation exists to accelerate.
     assert "orjson" not in extras
-    assert "pytest-xdist>=3.8,<4" in extras["test"]
-    assert "pytest-xdist>=3.8,<4" in extras["checks"]
-    assert "networkx>=3.6,<4" in extras["test"]
-    assert "networkx>=3.6,<4" in extras["checks"]
-    assert "numpy" in extras["test"]
-    assert "numpy" in extras["checks"]
-    assert "pylint>=3.3,<4" in extras["checks"]
+    test_requirements = _resolved_extra(extras, "test")
+    checks_requirements = _resolved_extra(extras, "checks")
+    # The relation itself, which is what the self-reference exists to state.
+    # Asserting it directly is stronger than the six membership pairs this
+    # replaced: those could all hold while a seventh pin drifted between the
+    # two lists, and this cannot.
+    assert test_requirements <= checks_requirements
+    assert {"pytest-xdist>=3.8,<4", "networkx>=3.6,<4", "numpy"} <= test_requirements
+    assert "pylint>=3.3,<4" in checks_requirements
+    assert "pylint>=3.3,<4" not in test_requirements
+    # No literal duplication survives: every shared pin reaches `checks` through
+    # the reference, never by being written twice.
+    assert not set(extras["checks"]) & set(extras["test"])
 
 
 def test_the_minimal_version_matrix_installs_no_optional_integration():
