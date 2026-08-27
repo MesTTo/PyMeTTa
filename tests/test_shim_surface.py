@@ -72,6 +72,14 @@ HOST_SERVICES = {
     "metta_host_with_stack_limit/2",
     # Cache validation reads the function registry's engine-owned generation.
     "metta_host_function_generation/1",
+    # The one row here that makes the floor SHRINK by being added. The engine
+    # decides silent/1 from argv at load time, an embedded host has no argv,
+    # and two seats had each written the same retract-then-assert privately
+    # (petta_py_set_silent/1 here, petta_c_set_silent/1 in bindings/cetta),
+    # with engine/filereader.pl's own export comment naming the first. One
+    # engine-side door replaces both copies and the engine stops depending on
+    # a binding's internals.
+    "metta_host_set_silent/1",
     # list() asks for a length hint before it pulls. The engine's shared
     # effect classifier decides whether that second evaluation is safe; the
     # host must not reconstruct its private queue protocol.
@@ -214,6 +222,7 @@ FLOOR_REASONS = {
     "metta_host_run_source_status/3": "host-orchestration",
     "metta_host_with_stack_limit/2": "door",
     "metta_host_function_generation/1": "host-orchestration",
+    "metta_host_set_silent/1": "door",
     "metta_host_goal_repeatable/2": "host-orchestration",
     "metta_host_goal_effect_plan/4": "host-orchestration",
     "metta_host_source_effect_plan/4": "host-orchestration",

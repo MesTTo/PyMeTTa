@@ -216,7 +216,7 @@ def test_a_translator_rule_declares_its_direction_and_a_bidirectional_rule_is_on
             "--on-error=status",
             "-g",
             "set_prolog_flag(argv, [backends]), consult('../../engine/metta.pl'), "
-            "retractall(silent(_)), assertz(silent(true)), "
+            "metta_host_set_silent(true), "
             f"load_metta_file('{planted}', _), "
             "forall(member(N, [unpack, twin]), "
             "       ( translator_rule(N, D), format('ROW ~w ~q~n', [N, D]) )), "
