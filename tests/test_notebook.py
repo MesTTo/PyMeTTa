@@ -25,16 +25,30 @@ MAGIC_CELL = """%%metta
 TABLE_MARKER = "<table style='font-family: monospace; border-collapse: collapse;'>"
 
 
+def _rendered_html(output) -> str:
+    """One output's `text/html`, whichever shape it is stored in.
+
+    nbformat writes a multiline string as a LIST of lines and joins it
+    again on read, and this lane reads the stored notebook as plain JSON
+    while the executed one arrives as nbformat nodes. The check passed
+    only while the shipped notebook happened to be written by something
+    other than nbformat, which kept it a single string; saving the tour
+    once from Jupyter would have turned the lane red with nothing wrong.
+    """
+    html = output.get("data", {}).get("text/html", "")
+    return "".join(html) if isinstance(html, list) else html
+
+
 def _has_rows_table(notebook) -> bool:
     return any(
-        TABLE_MARKER in output.get("data", {}).get("text/html", "")
+        TABLE_MARKER in _rendered_html(output)
         for cell in notebook["cells"]
         for output in cell.get("outputs", ())
     )
 
 
 def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    notebook_path = repo_root / "notebooks" / "tour.ipynb"
+    notebook_path = repo_root / "bindings" / "python" / "notebooks" / "tour.ipynb"
     stored = json.loads(notebook_path.read_text(encoding="utf8"))
     assert _has_rows_table(stored)
 
