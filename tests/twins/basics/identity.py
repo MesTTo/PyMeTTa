@@ -307,7 +307,26 @@ Guarantees:
 #: command=python -m pytest
 #: "tests/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[basics/identity.metta]";
 #: commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0].
-BUDGET = 2841
+#: RE-PINNED 2026-08-27, 2841 to 2846 (+5), at the cursor inference budget.
+#: Attributed to ONE LINE and it is a declaration: adding
+#: kind(metta_host_inference_budget/3, host_service) to engine/ext_points.pl
+#: is the whole move, and applying the branch's other three files on top of it
+#: (the service itself in engine/metta/control.pl, the two message clauses in
+#: engine/metta/registration.pl, and the five shim call sites) adds nothing
+#: further, all four readings 2846. A declaration cannot do work, and the
+#: control says so: INERT kind/2 rows for predicates that do not exist move the
+#: same reading 2841/2846/2841/2816/2816/2836 for 0/1/2/3/4/8 rows, so one row
+#: lands on 2846 exactly as this change does and the band here is 2816..2846,
+#: seven times the four-inference allowance a point budget carries. Inert rows
+#: in engine/metta/control.pl, where the service actually lives, move it not at
+#: all (2841 at 1, 2, 4, 8 and 16). The twin's definition, its assertion and the
+#: example's own 2801 are unchanged
+#: [measured: base 2841 and candidate 2846, three fresh processes each,
+#: all identical; command=python bindings/python/tools/twin_coverage.py
+#: --measure --rounds 3 examples/basics/identity.metta; fixture=this worktree
+#: with engine/reader.so, the C extension objects and the MORK backend loaded;
+#: commit=WORKTREE].
+BUDGET = 2846
 def twin(m):
     """Define the square, then check it."""
     @m.define

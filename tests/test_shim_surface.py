@@ -70,6 +70,14 @@ HOST_SERVICES = {
     "metta_host_run_source_status/3",
     # The host scopes SWI's thread-local byte ceiling through one engine door.
     "metta_host_with_stack_limit/2",
+    # An inference budget over a goal an engine will RESUME. A host cannot
+    # place this bound correctly from outside: the engine counts its own
+    # inferences and the host thread cannot see them, so a meter around
+    # engine_next/2 charges the pull loop and reads as working. Two seats
+    # wrote it independently and both made that mistake, and the Node seat
+    # still has to grow one, so the wrapper is built engine-side and handed
+    # back rather than described.
+    "metta_host_inference_budget/3",
     # Cache validation reads the function registry's engine-owned generation.
     "metta_host_function_generation/1",
     # list() asks for a length hint before it pulls. The engine's shared
@@ -213,6 +221,7 @@ FLOOR_REASONS = {
     "metta_host_run_source/4": "host-orchestration",
     "metta_host_run_source_status/3": "host-orchestration",
     "metta_host_with_stack_limit/2": "door",
+    "metta_host_inference_budget/3": "host-orchestration",
     "metta_host_function_generation/1": "host-orchestration",
     "metta_host_goal_repeatable/2": "host-orchestration",
     "metta_host_goal_effect_plan/4": "host-orchestration",
