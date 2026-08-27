@@ -117,7 +117,7 @@ RUFF_FAMILY_BURN_DOWN = {
     # the repository's own D205 one-invariant form or a D103 test-function
     # suppression, the two idioms the ceiling already prices. Measured
     # after the last edit of the landing set.
-    # 2173 as the grown integration/python twin's scenario docstring takes
+    # 2173 as the grown ch11-python-as-a-notation/01-python twin's scenario docstring takes
     # the corpus's D205 one-invariant form. Measured after the last edit.
     # 2179 as the benchmark harness gains its two-sided-band and
     # configuration-stamp tests plus the shared benchmarks/configuration

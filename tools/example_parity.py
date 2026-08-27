@@ -15,7 +15,7 @@ basename rather than path, and the two copies disagreed. `--list` and
 Assumes:
   - both configurations print a verdict line per `!(test ...)` in the same
     format, `is X, should Y. <mark>` [measured 2026-08-18: 12 lines each
-    from examples/control/forall.metta, byte-identical]
+    from examples/ch07-control-flow/07-04-bounded-and-committed-searches/01-forall.metta, byte-identical]
   - an example is cheap enough to run in its own process in both
     configurations [measured 2026-08-18: 0.08s engine, 0.15s library]
 Guarantees:
@@ -43,7 +43,7 @@ Fails when:
   - an example's answers are nondeterministically ordered: groups are
     compared in order, so a genuinely unordered answer set would report a
     difference that is not one. One in the corpus was, and this lane is
-    what found it: examples/control/thin_forms.metta asserted `(2 4)` for a
+    what found it: examples/ch17-concurrency-and-the-loop/04-thin_forms.metta asserted `(2 4)` for a
     collapse over `hyperpose`, whose branches race, so the example's own
     `test` failed at 4 runs in 30 and the lane read a per-run coin flip as
     a library difference [measured 2026-08-18, engine alone]. It sorts now,

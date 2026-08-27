@@ -226,7 +226,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
 def test_a_python_op_is_a_higher_order_argument(metta):
     """A registered operation reaches the specializer by name, like `(+ 1)`.
 
-    examples/functions/specialize.metta tests the native partial application
+    examples/ch05-equations-and-evaluation/05-02-changing-the-equations/04-specialize.metta tests the native partial application
     in this position and nothing tested a Python operation there, so the
     specializer taking one was true and unguarded. What is asserted is the
     equivalence rather than the literal answer, because the claim is that the

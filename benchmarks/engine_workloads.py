@@ -42,7 +42,7 @@ ALPHA_TERMS = 50_000
 DIGEST_ATOMS = 20_000
 #: The default evaluation fuel is 100,000 reductions, and the two recursive
 #: workloads below spend a million, so their spaces raise the bound the way the
-#: corpus raises it for (fib 30) in examples/basics/time_and_pragmas.metta. It
+#: corpus raises it for (fib 30) in examples/ch14-seeing-your-program/01-time_and_pragmas.metta. It
 #: is set in SETUP rather than inside the measured call, which leaves the
 #: measurement unchanged because the limit is read once per fuel scope, on its
 #: first step. It became load-bearing on 2026-08-22, when P14.8 gave m.eval the

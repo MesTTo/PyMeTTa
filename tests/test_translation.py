@@ -6,7 +6,7 @@ rewrite that unifies its own pattern into the source.
 Assumes:
   - `Atom` on an argument's declared type makes it arrive unevaluated, which
     is what lets a body reach a wrapper unevaluated
-    [source: examples/translation/translatorrule_for.metta]
+    [source: examples/ch20-extending-the-engine/20-01-translator-rules/05-translatorrule_for.metta]
 Guarantees:
   - `let*` under another name binds the body with the bindings the caller
     wrote, and refuses a value that is not bindings naming the form
@@ -138,11 +138,11 @@ DERIVED_FORMS = {
 # A library is not runnable on its own, so it is exercised through one of its
 # importers.
 DERIVED_FORM_SITES = [
-    ("examples/control/and_then_or_else.metta", "examples/control/and_then_or_else.metta"),
-    ("examples/data/streamops.metta", "examples/data/streamops.metta"),
-    ("lib/lib_roman.metta", "examples/libraries/roman.metta"),
-    ("lib/lib_pln.metta", "examples/reasoning/pln_direct.metta"),
-    ("lib/lib_nars.metta", "examples/reasoning/nars_direct.metta"),
+    ("examples/ch07-control-flow/07-01-if-and-booleans/10-and_then_or_else.metta", "examples/ch07-control-flow/07-01-if-and-booleans/10-and_then_or_else.metta"),
+    ("examples/ch06-many-answers/09-streamops.metta", "examples/ch06-many-answers/09-streamops.metta"),
+    ("lib/lib_roman.metta", "examples/ch08-data/08-01-atoms-lists-and-folds/15-roman.metta"),
+    ("lib/lib_pln.metta", "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/05-pln_direct.metta"),
+    ("lib/lib_nars.metta", "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/08-nars_direct.metta"),
 ]
 
 

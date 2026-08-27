@@ -2506,7 +2506,7 @@ metta_py_eval_count_term(Space, Term, Count) :-
 %turns into values then crosses one integer, where the materializing pass it
 %replaces encoded and crossed every answer to reach that number; a later value
 %demand encodes exactly the answers it pulls. Encoding is the whole per-answer
-%cost here, measured on examples/reasoning/peano.metta's 301 answers: 2029719
+%cost here, measured on examples/ch07-control-flow/07-05-recursion/06-peano.metta's 301 answers: 2029719
 %inferences counting without it, 2392138 counting with it, and 2393864 for the
 %full materializing pass, so deferring the encode recovers 99.5% of the gap
 %while the boundary walk it keeps costs one inference per answer.

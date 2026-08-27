@@ -181,7 +181,7 @@ def test_a_rule_owned_head_obeys_its_orientation_through_the_flat_door(m):
     rule-owned head must decline the direct goal: the derived inverse of a
     bidirectional rule, called raw, rewrote `(twin 1 1)` UP in cost while
     every translated door blocked it [measured 2026-08-25,
-    examples/translation/translatorrule_direction.metta].
+    examples/ch20-extending-the-engine/20-01-translator-rules/02-translatorrule_direction.metta].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from typing import Any
 

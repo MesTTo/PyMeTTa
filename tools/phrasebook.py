@@ -797,7 +797,7 @@ def _strategy_basis_section() -> list[str]:
     out = [
         "MeTTa's complete shipped basis is reified below. Every plan cell is ordinary",
         "queryable atom data, and every row is exercised by",
-        "`examples/libraries/strategy.metta` through the normal library runner.",
+        "`examples/ch20-extending-the-engine/20-02-metta-written-in-metta/11-strategy.metta` through the normal library runner.",
         "",
         "| public name | reified plan or MeTTa door | Python atom | law |",
         "|---|---|---|---|",

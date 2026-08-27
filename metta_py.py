@@ -5,7 +5,7 @@ Assumes:
   - janus is importing this module by name after bindings/python/bridge.pl adds this directory to
     sys.path with py_add_lib_dir/1, so it must not import anything from the
     `metta` package: the engine runs with janus alone and the package need not
-    be installed [tested: examples/integration/py_surface.metta under run.sh]
+    be installed [tested: examples/ch11-python-as-a-notation/04-py_surface.metta under run.sh]
 Guarantees:
   - resolve() imports the longest importable prefix of a dotted path and
     getattrs the rest, so a path of any depth works [tested: B26 in

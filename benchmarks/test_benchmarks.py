@@ -1119,7 +1119,7 @@ def _handle_space():
         / "handle.so"
     )
     if not library.is_file():
-        pytest.skip("handle.so is not built; see examples/integration/c_extension")
+        pytest.skip("handle.so is not built; see examples/ch19-spaces-backed-by-anything/19-03-a-builtin-in-c")
     space = _empty_space()
     space.register_foreign_library(
         library,

@@ -296,7 +296,7 @@ def test_a_space_handle_dispatches_to_the_engine_checker(repo_root):  # noqa: D1
     # resolves a source path against the process working directory.
     m = MeTTa().space()
     m.register_prolog(
-        path=repo_root / "examples" / "libraries" / "_fixtures" / "demo_provider.pl"
+        path=repo_root / "examples" / "ch08-data" / "08-03-the-shipped-libraries" / "_fixtures" / "demo_provider.pl"
     )
     try:
         demo = m.metta.space("&demo_provider")

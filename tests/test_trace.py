@@ -15,7 +15,7 @@ import pytest
 from metta import S, Symbol
 
 _C_EXTENSION = (
-    Path(__file__).resolve().parents[3] / "examples" / "integration" / "c_extension"
+    Path(__file__).resolve().parents[3] / "examples" / "ch19-spaces-backed-by-anything" / "19-03-a-builtin-in-c"
 )
 
 

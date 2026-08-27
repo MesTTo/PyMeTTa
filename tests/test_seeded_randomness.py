@@ -64,7 +64,7 @@ def test_a_seed_scope_repeats_its_draws_and_leaves_the_outside_alone() -> None:
     ) == ["caught"]
 
     # The surface it composes with is unchanged: an unscoped draw is still in
-    # range, which is what examples/basics/math_exp_random.metta asserts.
+    # range, which is what examples/ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta asserts.
     metta.run("(= (seeded-in-range $lo $hi $x) (and (<= $lo $x) (<= $x $hi)))")
     assert _answers(
         metta, "!(with-seed 3 (seeded-in-range 1 6 (random-int 1 6)))"

@@ -514,7 +514,7 @@ seam:grounded_apply(Obj, Args, Result) :-
 %(structure, text, apply, the cycle check), because each of them is
 %consulted with plain engine terms on ordinary paths: a nested-call data
 %shape reaches seam:grounded_apply/3, and probing its list head with
-%py_is_object/1 booted CPython inside examples/spaces/matchnested.metta,
+%py_is_object/1 booted CPython inside examples/ch04-spaces-and-matching/04-02-patterns-and-bindings/02-matchnested.metta,
 %~104M instructions for a four-atom program [measured 2026-08-17].
 %The blob test comes FIRST because it is the one that costs nothing:
 %py_is_object/1 "fails silently" on a non-object [source: janus.pl doc,

@@ -17,7 +17,7 @@ def test_the_scallop_readme_examples_answer_identically_through_the_seams(
     metta, repo_root
 ):
     """Run the pinned path, animal, negation, count, and argmax oracles."""
-    example = repo_root / "examples" / "reasoning" / "scallop_readme.metta"
+    example = repo_root / "examples" / "ch22-a-reasoner-you-can-serve" / "22-01-logic-programs" / "05-scallop_readme.metta"
     mapping = example.with_suffix(".md")
     with metta._new_space() as program:
         program.annotations(program.name, "set")

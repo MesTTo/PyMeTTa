@@ -6,7 +6,7 @@ exactly like save.
 Guarantees:
   - higher-order specializations mint symbols that survive text save, reload,
     and digest, including all eight formerly unwritable names in
-    examples/functions/specialize.metta [tested:
+    examples/ch05-equations-and-evaluation/05-02-changing-the-equations/04-specialize.metta [tested:
     test_a_specialized_program_saves_and_digests; commit=5d93a44cf4820717163bbf8dfaf667ae14e5e4ee]
 Open Obligations:
   To Do: None
@@ -157,7 +157,7 @@ def test_a_specialized_program_saves_and_digests(metta, repo_root, tmp_path):
 
     measured = tmp_path / "specialize.metta"
     with metta._new_space() as writer:
-        writer.load(repo_root / "examples" / "functions" / "specialize.metta")
+        writer.load(repo_root / "examples" / "ch05-equations-and-evaluation" / "05-02-changing-the-equations" / "04-specialize.metta")
         assert writer.run("!(trickyspec (+ 2))") == [[3]]
         names = {
             str(atom.children[1].children[0])

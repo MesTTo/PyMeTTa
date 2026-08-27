@@ -23,7 +23,7 @@ in the first place:
 
 ```sh
 python bindings/python/tools/twin_coverage.py --repin \
-    --reason "the mechanism that moved the count" examples/basics/identity.metta
+    --reason "the mechanism that moved the count" examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta
 ```
 
 It measures min-of-three in fresh processes, writes the paragraph under the

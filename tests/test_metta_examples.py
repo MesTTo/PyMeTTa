@@ -21,11 +21,11 @@ REPO = Path(__file__).resolve().parents[3]
 # the flat aliases at the top of examples/; those aliases are gone, so each
 # names the file itself.
 FILES = [
-    "reasoning/measure.metta",
-    "reasoning/soft.metta",
-    "integration/python_booleans.metta",
-    "basics/math_exp_random.metta",
-    "control/if_branch_binding.metta",
+    "ch22-a-reasoner-you-can-serve/22-02-weighted-answers/01-measure.metta",
+    "ch22-a-reasoner-you-can-serve/22-02-weighted-answers/02-soft.metta",
+    "ch11-python-as-a-notation/02-python_booleans.metta",
+    "ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta",
+    "ch07-control-flow/07-01-if-and-booleans/06-if_branch_binding.metta",
 ]
 
 

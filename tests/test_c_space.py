@@ -28,7 +28,7 @@ _ARTEFACT = _PROVIDER.with_name("cstore.so")
 @pytest.fixture
 def cstore():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if not _ARTEFACT.is_file():
-        pytest.skip("cstore.so is not built; see examples/integration/c_space/README.md")
+        pytest.skip("cstore.so is not built; see examples/ch19-spaces-backed-by-anything/19-02-a-space-in-c/README.md")
     m = metta.MeTTa().space()
     m.register_prolog(path=_PROVIDER)
     try:

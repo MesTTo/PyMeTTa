@@ -56,7 +56,7 @@ CALLS = 3_000
 # tree. The partition move added a directory level and the old three-parent
 # spelling landed in bindings/, so has_c read False with the artifact built
 # and the C row silently left the gate from ac083177 until 2026-08-26.
-C_EXTENSION = Path(__file__).resolve().parents[3] / "examples/integration/c_extension"
+C_EXTENSION = Path(__file__).resolve().parents[3] / "examples/ch19-spaces-backed-by-anything/19-03-a-builtin-in-c"
 ROUNDS = 3
 
 

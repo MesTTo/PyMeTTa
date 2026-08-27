@@ -224,7 +224,7 @@ BAND_PERCENT = 10.0
 #: 2221, 2986, 3751, 4516 inferences, so the fit is exact and linear, 1456 once
 #: plus 765 for each definition. Without this the band SELECTED FOR
 #: TRANSLITERATION on exactly the files where Python's spelling is clearest:
-#: examples/control/if.metta costs 2092 with a ceiling of 2301, so one
+#: examples/ch07-control-flow/07-01-if-and-booleans/02-if.metta costs 2092 with a ceiling of 2301, so one
 #: decorated definition could not fit and six control twins had to stay at the
 #: container door [found 2026-08-22 by the control agent, which said the rule
 #: was wrong and was right; commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
@@ -1582,7 +1582,7 @@ def _launch(source: str, root: Path) -> Run:
 #: The environment every measurement runs in. It is BUILT rather than
 #: inherited, which is the discipline benchmarking.py already applies for the
 #: same reason: a measurement that moves with the caller is not a measurement.
-#: Measured 2026-08-22 on examples/integration/git_import.metta, whose
+#: Measured 2026-08-22 on examples/ch20-extending-the-engine/20-04-modules-and-the-catalog/06-git_import.metta, whose
 #: `git-import!` reaches for an executable: 2 PATH entries cost 46390
 #: inferences, 3 cost 46435 and 6 cost 46570, exactly 45 per entry, so
 #: something walks PATH inside a counted path and the same twin read a
@@ -1962,8 +1962,8 @@ def _stored(relative: str, left: Run, right: Run) -> list[str]:
 #: not twinning a MeTTa example, it is only agreeing with it. Pinned from the
 #: two measured ends: a twin doing all of its example's work in Python cost 5
 #: inferences, and the cheapest twin that still queries a space cost 449
-#: [measured 2026-08-22: examples/control/caseconstrain.metta and
-#: examples/spaces/spaces3.metta, `twin_coverage.py --measure`;
+#: [measured 2026-08-22: examples/ch07-control-flow/07-02-case/03-caseconstrain.metta and
+#: examples/ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/03-spaces3.metta, `twin_coverage.py --measure`;
 #: commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22].
 ENGINE_FLOOR = 100
 

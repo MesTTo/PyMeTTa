@@ -80,7 +80,7 @@ def test_the_chess_example_is_skipped_for_the_reason_that_is_true():
     once stdin is at EOF. Both halves are measured here, because a skip
     reason nothing checks is how the wrong one survived.
     """
-    example = "examples/reasoning/greedy_chess.metta"
+    example = "examples/ch22-a-reasoner-you-can-serve/22-03-search/06-greedy_chess.metta"
     assert "interactive terminal" in parity.skips()[example]
 
     quits = subprocess.run(
@@ -126,7 +126,7 @@ def test_example_parity_reports_a_planted_difference():
 
 def test_a_python_tuple_answers_the_same_through_both_doors(metta):
     """The shared Python-surface example exposes pair and empty tuple answers."""
-    path = REPO / "examples" / "integration" / "py_surface.metta"
+    path = REPO / "examples" / "ch11-python-as-a-notation" / "04-py_surface.metta"
     engine = parity.run_engine(path)
     library = parity.run_library(path)
     assert engine.error is None, engine.error
@@ -209,7 +209,7 @@ def test_a_runner_returns_its_raw_text_beside_the_outcome():
     assert "OTHER 7" in text
 
 
-@pytest.mark.parametrize("name", ["control/forall.metta", "types/types.metta"])
+@pytest.mark.parametrize("name", ["ch07-control-flow/07-04-bounded-and-committed-searches/01-forall.metta", "ch09-types/01-types.metta"])
 def test_a_known_agreeing_example_agrees(name):
     """Two examples that do agree, so a change breaking the comparison
     itself is caught rather than reading as a corpus finding.

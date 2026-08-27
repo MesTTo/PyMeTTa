@@ -51,7 +51,9 @@ def test_the_exact_doors_build_the_engine_forms():
     assert lib["metta_fixture_lib"].fixture.form == S.library(
         S["metta_fixture_lib"], S.fixture
     )
-    assert lib("examples/basics/fibsmart").form == S["examples/basics/fibsmart"]
+    assert lib("examples/ch07-control-flow/07-05-recursion/03-fibsmart").form == S[
+        "examples/ch07-control-flow/07-05-recursion/03-fibsmart"
+    ]
     with pytest.raises(TypeError, match="does not contain files"):
         lib["metta_fixture_lib"].fixture.deeper  # noqa: B018  -- the refusal is the behaviour under test
 

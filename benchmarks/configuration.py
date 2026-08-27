@@ -22,7 +22,7 @@ _ROOT = Path(__file__).resolve().parents[3]
 
 def counter_configuration() -> dict[str, bool]:
     """The live configuration a counter measurement runs in."""
-    c_extension = _ROOT / "examples" / "integration" / "c_extension"
+    c_extension = _ROOT / "examples" / "ch19-spaces-backed-by-anything" / "19-03-a-builtin-in-c"
     return {
         "c_reader": (
             (_ROOT / "engine" / "reader.so").is_file()

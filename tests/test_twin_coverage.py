@@ -819,7 +819,7 @@ def test_the_form_reader_agrees_with_the_engines_own_count():
 
 def test_a_test_form_is_read_as_a_claim():
     """An assert-family head states a claim; every other head does not."""
-    heads = coverage.example_forms(REPO / "examples" / "integration" / "git_import.metta")
+    heads = coverage.example_forms(REPO / "examples" / "ch20-extending-the-engine" / "20-04-modules-and-the-catalog" / "06-git_import.metta")
     assert heads == [
         "import!",
         "import_prolog_functions_from_file",
@@ -925,7 +925,7 @@ def test_a_digest_refusal_is_a_finding_and_never_an_atom_fallback():
 def test_a_twin_stores_the_equations_its_comments_claim():
     """The seven historical files either agree or document their exact drift."""
     historical = {
-        "basics/factorial.metta": (
+        "ch07-control-flow/07-05-recursion/01-factorial.metta": (
             (
                 "(= (facF $_alpha0) (if (== $_alpha0 0) 1 "
                 "(* $_alpha0 (facF (- $_alpha0 1)))))",
@@ -936,7 +936,7 @@ def test_a_twin_stores_the_equations_its_comments_claim():
             ),
             ("Source:", "Twin:", "engine-native", "`py-eq` head"),
         ),
-        "basics/fibsmart.metta": (
+        "ch07-control-flow/07-05-recursion/03-fibsmart.metta": (
             (
                 "(= (fib-tr $_alpha0 $_alpha1 $_alpha2) "
                 "(if (== $_alpha0 0) $_alpha1 "
@@ -949,12 +949,12 @@ def test_a_twin_stores_the_equations_its_comments_claim():
             ),
             ("Source:", "Twin:", "engine-native", "`py-eq` head"),
         ),
-        "basics/math_exp_random.metta": (
+        "ch05-equations-and-evaluation/05-03-the-number-library/02-math_exp_random.metta": (
             (),
             (),
             ("historical stored-equation divergence is lifted",),
         ),
-        "basics/xor.metta": (
+        "ch07-control-flow/07-01-if-and-booleans/09-xor.metta": (
             (
                 "(= (check_xor $_alpha0 $_alpha1) "
                 "(if (xor (== $_alpha0 $_alpha1) (> $_alpha0 $_alpha1)) 42 0))",
@@ -966,7 +966,7 @@ def test_a_twin_stores_the_equations_its_comments_claim():
             ),
             ("Source:", "Twin:", "former", "`py-truthy` wrapper is gone"),
         ),
-        "control/eval.metta": (
+        "ch07-control-flow/07-03-let-and-sequencing/07-eval.metta": (
             (
                 "(= (evalCustom $_alpha0) "
                 "(let* (($_alpha1 (add-atom &self (= (myfunc) $_alpha0))) "
@@ -989,7 +989,7 @@ def test_a_twin_stores_the_equations_its_comments_claim():
             ),
             ("Source:", "Twin:", "nested one-binding `let*`"),
         ),
-        "control/metta4_streams.metta": (
+        "ch07-control-flow/07-04-bounded-and-committed-searches/02-metta4_streams.metta": (
             (),
             (),
             (
@@ -997,7 +997,7 @@ def test_a_twin_stores_the_equations_its_comments_claim():
                 "0a373e46d28e353ed02251c91b5d440f16ab17d3a79375fd5adebb149879c230",
             ),
         ),
-        "control/tests.metta": (
+        "ch06-many-answers/07-tests.metta": (
             (
                 "(= (program1 $_alpha0) (let $_alpha1 $_alpha0 "
                 "(collapse (superpose (12 (+ $_alpha1 4))))))",
@@ -1185,7 +1185,7 @@ def test_a_budget_is_two_sided():
     work and started answering the expected value, which is the cheat a fixed
     public corpus invites.
     """
-    twin = coverage.twin_for(REPO / "examples" / "basics" / "factorial.metta")
+    twin = coverage.twin_for(REPO / "examples" / "ch07-control-flow" / "07-05-recursion" / "01-factorial.metta")
     budget = coverage.budget_of(twin)
     assert isinstance(budget, int), "factorial's twin pins a POINT budget"
     left = _run(["(True)"], cost=budget)
@@ -1347,7 +1347,7 @@ def test_the_band_refuses_a_twin_that_costs_more_than_it_was_pinned_to_allow():
     The Python spelling costs the same inferences as the handwritten `.metta`
     program, or fewer, within what the first measurements showed.
     """
-    twin = coverage.twin_for(REPO / "examples" / "basics" / "factorial.metta")
+    twin = coverage.twin_for(REPO / "examples" / "ch07-control-flow" / "07-05-recursion" / "01-factorial.metta")
     budget = coverage.budget_of(twin)
     assert isinstance(budget, int), "factorial's twin pins a POINT budget"
     twin_run = _run([], cost=budget)
@@ -1372,7 +1372,7 @@ def test_the_band_pays_for_authoring_but_only_what_was_measured(tmp_path):
 
     Without the allowance the band selected for transliteration on exactly the
     small examples where Python's spelling is clearest: measured 2026-08-22,
-    examples/control/if.metta costs 2092 against a ceiling of 2301, and one
+    examples/ch07-control-flow/07-01-if-and-booleans/02-if.metta costs 2092 against a ceiling of 2301, and one
     decorated definition costs 2221 in a fresh process.
     """
     plain = tmp_path / "plain.py"
@@ -1405,7 +1405,7 @@ def test_the_band_pays_for_authoring_but_only_what_was_measured(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "name", ["basics/identity.metta", "spaces/spaces3.metta"]
+    "name", ["ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta", "ch04-spaces-and-matching/04-01-a-space-is-where-a-program-lives/03-spaces3.metta"]
 )
 def test_a_shipped_twin_agrees_with_its_example_end_to_end(name):
     """Two twins run for real.

@@ -28,7 +28,7 @@ _LIBRARY = (
 @pytest.fixture
 def vectors():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if not _LIBRARY.is_file():
-        pytest.skip("handle.so is not built; see examples/integration/c_extension/README.md")
+        pytest.skip("handle.so is not built; see examples/ch19-spaces-backed-by-anything/19-03-a-builtin-in-c/README.md")
     m = metta.MeTTa().space()
     m.register_foreign_library(
         _LIBRARY,
