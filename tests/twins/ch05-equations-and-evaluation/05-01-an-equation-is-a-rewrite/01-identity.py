@@ -448,4 +448,19 @@ def twin(m):
 #: [measured 2026-08-28: 2821 x3; command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
 #: fixture=the p14-integration checkout with engine/reader.so and the MORK
 #: backend loaded; commit=d8463dc901cc14fe134c85da85636f9964f4d160].
+#: RE-PINNED 2026-08-28, 2826 to 2831 (+5), at the C writer. LAYOUT, not
+#: work: this example neither prints nor writes text, so no swrite/2,
+#: sdisplay/2 or metta_unwritable_symbol/2 call runs in it at all, and the
+#: whole change to a file it does consult, engine/parser.pl, is +178/-14
+#: lines. The control is the tree's own and the one the entry above uses in
+#: the other direction: planting inert facts in engine/parser.pl and changing
+#: nothing else reads 2826 at 0, 2831 at 1, 2836 at 3, 2821 at 10, 2836 at 30
+#: and 2841 at 100, so ONE inert clause reproduces this exact reading and the
+#: curve is non-monotonic, which work is not. The reading is also identical
+#: with METTA_C_WRITER=off, where the C path answers nothing
+#: [measured 2026-08-28: 2826 pristine, 2831 with the change, 2831 with the
+#: change and METTA_C_WRITER=off, 2831 pristine with one inert fact planted;
+#: command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
+#: fixture=this worktree with engine/reader.so, engine/writer.so and the MORK
+#: backend loaded; commit=a9663314a626d6227ef948658b5de769992c0afa]. metta=2800, unchanged.
 BUDGET = 2821

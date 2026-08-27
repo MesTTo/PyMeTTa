@@ -3,9 +3,10 @@ shared by the bench fixture, the instruction checker, and the extension-cost
 gate so all three stamp and verify the same facts.
 Guarantees:
   - artifact presence plus the env override decide, the same two inputs
-    parser.pl's gate reads; a present-but-unloadable artifact is an engine
+    parser.pl's gates read; a present-but-unloadable artifact is an engine
     defect the plt suite owns, not configuration drift. The C reader moved
-    file-load 8704891 to 722264 with zero code change, and the C extension's
+    file-load 8704891 to 722264 with zero code change, the C writer moved
+    space-digest 1400321 to 920299 the same way, and the C extension's
     shared objects gate a bench case (handle-round-trip skips without
     handle.so) and an extension-cost tier (the C row needs cbump.so), which
     is why a counter run must declare all of them
@@ -27,6 +28,10 @@ def counter_configuration() -> dict[str, bool]:
         "c_reader": (
             (_ROOT / "engine" / "reader.so").is_file()
             and os.environ.get("METTA_C_READER") != "off"
+        ),
+        "c_writer": (
+            (_ROOT / "engine" / "writer.so").is_file()
+            and os.environ.get("METTA_C_WRITER") != "off"
         ),
         "c_extension": (
             (c_extension / "cbump.so").is_file()
