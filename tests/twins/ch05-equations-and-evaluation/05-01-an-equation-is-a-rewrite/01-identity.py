@@ -376,5 +376,5 @@ def twin(m):
 #: [measured 2026-08-28: 2826 with 186 rows, 2831 with an inert 187th planted;
 #: command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
 #: fixture=this checkout with engine/reader.so and the MORK backend loaded;
-#: commit=WORKTREE]. metta=2800, unchanged.
+#: commit=bdd7de39a6604f9712254fa406d9da798137e452]. metta=2800, unchanged.
 BUDGET = 2826
