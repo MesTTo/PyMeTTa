@@ -443,10 +443,13 @@ def test_space_names_lists_the_registered_spaces(metta, m):  # noqa: D103  -- py
     names = metta.space_names()
     assert names == sorted(names)
     assert "&self" in names and "&petta" in names
+    # Naming a space registers nothing, which is what keeps every symbol in a
+    # space position from becoming one.
     assert "&named-but-never-written" not in names
-    # Registration happens on WRITE, not on naming: a fresh new_space is
-    # absent until its first atom lands.
-    assert m.name not in names
+    # CREATING one does, with nothing written to it yet, which is the property
+    # (new-space) has and the arbiter requires of it.
+    assert m.name in names
+    assert metta.eval(S["get-type"](m)) == [S.SpaceType]
     m.add(S.mark(1))
     assert m.name in metta.space_names()
 

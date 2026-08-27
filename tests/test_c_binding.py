@@ -21,9 +21,11 @@ Guarantees:
   - both seats answer every corpus program with the same groups, the same
     number of answers and the same text
     [tested test_the_c_binding_and_the_python_host_answer_the_same_programs]
-  - the two seats' metatypes agree except where _KNOWN_METATYPE_DIVERGENCES
-    names the disagreement and says why
-    [tested test_the_c_binding_and_the_python_host_answer_the_same_programs]
+  - the two seats' metatypes agree on every corpus answer, with
+    _KNOWN_METATYPE_DIVERGENCES empty and Space among the kinds the corpus
+    must keep reaching
+    [tested test_the_c_binding_and_the_python_host_answer_the_same_programs,
+    test_every_c_kind_the_corpus_reaches_is_mapped]
   - the C seat's own suite passes against the same tree, and its process
     stdout carries only its own writes while the engine's assertion report
     goes to stderr
@@ -71,17 +73,17 @@ _KIND_TO_METATYPE = {
 # rather than a filter: a divergence that is not listed fails the comparison,
 # and a listed one carries why.
 #
-# One entry, and it is deliberate. An executable space reaches the C seat as
-# CETTA_SPACE, whose metatype is Grounded, because that seat asks
-# metta_space_names/1 whether the name really is a space. The Python shim
-# hardcodes `&self` and `&petta` and tags nothing else, so a space the engine
-# just made crosses to it as an ordinary Symbol. Measured 2026-08-27:
-# `!(new-space)` answers metatype Symbol in Python and Space in C, and
-# `metta_space_names/1` lists the name in both. C5 in
-# ai-cetta-c-constraints.md has the probe and the finding.
-_KNOWN_METATYPE_DIVERGENCES = {
-    ("Space", "Symbol"),
-}
+# EMPTY, and that is the claim. It held one entry while the two seats asked
+# two different questions: C asked metta_space_names/1 for the whole registry
+# while the Python shim hardcoded `&self` and `&petta`, so a space
+# !(new-space) had just made crossed to Python as an ordinary Symbol
+# [measured 2026-08-27]. Both seats ask petta_space_operand/1 now, which is
+# the test the engine's own metatype_of/2 consults, so an atom has one species
+# here, there and under get-metatype, and this set stays empty.
+# test_every_c_kind_the_corpus_reaches_is_mapped requires the corpus to keep
+# reaching Space, so emptiness here is a fact about agreement rather than
+# about the comparison having stopped looking.
+_KNOWN_METATYPE_DIVERGENCES: set[tuple[str, str]] = set()
 
 
 def _toolchain_ready() -> bool:
@@ -230,5 +232,7 @@ def test_every_c_kind_the_corpus_reaches_is_mapped(c_report: dict[str, Any]) -> 
     }
     assert seen <= set(_KIND_TO_METATYPE), f"unmapped C kinds: {seen - set(_KIND_TO_METATYPE)}"
     # The corpus is meant to exercise the split C makes; if it stops doing so,
-    # the mapping above stops being tested.
-    assert {"Symbol", "Expression", "Number", "BigInt", "Bool"} <= seen
+    # the mapping above stops being tested. Space is named here because
+    # _KNOWN_METATYPE_DIVERGENCES is empty: without it, a corpus that stopped
+    # producing a space would leave both sides of that agreement untested.
+    assert {"Symbol", "Expression", "Number", "BigInt", "Bool", "Space"} <= seen

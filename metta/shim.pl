@@ -90,6 +90,14 @@
 %     declarations aligned with anonymous-name reuse [tested:
 %     test_a_recycled_child_name_may_choose_a_different_parent;
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
+%   - petta_py_new_space/1 answers a space that EXISTS with nothing written to
+%     it, the property 'new-space'/1 has; the model-declaring doors take the
+%     name alone because metta_declare_space_parent/2 and
+%     metta_declare_restricted_space/2 create the storage themselves and refuse
+%     a child already holding one [tested:
+%     test_space_names_lists_the_registered_spaces,
+%     test_space_handles_are_term_operands_and_round_trip,
+%     test_a_recycled_child_name_may_choose_a_different_parent; commit=dee7dd651135f124376c183977b31320e1f9b3a1]
 %   - petta_py_drop_space/1 ends a named space life without admitting that
 %     public name to the anonymous pool [tested:
 %     test_a_named_space_drop_never_enters_the_anonymous_pool;
@@ -128,11 +136,15 @@
 %     does, so a tag is a claim about its payload rather than a label
 %     [tested 2026-08-20:
 %     shim_wire_decoding:a_payload_outside_its_tags_class_fails]
-%   - the canonical &self and &petta handles cross under the p tag while other
-%     engine atoms retain the s tag, leaving Python to restore only names it
-%     registered as spaces without reclassifying an ampersand operator
-%     [tested: test_space_handles_are_term_operands_and_round_trip;
-%     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+%   - every atom petta_space_operand/1 calls a space crosses under the p tag
+%     and every other atom under s, which is the species metatype_of/2 assigns,
+%     so the tag carries the whole decision and Python restores nothing: the
+%     two hardcoded names this used to tag sent a space !(new-space) had just
+%     made across as a Symbol
+%     [tested: test_space_handles_are_term_operands_and_round_trip,
+%     test_a_space_the_engine_made_crosses_as_a_space,
+%     test_the_ampersand_alone_does_not_make_a_space,
+%     test_the_s_tag_stays_a_symbol_however_it_is_spelled; commit=dee7dd651135f124376c183977b31320e1f9b3a1]
 %   - the n tag carries signed-i64 Number integers and wider BigInt integers
 %     through Janus without changing their exact value
 %     [tested 2026-08-20: test_janus_carries_bigint_losslessly]
@@ -283,8 +295,39 @@ petta_py_encode(T, ["v", Name]) :- var(T), !, term_to_atom(T, A), atom_string(A,
 petta_py_encode(T, ["n", T])    :- number(T), !.
 petta_py_encode(T, ["g", T])    :- string(T), !.
 petta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
-petta_py_encode('&self', ["p", "&self"]) :- !.
-petta_py_encode('&petta', ["p", "&petta"]) :- !.
+%WHICH QUESTION THE `p` TAG ASKS, asked of the engine rather than answered
+%here. `p` is a SPECIES tag: what it decodes into is a Space where `s` decodes
+%into a Symbol, so the question is the one the engine's own species classifier
+%asks, and metatype_of/2 asks petta_space_operand/1
+%[source: engine/metta/types.pl, metatype_of(X, 'Grounded') :- atom(X),
+%petta_space_operand(X)]. Asking it here is what makes get-metatype and the
+%wire agree on every atom.
+%
+%The pair '&self' and '&petta' used to be written out here, which tagged
+%exactly two names, so a space !(new-space) had just made crossed as an
+%ordinary symbol and Python could not use it as a space
+%[measured 2026-08-27: &petta-space-1 encoded ["s", "&petta-space-1"] while
+%being listed by metta_space_names/1 and answering Grounded to get-metatype].
+%
+%NOT petta_space_name/1, the WIDER test that is-space/2 answers. That one is
+%about operand admissibility, not species: it accepts any ampersand name
+%because a space is created on demand, so it calls '&bar' a space where
+%get-metatype answers Symbol, and it calls a State cell a space too
+%[measured 2026-08-27: petta_space_name('&state-#0') is true and
+%get-metatype answers Grounded through petta_state_cell/1, not through the
+%space clause]. Tagging either as `p` would make the wire disagree with the
+%language in the one dimension the tag encodes.
+%
+%NOT metta_space_names/1 either, which is the same set as a sorted LIST:
+%two findalls, an append and a sort per call where this is one indexed lookup.
+%
+%atom(T) first because the wire's `p` payload is TEXT (CODEC.md), while
+%petta_space_operand/1 also accepts a PARAMETRIC space, which is a compound
+%and crosses as the expression it is. The order is this file's cost rule: the
+%test costs 6 inferences on an ordinary symbol and 5 on '&self'
+%[measured 2026-08-27, 100,000 iterations against a bare loop of 100,002:
+%700,002 for a non-space atom, 600,002 for '&self'].
+petta_py_encode(T, ["p", S]) :- atom(T), petta_space_operand(T), !, atom_string(T, S).
 petta_py_encode(T, ["s", S])    :- atom(T), !, atom_string(T, S).
 petta_py_encode(T, ["o", T])    :- py_is_object(T), !.
 petta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(petta_py_encode, T, Es).
@@ -1703,14 +1746,29 @@ seam:host_remove_hooks_idle(Space, [OnlyRef]) :-
 :- dynamic petta_py_free_space/1.
 petta_py_space_counter(0).
 
+%A SPACE THIS DOOR HANDS OUT IS ONE, with nothing written to it, which is the
+%property 'new-space'/1 has and the arbiter requires: (chain (new-space) $s
+%(get-type $s)) is SpaceType [source: engine/metta/control.pl, 'new-space'/1
+%and its LeaTTa citation]. Minting only the NAME left metta.space() answering
+%a handle whose get-type was %Undefined% and whose metatype was Symbol, so it
+%crossed the wire as an ordinary symbol and came home as one [measured
+%2026-08-27].
 petta_py_new_space(Name) :-
+    petta_py_fresh_space_name(Name),
+    ensure_native_storage_module(Name, _).
+
+petta_py_fresh_space_name(Name) :-
     ( retract(petta_py_free_space(Name))
       -> true
     ; petta_py_next_space(Name) ).
 
+%The two model declarations create the storage THEMSELVES and refuse a child
+%that has been used already (space_parent_child_used/1 reads exactly the
+%storage cache ensure_native_storage_module/2 writes), so these take the name
+%and let the declaration create it.
 petta_py_new_space(Parent0, Name) :-
     ( atom(Parent0) -> Parent = Parent0 ; atom_string(Parent, Parent0) ),
-    petta_py_new_space(Name),
+    petta_py_fresh_space_name(Name),
     catch(metta_declare_space_parent(Name, Parent), Error,
           ( petta_py_pool_space(Name), throw(Error) )).
 
@@ -1720,7 +1778,7 @@ petta_py_open_atom_space(NameWire, Space) :-
 
 petta_py_new_restricted_space(Grants0, Name) :-
     maplist(petta_py_space_capability, Grants0, Grants),
-    petta_py_new_space(Name),
+    petta_py_fresh_space_name(Name),
     catch(metta_declare_restricted_space(Name, Grants), Error,
           ( petta_py_pool_space(Name), throw(Error) )).
 

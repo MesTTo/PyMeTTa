@@ -196,7 +196,6 @@ from typing import (
 
 from . import ops as _ops_module
 from ._api_types import _DEFAULT_SPACE, _SpaceId
-from ._atom_wire import _remember_space_name
 from ._engine import Runtime, bridge, runtime, started
 from ._library import Library, import_library
 from ._lint_events import record_sync_engine_call as _record_sync_engine_call
@@ -767,7 +766,7 @@ class Space(Handle):
 
     def __init__(
         self,
-        name: str | Symbol | Expression = _DEFAULT_SPACE,
+        name: str | Symbol | Expression | Space = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
         petta_path: str | None = None,
@@ -777,9 +776,19 @@ class Space(Handle):
         super().__init__()
         self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
         self._name_atom: Symbol | Expression | None = None
-        if isinstance(name, Symbol):
+        if isinstance(name, Space):
+            # Opening a space is idempotent, so this door takes back what it
+            # answers. A dropped handle still refuses, because _space is what
+            # reads the name. It matters now that an engine answer naming a
+            # space arrives AS a Space: `metta.space(json_decode(...).one())`
+            # used to hand a Symbol here and would otherwise have started
+            # raising the moment the codec began classifying that atom
+            # correctly.
+            self._name_atom = name._name_atom
+            engine_name: str | _HashableSpaceTerm = name._space
+        elif isinstance(name, Symbol):
             self._name_atom = name
-            engine_name: str | _HashableSpaceTerm = (
+            engine_name = (
                 name.name if name.name.startswith("&") else f"&{name.name}"
             )
         elif isinstance(name, Expression):
@@ -824,8 +833,6 @@ class Space(Handle):
         self._owns_backing = False
         self._created_at = _created_at
         self._context_tokens: list[Any] = []
-        if isinstance(engine_name, str):
-            _remember_space_name(self._name)
 
     @property
     def _space(self) -> _SpaceId:
@@ -861,10 +868,11 @@ class Space(Handle):
 
     def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and
-        '&petta' from boot, every native space that has been written to,
-        and every foreign space currently bound. Naming a space never
-        registers it, only writing or binding does, so a bind! token's
-        target appears here once something is stored under it.
+        '&petta' from boot, every native space something created or wrote to,
+        and every foreign space currently bound. (new-space) and (spawn ...)
+        create, so their answers are here at once; naming a space never
+        registers it, so Space('&kb') is not here until a write, and a bind!
+        token's target appears once something is stored under it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         row = self._rt.once("petta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
@@ -4611,7 +4619,7 @@ class MeTTa:
 
     def space(
         self,
-        name: str | None = None,
+        name: str | Symbol | Expression | Space | None = None,
         backing: Any = None,
         *,
         journal: str | os.PathLike[str] | None = None,
@@ -4619,10 +4627,13 @@ class MeTTa:
     ) -> Space:
         """Create one native, provider-backed, remote, or journaled space.
 
-        With no name, the engine mints an anonymous handle. A ``SpaceProvider``
-        backing is attached directly, an HTTP(S) URL becomes a remote provider,
-        and ``journal=`` constructs ``PersistentFactSpace`` from ``schema=`` or
-        a schema mapping supplied as ``backing``.
+        With no name, the engine mints an anonymous handle and creates the
+        space, so ``(get-type ...)`` on it is ``SpaceType`` before anything is
+        written. A ``Space`` reopens that same space, which is what an engine
+        answer naming one arrives as. A ``SpaceProvider`` backing is attached
+        directly, an HTTP(S) URL becomes a remote provider, and ``journal=``
+        constructs ``PersistentFactSpace`` from ``schema=`` or a schema mapping
+        supplied as ``backing``.
         """
         inherits = options.pop("inherits", None)
         restricted = options.pop("restricted", False)
