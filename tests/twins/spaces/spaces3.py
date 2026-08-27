@@ -30,20 +30,6 @@ Open Obligations:
 import metta
 from metta import Expression, S, V
 
-#: Inferences this twin spends, its own tripwire. INTERIM PIN 2026-08-24,
-#: identity.py's own precedent: this file gates the pytest lane, so it is
-#: priced ahead of the corpus-wide pass and re-priced there with everything
-#: else.
-#:
-#: RE-PINNED 2026-08-27, 234 to 252 (+18, and +14 against the 238 the old pin
-#: actually read), for the wire codec's species question: metta_py_encode/2
-#: asks metta_space_operand/1 of every atom it encodes now, where it used to
-#: compare against two hardcoded names, so this twin's space handles and
-#: symbols each pay one indexed lookup. Six identical readings, three before
-#: and three after [measured 2026-08-27 through the end-to-end twin test,
-#: 238 on the unchanged tree at 5d8769c7 and 252 here].
-BUDGET = 252
-
 
 def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the default handle stays untouched
     """Write two atoms, then ask four questions about them."""
@@ -72,4 +58,12 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: else. Min-of-3 on the integration merge of the Stage C branch, three
 #: identical readings [measured 2026-08-24 through the end-to-end twin test
 #: on the merged tree at 5a5054ca].
-BUDGET = 234
+#:
+#: RE-PINNED 2026-08-27, 234 to 252 (+18, and +14 against the 238 the old pin
+#: actually read), for the wire codec's species question: metta_py_encode/2
+#: asks metta_space_operand/1 of every atom it encodes now, where it used to
+#: compare against two hardcoded names, so this twin's space handles and
+#: symbols each pay one indexed lookup. Six identical readings, three before
+#: and three after [measured 2026-08-27 through the end-to-end twin test,
+#: 238 on the unchanged tree at 5d8769c7 and 252 here].
+BUDGET = 252

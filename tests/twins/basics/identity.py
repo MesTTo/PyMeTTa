@@ -351,10 +351,3 @@ def twin(m):
 #: examples/basics/identity.metta; fixture=the p14-binding-fixes merged tree
 #: with engine/reader.so and the MORK backend loaded; commit=0c7b0516438e8b823e429747d66ad1d86754c9ff].
 BUDGET = 2826
-def twin(m):
-    """Define the square, then check it."""
-    @m.define
-    def f(x):
-        return x * x
-
-    assert f(1) == [1]
