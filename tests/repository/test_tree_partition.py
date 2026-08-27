@@ -1,6 +1,6 @@
 """Purpose: the tree partitions by seam, and this test is the fence.
 Guarantees:
-  - engine/ names no seat: its only bindings/ mention is the decider glob,
+  - engine/ names no seat: its only bindings/ mention is the control-file glob,
     and no hosts/ path survives anywhere in it
     [tested: test_the_tree_partitions_by_seam]
   - the engine discovers the python seat through the glob, and the removed
@@ -17,7 +17,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
 
-DECIDER_GLOB = "'../bindings/*/decider.pl'"
+DECIDER_GLOB = "'../bindings/*/extension.pl'"
 
 
 def test_the_tree_partitions_by_seam():
@@ -25,7 +25,7 @@ def test_the_tree_partitions_by_seam():
 
     The partition stages the recorded end form, a kernel repository with
     satellite seats, so nothing in engine/ may name a seat: the one
-    allowed bindings/ mention is the decider glob the engine reaches
+    allowed bindings/ mention is the control-file glob the engine reaches
     seats through, and hosts/ is gone entirely.
     """
     # CODE lines only: a comment may cite a seat test as evidence (the
@@ -49,10 +49,10 @@ def test_the_tree_partitions_by_seam():
 
     assert not (REPO / "hosts").exists(), "hosts/ dissolved into bindings/"
 
-    deciders = sorted(
-        p.relative_to(REPO).as_posix() for p in (REPO / "bindings").glob("*/decider.pl")
+    controls = sorted(
+        p.relative_to(REPO).as_posix() for p in (REPO / "bindings").glob("*/extension.pl")
     )
-    assert "bindings/python/decider.pl" in deciders
+    assert "bindings/python/extension.pl" in controls
 
     assert not (REPO / "python" / "__init__.py").exists(), (
         "the retired root python package still exists"
