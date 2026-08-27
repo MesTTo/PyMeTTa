@@ -26,7 +26,7 @@ Guarantees:
     test metatype_of/2 asks, and writes p for every atom the language calls a
     space [tested: test_the_s_tag_stays_a_symbol_however_it_is_spelled,
     test_a_space_the_engine_made_crosses_as_a_space,
-    test_the_ampersand_alone_does_not_make_a_space; commit=WORKTREE]
+    test_the_ampersand_alone_does_not_make_a_space; commit=dee7dd651135f124376c183977b31320e1f9b3a1]
   - a reserved future name decodes to FutureSpace with the active space as its
     lifecycle owner, reusing the published runtime so a foreign landing
     thread never waits behind the home call it is completing [tested:

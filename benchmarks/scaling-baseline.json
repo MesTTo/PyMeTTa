@@ -134,7 +134,7 @@
           "RE-PINNED 2026-08-27, [5222, 10422, 20822, 41624] to [8029, 16029, 32031, 64031], 1.538x at every size, by petta_py_encode/2 asking petta_space_operand/1 of every atom it encodes: that is the species question the wire's p tag carries and the one metatype_of/2 itself asks, and it costs 7 inferences on an atom that is no space (4 for seam:foreign_space/1, 2 for native_storage_module_cache/2, 1 for the call) measured over 100,000 iterations against a bare loop",
           "the class is unchanged and the arithmetic says why: each form is (scaling-form N (nested N)), two symbols and two numbers, and only the two SYMBOLS reach the species clause, so the cost is 2 x 7 = 14 inferences per form. The measured marginal slope moves from 26 to 40 per form, exponent 1.000 with r-squared 1.0000, which is a constant factor on a linear family rather than a class change"
         ],
-        "commit": "WORKTREE"
+        "commit": "dee7dd651135f124376c183977b31320e1f9b3a1"
       },
       "counter": "inferences",
       "expected_class": "linear",

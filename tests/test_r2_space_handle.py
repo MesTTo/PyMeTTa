@@ -13,7 +13,7 @@ Guarantees:
     ampersand name that is no space, a State cell included, does not
     [tested: test_the_s_tag_stays_a_symbol_however_it_is_spelled,
     test_a_space_the_engine_made_crosses_as_a_space,
-    test_the_ampersand_alone_does_not_make_a_space; commit=WORKTREE]
+    test_the_ampersand_alone_does_not_make_a_space; commit=dee7dd651135f124376c183977b31320e1f9b3a1]
 Open Obligations:
   To Do: None.
   Hacks: None.

@@ -97,7 +97,7 @@
 %     a child already holding one [tested:
 %     test_space_names_lists_the_registered_spaces,
 %     test_space_handles_are_term_operands_and_round_trip,
-%     test_a_recycled_child_name_may_choose_a_different_parent; commit=WORKTREE]
+%     test_a_recycled_child_name_may_choose_a_different_parent; commit=dee7dd651135f124376c183977b31320e1f9b3a1]
 %   - petta_py_drop_space/1 ends a named space life without admitting that
 %     public name to the anonymous pool [tested:
 %     test_a_named_space_drop_never_enters_the_anonymous_pool;
@@ -144,7 +144,7 @@
 %     [tested: test_space_handles_are_term_operands_and_round_trip,
 %     test_a_space_the_engine_made_crosses_as_a_space,
 %     test_the_ampersand_alone_does_not_make_a_space,
-%     test_the_s_tag_stays_a_symbol_however_it_is_spelled; commit=WORKTREE]
+%     test_the_s_tag_stays_a_symbol_however_it_is_spelled; commit=dee7dd651135f124376c183977b31320e1f9b3a1]
 %   - the n tag carries signed-i64 Number integers and wider BigInt integers
 %     through Janus without changing their exact value
 %     [tested 2026-08-20: test_janus_carries_bigint_losslessly]
