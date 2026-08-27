@@ -21,10 +21,12 @@ Guarantees:
   - p decodes a canonical space name into the executable Space handle for
     the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
-  - strict decoding preserves explicit s and p tags, while engine decoding
-    restores only space names registered by Space plus the reserved future
-    namespace [tested: test_an_ampersand_symbol_is_not_reclassified_as_a_space;
-    commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
+  - the tag alone decides the species: an s payload is a Symbol however it is
+    spelled, because the engine's encoder asks petta_space_operand/1, the same
+    test metatype_of/2 asks, and writes p for every atom the language calls a
+    space [tested: test_the_s_tag_stays_a_symbol_however_it_is_spelled,
+    test_a_space_the_engine_made_crosses_as_a_space,
+    test_the_ampersand_alone_does_not_make_a_space; commit=WORKTREE]
   - a reserved future name decodes to FutureSpace with the active space as its
     lifecycle owner, reusing the published runtime so a foreign landing
     thread never waits behind the home call it is completing [tested:
@@ -44,7 +46,6 @@ Open Obligations:
 from __future__ import annotations
 
 import importlib
-import threading
 from fractions import Fraction
 from typing import Any
 
@@ -62,24 +63,6 @@ from ._atoms_core import (
 )
 from .errors import PettaError
 
-_SPACE_NAMES: list[frozenset[str]] = [frozenset()]
-_SPACE_NAMES_LOCK = threading.RLock()
-
-
-def _remember_space_name(name: str) -> None:
-    with _SPACE_NAMES_LOCK:
-        _SPACE_NAMES[0] = _SPACE_NAMES[0] | {name}
-
-
-def _engine_ampersand_from_wire(payload: str) -> Atom:
-    # Readers take an immutable snapshot without a lock. Registering a name
-    # replaces the frozenset under the write lock, so free-threaded Python
-    # cannot observe a set mid-mutation and ordinary symbols keep the codec's
-    # measured direct path.
-    if payload in _SPACE_NAMES[0] or payload.startswith("&future-"):
-        return _space_from_wire(payload)
-    return _wire_sym(payload)
-
 
 class _PendingExpr:
     """A wire expression mid-build; its items become an Expression once every
@@ -93,15 +76,12 @@ class _PendingExpr:
         self.items: list[Atom | _PendingExpr] = []
 
 
-def _leaf_from_wire(tag: Any, payload: Any, *, engine: bool = False) -> Atom:
+def _leaf_from_wire(tag: Any, payload: Any) -> Atom:
     """One non-expression wire term, its payload validated exactly: a wrong
     payload is a boundary bug and must say so, never coerce.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     if tag == "s":
-        payload = _text_payload(payload, "symbol")
-        if engine and payload.startswith("&"):
-            return _engine_ampersand_from_wire(payload)
-        return _wire_sym(payload)
+        return _wire_sym(_text_payload(payload, "symbol"))
     if tag == "g":
         return _string_from_wire(payload)
     if tag == "n":
@@ -259,7 +239,7 @@ def _finish_expression(pendings: list[_PendingExpr], root: _PendingExpr) -> Expr
     return root.built
 
 
-def _expression_from_wire(payload: Any, *, engine: bool = False) -> Expression:
+def _expression_from_wire(payload: Any) -> Expression:
     root = _PendingExpr()
     pendings: list[_PendingExpr] = [root]
     stack: list[tuple[Any, _PendingExpr]] = [(payload, root)]
@@ -289,10 +269,7 @@ def _expression_from_wire(payload: Any, *, engine: bool = False) -> Expression:
                 if not isinstance(payload, str):
                     msg = f"wire symbol payload must be text, got {payload!r}"
                     raise ValueError(msg)
-                if engine and payload.startswith("&"):
-                    items.append(_engine_ampersand_from_wire(payload))
-                else:
-                    items.append(wire_sym(payload))
+                items.append(wire_sym(payload))
             elif tag == "n":
                 if type(payload) not in (int, float, Fraction):
                     msg = f"wire number payload must be numeric, got {payload!r}"
@@ -307,12 +284,18 @@ def _expression_from_wire(payload: Any, *, engine: bool = False) -> Expression:
     return _finish_expression(pendings, root)
 
 
-def _from_wire_mode(wire: Any, *, engine: bool) -> Atom | Undefined:
+def _from_wire(wire: Any) -> Atom | Undefined:
     """Rebuild an atom from the tagged wire form janus delivered.
 
     Iterative, because expression depth is data and must not meet Python's
     recursion ceiling; strict, because a malformed payload is a boundary
     bug that must surface rather than coerce.
+
+    One decoder, because the tag now carries the whole species decision. An
+    engine mode used to exist beside this one and re-derived a space from an
+    s payload against a Python-side registry of names Space had built, which
+    was a THIRD answer to a question the engine already answers and missed
+    every space MeTTa itself made.
     """
     if not isinstance(wire, (list, tuple)):
         msg = f"malformed wire term: {wire!r}"
@@ -321,28 +304,25 @@ def _from_wire_mode(wire: Any, *, engine: bool) -> Atom | Undefined:
     # nests inside expressions, so it is handled at the entry alone.
     match wire:
         case ["u", value, why]:
-            return Undefined(_atom_from_wire_mode(value, engine=engine), str(why))
+            return Undefined(_atom_from_wire(value), str(why))
         case ["e", payload]:
-            return _expression_from_wire(payload, engine=engine)
+            return _expression_from_wire(payload)
         case ["h", ident, text]:
             return _handle_from_wire(ident, text)
         case [tag, payload]:
-            return _leaf_from_wire(tag, payload, engine=engine)
+            return _leaf_from_wire(tag, payload)
         case _:
             msg = f"malformed wire term: {wire!r}"
             raise ValueError(msg)
 
 
-def _from_wire(wire: Any) -> Atom | Undefined:
-    return _from_wire_mode(wire, engine=False)
-
-
-def _from_engine_wire(wire: Any) -> Atom | Undefined:
-    return _from_wire_mode(wire, engine=True)
-
-
-def _atom_from_wire_mode(wire: Any, *, engine: bool) -> Atom:
-    value = _from_wire_mode(wire, engine=engine)
+def _atom_from_wire(wire: Any) -> Atom:
+    """Decode a wire value where the protocol requires a definite atom."""
+    # A leaf symbol is the dominant eval result (py-method-call crosses ten
+    # thousand of them), so it interns without entering the match below.
+    if isinstance(wire, (list, tuple)) and len(wire) == 2 and wire[0] == "s":
+        return _wire_sym(_text_payload(wire[1], "symbol"))
+    value = _from_wire(wire)
     if isinstance(value, Undefined):
         msg = (
             "undefined truth is valid only as a complete evaluation answer, "
@@ -352,25 +332,3 @@ def _atom_from_wire_mode(wire: Any, *, engine: bool) -> Atom:
             msg
         )
     return value
-
-
-def _atom_from_wire(wire: Any) -> Atom:
-    """Decode a wire value where the protocol requires a definite atom."""
-    return _atom_from_wire_mode(wire, engine=False)
-
-
-def _atom_from_engine_wire(wire: Any) -> Atom:
-    """Decode an engine result, restoring known space-name provenance."""
-    # A leaf symbol is the dominant eval result (py-method-call crosses ten
-    # thousand of them). Keep its validated non-space path as direct as the
-    # strict decoder was before engine provenance existed; ampersand names
-    # alone need the registry decision.
-    if isinstance(wire, (list, tuple)) and len(wire) == 2 and wire[0] == "s":
-        payload = wire[1]
-        if not isinstance(payload, str):
-            msg = f"wire symbol payload must be text, got {payload!r}"
-            raise ValueError(msg)
-        if not payload.startswith("&"):
-            return _wire_sym(payload)
-        return _engine_ampersand_from_wire(payload)
-    return _atom_from_wire_mode(wire, engine=True)

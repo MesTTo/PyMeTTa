@@ -81,9 +81,9 @@ _WIRE_CACHE_MAX = _core._WIRE_CACHE_MAX
 _WIRE_SYMS = _core._WIRE_SYMS
 _WIRE_VARS = _core._WIRE_VARS
 boxed = _core.boxed
-_atom_from_wire = _wire._atom_from_engine_wire
+_atom_from_wire = _wire._atom_from_wire
 _decode = _core.decode
-_from_wire = _wire._from_engine_wire
+_from_wire = _wire._from_wire
 _expression_atoms = _core._expression_atoms
 _register_protocol_repr = _core._register_protocol_repr
 _unregister_protocol_repr = _core._unregister_protocol_repr
@@ -285,7 +285,7 @@ def parse(source: str) -> Atom:
     241.01 and 10.60us for the same term prebuilt].
     """
     engine = importlib.import_module(f"{__package__}._engine")
-    return _wire._atom_from_engine_wire(engine.runtime().apply_must("petta_py_parse", source))
+    return _wire._atom_from_wire(engine.runtime().apply_must("petta_py_parse", source))
 
 
 def _to_atom(value: Any) -> Atom:

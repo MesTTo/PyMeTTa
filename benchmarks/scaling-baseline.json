@@ -130,46 +130,48 @@
         "chain": [
           "python -m benchmarks.scaling --record measured parse-forms",
           "minimum of 3 fresh processes per size",
-          "the declared class is linear"
+          "the declared class is linear",
+          "RE-PINNED 2026-08-27, [5222, 10422, 20822, 41624] to [8029, 16029, 32031, 64031], 1.538x at every size, by petta_py_encode/2 asking petta_space_operand/1 of every atom it encodes: that is the species question the wire's p tag carries and the one metatype_of/2 itself asks, and it costs 7 inferences on an atom that is no space (4 for seam:foreign_space/1, 2 for native_storage_module_cache/2, 1 for the call) measured over 100,000 iterations against a bare loop",
+          "the class is unchanged and the arithmetic says why: each form is (scaling-form N (nested N)), two symbols and two numbers, and only the two SYMBOLS reach the species clause, so the cost is 2 x 7 = 14 inferences per form. The measured marginal slope moves from 26 to 40 per form, exponent 1.000 with r-squared 1.0000, which is a constant factor on a linear family rather than a class change"
         ],
-        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "linear",
       "fit": {
         "best_model": "linear",
-        "coefficient": 26.339070682954343,
-        "exponent": 0.9982700238510626,
+        "coefficient": 40.446007045695445,
+        "exponent": 0.9985219384843521,
         "growth": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
+          1.5375,
+          1.538,
+          1.5383,
+          1.5383
         ],
         "normalised_rms": {
-          "constant": 0.714137,
-          "cubic": 0.486929,
-          "linear": 0.000638,
-          "log_n": 0.593947,
-          "n_log_n": 0.073959,
-          "quadratic": 0.344726
+          "constant": 0.714234,
+          "cubic": 0.486913,
+          "linear": 0.000559,
+          "log_n": 0.594041,
+          "n_log_n": 0.073898,
+          "quadratic": 0.344693
         },
         "pair_slopes": [
-          0.997,
-          0.9985,
+          0.9974,
+          0.9988,
           0.9993
         ],
-        "r_squared": 0.9999997183609889
+        "r_squared": 0.9999998094732416
       },
       "noise": {
         "absolute_max": 0,
         "relative_max": 0.0
       },
       "representative": [
-        5222,
-        10422,
-        20822,
-        41624
+        8029,
+        16029,
+        32031,
+        64031
       ],
       "sizes": [
         200,

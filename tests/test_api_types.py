@@ -50,7 +50,11 @@ def test_a_name_parameter_takes_a_plain_string():
     register_op(name="fuzmatch") and is_function("<lambda>")
     [measured 2026-08-17].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    assert get_type_hints(MeTTa.space)["name"] == str | None
+    # space() also takes back the Space it answers, so its union is asserted
+    # by MEMBERSHIP. What is pinned is unchanged: a literal still fits, which
+    # a NewType would not.
+    space_name = set(get_args(get_type_hints(MeTTa.space)["name"]))
+    assert {str, Space, type(None)} <= space_name
     assert get_type_hints(Space.op)["name"] == str | None
     assert get_type_hints(Space.is_function)["name"] is str
     assert get_type_hints(Space._register_space)["name"] is str

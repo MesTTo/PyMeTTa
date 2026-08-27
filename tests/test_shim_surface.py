@@ -117,6 +117,7 @@ HOST_SERVICES = {
     "metta_typed_dispatch_applies/2",
     "metta_source_declarations/2",
     "metta_space_names/1",
+    "petta_space_operand/1",
     "metta_string_declarations/2",
     "metta_substitute_self/3",
     "metta_trace_source/4",
@@ -228,6 +229,9 @@ FLOOR_REASONS = {
     "metta_typed_dispatch_applies/2": "door",
     "metta_source_declarations/2": "codec",
     "metta_space_names/1": "door",
+    # The species decision behind the wire's p tag: an encoder asks what
+    # metatype_of/2 asks, so get-metatype and the wire agree on every atom.
+    "petta_space_operand/1": "codec",
     "metta_string_declarations/2": "codec",
     "metta_substitute_self/3": "door",
     "metta_trace_source/4": "door",
