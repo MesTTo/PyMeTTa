@@ -350,4 +350,17 @@ def twin(m):
 #: command=python bindings/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=the p14-binding-fixes merged tree
 #: with engine/reader.so and the MORK backend loaded; commit=0c7b0516438e8b823e429747d66ad1d86754c9ff].
-BUDGET = 2826
+#: RE-PINNED 2026-08-27, 2826 to 2831, by ONE new kind/2 declaration row,
+#: kind(metta_host_stack_charge/3, host_service) in engine/ext_points.pl. Same
+#: cause as the entry above and the control it cites: this reading tracks the
+#: NUMBER of those rows, and boot scans them. It is not the twin's own work.
+#: Removing that single row and nothing else puts the reading back on 2826
+#: exactly, which is the control [measured 2026-08-27: 2831 with the row,
+#: 2826 with the row deleted and the tree otherwise identical, and 2831 again
+#: with three inert facts planted beside the new predicate in
+#: engine/metta/control.pl, so a clause that is not a scanned row costs
+#: nothing; command=python bindings/python/tools/twin_coverage.py --measure
+#: --rounds 3 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: fixture=this worktree with engine/reader.so, the C extension objects and
+#: the MORK backend loaded; commit=WORKTREE]. metta=2800, unchanged.
+BUDGET = 2831

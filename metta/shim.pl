@@ -3878,6 +3878,13 @@ metta_py_clause_owner(M, Goal, Owner) :-
 %of every premise of every recursive equation
 %[tested: test_a_recursive_proof_omits_the_engine_stack_charge].
 %
+%RECOGNISED by the engine, not by a shape spelled again here. Every binding
+%that walks compiled clauses meets this charge, so the recogniser is
+%metta_host_stack_charge/3 beside the generator that writes it and the next
+%seat does not re-pay it. It hands the charge back rather than running it,
+%because a clause body runs in the module that DEFINES the clause and only this
+%caller knows which that is.
+%
 %CALLED rather than skipped, at the point the body would have run it. A proof
 %walk opens no fuel scope of its own, so the balance reads `off` and the charge
 %decides nothing today; derivation bounds its search with the timeout and
@@ -3886,27 +3893,9 @@ metta_py_clause_owner(M, Goal, Owner) :-
 %property of the SCOPE rather than of this predicate, so a proof walked inside
 %an open scope is charged exactly as evaluation is.
 %
-%The FIRST conjunct is matched against the generator so a change to the charge
-%cannot leave the recognizer behind, and the branch is tied to it by variable
-%identity rather than by shape: it must test the very variable the read bound.
-%Matching the branch against the generated template instead does not work,
-%because clause/2 DECOMPILES and SWI's arithmetic instructions do not regenerate
-%the source spelling, `Remaining is Limit - Cost` reading back as `Remaining is
-%Limit + -2` [measured 2026-08-27, swipl 10 clause/2 over a compiled recursive
-%equation]. A charge this no longer recognizes becomes visible again, which is
-%noise in a tree rather than a wrong tree.
 metta_py_body_after_stack_charge(Owner, Body, Premises) :-
-    nonvar(Body),
-    Body = (Read, Branch, Premises),
-    control:metta_fuel_step_goal(_, _, (Template, _)),
-    subsumes_term(Template, Read),
-    Read = _:b_getval(_, Balance),
-    nonvar(Branch),
-    Branch = (Condition -> true ; _),
-    Condition == (Balance == off),
-    !,
-    call(Owner:Read),
-    call(Owner:Branch).
+    metta_host_stack_charge(Body, Charge, Premises), !,
+    call(Owner:Charge).
 metta_py_body_after_stack_charge(_, Body, Body).
 
 metta_py_findall_results([], [], [], complete).

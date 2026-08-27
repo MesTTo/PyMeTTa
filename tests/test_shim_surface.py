@@ -164,6 +164,12 @@ HOST_SERVICES = {
     # that cannot read it recovers the same knowledge by parsing SWI's boot
     # transcript, which is what bindings/node does today.
     "metta_platform/4",
+    # The recursion charge the translator writes in front of every recursive
+    # equation's body, recognised in a clause body a host is WALKING rather
+    # than running. It is engine-side for the shrink's own reason: every
+    # binding that walks compiled clauses meets the charge, and a shape each
+    # of them spells again drifts the moment the charge changes.
+    "metta_host_stack_charge/3",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -245,6 +251,7 @@ FLOOR_REASONS = {
     "metta_host_source_effect_plan/4": "host-orchestration",
     "metta_host_source_compile_effect_plan/4": "host-orchestration",
     "metta_host_source_runtime_effect_plan/4": "host-orchestration",
+    "metta_host_stack_charge/3": "host-orchestration",
     "metta_host_save_fast/3": "host-orchestration",
     "metta_host_stored/2": "host-orchestration",
     "metta_host_substitute/3": "host-orchestration",
