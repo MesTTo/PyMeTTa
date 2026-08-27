@@ -17,6 +17,7 @@ import pytest
 
 from metta import S, V, ground, parse
 from metta.errors import EngineError
+from metta.foreign import SpaceProvider, register_provider
 
 _MORKLIB = (
     Path(__file__).resolve().parents[4]
@@ -167,6 +168,25 @@ def test_lib_mm2_requires_the_mork_seat_and_still_stores_and_reads(mork, metta):
     # spelling and not a lookalike for the arithmetic one.
     metta.run("!(＋ (owns sam cat))")  # noqa: RUF001
     assert [row.x for row in mork.match(S.owns(S.sam, V.x))] == [S.cat]
+
+
+def test_a_python_provider_cannot_take_a_name_mork_owns(metta):
+    """The D2 collision, in the flesh, on the two shipped providers.
+
+    Every name beginning &mork is this backend's, so a Python provider
+    registering one used to land in metta_py_foreign/1 beside MORK's own
+    ownership test and the two resolved by clause order: an atom went to
+    whichever store loaded first, silently. The engine holds the claim now,
+    so the second one is refused naming both owners and the remedy.
+    """
+    class Empty(SpaceProvider):
+        def atoms(self):
+            return iter(())
+
+    with pytest.raises(EngineError, match="mork already claims") as refusal:
+        register_provider(metta.runtime, "&mork:taken", Empty())
+    assert "python cannot claim space &mork:taken" in str(refusal.value)
+    assert "metta_disclaim_space" in str(refusal.value)
 
 
 @pytest.fixture()

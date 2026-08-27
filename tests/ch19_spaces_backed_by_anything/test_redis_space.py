@@ -20,6 +20,7 @@ import uuid
 import pytest
 
 from metta import Expression, S, V
+from metta.foreign import SpaceProvider, register_provider, unregister_provider
 
 _CONTAINER = f"metta-redis-test-{uuid.uuid4().hex[:12]}"
 
@@ -105,6 +106,39 @@ def _other_process(redis_address: str, program: str) -> str:
     )
     assert done.returncode == 0, done.stderr
     return done.stdout
+
+
+def test_a_detached_name_is_attachable_again(metta, redis_address):
+    """redis-detach gives the engine-side claim back with the connection.
+
+    Attach takes the space name through the engine's claim door, so a claim
+    that outlived its detach would refuse the second attach naming redis as
+    the holder. Two cycles on a name no fixture touches is what tells that
+    apart from an attach that merely happens to be first.
+    """
+    for _ in range(2):
+        metta.run(f'!(redis-attach &shared-recycle "{redis_address}")')
+        metta.run("!(redis-detach &shared-recycle)")
+
+
+def test_an_attach_that_never_connects_leaves_the_name_free(metta, redis_address):  # noqa: ARG001  -- the fixture is what imports lib_redis into this engine
+    """A claim taken before the socket goes back when the attach does not happen.
+
+    An address with no port FAILS the address parse rather than raising, and
+    that is the arm an exception-only rollback misses. What proves the claim
+    went back is a DIFFERENT provider taking the name: redis re-attaching
+    would pass either way, because a re-claim by the owner that already holds
+    the name is idempotent by design, so the leak would be invisible from
+    redis's own side.
+    """
+    assert metta.run('!(redis-attach &shared-rollback "no-port-here")') == [[]]
+
+    class Empty(SpaceProvider):
+        def atoms(self):
+            return iter(())
+
+    register_provider(metta.runtime, "&shared-rollback", Empty())
+    unregister_provider(metta.runtime, "&shared-rollback")
 
 
 def test_shared_space_serves_one_process(shared):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
