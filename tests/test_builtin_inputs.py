@@ -11,7 +11,7 @@ Assumes:
     'py-call'/2 and calling that predicate directly refuses correctly]
 Guarantees:
   - every position the engine's type surface declares strict, on a builtin
-    PeTTa defines, refuses an unbound argument and names the MeTTa operation
+    MeTTa defines, refuses an unbound argument and names the MeTTa operation
     [tested: test_every_builtin_refuses_an_unbound_input_by_name;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - no such refusal names a Prolog predicate the MeTTa program never wrote

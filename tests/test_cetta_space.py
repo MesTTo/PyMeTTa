@@ -1,4 +1,4 @@
-"""Purpose: prove the CeTTa bridge: PeTTa queries answered over atoms
+"""Purpose: prove the CeTTa bridge: this engine's queries answered over atoms
 whose matching runs in the sibling C MeTTa runtime, certified by the
 conformance kit and driven from MeTTa source.
 Open Obligations:
@@ -88,7 +88,7 @@ def test_the_conformance_kit_certifies_the_cetta_provider(cetta_space):  # noqa:
 
 def test_the_kit_catches_cettas_rational_tree_divergence(cetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # (fact $y $y) against a stored (fact (f $x) $x) is a rational-tree
-    # match: PeTTa's matcher answers it (Prolog unification, no occurs
+    # match: MeTTa's matcher answers it (Prolog unification, no occurs
     # check) and CeTTa's refuses it. The kit's repeated-variable fold is
     # exactly the probe that finds such divergences, and this pin is the
     # measured record of one: a semantic difference between two MeTTa

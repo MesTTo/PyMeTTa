@@ -127,7 +127,7 @@ def _st():
 
 
 def names():
-    """Symbol and variable names PeTTa's tokeniser reads back whole: no
+    """Symbol and variable names MeTTa's tokeniser reads back whole: no
     whitespace, parens or quotes, none of the characters that mean
     something else at the front, and never the boolean spellings (the
     engine holds its booleans as those very atoms, so True and true are
@@ -171,7 +171,7 @@ def numbers():
 def numpy_scalars():
     """Generate NumPy integer and real scalar values.
 
-    These retain identity while PeTTa accepts them as Number operands and
+    These retain identity while MeTTa accepts them as Number operands and
     dispatches through Python operators.
 
     NumPy is optional. Install ``pymetta[arrays,test]`` before requesting this

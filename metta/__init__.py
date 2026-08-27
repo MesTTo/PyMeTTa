@@ -1,4 +1,4 @@
-"""Purpose: expose PeTTa's narrow Python core and lazily load satellites.
+"""Purpose: expose MeTTa's narrow Python core and lazily load satellites.
 
 Assumes:
   - ``metta._space.MeTTa`` owns runtime context and ``metta._space.Space``

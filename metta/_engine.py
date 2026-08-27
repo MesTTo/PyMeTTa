@@ -1,4 +1,4 @@
-"""Purpose: own the engine bootstrap and bridge. Consults PeTTa and the shim
+"""Purpose: own the engine bootstrap and bridge. Consults MeTTa and the shim
 exactly once per process, serializes calls made on the home engine, lets a
 thread holding its own engine run without that lock, and turns Prolog
 exceptions into the library's own errors for both Python surfaces.
@@ -33,7 +33,7 @@ Guarantees:
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
-    no engine with any other thread, and PeTTa's shared structures already
+    no engine with any other thread, and MeTTa's shared structures already
     carry their own Prolog mutexes because hyperpose workers have always
     reached the same database [tested
     test_define_from_two_threads_is_serialized]
@@ -92,7 +92,7 @@ class _CallLocks(threading.local):
     a janus.engine() crossing on every call a pool worker makes; one
     thread-local read is 59ns [measured 2026-08-15, ai-tmp/pool/lockcost.py].
 
-    What makes running free safe is that PeTTa's shared structures already
+    What makes running free safe is that MeTTa's shared structures already
     carry their own Prolog mutexes, because hyperpose workers have always
     reached the same database: '$metta_specializer' in specializer.pl,
     '$metta_native_storage' in spaces.pl, metta_loader around
@@ -118,7 +118,7 @@ _FAILED = object()
 
 
 class JanusBridge(Protocol):
-    """The janus operations PeTTa uses across the package."""
+    """The janus operations MeTTa uses across the package."""
 
     PrologError: type[Exception]
 
@@ -207,7 +207,7 @@ def booted() -> bool:
 
 
 def bridge() -> JanusBridge:
-    """Import and return janus without starting the PeTTa runtime."""
+    """Import and return janus without starting the MeTTa runtime."""
     janus = _STATE.janus
     if janus is not None:
         return janus
@@ -218,11 +218,11 @@ def bridge() -> JanusBridge:
 
 
 def _resolve_metta_path() -> str:
-    """Locate the configured, bundled, or checkout PeTTa runtime tree.
+    """Locate the configured, bundled, or checkout MeTTa runtime tree.
 
     importlib.resources for the bundled case, because that is the supported
     way to locate package data and the one that keeps working when the package
-    is not an ordinary directory on disk. This is latent for PeTTa itself,
+    is not an ordinary directory on disk. This is latent for MeTTa itself,
     since wheels are normally unpacked, and it is not latent for the pattern:
     every downstream library shipping a .pl beside its Python copies whatever
     the engine does, so getting it right once here is what gives them the
@@ -320,7 +320,7 @@ def runtime(metta_path: str | None = None, verbose: bool = False) -> Runtime:  #
     """
     with _LOCK:
         if _STATE.runtime is None:
-            logger.debug("starting the shared PeTTa runtime")
+            logger.debug("starting the shared MeTTa runtime")
             _STATE.runtime = Runtime(metta_path=metta_path, verbose=verbose)
         else:
             active = _STATE.runtime.metta_path
@@ -331,7 +331,7 @@ def runtime(metta_path: str | None = None, verbose: bool = False) -> Runtime:  #
             ):
                 msg = (
                     f"the engine was consulted from {active!r} and cannot "
-                    f"be reconsulted from {metta_path!r}: PeTTa keeps one "
+                    f"be reconsulted from {metta_path!r}: MeTTa keeps one "
                     f"engine per process. Start a new process for a "
                     f"different tree."
                 )
@@ -354,7 +354,7 @@ def _clean_message(exc: BaseException) -> str:
 class Runtime:
     """One consulted engine, shared by every space and operation.
 
-    PeTTa compiles functions process-wide, so there is exactly one engine per
+    MeTTa compiles functions process-wide, so there is exactly one engine per
     process and this class refuses to pretend otherwise.
     """
 
@@ -401,7 +401,7 @@ class Runtime:
         for MORK's shared library here and pass `mork`, which put a backend's
         build path in the embedding host.
         """
-        logger.debug("consulting the PeTTa engine from %s", metta_path)
+        logger.debug("consulting the MeTTa engine from %s", metta_path)
         root = Path(metta_path)
         janus = cast(JanusBridge, importlib.import_module("janus_swi"))
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
@@ -410,7 +410,7 @@ class Runtime:
         helper_file = root / "bindings" / "python" / "helper.pl"
         if not main_file.is_file():
             msg = (
-                f"PeTTa runtime not found under {metta_path!r} (expected "
+                f"MeTTa runtime not found under {metta_path!r} (expected "
                 f"{main_file!r}). Set METTA_PATH or pass metta_path."
             )
             raise FileNotFoundError(
@@ -419,7 +419,7 @@ class Runtime:
         janus.consult(str(main_file))
         if helper_file.is_file():
             janus.consult(str(helper_file))
-        logger.debug("consulted the PeTTa engine")
+        logger.debug("consulted the MeTTa engine")
         return janus
 
     def _consult_shim(self) -> None:

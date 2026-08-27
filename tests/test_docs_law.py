@@ -150,7 +150,7 @@ def test_grouped_metta_errors_render_atoms_without_python_stacks() -> None:
 
 
 def test_attribute_docstrings_are_source_only_not_field_runtime_docs() -> None:
-    """PeTTa parses the source prose; CPython does not attach it to a field."""
+    """MeTTa parses the source prose; CPython does not attach it to a field."""
     with MeTTa().space() as target:
 
         @target.define
@@ -201,7 +201,7 @@ def test_guides_keep_documentation_law_explainers() -> None:
     assert "`Order.total.__doc__ is None`" in records
 
     floor = _guide("getting-started.md")
-    assert "PeTTa supports Python 3.12 and newer" in floor
+    assert "MeTTa supports Python 3.12 and newer" in floor
     assert "Python 3.14 adds t-string syntax" in floor
 
     spaces = _guide("spaces.md")

@@ -1,4 +1,4 @@
-"""Purpose: verify PeTTa's validated process-wide configuration surface.
+"""Purpose: verify MeTTa's validated process-wide configuration surface.
 Guarantees:
   - startup settings freeze after a successful consult while presentation
     settings remain live [tested: test_runtime_settings_freeze_after_startup,

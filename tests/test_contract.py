@@ -454,7 +454,7 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noq
         [sys.executable, "-c", script],
         capture_output=True,
         text=True,
-        cwd=repo_root / "PeTTa" if (repo_root / "PeTTa").exists() else repo_root,
+        cwd=repo_root / "MeTTa" if (repo_root / "MeTTa").exists() else repo_root,
         timeout=180,
     )
     assert result.stdout.strip().endswith("True"), result.stderr[-500:]

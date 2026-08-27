@@ -1,4 +1,4 @@
-"""Purpose: validate and hold process-wide PeTTa runtime settings.
+"""Purpose: validate and hold process-wide MeTTa runtime settings.
 Assumes:
   - startup settings are configured before the first engine consult [tested
     test_runtime_settings_freeze_after_startup]
@@ -110,7 +110,7 @@ class Config:
             ]
             if frozen:
                 names = ", ".join(sorted(frozen))
-                msg = f"cannot change {names} after the PeTTa runtime has started"
+                msg = f"cannot change {names} after the MeTTa runtime has started"
                 raise RuntimeError(msg)
             self._values.update(updates)
 

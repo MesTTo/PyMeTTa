@@ -2,7 +2,7 @@
 
 check-space-provider lifted over the wire: `GatewayComplianceSuite` is a
 pytest class that certifies ANY implementation of the protocol
-documented in website/live/remote-protocol.md, with no PeTTa checkout
+documented in website/live/remote-protocol.md, with no MeTTa checkout
 knowledge on the serving side. The two TypeScript reference servers are
 certified by it, and a third party's gateway is certified the same way,
 by subclassing with a `gateway_url` fixture. "Speaks the space protocol"
@@ -229,7 +229,7 @@ class GatewayComplianceSuite:
         ), "only POST operates"
 
     def test_wide_integers_are_exact_or_refused(self, gateway_url, scratch):
-        """PeTTa's numbers are exact at any width, so the one forbidden
+        """MeTTa's numbers are exact at any width, so the one forbidden
         outcome is rounding: a server either refuses the literal (a JSON
         parser that would round past 2^53 must) or stores it exactly and
         answers it back exactly.
@@ -323,7 +323,7 @@ class GatewayComplianceSuite:
             assert status == 400 and "error" in body, f"batch {bad!r} was accepted"
 
     def test_a_client_cursor_takes_two_answers_and_stops(self, scratch):
-        """The lifecycle through the shipped client, which is how a PeTTa
+        """The lifecycle through the shipped client, which is how a MeTTa
         program reaches it: two answers taken, the rest never asked for,
         and the server's cursor released on the way out.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

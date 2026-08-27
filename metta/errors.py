@@ -1,7 +1,7 @@
-"""Purpose: define PeTTa errors and the operation non-reduction signal.
+"""Purpose: define MeTTa errors and the operation non-reduction signal.
 
 Guarantees:
-  - Timeout is both the PeTTa coordination miss and a builtin TimeoutError,
+  - Timeout is both the MeTTa coordination miss and a builtin TimeoutError,
     so callers may catch at either abstraction [tested:
     test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - every MettaError carries atom, space, operation and capability

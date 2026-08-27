@@ -1,4 +1,4 @@
-"""Purpose: expose PeTTa atoms, the S/V/G factories, parsing, and matching.
+"""Purpose: expose MeTTa atoms, the S/V/G factories, parsing, and matching.
 
 Guarantees:
   - order_key matches the engine's msort across every public atom kind,
@@ -415,7 +415,7 @@ def _map_atoms(atom: Atom, transform: Callable[[Atom], Atom]) -> Atom:
 
 
 def _alpha_eq(a: Atom, b: Atom) -> bool:
-    """Equality up to consistent renaming of variables, PeTTa's =alpha.
+    """Equality up to consistent renaming of variables, MeTTa's =alpha.
 
     A named function rather than ==, because two atoms must not compare
     differently depending on which variable names they happen to carry.

@@ -1,7 +1,7 @@
 % Purpose: Prolog side of the metta Python library. Adds tagged term encoding,
 %   per-directive structured runs, space operations, Python-backed MeTTa
 %   functions (deterministic and nondeterministic), evaluation, and proof-tree
-%   derivations on top of an unmodified PeTTa engine. Consulted after
+%   derivations on top of an unmodified MeTTa engine. Consulted after
 %   engine/main.pl; only adds predicates, never redefines engine ones.
 % Guarantees:
 %   - async Python operations answer a future space immediately, publish their
@@ -108,7 +108,7 @@
 %     parsing Janus's rendered exception [tested test_run_syntax_error_is_loud]
 %   - metta_py_eval_status_all/3, metta_py_eval_status_using_all/4, and
 %     metta_py_run_status/3 report which of
-%     PeTTa's evaluation paths produced each answer, leaving the ordinary
+%     MeTTa's evaluation paths produced each answer, leaving the ordinary
 %     entry points' output unchanged [tested:
 %     test_eval_status_reports_the_four_outcomes,
 %     test_strict_eval_refuses_only_not_reducible; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
@@ -1545,7 +1545,7 @@ metta_py_world_rebase(Term0, From, To, Term) :-
 metta_py_world_rebase_(From, To, Term0, Term) :-
     metta_py_world_rebase(Term0, From, To, Term).
 
-%Print a tagged term the way PeTTa prints it:
+%Print a tagged term the way MeTTa prints it:
 %A symbol spelled like a boolean has no faithful text form: the engine's
 %term for it IS the boolean (Prolog true/false), so only the wire tag still
 %knows the caller meant a symbol, and text written here would read back as
@@ -1582,7 +1582,7 @@ metta_py_wire_tag(Tag, Wanted) :-
 
 %%%%%%%%%% Space operations %%%%%%%%%%
 %
-% Writes go through PeTTa's own 'add-atom'/3 and 'remove-atom'/3, so an
+% Writes go through MeTTa's own 'add-atom'/3 and 'remove-atom'/3, so an
 % equation takes the engine's function path (register_fun, arity,
 % translate_clause, invalidation) exactly as one read from a file does, and
 % removal keeps the engine's own semantics (a plain atom removal is retractall).
@@ -2548,16 +2548,16 @@ metta_py_eval_term(Space, Term, Encoded) :-
     translator:metta_boundary_result(Term, Produced, Out),
     metta_py_encode_truth(Out, Delays, Encoded).
 
-%Which of PeTTa's own evaluation paths produced each answer, reported without
+%Which of MeTTa's own evaluation paths produced each answer, reported without
 %changing what the ordinary entry points return:
 %
 %  value           an equation, builtin or special form applied
 %  not-reducible   no rule applied, so the answer is the written term itself,
-%                  which is what PeTTa does with any head it cannot call
+%                  which is what MeTTa does with any head it cannot call
 %  empty           the goal produced no answer at all, which is what (empty)
 %                  and a match with no candidates do
 %
-%PeTTa had no name for these, so the taxonomy was taken from the mechanised
+%MeTTa had no name for these, so the taxonomy was taken from the mechanised
 %Hyperon specification, which is the only part borrowed
 %[source: LeaTTa checkout, MettaHyperonFull/Core/Result.lean, EvalStatus].
 %The distinction that matters is the one that surface behaviour hides: empty

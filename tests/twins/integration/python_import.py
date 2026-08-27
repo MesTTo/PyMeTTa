@@ -30,8 +30,8 @@ def twin(m):
     m += lib(FIXTURE)
 
     py = m.fn.py_call
-    greeting = py(S["python_import_file.greet"](ground("PeTTa User")))
-    assert greeting == [S["Hello, PeTTa User from Python!"]]
+    greeting = py(S["python_import_file.greet"](ground("MeTTa User")))
+    assert greeting == [S["Hello, MeTTa User from Python!"]]
     assert py(S["python_import_file.add"](10, 20)) == [30]   # [30]
 
 

@@ -440,7 +440,6 @@ RETIRED_ROOT = {
     "Var": "Variable",
     "MettaName": "Symbol",
     "SpaceName": "Handle",
-    "PeTTa": "MeTTa, the runtime context",
     "DECLINE": "NotReducible",
     "Decline": "NotReducible",
     # The rename removed the root's own name for the context space. `_HERE` is

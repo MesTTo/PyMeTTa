@@ -46,13 +46,13 @@
 :- multifile seam:grounded_structure/2.
 :- multifile seam:grounded_text/2.
 
-%This surface is hyperon-experimental's, and PeTTa had none of it: `py-atom`,
+%This surface is hyperon-experimental's, and this engine had none of it: `py-atom`,
 %`py-dot`, `py-list`, `py-tuple`, `py-dict` and `Kwargs` are what the language's
 %own tutorials teach, and every one of them ran unreduced here
 %[source: metta-lang-docs/learn__tutorials__python_use__py_atom.md].
 %
 %`py-call` stays exactly as it is, and the reason is not taste: it is UPSTREAM
-%PeTTa's, so it is one of the few things here that carries a compatibility
+%MeTTa's, so it is one of the few things here that carries a compatibility
 %constraint. It appears nowhere in those tutorials and it converts by janus's
 %defaults, which is why a dict arrives as an atom and a generator arrives
 %drained. This surface has no such constraint and does not repeat any of it.

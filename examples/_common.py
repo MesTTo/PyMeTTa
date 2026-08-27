@@ -32,7 +32,7 @@ def _find_repo(start: Path) -> Path:
             candidate / "lib"
         ).is_dir():
             return candidate
-    raise RuntimeError(f"cannot find the PeTTa repository above {start}")
+    raise RuntimeError(f"cannot find the MeTTa repository above {start}")
 
 
 REPO = _find_repo(Path(__file__))

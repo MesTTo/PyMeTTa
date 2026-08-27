@@ -1,7 +1,7 @@
 """Purpose: black-box acceptance tests for the P4.20 declared-algebra base.
 
 Guarantees:
-  - the required P4.20 names exercise only public PeTTa surfaces
+  - the required P4.20 names exercise only public MeTTa surfaces
     [tested: this module; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
   - a ground algebra goal cannot bind a variable inside a stored candidate
     [tested: test_algebra_patterns_do_not_bind_variables_inside_stored_candidates;

@@ -26,7 +26,7 @@ into the other would make a failure ambiguous about whose code was wrong, which
 is the whole value of having two. Run both; they answer different questions.
 
 The exclusion half is already here and is better than SQLAlchemy's, which needs
-a parallel `SuiteRequirements` class: a PeTTa provider declares its
+a parallel `SuiteRequirements` class: a MeTTa provider declares its
 capabilities on itself through `can_run`, so this reads the provider rather
 than a second declaration that can disagree with it.
 

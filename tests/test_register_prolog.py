@@ -1,5 +1,5 @@
 """Purpose: MeTTa.register_prolog, the native-speed extension point for
-libraries built on PyPeTTa.
+libraries built on pymetta.
 
 register_op is the extension point people find first and it crosses the janus
 boundary on every call. A library whose hot path is arithmetic or matching

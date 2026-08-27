@@ -7,7 +7,7 @@
  *     @mettascript/core, or the package name where node can resolve it)
  *   - the bridge is STORAGE-level on purpose: add, enumerate, unifiable.
  *     MeTTaScript's evaluator never runs, so a semantic quirk in its
- *     evaluation cannot enter; and PeTTa re-unifies every candidate this
+ *     evaluation cannot enter; and MeTTa re-unifies every candidate this
  *     server answers, so a quirk in its matcher can cost time, never
  *     soundness. The conformance kit judges the composition anyway.
  * Guarantees:
@@ -156,7 +156,7 @@ export class MettascriptStore implements WireSpaceStore {
   // MeTTaScript refusing rational-tree matches ((f $y $y) against a
   // stored (f (g $x) $x)) that the law answers. Over-approximating is
   // always legal, so the union keeps the law whatever either unifier
-  // decides, and PeTTa re-unifies every candidate anyway.
+  // decides, and MeTTa re-unifies every candidate anyway.
   private admits(wanted: unknown, pattern: WireAtom, atom: unknown): boolean {
     return (
       this.core.unifiable(wanted, atom) ||

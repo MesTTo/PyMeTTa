@@ -1,6 +1,6 @@
 """Purpose: Python functions compiled into MeTTa equations, so a program can
 be written in the language its author, human or model, is fluent in, and run
-as PeTTa. The source is read with ast, never traced: tracing loses branches,
+as MeTTa. The source is read with ast, never traced: tracing loses branches,
 which is torch.jit.script's own reason for reading syntax. Three rules hold
 the subset together: syntax outside it is a CompileError naming the construct,
 the line, and what to write instead; every supported construct has one MeTTa

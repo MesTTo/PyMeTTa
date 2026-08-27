@@ -563,7 +563,7 @@ var MettascriptStore = class {
   // MeTTaScript refusing rational-tree matches ((f $y $y) against a
   // stored (f (g $x) $x)) that the law answers. Over-approximating is
   // always legal, so the union keeps the law whatever either unifier
-  // decides, and PeTTa re-unifies every candidate anyway.
+  // decides, and MeTTa re-unifies every candidate anyway.
   admits(wanted, pattern, atom) {
     return this.core.unifiable(wanted, atom) || unifiable(pattern, coreToWire(atom));
   }

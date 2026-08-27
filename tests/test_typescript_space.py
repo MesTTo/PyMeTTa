@@ -1,5 +1,5 @@
 """Purpose: prove the TypeScript space server serves the remote-space
-protocol PeTTa attaches to: MeTTa-driven queries, the conformance kit,
+protocol MeTTa attaches to: MeTTa-driven queries, the conformance kit,
 threaded and async clients, and the MeTTaScript-backed variant when a
 core module is named.
 Open Obligations:

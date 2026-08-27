@@ -727,7 +727,7 @@ class Variable(Atom):
 class Grounded(Atom):
     """A grounded value: a host value carried whole.
 
-    Strings, numbers and booleans have native PeTTa terms. Anything else
+    Strings, numbers and booleans have native MeTTa terms. Anything else
     crosses as an object reference, stays the same object on the way back,
     and unifies by identity, which is the equality the engine applies to it.
 

@@ -121,7 +121,7 @@ def _repl(_arguments) -> int:
     m = Space()
     interactive = sys.stdin.isatty()
     if interactive:
-        print(f"PeTTa {__version__}; a bare `exit` leaves, Ctrl-D too.")
+        print(f"MeTTa {__version__}; a bare `exit` leaves, Ctrl-D too.")
     for source in _forms(interactive):
         try:
             _print_groups(m.run(source))
@@ -212,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
 
     parser = argparse.ArgumentParser(
         prog="python -m metta",
-        description="PeTTa's command-line surface on the library engine.",
+        description="MeTTa's command-line surface on the library engine.",
     )
     parser.add_argument("--version", action="version", version=f"metta {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)

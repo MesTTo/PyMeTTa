@@ -1,4 +1,4 @@
-/* Purpose: a PeTTa space served from TypeScript: the remote-space wire
+/* Purpose: a MeTTa space served from TypeScript: the remote-space wire
  *   protocol implemented outside the engine's own languages, so
  *   metta.remote.attach() reaches atoms held by a Node process exactly as
  *   it reaches a served Python engine.

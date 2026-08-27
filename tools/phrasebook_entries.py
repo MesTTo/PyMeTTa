@@ -29,8 +29,8 @@ Guarantees:
   - the Python-first additions table names the two effect-safety declarations
     and the saga runner they gate [tested:
     test_python_first_public_faces_are_in_the_phrasebook; commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0]
-  - strategy rows import lib_strategy only on PeTTa and may name an equivalent
-    unary LeaTTa oracle form when the reified PeTTa plan has a different arity
+  - strategy rows import lib_strategy only on MeTTa and may name an equivalent
+    unary LeaTTa oracle form when this engine's reified plan has a different arity
     [tested: python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - space write rows teach the scalar-atom versus fact-stream boundary shipped
     by ``Space +=`` [tested: test_the_phrasebook_page_is_up_to_date;
@@ -82,7 +82,7 @@ BUCKETS = {
         "the `S.` door and reducing it"
     ),
     "internal": (
-        "LeaTTa's mechanised interpreter, written in MeTTa; PeTTa writes its "
+        "LeaTTa's mechanised interpreter, written in MeTTa; this engine writes its "
         "interpreter in Prolog, so these names are on neither surface"
     ),
     "absent": "a user-facing operation with no Python spelling today: the residue",
@@ -307,11 +307,11 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "/", (NUMBER2,), "Grounded", "arith", "dissolves",
-        "Python's `/` is true division, and so is PeTTa's. LeaTTa's integer `/` is "
+        "Python's `/` is true division, and so is this engine's. LeaTTa's integer `/` is "
         "EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on "
         "floats all three agree.",
         metta="!(/ 7 2)", python="7 / 2",
-        differs="LeaTTa answers 3 (Euclidean integer division), PeTTa and Python 3.5",
+        differs="LeaTTa answers 3 (Euclidean integer division), this engine and Python 3.5",
     ),
     Entry(
         "%", (NUMBER2,), "Grounded", "arith", "dissolves",
@@ -325,13 +325,13 @@ ENTRIES: list[Entry] = [
         "Python's `//` IS floored division, so the name has no Python spelling of "
         "its own.",
         metta="!(div-floor -7 2)", python="-7 // 2",
-        unrun="PeTTa implements neither the floored nor the truncating division family",
+        unrun="this engine implements neither the floored nor the truncating division family",
     ),
     Entry(
         "mod-floor", (NUMBER2,), "Grounded", "arith", "dissolves",
         "Python's `%` IS the floored remainder, sign of the divisor.",
         metta="!(mod-floor -7 2)", python="-7 % 2",
-        unrun="PeTTa implements neither the floored nor the truncating division family",
+        unrun="this engine implements neither the floored nor the truncating division family",
     ),
     Entry(
         "div-trunc", (NUMBER2,), "Grounded", "arith", "dissolves",
@@ -339,7 +339,7 @@ ENTRIES: list[Entry] = [
         "would floor instead, which differs on negatives.",
         metta="!(div-trunc -7 2)",
         python="import math\nmath.trunc(-7 / 2)",
-        unrun="PeTTa implements neither the floored nor the truncating division family",
+        unrun="this engine implements neither the floored nor the truncating division family",
     ),
     Entry(
         "rem-trunc", (NUMBER2,), "Grounded", "arith", "dissolves",
@@ -347,7 +347,7 @@ ENTRIES: list[Entry] = [
         "float, so an integer row wraps it in `int`.",
         metta="!(rem-trunc -7 2)",
         python="import math\nint(math.fmod(-7, 2))",
-        unrun="PeTTa implements neither the floored nor the truncating division family",
+        unrun="this engine implements neither the floored nor the truncating division family",
     ),
     Entry(
         "div-euclid", (NUMBER2,), "Grounded", "arith", "dissolves",
@@ -356,14 +356,14 @@ ENTRIES: list[Entry] = [
         "negation otherwise.",
         metta="!(div-euclid -7 2)",
         python="a, b = -7, 2\na // b if b > 0 else -(a // -b)",
-        unrun="PeTTa implements neither the floored nor the truncating division family",
+        unrun="this engine implements neither the floored nor the truncating division family",
     ),
     Entry(
         "mod-euclid", (NUMBER2,), "Grounded", "arith", "dissolves",
         "The Euclidean remainder is always non-negative, which is `a % abs(b)`.",
         metta="!(mod-euclid -7 2)",
         python="a, b = -7, 2\na % abs(b)",
-        unrun="PeTTa implements neither the floored nor the truncating division family",
+        unrun="this engine implements neither the floored nor the truncating division family",
     ),
     # -------------------------------------------------------------- compare
     Entry(
@@ -449,13 +449,13 @@ ENTRIES: list[Entry] = [
         "`math.ceil`, which answers an integer in Python 3 where LeaTTa keeps the "
         "float.",
         metta="!(ceil-math 2.1)", python="import math\nmath.ceil(2.1)",
-        differs="LeaTTa answers 3.0 and keeps the float; PeTTa and Python answer 3",
+        differs="LeaTTa answers 3.0 and keeps the float; this engine and Python answer 3",
     ),
     Entry(
         "floor-math", (NUMBER1,), "Grounded", "math", "dissolves",
         "`math.floor`, the same integer-against-float difference as `ceil-math`.",
         metta="!(floor-math 2.9)", python="import math\nmath.floor(2.9)",
-        differs="LeaTTa answers 2.0 and keeps the float; PeTTa and Python answer 2",
+        differs="LeaTTa answers 2.0 and keeps the float; this engine and Python answer 2",
     ),
     Entry(
         "round-math", (NUMBER1,), "Grounded", "math", "dissolves",
@@ -463,13 +463,13 @@ ENTRIES: list[Entry] = [
         "`round(2.5)` is 2 where MeTTa answers 3. Half away from zero is "
         "`math.floor(x + 0.5)` for a positive number.",
         metta="!(round-math 2.5)", python="import math\nmath.floor(2.5 + 0.5)",
-        differs="LeaTTa answers 3.0 and keeps the float; PeTTa and Python answer 3",
+        differs="LeaTTa answers 3.0 and keeps the float; this engine and Python answer 3",
     ),
     Entry(
         "trunc-math", (NUMBER1,), "Grounded", "math", "dissolves",
         "`math.trunc`, or `int` on a float.",
         metta="!(trunc-math 2.9)", python="import math\nmath.trunc(2.9)",
-        differs="LeaTTa answers 2.0 and keeps the float; PeTTa and Python answer 2",
+        differs="LeaTTa answers 2.0 and keeps the float; this engine and Python answer 2",
     ),
     Entry(
         "isnan-math", ("(-> Number Bool)",), "Grounded", "math", "dissolves",
@@ -543,13 +543,13 @@ ENTRIES: list[Entry] = [
         "max-atom", ("(-> %Undefined% Number)",), "Grounded", "atoms", "dissolves",
         "Python's builtin `max` over the children.",
         metta="!(max-atom (1 2 3))", python="max([1, 2, 3])",
-        differs="LeaTTa answers 3.0 and keeps the float; PeTTa and Python answer 3",
+        differs="LeaTTa answers 3.0 and keeps the float; this engine and Python answer 3",
     ),
     Entry(
         "min-atom", ("(-> %Undefined% Number)",), "Grounded", "atoms", "dissolves",
         "Python's builtin `min` over the children.",
         metta="!(min-atom (1 2 3))", python="min([1, 2, 3])",
-        differs="LeaTTa answers 1.0 and keeps the float; PeTTa and Python answer 1",
+        differs="LeaTTa answers 1.0 and keeps the float; this engine and Python answer 1",
     ),
     Entry(
         "sort-strings", ("(-> Expression Expression)",), "Grounded", "atoms", "dissolves",
@@ -605,7 +605,7 @@ ENTRIES: list[Entry] = [
         "[measured 2026-08-22].",
         metta="!(for-each-in-atom (1 2) println!)",
         python="for value in [1, 2]:\n    print(value)\nmetta.Expression()",
-        differs="PeTTa answers one unit per element where LeaTTa answers one",
+        differs="this engine answers one unit per element where LeaTTa answers one",
     ),
     Entry(
         "atom-subst", ("(-> Atom Variable Atom Atom)",), "Symbol", "atoms", "method",
@@ -615,7 +615,7 @@ ENTRIES: list[Entry] = [
         "walker is the spelling.",
         metta="!(atom-subst a $x (f $x))",
         python="S.f(V.x).map(lambda a: S.a if a == V.x else a)",
-        unrun="PeTTa leaves the MeTTa call unreduced",
+        unrun="this engine leaves the MeTTa call unreduced",
     ),
     Entry(
         "if-decons-expr",
@@ -627,7 +627,7 @@ ENTRIES: list[Entry] = [
             "e = metta.Expression(S.a, S.b)\n"
             "S.yes(e[0], e[1:]) if len(e) else S.no"
         ),
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     # ----------------------------------------------------------------- sets
     Entry(
@@ -828,29 +828,29 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "case%", ("(-> Atom Expression %Undefined%)",), "Symbol", "control", "absent",
-        "LeaTTa's `%`-suffixed variant, the error-transparent twin of `case`. PeTTa "
+        "LeaTTa's `%`-suffixed variant, the error-transparent twin of `case`. This engine "
         "ships no `%` family.",
-        metta="!(case% 2 ((1 one) (2 two)))", unrun="PeTTa leaves the call unreduced",
+        metta="!(case% 2 ((1 one) (2 two)))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "let%", ("(-> Atom %Undefined% Atom %Undefined%)",), "Symbol", "control", "absent",
         "LeaTTa's error-transparent twin of `let`.",
-        metta="!(let% $x 1 (+ $x 1))", unrun="PeTTa leaves the call unreduced",
+        metta="!(let% $x 1 (+ $x 1))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "let*%", ("(-> Expression Atom %Undefined%)",), "Symbol", "control", "absent",
         "LeaTTa's error-transparent twin of `let*`.",
-        metta="!(let*% (($x 1)) $x)", unrun="PeTTa leaves the call unreduced",
+        metta="!(let*% (($x 1)) $x)", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "unify%", ("(-> Atom Atom Atom Atom %Undefined%)",), "Symbol", "control", "absent",
         "LeaTTa's error-transparent twin of `unify`.",
-        metta="!(unify% (f a) (f $x) $x nope)", unrun="PeTTa leaves the call unreduced",
+        metta="!(unify% (f a) (f $x) $x nope)", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "=%", ("(-> $t $t %Undefined%)",), "Symbol", "control", "absent",
         "LeaTTa's error-transparent twin of `=`, the equation head itself.",
-        metta="!(get-type =%)", unrun="PeTTa does not declare the name",
+        metta="!(get-type =%)", unrun="this engine does not declare the name",
     ),
     Entry(
         "switch-minimal", ("(-> Atom Expression Atom)",), "Symbol", "control", "internal",
@@ -900,7 +900,7 @@ ENTRIES: list[Entry] = [
         metta="!(bind! &pb (new-space))\n!(add-reduct &pb (total (+ 1 2)))\n!(get-atoms &pb)",
         python="space += S.total(m.eval(S['+'](1, 2))[0])\nspace.atoms()",
         differs=(
-            "PeTTa stores `(total (+ 1 2))` UNREDUCED where LeaTTa and the Python "
+            "This engine stores `(total (+ 1 2))` UNREDUCED where LeaTTa and the Python "
             "composition both store `(total 3)`: this engine's add-reduct does not "
             "reduce inside an expression whose head has no equations"
         ),
@@ -915,7 +915,7 @@ ENTRIES: list[Entry] = [
                "    space += S.total(m.eval(term)[0])\n"
                "space.atoms()",
         differs=(
-            "PeTTa stores both forms UNREDUCED where LeaTTa and the Python "
+            "This engine stores both forms UNREDUCED where LeaTTa and the Python "
             "composition store `(total 3)` and `(total 4)`, the same non-reduction "
             "as `add-reduct`"
         ),
@@ -964,7 +964,7 @@ ENTRIES: list[Entry] = [
         "match%", ("(-> SpaceType Atom Atom %Undefined%)",), "Grounded", "spaces", "absent",
         "LeaTTa's error-transparent twin of `match`.",
         metta="!(bind! &pb (new-space))\n!(match% &pb (f $x) $x)",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "new-space", ("(-> SpaceType)",), "Grounded", "spaces", "method",
@@ -979,7 +979,7 @@ ENTRIES: list[Entry] = [
         "leaves the original alone [measured 2026-08-22].",
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(get-atoms (fork-space &pb))",
         python="space += S.f(1)\nspace.copy().atoms()",
-        unrun="PeTTa leaves the MeTTa call unreduced",
+        unrun="this engine leaves the MeTTa call unreduced",
     ),
     Entry(
         "&self", ("SpaceType",), "Grounded", "spaces", "dissolves",
@@ -1001,21 +1001,21 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "mod-space!", ("(-> Atom SpaceType)",), "Grounded", "spaces", "absent",
-        "The space of a loaded module. PeTTa's module story is Python packaging, so "
+        "The space of a loaded module. MeTTa's module story is Python packaging, so "
         "the name has no image here.",
-        metta="!(mod-space! stdlib)", unrun="PeTTa leaves the call unreduced",
+        metta="!(mod-space! stdlib)", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "module-space-no-deps", ("(-> SpaceType SpaceType)",), "Grounded", "spaces", "absent",
         "A module's own space without its dependencies. Same module story.",
         metta="!(module-space-no-deps (new-space))",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "get-deps", ("(-> Atom Atom)",), "Grounded", "spaces", "absent",
-        "A loaded module's direct dependency names. Same module story: PeTTa's "
+        "A loaded module's direct dependency names. Same module story: MeTTa's "
         "module story is Python packaging, so the name has no image here.",
-        metta="!(get-deps stdlib)", unrun="PeTTa leaves the call unreduced",
+        metta="!(get-deps stdlib)", unrun="this engine leaves the call unreduced",
     ),
     # ---------------------------------------------------------------- types
     Entry(
@@ -1066,9 +1066,9 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "SpaceType", ("Type",), "Symbol", "types", "absent",
-        "The type of a space. PeTTa does not declare the name, so there is nothing "
+        "The type of a space. This engine does not declare the name, so there is nothing "
         "for a Python type table to map to yet.",
-        metta="!(get-type &self)", unrun="PeTTa answers SpaceType for a space but "
+        metta="!(get-type &self)", unrun="this engine answers SpaceType for a space but "
         "does not declare the symbol itself",
     ),
     Entry(
@@ -1091,29 +1091,29 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "Pair", ("(-> $ta $tb (PairType $ta $tb))",), "Symbol", "types", "absent",
-        "A constructor from LeaTTa's `skel` demonstration module. PeTTa has no "
+        "A constructor from LeaTTa's `skel` demonstration module. This engine has no "
         "such module; a class decorated with `@space.define` declares its "
         "constructor in that space.",
-        metta="!(get-type (Pair 1 2))", unrun="PeTTa does not declare the name",
+        metta="!(get-type (Pair 1 2))", unrun="this engine does not declare the name",
     ),
     Entry(
         "PairType", ("(-> $ta $tb Type)",), "Symbol", "types", "absent",
         "The parameterised type of `Pair`, from the same module.",
-        metta="!(get-type PairType)", unrun="PeTTa does not declare the name",
+        metta="!(get-type PairType)", unrun="this engine does not declare the name",
     ),
     Entry(
         "skel-swap-pair", ("(-> (PairType $ta $tb) (PairType $tb $ta))",), "Symbol",
         "types", "absent",
         "The `skel` module's worked equation, LeaTTa's demonstration that a "
         "built-in module can ship both a MeTTa and a native implementation.",
-        metta="!(skel-swap-pair (Pair 1 2))", unrun="PeTTa does not declare the name",
+        metta="!(skel-swap-pair (Pair 1 2))", unrun="this engine does not declare the name",
     ),
     Entry(
         "skel-swap-pair-native", ("(-> (PairType $ta $tb) (PairType $tb $ta))",), "Grounded",
         "types", "absent",
         "The native half of the same demonstration.",
         metta="!(skel-swap-pair-native (Pair 1 2))",
-        unrun="PeTTa does not declare the name",
+        unrun="this engine does not declare the name",
     ),
     Entry(
         "◁", ("(-> Atom Type Atom Atom)",), "Symbol", "types", "method",
@@ -1191,7 +1191,7 @@ ENTRIES: list[Entry] = [
         "uses it for: showing what a form actually answered.",
         metta="!(print-alternatives! subject (a b))",
         python="print(S.subject, [S.a, S.b])\nmetta.Expression()",
-        unrun="PeTTa leaves the MeTTa call unreduced",
+        unrun="this engine leaves the MeTTa call unreduced",
     ),
     Entry(
         "_print-alternatives-each!", ("(-> Expression (->))",), "Symbol", "text", "internal",
@@ -1203,34 +1203,34 @@ ENTRIES: list[Entry] = [
         "Python's own `assert`. A twin or a test states its claims this way and the "
         "run proves them, because a false assertion raises.",
         metta="!(assert (== 1 1))", python="assert 1 == 1\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertEqual", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a == b`, and pytest's own assertion rewriting prints the halves.",
         metta="!(assertEqual (+ 1 1) 2)", python="assert m.eval(S['+'](1, 1))[0] == 2\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertEqualMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a == b, message`, which is Python's own second argument.",
         metta='!(assertEqualMsg (+ 1 1) 2 "sums")',
         python="assert m.eval(S['+'](1, 1))[0] == 2, 'sums'\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertAlphaEqual", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a.alpha_eq(b)`: the assertion is Python's, the relation is MeTTa's.",
         metta="!(assertAlphaEqual (f $x) (f $y))",
         python="assert S.f(V.x).alpha_eq(S.f(V.y))\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertAlphaEqualMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The same with Python's assertion message.",
         metta='!(assertAlphaEqualMsg (f $x) (f $y) "renaming")',
         python="assert S.f(V.x).alpha_eq(S.f(V.y)), 'renaming'\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertEqualToResult", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
@@ -1238,35 +1238,35 @@ ENTRIES: list[Entry] = [
         "is `assert list(answers) == [...]`.",
         metta="!(assertEqualToResult (superpose (1 2)) (1 2))",
         python="assert m.eval(S.superpose(metta.Expression(1, 2))) == [1, 2]\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertEqualToResultMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The same with Python's assertion message.",
         metta='!(assertEqualToResultMsg (superpose (1 2)) (1 2) "both")',
         python="assert m.eval(S.superpose(metta.Expression(1, 2))) == [1, 2], 'both'\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertAlphaEqualToResult", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The answer-list form compared modulo renaming.",
         metta="!(assertAlphaEqualToResult (f $x) ((f $y)))",
         python="assert m.eval(S.f(V.x))[0].alpha_eq(S.f(V.y))\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertAlphaEqualToResultMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert",
         "dissolves", "The same with Python's assertion message.",
         metta='!(assertAlphaEqualToResultMsg (f $x) ((f $y)) "renaming")',
         python="assert m.eval(S.f(V.x))[0].alpha_eq(S.f(V.y)), 'renaming'\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertIncludes", ("(-> Atom Expression (->))",), "Symbol", "assert", "dissolves",
         "Python's own `in`.",
         metta="!(assertIncludes (superpose (a b)) (a))",
         python="assert S.a in m.eval(S.superpose(metta.Expression(S.a, S.b)))\nTrue",
-        differs="LeaTTa answers the unit `()` where PeTTa answers True",
+        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "_assert-results-are-equal", ("(-> Atom Atom Atom (->))",), "Grounded", "assert",
@@ -1288,12 +1288,12 @@ ENTRIES: list[Entry] = [
     Entry(
         "get-doc", ("(-> SpaceType Atom %Undefined%)",), "Symbol", "doc", "dissolves",
         "Python's builtin `help`, over the docstring a decorated function already "
-        "carries. PeTTa answers nothing here because no documentation atoms are "
+        "carries. This engine answers nothing here because no documentation atoms are "
         "written yet, which is the doc-vocabulary gap.",
         metta="!(get-doc &self +)",
         python="def slug(title):\n    'Make a title into a slug.'\nslug.__doc__",
         differs=(
-            "LeaTTa answers the full `@doc-formal` structure for `+`; PeTTa answers "
+            "LeaTTa answers the full `@doc-formal` structure for `+`; this engine answers "
             "nothing, because nothing emits documentation atoms"
         ),
     ),
@@ -1382,10 +1382,10 @@ ENTRIES: list[Entry] = [
         "Python's builtin `help`, which is the same act on the same docstring.",
         metta="!(help! +)", python="def pbf(x):\n    'adds one'\npbf.__doc__",
         differs=(
-            "LeaTTa prints the documentation and answers the unit; PeTTa leaves the "
+            "LeaTTa prints the documentation and answers the unit; this engine leaves the "
             "call unreduced because it declares no documentation"
         ),
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "help-internal!", ("(-> Atom (->))", "(-> Symbol (->))"), "Symbol", "doc", "internal",
@@ -1433,17 +1433,17 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "import-into!", ("(-> SpaceType Atom (->))",), "Grounded", "modules", "absent",
-        "Importing into a NAMED space rather than the current one. PeTTa's loader "
+        "Importing into a NAMED space rather than the current one. MeTTa's loader "
         "does not offer it.",
         metta="!(import-into! (new-space) (library lib_he))",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "import-item!", ("(-> Atom Atom Atom (->))",), "Grounded", "modules", "absent",
         "Importing one named item, which is Python's `from x import y`. Not "
         "implemented here.",
         metta="!(import-item! &self (library lib_he) unify)",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "include", ("(-> Atom %Undefined%)",), "Grounded", "modules", "method",
@@ -1479,7 +1479,7 @@ ENTRIES: list[Entry] = [
         "git-module!", ("(-> Atom (->))",), "Grounded", "modules", "absent",
         "Upstream's bespoke package manager.",
         metta="!(get-metatype git-module!)",
-        unrun="PeTTa does not declare the name",
+        unrun="this engine does not declare the name",
         ruled=(
             "decision 8: the module catalog IS Python packaging, and upstream's "
             "bespoke manager is the fork not taken, so the absence is a decision "
@@ -1491,7 +1491,7 @@ ENTRIES: list[Entry] = [
         "Registering a module with the bespoke catalog. A Python distribution "
         "registers itself by declaring an entry point, which pip then installs.",
         metta="!(get-metatype register-module!)",
-        unrun="PeTTa does not declare the name",
+        unrun="this engine does not declare the name",
         ruled=(
             "decision 8: pip and entry-point discovery are the catalog, so the "
             "absence is a decision rather than a gap"
@@ -1507,7 +1507,7 @@ ENTRIES: list[Entry] = [
             "MeTTa modules there, Python modules here, which is what the ruling "
             "makes them"
         ),
-        unrun="PeTTa does not declare the name",
+        unrun="this engine does not declare the name",
     ),
     Entry(
         "loaded-mods!", ("(-> Atom)",), "Grounded", "modules", "dissolves",
@@ -1515,7 +1515,7 @@ ENTRIES: list[Entry] = [
         metta="!(loaded-mods!)",
         python="import sys\nS['json'] if 'json' in sys.modules else S.absent",
         differs="MeTTa modules there, Python modules here",
-        unrun="PeTTa does not declare the name",
+        unrun="this engine does not declare the name",
     ),
     Entry(
         "module-tree!", ("(-> Atom)",), "Grounded", "modules", "dissolves",
@@ -1528,7 +1528,7 @@ ENTRIES: list[Entry] = [
             "the trees are different: MeTTa modules there, installed distributions "
             "here"
         ),
-        unrun="PeTTa does not declare the name",
+        unrun="this engine does not declare the name",
     ),
     Entry(
         "bind!", ("(-> Symbol %Undefined% (->))",), "Grounded", "modules", "dissolves",
@@ -1553,21 +1553,21 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "BadType", ("(-> Type Type ErrorDescription)",), "Symbol", "errors", "absent",
-        "The canonical wrong-type error description. PeTTa does not declare the "
+        "The canonical wrong-type error description. MeTTa does not declare the "
         "name, which is the error-vocabulary gap ledger X names.",
-        metta="!(get-type BadType)", unrun="PeTTa does not declare the name",
+        metta="!(get-type BadType)", unrun="this engine does not declare the name",
     ),
     Entry(
         "BadArgType", ("(-> Number Type Type ErrorDescription)",), "Symbol", "errors", "absent",
         "The positional form, `(BadArgType <pos> <expected> <actual>)`. Same gap.",
-        metta="!(get-type BadArgType)", unrun="PeTTa does not declare the name",
+        metta="!(get-type BadArgType)", unrun="this engine does not declare the name",
     ),
     Entry(
         "IncorrectNumberOfArguments", ("ErrorDescription",), "Symbol", "errors", "absent",
         "The arity error description, which Python's own `TypeError` is the image "
         "of. Same gap.",
         metta="!(get-type IncorrectNumberOfArguments)",
-        unrun="PeTTa does not declare the name",
+        unrun="this engine does not declare the name",
     ),
     Entry(
         "if-error", ("(-> Atom Atom Atom %Undefined%)",), "Symbol", "errors", "dissolves",
@@ -1596,12 +1596,12 @@ ENTRIES: list[Entry] = [
             "answers = [S.Error(S.a, S.b), S.c]\n"
             "[a for a in answers if isinstance(a, metta.Expression) and a[0] == S.Error]"
         ),
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     # ----------------------------------------------------------- strategies
     Entry(
         "try", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
-        "Stratego's `try(s) = s <+ id`. PeTTa reifies `s` in the plan and LeaTTa "
+        "Stratego's `try(s) = s <+ id`. This engine reifies `s` in the plan and LeaTTa "
         "specialises the same law to one equality rewrite.",
         metta="(= (pb-try-step strategy-a) strategy-b)\n"
               "(= (pb-try-step $x) Empty)\n"
@@ -1740,7 +1740,7 @@ ENTRIES: list[Entry] = [
         "each declining child as written, and fail when no child succeeded. The "
         "non-emptiness guard is the whole content, since `all` composed with "
         "`gtry` can never fail. A LeaTTa extension beyond corelib.",
-        metta="!(stratego-some id (f a b))", unrun="PeTTa leaves the call unreduced",
+        metta="!(stratego-some id (f a b))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "_stratego-all-tail", ("(-> Atom Expression Expression)",), "Symbol", "strategies",
@@ -1754,45 +1754,45 @@ ENTRIES: list[Entry] = [
     Entry(
         "eval-via-match", ("(-> Atom %Undefined%)",), "Symbol", "strategies", "absent",
         "The one-step rewriting strategy the whole basis is specialised to.",
-        metta="!(eval-via-match (+ 1 2))", unrun="PeTTa leaves the call unreduced",
+        metta="!(eval-via-match (+ 1 2))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "eval-via-unify", ("(-> Atom %Undefined%)",), "Symbol", "strategies", "absent",
         "The unification-directed sibling of `eval-via-match`.",
-        metta="!(eval-via-unify (+ 1 2))", unrun="PeTTa leaves the call unreduced",
+        metta="!(eval-via-unify (+ 1 2))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "reduce-via-match", ("(-> Atom Atom %Undefined%)",), "Symbol", "strategies", "absent",
         "The reduction form of the same strategy.",
-        metta="!(reduce-via-match (+ 1 2) x)", unrun="PeTTa leaves the call unreduced",
+        metta="!(reduce-via-match (+ 1 2) x)", unrun="this engine leaves the call unreduced",
     ),
     # ------------------------------------------------------------- matching
     Entry(
         "fuzzy-match", ("(-> Atom Expression Number Atom)",), "Grounded", "matching", "absent",
         "LeaTTa's cost-bounded approximate matcher, answering each candidate with "
-        "its cost. PeTTa has `metta.structures` for many-to-one matching and no "
+        "its cost. MeTTa has `metta.structures` for many-to-one matching and no "
         "approximate matcher.",
         metta="!(fuzzy-match (f a) ((f a) (f b)) 1)",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "fuzzy-match-space", ("(-> SpaceType Atom Expression Number Atom)",), "Grounded",
         "matching", "absent", "The same over a space's atoms.",
         metta="!(fuzzy-match-space (new-space) (f a) ((f a)) 1)",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "fuzzy-match-context", ("(-> SpaceType SpaceType Atom Expression Number Atom)",),
         "Grounded", "matching", "absent",
         "The same with a separate cost-declaration space.",
         metta="!(fuzzy-match-context (new-space) (new-space) (f a) ((f a)) 1)",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "near-match", ("(-> Atom Expression Atom Atom)",), "Grounded", "matching", "absent",
         "The nearest-candidate form of the same family.",
         metta="!(near-match (f a) ((f a) (f b)) 1)",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "sealed", ("(-> Expression Atom Atom)",), "Grounded", "matching", "method",
@@ -1812,9 +1812,9 @@ ENTRIES: list[Entry] = [
     Entry(
         "capture", ("(-> Atom Atom)",), "Grounded", "matching", "absent",
         "Closing an atom over the current space. A Python function object already "
-        "binds its engine and space, so the uses vanish; PeTTa does not implement "
+        "binds its engine and space, so the uses vanish; MeTTa does not implement "
         "the name.",
-        metta="!(capture (+ 1 2))", unrun="PeTTa leaves the call unreduced",
+        metta="!(capture (+ 1 2))", unrun="this engine leaves the call unreduced",
     ),
     # --------------------------------------------------------- instructions
     Entry(
@@ -1843,32 +1843,32 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "function", ("(-> Atom Atom)",), "Symbol", "instructions", "absent",
-        "The core's function frame, which `return` closes. PeTTa's compiled "
+        "The core's function frame, which `return` closes. MeTTa's compiled "
         "definitions do not go through this instruction and it is not implemented.",
-        metta="!(function (return 5))", unrun="PeTTa leaves the call unreduced",
+        metta="!(function (return 5))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "return", ("(-> $t $t)",), "Symbol", "instructions", "absent",
         "The core's return, paired with `function`: it is what closes the frame, "
         "so it only ever appears inside one.",
-        metta="!(function (return (+ 2 3)))", unrun="PeTTa leaves the call unreduced",
+        metta="!(function (return (+ 2 3)))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "collapse-bind", ("(-> Atom Expression)", "(TU Expression)"), "Symbol", "instructions",
         "absent",
         "The deep-tier collapse that keeps each alternative's BINDINGS, "
         "`((a (bindings ...)) ...)`. It belongs to the bindings-carrying tier, "
-        "never to the surface; PeTTa's engine has the bindings carrier "
+        "never to the surface; MeTTa's engine has the bindings carrier "
         "(`answer_bindings`) but not this instruction.",
         metta="!(collapse-bind (superpose (a b)))",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "superpose-bind", ("(-> Expression Atom)",), "Symbol", "instructions", "absent",
         "The inverse of `collapse-bind`: it restores each alternative WITH its "
         "recorded bindings, which is a different operation from `superpose`.",
         metta="!(superpose-bind ((a (bindings))))",
-        unrun="PeTTa leaves the call unreduced",
+        unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "_metta-call", ("(-> Atom Type SpaceType Atom)",), "Symbol", "instructions", "internal",
@@ -1898,7 +1898,7 @@ def _family(names: dict[str, tuple[str, ...]], note: str) -> list[Entry]:
 
 #: LeaTTa's typed interpreter, `interpret` and its helper equations. These are
 #: the mechanised interpreter written in MeTTa, which is what makes LeaTTa an
-#: oracle rather than a second implementation; PeTTa's interpreter is Prolog,
+#: oracle rather than a second implementation; MeTTa's interpreter is Prolog,
 #: so none of these names exists here and none is a surface operation.
 _INTERPRET = {
     "interpret": ("(-> Atom Type SpaceType Atom)",),
@@ -2103,7 +2103,7 @@ ENTRIES += _family(
     _INTERPRET,
     "LeaTTa's typed interpreter, written in MeTTa: `interpret` and the equations "
     "that implement it. This is the machinery that makes LeaTTa an oracle rather "
-    "than a second implementation, and PeTTa writes its interpreter in Prolog, so "
+    "than a second implementation, and MeTTa writes its interpreter in Prolog, so "
     "none of these names is on either surface",
 )
 ENTRIES += _family(

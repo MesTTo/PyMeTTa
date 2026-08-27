@@ -1,4 +1,4 @@
-"""Purpose: the shipped pytest fixtures every project testing against PeTTa
+"""Purpose: the shipped pytest fixtures every project testing against MeTTa
 otherwise rewrites: an engine and a scratch space, registered as a pytest11
 entry point so a user's test file starts at the assert.
 Guarantees:

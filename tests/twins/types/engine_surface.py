@@ -51,7 +51,7 @@ def twin(m):
     assert m.type(fn.size_atom) == arrow(Expression, int)
     assert m.type(fn.index_atom) == arrow(Expression, int, Atom)
 
-    # PeTTa's own, with no dump entry to take.
+    # MeTTa's own, with no dump entry to take.
     # !(test (get-type sort-atom) (-> %Undefined% Expression)), and three more
     assert m.type(fn.sort_atom) == arrow(Any, Expression)
     assert m.type(fn.is_var) == arrow(Atom, bool)

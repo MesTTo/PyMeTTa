@@ -15,7 +15,7 @@ Assumes:
   - metta._engine.engine_thread attaches an engine to a bare foreign thread
     and detaches exactly the engine it attached [tested
     test_engine_thread_owns_only_its_attachment]
-  - PeTTa's shared Prolog structures carry their own mutexes, so concurrent
+  - MeTTa's shared Prolog structures carry their own mutexes, so concurrent
     engines do not corrupt them: '$metta_specializer' in specializer.pl,
     '$metta_native_storage' in spaces.pl, metta_loader around
     process_metta_string in filereader.pl, and a per-function mutex in

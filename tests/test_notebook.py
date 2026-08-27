@@ -51,7 +51,7 @@ def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # no
                     "-f",
                     "{connection_file}",
                 ],
-                "display_name": "PeTTa test kernel",
+                "display_name": "MeTTa test kernel",
                 "language": "python",
             }
         ),

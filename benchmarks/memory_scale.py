@@ -1,4 +1,4 @@
-"""Purpose: measure PeTTa memory use and scaling in fresh worker processes.
+"""Purpose: measure MeTTa memory use and scaling in fresh worker processes.
 
 Assumes:
   - Linux exposes /proc/self/status, /proc/self/smaps_rollup, and

@@ -1,4 +1,4 @@
-"""Purpose: launch either the upstream or current bundled PeTTa runtime through SWI-Prolog.
+"""Purpose: launch either the upstream PeTTa or the current bundled MeTTa runtime through SWI-Prolog.
 Guarantees:
   - an upstream ``src/main.pl`` tree retains its original command and optional
     MORK preload, while the current ``engine/main.pl`` tree delegates backend
@@ -34,7 +34,7 @@ SELF_ANSWERED = ("--version", "-V", "--help", "-h")
 
 USAGE = """usage: metta [FILE ...]
 
-Run a MeTTa program on the bundled PeTTa engine, through swipl.
+Run a MeTTa program on the bundled engine, through swipl.
 Every other argument is passed to the program.
 
   metta program.metta     run a program
@@ -45,7 +45,7 @@ doc). The Python surface is `import metta`."""
 
 
 def main(argv=None):
-    """Run PeTTa's SWI-Prolog entry point and return its exit status."""
+    """Run MeTTa's SWI-Prolog entry point and return its exit status."""
     if argv is None:
         argv = sys.argv[1:]
 
@@ -92,7 +92,7 @@ def main(argv=None):
             return subprocess.call(command, env=environment)  # noqa: S603  # nosec B603
         return subprocess.call(command)  # noqa: S603  # nosec B603
     except FileNotFoundError as exc:
-        msg = "PeTTa's command-line launcher needs the SWI-Prolog 'swipl' binary on PATH"
+        msg = "MeTTa's command-line launcher needs the SWI-Prolog 'swipl' binary on PATH"
         raise FileNotFoundError(
             msg
         ) from exc

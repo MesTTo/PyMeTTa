@@ -41,7 +41,7 @@ Guarantees:
     TEXT cell carrying the atom wire rather than the source parser [tested:
     test_a_row_value_becomes_an_atom_without_being_reparsed;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - a cell PeTTa wrote reads back as the atom it wrote, whatever the driver
+  - a cell MeTTa wrote reads back as the atom it wrote, whatever the driver
     and the image catalog do to the database's own values: _is_atom_cell
     keeps the tag in the text domain, out of reach of a row_factory that
     adapts binary cells, and _ImageCodec answers it before any image
@@ -164,12 +164,12 @@ def _encoded_cell(atom: Atom) -> str:
 
 
 def _is_atom_cell(value: Any) -> bool:
-    """Whether PeTTa wrote this cell itself, or the database holds it.
+    """Whether MeTTa wrote this cell itself, or the database holds it.
 
     The tag stays in the text domain because a driver is free to adapt
     binary values on the way out, as sqlite3's row_factory and psycopg2's
     memoryview both do, and an adapted cell is no longer recognisable as
-    PeTTa's own. A NUL cannot occur in text a column legitimately carries,
+    MeTTa's own. A NUL cannot occur in text a column legitimately carries,
     so the tag is unambiguous without leaving that domain, and SQLite
     compares a NUL-bearing TEXT cell byte for byte, which is what lets
     remove() delete one by equality.
@@ -183,7 +183,7 @@ def _atom_from_cell(value: Any) -> Atom:
         try:
             return _atom_from_wire(json.loads(value[len(_ATOM_CELL_PREFIX) :]))
         except (TypeError, ValueError) as exc:
-            msg = "a table cell starts with PeTTa's atom tag but its payload is corrupt"
+            msg = "a table cell starts with MeTTa's atom tag but its payload is corrupt"
             raise ValueError(msg) from exc
     if isinstance(value, str):
         return Symbol(value)
@@ -375,7 +375,7 @@ class _ImageCodec:
     def __call__(self, value: Any) -> Atom:
         if _is_atom_cell(value):
             # An image declares how one of the DATABASE's values crosses, and
-            # this cell is PeTTa's own atom in transit, so the tag outranks
+            # this cell is MeTTa's own atom in transit, so the tag outranks
             # the catalog: not even a catch-all image may turn a stored atom
             # into a handle and lose the round trip that add() promised.
             return _atom_from_cell(value)

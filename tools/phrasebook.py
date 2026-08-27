@@ -11,7 +11,7 @@ cannot drift from what ran.
 THREE COLUMNS, because two would hide the interesting half. A row's MeTTa form
 is measured on LeaTTa, the conformance oracle, AND on this engine, and its
 Python spelling is measured here; the lane compares all three. So a row says
-what the law answers, whether PeTTa agrees, and whether Python says the same
+what the law answers, whether this engine agrees, and whether Python says the same
 thing, and every disagreement is named rather than averaged away.
 
 Why both sides run at all: a phrasebook that only shows Python proves nothing
@@ -33,7 +33,7 @@ The five buckets, and what each CLAIMS:
     deliberately transliteration-shaped: the ladder keeps the rung.
   - `internal`: LeaTTa's mechanised interpreter, written in MeTTa. The
     `interpret-*`, `mi-*` and `u-*` families are the interpreter's own
-    equations rather than operations a program calls, and PeTTa writes its
+    equations rather than operations a program calls, and MeTTa writes its
     interpreter in Prolog, so these names are on neither surface. Accounted
     for, never counted as coverage.
   - `absent`: a user-facing operation with no Python spelling today. This is
@@ -75,7 +75,7 @@ Guarantees:
     in a separate exact-spelling table rather than corrupting manifest coverage
     [tested: test_python_first_public_faces_are_in_the_phrasebook;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - a row may run a PeTTa-only setup and an explicitly recorded equivalent
+  - a row may run a MeTTa-only setup and an explicitly recorded equivalent
     LeaTTa form; neither is silently sent to the other engine [tested:
     python bindings/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - PUBLIC/INTERNAL is row data, all live catalog names carry it, and the
@@ -364,7 +364,7 @@ def divergences(entries: list[Entry], answers: dict[str, Any]) -> list[str]:
         oracle, here = frozen.get("leatta"), frozen.get("metta")
         if oracle is None or here is None or oracle == here:
             continue
-        out.append(f"{entry.name}: LeaTTa {oracle}, PeTTa {here}")
+        out.append(f"{entry.name}: LeaTTa {oracle}, this engine {here}")
     return out
 
 
@@ -401,11 +401,11 @@ def structural(entries: list[Entry]) -> list[str]:
                 f"{entry.name}: names a ruling, which only a residue row needs"
             )
         if entry.metta_setup is not None and entry.metta is None:
-            findings.append(f"{entry.name}: has PeTTa setup but no MeTTa form")
+            findings.append(f"{entry.name}: has setup but no MeTTa form")
         if entry.oracle_metta is not None and entry.metta is None:
             findings.append(f"{entry.name}: has an oracle form but no MeTTa form")
         if entry.metta_fuel is not None and entry.metta_fuel < 1:
-            findings.append(f"{entry.name}: has a non-positive PeTTa inference limit")
+            findings.append(f"{entry.name}: has a non-positive MeTTa inference limit")
     return findings
 
 
@@ -563,7 +563,7 @@ def _report_coverage(entries: list[Entry], note: str) -> None:
 
 def _report_divergences(diverging: list[str], show: int) -> None:
     if diverging:
-        print(f"  PeTTa and LeaTTa answer {len(diverging)} form(s) differently:")
+        print(f"  This engine and LeaTTa answer {len(diverging)} form(s) differently:")
         for line in diverging[:show]:
             print(f"    {line}")
         if len(diverging) > show:
@@ -625,7 +625,7 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         f"instead. {spoken} of the {surface} operations a program can call have a Python",
         "spelling, and every runnable row below was measured on this engine, on LeaTTa,",
         "the conformance oracle, and through the Python spelling here. A row names the",
-        "equivalent oracle form when PeTTa's reified strategy application has another arity.",
+        "equivalent oracle form when this engine's reified strategy application has another arity.",
         "",
         "The names and their types are LeaTTa's, measured against its built binary rather",
         f"than transcribed: manifest {LEATTA_VERSION} at commit `{LEATTA_COMMIT}`, "
@@ -795,7 +795,7 @@ def _strategy_basis_section() -> list[str]:
         ),
     )
     out = [
-        "PeTTa's complete shipped basis is reified below. Every plan cell is ordinary",
+        "MeTTa's complete shipped basis is reified below. Every plan cell is ordinary",
         "queryable atom data, and every row is exercised by",
         "`examples/libraries/strategy.metta` through the normal library runner.",
         "",

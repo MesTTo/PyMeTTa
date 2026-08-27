@@ -1,4 +1,4 @@
-# A PeTTa space served from TypeScript
+# A MeTTa space served from TypeScript
 
 Two servers, one protocol. `space_server.ts` holds atoms in memory with
 its own two-sided unifier and zero dependencies beyond Node's modules,
@@ -8,7 +8,7 @@ so it doubles as the protocol's reference implementation.
 instead, that engine's own atoms and unifier answering underneath: two
 MeTTa implementations joined through one seam.
 
-Attach either from PeTTa and the space is ordinary:
+Attach either from MeTTa and the space is ordinary:
 
 ```python
 import metta
@@ -63,7 +63,7 @@ real unifier for it (pattern and stored variables renamed apart, so
 `(f $x 1)` removes a stored `(f 2 $x)`).
 
 Measured on localhost [2026-08-17]: a match round trip costs about
-243 microseconds and an add about 216, PeTTa client to Node server and
+243 microseconds and an add about 216, MeTTa client to Node server and
 back. The engine re-unifies every candidate a storage provider yields,
 so a defect in a remote store can cost time, never local soundness; a
 semantic matcher (a grounded value's own `match_`) is a different tier
@@ -100,7 +100,7 @@ esbuild space_server.test.ts --bundle --platform=node --format=esm \
 ```
 
 `bindings/python/tests/test_typescript_space.py` drives the whole story from
-PeTTa: MeTTa-driven queries, the conformance kit over the attached
+MeTTa: MeTTa-driven queries, the conformance kit over the attached
 provider, a thread pool, the async surface, one-request batches, and
 the MeTTaScript backend when `METTA_METTASCRIPT_CORE` names its core
 module. Both servers are also certified by

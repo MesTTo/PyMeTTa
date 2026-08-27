@@ -34,7 +34,7 @@ def _substitute(atom, bindings):
 
 
 class SpaceStateMachine(RuleBasedStateMachine):
-    """A real PeTTa space checked against a Counter reference model."""
+    """A real MeTTa space checked against a Counter reference model."""
 
     def __init__(self):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         super().__init__()

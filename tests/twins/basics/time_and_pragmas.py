@@ -58,8 +58,8 @@ def twin(m):
     # sleep answers True, so it sequences with anything else.
     assert m.fn.sleep(0.01).one() is True
 
-    # metta/3 interprets an atom in a space it is HANDED; PeTTa's evalc
-    # already is that, since PeTTa's eval is full evaluation rather than one
+    # metta/3 interprets an atom in a space it is HANDED; MeTTa's evalc
+    # already is that, since MeTTa's eval is full evaluation rather than one
     # rewriting step, so the two agree.
     assert m.eval(S.metta(S.add(1, 2), S["%Undefined%"], m)) == [3]
     assert m.eval(S.add(1, 2)) == [3]

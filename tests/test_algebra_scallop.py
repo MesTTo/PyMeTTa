@@ -2,7 +2,7 @@
 
 Guarantees:
   - the five pinned README programs answer their printed outputs and the
-    neighboring table maps every fixed Scallop feature to a general PeTTa seam
+    neighboring table maps every fixed Scallop feature to a general MeTTa seam
     or an explicit filed gap [tested:
     test_the_scallop_readme_examples_answer_identically_through_the_seams;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]

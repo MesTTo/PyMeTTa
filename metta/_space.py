@@ -727,7 +727,7 @@ def _fact_stream(value: Any) -> Iterator[Any] | None:
 class Space(Handle):
     """A space bound to the engine: the way in from Python.
 
-    PeTTa keeps one engine per process; every context shares it. The
+    MeTTa keeps one engine per process; every context shares it. The
     default space is &self, the space the CLI itself uses, so source pasted
     from a .metta file behaves identically here. Two ``MeTTa().self`` handles
     therefore see the same &self state. Use ``MeTTa().space()`` when
@@ -2702,7 +2702,7 @@ class Space(Handle):
 
         `value` means an equation, builtin or special form applied.
         `not-reducible` means no rule applied, so the answer is the term
-        itself, which is what PeTTa does with any head it cannot call.
+        itself, which is what MeTTa does with any head it cannot call.
         `empty` means the goal produced no answer at all, and its atom is
         None. Reading the last two as the same thing is the mistake this
         exists to prevent: an unevaluated term and a pruned branch look
@@ -4548,7 +4548,7 @@ class Space(Handle):
 
 
 class MeTTa:
-    """One PeTTa evaluation context; context-relative operations use Space."""
+    """One MeTTa evaluation context; context-relative operations use Space."""
 
     __slots__ = ("_rt", "_self")
 
@@ -4578,7 +4578,7 @@ class MeTTa:
         return self._rt
 
     def info(self) -> dict[str, str | None]:
-        """Return backend versions and the consulted PeTTa runtime tree."""
+        """Return backend versions and the consulted MeTTa runtime tree."""
         janus_bridge = bridge()
         version_row = janus_bridge.query_once(
             "current_prolog_flag(version, SwiVersion)"

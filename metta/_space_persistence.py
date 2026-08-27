@@ -237,7 +237,7 @@ def _fast_header(path: str) -> list[bytes]:
 def _cache_rejection(path: str, reason: str) -> EngineError:
     return EngineError(
         f"cannot load fast cache {path!r}: {reason}; re-save it with this "
-        f"PeTTa and SWI-Prolog version"
+        f"MeTTa and SWI-Prolog version"
     )
 
 

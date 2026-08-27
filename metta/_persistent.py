@@ -724,7 +724,7 @@ class PersistentFactSpace(SpaceProvider):
     """A fixed-schema fact space backed by an append-only text journal.
 
     Facts are limited to the declared heads and arities. Every argument must
-    be a native value carried by PeTTa's wire: a number, symbol, string, or
+    be a native value carried by MeTTa's wire: a number, symbol, string, or
     boolean. Live Python objects and nested expressions are refused because
     they cannot survive journal replay.
 

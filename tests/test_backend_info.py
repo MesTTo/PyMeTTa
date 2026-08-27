@@ -1,5 +1,5 @@
 """Purpose: MeTTa.info() answers versions and the consulted tree
-from returned data, in any suite order, and never starts the PeTTa
+from returned data, in any suite order, and never starts the MeTTa
 runtime just to answer; a subprocess pins the no-start guarantee in a
 fresh interpreter where it is deterministic.
 Open Obligations:
