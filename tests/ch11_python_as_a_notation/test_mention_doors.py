@@ -294,7 +294,7 @@ def test_rejected_attributes_never_execute_host_objects(m):
 
 def test_the_fn_namespace_is_generated(repo_root: Path):
     """One generator owns the runtime manifest and explicit typed members."""
-    tools = repo_root / "bindings" / "python" / "tools"
+    tools = repo_root / "extensions" / "python" / "tools"
     sys.path.insert(0, str(tools))
     try:
         fngen = importlib.import_module("fngen")
@@ -308,14 +308,14 @@ def test_the_fn_namespace_is_generated(repo_root: Path):
     with pytest.raises(AttributeError, match="no target function"):
         getattr(fn, missing)
 
-    stub = (repo_root / "bindings" / "python" / "metta" / "_fn.pyi").read_text(encoding="utf-8")
+    stub = (repo_root / "extensions" / "python" / "metta" / "_fn.pyi").read_text(encoding="utf-8")
     assert "car_atom: Symbol" in stub
     assert "def __getattr__" not in stub
 
     manifest = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
     assert "*.pyi" in manifest["tool"]["setuptools"]["package-data"]["metta"]
 
-    environment = os.environ | {"PYTHONPATH": str(repo_root / "bindings" / "python")}
+    environment = os.environ | {"PYTHONPATH": str(repo_root / "extensions" / "python")}
     imported = subprocess.run(
         [
             sys.executable,
@@ -348,7 +348,7 @@ def test_internal_catalog_names_stay_exact_but_leave_public_outputs(repo_root: P
     for name in internal:
         assert fn[name] == S[name]
 
-    stub = (repo_root / "bindings" / "python" / "metta" / "_fn.pyi").read_text(
+    stub = (repo_root / "extensions" / "python" / "metta" / "_fn.pyi").read_text(
         encoding="utf-8"
     )
     aliases = {name.replace("-", "_").removesuffix("!") for name in internal}

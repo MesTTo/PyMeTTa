@@ -10,7 +10,7 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the transparent image costs more engine inferences than the opaque image
     for the same 4,096-byte value [measured: minimum of three counter samples;
-    command=python -m pytest bindings/python/tests/ch13_a_queryable_dataset/test_sqlite_space.py -q;
+    command=python -m pytest extensions/python/tests/ch13_a_queryable_dataset/test_sqlite_space.py -q;
     fixture=SQLite documents.payload containing bytes(range(256)) repeated 16;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Open Obligations:

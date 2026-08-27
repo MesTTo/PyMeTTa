@@ -52,10 +52,11 @@ from metta import MeTTa, Space
 from metta.testing import BenchmarkBaseline
 
 CALLS = 3_000
-# parents[3] is the repository root: benchmarks, python, bindings, then the
-# tree. The partition move added a directory level and the old three-parent
-# spelling landed in bindings/, so has_c read False with the artifact built
-# and the C row silently left the gate from ac083177 until 2026-08-26.
+# parents[3] is the repository root: benchmarks, python, the seat root, then
+# the tree. The partition move added a directory level and the old three-parent
+# spelling landed one directory short, inside the seat root, so has_c read
+# False with the artifact built and the C row silently left the gate from
+# ac083177 until 2026-08-26.
 C_EXTENSION = Path(__file__).resolve().parents[3] / "examples/ch19-spaces-backed-by-anything/19-03-a-builtin-in-c"
 ROUNDS = 3
 

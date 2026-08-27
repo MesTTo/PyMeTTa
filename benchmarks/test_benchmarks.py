@@ -155,7 +155,7 @@ _ROWS = 2_000
 #: coupling in which the whole reviewed profile answered the cache's question;
 #: this tree reads 28,573/29,723/30,881/31,663
 #: [command=python -m pytest benchmarks/test_benchmarks.py::test_automatic_tabling_growth
-#: from bindings/python; commit=173eeed021beb360b5e5f9f8461889e27190affc].
+#: from extensions/python; commit=173eeed021beb360b5e5f9f8461889e27190affc].
 #: RE-PINNED 2026-08-26 at the world-admission merge, automatic arm only:
 #: +50/+52/+50/+50 over the lexical-declaration pins, the branch's
 #: cache-admission guard (one extra semidet check per admitted memo call,

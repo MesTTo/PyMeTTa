@@ -3,7 +3,7 @@ no code with this package at all.
 
 The two shipped codecs are two implementations in two languages and both of
 them are ours, so both could be wrong the same way. The TypeScript reference
-server under bindings/python/examples/integration/typescript_space/ is the
+server under extensions/python/examples/integration/typescript_space/ is the
 independent one: written from the protocol, zero dependencies, and it is a
 STORE rather than a whole binding, which is what a Julia or Rust space
 provider would be too. Certifying it is how the corpus earns the claim that
@@ -59,7 +59,7 @@ _NODE = shutil.which("node")
 #   integral float comes back an integer. !(== 1.0 1) answers False, so that
 #   is a different atom, the same failure as rounding a wide integer.
 #
-# The server is a reference implementation under bindings/python/examples/ rather
+# The server is a reference implementation under extensions/python/examples/ rather
 # than one of the two shipped codecs, so these are recorded here rather than
 # patched. Shrink this list, never grow it.
 KNOWN_DIVERGENCES = {

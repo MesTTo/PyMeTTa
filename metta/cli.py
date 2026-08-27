@@ -80,7 +80,7 @@ def main(argv=None):
             command.append("mork")
     else:
         # Current runtimes discover every built native backend themselves.
-        command.append("backends")
+        command.append("extensions")
 
     try:
         # The list form and never shell=True, so nothing here is parsed by a

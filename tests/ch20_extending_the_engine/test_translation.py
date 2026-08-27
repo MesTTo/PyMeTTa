@@ -247,7 +247,7 @@ def test_a_prelude_derived_form_matches_its_fused_twin_on_the_corpus(repo_root):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     import sys
 
-    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "extensions" / "python" / "tools"))
     import example_parity
 
     compared = 0

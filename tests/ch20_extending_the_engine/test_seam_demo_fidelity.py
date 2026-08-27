@@ -19,7 +19,7 @@ from pathlib import Path
 
 DEMO = (
     Path(__file__).resolve().parents[4]
-    / "bindings" / "python" / "examples" / "integration" / "sqlite_space.py"
+    / "extensions" / "python" / "examples" / "integration" / "sqlite_space.py"
 )
 
 

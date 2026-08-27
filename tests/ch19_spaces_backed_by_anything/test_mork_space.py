@@ -20,7 +20,7 @@ from metta.errors import EngineError
 
 _MORKLIB = (
     Path(__file__).resolve().parents[4]
-    / "backends"
+    / "extensions"
     / "mork"
     / "mork_ffi"
     / "target"

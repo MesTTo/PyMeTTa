@@ -628,7 +628,7 @@ class _LoopCrossings(ast.NodeVisitor):
             self._emit(node, operation)
         if (
             isinstance(node.func, ast.Name)
-            # policy-inventory-exempt: mechanism-internal; reason=map and filter are the two eager Python builtins that repeatedly invoke their first argument while consuming the iterable; evidence=bindings/python/metta/_lint_events.py:_LoopCrossings.visit_Call
+            # policy-inventory-exempt: mechanism-internal; reason=map and filter are the two eager Python builtins that repeatedly invoke their first argument while consuming the iterable; evidence=extensions/python/metta/_lint_events.py:_LoopCrossings.visit_Call
             and node.func.id in {"map", "filter"}
             and node.args
             and (operation := self._operation(node.args[0])) is not None

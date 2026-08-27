@@ -3,7 +3,7 @@
 Guarantees:
   - all fifteen assigned design rows map to nine warning kinds plus one named
     suppression intent, and every warning has a positive and allowed-control
-    test [tested: bindings/python/tests/ch14_seeing_your_program/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
+    test [tested: extensions/python/tests/ch14_seeing_your_program/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - lint evidence and suppression intent remain queryable in ``&metta`` until
     the owning space is cleared [tested:
     test_lint_evidence_and_intent_follow_space_clear; commit=acb40f1912f131ae088083d1af29b4b283019bea]

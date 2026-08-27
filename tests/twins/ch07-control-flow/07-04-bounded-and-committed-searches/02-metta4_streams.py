@@ -24,7 +24,7 @@ table puts collection work in Python.
 That last fold adds Python numbers, not atoms, so it reads the answers'
 carried scalars: `+` over a grounded atom STAGES `(+ ...)` rather than
 computing it, which is what makes `G(1) + 2` a term everywhere else in this
-corpus [source: bindings/python/metta/_atoms_core.py, Grounded.value;
+corpus [source: extensions/python/metta/_atoms_core.py, Grounded.value;
 re-measured 2026-08-24: `sum(m.fn.gen())` builds `(+ (+ (+ 0 1) 2) 3)`;
 commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
 
@@ -136,11 +136,11 @@ def twin(m):
 #: relational-candidate rows of 6917bef7, and the open-tail head-index
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 11800 to 11820 (+20), on the composed
 #: async-scheduler tree: a live operation call pays the six-inference
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 11820

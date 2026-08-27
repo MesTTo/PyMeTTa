@@ -2,7 +2,7 @@
     name, reading an attribute, building a container and calling a callable are
     each ONE crossing instead of a conversation.
 Assumes:
-  - janus is importing this module by name after bindings/python/bridge.pl adds this directory to
+  - janus is importing this module by name after extensions/python/bridge.pl adds this directory to
     sys.path with py_add_lib_dir/1, so it must not import anything from the
     `metta` package: the engine runs with janus alone and the package need not
     be installed [tested: examples/ch11-python-as-a-notation/04-py_surface.metta under run.sh]
@@ -15,7 +15,7 @@ Guarantees:
     eagerly [tested: test_a_python_tuple_answers_the_same_through_both_doors;
     commit=89374a7ed8eec75e26ea595f2c6e55665f80d6fc]
   - every function here returns the OBJECT, never a converted copy, so the
-    caller decides what crosses; bindings/python/bridge.pl asks janus for py_object(true)
+    caller decides what crosses; extensions/python/bridge.pl asks janus for py_object(true)
   - numeric_operation() uses Python's operator protocol and an object's array
     namespace for math functions, retaining reflected dispatch and library
     result types [tested: test_numpy_numeric_family_keeps_python_result_types

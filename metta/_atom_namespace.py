@@ -24,7 +24,7 @@ Guarantees:
     commit=8ec44dec3cafba5981e7cf712749cca0e1bdcc45]
   - hot attribute spellings reuse a separate bounded cache, so the name map
     stays within the established term-building budget [measured: 659673847
-    instructions; date=2026-08-23; command=cd bindings/python && ../../../../.venv-pypetta/bin/python -m benchmarks.check_instructions term-operators; fixture=20000 term-operators terms; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
+    instructions; date=2026-08-23; command=cd extensions/python && ../../../../.venv-pypetta/bin/python -m benchmarks.check_instructions term-operators; fixture=20000 term-operators terms; commit=6b77b811c44e1819ed9cd99f3809c0667f289e2e]
   - generated Symbol mentions can carry inert per-instance documentation while
     retaining Symbol equality and hashing [tested: test_generated_fn_help_is_offline;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

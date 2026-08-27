@@ -171,7 +171,7 @@ def twin(m):
 #: whether it may issue a second query. That guard is what keeps effectful
 #: relational generators single-pass, and this pure define-and-call twin pays
 #: the classification once during its answer comparison [measured: 2840
-#: inferences; command=python bindings/python/tools/twin_coverage.py --measure
+#: inferences; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=minimum of three serial
 #: runs; commit=6917bef7ca902671999eafcae3a7a86db8f69723].
 #: RE-PINNED 2026-08-26, on the integration merge of both parents above:
@@ -187,7 +187,7 @@ def twin(m):
 #: services and catalog rows changed the compiled QLF layout. The ordinary
 #: identity workload does no carrier work and its one claim still agrees
 #: [measured: 2846 inferences; command=python
-#: bindings/python/tools/twin_coverage.py examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: extensions/python/tools/twin_coverage.py examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=one full-lane identity twin; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 #: RE-PINNED 2026-08-26, on the under-algebra integration merge: the merged
 #: tree measures 2861 (the parents above read 2830 and 2846 alone), the
@@ -215,7 +215,7 @@ def twin(m):
 #: immutable-world, and State-fence tree. The reading prices the combined
 #: engine source and compiled QLF layout; three fresh serial processes each
 #: read metta=2817 and twin=2880.
-#: [measured: 2880; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=three fresh serial processes under the required MeTTa venv with worktree.sh artifacts; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+#: [measured: 2880; command=python extensions/python/tools/twin_coverage.py --measure --rounds 1 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=three fresh serial processes under the required MeTTa venv with worktree.sh artifacts; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 #: RE-PINNED 2026-08-26, on the worlds integration merge: 2826 against the
 #: example's own 2801. Five landings now compose in this boot image and
 #: their layout costs do not add: the single-parent pins above read 2830,
@@ -237,7 +237,7 @@ def twin(m):
 #: has no inherited declaration and its answer remains 1, so the fixed
 #: six-inference drop is layout rather than a change in its work or result
 #: [measured: 2885 inferences; command=python
-#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=isolated p14-typed-shadowing
 #: worktree with engine/reader.so; commit=7b238053d2907cd514e3fd9a29927d43a53c5a3c].
 #: RE-PINNED 2026-08-26, 2891 to 2866 on the writable-specialization tree.
@@ -266,7 +266,7 @@ def twin(m):
 #: relational-candidate rows of 6917bef7, and the open-tail head-index
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: The parallel async-scheduler branch's own history of this pin,
 #: kept for the record; the merged value follows below:
 #: engine/reader.so; commit=c52da430787404cdcc8631bec9e913b19de899a4].
@@ -275,7 +275,7 @@ def twin(m):
 #: The base worktree reads twin=2826 while this tree reads twin=2801, each
 #: stable across three fresh processes
 #: [measured: 2801 inferences; command=python
-#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=6aa5a678 base worktree against
 #: p14-audit-async with engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 #: RE-PINNED 2026-08-26, 2801 to 2806, on the completed async-scheduler
@@ -284,7 +284,7 @@ def twin(m):
 #: program layout after the final lifecycle and exact-memo clauses landed.
 #: Three fresh serial processes agreed at 2806
 #: [measured: 2806 inferences; command=python
-#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=p14-audit-async with
 #: engine/reader.so; commit=39092863ae34184a9f955f185ff57c1ff177ec40].
 #: RE-PINNED 2026-08-26, 2825 to 2845 (+20), on the composed
@@ -292,7 +292,7 @@ def twin(m):
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 #: RE-PINNED 2026-08-26, 2845 to 2821 (-24), by the arithmetic
 #: goal-expansion guard: engine/metta.pl replaces library(arithmetic)'s
 #: unguarded system:goal_expansion clause with a catch-wrapped
@@ -332,7 +332,7 @@ def twin(m):
 #: all (2841 at 1, 2, 4, 8 and 16). The twin's definition, its assertion and the
 #: example's own 2801 are unchanged
 #: [measured: base 2841 and candidate 2846, three fresh processes each,
-#: all identical; command=python bindings/python/tools/twin_coverage.py
+#: all identical; command=python extensions/python/tools/twin_coverage.py
 #: --measure --rounds 3 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=this worktree
 #: with engine/reader.so, the C extension objects and the MORK backend loaded;
 #: commit=6da1b0dacc500fc7691a66722ba58f52ab2df081].
@@ -347,7 +347,7 @@ def twin(m):
 #: rows); the merged tree adds several such rows and lands on 2826, a value
 #: this twin has read on a merged tree before. Three fresh serial processes
 #: each read twin=2826 and metta=2800 [measured: 2826 inferences;
-#: command=python bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: command=python extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta; fixture=the p14-binding-fixes merged tree
 #: with engine/reader.so and the MORK backend loaded; commit=0c7b0516438e8b823e429747d66ad1d86754c9ff].
 #: RE-PINNED 2026-08-27, 2826 to 2831, by ONE new kind/2 declaration row,
@@ -359,7 +359,7 @@ def twin(m):
 #: 2826 with the row deleted and the tree otherwise identical, and 2831 again
 #: with three inert facts planted beside the new predicate in
 #: engine/metta/control.pl, so a clause that is not a scanned row costs
-#: nothing; command=python bindings/python/tools/twin_coverage.py --measure
+#: nothing; command=python extensions/python/tools/twin_coverage.py --measure
 #: --rounds 3 examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=this worktree with engine/reader.so, the C extension objects and
 #: the MORK backend loaded;

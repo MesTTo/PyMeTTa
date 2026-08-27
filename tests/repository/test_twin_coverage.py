@@ -71,8 +71,8 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[4]
-TOOL = REPO / "bindings" / "python" / "tools" / "twin_coverage.py"
-sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
+TOOL = REPO / "extensions" / "python" / "tools" / "twin_coverage.py"
+sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402
 import twin_coverage as coverage  # noqa: E402
@@ -1138,7 +1138,7 @@ def test_a_repin_appends_below_the_code_and_rewrites_the_number(tmp_path):
     # the command that produced it, and the in-progress commit spelling.
     assert (
         "[measured 2026-08-27: min-of-3 serial fresh processes; "
-        "command=python bindings/python/tools/twin_coverage.py --repin; "
+        "command=python extensions/python/tools/twin_coverage.py --repin; "
         "commit=WORKTREE]" in written
     )
     assert body[-1] == "BUDGET = 142"

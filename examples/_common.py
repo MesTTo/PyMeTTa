@@ -28,7 +28,7 @@ from pathlib import Path
 def _find_repo(start: Path) -> Path:
     """Find the repository by its Python project and engine library markers."""
     for candidate in start.resolve().parents:
-        if (candidate / "bindings" / "python" / "pyproject.toml").is_file() and (
+        if (candidate / "extensions" / "python" / "pyproject.toml").is_file() and (
             candidate / "lib"
         ).is_dir():
             return candidate
@@ -36,8 +36,8 @@ def _find_repo(start: Path) -> Path:
 
 
 REPO = _find_repo(Path(__file__))
-sys.path.insert(0, str(REPO / "bindings" / "python"))
-sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
+sys.path.insert(0, str(REPO / "extensions" / "python"))
+sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 os.environ.setdefault("METTA_PATH", str(REPO))
 
 from executable_docs import (  # noqa: E402  -- checkout paths must be installed first

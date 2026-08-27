@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
+sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402
 
@@ -238,19 +238,29 @@ def test_the_llms_builtin_claim_holds_in_a_bare_configuration(tmp_path):
     """A worktree without a backend's build product reads the truth, not red.
 
     The builtin count is the one llms.txt claim carrying a CONFIGURATION:
-    backends register builtins only where their artefact is built, and both
-    wave-10 agents lost a gate run to the bare mismatch message. The
-    backends declare their registrations as seam:extension_builtin/2 facts,
-    so when the absent artefact explains the difference exactly, the lane
-    passes with a note naming the artefact and every registration; a
-    difference the artefact does not explain stays a failing drift claim.
+    a seat resting on a build product registers its builtins only where that
+    product exists, and both wave-10 agents lost a gate run to the bare
+    mismatch message. Such a seat declares the product as needs(artefact(_))
+    and its registrations as seam:extension_builtin/2 facts, so when the
+    absent artefact explains the difference exactly, the lane passes with a
+    note naming the artefact and every registration; a difference the artefact
+    does not explain stays a failing drift claim, and a seat that rests on no
+    build product never contributes to the explanation.
     """
     from llmsdoc import _absent_artefact_diagnosis
 
-    backend = tmp_path / "backends" / "mork" / "mork_ffi"
+    seat = tmp_path / "extensions" / "mork"
+    backend = seat / "mork_ffi"
     backend.mkdir(parents=True)
+    # The seat's own control file, verbatim: the artefact need in it is what
+    # makes the seat eligible for this diagnosis at all, and the path it names
+    # is the one the note quotes.
+    (seat / "extension.pl").write_text(
+        (REPO / "extensions" / "mork" / "extension.pl").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     declarations = (
-        REPO / "backends" / "mork" / "mork_ffi" / "morkspaces.pl"
+        REPO / "extensions" / "mork" / "mork_ffi" / "morkspaces.pl"
     ).read_text(encoding="utf-8")
     (backend / "morkspaces.pl").write_text(declarations, encoding="utf-8")
     names = re.findall(
@@ -268,12 +278,30 @@ def test_the_llms_builtin_claim_holds_in_a_bare_configuration(tmp_path):
     bare = stated - len(names)
     note = _absent_artefact_diagnosis(stated, bare, root=tmp_path)
     assert note is not None
-    assert "backends/mork/mork_ffi/target/release/libmork_ffi.so" in note
+    assert "extensions/mork/mork_ffi/target/release/libmork_ffi.so" in note
     assert "missing build product, not doc drift" in note
     for name in names:
         assert name in note
     # A delta the declarations do not explain is genuine drift, not config.
     assert _absent_artefact_diagnosis(stated, bare - 1, root=tmp_path) is None
+
+    # A seat that declares builtins and rests on no build product is not an
+    # unbuilt backend, and every seat sits in one folder now: the Python seat
+    # declares seven of these facts and needs library(janus), so counting its
+    # names here would explain a real drift away with a build that does not
+    # exist. Its presence must not change the answer.
+    host = tmp_path / "extensions" / "python"
+    host.mkdir(parents=True)
+    (host / "extension.pl").write_text(
+        (REPO / "extensions" / "python" / "extension.pl").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (host / "bridge.pl").write_text(
+        (REPO / "extensions" / "python" / "bridge.pl").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    assert _absent_artefact_diagnosis(stated, bare, root=tmp_path) == note
+
     # With the artefact present the diagnosis stands aside entirely.
     artefact = backend / "target" / "release"
     artefact.mkdir(parents=True)

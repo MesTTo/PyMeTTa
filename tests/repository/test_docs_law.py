@@ -211,7 +211,7 @@ def test_guides_keep_documentation_law_explainers() -> None:
 
 def test_twin_docs_state_python_stack_engine_lco_and_answer_equality() -> None:
     """The corpus-level prose keeps the ruled operational distinction."""
-    path = _REPOSITORY / "bindings" / "python" / "tests" / "twins" / "README.md"
+    path = _REPOSITORY / "extensions" / "python" / "tests" / "twins" / "README.md"
     text = " ".join(path.read_text(encoding="utf-8").split())
     assert "`fib.py(n)` recurses on Python's stack" in text
     assert "the engine's last-call optimization (LCO)" in text
@@ -222,7 +222,7 @@ def test_twin_docs_state_python_stack_engine_lco_and_answer_equality() -> None:
 
 def test_twin_docs_state_where_the_pricing_block_lives() -> None:
     """The convention a twin author reads, and the door that keeps it true."""
-    path = _REPOSITORY / "bindings" / "python" / "tests" / "twins" / "README.md"
+    path = _REPOSITORY / "extensions" / "python" / "tests" / "twins" / "README.md"
     text = " ".join(path.read_text(encoding="utf-8").split())
     assert "sit at the END of the file" in text
     assert "a re-pin APPENDS one more paragraph there" in text
@@ -255,10 +255,10 @@ def test_twin_depth_divergence_is_operational_not_an_answer_difference(tmp_path)
     )
     completed = subprocess.run(
         [sys.executable, str(probe)],
-        cwd=_REPOSITORY / "bindings" / "python",
+        cwd=_REPOSITORY / "extensions" / "python",
         env={
             **os.environ,
-            "PYTHONPATH": str(_REPOSITORY / "bindings" / "python")
+            "PYTHONPATH": str(_REPOSITORY / "extensions" / "python")
             + os.pathsep
             + os.environ.get("PYTHONPATH", ""),
         },

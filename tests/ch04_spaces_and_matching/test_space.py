@@ -1089,7 +1089,7 @@ def test_a_source_registers_every_signature_before_any_form_runs(metta):
     before processing any of its forms, so a `!` may name a function the same
     source defines lower down [source: engine/filereader.pl
     register_parsed_signatures/1]. run() and load() reach the engine through
-    bindings/python/metta/shim.pl rather than through that reader, and until this they
+    extensions/python/metta/shim.pl rather than through that reader, and until this they
     skipped the pass: seven shipped examples passed in the engine and failed
     here with `Domain error: function_symbol expected` [measured 2026-08-18].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose

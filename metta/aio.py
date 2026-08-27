@@ -1225,7 +1225,7 @@ class AsyncMeTTa:
         *,
         effect: EffectClass | str,
         name: str | None = None,
-        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
+        # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
         transport: Literal["encoded", "raw"] = "encoded",
         declarations: Iterable[Atom] = (),
         arities: list[int] | None = None,

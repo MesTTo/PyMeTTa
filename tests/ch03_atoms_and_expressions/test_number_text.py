@@ -162,8 +162,12 @@ def test_non_finite_floats_print_the_arbiters_spellings(repo_root, tmp_path):
         encoding="utf-8",
     )
     done = subprocess.run(
+        # `extensions` because the NaN answer arrives through py-atom, and the
+        # Python seat's bridge loads only where the token asks the engine to
+        # read the control files. A tokenless boot is the pure kernel and
+        # answers the unreduced form.
         ["swipl", "-q", "-s", str(repo_root / "engine" / "main.pl"),
-         "--", "silent", str(program)],
+         "--", "silent", "extensions", str(program)],
         capture_output=True,
         text=True,
         timeout=280,

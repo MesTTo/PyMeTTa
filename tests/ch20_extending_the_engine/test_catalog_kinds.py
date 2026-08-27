@@ -115,7 +115,7 @@ def test_the_vocabulary_module_is_generated(repo_root):
     authority: the checked-in module has to equal what the engine's own
     (vocabulary ...) rows produce.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "extensions" / "python" / "tools"))
     try:
         import vocabgen
     finally:
@@ -124,7 +124,7 @@ def test_the_vocabulary_module_is_generated(repo_root):
 
 
 def test_generated_alias_preserves_declared_camel_case(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "extensions" / "python" / "tools"))
     try:
         import vocabgen
     finally:
@@ -180,7 +180,7 @@ def test_a_keyword_value_takes_a_trailing_underscore(repo_root):
 
     assert RouteKey.global_.value == "global"
     assert "global" in RouteKey
-    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "extensions" / "python" / "tools"))
     try:
         import vocabgen
     finally:
@@ -198,7 +198,7 @@ def test_the_ledger_rename_names_on_error(repo_root):
     assert OnError.__name__ == "OnError"
     assert list(OnError) == ["keep", "empty", "abort"]
     assert AnswerPolicy.best_first.value == "best-first"
-    sys.path.insert(0, str(repo_root / "bindings" / "python" / "tools"))
+    sys.path.insert(0, str(repo_root / "extensions" / "python" / "tools"))
     try:
         import vocabgen
     finally:

@@ -5,7 +5,7 @@ Assumes:
     integration; these tests use neither a duplicate nor a compatibility copy.
 Guarantees:
   - each numbered R5 item has a direct behavioral regression [tested:
-    python -m pytest bindings/python/tests/ch11_python_as_a_notation/test_r5_unbuilt_doors.py -q;
+    python -m pytest extensions/python/tests/ch11_python_as_a_notation/test_r5_unbuilt_doors.py -q;
     commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the package coordination family exposes future spaces, races, timers,
     channels, parallel maps, and quiet-gap watch timeouts [tested:

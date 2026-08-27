@@ -479,7 +479,7 @@ print(eager.inferences, lazy.inferences)
     completed = subprocess.run(
         [sys.executable, "-c", script],
         cwd=repo,
-        env=os.environ | {"PYTHONPATH": str(repo / "bindings/python")},
+        env=os.environ | {"PYTHONPATH": str(repo / "extensions/python")},
         capture_output=True,
         text=True,
         check=False,

@@ -24,7 +24,7 @@ Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]
   - four-argument unify is called directly at expression position and lowers
-    from a compiled body [tested: bindings/python/tools/twin_coverage.py
+    from a compiled body [tested: extensions/python/tools/twin_coverage.py
     examples/ch04-spaces-and-matching/04-02-patterns-and-bindings/07-unify.metta; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
 Open Obligations:
   To Do: None
@@ -147,7 +147,7 @@ def twin(m):
 #: function body, and mirrors both effectful branch definitions as matchable
 #: equations; those required engine crossings replace the old term-only calls
 #: [measured: 13701 inferences; command=python
-#: bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
 #: examples/ch04-spaces-and-matching/04-02-patterns-and-bindings/07-unify.metta; fixture=minimum of three serial runs;
 #: commit=6917bef7ca902671999eafcae3a7a86db8f69723].
 #: RE-PINNED 2026-08-26, 13701 to 13897 (+196), by the open-tail-index
@@ -159,11 +159,11 @@ def twin(m):
 #: relational-candidate rows of 6917bef7, and the open-tail head-index
 #: and deprecation apply-seam fixes recovering their shares; the
 #: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 13897 to 13917 (+20), on the composed
 #: async-scheduler tree: a live operation call pays the six-inference
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 13917

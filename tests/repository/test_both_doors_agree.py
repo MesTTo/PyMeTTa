@@ -4,9 +4,9 @@ lane proves the 200 shipped examples agree, which is the outcome; neither of
 these two mechanisms is named by a test of its own, so a regression in either
 would show up only as a corpus example changing its mind.
 Assumes:
-    - bindings/python/tools/example_parity.py owns running one file through both
+    - extensions/python/tools/example_parity.py owns running one file through both
       doors, so this does not spawn its own subprocesses
-      [source: bindings/python/tools/example_parity.py, run_engine/2 and run_library/2]
+      [source: extensions/python/tools/example_parity.py, run_engine/2 and run_library/2]
 Guarantees:
     - each test fails if its mechanism regresses, shown by construction: the
       first writes the exact shape that used to fail through the library and
@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
+sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402
 import pytest  # noqa: E402
@@ -41,7 +41,7 @@ def door_fixture():
     written = []
 
     def write(name, text):
-        path = REPO / "bindings" / "python" / "tests" / "fixtures" / f"{name}.metta"
+        path = REPO / "extensions" / "python" / "tests" / "fixtures" / f"{name}.metta"
         path.write_text(text)
         written.append(path)
         return path

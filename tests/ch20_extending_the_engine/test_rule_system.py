@@ -156,7 +156,7 @@ def test_overriding_a_protected_name_is_refused_with_the_name(repo_root, tmp_pat
             "-q",
             "--on-error=status",
             "-g",
-            "set_prolog_flag(argv, [backends]), consult('../../engine/metta.pl'), "
+            "set_prolog_flag(argv, [extensions]), consult('../../engine/metta.pl'), "
             "'add-translator-rule!'(once, _), "
             "forall(translator_rule_override(N, K), format('OVERRIDE ~w ~w~n', [N, K])), "
             "catch('add-translator-rule!'(collapse, _), "
@@ -215,7 +215,7 @@ def test_a_translator_rule_declares_its_direction_and_a_bidirectional_rule_is_on
             "-q",
             "--on-error=status",
             "-g",
-            "set_prolog_flag(argv, [backends]), consult('../../engine/metta.pl'), "
+            "set_prolog_flag(argv, [extensions]), consult('../../engine/metta.pl'), "
             "metta_host_set_silent(true), "
             f"load_metta_file('{planted}', _), "
             "forall(member(N, [unpack, twin]), "

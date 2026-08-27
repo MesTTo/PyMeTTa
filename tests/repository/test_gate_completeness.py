@@ -9,7 +9,7 @@ Assumes:
     - the repository root is two directories above this file, the same way
       test_example_parity.py derives it
     - `m.disassemble/1` answers the Prolog text a MeTTa equation compiled
-      to [source: bindings/python/metta/space.py:MeTTa.disassemble;
+      to [source: extensions/python/metta/space.py:MeTTa.disassemble;
       commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
     - each test fails if its outcome is reverted, which is what makes it
@@ -44,7 +44,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[4]
-PYTHON_ROOT = REPO / "bindings" / "python"
+PYTHON_ROOT = REPO / "extensions" / "python"
 RUFF_CONFIGS = (REPO / "pyproject.toml", PYTHON_ROOT / "pyproject.toml")
 RUFF_SCOPE = ("metta", "tests", "bench.py")
 REQUIRED_RUFF_FAMILIES = frozenset({"FBT", "N", "A", "D", "ARG", "PERF", "C90", "TRY", "EM"})

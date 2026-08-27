@@ -110,7 +110,7 @@ ENTRY_POINT_GROUP = "metta.integrations"
 #: metta.spaces, or the directory of MeTTa/Prolog sources it ships under
 #: metta.libraries, and the app loads by NAME. Nothing auto-registers on
 #: import; discovery answers names, and registration stays the app's
-#: explicit call, which is the control the engine's backends/*.pl door
+#: explicit call, which is the control the engine's extensions/*.pl door
 #: keeps on its side of the seam.
 SPACES_GROUP = "metta.spaces"
 LIBRARIES_GROUP = "metta.libraries"
@@ -349,7 +349,7 @@ def _register_module_callable(
     name: str,
     *,
     effect: EffectClass | str,
-    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"],
 ) -> None:
     if _spreads_positional_calls(target):
@@ -372,7 +372,7 @@ def module_ops(
     effect: EffectClass | str,
     prefix: str | None = None,
     rename: dict[str, str] | None = None,
-    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=bindings/python/metta/ops.py:_operation_kind
+    # policy-inventory-exempt: mechanism-internal; reason=encoded and raw are the registration transport's two wire-crossing modes, decoded once into the (op ...) kind; evidence=extensions/python/metta/ops.py:_operation_kind
     transport: Literal["encoded", "raw"] = "raw",
 ) -> list[str]:
     """Selected callables of any module as MeTTa functions, in one call.

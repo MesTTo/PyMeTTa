@@ -130,13 +130,13 @@ RUNG = (
 #: move generators pay it on every yielded move. Measured at the exact
 #: pair: 32,666,762 at a58e3d17 and 116,491,178 at 6917bef7. The answers
 #: are unchanged; ai-brief-p14-relational-ops-fastpath carries the
-#: ground-direction fast path [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: ground-direction fast path [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 124314210 to 124314232 (+22), on the composed
 #: async-scheduler tree: a live operation call pays the six-inference
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 #: RE-PINNED 2026-08-26, 124314232 to 124312733 (-1499), by the
 #: specializer argument-walk fix. Planning a specialization grafts a call argument onto the
 #: equation's head pattern one position at a time, and that walk
@@ -144,7 +144,7 @@ RUNG = (
 #: '>>'/4's one-time resolution wherever its first binding plan landed
 #: and 13 further inferences at every later position. The walk is
 #: first-order now, at 4.0 inferences per position against 17.0.
-#: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
+#: [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python extensions/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 #: RE-PINNED 2026-08-26, 124314232 to 50679104 (-73635128, -59.2%). This twin's
 #: `len(...)` asks an effect-bearing goal for a cardinality, which 6917bef7
 #: answered by evaluating once through the cursor and encoding every one of
@@ -154,7 +154,7 @@ RUNG = (
 #: residue over the pre-6917bef7 46,782,015 is the held bag: about 3
 #: inferences per answer for the boundary walk and the findall, which is what
 #: keeps `list()` correct
-#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
+#: [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 #: RE-PINNED 2026-08-26, at the relational-counting merge: 50677615.
 #: Both parents re-pinned this budget and neither number survives the
 #: merge, so it is re-measured here rather than resolved to a side.
@@ -163,7 +163,7 @@ RUNG = (
 #: the counting branch read 50679104 against its own base, and the
 #: merged tree reads 50677615
 #: [measured: min-of-3 serial fresh processes on the resolved merge
-#: tree; command=python bindings/python/tools/twin_coverage.py
+#: tree; command=python extensions/python/tools/twin_coverage.py
 #: --measure --rounds 3 ../../examples/<this example>;
 #: fixture=engine/reader.so and the MORK artefact present;
 #: commit=58d0332489da668251edcd52ccc5cb42ba2e57bb].

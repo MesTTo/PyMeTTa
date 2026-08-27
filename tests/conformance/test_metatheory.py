@@ -429,8 +429,8 @@ COVERAGE = {
     "tests/prolog/translator_confluence.pl": {"REWRITING", "NARROWING"},
     "tests/prolog/README.md": {"REWRITING", "NARROWING"},
     "tests/conformance/critical_pairs_run.pl": {"REWRITING"},
-    "bindings/python/tests/conformance/test_critical_pair_oracle.py": {"REWRITING"},
-    "bindings/python/tests/conformance/test_metatheory.py": {"REWRITING", "NARROWING"},
+    "extensions/python/tests/conformance/test_critical_pair_oracle.py": {"REWRITING"},
+    "extensions/python/tests/conformance/test_metatheory.py": {"REWRITING", "NARROWING"},
 }
 
 _MACHINERY = ("engine/trs.pl", "engine/narrowing.pl")
@@ -470,7 +470,7 @@ def test_each_narrowing_citation_in_the_plan_states_which_it_covers(repo_root):
     walked = [
         path
         for pattern in ("engine/*.pl", "tests/**/*.pl", "tests/**/*.plt",
-                        "tests/**/*.md", "bindings/python/tests/*/test_*.py")
+                        "tests/**/*.md", "extensions/python/tests/*/test_*.py")
         for path in repo_root.glob(pattern)
     ]
     assert len(walked) > 100, len(walked)

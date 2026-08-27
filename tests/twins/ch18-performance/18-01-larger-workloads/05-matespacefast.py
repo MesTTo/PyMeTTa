@@ -102,13 +102,13 @@ def twin(m):
 #: move generators pay it on every yielded move. Measured at the exact
 #: pair: 32,666,762 at a58e3d17 and 116,491,178 at 6917bef7. The answers
 #: are unchanged; ai-brief-p14-relational-ops-fastpath carries the
-#: ground-direction fast path [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: ground-direction fast path [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 #: RE-PINNED 2026-08-26, 324566150 to 324566172 (+22), on the composed
 #: async-scheduler tree: a live operation call pays the six-inference
 #: admission probe the baseline's p14_async_scheduler_comment prices,
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 #: RE-PINNED 2026-08-26, 324566172 to 74483636 (-250082536, -77.1%), the
 #: largest of the family because it is the answer-heaviest: `len(...)` on an
 #: effect-bearing goal had to encode and cross all 1,572,862 answers to reach
@@ -116,5 +116,5 @@ def twin(m):
 #: holds its answers unencoded in the engine. Crossing an answer costs
 #: 9.1 + 8.0 per term node in engine inferences, measured over a depth sweep,
 #: and that whole product is what a discarded length used to pay
-#: [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
+#: [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-relational-fastpath off 694c12f7 with engine/reader.so and the MORK artefact; commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2].
 BUDGET = 74483636

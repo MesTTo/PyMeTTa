@@ -240,7 +240,7 @@ def _resolve_metta_path() -> str:
     bundled = _bundled_runtime()
     if bundled is not None:
         return bundled
-    # metta/_engine.py -> metta -> python -> bindings -> the checkout root.
+    # metta/_engine.py -> metta -> python -> extensions -> the checkout root.
     return str(Path(__file__).resolve().parents[3])
 
 
@@ -393,21 +393,21 @@ class Runtime:
     # ------------------------------------------------------------------ startup
 
     def _consult_engine(self, metta_path: str, stack_limit: int) -> JanusBridge:
-        """Stack limit, native backends, main.pl.
+        """Stack limit, the seats, main.pl.
 
-        `backends` asks the engine to load every native backend that is built.
-        This names none of them: which backends exist is backends/*.pl and
-        whether one is usable is that backend's own business. It used to test
-        for MORK's shared library here and pass `mork`, which put a backend's
-        build path in the embedding host.
+        `extensions` asks the engine to read every seat's control file and load
+        what each declares. This names none of them: which seats exist is
+        extensions/*/extension.pl and whether one is usable is that seat's own
+        declaration. It used to test for MORK's shared library here and pass
+        `mork`, which put a backend's build path in the embedding host.
         """
         logger.debug("consulting the MeTTa engine from %s", metta_path)
         root = Path(metta_path)
         janus = cast(JanusBridge, importlib.import_module("janus_swi"))
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
-        janus.query_once("set_prolog_flag(argv, ['backends'])")
+        janus.query_once("set_prolog_flag(argv, ['extensions'])")
         main_file = root / "engine" / "main.pl"
-        helper_file = root / "bindings" / "python" / "helper.pl"
+        helper_file = root / "extensions" / "python" / "helper.pl"
         if not main_file.is_file():
             msg = (
                 f"MeTTa runtime not found under {metta_path!r} (expected "

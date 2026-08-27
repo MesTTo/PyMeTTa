@@ -29,7 +29,7 @@ Decides:
   - ``BASELINE_*`` and ``FINAL_*`` are the published surface metrics
     [measured: 90 to 20 MeTTa names and 152 to 98 metta names after the
     module-tier family, package rename, and algebra-carrier promotion;
-    command=python -m pytest bindings/python/tests/ch01_getting_started/test_m7_narrow_core.py -q;
+    command=python -m pytest extensions/python/tests/ch01_getting_started/test_m7_narrow_core.py -q;
     fixture=a142938d baseline and the current generated root; commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa]
 Open Obligations:
   To Do: None
@@ -378,7 +378,7 @@ def test_m7_narrow_core_surface():
 def test_m7_satellites_are_lazy_and_identity_stable():
     """Check laziness and both real-module identity orders in fresh processes."""
     root = Path(__file__).resolve().parents[4]
-    environment = os.environ | {"PYTHONPATH": str(root / "bindings" / "python")}
+    environment = os.environ | {"PYTHONPATH": str(root / "extensions" / "python")}
     names = repr(sorted(SATELLITES))
     scripts = [
         f"""
@@ -450,7 +450,7 @@ def test_m7_unknown_attribute_has_normal_module_error():
 def test_retired_root_names_are_absent_in_a_fresh_process():
     """The retired root doors stay absent on a plain import, not only under pytest."""
     root = Path(__file__).resolve().parents[4]
-    environment = os.environ | {"PYTHONPATH": str(root / "bindings" / "python")}
+    environment = os.environ | {"PYTHONPATH": str(root / "extensions" / "python")}
     subprocess.run(
         [
             sys.executable,

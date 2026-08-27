@@ -457,7 +457,7 @@ metta_py_decode_(h, [Id|_], Blob) :-
 %something instead: ["s",1] to the symbol '1', ["g",1] to "1", ["n","1/3"]
 %to a string wearing the number tag, ["v",1] to a fresh variable, and
 %["b",<anything>] to FALSE, which is the one that answers rather than fails
-%[measured 2026-08-20, both spellings, against bindings/python/metta/_atom_wire.py,
+%[measured 2026-08-20, both spellings, against extensions/python/metta/_atom_wire.py,
 %which refuses all six]. A wire term is written by an encoder, so nothing
 %conforming loses a shape here; what changes is that a boundary bug now
 %reports as one [tested: shim_wire_decoding:a_payload_outside_its_tags_class_fails].
@@ -697,7 +697,7 @@ metta_py_raise(Kind, Detail) :-
 
 metta_control_signal_info(
     error(metta_control_signal(Kind, Detail), context(metta, _)), Kind, Detail) :-
-    % policy-inventory-exempt: mechanism-internal; reason=these are the reserved control-envelope classifier tags shared with the Python exception bridge; evidence=bindings/python/metta/shim.pl:metta_control_signal_info/3
+    % policy-inventory-exempt: mechanism-internal; reason=these are the reserved control-envelope classifier tags shared with the Python exception bridge; evidence=extensions/python/metta/shim.pl:metta_control_signal_info/3
     memberchk(Kind, [syntax, time_limit, inference_limit, interrupted,
                      value, type]).
 
@@ -945,7 +945,7 @@ metta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
 %engine_create defers execution until the first pull. Ordered carriers collect
 %and stably sort in the engine; Answers slicing then reads a genuine best
 %prefix rather than sorting a Python materialisation [tested:
-%bindings/python/tests/ch06_many_answers/test_under_algebra.py;
+%extensions/python/tests/ch06_many_answers/test_under_algebra.py;
 %commit=c7468b2789746bcf95c4bacc0e2d517ec4d972fa].
 metta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
                            Limit, Inf, Algebra, Direction, prolog(Engine)) :-
@@ -1607,7 +1607,7 @@ metta_py_swrite(Tagged, String) :-
 metta_py_wire_boolean_symbol([Tag, Name], Bad) :-
     metta_py_wire_tag(Tag, s),
     (   atom(Name) -> Bad = Name ; string(Name), atom_string(Bad, Name) ),
-    % policy-inventory-exempt: codec-version-identity; reason=these four spellings are how the wire encodes a boolean, so a symbol carrying one would print as text that reads back as a boolean rather than as itself; evidence=bindings/python/metta/shim.pl:metta_py_wire_boolean_symbol/2
+    % policy-inventory-exempt: codec-version-identity; reason=these four spellings are how the wire encodes a boolean, so a symbol carrying one would print as text that reads back as a boolean rather than as itself; evidence=extensions/python/metta/shim.pl:metta_py_wire_boolean_symbol/2
     memberchk(Bad, [true, false, 'True', 'False']).
 metta_py_wire_boolean_symbol([Tag, Items], Bad) :-
     metta_py_wire_tag(Tag, e),
@@ -2695,7 +2695,7 @@ metta_py_declined(TR) :- TR = [T, D], metta_py_tag(T, x), metta_py_tag(D, declin
 %empty table. Seeding it with the arguments is the whole fix, and the seed is
 %expanded on first use by metta_py_shared_table/2, so a call whose result
 %holds no variable pays nothing at all for it.
-%metta_py_failure/2 is bindings/python/bridge.pl's, and a registered operation was the one
+%metta_py_failure/2 is extensions/python/bridge.pl's, and a registered operation was the one
 %Python caller not reaching it. That is not a cosmetic gap: without it janus's
 %own error term reaches MeTTa carrying the live exception OBJECT and a live
 %TRACEBACK object, which is the defect metta_py_failure/2 was written to fix

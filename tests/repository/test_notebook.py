@@ -48,7 +48,7 @@ def _has_rows_table(notebook) -> bool:
 
 
 def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    notebook_path = repo_root / "bindings" / "python" / "notebooks" / "tour.ipynb"
+    notebook_path = repo_root / "extensions" / "python" / "notebooks" / "tour.ipynb"
     stored = json.loads(notebook_path.read_text(encoding="utf8"))
     assert _has_rows_table(stored)
 
@@ -84,7 +84,7 @@ def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # no
     assert MAGIC_SETUP in sources
     assert MAGIC_CELL in sources
 
-    python_path = str(repo_root / "bindings" / "python")
+    python_path = str(repo_root / "extensions" / "python")
     env = {
         **os.environ,
         "METTA_PATH": str(repo_root),

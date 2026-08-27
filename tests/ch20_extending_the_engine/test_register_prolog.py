@@ -380,7 +380,7 @@ import sys
 from pathlib import Path
 
 repo = Path(sys.argv[1])
-sys.path.insert(0, str(repo / "bindings" / "python"))
+sys.path.insert(0, str(repo / "extensions" / "python"))
 from metta import MeTTa
 
 m = MeTTa(metta_path=str(repo)).self

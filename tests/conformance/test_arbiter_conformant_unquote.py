@@ -5,7 +5,7 @@ answers `3` rather than `(+ 1 2)`; the pinned arbiter records BOTH systems
 evaluating, verdict `conforms`, so the proposal was retired and this test
 is what stops it coming back as a plausible-looking fix.
 Assumes:
-    - bindings/python/tools/example_parity.py runs a source file through the engine
+    - extensions/python/tools/example_parity.py runs a source file through the engine
       door, which is where library imports into &self are isolated in a
       subprocess rather than shared with the suite's session engine
 Open Obligations:
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
+sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402
 
@@ -29,7 +29,7 @@ def test_unquote_evaluates_as_the_arbiter_records():
     """`(unquote (quote (+ 1 2)))` answers 3. Removing the eval would make
     this answer `(+ 1 2)` and the assertion here would name the change.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    source = REPO / "bindings" / "python" / "tests" / "fixtures" / "unquote_conformance.metta"
+    source = REPO / "extensions" / "python" / "tests" / "fixtures" / "unquote_conformance.metta"
     source.write_text(
         "!(import! &self (library lib_he))\n"
         "!(unquote (quote (+ 1 2)))\n"

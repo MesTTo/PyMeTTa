@@ -3,7 +3,7 @@
 Assumes:
   - ``metta._space.MeTTa`` owns runtime context and ``metta._space.Space``
     owns storage and query verbs [source:
-    bindings/python/metta/_space.py:306 and :3090; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    extensions/python/metta/_space.py:306 and :3090; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - the R5 root exports the term builders, relational solve, and lazy State
     handle while ``record`` and atom-specialist ``order_key`` stay absent
@@ -214,7 +214,7 @@ def __getattr__(name: str) -> _Any:
         module_name, attribute = _LAZY_ATTRIBUTES[name]
         module = _importlib.import_module(f".{module_name}", __name__)
         value = getattr(module, attribute)
-    # policy-inventory-exempt: mechanism-internal; reason=one handle's two documented module-attribute names for the &metta space, not a vocabulary a program selects from; evidence=bindings/python/metta/__init__.py:__getattr__
+    # policy-inventory-exempt: mechanism-internal; reason=one handle's two documented module-attribute names for the &metta space, not a vocabulary a program selects from; evidence=extensions/python/metta/__init__.py:__getattr__
     elif name in {"catalog", "reflection"}:
         value = engine().space("&metta")
     else:

@@ -3,14 +3,14 @@ second consumer rather than one.
 
 The golden corpus at tests/codec/corpus.json is the grammar's authority, and
 the binding is driven through the kit's own CodecDriver. Beside it,
-bindings/node/kit/corpus.json records cases and never answers, because the
+extensions/node/kit/corpus.json records cases and never answers, because the
 shipped Python host supplies those here in the same moment: that half compares
 two LIVE hosts, where the kit compares one host against a written-down
 grammar, and a codec can satisfy the grammar while disagreeing with the engine
 beside it.
 
 Assumes:
-  - node and bindings/node/node_modules/swipl-wasm are present, the same
+  - node and extensions/node/node_modules/swipl-wasm are present, the same
     optional-toolchain shape test_typescript_space.py already has
 Guarantees:
   - the Node binding answers the golden corpus with no complaints, over
@@ -51,10 +51,10 @@ import pytest
 import metta
 from metta import wire
 
-_BINDING = Path(__file__).resolve().parents[4] / "bindings" / "node"
+_BINDING = Path(__file__).resolve().parents[4] / "extensions" / "node"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
 
-# What the WebAssembly build refuses at boot, as bindings/node/src/engine.ts
+# What the WebAssembly build refuses at boot, as extensions/node/src/engine.ts
 # names it. Restated here so the two have to agree: a refusal that appears in one
 # and not the other is a capability that moved without anyone saying so.
 # What the WebAssembly build does without, as the ENGINE names it. This was a
@@ -163,7 +163,7 @@ def _comparable_transport(transport: list) -> list:
 # --------------------------------------------------------------- the kit driver
 #
 # The codec kit drives an implementation through one object each, the same way
-# bindings/python/tests/ch21_another_language_at_the_seam/test_codec_typescript.py
+# extensions/python/tests/ch21_another_language_at_the_seam/test_codec_typescript.py
 # drives the reference store. This is that object for the Node binding, and it
 # runs every leg rather than the store's two: a whole binding reads MeTTa
 # source, prints through the engine's own writer, and runs programs.
@@ -301,14 +301,14 @@ def _need_node() -> None:
     if shutil.which("node") is None:
         pytest.skip("node is not installed")
     if not (_BINDING / "node_modules" / "swipl-wasm").is_dir():
-        pytest.skip("run npm ci in bindings/node to fetch swipl-wasm")
+        pytest.skip("run npm ci in extensions/node to fetch swipl-wasm")
     if not (_BINDING / "build" / "kit" / "run.js").is_file():
         # The binding is TypeScript, and this lane runs its BUILD rather than
         # its sources: a distro Node may be compiled without type stripping
         # (`node_use_amaro` false), and a lane that only ran on the official
         # build would not run here at all. `npm ci` builds through the package's
         # own prepare script, so this note is the same shape as the one above.
-        pytest.skip("run npm ci in bindings/node to build its TypeScript")
+        pytest.skip("run npm ci in extensions/node to build its TypeScript")
 
 
 @pytest.fixture(scope="module")

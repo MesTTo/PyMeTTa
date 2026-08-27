@@ -7,11 +7,11 @@ Guarantees:
   - atom/plain ordering and comparison-term truthiness refuse with structured
     Python-reference grounds; chained comparisons name the explicit conjunction
     remedy [tested:
-    bindings/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py;
+    extensions/python/tests/ch10_errors_and_refusals/test_refusal_grounds.py;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - Grounded preserves every non-primitive Python value by identity; only
     exact bool, int, float and str values use native wire terms [tested:
-    bindings/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
+    extensions/python/tests/ch03_atoms_and_expressions/test_identity_wire.py;
     commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
   - engine rational wire values decode to exact Fraction payloads, while a
     Python-created Fraction follows the non-primitive identity law [tested:
@@ -1342,7 +1342,7 @@ def _apply_operator_lowering(
         operands = {"$left": left, "$right": right}
     form: Any = (
         (entry.form, *operands.values())
-        # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=bindings/python/metta/_operator_lowerings.py:OperatorLowering
+        # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=extensions/python/metta/_operator_lowerings.py:OperatorLowering
         if entry.kind in {"symbol", "provided"}
         else entry.form
     )
@@ -1361,7 +1361,7 @@ def _operator_method(
     if name is None:
         msg = f"operator lowering {entry.dunder} has no reflected spelling"
         raise RuntimeError(msg)
-    # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=bindings/python/metta/_operator_lowerings.py:OperatorLowering
+    # policy-inventory-exempt: mechanism-internal; reason=symbol and provided are the two lowering-table kinds whose form is a MeTTa head to apply to the operands; evidence=extensions/python/metta/_operator_lowerings.py:OperatorLowering
     if entry.kind in {"symbol", "provided"}:
         if not isinstance(entry.form, str):
             msg = f"operator lowering {entry.dunder} has no symbol"

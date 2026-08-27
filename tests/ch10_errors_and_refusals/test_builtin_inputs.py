@@ -103,7 +103,7 @@ print(json.dumps(report))
 def report():
     """Run the generated probe on a freshly booted engine and read it back."""
     finished = subprocess.run(
-        [sys.executable, "-c", _PROBE, str(REPO / "bindings" / "python")],
+        [sys.executable, "-c", _PROBE, str(REPO / "extensions" / "python")],
         capture_output=True,
         text=True,
         timeout=300,
