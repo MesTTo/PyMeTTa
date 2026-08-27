@@ -75,7 +75,7 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "WORKTREE"
+        "commit": "a9663314a626d6227ef948658b5de769992c0afa"
       },
       "counter": "inferences",
       "expected_class": "linear",

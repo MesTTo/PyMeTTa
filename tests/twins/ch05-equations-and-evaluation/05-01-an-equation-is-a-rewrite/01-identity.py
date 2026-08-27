@@ -391,5 +391,5 @@ def twin(m):
 #: change and METTA_C_WRITER=off, 2831 pristine with one inert fact planted;
 #: command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
 #: fixture=this worktree with engine/reader.so, engine/writer.so and the MORK
-#: backend loaded; commit=WORKTREE]. metta=2800, unchanged.
+#: backend loaded; commit=a9663314a626d6227ef948658b5de769992c0afa]. metta=2800, unchanged.
 BUDGET = 2831
