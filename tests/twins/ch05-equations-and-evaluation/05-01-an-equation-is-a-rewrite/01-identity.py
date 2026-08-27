@@ -398,5 +398,5 @@ def twin(m):
 #: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
 #: fixture=this worktree with engine/reader.so and the MORK backend loaded,
 #: against a pristine archive of the parent commit with the same artifacts;
-#: commit=WORKTREE]. metta=2800, unchanged.
+#: commit=402d8126d3ce32e9035ce0709822297b012721df]. metta=2800, unchanged.
 BUDGET = 2836
