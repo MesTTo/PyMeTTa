@@ -326,7 +326,21 @@ Guarantees:
 #: --measure --rounds 3 examples/basics/identity.metta; fixture=this worktree
 #: with engine/reader.so, the C extension objects and the MORK backend loaded;
 #: commit=6da1b0dacc500fc7691a66722ba58f52ab2df081].
-BUDGET = 2846
+#: RE-PINNED 2026-08-27, 2846 to 2826, on the binding-fixes integration merge
+#: of four branches (engine diagnostics, platform capabilities, the cursor
+#: inference budget, the codec species tag). The twin's own work is unchanged
+#: and its answer is still 1; the movement is the compiled engine image again,
+#: and it is DOWNWARD, which is why the two-sided band caught it rather than
+#: letting it pass. The cursor-budget parent measured 2846 alone and recorded
+#: a control showing this reading tracks the NUMBER of kind/2 declaration rows
+#: non-monotonically (2841/2846/2841/2816/2816/2836 for 0/1/2/3/4/8 inert
+#: rows); the merged tree adds several such rows and lands on 2826, a value
+#: this twin has read on a merged tree before. Three fresh serial processes
+#: each read twin=2826 and metta=2800 [measured: 2826 inferences;
+#: command=python bindings/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/basics/identity.metta; fixture=the p14-binding-fixes merged tree
+#: with engine/reader.so and the MORK backend loaded; commit=WORKTREE].
+BUDGET = 2826
 def twin(m):
     """Define the square, then check it."""
     @m.define
