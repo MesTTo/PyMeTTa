@@ -61,6 +61,9 @@ Guarantees:
   - one(default=) distinguishes absence from multiplicity for both eager and
     lazy faces, while first without a default never returns None [tested:
     test_query_answers_complete_the_lazy_projection_protocol; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+  - the eager table doors refuse term answers instead of taking an answer
+    apart into columns, and both display faces render term answers as a
+    bounded list [tested test_term_answers_never_render_as_a_binding_table]
   - zip and reversed retain their lawful Sequence behavior while recording
     advisory ordering evidence for Space.lint [tested:
     test_zip_over_unordered_answers_is_lawful_and_linted,
@@ -981,8 +984,35 @@ class Answers[T](Sequence[T]):
     def __dir__(self) -> list[str]:  # noqa: D105 -- completion extends Python's standard directory
         return sorted(set(super().__dir__()) | set(self._columns))
 
+    def _answers_are_terms(self) -> bool:
+        """Whether these answers are evaluation terms, not caller bindings.
+
+        Reads answer zero and nothing further, so the question costs one
+        pull. An empty view has nothing to look at and answers False,
+        which keeps an empty match on the table face and with it the
+        caption pointing at `why()`.
+        """
+        return self._pull(0) and not isinstance(self._cache[0], Row)
+
     def _eager_rows(self) -> Rows:
-        """Materialize this row-valued view as the eager Rows face."""
+        """Materialize this binding view as the eager Rows face.
+
+        Refuses term answers. `cast` states an element type and does
+        nothing at runtime, so an ATOM used to reach Rows and be taken
+        apart by `tuple(atom)`: over the single answer `(g $p)` to a
+        two-variable call, `to_dicts()` read `{'x': 'g', 'y': '$p'}` and
+        the notebook drew that as a table, presenting a head symbol as a
+        binding. Answers whose arity did not line up raised from inside
+        the display machinery instead.
+        """
+        if self._answers_are_terms():
+            msg = (
+                f"the table face needs caller bindings and these answers are "
+                f"terms; answer 0 is {self._cache[0]!r}. Ask .rows for the "
+                f"bindings behind each answer, or read the answers themselves "
+                f"as a sequence"
+            )
+            raise TypeError(msg)
         rows = cast(Iterable[Iterable[Any]], self)
         return Rows(self._columns, rows, _query=self._query)
 
@@ -1019,12 +1049,34 @@ class Answers[T](Sequence[T]):
         """Explain an empty query after materializing it."""
         return self._eager_rows().why()
 
+    def _display_text(self) -> str:
+        """Term answers as one line each, bounded by config.display_rows.
+
+        Pulling stops at the bound rather than measuring the view, so a
+        cell holding an unbounded answer stream still renders: a count
+        would run the source to exhaustion and a MeTTa generator need not
+        have one. The tail therefore says that more follow without
+        saying how many.
+        """
+        shown = config.display_rows
+        values: list[T] = []
+        while len(values) < shown and self._pull(len(values)):
+            values.append(self._cache[len(values)])
+        lines = [str(value) for value in values]
+        if self._pull(shown):
+            lines.append("… more answers")
+        return "\n".join(lines)
+
     def __rich__(self):
-        """Render a row-valued answer view through the eager table face."""
+        """Render binding answers as a table and term answers as a list."""
+        if self._answers_are_terms():
+            return self._display_text()
         return self._eager_rows().__rich__()
 
     def _repr_html_(self) -> str:
-        """Render a row-valued answer view as an HTML table."""
+        """Render binding answers as an HTML table and term answers as a list."""
+        if self._answers_are_terms():
+            return f"<pre>{html.escape(self._display_text())}</pre>"
         return self._eager_rows()._repr_html_()
 
     def __metta__(self) -> Atom:

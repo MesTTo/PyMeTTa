@@ -16,13 +16,14 @@ Open Obligations:
 import copy
 import importlib.util
 import io
+import itertools
 import operator
 import pickle
 
 import pytest
 
-from metta import S, V, parse, tables
-from metta.results import Rows, _row_class
+from metta import S, V, config, equation, parse, tables
+from metta.results import Answers, Rows, _row_class
 
 
 @pytest.fixture()
@@ -254,3 +255,46 @@ def test_rich_renders_rows_as_a_table(metta):  # noqa: D103  -- pytest discovers
 def test_rich_pretty_expands_an_expression_by_children():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     term = parse("(edge (a b) $x)")
     assert list(term.__rich_repr__()) == list(term.children)
+
+
+def test_term_answers_never_render_as_a_binding_table(metta):
+    """An evaluation answer is a term, and a term is not a row of bindings.
+
+    Answers._eager_rows used to `cast` its value stream to a row stream,
+    and a cast does nothing at runtime, so Rows took each ATOM apart with
+    `tuple(atom)`. The answer `(g $p)` to a two-variable call became two
+    cells under the headers x and y, presenting the head symbol g as a
+    binding of x; answers whose arity did not line up raised out of
+    Jupyter's display machinery instead.
+    """
+    pytest.importorskip("rich")
+    from rich.console import Console
+
+    with metta._new_space() as space:
+        space += equation(S.h(V.p, V.q)).to(S.g(V.p))
+        answers = space.answers(S.h(V.x, V.y))
+        assert answers.columns == ("x", "y")  # the CALL's variables
+        assert len(answers) == 1
+        assert str(answers[0]).startswith("(g ")  # ONE answer, not two cells
+
+        for door in (Answers.to_dicts, Answers.table, Answers.build):
+            with pytest.raises(TypeError, match="table face needs caller bindings"):
+                door(space.answers(S.h(V.x, V.y)))
+
+        assert space.answers(S.h(V.x, V.y))._repr_html_().startswith("<pre>(g ")
+        console = Console(file=io.StringIO(), width=80, force_terminal=False)
+        console.print(space.answers(S.h(V.x, V.y)))
+        assert console.file.getvalue().startswith("(g ")
+
+        # the binding face beside it is still a table, and so is a match
+        assert "<th>x</th>" in space.answers(S.h(V.x, V.y)).rows._repr_html_()
+        space += S.edge(S.x, S.y)
+        assert "<th>a</th>" in space.match(S.edge(V.a, V.b))._repr_html_()
+
+
+def test_a_term_answer_listing_is_bounded_without_measuring_the_view():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    endless = Answers(itertools.count())
+    page = endless._repr_html_()  # the table face would never return here
+    assert page.count("\n") == config.display_rows  # bound lines, then the tail
+    assert page.endswith("… more answers</pre>")
+    assert Answers(iter("ab"))._repr_html_() == "<pre>a\nb</pre>"
