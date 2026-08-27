@@ -1,7 +1,8 @@
 """Purpose: the reduction trace. Events nest by depth, calls precede
 their exits, exits carry answers, a failing reduction is a call with no
-exit, tracing runs the source for real, and the wrap disappears after
-the run so untraced calls record nothing.
+exit, a term and the source spelling it trace alike, tracing runs what
+it is given for real, and the wrap disappears after the run so untraced
+calls record nothing.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -37,6 +38,21 @@ def test_trace_nests_calls_and_carries_answers(m):  # noqa: D103  -- pytest disc
     assert str(exits[-1].term) == "(tr-fact 3)"
     assert exits[-1].answer == 6
     assert events[0].kind == "call"
+
+
+def test_trace_takes_the_term_every_other_door_takes(m):
+    """A TERM, the argument `answers`, `eval` and `match` all take. The
+    tracer runs source, so the term is written and prefixed with `!`; the
+    door took only text before, which made the one place you go to SEE a
+    reduction the one place you had to write the program twice.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    m.run("(= (tr-term $n) (if (== $n 0) 0 (+ $n (tr-term (- $n 1)))))")
+    from_term = m.trace(S["tr-term"](3))
+    from_source = m.trace("!(tr-term 3)")
+    assert [(e.kind, str(e.term), e.answer) for e in from_term] == [
+        (e.kind, str(e.term), e.answer) for e in from_source
+    ]
+    assert from_term[-1].answer == 6
 
 
 def test_trace_answers_the_atom_run_answers(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

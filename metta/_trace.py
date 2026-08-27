@@ -1,10 +1,14 @@
-"""Purpose: the reduction trace as Python objects. m.trace(source) runs
-source with every compiled MeTTa function wrapped engine-side, and
+"""Purpose: the reduction trace as Python objects. m.trace(term) runs
+that term with every compiled MeTTa function wrapped engine-side, and
 answers TraceEvent records: a call carries the term entering reduction
 at its nesting depth, the matching exit carries the answer, and a call
 with no exit is a reduction that failed. Tracing wraps and unwraps per
-run, so it costs nothing when off; the source executes for real, writes
-included, exactly like a run.
+run, so it costs nothing when off; what is traced executes for real,
+writes included, exactly like a run.
+Guarantees:
+  - a term and the source that spells it trace identically, so the one
+    door that shows a reduction takes the argument every other door
+    takes [tested test_trace_takes_the_term_every_other_door_takes]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -40,8 +44,24 @@ class TraceEvent:
         return f"{indent}-> {self.term}"
 
 
-def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
-    """Run source in this space under the engine's reduction trace.
+def _as_source(what: Atom | str) -> str:
+    """The trace's own argument, as the source the engine's tracer takes.
+
+    An ATOM is the ordinary spelling everywhere else on this surface,
+    `m.answers(S.fib(10))` rather than `m.answers("!(fib 10)")`, and
+    trace took only text, so the one door that shows you a reduction was
+    the one door that made you write the program twice. The tracer runs
+    SOURCE, so a term is written and prefixed with the `!` that makes it
+    a runnable form; `str(Atom)` is the writer the whole surface prints
+    through, which is why `.source()` on a definition reads back as MeTTa.
+    A string is passed through untouched, `!` included or not, so every
+    call written before this still means what it meant.
+    """
+    return what if isinstance(what, str) else f"!{what}"
+
+
+def trace(space, source: Atom | str, max_events: int = 1_000_000) -> list[TraceEvent]:
+    """Run a term, or source, in this space under the engine's reduction trace.
 
     max_events bounds the recording: past it the trace raises instead
     of accumulating without limit, the same shape as the timeout and
@@ -54,7 +74,7 @@ def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
         )
     row = space.runtime.once(
         "metta_py_trace(Src, Space, Max, Events)",
-        Src=source,
+        Src=_as_source(source),
         Space=space.name,
         Max=int(max_events),
     )
