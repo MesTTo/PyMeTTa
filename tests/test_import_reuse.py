@@ -29,7 +29,7 @@ def _format_date_clause_count(metta) -> int:
 
 def test_reused_pooled_space_reimports_complete_library(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     free_count = metta.runtime.once(
-        "aggregate_all(count, petta_py_free_space(_), N)"
+        "aggregate_all(count, metta_py_free_space(_), N)"
     )["N"]
     parked = [metta._new_space() for _ in range(free_count)]
     try:

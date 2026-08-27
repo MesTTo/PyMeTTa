@@ -179,12 +179,12 @@ def _runtime_for_name(space: str) -> Any:
 
 
 def _retain(runtime: Any, fact: Expression) -> None:
-    runtime.must("petta_py_add(Space, W)", Space=_REFLECTION_SPACE, W=fact.to_wire())
+    runtime.must("metta_py_add(Space, W)", Space=_REFLECTION_SPACE, W=fact.to_wire())
 
 
 def _release(runtime: Any, fact: Expression) -> None:
     runtime.once(
-        "petta_py_remove(Space, W, _)", Space=_REFLECTION_SPACE, W=fact.to_wire()
+        "metta_py_remove(Space, W, _)", Space=_REFLECTION_SPACE, W=fact.to_wire()
     )
 
 

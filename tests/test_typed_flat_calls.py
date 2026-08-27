@@ -112,7 +112,7 @@ def test_the_direct_goal_path_and_the_general_path_agree_on_every_corpus_call(m)
     wildcard-covered, two-argument) crossed with every plain-argument
     class the door admits (int, float, str, bool, plain symbol, declared
     symbol). The general path is reached by shape: `collapse` makes the
-    call a nested operand, which petta_py_plain_args disqualifies, so the
+    call a nested operand, which metta_py_plain_args disqualifies, so the
     same call compiles through the translator; the flat spelling is
     whatever the gate decides. Wherever the two disagree, the fast path
     answered something translation would not, which is the exact defect

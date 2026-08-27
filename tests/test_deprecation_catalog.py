@@ -77,7 +77,7 @@ def test_an_empty_deprecation_catalog_costs_one_cheap_probe(
     door compiled a fresh ``once/1`` goal string to learn the catalog was
     empty: 1,311 inferences measured on the first ``fn.parse`` call where
     the steady state is 5. With the process-wide apply-seam flag, an empty
-    catalog answers every name without a single ``petta_deprecation``
+    catalog answers every name without a single ``metta_deprecation``
     goal-string read.
     """
     from metta import _space as space_module
@@ -86,7 +86,7 @@ def test_an_empty_deprecation_catalog_costs_one_cheap_probe(
     real_once = space_module.Runtime.once
 
     def counting_once(self, goal, *args, **kwargs):
-        if "petta_deprecation(" in goal:
+        if "metta_deprecation(" in goal:
             reads.append(goal)
         return real_once(self, goal, *args, **kwargs)
 

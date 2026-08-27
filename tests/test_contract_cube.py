@@ -32,8 +32,8 @@ cube_check(Name0, Arity, Kind0, Verdict) :-
     functor(Head, Name, PredArity),
     Head =.. [Name|HeadArgs],
     append(Args, [Result], HeadArgs),
-    petta_py_op_body(Kind, Name, Args, Result, Forward),
-    petta_py_directed_body(Name, Kind, Args, Result, Forward, Expected),
+    metta_py_op_body(Kind, Name, Args, Result, Forward),
+    metta_py_directed_body(Name, Kind, Args, Result, Forward, Expected),
     space_module('&self', Base),
     (   clause(Base:Head, Actual)
     ->  (   (Head :- Actual) =@= (Head :- Expected)

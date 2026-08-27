@@ -150,7 +150,7 @@ def test_space_handles_are_term_operands_and_round_trip(  # noqa: D103  -- pytes
     decoded = wire.atom_from_wire(encoded)
     assert decoded == carried
     assert isinstance(decoded.children[1], Space)
-    assert host.runtime.apply_must("petta_py_swrite", encoded) == str(carried)
+    assert host.runtime.apply_must("metta_py_swrite", encoded) == str(carried)
 
     snapshot = tmp_path / f"space-handle.{save_format}"
     assert host.save(snapshot, format=save_format) == 1

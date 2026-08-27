@@ -8,7 +8,7 @@ Guarantees:
     [tested test_why]
   - eager query explanations distinguish a pattern miss, failed join, and
     rejecting guard [tested test_query_rows_explain_empty_results]
-  - derivation enumeration selects ``petta_py_limited/6`` when a scoped stack
+  - derivation enumeration selects ``metta_py_limited/6`` when a scoped stack
     bound exists [tested: test_stack_limit_is_carried_to_the_limited_six_seam;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 Open Obligations:
@@ -41,9 +41,9 @@ def derivations(
     _validate_depth(depth)
     seconds, steps, stack = _limits(timeout, inferences) or (-1.0, -1, -1)
     goal = (
-        "petta_py_limited(Seconds, Steps, petta_py_derivation, Ins, Tree)"
+        "metta_py_limited(Seconds, Steps, metta_py_derivation, Ins, Tree)"
         if stack < 0
-        else "petta_py_limited(Seconds, Steps, Stack, petta_py_derivation, Ins, Tree)"
+        else "metta_py_limited(Seconds, Steps, Stack, metta_py_derivation, Ins, Tree)"
     )
     inputs = {
         "Seconds": seconds,

@@ -158,7 +158,7 @@ def test_failed_equation_publication_rolls_back_its_early_declaration(
     def fail_equation(runtime, goal, *inputs):
         nonlocal target_adds
         if (
-            goal == "petta_py_add"
+            goal == "metta_py_add"
             and inputs[0] == space.name
         ):
             target_adds += 1

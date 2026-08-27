@@ -40,7 +40,7 @@ _LOCK = threading.RLock()
 _TOKENS = itertools.count(1)
 _CONTEXTS: dict[int, _Entry] = {}
 _ACTIVE: contextvars.ContextVar[int | None] = contextvars.ContextVar(
-    "petta_spawn_context_token",
+    "metta_spawn_context_token",
     default=None,
 )
 

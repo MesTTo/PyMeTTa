@@ -92,9 +92,9 @@ def query_count(
         columns,
         limit or 0,
     ]
-    predicate = "petta_py_query_count"
+    predicate = "metta_py_query_count"
     if under is not None:
-        predicate = "petta_py_query_count_under"
+        predicate = "metta_py_query_count_under"
         inputs.append(under)
     return int(_execute_query(rt, predicate, inputs, _limits(timeout, inferences)))
 

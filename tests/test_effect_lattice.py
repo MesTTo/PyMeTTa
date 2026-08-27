@@ -15,7 +15,7 @@ Guarantees:
     test_stacked_clauses_join_again_in_definition_reflection,
     test_definition_match_is_a_nondeterministic_read; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
   - Python registration publishes the same canonical row consumed by
-    ``petta_contract_fact/1`` [tested:
+    ``metta_contract_fact/1`` [tested:
     test_python_registered_effect_is_an_engine_contract_fact; commit=3cfbe0d7417b1c453c2dc12d47e2e47e7de461f7]
 """
 
@@ -305,7 +305,7 @@ def test_python_registered_effect_is_an_engine_contract_fact(metta):
     )
     try:
         row = metta.runtime.once(
-            "petta_contract_fact([effect, Name, Effect])",
+            "metta_contract_fact([effect, Name, Effect])",
             Name=name,
         )
         assert str(row["Effect"]) == "readOnlyLookup"

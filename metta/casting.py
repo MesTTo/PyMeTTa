@@ -103,7 +103,7 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
         return _narrow(value)
     atom = value if isinstance(value, Atom) else _encode(value)
     answered = space.runtime.apply_must(
-        "petta_py_cast", space._space, atom.to_wire(), target.to_wire()
+        "metta_py_cast", space._space, atom.to_wire(), target.to_wire()
     )
     if answered[0] == "s" and answered[1] == "ok":
         return _narrow(value)

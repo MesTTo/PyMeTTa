@@ -203,7 +203,7 @@ class EngineRegistry:
         cached = self._types.get(key)
         if cached is None:
             row = self._runtime.once(
-                "petta_py_decode_shared(W, X, _), 'get-type'(X, T0), swrite(T0, T)",
+                "metta_py_decode_shared(W, X, _), 'get-type'(X, T0), swrite(T0, T)",
                 W=atom.to_wire(),
             )
             cached = str(row.get("T"))

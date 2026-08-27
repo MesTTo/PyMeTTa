@@ -153,7 +153,7 @@ def fresh() -> Variable:
     """Mint a variable for a library-authored pattern without name capture."""
     from uuid import uuid4  # noqa: PLC0415  -- keep UUID machinery off import
 
-    return Variable(f"__petta_fresh_{uuid4().hex}")
+    return Variable(f"__metta_fresh_{uuid4().hex}")
 
 
 class _GroundFactory:
@@ -277,7 +277,7 @@ def parse(source: str) -> Atom:
     contains Variable('x') rather than a machine name, and the same pattern built
     with V.x compares equal.
 
-    Crossed through apply() rather than once(). petta_py_parse/2 already has
+    Crossed through apply() rather than once(). metta_py_parse/2 already has
     the functional shape, one ground input and one output, and every call that
     passes source text to eval(), run() or match() parses first, so this is a
     second crossing on top of the evaluation's own [measured 2026-08-16:
@@ -285,7 +285,7 @@ def parse(source: str) -> Atom:
     241.01 and 10.60us for the same term prebuilt].
     """
     engine = importlib.import_module(f"{__package__}._engine")
-    return _wire._atom_from_engine_wire(engine.runtime().apply_must("petta_py_parse", source))
+    return _wire._atom_from_engine_wire(engine.runtime().apply_must("metta_py_parse", source))
 
 
 def _to_atom(value: Any) -> Atom:

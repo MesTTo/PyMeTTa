@@ -35,7 +35,7 @@ def write_increment_dependency(tmp_path):
 
 
 def test_failed_import_can_be_retried(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    module_name = f"petta_retry_{uuid.uuid4().hex}"
+    module_name = f"metta_retry_{uuid.uuid4().hex}"
     root_file = tmp_path / "root.metta"
     dependency_file = tmp_path / "dependency.metta"
     python_file = tmp_path / f"{module_name}.py"
@@ -60,7 +60,7 @@ def test_failed_import_can_be_retried(metta, tmp_path):  # noqa: D103  -- pytest
 
 
 def test_failed_import_rolls_back_partial_definitions(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    module_name = f"petta_partial_{uuid.uuid4().hex}"
+    module_name = f"metta_partial_{uuid.uuid4().hex}"
     function_name = f"partial_definition_{uuid.uuid4().hex}"
     dependency_file = tmp_path / "dependency.metta"
     python_file = tmp_path / f"{module_name}.py"

@@ -9,7 +9,7 @@ Guarantees:
     test_module_tier_op_forwards_identity_to_the_default_receiver;
     commit=fc7ec0b08cd8b5876a3f4105211c487185f6a9bf]
   - scoped stack bounds retain an explicit byte count for
-    ``petta_py_limited/6`` [tested:
+    ``metta_py_limited/6`` [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - class declarations are context-relative through ``Space.define`` and the
     retired root ``record`` door is not used [tested:
@@ -182,20 +182,20 @@ def test_stack_limit_is_carried_to_the_limited_six_seam(metta) -> None:
         bounded = _limits(None, None)
         assert bounded == (-1.0, -1, 4_000_000)
         runtime = RecordingRuntime()
-        assert _apply_limited(runtime, bounded, "petta_py_eval_all", ["&self", []]) == (
+        assert _apply_limited(runtime, bounded, "metta_py_eval_all", ["&self", []]) == (
             "answered"
         )
     assert runtime.call == (
-        "petta_py_limited",
+        "metta_py_limited",
         -1.0,
         -1,
         4_000_000,
-        "petta_py_eval_all",
+        "metta_py_eval_all",
         ["&self", []],
     )
 
 
-def test_stack_limit_through_petta_py_limited_6(metta) -> None:
+def test_stack_limit_through_metta_py_limited_6(metta) -> None:
     """Exercise the merged sibling engine seam through the public block."""
     with metta.limits(stack=4_000_000):
         assert metta.eval(S["+"](1, 2)) == [3]

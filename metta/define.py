@@ -139,7 +139,7 @@ def _deferred_memoized_answers(
     args: tuple[Any, ...],
 ):
     """Enter the source runner whose compiled calls own memo dispatch."""
-    binding_names = [f"__petta_cache_arg_{index}" for index in range(len(args))]
+    binding_names = [f"__metta_cache_arg_{index}" for index in range(len(args))]
     term = Expression([Symbol(name), *(Symbol(item) for item in binding_names)])
     with space.bind(dict(zip(binding_names, args, strict=True))):
         groups = space.run(f"!{term}")

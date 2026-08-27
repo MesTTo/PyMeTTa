@@ -689,7 +689,7 @@ def test_two_records_glued_by_a_lost_newline_are_refused(tmp_path):
     assert not (tmp_path / "glued.db.tail").exists()
 
 
-def test_prolog_journal_errors_use_the_petta_error_taxonomy(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_prolog_journal_errors_use_the_metta_error_taxonomy(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     journal = tmp_path / "invalid-action.db"
     space = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     space.add(S.edge(S.valid, S.prefix))

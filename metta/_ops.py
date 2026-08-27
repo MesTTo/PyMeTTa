@@ -3,7 +3,7 @@
 shim.pl calls dispatch/dispatch_many for encoded operations and dispatch_raw
 variants for raw ones; the registry maps a MeTTa function name to the Python
 callable behind it, decoding arguments to atoms-or-values and encoding results
-back. Importable as petta_ops, the name the Prolog side uses.
+back. Importable as metta_ops, the name the Prolog side uses.
 Guarantees:
   - operation records distinguish MeTTa names from declaration-space names
     [tested: test_canonical_context_types_replace_public_newtypes;
@@ -19,7 +19,7 @@ Guarantees:
     directions, so an annotation cannot describe one image while carrying
     another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - type_names removes every __petta_wire_value__ carrier before reading the
+  - type_names removes every __metta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -142,7 +142,7 @@ class _CapturedReceipt:
 
 
 _RECEIPT_CAPTURE: ContextVar[_ReceiptCapture | None] = ContextVar(
-    "petta_receipt_capture",
+    "metta_receipt_capture",
     default=None,
 )
 
@@ -598,7 +598,7 @@ def _stream_error(error: Exception) -> list:
 
     Raising while Janus is pulling ``py_iter/2`` loses the Python exception
     behind a bare ``SystemError``. The shim recognizes this reserved frame and
-    hands the live object to ``petta_py_failure/2``, the same structured error
+    hands the live object to ``metta_py_failure/2``, the same structured error
     boundary deterministic operations use.
     """
     return ["x", "raise", type(error).__name__, error]

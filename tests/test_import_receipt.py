@@ -258,7 +258,7 @@ def test_remove_and_refill_commit_does_not_late_abolish_the_refill() -> None:
             "transaction((user:metta_remove_atom("
             f"{space}, [=, [{name}], ready], true), "
             f"user:metta_add_atom({space}, [=, [{name}], ready], true))), "
-            "user:petta_repair_emptied_shadows, R = committed"
+            "user:metta_repair_emptied_shadows, R = committed"
         )
         assert target.eval(S[function]()) == [S.ready]
     finally:
@@ -303,7 +303,7 @@ def test_recycled_target_module_contains_no_previous_life_forms() -> None:
     second, extras = acquire_recycled(context, pooled_name)
     try:
         assert second.name == pooled_name
-        module = quote(f"$petta_exec:{second.name}")
+        module = quote(f"$metta_exec:{second.name}")
         cached = bridge().query_once(
             "aggregate_all(count, "
             f"translator:translated_form_cache({module}, _, _, [{quote(function)}], _, _), "
@@ -328,7 +328,7 @@ def test_recycled_module_rearms_a_saved_call_to_an_inherited_definition() -> Non
     pooled_name = first.name
     context.self.add(parent_equation)
     first.add(child_equation)
-    module = quote(f"$petta_exec:{first.name}")
+    module = quote(f"$metta_exec:{first.name}")
     try:
         asserted = bridge().query_once(
             f"assertz((user:{quote(saved)}(_Answer) :- "
@@ -363,7 +363,7 @@ def test_saved_goal_runs_after_public_reimport_repairs_its_source() -> None:
     """A goal translated before removal sees reloaded clauses, never Unknown procedure."""
     context = MeTTa()
     target = context.space()
-    module = quote(f"$petta_exec:{target.name}")
+    module = quote(f"$metta_exec:{target.name}")
     binary = S["="](
         S["take-atom"](V.space, V.pattern),
         S["space_take"](V.space, V.pattern),
@@ -389,7 +389,7 @@ def test_saved_goal_runs_after_public_reimport_repairs_its_source() -> None:
         import_thread(target)
         result = target.runtime.once(
             "user:c2_receipt_saved(_Module, _Goals, _Out), "
-            "user:petta_py_call_goals(_Module, _Goals), R = _Out"
+            "user:metta_py_call_goals(_Module, _Goals), R = _Out"
         )
         assert result is not None
     finally:

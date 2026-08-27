@@ -48,12 +48,12 @@ def test_the_exact_doors_build_the_engine_forms():
     module form a path import crosses as.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     assert lib["minimal_metta_lib"].form == S.library(S["minimal_metta_lib"])
-    assert lib["petta_fixture_lib"].fixture.form == S.library(
-        S["petta_fixture_lib"], S.fixture
+    assert lib["metta_fixture_lib"].fixture.form == S.library(
+        S["metta_fixture_lib"], S.fixture
     )
     assert lib("examples/basics/fibsmart").form == S["examples/basics/fibsmart"]
     with pytest.raises(TypeError, match="does not contain files"):
-        lib["petta_fixture_lib"].fixture.deeper  # noqa: B018  -- the refusal is the behaviour under test
+        lib["metta_fixture_lib"].fixture.deeper  # noqa: B018  -- the refusal is the behaviour under test
 
 
 def test_the_write_door_imports_into_the_receiver():

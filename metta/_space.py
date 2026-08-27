@@ -341,14 +341,14 @@ def _deprecation(rt: Runtime, name: str) -> tuple[str, str] | None:
             return cache[name]
         any_declared = _DEPRECATION_ANY.get(rt)
     if any_declared is None:
-        any_declared = bool(int(rt.apply_must("petta_py_deprecation_declared")))
+        any_declared = bool(int(rt.apply_must("metta_py_deprecation_declared")))
         with _BUILTINS_CACHE_LOCK:
             _DEPRECATION_ANY[rt] = any_declared
     if not any_declared:
         with _BUILTINS_CACHE_LOCK:
             _DEPRECATION_CACHE.setdefault(rt, {})[name] = None
         return None
-    row = rt.once("petta_deprecation(Name, Since, Remedy)", Name=name)
+    row = rt.once("metta_deprecation(Name, Since, Remedy)", Name=name)
     declaration = (
         None
         if not row
@@ -363,12 +363,12 @@ def _function_generation(rt: Runtime) -> int:
     """Read the engine's fun/1 generation through its Janus seam.
 
     The service is SWI's ``last_modified_generation`` for exactly the dynamic
-    ``fun/1`` set read by ``petta_py_builtins/1``; translator rules are static
+    ``fun/1`` set read by ``metta_py_builtins/1``; translator rules are static
     catalogue-neutral metadata [source:
     engine/metta.pl:metta_host_function_generation/1;
     commit=4c9a794750103e0a3a2e9d883adde337ffb501f0].
     """
-    return int(rt.apply_must("petta_py_function_generation"))
+    return int(rt.apply_must("metta_py_function_generation"))
 
 
 def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
@@ -399,10 +399,10 @@ def _space_builtins(rt: Runtime, space_name: str) -> list[str]:
             return list(discovered)
 
 _ACTIVE_SPACE: ContextVar[_SpaceId | None] = ContextVar(
-    "petta_active_space", default=None
+    "metta_active_space", default=None
 )
 _RUN_BINDINGS: ContextVar[dict[str, Any] | None] = ContextVar(
-    "petta_run_bindings", default=None
+    "metta_run_bindings", default=None
 )
 
 
@@ -636,7 +636,7 @@ def _inline_module_name(source: str) -> str:
     share a helper.
     """
     digest = hashlib.blake2s(source.encode("utf-8"), digest_size=8).hexdigest()
-    return f"petta_inline_{digest}"
+    return f"metta_inline_{digest}"
 
 
 def _copies_after_its_base(atom: Any) -> bool:
@@ -794,7 +794,7 @@ class Space(Handle):
                 raise ValueError(msg)
             self._name_atom = name
             engine_name = _HashableSpaceTerm(
-                self._rt.apply_must("petta_py_open_atom_space", name.to_wire())
+                self._rt.apply_must("metta_py_open_atom_space", name.to_wire())
             )
         else:
             engine_name = name
@@ -866,7 +866,7 @@ class Space(Handle):
         registers it, only writing or binding does, so a bind! token's
         target appears here once something is stored under it.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        row = self._rt.once("petta_py_space_names(Names)")
+        row = self._rt.once("metta_py_space_names(Names)")
         return [str(name) for name in row["Names"]]
 
     def _new_space(
@@ -898,14 +898,14 @@ class Space(Handle):
 
         if restricted:
             row = self._rt.must(
-                "petta_py_new_restricted_space(Grants, Name)",
+                "metta_py_new_restricted_space(Grants, Name)",
                 Grants=list(requested_grants),
             )
         elif inherits is None:
-            row = self._rt.must("petta_py_new_space(Name)")
+            row = self._rt.must("metta_py_new_space(Name)")
         else:
             row = self._rt.must(
-                "petta_py_new_space(Parent, Name)", Parent=inherits._space
+                "metta_py_new_space(Parent, Name)", Parent=inherits._space
             )
         fresh = Space(
             str(row["Name"]),
@@ -930,7 +930,7 @@ class Space(Handle):
             return
         if self._space != "&self":
             self._rt.must(
-                "petta_py_space_releasable(Space)", Space=self._space
+                "metta_py_space_releasable(Space)", Space=self._space
             )
         subscriptions = _satellite("subscribe")
         foreign = _satellite("foreign")
@@ -946,7 +946,7 @@ class Space(Handle):
         self.clear()
         if self._space != "&self":
             predicate = (
-                "petta_py_release_space" if self._ephemeral else "petta_py_drop_space"
+                "metta_py_release_space" if self._ephemeral else "metta_py_drop_space"
             )
             self._rt.must(f"{predicate}(Space)", Space=self._space)
         integrate._forget_space(self._space)
@@ -1210,7 +1210,7 @@ class Space(Handle):
         _require_name(extension, "profile_extension")
         return tuple(
             self._rt.must(
-                "petta_py_extension_members(Name, Names)", Name=str(extension)
+                "metta_py_extension_members(Name, Names)", Name=str(extension)
             )["Names"]
         )
 
@@ -1293,7 +1293,7 @@ class Space(Handle):
             msg = "a reader-token constructor must be callable"
             raise TypeError(msg)
         self._rt.must(
-            "petta_py_register_token(Pattern, Constructor)",
+            "metta_py_register_token(Pattern, Constructor)",
             Pattern=normalized,
             Constructor=constructor,
         )
@@ -1301,7 +1301,7 @@ class Space(Handle):
     def unregister_token(self, pattern: str | _re.Pattern[str]) -> None:
         """Remove a reader-token class; an absent pattern is already removed."""
         self._rt.must(
-            "petta_py_unregister_token(Pattern)", Pattern=_reader_pattern(pattern)
+            "metta_py_unregister_token(Pattern)", Pattern=_reader_pattern(pattern)
         )
 
     # ------------------------------------------------------------- space edits
@@ -1342,9 +1342,9 @@ class Space(Handle):
         if not wires:
             return
         if len(wires) == 1:
-            self._rt.do_must("petta_py_add", self._space, wires[0])
+            self._rt.do_must("metta_py_add", self._space, wires[0])
         else:
-            self._rt.do_must("petta_py_add_many", self._space, wires)
+            self._rt.do_must("metta_py_add_many", self._space, wires)
         _invalidate_builtins_cache(self._rt)
 
     def remove(self, atom: Any) -> bool:
@@ -1362,7 +1362,7 @@ class Space(Handle):
         if not isinstance(pattern, Variable):
             pattern = _to_nonempty_expression(pattern)
         removed = self._rt.apply_must(
-            "petta_py_remove", self._space, pattern.to_wire()
+            "metta_py_remove", self._space, pattern.to_wire()
         )
         result = _atom_from_wire(removed)
         _invalidate_builtins_cache(self._rt)
@@ -1370,7 +1370,7 @@ class Space(Handle):
 
     def atoms(self) -> list[Atom]:
         """Every stored atom in this space."""
-        wires = self._rt.apply_must("petta_py_atoms", self._space)
+        wires = self._rt.apply_must("metta_py_atoms", self._space)
         return [_atom_from_wire(w) for w in wires]
 
     def peek(self, pattern: Any, *, deadline: float | None = None) -> Atom:
@@ -1535,9 +1535,9 @@ class Space(Handle):
         no cross-process identity and are refused, like save().
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _satellite("foreign").require_capability(self._space, "enumerate", "digest")
-        result = self._rt.apply_must("petta_py_digest", self._space)
+        result = self._rt.apply_must("metta_py_digest", self._space)
         if not isinstance(result, list) or len(result) != 2:
-            msg = f"petta_py_digest returned an invalid result: {result!r}"
+            msg = f"metta_py_digest returned an invalid result: {result!r}"
             raise EngineError(msg)
         kind, value = result
         if kind == "object":
@@ -1553,7 +1553,7 @@ class Space(Handle):
         if kind == "symbol":
             raise_unsafe_text_atom(_atom_from_wire(value), "digest")
         if kind != "digest":
-            msg = f"petta_py_digest returned an unknown result: {result!r}"
+            msg = f"metta_py_digest returned an unknown result: {result!r}"
             raise EngineError(msg)
         return str(value)
 
@@ -1561,7 +1561,7 @@ class Space(Handle):
         provider_length = _satellite("foreign")._provider_length(self._space)
         if provider_length is not None:
             return provider_length
-        row = self._rt.once("petta_py_count(Space, N)", Space=self._space)
+        row = self._rt.once("metta_py_count(Space, N)", Space=self._space)
         return int(row["N"])
 
     def __bool__(self) -> bool:
@@ -1575,7 +1575,7 @@ class Space(Handle):
         return True
 
     def __contains__(self, atom: Any) -> bool:
-        return self._rt.do("petta_py_contains", self._space, _to_atom(atom).to_wire())
+        return self._rt.do("metta_py_contains", self._space, _to_atom(atom).to_wire())
 
     def clear(self) -> None:
         """Remove everything stored here, compiled equations included."""
@@ -2123,7 +2123,7 @@ class Space(Handle):
         if not callable(target):
             return self.eval(Expression([Symbol("transaction"), _to_atom(target)]))
         try:
-            row = self._rt.once("petta_py_transaction(F, R)", F=target)
+            row = self._rt.once("metta_py_transaction(F, R)", F=target)
         except PettaError as error:
             term = getattr(error.__cause__, "term", None)
             original = (
@@ -2137,7 +2137,7 @@ class Space(Handle):
         if not row:
             msg = (
                 "the transaction goal failed without an exception, which "
-                "petta_py_transaction does not do on purpose"
+                "metta_py_transaction does not do on purpose"
             )
             raise EngineError(
                 msg
@@ -3039,11 +3039,11 @@ class Space(Handle):
     def is_function(self, name: str) -> bool:
         """Report whether a function is visible from this space."""
         _require_name(name, "is_function")
-        return bool(self._rt.once("petta_py_is_function(Name)", Name=name))
+        return bool(self._rt.once("metta_py_is_function(Name)", Name=name))
 
     def _is_catalogued(self, name: str) -> bool:
         """Point membership in the builtins catalogue, no list build."""
-        return bool(self._rt.once("petta_py_catalogue_member(Name)", Name=name))
+        return bool(self._rt.once("metta_py_catalogue_member(Name)", Name=name))
 
     def is_function_here(self, name: str) -> bool:
         """Whether a function would answer from THIS space: it has clauses
@@ -3053,13 +3053,13 @@ class Space(Handle):
         _require_name(name, "is_function_here")
         return bool(
             self._rt.once(
-                "petta_py_function_visible(Space, Name)", Space=self._space, Name=name
+                "metta_py_function_visible(Space, Name)", Space=self._space, Name=name
             )
         )
 
     def arities(self, name: str) -> list[int]:
         """Compiled predicate arities for a name: MeTTa arity plus one each."""
-        row = self._rt.once("petta_py_arities(Name, As)", Name=name)
+        row = self._rt.once("metta_py_arities(Name, As)", Name=name)
         return list(row.get("As", []))
 
     def _disassemble(self, name: str) -> str:
@@ -3072,7 +3072,7 @@ class Space(Handle):
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _require_name(name, "disassemble")
         row = self._rt.once(
-            "petta_py_disassemble(Space, Name, Text)", Space=self._space, Name=name
+            "metta_py_disassemble(Space, Name, Text)", Space=self._space, Name=name
         )
         if not row:
             msg = (
@@ -3228,9 +3228,9 @@ class Space(Handle):
         a dead end for a provider author, who has no functions to export.
         """
         goal, inputs = (
-            ("petta_py_source_declares(Source, Declares)", {"Source": os.fspath(path)})
+            ("metta_py_source_declares(Source, Declares)", {"Source": os.fspath(path)})
             if path is not None
-            else ("petta_py_string_declares(Text, Declares)", {"Text": str(source)})
+            else ("metta_py_string_declares(Text, Declares)", {"Text": str(source)})
         )
         declares = str(self._rt.must(goal, **inputs)["Declares"])
         if declares == "nothing":
@@ -3312,7 +3312,7 @@ class Space(Handle):
         return module
 
     def _declared_exports(self, origin: str) -> tuple[str, ...]:
-        row = self._rt.must("petta_py_declared_exports(Source, Names)", Source=origin)
+        row = self._rt.must("metta_py_declared_exports(Source, Names)", Source=origin)
         declared = tuple(str(name) for name in row.get("Names", []))
         if not declared:
             msg = (
@@ -3427,10 +3427,10 @@ class Space(Handle):
         """
         _require_name(extension, "unregister_prolog")
         released = self._rt.must(
-            "petta_py_extension_members(Name, Names)", Name=str(extension)
+            "metta_py_extension_members(Name, Names)", Name=str(extension)
         )
         names = tuple(str(name) for name in released.get("Names", []))
-        self._rt.must("petta_py_unregister_extension(Name)", Name=str(extension))
+        self._rt.must("metta_py_unregister_extension(Name)", Name=str(extension))
         _invalidate_builtins_cache(self._rt)
         return names
 
@@ -3765,8 +3765,8 @@ class Space(Handle):
         if unchecked:
             self.add(Expression([Symbol("cache"), Symbol(defined.name), Symbol("unchecked")]))
         self.runtime.must(
-            "petta_py_module(Space, Module), "
-            "petta_py_in_module(Module, lib_memo:memoize_exact(Fun))",
+            "metta_py_module(Space, Module), "
+            "metta_py_in_module(Module, lib_memo:memoize_exact(Fun))",
             Space=self.name,
             Fun=defined.name,
         )
@@ -3891,7 +3891,7 @@ class Space(Handle):
             children.append(Symbol(det))
         atom = Expression(children)
         self._rt.must(
-            "petta_py_declare_handles(Space, W, Ctx)",
+            "metta_py_declare_handles(Space, W, Ctx)",
             Space="&metta",
             W=atom.to_wire(),
             Ctx=str(self.name),
@@ -4008,7 +4008,7 @@ class Space(Handle):
         def replace() -> Atom:
             while True:
                 removed = self._rt.apply_must(
-                    "petta_py_remove",
+                    "metta_py_remove",
                     "&metta",
                     previous.to_wire(),
                 )
@@ -4016,7 +4016,7 @@ class Space(Handle):
                 if not bool(getattr(result, "value", True)):
                     break
             self._rt.must(
-                "petta_py_add(Space, W)",
+                "metta_py_add(Space, W)",
                 Space="&metta",
                 W=atom.to_wire(),
             )
@@ -4116,7 +4116,7 @@ class Space(Handle):
             [Symbol("image"), Symbol(str(self.name)), Symbol(type_name), Variable("old")]
         )
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous.to_wire(),
         )
@@ -4124,7 +4124,7 @@ class Space(Handle):
             [Symbol("image"), Symbol(str(self.name)), Symbol(type_name), Symbol(setting)]
         )
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4173,13 +4173,13 @@ class Space(Handle):
             )
         previous = Expression([Symbol("source"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("source"), Symbol(str(self.name)), Symbol(kind)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4212,7 +4212,7 @@ class Space(Handle):
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         atom = Expression([Symbol("on-error"), Symbol(str(name)), shape, Symbol(chosen)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4240,7 +4240,7 @@ class Space(Handle):
         shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
         atom = Expression([Symbol("merge"), shape, Symbol(policy)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4264,13 +4264,13 @@ class Space(Handle):
             )
         previous = Expression([Symbol("context"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("context"), Symbol(str(self.name)), Symbol(world)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4305,13 +4305,13 @@ class Space(Handle):
             raise ValueError(msg)
         previous = Expression([Symbol("agenda"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
-            "petta_py_remove(Space, W, _)", Space="&metta", W=previous.to_wire()
+            "metta_py_remove(Space, W, _)", Space="&metta", W=previous.to_wire()
         )
         previous_named = Expression(
             [Symbol("agenda"), Symbol(str(self.name)), Variable("old"), Variable("fn")]
         )
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous_named.to_wire(),
         )
@@ -4320,7 +4320,7 @@ class Space(Handle):
             parts.append(Symbol(str(function)))
         atom = Expression(parts)
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4338,7 +4338,7 @@ class Space(Handle):
         <atom>) and (revise <ctx> <old> <new>), engine-routed rules
         going through the same write paths as direct writes. Declaring
         installs the engine's write hook, which is why reactions go
-        through here or petta_install_bridges rather than a bare
+        through here or metta_install_bridges rather than a bare
         add-atom.
 
         A subscription bridge is the NEIGHBOUR, not a special case of this:
@@ -4357,9 +4357,9 @@ class Space(Handle):
             parts.append(Grounded(priority))
         atom = Expression(parts)
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
-        self._rt.must("petta_install_bridges")
+        self._rt.must("metta_install_bridges")
         return atom
 
     def reaction(
@@ -4381,16 +4381,16 @@ class Space(Handle):
         """
         previous = Expression([Symbol("admits"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("admits"), Symbol(str(self.name)), Symbol(type_name)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         self._rt.must(
-            "petta_admission_claim(Pool, Declarer)",
+            "metta_admission_claim(Pool, Declarer)",
             Pool=str(self.name),
             Declarer=current_space(),
         )
@@ -4403,16 +4403,16 @@ class Space(Handle):
             raise ValueError(msg)
         previous = Expression([Symbol("capacity"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("capacity"), Symbol(str(self.name)), Grounded(limit)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         self._rt.must(
-            "petta_admission_claim(Pool, Declarer)",
+            "metta_admission_claim(Pool, Declarer)",
             Pool=str(self.name),
             Declarer=current_space(),
         )
@@ -4443,13 +4443,13 @@ class Space(Handle):
             )
         previous = Expression([Symbol("writes"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("writes"), Symbol(str(self.name)), Symbol(atomicity)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4472,13 +4472,13 @@ class Space(Handle):
             )
         previous = Expression([Symbol("emits"), Symbol(str(self.name)), Variable("old")])
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("emits"), Symbol(str(self.name)), Symbol(policy)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 
@@ -4518,13 +4518,13 @@ class Space(Handle):
             [Symbol("events"), Symbol(str(self.name)), Variable("delivery"), Variable("order")]
         )
         self._rt.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space="&metta",
             W=previous.to_wire(),
         )
         atom = Expression([Symbol("events"), Symbol(str(self.name)), Symbol(delivery), Symbol(order)])
         self._rt.must(
-            "petta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
         )
         return atom
 

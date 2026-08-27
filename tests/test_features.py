@@ -87,7 +87,7 @@ class _SubscriptionRuntime:
         self.removed = threading.Event()
 
     def must(self, goal, **inputs):
-        assert goal == "petta_py_subscriptions(Spaces)"
+        assert goal == "metta_py_subscriptions(Spaces)"
         self.published.append(list(inputs["Spaces"]))
         if self.sync_failures:
             self.sync_failures -= 1
@@ -96,7 +96,7 @@ class _SubscriptionRuntime:
         return {"truth": True}
 
     def do(self, predicate, *inputs):
-        assert predicate == "petta_py_contains"
+        assert predicate == "metta_py_contains"
         space, wire = inputs
         assert space == "&metta"
         return any(fact.to_wire() == wire for fact in self.facts)
@@ -264,7 +264,7 @@ def test_clear_empties_a_space_nobody_is_watching(m):  # noqa: D103  -- pytest d
 
 def test_subscription_hooks_follow_the_active_space_set(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def installed(kind):
-        return bool(m._rt.once(f"petta_py_subscription_hook_ref({kind}, _)"))
+        return bool(m._rt.once(f"metta_py_subscription_hook_ref({kind}, _)"))
 
     assert not installed("added")
     assert not installed("removed")

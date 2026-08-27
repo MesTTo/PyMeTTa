@@ -49,7 +49,7 @@ def _load_reference():
     would ship a build-time script in the wheel.
     """
     spec = importlib.util.spec_from_file_location(
-        "petta_reference_tool", _REPO / "bindings" / "python" / "tools" / "reference.py"
+        "metta_reference_tool", _REPO / "bindings" / "python" / "tools" / "reference.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -62,7 +62,7 @@ _reference = _load_reference()
 def _load_site_reference_generator():
     """Load the earlier site generator without making website a package."""
     spec = importlib.util.spec_from_file_location(
-        "petta_site_reference_generator",
+        "metta_site_reference_generator",
         _REPO / "website" / "scripts" / "generate_reference.py",
     )
     assert spec is not None and spec.loader is not None
@@ -208,7 +208,7 @@ def _load_libdoc():
     import importlib.util as _importlib_util
 
     specification = _importlib_util.spec_from_file_location(
-        "petta_libdoc_tool", _REPO / "bindings" / "python" / "tools" / "libdoc.py"
+        "metta_libdoc_tool", _REPO / "bindings" / "python" / "tools" / "libdoc.py"
     )
     module = _importlib_util.module_from_spec(specification)
     specification.loader.exec_module(module)

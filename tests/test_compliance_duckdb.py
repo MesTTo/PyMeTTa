@@ -39,7 +39,7 @@ def _duckdb_space_module():
     sys.path.insert(0, str(_EXAMPLES))
     try:
         spec = importlib.util.spec_from_file_location(
-            "petta_example_duckdb_space", _EXAMPLES / "integration" / "duckdb_space.py"
+            "metta_example_duckdb_space", _EXAMPLES / "integration" / "duckdb_space.py"
         )
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

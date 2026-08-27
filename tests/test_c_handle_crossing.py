@@ -84,7 +84,7 @@ def test_a_released_handle_raises_by_id(vectors):  # noqa: D103  -- pytest disco
     handle = row[0]
     handle.release()
     handle.release()  # idempotent
-    with pytest.raises(EngineError, match="petta_native_handle"), m.bind(h=handle):
+    with pytest.raises(EngineError, match="metta_native_handle"), m.bind(h=handle):
         m.run("!(vector-length h)")
 
 
@@ -102,5 +102,5 @@ def test_a_handle_is_a_context_manager(vectors):  # noqa: D103  -- pytest discov
     (row,) = m.run("!(vector-new 2)")
     with row[0] as handle:
         assert unpack_vector(m, handle) == [0, 1]
-    with pytest.raises(EngineError, match="petta_native_handle"), m.bind(h=handle):
+    with pytest.raises(EngineError, match="metta_native_handle"), m.bind(h=handle):
         m.run("!(vector-length h)")

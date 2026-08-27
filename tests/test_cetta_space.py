@@ -33,7 +33,7 @@ def _cetta_space_module():
     sys.path.insert(0, examples_root)
     try:
         specification = _importlib_util.spec_from_file_location(
-            "petta_example_cetta_space", _MODULE_PATH
+            "metta_example_cetta_space", _MODULE_PATH
         )
         module = _importlib_util.module_from_spec(specification)
         specification.loader.exec_module(module)
@@ -101,7 +101,7 @@ def test_the_kit_catches_cettas_rational_tree_divergence(cetta_space):  # noqa: 
         )
 
 
-def test_cetta_answers_bind_inside_petta_unification():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_cetta_answers_bind_inside_metta_unification():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     binary = _cetta_binary()
     if binary is None:
         pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")

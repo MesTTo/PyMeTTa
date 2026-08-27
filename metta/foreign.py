@@ -409,7 +409,7 @@ class SpaceProvider:
 
 
 # Space name (with &) -> provider; consulted by the shim's foreign hooks
-# through the petta_ops module functions below. The public view is read-only
+# through the metta_ops module functions below. The public view is read-only
 # so registration cannot bypass the engine transaction or its lock.
 _PROVIDERS: dict[str, SpaceProvider] = {}
 PROVIDERS: Mapping[str, SpaceProvider] = MappingProxyType(_PROVIDERS)
@@ -574,7 +574,7 @@ def register_provider(runtime, name: str, provider: SpaceProvider) -> None:  # n
         # being subscribable in the same step.
         promise = delivery_promise(provider)
         runtime.must(
-            "petta_py_register_foreign(Space, Capabilities, Delivery)",
+            "metta_py_register_foreign(Space, Capabilities, Delivery)",
             Space=name,
             Capabilities=[c for c in CAPABILITIES if provider.can_run(c)],
             Delivery=list(promise) if promise is not None else [],
@@ -592,7 +592,7 @@ def unregister_provider(runtime, name: str) -> None:
         if name not in _PROVIDERS:
             msg = f"no provider is registered for {name!r}"
             raise KeyError(msg)
-        runtime.must("petta_py_unregister_foreign(Space)", Space=name)
+        runtime.must("metta_py_unregister_foreign(Space)", Space=name)
         _PROVIDERS.pop(name, None)
 
 

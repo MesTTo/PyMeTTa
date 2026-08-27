@@ -171,4 +171,4 @@ def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude regist
             declarations=[_expr(S.arguments, S[name], S.atoms)],
             arities=arities,
         )
-    runtime.must("spaces:petta_publish_builtin_visibility")
+    runtime.must("spaces:metta_publish_builtin_visibility")

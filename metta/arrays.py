@@ -89,22 +89,22 @@ _STORE_SERIAL = itertools.count(1)
 
 _BROADCAST_SHAPE_SOURCE: Final = r"""
 :- use_module(library(clpfd)).
-:- metta_extension(petta_arrays_shape, [version('0.1.0')]).
+:- metta_extension(metta_arrays_shape, [version('0.1.0')]).
 :- metta_export("(: broadcast-shape (-> Expression Expression Expression Bool))").
 
 'broadcast-shape'(Left, Right, Shape, true) :-
     reverse(Left, LeftReversed),
     reverse(Right, RightReversed),
-    petta_broadcast_reversed(LeftReversed, RightReversed, ShapeReversed),
+    metta_broadcast_reversed(LeftReversed, RightReversed, ShapeReversed),
     reverse(ShapeReversed, Shape).
 
-petta_broadcast_reversed([], Shape, Shape) :- !.
-petta_broadcast_reversed(Shape, [], Shape) :- !.
-petta_broadcast_reversed([Left | Lefts], [Right | Rights], [Out | Outs]) :-
-    petta_broadcast_dimension(Left, Right, Out),
-    petta_broadcast_reversed(Lefts, Rights, Outs).
+metta_broadcast_reversed([], Shape, Shape) :- !.
+metta_broadcast_reversed(Shape, [], Shape) :- !.
+metta_broadcast_reversed([Left | Lefts], [Right | Rights], [Out | Outs]) :-
+    metta_broadcast_dimension(Left, Right, Out),
+    metta_broadcast_reversed(Lefts, Rights, Outs).
 
-petta_broadcast_dimension(D2, D1, D) :-
+metta_broadcast_dimension(D2, D1, D) :-
     D1 #\= 1 #/\ D1 #= D #\ D1 #= 1 #/\ D2 #= D,
     D2 #\= 1 #/\ D2 #= D #\ D2 #= 1 #/\ D1 #= D.
 """

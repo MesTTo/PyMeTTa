@@ -1,8 +1,8 @@
 """Purpose: query, profiling, scope, and callable objects returned by MeTTa.
 Guarantees:
   - scoped timeout, inference, and stack-byte bounds are task-local and stack
-    bounds select ``petta_py_limited/6`` while the unbounded path preserves
-    ``petta_py_limited/5`` [tested:
+    bounds select ``metta_py_limited/6`` while the unbounded path preserves
+    ``metta_py_limited/5`` [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - Cursor keeps exhaustion distinct from explicit close [tested
     test_stream_agrees_with_query_and_closes_on_exhaustion]
@@ -107,7 +107,7 @@ def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str)
 #: scope is async-correct and thread-local the way decimal.localcontext
 #: is. Per-call kwargs override by simply not being None.
 _SCOPED_LIMITS: ContextVar[tuple[float | None, int | None, int | None]] = ContextVar(
-    "petta_scoped_limits", default=(None, None, None)
+    "metta_scoped_limits", default=(None, None, None)
 )
 
 
@@ -176,10 +176,10 @@ def _apply_limited(
     seconds, steps, stack = limits
     if stack < 0:
         return runtime.apply_must(
-            "petta_py_limited", seconds, steps, predicate, inputs
+            "metta_py_limited", seconds, steps, predicate, inputs
         )
     return runtime.apply_must(
-        "petta_py_limited", seconds, steps, stack, predicate, inputs
+        "metta_py_limited", seconds, steps, stack, predicate, inputs
     )
 
 
@@ -221,7 +221,7 @@ def _stats_snapshot(
     int | float,
 ]:
     """Read and validate the six counters supplied by the engine shim."""
-    raw = rt.apply_must("petta_py_stats")
+    raw = rt.apply_must("metta_py_stats")
     if not isinstance(raw, (list, tuple)) or len(raw) != 6:
         msg = f"engine statistics returned an invalid snapshot: {raw!r}"
         raise EngineError(msg)
@@ -356,7 +356,7 @@ class _StatsBlock:
         inferences, cputime, gc_count, gc_freed, gc_ms, table_bytes = (
             a - b for a, b in zip(after, before, strict=True)
         )
-        # The two petta_py_stats crossings themselves sit inside the
+        # The two metta_py_stats crossings themselves sit inside the
         # window; their cost is a few hundred inferences, the noise floor.
         # AsyncMeTTa enters and exits the same block in distinct copied
         # request contexts. The entry context has already ended, so its token
@@ -383,7 +383,7 @@ class _StatsBlock:
 
 
 _ACTIVE_STATS: ContextVar[tuple[_StatsBlock, ...]] = ContextVar(
-    "petta_active_stats", default=()
+    "metta_active_stats", default=()
 )
 
 
@@ -423,12 +423,12 @@ def _forward_window(window: slice) -> tuple[int, int | None]:
 
 def _explain_text(rt: Runtime, space_name: str, patterns: list, where) -> str:
     """The seam's own decisions for one conjunction, rendered. Pure
-    reflection through petta_py_explain: nothing runs, no row is pulled,
+    reflection through metta_py_explain: nothing runs, no row is pulled,
     and the engine answers claimed/rest as indexes so the caller's own
     atoms, variable names included, do the rendering.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     kind, detail, claimed, rest = rt.apply_must(
-        "petta_py_explain", space_name, [p.to_wire() for p in patterns]
+        "metta_py_explain", space_name, [p.to_wire() for p in patterns]
     )
     shown = ", ".join(str(p) for p in patterns)
     lines = [f"query over {space_name}: {shown}"]
@@ -523,10 +523,10 @@ class Cursor:
         guard = [] if checked is None else checked.to_wire()
         self._under = under
         self._annotation: Atom | None = None
-        predicate = "petta_py_cursor_open"
+        predicate = "metta_py_cursor_open"
         arguments = [space.name, wires, guard, columns.copy(), limit or 0, steps]
         if under is not None:
-            predicate = "petta_py_cursor_open_under"
+            predicate = "metta_py_cursor_open_under"
             arguments.extend((under, order or "none"))
         self._handle = self._rt.apply_must(predicate, *arguments)
         self._closed = False
@@ -539,7 +539,7 @@ class Cursor:
     @staticmethod
     def _reap(runtime: Runtime, handle: Any) -> None:
         try:
-            runtime.do("petta_py_cursor_close", handle)
+            runtime.do("metta_py_cursor_close", handle)
         except EngineError:
             logger.debug("cursor finalization found an unavailable engine", exc_info=True)
 
@@ -553,12 +553,12 @@ class Cursor:
             msg = "this cursor is closed"
             raise PettaError(msg)
         if self._timeout is None and self._stack < 0:
-            answer = self._rt.apply_must("petta_py_cursor_next", self._handle)
+            answer = self._rt.apply_must("metta_py_cursor_next", self._handle)
         else:
             answer = _apply_limited(
                 self._rt,
                 (-1.0 if self._timeout is None else self._timeout, -1, self._stack),
-                "petta_py_cursor_next",
+                "metta_py_cursor_next",
                 [self._handle],
             )
         if not answer:
@@ -811,12 +811,12 @@ class Prepared:
         space = self._space.name
         names = list(self.columns)
         if self._guard is not None:
-            pred = "petta_py_query_guarded_all"
+            pred = "metta_py_query_guarded_all"
             ins = [space, self._wires, self._guard, names, limit or 0]
         elif limit is not None:
-            pred, ins = "petta_py_query_limit_all", [space, self._wires, names, limit]
+            pred, ins = "metta_py_query_limit_all", [space, self._wires, names, limit]
         else:
-            pred, ins = "petta_py_query_all", [space, self._wires, names]
+            pred, ins = "metta_py_query_all", [space, self._wires, names]
         limits = _limits(timeout, inferences)
         if limits is None:
             answered = rt.apply_must(pred, *ins)
@@ -983,7 +983,7 @@ class _EngineFunction:
     def equations(self) -> list[Expression]:
         """The stored `(= (f ...) body)` atoms, live from the space."""
         wires = self._space._rt.apply_must(
-            "petta_py_equations", self._space.name, self._name
+            "metta_py_equations", self._space.name, self._name
         )
         return [cast(Expression, _atom_from_wire(w)) for w in wires]
 
@@ -1142,7 +1142,7 @@ class _FunctionNamespace:
 #: default mapping is never mutated: entering copies.
 _EMPTY_BATCHES: dict[str, list] = {}  # never mutated; entering copies
 _ACTIVE_BATCHES: ContextVar[dict[str, list]] = ContextVar(
-    "petta_active_batches", default=_EMPTY_BATCHES
+    "metta_active_batches", default=_EMPTY_BATCHES
 )
 
 

@@ -170,17 +170,17 @@ def _expect(condition: bool, message: str) -> str | None:  # noqa: FBT001  -- th
 def _reader_route(space: Space) -> Callable[[], str]:
     """Which reader answered: the C extension, or the Prolog grammar behind it.
 
-    `parser:petta_c_reader_active/0` is asserted only when `engine/reader.so`
+    `parser:metta_c_reader_active/0` is asserted only when `engine/reader.so`
     loaded AND `PETTA_C_READER` is not `off` AND the foreign arity matched, so
     it is the fact rather than the intention. `metta_reader_mode/1` is NOT this
     question: its two answers are `custom` and `shipped`, and they distinguish
     custom reader TOKENS, so it says `shipped` with no C reader present at all
-    [source: engine/parser.pl:131-147 petta_try_load_c_reader/0, and
+    [source: engine/parser.pl:131-147 metta_try_load_c_reader/0, and
     engine/parser.pl:190-191 metta_reader_mode/1; commit=906a4057ac57a340a3544ad909e829f851f35af3].
     """
     return lambda: str(
         space.runtime.once(
-            "( parser:petta_c_reader_active -> Route = c ; Route = prolog )"
+            "( parser:metta_c_reader_active -> Route = c ; Route = prolog )"
         )["Route"]
     )
 

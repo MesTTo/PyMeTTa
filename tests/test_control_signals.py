@@ -61,15 +61,15 @@ def test_control_signals_pass_through_recovery_catches(m):
 def test_reserved_exception_shape_maps_by_kind(m, kind, error_name):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     error_type = getattr(errors, error_name)
     with pytest.raises(error_type):
-        m.runtime.must("petta_py_raise(Kind, detail)", Kind=kind)
+        m.runtime.must("metta_py_raise(Kind, detail)", Kind=kind)
 
 
 @pytest.mark.parametrize(
     "sentinel",
     [
-        "petta_syntax_error",
-        "petta_py_time_limit",
-        "petta_py_inference_limit",
+        "metta_syntax_error",
+        "metta_py_time_limit",
+        "metta_py_inference_limit",
         "metta_host_interrupted",
     ],
 )

@@ -115,8 +115,8 @@ def test_janus_carries_bigint_losslessly(metta):  # noqa: D103  -- pytest discov
     for value in values:
         assert metta.runtime.must("Y = X", X=value)["Y"] == value
 
-        wire = metta.runtime.must("petta_py_encode(X, W)", X=value)["W"]
+        wire = metta.runtime.must("metta_py_encode(X, W)", X=value)["W"]
         assert wire == ["n", value]
         assert metta.runtime.must(
-            "petta_py_decode_shared(W, Y, _)", W=wire
+            "metta_py_decode_shared(W, Y, _)", W=wire
         )["Y"] == value

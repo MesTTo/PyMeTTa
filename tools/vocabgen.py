@@ -61,7 +61,7 @@ MODULE = ROOT / "bindings" / "python" / "metta" / "vocabularies.py"
 
 QUERY = (
     "consult('engine/metta.pl'), "
-    "forall(petta_catalog_row([vocabulary, V|Vs]), "
+    "forall(metta_catalog_row([vocabulary, V|Vs]), "
     "       (format('~w', [V]), forall(member(X, Vs), format(' ~w', [X])), nl))"
 )
 

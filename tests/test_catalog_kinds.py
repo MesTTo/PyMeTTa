@@ -52,16 +52,16 @@ EXTENSION = """\
 
 %The routed freshness level of one query shape in one context.
 'freshness-of'(Ctx, Query, Level) :-
-    petta_shape_route(freshness, Ctx, Query, _, [Level]).
+    metta_shape_route(freshness, Ctx, Query, _, [Level]).
 
 %The advisors: a cached context's routes lose the pushdown licence, a
 %stale one's are refused outright. Both read the third-party kind's own
 %catalog rows through the published shape route.
 :- multifile seam:route_cap/4.
 seam:route_cap(Space, Pattern, inexact, freshness(cached)) :-
-    petta_shape_route(freshness, Space, Pattern, _, [cached]).
+    metta_shape_route(freshness, Space, Pattern, _, [cached]).
 seam:route_cap(Space, Pattern, refuse, freshness(stale)) :-
-    petta_shape_route(freshness, Space, Pattern, _, [stale]).
+    metta_shape_route(freshness, Space, Pattern, _, [stale]).
 """
 
 

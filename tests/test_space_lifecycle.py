@@ -47,7 +47,7 @@ def drained(metta):
     front holds whatever earlier tests released, and "the same name comes
     back" becomes true only by accident of test order.
     """
-    free = metta.runtime.once("aggregate_all(count, petta_py_free_space(_), N)")["N"]
+    free = metta.runtime.once("aggregate_all(count, metta_py_free_space(_), N)")["N"]
     parked = [metta._new_space() for _ in range(free)]
     yield metta
     for space in parked:

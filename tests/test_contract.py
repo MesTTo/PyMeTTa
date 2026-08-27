@@ -43,10 +43,10 @@ def test_structural_registration_reflects_an_effect_atom(metta):  # noqa: D103  
         return x + 1
 
     metta.op(add1, name="ct-pure", effect=EffectClass.pureStructural)
-    petta_space = metta._at("&metta")
-    assert _effect_atom("ct-pure") in petta_space
+    metta_space = metta._at("&metta")
+    assert _effect_atom("ct-pure") in metta_space
     # The op fact and the effect fact are one surface.
-    assert parse("(op ct-pure 1 det)") in petta_space
+    assert parse("(op ct-pure 1 det)") in metta_space
 
 
 def test_unclassified_registration_is_refused_with_the_five_rank_remedy(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -69,11 +69,11 @@ def test_unregister_removes_the_effect_atom_with_the_op_facts(metta):  # noqa: D
         return values[x]
 
     metta.op(lookup, name="ct-gone", effect=EffectClass.readOnlyLookup)
-    petta_space = metta._at("&metta")
-    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) in petta_space
+    metta_space = metta._at("&metta")
+    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) in metta_space
     metta.unregister_op("ct-gone")
-    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) not in petta_space
-    assert parse("(op ct-gone 1 det)") not in petta_space
+    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) not in metta_space
+    assert parse("(op ct-gone 1 det)") not in metta_space
 
 
 def test_reregistration_replaces_the_effect_rank(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -87,13 +87,13 @@ def test_reregistration_replaces_the_effect_rank(metta):  # noqa: D103  -- pytes
         return x + 1
 
     metta.op(add1, name="ct-flip", effect=EffectClass.pureStructural)
-    petta_space = metta._at("&metta")
-    assert _effect_atom("ct-flip") in petta_space
+    metta_space = metta._at("&metta")
+    assert _effect_atom("ct-flip") in metta_space
     # Replacement owns exactly one rank. A claim from a previous registration
     # must not survive after the new operation takes ownership of its facts.
     metta.op(remember, name="ct-flip", effect=EffectClass.writesState)
-    assert _effect_atom("ct-flip") not in petta_space
-    assert _effect_atom("ct-flip", EffectClass.writesState) in petta_space
+    assert _effect_atom("ct-flip") not in metta_space
+    assert _effect_atom("ct-flip", EffectClass.writesState) in metta_space
     metta.unregister_op("ct-flip")
 
 
@@ -109,15 +109,15 @@ def test_the_effect_atom_is_matchable_from_metta(metta):  # noqa: D103  -- pytes
 
 
 def test_the_ontology_is_loaded_at_boot(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    petta_space = metta._at("&metta")
-    assert parse("(: Declaration Type)") in petta_space
-    assert parse("(:< Exact Partial)") in petta_space
-    assert parse("(:< Partial Sound)") in petta_space
+    metta_space = metta._at("&metta")
+    assert parse("(: Declaration Type)") in metta_space
+    assert parse("(:< Exact Partial)") in metta_space
+    assert parse("(:< Partial Sound)") in metta_space
     for effect in EffectClass:
-        assert parse(f"(: {effect.value} Effect)") in petta_space
+        assert parse(f"(: {effect.value} Effect)") in metta_space
     # Refuse is a Fidelity but deliberately outside the chain.
-    assert parse("(: Refuse Fidelity)") in petta_space
-    assert parse("(:< Refuse Sound)") not in petta_space
+    assert parse("(: Refuse Fidelity)") in metta_space
+    assert parse("(:< Refuse Sound)") not in metta_space
 
 
 def test_lint_evidence_and_intent_are_typed_reflection_facts(metta):
@@ -247,7 +247,7 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
 
     def fail_compile(runtime, goal, **inputs):
         nonlocal failed
-        if not failed and goal == "petta_py_compile_op(Name)" and inputs.get("Name") == rollback:
+        if not failed and goal == "metta_py_compile_op(Name)" and inputs.get("Name") == rollback:
             failed = True
             msg = "forced registration failure"
             raise EngineError(msg)
@@ -272,9 +272,9 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
 
 
 def test_the_fidelity_chain_rides_subtype_widening(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    petta_space = metta._at("&metta")
-    petta_space.run("!(add-atom &metta (: ct-widen Exact))")
-    answers = petta_space.run("!(get-type ct-widen)")
+    metta_space = metta._at("&metta")
+    metta_space.run("!(add-atom &metta (: ct-widen Exact))")
+    answers = metta_space.run("!(get-type ct-widen)")
     assert [str(a) for a in answers[0]] == ["Exact", "Partial", "Sound"]
 
 
@@ -429,10 +429,10 @@ def test_register_type_reflects_an_image_atom(metta):  # noqa: D103  -- pytest d
         from_atom=lambda _x: _CtImaged(),
         name="CtImaged",
     )
-    petta_space = metta._at("&metta")
-    assert parse("(type-image CtImaged expression)") in petta_space
+    metta_space = metta._at("&metta")
+    assert parse("(type-image CtImaged expression)") in metta_space
     convert.unregister_type(_CtImaged)
-    assert parse("(type-image CtImaged expression)") not in petta_space
+    assert parse("(type-image CtImaged expression)") not in metta_space
 
 
 def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

@@ -84,7 +84,7 @@ def _admit_world_effect(
     """Refuse the joined target-and-image plan or return its stable snapshot."""
     target_wire = target if isinstance(target, str) else _to_atom(target).to_wire()
     rows, required_raw, coverage_raw = plan._rt.apply_must(
-        "petta_py_world_effect_plan",
+        "metta_py_world_effect_plan",
         plan._space,
         origin._space,
         target_wire,
@@ -173,13 +173,13 @@ class ReifiedWorld:
             limits = _limits(timeout, inferences)
             if limits is None:
                 result = self._origin._rt.apply_must(
-                    "petta_py_world_eval", *inputs
+                    "metta_py_world_eval", *inputs
                 )
             else:
                 result = _apply_limited(
                     self._origin._rt,
                     limits,
-                    "petta_py_world_eval",
+                    "metta_py_world_eval",
                     inputs,
                 )
             if str(result[0]) == "refused":
@@ -226,7 +226,7 @@ def reify_space(space: Space) -> ReifiedWorld:
     """Capture one space through its native or explicit provider snapshot."""
     captured = _Member(space).snapshot()
     image_rows_raw, image_effect_raw, coverage_raw = space._rt.apply_must(
-        "petta_py_world_image_effect_plan",
+        "metta_py_world_image_effect_plan",
         space._space,
         space._space,
         [atom.to_wire() for atom in captured],
@@ -247,7 +247,7 @@ def reify_space(space: Space) -> ReifiedWorld:
     plan = space._new_space()
     try:
         space._rt.must(
-            "petta_py_world_prepare(Space, Origin, Atoms)",
+            "metta_py_world_prepare(Space, Origin, Atoms)",
             Space=plan._space,
             Origin=space._space,
             Atoms=[atom.to_wire() for atom in captured],
@@ -280,7 +280,7 @@ def commit_world(space: Space, world: ReifiedWorld) -> None:
     added = _surplus(list(world.atoms), list(world._base))
     backing = getattr(space, "_backing", None)
     if isinstance(backing, WorldCommitter):
-        if space._rt.once("petta_in_user_transaction"):
+        if space._rt.once("metta_in_user_transaction"):
             msg = (
                 "a provider-owned world commit cannot nest inside an engine "
                 "transaction; commit the world as the transaction boundary"
@@ -290,7 +290,7 @@ def commit_world(space: Space, world: ReifiedWorld) -> None:
         # The provider has finished its durable delta. Feed exactly those
         # ordinary changes through the same observer seam native writes use.
         space._rt.must(
-            "petta_py_publish_world_diff(Space, Removed, Added)",
+            "metta_py_publish_world_diff(Space, Removed, Added)",
             Space=space._space,
             Removed=[atom.to_wire() for atom in removed],
             Added=[atom.to_wire() for atom in added],

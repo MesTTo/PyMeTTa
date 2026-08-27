@@ -274,7 +274,7 @@ def _acquire_module(
             logger.debug("reusing persistent module %s", module)
             return module, key, False
         identifier = next(_MODULE_IDS)
-    module = f"petta_persistent_{digest}_{identifier}"
+    module = f"metta_persistent_{digest}_{identifier}"
     logger.debug("allocating persistent module %s", module)
     return module, key, True
 
@@ -629,8 +629,8 @@ def _module_source(
             read_term(Stream, Term, [module(db)]),
             close(Stream)),
         error(syntax_error(_), _),
-        Term = '$petta_torn_record'),
-    (   ( Term == '$petta_torn_record' ; Term == end_of_file )
+        Term = '$metta_torn_record'),
+    (   ( Term == '$metta_torn_record' ; Term == end_of_file )
     ->  Status = incomplete
     ;   Status = complete
     ).
@@ -1364,7 +1364,7 @@ class PersistentFactSpace(SpaceProvider):
         if durable:
             for argument in arguments:
                 if isinstance(argument, Symbol) and self._runtime.once(
-                    "petta_live_state_cell(Cell)", Cell=argument.name
+                    "metta_live_state_cell(Cell)", Cell=argument.name
                 ):
                     msg = (
                         f"cannot {verb} {atom}: {argument} is a live State "

@@ -220,7 +220,7 @@ def test_pool_reuse_starts_tabling_clean(metta):
     clear now resets the module's tabling state whole.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     free = metta.runtime.once(
-        "aggregate_all(count, petta_py_free_space(_), N)"
+        "aggregate_all(count, metta_py_free_space(_), N)"
     )["N"]
     held = [metta._new_space() for _ in range(free)]
     try:

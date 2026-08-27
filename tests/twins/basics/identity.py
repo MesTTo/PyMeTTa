@@ -79,7 +79,7 @@ def twin(m):
 #: branch: an ordinary added equation compiles for +3 (the mask read), an
 #: equation whose body compiles to NO goals costs +144 more for its result
 #: continuation, and the first m.define in a process pays +42 one-time in two
-#: petta_py_add calls of the three-element contract atoms, where the same
+#: metta_py_add calls of the three-element contract atoms, where the same
 #: adds measured directly in Prolog are 15 cheaper on that tree; a single
 #: inert clause in any compiled engine file moves the reading +-10
 #: [measured 2026-08-24, min-of-3 through tools/twin_coverage.py --measure
@@ -108,7 +108,7 @@ def twin(m):
 #: [measured 2026-08-25, the twin reading 2784 stable across the suite run
 #: and a direct re-run on the fixed tree].
 #: RE-PINNED 2026-08-25, 2784 to 2814, by the computed-head value dispatch:
-#: petta_dynamic_head_masks/1 and petta_dynamic_value_call/4 join
+#: metta_dynamic_head_masks/1 and metta_dynamic_value_call/4 join
 #: seam:engine_emitted/1 at the documented three inferences per name per
 #: execution-module build, and this workload builds several spaces. The
 #: dispatch removes per-activation tail retranslation at computed-head
@@ -125,7 +125,7 @@ def twin(m):
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -160,7 +160,7 @@ def twin(m):
 #: twin's definition and assertion are unchanged; the fixed 28-inference move
 #: is the compiled program-layout cost after adding the named-lifecycle and
 #: wide-query bridge clauses. Removing only the hashtable import and then only
-#: the hot petta_py_query/4 wide clause left the same 2850 count, ruling out
+#: the hot metta_py_query/4 wide clause left the same 2850 count, ruling out
 #: both an import charge and per-query traversal. The pin is the minimum of
 #: three fresh processes on the merged tree with engine/reader.so present
 #: [measured: 2850 inferences; command=tools/twin_coverage.py --measure

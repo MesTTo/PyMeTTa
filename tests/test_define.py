@@ -269,7 +269,7 @@ def test_each_ast_derived_fact_replaces_the_flag_it_supersedes(m, monkeypatch):
         nonlocal failed
         if (
             not failed
-            and goal == "petta_py_add(Space, W)"
+            and goal == "metta_py_add(Space, W)"
             and inputs.get("Space") == "&metta"
         ):
             failed = True

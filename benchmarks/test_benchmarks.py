@@ -101,7 +101,7 @@ _ROWS = 2_000
 # 6152/86805/1377097 before and 9267/136002/2163602 after, while the accepted
 # 12/15/18/20 minima are the four rows below.
 # RE-PINNED 2026-08-25, plain +3/+3/+3/+5 and automatic +3 at every
-# size, after petta_function_eval/3 became an emitted helper available in each
+# size, after metta_function_eval/3 became an emitted helper available in each
 # execution module.  The change is fixed setup and final program-layout cost:
 # both growth classes are unchanged, and only the n=20 plain floor exceeds the
 # four-inference allowance.

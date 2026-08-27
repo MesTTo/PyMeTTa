@@ -506,10 +506,10 @@ class _FoldRegistry:
         if current_spaces == candidate_spaces:
             return
         try:
-            runtime.must("petta_py_subscriptions(Spaces)", Spaces=candidate_spaces)
+            runtime.must("metta_py_subscriptions(Spaces)", Spaces=candidate_spaces)
         except BaseException as publication_error:
             try:
-                runtime.must("petta_py_subscriptions(Spaces)", Spaces=current_spaces)
+                runtime.must("metta_py_subscriptions(Spaces)", Spaces=current_spaces)
             except (PettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
                 msg = "subscription guard publication and rollback both failed"
                 raise BaseExceptionGroup(

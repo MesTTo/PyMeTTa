@@ -793,16 +793,16 @@ def test_a_refused_wrapper_installation_leaves_no_saga_instrumentation(metta):
     try:
         state = space._rt.must(
             """
-            catch(( petta_py_saga_wrap_all(
+            catch(( metta_py_saga_wrap_all(
                         [spaces:'add-atom'/3, not_a_predicate_indicator],
                         [], _Wrapped),
                     Outcome = installed ),
                   _Error,
                   Outcome = refused),
-            ( catch(unwrap_predicate(spaces:'add-atom'/3, petta_saga_receipt),
+            ( catch(unwrap_predicate(spaces:'add-atom'/3, metta_saga_receipt),
                     _, fail)
             -> Wrapper = present ; Wrapper = absent ),
-            ( nb_current('$petta_saga_receipt_sink', _)
+            ( nb_current('$metta_saga_receipt_sink', _)
             -> Sink = present ; Sink = absent )
             """
         )
@@ -819,19 +819,19 @@ def test_saga_teardown_retires_every_wrapper_past_a_missing_one(metta):
     try:
         state = space._rt.must(
             """
-            petta_py_saga_wrap_all(
+            metta_py_saga_wrap_all(
                 [spaces:'add-atom'/3, spaces:'remove-atom'/3], [], _Wrapped),
             _Wrapped = [_First|_],
-            unwrap_predicate(_First, petta_saga_receipt),
-            petta_py_saga_capture_end(_Wrapped),
-            ( catch(unwrap_predicate(spaces:'add-atom'/3, petta_saga_receipt),
+            unwrap_predicate(_First, metta_saga_receipt),
+            metta_py_saga_capture_end(_Wrapped),
+            ( catch(unwrap_predicate(spaces:'add-atom'/3, metta_saga_receipt),
                     _, fail)
             -> Adder = present ; Adder = absent ),
             ( catch(unwrap_predicate(spaces:'remove-atom'/3,
-                                     petta_saga_receipt),
+                                     metta_saga_receipt),
                     _, fail)
             -> Remover = present ; Remover = absent ),
-            ( nb_current('$petta_saga_receipt_sink', _)
+            ( nb_current('$metta_saga_receipt_sink', _)
             -> Sink = present ; Sink = absent )
             """
         )

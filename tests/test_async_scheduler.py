@@ -669,7 +669,7 @@ def test_a_rolled_back_async_launch_never_starts_or_lands(metta):
         assert entered.is_set() is False
         assert seen == []
         registry = runtime().once(
-            "(petta_future(Space, _, _) -> Present = true ; Present = false)",
+            "(metta_future(Space, _, _) -> Present = true ; Present = false)",
             Space=held[0].name,
         )
         assert registry is not None
@@ -718,7 +718,7 @@ def test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work(metta
         with metta:
             warmup = spawn(S["+"](1, 1))
             assert _bounded_call(lambda: list(warmup.wait())) == [2]
-            row = runtime().once("petta_scheduler_lane_size(normal, Size)")
+            row = runtime().once("metta_scheduler_lane_size(normal, Size)")
             assert row is not None
             normal_carriers = int(row["Size"])
             blocker_count = normal_carriers + 2

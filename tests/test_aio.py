@@ -279,7 +279,7 @@ def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):  # noqa: 
     release_unexpected = threading.Event()
     injected = iter(
         (
-            "error(metta_control_signal(interrupted, none), context(petta, interrupted))",
+            "error(metta_control_signal(interrupted, none), context(metta, interrupted))",
             "error(unexpected_drain, context(test, drain))",
         )
     )

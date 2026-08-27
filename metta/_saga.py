@@ -137,7 +137,7 @@ class Saga:
             Space=receipts._space,
         ):
             writes = receipts._rt.must(
-                "petta_writes(Space, Atomicity)",
+                "metta_writes(Space, Atomicity)",
                 Space=receipts._space,
             )["Atomicity"]
             if writes != "transactional":
@@ -152,7 +152,7 @@ class Saga:
                     capability="transactional-writes",
                 )
         events = receipts._rt.must(
-            "petta_event_capability(Space, Delivery, Order)",
+            "metta_event_capability(Space, Delivery, Order)",
             Space=receipts._space,
         )
         if (events["Delivery"], events["Order"]) != (
@@ -268,7 +268,7 @@ class Saga:
 
     def _require_boundary(self, operation: str) -> None:
         """Refuse ambient scopes that can invalidate receipt ordering."""
-        if self._space._rt.once("petta_in_user_transaction"):
+        if self._space._rt.once("metta_in_user_transaction"):
             msg = (
                 f"Saga.{operation}() is already inside a user transaction; "
                 "each saga step or compensation must be the durable boundary"
@@ -373,7 +373,7 @@ class Saga:
                         pending.append(self._native_receipt(wire))
 
                     answer_wires = self._space._rt.apply_must(
-                        "petta_py_saga_eval_all",
+                        "metta_py_saga_eval_all",
                         self._space._space,
                         target_wire,
                         _select_receipt_operations,
@@ -543,7 +543,7 @@ class Saga:
         """Run a callback with explicit durable-outcome notifications."""
         try:
             row = self._space._rt.once(
-                "petta_py_saga_transaction(F, C, B, R)",
+                "metta_py_saga_transaction(F, C, B, R)",
                 F=target,
                 C=committed,
                 B=rolled_back,
@@ -565,7 +565,7 @@ class Saga:
 
     def _compensation_for(self, receipt: Expression) -> str:
         operation = str(receipt.children[1])
-        compensation = self._space._rt.apply("petta_compensation", operation)
+        compensation = self._space._rt.apply("metta_compensation", operation)
         if compensation is None:
             msg = (
                 f"receipt {receipt} has no compensation; declare one with "
@@ -579,7 +579,7 @@ class Saga:
             )
         compensation_name = str(compensation)
         if not self._space._rt.once(
-            "petta_py_saga_compensation_callable(Space, Name)",
+            "metta_py_saga_compensation_callable(Space, Name)",
             Space=self._space._space,
             Name=compensation_name,
         ):

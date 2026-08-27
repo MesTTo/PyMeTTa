@@ -40,7 +40,7 @@ def test_every_delimiter_check_derives_from_one_grammar_rule(metta, repo_root):
     }
     rt = metta.runtime
     actual = {
-        name: rt.apply_must("petta_py_symbol_writable", name) for name in expected
+        name: rt.apply_must("metta_py_symbol_writable", name) for name in expected
     }
     assert actual == expected
 

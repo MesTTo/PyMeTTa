@@ -207,10 +207,10 @@ def test_the_launcher_answers_version_and_help_without_booting(capsys):
     assert "python -m metta" in printed, "the help names the subcommand surface"
 
     # Not the whole command line, so it belongs to the program being run.
-    assert "--help" not in petta_cli_self_answered_for(["program.metta", "--help"])
+    assert "--help" not in metta_cli_self_answered_for(["program.metta", "--help"])
 
 
-def petta_cli_self_answered_for(argv):
+def metta_cli_self_answered_for(argv):
     """Which of argv the launcher would answer itself, as a set."""
     from metta.cli import SELF_ANSWERED
 

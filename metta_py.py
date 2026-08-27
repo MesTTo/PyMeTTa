@@ -58,7 +58,7 @@ class _GroundedTuple(tuple):
         return grounded
 
     @property
-    def __petta_wire_value__(self) -> tuple:
+    def __metta_wire_value__(self) -> tuple:
         """The exact tuple represented by this Janus-safe carrier."""
         return self.original
 
@@ -68,7 +68,7 @@ def _grounded(value: Any) -> Any:
 
 
 def _wire_value(value: Any) -> tuple[bool, Any]:
-    wire_value = getattr(type(value), "__petta_wire_value__", None)
+    wire_value = getattr(type(value), "__metta_wire_value__", None)
     if isinstance(wire_value, property):
         return True, wire_value.__get__(value, type(value))
     return False, value

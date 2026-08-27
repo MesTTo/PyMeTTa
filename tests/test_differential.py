@@ -62,7 +62,7 @@ groups = m.load(sys.argv[1])
 rt = m.runtime
 for group in groups:
     for atom in group:
-        row = rt.once("petta_py_swrite(W, S)", W=atom.to_wire())
+        row = rt.once("metta_py_swrite(W, S)", W=atom.to_wire())
         print(row["S"])
 """
 

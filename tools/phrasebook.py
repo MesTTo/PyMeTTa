@@ -199,9 +199,9 @@ SECONDS = 10.0
 def metta_answers(engine: Any, entry: Entry, index: int, space: Any = None) -> tuple[str, ...]:
     """The answers of the last `!` form of a row's MeTTa side, on this engine."""
     space = engine._new_space() if space is None else space
-    source = "\n".join(part for part in (entry.petta_setup, entry.metta) if part)
+    source = "\n".join(part for part in (entry.metta_setup, entry.metta) if part)
     source = source.replace(SPACE, f"{SPACE}{index}")
-    inferences = entry.petta_inferences or FUEL
+    inferences = entry.metta_fuel or FUEL
     with engine.limits(inferences=inferences, timeout=SECONDS):
         groups = space.run(source)
     if not groups:
@@ -400,11 +400,11 @@ def structural(entries: list[Entry]) -> list[str]:
             findings.append(
                 f"{entry.name}: names a ruling, which only a residue row needs"
             )
-        if entry.petta_setup is not None and entry.metta is None:
+        if entry.metta_setup is not None and entry.metta is None:
             findings.append(f"{entry.name}: has PeTTa setup but no MeTTa form")
         if entry.oracle_metta is not None and entry.metta is None:
             findings.append(f"{entry.name}: has an oracle form but no MeTTa form")
-        if entry.petta_inferences is not None and entry.petta_inferences < 1:
+        if entry.metta_fuel is not None and entry.metta_fuel < 1:
             findings.append(f"{entry.name}: has a non-positive PeTTa inference limit")
     return findings
 

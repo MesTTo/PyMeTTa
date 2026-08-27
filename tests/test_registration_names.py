@@ -38,9 +38,9 @@ def test_register_op_refuses_a_name_metta_cannot_read(metta):
         assert witness in message
         assert metta.builtins() == before
         assert not metta.runtime.once(
-            "atom_string(_Name, Name), petta_py_op_spec(_Name, _, _)", Name=name
+            "atom_string(_Name, Name), metta_py_op_spec(_Name, _, _)", Name=name
         )
         assert not metta.runtime.once(
-            "atom_string(_Name, Name), petta_contract_fact([op, _Name, _, _])",
+            "atom_string(_Name, Name), metta_contract_fact([op, _Name, _, _])",
             Name=name,
         )

@@ -94,8 +94,8 @@ class _CallLocks(threading.local):
 
     What makes running free safe is that PeTTa's shared structures already
     carry their own Prolog mutexes, because hyperpose workers have always
-    reached the same database: '$petta_specializer' in specializer.pl,
-    '$petta_native_storage' in spaces.pl, metta_loader around
+    reached the same database: '$metta_specializer' in specializer.pl,
+    '$metta_native_storage' in spaces.pl, metta_loader around
     process_metta_string in filereader.pl, and a per-function mutex in
     lib_memo.pl. SWI keeps individual dynamic predicates consistent itself.
     """
@@ -341,7 +341,7 @@ def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:  #
             if verbose != _STATE.runtime.verbose:
                 _STATE.runtime.verbose = verbose
                 _STATE.runtime.once(
-                    "petta_py_set_silent(S)", S="false" if verbose else "true"
+                    "metta_py_set_silent(S)", S="false" if verbose else "true"
                 )
         return _STATE.runtime
 
@@ -427,14 +427,14 @@ class Runtime:
         if _SHIM_LOADED.is_set():
             return
         callbacks = importlib.import_module(f"{__package__}._callbacks")
-        # janus reaches Python operations by importing petta_ops; the alias
+        # janus reaches Python operations by importing metta_ops; the alias
         # makes that import resolve to the registry module.
-        sys.modules.setdefault("petta_ops", callbacks)
+        sys.modules.setdefault("metta_ops", callbacks)
         shim = str(Path(__file__).with_name("shim.pl"))
         logger.debug("consulting the Python bridge shim from %s", shim)
         self._janus.consult(shim)
         self._janus.query_once(
-            "petta_py_set_silent(S)", {"S": "false" if self.verbose else "true"}
+            "metta_py_set_silent(S)", {"S": "false" if self.verbose else "true"}
         )
         _SHIM_LOADED.set()
         # The runtime-backed prelude compiled Python leans on; registered
@@ -608,8 +608,8 @@ class Runtime:
         the library asks itself about, an operation's arities and a space's
         diagnostics, and why it is not the lazy route.
 
-        The lazy route is an SWI engine, not a findall: petta_py_cursor_open
-        holds the goal's state between pulls, petta_py_cursor_next takes one
+        The lazy route is an SWI engine, not a findall: metta_py_cursor_open
+        holds the goal's state between pulls, metta_py_cursor_next takes one
         answer, and unrelated calls interleave freely, which a raw janus
         cursor forbids because its frames nest LIFO and it dies crossing
         threads. MeTTa.stream() is that door in-process and
@@ -679,11 +679,11 @@ class Runtime:
             # NAMED variable of the query and an assertion form that carries
             # no expected value leaves one free, which janus reports as
             # "Arguments are not sufficiently instantiated" rather than as
-            # absence. petta_py_operation_part/2 maps that absence to None.
+            # absence. metta_py_operation_part/2 maps that absence to None.
             row = self._janus.query_once(
-                "petta_assertion_failure(Error, Form, _Actual, _Expected), "
-                "petta_py_operation_part(_Actual, Actual), "
-                "petta_py_operation_part(_Expected, Expected)",
+                "metta_assertion_failure(Error, Form, _Actual, _Expected), "
+                "metta_py_operation_part(_Actual, Actual), "
+                "metta_py_operation_part(_Expected, Expected)",
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
@@ -717,7 +717,7 @@ class Runtime:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         try:
             row = self._janus.query_once(
-                "petta_py_original_exception(Error, Obj)", {"Error": term}
+                "metta_py_original_exception(Error, Obj)", {"Error": term}
             )
         except self._janus.PrologError:
             return None
@@ -732,7 +732,7 @@ class Runtime:
         """Raise SpaceCapabilityError with the refusal's stable fields."""
         try:
             row = self._janus.query_once(
-                "petta_py_space_capability_error(Error, Space, Operation, Capability)",
+                "metta_py_space_capability_error(Error, Space, Operation, Capability)",
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
@@ -763,7 +763,7 @@ class Runtime:
         """Raise MettaOperationError when the term names a MeTTa operation."""
         try:
             row = self._janus.query_once(
-                "petta_py_operation_error(Error, Operation, Kind, Expected, Culprit)",
+                "metta_py_operation_error(Error, Operation, Kind, Expected, Culprit)",
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
@@ -790,5 +790,5 @@ class Runtime:
     # ------------------------------------------------------------------- helpers
 
     def builtins(self) -> list[str]:
-        row = self.once("petta_py_builtins(Names)")
+        row = self.once("metta_py_builtins(Names)")
         return list(row.get("Names", []))

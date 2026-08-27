@@ -29,7 +29,7 @@ def _module():
     sys.path.insert(0, examples_root)
     try:
         specification = _importlib_util.spec_from_file_location(
-            "petta_example_networkx_space", _MODULE_PATH
+            "metta_example_networkx_space", _MODULE_PATH
         )
         module = _importlib_util.module_from_spec(specification)
         specification.loader.exec_module(module)

@@ -31,7 +31,7 @@ Guarantees:
     test_an_async_operation_answers_a_future_space,
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - object decoding removes every __petta_wire_value__ carrier by protocol,
+  - object decoding removes every __metta_wire_value__ carrier by protocol,
     so transport classes cannot replace the carried object's identity
     [tested: test_bridge_answers_preserve_python_object_identity;
     commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]

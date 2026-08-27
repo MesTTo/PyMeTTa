@@ -184,7 +184,7 @@ def _has_fact(fact: Expression) -> bool:
 
 
 def _reflection_contains(runtime: Any, fact: Expression) -> bool:
-    return runtime.do("petta_py_contains", _REFLECTION_SPACE, fact.to_wire())
+    return runtime.do("metta_py_contains", _REFLECTION_SPACE, fact.to_wire())
 
 
 def _ensure_reflection_present(runtime: Any, fact: Expression) -> None:

@@ -27,7 +27,7 @@ class _GenerationRuntime:
         self.catalogue_reads = 0
 
     def apply_must(self, predicate: str):
-        assert predicate == "petta_py_function_generation"
+        assert predicate == "metta_py_function_generation"
         self.generation_reads += 1
         return self.generation
 

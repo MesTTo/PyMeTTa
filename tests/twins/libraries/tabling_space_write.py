@@ -32,7 +32,7 @@ The last claim is compared with `alpha_eq` rather than against printed text. The
 engine names the unresolved variable freshly, so the example's `$_0` is `$_558`
 here and would be a third name tomorrow; alpha equality is the relation the law
 already defines for exactly this, and it belongs to the atom. The refusal's
-own head keeps the bracket: `petta_tabling_unresolved_read` really has
+own head keeps the bracket: `metta_tabling_unresolved_read` really has
 underscores, and the attribute door maps every underscore to a hyphen.
 """
 
@@ -82,7 +82,7 @@ def twin(m):
         return match(m, p, p)
 
     [refused] = m.eval(S.catch(S.tabled(S.bypattern(V.p))))
-    assert refused.alpha_eq(S.Error(S["petta_tabling_unresolved_read"](S.match, V.p), S.none))
+    assert refused.alpha_eq(S.Error(S["metta_tabling_unresolved_read"](S.match, V.p), S.none))
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
@@ -96,7 +96,7 @@ def twin(m):
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3

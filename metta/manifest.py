@@ -4,7 +4,7 @@ one existing imperative call, and records every performed form in the
 booted space, so the deployment is queryable knowledge rather than dead
 config.
 Assumes:
-  - shim.pl petta_py_read_forms answers every form in a source without
+  - shim.pl metta_py_read_forms answers every form in a source without
     compiling, storing, or running any [tested
     test_a_manifest_neither_runs_nor_defines]
 Guarantees:
@@ -54,7 +54,7 @@ def _read_forms(source: str) -> list[Atom]:
     engine door answers each form's own text, so variable names in bridge
     shapes survive into the recorded topology.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    row = runtime().must("petta_py_read_forms(Source, Forms)", Source=source)
+    row = runtime().must("metta_py_read_forms(Source, Forms)", Source=source)
     forms = []
     for kind, text in row["Forms"]:
         if kind == "runnable":

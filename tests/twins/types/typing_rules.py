@@ -15,7 +15,7 @@ Both directives are performed rather than built, because their engine names end
 in `!` and a banged name on the BOUND namespace performs on the line that
 writes it. The refusal is read through the flat call itself: a declared head's
 flat call runs the same call-site typed dispatch the engine's own form runs
-(petta_py_typed_dispatch_applies/2), which retired this file's P14.9 residue
+(metta_py_typed_dispatch_applies/2), which retired this file's P14.9 residue
 row on 2026-08-25; the collapse spelling it once needed is gone.
 Guarantees:
   - the flat call, the eval door, and the engine's own form agree on the
@@ -76,7 +76,7 @@ def twin(m):
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3

@@ -1192,7 +1192,7 @@ def has_tagged_program(metta: Space, query: str | Atom) -> bool:
     """Ask whether a normative tagged fact or rule can answer this query."""
     encoded = query if isinstance(query, str) else _encode(query).to_wire()
     return metta.runtime.apply_must(
-        "petta_py_has_tagged_program", metta.name, encoded
+        "metta_py_has_tagged_program", metta.name, encoded
     ) == "true"
 
 
@@ -1226,10 +1226,10 @@ def count_tagged(
 
     bounds = _limits(timeout, inferences)
     output = (
-        metta.runtime.apply_must("petta_py_tagged_count", *inputs)
+        metta.runtime.apply_must("metta_py_tagged_count", *inputs)
         if bounds is None
         else _apply_limited(
-            metta.runtime, bounds, "petta_py_tagged_count", inputs
+            metta.runtime, bounds, "metta_py_tagged_count", inputs
         )
     )
     return int(output)

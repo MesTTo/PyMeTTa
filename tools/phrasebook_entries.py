@@ -128,9 +128,9 @@ class Entry:
     differs: str | None = None
     unrun: str | None = None
     ruled: str | None = None
-    petta_setup: str | None = None
+    metta_setup: str | None = None
     oracle_metta: str | None = None
-    petta_inferences: int | None = None
+    metta_fuel: int | None = None
     visibility: str = ""
 
     def __post_init__(self) -> None:
@@ -815,8 +815,8 @@ ENTRIES: list[Entry] = [
         "spelling. Python builds the same gtry atom and evaluates it in the space.",
         metta="!(gtry id a)",
         python=PY_STRATEGY_SETUP + "space.eval(S.gtry(metta.strategies.id, S.a))",
-        petta_setup=STRATEGY_SETUP,
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_setup=STRATEGY_SETUP,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "_check-alternatives", ("(-> Atom Atom)",), "Symbol", "control", "internal",
@@ -1077,8 +1077,8 @@ ENTRIES: list[Entry] = [
         "`metta.strategies.TP` symbol.",
         metta="!(get-type TP)",
         python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](metta.strategies.TP))",
-        petta_setup=STRATEGY_SETUP,
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_setup=STRATEGY_SETUP,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "TU", ("(-> Type Type)",), "Symbol", "types", "method",
@@ -1086,8 +1086,8 @@ ENTRIES: list[Entry] = [
         "`metta.strategies.TU` symbol.",
         metta="!(get-type TU)",
         python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](metta.strategies.TU))",
-        petta_setup=STRATEGY_SETUP,
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_setup=STRATEGY_SETUP,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "Pair", ("(-> $ta $tb (PairType $ta $tb))",), "Symbol", "types", "absent",
@@ -1121,8 +1121,8 @@ ENTRIES: list[Entry] = [
         "running the named strategy.",
         metta="!(get-type ◁)",
         python=PY_STRATEGY_SETUP + "space.eval(S['get-type'](S['◁']))",
-        petta_setup=STRATEGY_SETUP,
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_setup=STRATEGY_SETUP,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     # ---------------------------------------------------------------- state
     Entry(
@@ -1613,9 +1613,9 @@ ENTRIES: list[Entry] = [
               "space.eval(S['strategy-apply'](metta.strategies.try_(S['pb-try-step']), "
               "S['strategy-a']))"
         ),
-        petta_setup=STRATEGY_SETUP,
+        metta_setup=STRATEGY_SETUP,
         oracle_metta="(= strategy-a strategy-b)\n!(try strategy-a)",
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "repeat", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
@@ -1632,10 +1632,10 @@ ENTRIES: list[Entry] = [
               "space.eval(S['strategy-apply'](metta.strategies.repeat(S['pb-repeat-step']), "
               "S['strategy-a']))"
         ),
-        petta_setup=STRATEGY_SETUP,
+        metta_setup=STRATEGY_SETUP,
         oracle_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
                      "!(repeat strategy-a)",
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "topdown", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
@@ -1652,11 +1652,11 @@ ENTRIES: list[Entry] = [
               "metta.strategies.try_(S['pb-topdown-step']))\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
-        petta_setup=STRATEGY_SETUP,
+        metta_setup=STRATEGY_SETUP,
         oracle_metta="(= strategy-a strategy-b)\n"
                      "(= (strategy-node strategy-b) strategy-bottomup-root)\n"
                      "!(topdown (strategy-node strategy-a))",
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "bottomup", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
@@ -1676,11 +1676,11 @@ ENTRIES: list[Entry] = [
               "metta.strategies.try_(S['pb-bottomup-step']))\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
-        petta_setup=STRATEGY_SETUP,
+        metta_setup=STRATEGY_SETUP,
         oracle_metta="(= strategy-a strategy-b)\n"
                      "(= (strategy-node strategy-b) strategy-bottomup-root)\n"
                      "!(bottomup (strategy-node strategy-a))",
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "innermost", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
@@ -1701,11 +1701,11 @@ ENTRIES: list[Entry] = [
               "plan = metta.strategies.innermost(S['pb-innermost-step'])\n"
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
-        petta_setup=STRATEGY_SETUP,
+        metta_setup=STRATEGY_SETUP,
         oracle_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
                      "(= (strategy-node strategy-c) strategy-innermost-root)\n"
                      "!(innermost (strategy-node strategy-a))",
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "stratego-all", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "method",
@@ -1716,8 +1716,8 @@ ENTRIES: list[Entry] = [
             + "plan = metta.strategies.stratego_all(metta.strategies.id)\n"
               "space.eval(S['strategy-apply'](plan, S.f(S.a, S.b)))"
         ),
-        petta_setup=STRATEGY_SETUP,
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_setup=STRATEGY_SETUP,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "stratego-one", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "method",
@@ -1730,8 +1730,8 @@ ENTRIES: list[Entry] = [
             + "plan = metta.strategies.stratego_one(metta.strategies.id)\n"
               "space.eval(S['strategy-apply'](plan, S.f(S.a, S.b)))"
         ),
-        petta_setup=STRATEGY_SETUP,
-        petta_inferences=STRATEGY_INFERENCES,
+        metta_setup=STRATEGY_SETUP,
+        metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
         "stratego-some", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "absent",

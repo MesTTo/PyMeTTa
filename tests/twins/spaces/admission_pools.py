@@ -103,7 +103,7 @@ def twin(m):
     stowaway = S.stowaway(1)
     assert m.eval(fn.catch(fn.add_atom(pool, stowaway))) == [  # rung: catch keeps this failure as aggregate data, which is what the example claims about
         S.Error(
-            S["petta_add_refused"](pool, stowaway, S.does_not_carry(S.Ticket)),
+            S["metta_add_refused"](pool, stowaway, S.does_not_carry(S.Ticket)),
             S.none,
         )
     ]
@@ -113,7 +113,7 @@ def twin(m):
     pool += S.ticket(S.b)
     assert m.eval(fn.catch(fn.add_atom(pool, S.ticket(S.a)))) == [  # rung: as above
         S.Error(
-            S["petta_add_refused"](pool, S.ticket(S.a), S.pool_at_capacity(2)),
+            S["metta_add_refused"](pool, S.ticket(S.a), S.pool_at_capacity(2)),
             S.none,
         )
     ]
@@ -145,7 +145,7 @@ def twin(m):
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3

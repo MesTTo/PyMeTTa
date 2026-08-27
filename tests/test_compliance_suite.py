@@ -189,7 +189,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
     A foreign space holds DATA unless it says otherwise, so an equation added
     to one that has not declared `rules` is refused rather than stored where
     it could never fire. That refusal had no message clause, so it printed as
-    `Unknown error term: petta_foreign_space_holds_no_rules(...)`, which names
+    `Unknown error term: metta_foreign_space_holds_no_rules(...)`, which names
     the capability without saying it is one or how to opt in.
     """
     engine = MeTTa().space()

@@ -430,7 +430,7 @@ class _EngineThread:
             # goal holds that lock, and the signal is how it lets go.
             bridge().query_once(
                 "thread_signal(T, throw(error(metta_control_signal(interrupted, none), "
-                "context(petta, interrupted))))",
+                "context(metta, interrupted))))",
                 {"T": swi_thread},
             )
             logger.debug("sent an interrupt to the AsyncMeTTa worker")

@@ -176,7 +176,7 @@ def test_an_operation_error_keeps_the_variables_the_source_wrote(m):  # noqa: D1
     # arithmetic refusal names; it used to be SWI's bare instantiation_error.
     with pytest.raises(MettaOperationError) as absent:
         m.run("!(+ $left $right)")
-    assert absent.value.kind == "petta_unsolved_arithmetic"
+    assert absent.value.kind == "metta_unsolved_arithmetic"
     assert absent.value.operation == "+"
     assert absent.value.expected is None
     assert absent.value.culprit is None
@@ -507,8 +507,8 @@ def test_a_malformed_wire_target_is_refused(m):
     answered nothing. Before this it failed, and findall turned that into an
     empty answer list no caller could tell from a real one.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with pytest.raises(EngineError, match="petta_py_wire_term"):
-        m._rt.apply_must("petta_py_eval_all", m.name, ["n", 1, "extra"])
+    with pytest.raises(EngineError, match="metta_py_wire_term"):
+        m._rt.apply_must("metta_py_eval_all", m.name, ["n", 1, "extra"])
 
 
 def test_parse_keeps_variable_names():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

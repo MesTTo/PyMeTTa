@@ -321,7 +321,7 @@ def test_inline_source_declares_its_own_exports_too(space):
     """A declaration records itself under the name the LOAD runs under.
 
     For a file that is the path; for inline source it is the generated
-    module name, and the Python side asked under a fixed "petta_inline"
+    module name, and the Python side asked under a fixed "metta_inline"
     instead, which matched nothing. So a source declaring its own exports
     inline was told it had declared none, while the same text in a file
     worked.

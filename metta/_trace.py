@@ -53,7 +53,7 @@ def trace(space, source: str, max_events: int = 1_000_000) -> list[TraceEvent]:
             msg
         )
     row = space.runtime.once(
-        "petta_py_trace(Src, Space, Max, Events)",
+        "metta_py_trace(Src, Space, Max, Events)",
         Src=source,
         Space=space.name,
         Max=int(max_events),

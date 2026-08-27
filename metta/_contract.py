@@ -227,9 +227,9 @@ def _image_atom(registration) -> Expression:
 
 def _reflect_image(runtime, old, new) -> None:
     if old is not None:
-        runtime.once("petta_py_remove(Space, W, _)", Space=_SPACE, W=_image_atom(old).to_wire())
+        runtime.once("metta_py_remove(Space, W, _)", Space=_SPACE, W=_image_atom(old).to_wire())
     if new is not None:
-        runtime.must("petta_py_add(Space, W)", Space=_SPACE, W=_image_atom(new).to_wire())
+        runtime.must("metta_py_add(Space, W)", Space=_SPACE, W=_image_atom(new).to_wire())
 
 
 def install(runtime) -> None:
@@ -239,11 +239,11 @@ def install(runtime) -> None:
     unregister. The registry stays engine-free; this listener is the whole
     coupling, and it hears the past (the snapshot) before the future.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if runtime.do("petta_py_contains", _SPACE, _SENTINEL.to_wire()):
+    if runtime.do("metta_py_contains", _SPACE, _SENTINEL.to_wire()):
         return
     for head, subject, obj in ONTOLOGY:
         atom = Expression([Symbol(head), Symbol(subject), obj if isinstance(obj, Expression) else Symbol(obj)])
-        runtime.must("petta_py_add(Space, W)", Space=_SPACE, W=atom.to_wire())
+        runtime.must("metta_py_add(Space, W)", Space=_SPACE, W=atom.to_wire())
 
     def listener(_cls, old, new, _runtime=runtime):
         _reflect_image(_runtime, old, new)
