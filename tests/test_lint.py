@@ -17,7 +17,7 @@ import pickle
 
 import pytest
 
-from metta import Expression, PettaError, S
+from metta import Expression, MettaError, S
 from metta.lint import Finding, lint
 
 
@@ -383,7 +383,7 @@ def test_a_locator_mismatch_refuses(monkeypatch):  # noqa: D103  -- pytest disco
             return {"Forms": [["expression", "(never-there)"]]}
 
     monkeypatch.setattr(_source_forms, "runtime", lambda: Lying())
-    with pytest.raises(PettaError, match="the reader and the locator disagree"):
+    with pytest.raises(MettaError, match="the reader and the locator disagree"):
         _source_forms.positioned_forms("(real form)")
     monkeypatch.setattr(_source_forms, "runtime", real)
 

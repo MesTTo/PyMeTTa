@@ -120,7 +120,7 @@ from .atoms import (
     typed,
 )
 from .atoms import unify as _unify_atoms
-from .errors import NotReducible, PettaError, Timeout
+from .errors import MettaError, NotReducible, Timeout
 
 _SATELLITES = frozenset(
     {
@@ -465,8 +465,8 @@ __all__ = [
     "Handle",
     "Library",
     "MeTTa",
+    "MettaError",
     "NotReducible",
-    "PettaError",
     "S",
     "Space",
     "SpaceProvider",

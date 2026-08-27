@@ -108,7 +108,7 @@ def test_every_problem_is_reported_before_anything_performs(metta, tmp_path):  #
         "(boot (serve (&self) 70000))\n"
         "(not-a-boot-form)\n"
     )
-    with pytest.raises(metta_module.PettaError) as caught:
+    with pytest.raises(metta_module.MettaError) as caught:
         metta_module.boot(tmp_path / "app.metta", m=metta)
     message = str(caught.value)
     assert "form 1: unknown boot form launch" in message
@@ -121,10 +121,10 @@ def test_every_problem_is_reported_before_anything_performs(metta, tmp_path):  #
 
 def test_connections_must_match_bridges_exactly(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text("(boot (bridge &mconn (e $a) (row t (a $a))))\n")
-    with pytest.raises(metta_module.PettaError, match=r"bridge &mconn names no connection"):
+    with pytest.raises(metta_module.MettaError, match=r"bridge &mconn names no connection"):
         metta_module.boot(tmp_path / "app.metta", m=metta)
     (tmp_path / "plain.metta").write_text("(boot (serve (&self) 0))\n")
-    with pytest.raises(metta_module.PettaError, match=r"'&stray' is claimed by no bridge"):
+    with pytest.raises(metta_module.MettaError, match=r"'&stray' is claimed by no bridge"):
         metta_module.boot(
             tmp_path / "plain.metta",
             m=metta,
@@ -135,10 +135,10 @@ def test_connections_must_match_bridges_exactly(metta, tmp_path):  # noqa: D103 
 
 def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "bang.metta").write_text('!(boot (load "x.metta"))\n')
-    with pytest.raises(metta_module.PettaError, match=r"does not run.*drop the !"):
+    with pytest.raises(metta_module.MettaError, match=r"does not run.*drop the !"):
         metta_module.boot(tmp_path / "bang.metta", m=metta)
     (tmp_path / "defn.metta").write_text("(= (manifest-smuggled) 1)\n")
-    with pytest.raises(metta_module.PettaError, match=r"does not define"):
+    with pytest.raises(metta_module.MettaError, match=r"does not define"):
         metta_module.boot(tmp_path / "defn.metta", m=metta)
     # the refusal happened at the read: nothing was compiled
     assert list(metta.match("(= (manifest-smuggled) $b)")) == []
@@ -152,7 +152,7 @@ def test_a_manifest_neither_runs_nor_defines(metta, tmp_path):  # noqa: D103  --
 
 def test_an_empty_manifest_refuses(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (tmp_path / "app.metta").write_text(";; nothing but comments\n")
-    with pytest.raises(metta_module.PettaError, match=r"declares nothing"):
+    with pytest.raises(metta_module.MettaError, match=r"declares nothing"):
         metta_module.boot(tmp_path / "app.metta", m=metta)
 
 
@@ -161,7 +161,7 @@ def test_a_mid_way_failure_names_the_form_and_closes_servers(metta, tmp_path):  
     (tmp_path / "app.metta").write_text(
         f'(boot (serve (&self) {port}))\n(boot (load "missing.metta"))\n'
     )
-    with pytest.raises(metta_module.PettaError, match=r"boot form 2 failed") as caught:
+    with pytest.raises(metta_module.MettaError, match=r"boot form 2 failed") as caught:
         metta_module.boot(tmp_path / "app.metta", m=metta)
     assert "1 forms before it performed" in str(caught.value)
     assert caught.value.__cause__ is not None

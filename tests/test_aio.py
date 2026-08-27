@@ -56,7 +56,7 @@ import pytest
 
 from metta import (
     MeTTa,
-    PettaError,
+    MettaError,
     S,
     V,
     aio,
@@ -142,7 +142,7 @@ def test_async_saga_and_world_coverage_stay_on_the_owning_worker(m):
 
                 uncovered = await am.reify()
                 try:
-                    with pytest.raises(PettaError, match="writesState"):
+                    with pytest.raises(MettaError, match="writesState"):
                         await uncovered.eval(f"({operation} 1)")
                 finally:
                     await uncovered.aclose()
@@ -241,7 +241,7 @@ def test_aio_spaces_borrow_the_owners_thread(m):  # noqa: D103  -- pytest discov
             await am.count()
             msg = "a closed connection accepted work"
             raise AssertionError(msg)
-        except PettaError:
+        except MettaError:
             pass
         return got, still
 
@@ -306,10 +306,10 @@ def test_aio_drain_only_discards_structured_interrupt(m, monkeypatch):  # noqa: 
             release_unexpected.set()
             with pytest.raises(EngineError, match="unexpected_drain"):
                 await asyncio.wait_for(running, timeout=2.0)
-            with pytest.raises(PettaError, match="failed before this request ran"):
+            with pytest.raises(MettaError, match="failed before this request ran"):
                 await asyncio.wait_for(queued, timeout=2.0)
             assert "failed" in repr(am)
-            with pytest.raises(PettaError, match=r"failed.*unexpected_drain"):
+            with pytest.raises(MettaError, match=r"failed.*unexpected_drain"):
                 await am.count()
 
     asyncio.run(go())
@@ -573,9 +573,9 @@ def test_aio_failed_worker_refuses_immediately_and_names_the_cause(monkeypatch):
         with pytest.raises(RuntimeError, match="round2 attach failed"):
             await broken.start()
         assert "failed" in repr(broken)
-        with pytest.raises(PettaError, match=r"failed.*round2 attach failed"):
+        with pytest.raises(MettaError, match=r"failed.*round2 attach failed"):
             await broken.start()
-        with pytest.raises(PettaError, match=r"failed.*round2 attach failed"):
+        with pytest.raises(MettaError, match=r"failed.*round2 attach failed"):
             await broken.count()
         await broken.aclose()
         assert "closed" in repr(broken)
@@ -589,7 +589,7 @@ def test_aio_borrowed_space_refuses_after_owner_closes(metta):  # noqa: D103  --
         borrowed = await owner.space("&aio-closed-borrower")
         await owner.aclose()
         assert "closed" in repr(borrowed)
-        with pytest.raises(PettaError, match="closed"):
+        with pytest.raises(MettaError, match="closed"):
             await borrowed.count()
 
     asyncio.run(go())
@@ -615,7 +615,7 @@ def test_aio_close_interrupts_work(m):  # noqa: D103  -- pytest discovers or inj
 
         with pytest.raises(Interrupted):
             await running
-        with pytest.raises(PettaError, match="closed before this request ran"):
+        with pytest.raises(MettaError, match="closed before this request ran"):
             await queued
         assert am._worker.thread is not None
         assert not am._worker.thread.is_alive()

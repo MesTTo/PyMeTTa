@@ -29,7 +29,7 @@ import pytest
 
 from metta import MeTTa
 from metta.atoms import Expression, S, Symbol, Variable
-from metta.errors import PettaError
+from metta.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.testing import SpaceComplianceSuite
 
@@ -198,7 +198,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
     try:
         space = engine._at(name)
         rule = Expression(Symbol("="), Expression(Symbol("rl-double"), Variable("x")), Expression(Symbol("*"), 2, Variable("x")))
-        with pytest.raises(PettaError) as refused:
+        with pytest.raises(MettaError) as refused:
             space.add(rule)
         message = str(refused.value)
         assert "does not hold rules" in message, message

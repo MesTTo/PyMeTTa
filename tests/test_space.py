@@ -63,7 +63,7 @@ import metta
 from metta import (
     Expression,
     MeTTa,
-    PettaError,
+    MettaError,
     S,
     V,
     _engine,
@@ -873,7 +873,7 @@ def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa
     dead.drop()
     reused = metta._new_space()
     assert reused.name == released
-    with pytest.raises(PettaError) as failure:
+    with pytest.raises(MettaError) as failure:
         dead.add(S.ghost(1))
     assert "was dropped" in str(failure.value)
     assert len(reused) == 0

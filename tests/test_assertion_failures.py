@@ -15,7 +15,7 @@ Open Obligations:
 
 import pytest
 
-from metta import MeTTa, PettaError
+from metta import MeTTa, MettaError
 from metta.errors import AssertionFailure, EngineError
 
 
@@ -46,7 +46,7 @@ def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
     assert not isinstance(failed_assert.value, EngineError)
     # Both remain catchable by the one base a caller wraps a whole run in.
     for caught in (failed_test.value, failed_assert.value, fault.value):
-        assert isinstance(caught, PettaError)
+        assert isinstance(caught, MettaError)
 
 
 def test_an_assertion_failure_carries_its_parts():

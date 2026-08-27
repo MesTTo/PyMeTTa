@@ -18,7 +18,7 @@ import pydoc
 
 import pytest
 
-from metta import PettaError
+from metta import MettaError
 
 
 @pytest.fixture()
@@ -99,7 +99,7 @@ def test_compiled_and_disassemble_show_the_prolog(m):  # noqa: D103  -- pytest d
     text = m.fn.fp_inc.compiled
     assert text == m._disassemble("fp-inc")
     assert "'fp-inc'(" in text  # the translator's clause head, Prolog-quoted
-    with pytest.raises(PettaError, match="no compiled clauses"):
+    with pytest.raises(MettaError, match="no compiled clauses"):
         m._disassemble("fp-never-compiled")
 
 

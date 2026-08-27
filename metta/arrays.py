@@ -52,7 +52,7 @@ from . import integrate as _integrate
 from ._ops import REGISTRY
 from ._optional import optional_module, require_module
 from .atoms import Atom, Expression, Grounded, S, Variable, _decode, _expr, ground
-from .errors import PettaError
+from .errors import MettaError
 
 __all__ = [
     "ARRAY_OPS",
@@ -276,7 +276,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
                 f"refusing to register {name!r}: the engine already has a "
                 f"function by that name and it is not an array operation"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         m.op(fn, name=name, effect=effect, transport=transport, **kw)
@@ -586,7 +586,7 @@ def _randn(xp_default):
                 native.random.standard_normal(dims), dtype=xp_default.float32
             )
         msg = f"{module} offers no normal sampler for randn"
-        raise PettaError(msg)
+        raise MettaError(msg)
 
     return randn
 
@@ -623,7 +623,7 @@ class EmbeddingStore:
     ) -> None:
         if backend not in ("auto", "argsort", "faiss"):
             msg = f"backend is auto, argsort or faiss, not {backend!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if backend == "faiss":
             _faiss()
         self._m = m

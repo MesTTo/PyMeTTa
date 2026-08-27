@@ -34,7 +34,7 @@ from metta import (
     Atom,
     Expression,
     MeTTa,
-    PettaError,
+    MettaError,
     S,
     V,
     Variable,
@@ -148,7 +148,7 @@ def test_read_only_provider_errors_loudly(metta):  # noqa: D103  -- pytest disco
     name = "&readonly1"
     metta._register_space(ReadOnly(), name)
     try:
-        with pytest.raises(PettaError) as excinfo:
+        with pytest.raises(MettaError) as excinfo:
             metta.run(f"!(add-atom {name} (fact 2))")
         assert "does not implement add" in str(excinfo.value)
         assert excinfo.value.capability == "add"
@@ -225,7 +225,7 @@ def test_provider_can_decline_one_request(metta):  # noqa: D103  -- pytest disco
     metta._register_space(provider, name)
     try:
         metta._at(name).add(S.allowed(1))
-        with pytest.raises(PettaError, match="declines this add request"):
+        with pytest.raises(MettaError, match="declines this add request"):
             metta._at(name).add(S.denied(1))
         assert provider.stored == [S.allowed(1)]
     finally:
@@ -313,7 +313,7 @@ def test_a_provider_states_its_own_refusal(metta):  # noqa: D103  -- pytest disc
     name = "&curated-refusal-test"
     metta._register_space(Curated(), name)
     try:
-        with pytest.raises(PettaError, match="curated; write to it with the loader"):
+        with pytest.raises(MettaError, match="curated; write to it with the loader"):
             metta._at(name).add(S.f(S.a))
     finally:
         metta._unregister_space(name)
@@ -341,9 +341,9 @@ def test_declining_and_not_implementing_read_differently(metta):  # noqa: D103  
     metta._register_space(Declines(), "&declines-add-test")
     metta._register_space(Absent(), "&absent-add-test")
     try:
-        with pytest.raises(PettaError, match="declines this add request"):
+        with pytest.raises(MettaError, match="declines this add request"):
             metta._at("&declines-add-test").add(S.f(S.a))
-        with pytest.raises(PettaError, match="does not implement add"):
+        with pytest.raises(MettaError, match="does not implement add"):
             metta._at("&absent-add-test").add(S.f(S.a))
     finally:
         metta._unregister_space("&declines-add-test")
@@ -370,7 +370,7 @@ def test_a_declined_enumerate_is_not_reached_through_match(metta):  # noqa: D103
     name = "&no-enumerate-test"
     metta._register_space(NoEnumerate(), name)
     try:
-        with pytest.raises(PettaError, match="declines this enumerate request"):
+        with pytest.raises(MettaError, match="declines this enumerate request"):
             metta.run(f"!(match {name} (edge $a $b) $a)")
         assert not NoEnumerate.called
     finally:
@@ -564,7 +564,7 @@ def test_a_pushdown_class_that_is_neither_word_is_refused(metta):
     provider = _Nonsense(5)
     metta._register_space(provider, "&nonsense-test")
     try:
-        with pytest.raises(PettaError, match="answered 'probably'"):
+        with pytest.raises(MettaError, match="answered 'probably'"):
             list(
                 MeTTa()
                 .space("&nonsense-test")
@@ -619,7 +619,7 @@ def test_an_absent_capability_still_carries_the_providers_own_words(metta):
     name = "&refusal-seam-test"
     metta._register_space(Curated(), name)
     try:
-        with pytest.raises(PettaError, match="load this space with the importer"):
+        with pytest.raises(MettaError, match="load this space with the importer"):
             metta._at(name).add(S.f(S.a))
     finally:
         metta._unregister_space(name)

@@ -36,7 +36,7 @@ from pathlib import Path
 import pytest
 
 import metta as metta_package
-from metta import PettaError, S, V
+from metta import MettaError, S, V
 
 
 @pytest.fixture()
@@ -174,7 +174,7 @@ def test_a_recycled_space_name_inherits_no_clauses_from_its_past_life(drained): 
         # The raw-Prolog hatch is how a past life's lambda was reachable at
         # all, its generated name being one no MeTTa program writes. It has to
         # find nothing now, which for that hatch is a Prolog existence error.
-        with pytest.raises(PettaError, match=past_lambda):
+        with pytest.raises(MettaError, match=past_lambda):
             second.run(f"!(callPredicate (Predicate ({past_lambda} 5 $y)))")
         # Unreduced, which is what a call to a function nothing defines
         # answers. A past life's value here would be the defect.
@@ -305,7 +305,7 @@ def test_a_parent_cannot_drop_while_a_live_child_names_it(metta):
     parent = metta._new_space()
     child = metta._new_space(inherits=parent)
     try:
-        with pytest.raises(PettaError, match="live child"):
+        with pytest.raises(MettaError, match="live child"):
             parent.drop()
         parent.add(S.still_live(1))
         assert child.match(S.still_live(1))

@@ -31,7 +31,7 @@ import pytest
 
 from metta import TRUE, Answer, Bindings, Expression, S, V, parse
 from metta.atoms import Grounded, Symbol, Variable
-from metta.errors import EngineError, MettaResultError, PettaError, TransportFailure
+from metta.errors import EngineError, MettaError, MettaResultError, TransportFailure
 from metta.foreign import SpaceProvider
 from metta.results import Answers
 
@@ -155,9 +155,9 @@ def test_an_enumeration_refuses_answers(metta):  # noqa: D103  -- pytest discove
             yield Bindings({"x": 1})
 
     metta._register_space(_Wrong(), "&ap-enum")
-    # The seam raises its own PettaError, and the boundary re-raises
+    # The seam raises its own MettaError, and the boundary re-raises
     # the original object rather than an EngineError transcript.
-    with pytest.raises(PettaError, match="enumeration has no query"):
+    with pytest.raises(MettaError, match="enumeration has no query"):
         metta.run("!(collapse (get-atoms &ap-enum))")
 
 
@@ -757,7 +757,7 @@ def test_a_transactional_declaration_without_the_methods_is_loud(metta):  # noqa
 
     metta._register_space(_Plain(), "&tx-nm")
     metta._at("&tx-nm").writes("transactional")
-    with pytest.raises(PettaError, match="Transactional"):
+    with pytest.raises(MettaError, match="Transactional"):
         metta.run("!(transaction (add-atom &tx-nm (edge a b)))")
 
 

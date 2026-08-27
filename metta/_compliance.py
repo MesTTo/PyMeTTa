@@ -82,7 +82,7 @@ from ._api_types import _SpaceId
 from ._optional import require_module
 from ._space import MeTTa
 from .atoms import Expression, Symbol, Variable, _expr
-from .errors import PettaError
+from .errors import MettaError
 from .foreign import Enumerable
 
 pytest = require_module(
@@ -584,7 +584,7 @@ class SpaceComplianceSuite:
         exercised["skipped"].update(absent)
         marker = Expression([MARKER, Symbol("refused")])
         for capability in absent:
-            with pytest.raises(PettaError):
+            with pytest.raises(MettaError):
                 if capability == "add":
                     space.add(marker)
                 elif capability == "remove":

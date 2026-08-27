@@ -42,7 +42,7 @@ import pytest
 from hypothesis import given
 
 import metta
-from metta import PettaError, S, V
+from metta import MettaError, S, V
 from metta._space_objects import _apply_limited, _limits
 from metta.errors import InferenceLimitError
 
@@ -279,10 +279,10 @@ def test_batch_crosses_once_and_reads_see_the_pre_batch_space(metta):  # noqa: D
 def test_batch_edges_are_enforced(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta._new_space()
     m.add(S.keep(1))
-    with pytest.raises(PettaError, match="batch"):
+    with pytest.raises(MettaError, match="batch"):
         with m.batch():
             m.remove(S.keep(1))
-    with pytest.raises(PettaError, match="batch"):
+    with pytest.raises(MettaError, match="batch"):
         with m.batch():
             m.clear()
     # An exception discards the pending adds rather than landing writes
@@ -296,7 +296,7 @@ def test_batch_edges_are_enforced(metta):  # noqa: D103  -- pytest discovers or 
     # Same-space batches do not nest; different spaces batch independently.
     other = metta._new_space()
     with m.batch():
-        with pytest.raises(PettaError, match="nest"):
+        with pytest.raises(MettaError, match="nest"):
             with m.batch():
                 pass
         with other.batch():

@@ -27,7 +27,7 @@ Open Obligations:
 import pytest
 
 from metta import MeTTa, S, lib
-from metta.errors import EngineError, PettaError
+from metta.errors import EngineError, MettaError
 
 
 def test_the_attribute_map_is_the_family_prefix():
@@ -74,7 +74,7 @@ def test_a_library_handle_refuses_atom_positions():
         m += (S.uses, lib.he)
     with pytest.raises(TypeError, match="imports and stores cannot share"):
         m.add(lib.he, (S.edge, 1, 2))
-    with pytest.raises(PettaError, match="import"):
+    with pytest.raises(MettaError, match="import"):
         with m.batch():
             m += lib.he
 

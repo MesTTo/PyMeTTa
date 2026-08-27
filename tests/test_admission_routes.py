@@ -19,7 +19,7 @@ import uuid
 import pytest
 
 from metta import S, V
-from metta.errors import EngineError, PettaError
+from metta.errors import EngineError, MettaError
 
 
 def _named_pool(metta, purpose):
@@ -145,7 +145,7 @@ def test_relative_declarations_refuse_inside_an_active_batch(metta):
     try:
         with pool.batch():
             pool += S.item(1)
-            with pytest.raises(PettaError, match="inside its own batch"):
+            with pytest.raises(MettaError, match="inside its own batch"):
                 pool += S.capacity(1)
         assert pool.atoms() == [S.item(1)]
     finally:

@@ -73,7 +73,7 @@ from .atoms import (
     parse,
     substitute,
 )
-from .errors import PettaError
+from .errors import MettaError
 from .vocabularies import EffectClass, Semiring, SemiringOrder
 
 __all__ = [
@@ -104,7 +104,7 @@ __all__ = [
 ]
 
 
-class AlgebraDeclarationError(PettaError, ValueError):
+class AlgebraDeclarationError(MettaError, ValueError):
     """A declaration is incomplete, conflicting, or cannot be certified."""
 
 
@@ -116,7 +116,7 @@ class AlgebraRequirementError(AlgebraDeclarationError):
     """A context lacks a capability required by its declared algebra."""
 
 
-class AlgebraOperationError(PettaError):
+class AlgebraOperationError(MettaError):
     """A declared operation does not answer one value for two carrier values."""
 
 
@@ -124,7 +124,7 @@ class RateDeclarationError(AlgebraDeclarationError):
     """A rate is not a finite nonnegative real value."""
 
 
-class LinearEvidenceError(PettaError):
+class LinearEvidenceError(MettaError):
     """One stored premise occurrence was consumed twice in one derivation."""
 
 
@@ -1134,7 +1134,7 @@ def evaluate(
     return AlgebraEvaluation(tuple(retained), plan)
 
 
-class AlgebraEvaluationError(PettaError):
+class AlgebraEvaluationError(MettaError):
     """A tagged program exceeded its declared finite evaluation boundary."""
 
 

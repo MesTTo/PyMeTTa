@@ -63,7 +63,7 @@ from typing import Any, ClassVar, Protocol, cast, runtime_checkable
 
 from .answer import Answer
 from .atoms import Atom, Box, Expression, Grounded, Symbol, _atom_from_wire, _encode
-from .errors import PettaError, TransportFailure, is_transport_failure
+from .errors import MettaError, TransportFailure, is_transport_failure
 from .vocabularies import Delivery, EventOrder
 
 __all__ = [
@@ -463,7 +463,7 @@ def _require_provider(
     stated = _stated_refusal(provider, capability, request)
     if stated is not None:
         msg = f"{operation} cannot use {space}, whose {name} provider says: {stated}"
-        raise PettaError(
+        raise MettaError(
             msg,
             space=space,
             operation=operation,
@@ -473,7 +473,7 @@ def _require_provider(
         f"{operation} cannot use {space}: its {name} provider "
         f"{_refusal_detail(provider, capability, request)}"
     )
-    raise PettaError(
+    raise MettaError(
         msg,
         space=space,
         operation=operation,
@@ -626,7 +626,7 @@ def _wire_stream(candidates: Iterable[Any], *, answers: bool = True):
                     "atoms() yielded an Answer; an enumeration has no query "
                     "to bind, so it yields atoms only"
                 )
-                raise PettaError(
+                raise MettaError(
                     msg
                 )
             yield candidate.to_wire()
@@ -700,7 +700,7 @@ def delivery_promise(provider: Any) -> tuple[str, str] | None:
             f"(delivery, order) with delivery one of {', '.join(Delivery)} and "
             f"order one of {', '.join(EventOrder)}"
         )
-        raise PettaError(msg)
+        raise MettaError(msg)
     return claimed
 
 
@@ -722,7 +722,7 @@ def pushdown_class(provider: Any, pattern: Atom) -> str:
             f"{claimed!r}; it is 'exact' when every candidate you yield for "
             f"this pattern unifies with it, and 'inexact' otherwise"
         )
-        raise PettaError(
+        raise MettaError(
             msg
         )
     return claimed
@@ -748,7 +748,7 @@ def foreign_refuse(space: str, capability: str) -> None:
         f"{space} refused {capability} to the engine and allows it here; the "
         f"engine's capability record and this provider disagree"
     )
-    raise PettaError(
+    raise MettaError(
         msg,
         space=space,
         capability=capability,
@@ -858,7 +858,7 @@ def foreign_transaction(space: str, step: str) -> bool:
             f"begin/commit/rollback; implement metta.foreign.Transactional "
             f"or declare best-effort"
         )
-        raise PettaError(
+        raise MettaError(
             msg
         )
     getattr(provider, step)()

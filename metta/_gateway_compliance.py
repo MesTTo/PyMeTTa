@@ -48,7 +48,7 @@ from . import remote, testing
 from ._network import HTTPEndpoint
 from ._optional import require_module
 from .atoms import parse
-from .errors import PettaError
+from .errors import MettaError
 from .remote import RemoteSpace
 
 pytest = require_module(
@@ -64,7 +64,7 @@ def _post(url: str, operation: str, payload: Any) -> tuple[int, Any]:
     """One POST against the gateway, refusal statuses answered rather than
     raised, because reading them is half of what this suite is for.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    endpoint = HTTPEndpoint(url, subject="gateway under test", error_type=PettaError)
+    endpoint = HTTPEndpoint(url, subject="gateway under test", error_type=MettaError)
     status, _, raw = endpoint.request(
         "POST",
         operation,
@@ -128,7 +128,7 @@ class GatewayComplianceSuite:
 
     def test_health_names_the_protocol(self, gateway_url):
         endpoint = HTTPEndpoint(
-            gateway_url, subject="gateway under test", error_type=PettaError
+            gateway_url, subject="gateway under test", error_type=MettaError
         )
         status, _, raw = endpoint.request("GET", "health", timeout=30.0)
         assert status == 200
@@ -152,7 +152,7 @@ class GatewayComplianceSuite:
         under-approximation the protocol forbids.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         endpoint = HTTPEndpoint(
-            gateway_url, subject="gateway under test", error_type=PettaError
+            gateway_url, subject="gateway under test", error_type=MettaError
         )
         _, _, raw = endpoint.request("GET", "health", timeout=30.0)
         honors = json.loads(raw)["bound"]

@@ -27,7 +27,7 @@ import re
 import pytest
 
 from metta import MeTTa, State
-from metta.errors import PettaError
+from metta.errors import MettaError
 
 
 def _answers(metta: MeTTa, source: str) -> list[str]:
@@ -122,8 +122,8 @@ def test_speculative_state_write_is_fenced(metta) -> None:
     """The non-backtrackable cell store cannot escape a discarded snapshot."""
     cell = State(4, space=metta)
     with metta.speculative():
-        with pytest.raises(PettaError, match=r"state.*speculative|speculative.*state"):
+        with pytest.raises(MettaError, match=r"state.*speculative|speculative.*state"):
             cell.value = 5
-        with pytest.raises(PettaError, match=r"state.*speculative|speculative.*state"):
+        with pytest.raises(MettaError, match=r"state.*speculative|speculative.*state"):
             State(0, space=metta)
     assert cell.value == 4

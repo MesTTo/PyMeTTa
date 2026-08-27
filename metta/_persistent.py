@@ -75,7 +75,7 @@ from typing import Any
 
 from ._engine import Runtime, runtime
 from .atoms import Atom, Expression, Grounded, Symbol, _atom_from_wire, _is_ground
-from .errors import EngineError, PettaError
+from .errors import EngineError, MettaError
 from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
@@ -255,7 +255,7 @@ def _quoted_atom(engine: Runtime, value: str) -> str:
     )
     if row is None or row.get("truth") is False or not isinstance(row.get("Text"), str):
         msg = f"SWI-Prolog could not quote schema head {value!r}"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return row["Text"]
 
 
@@ -652,18 +652,18 @@ def _validated_fact_head(
 ) -> tuple[str, tuple[Atom, ...]]:
     if not (isinstance(atom, Expression) and atom.children and isinstance(atom.head, Symbol)):
         msg = f"cannot {verb} {atom}: a persistent fact is a ground (head arguments...) expression"
-        raise PettaError(msg)
+        raise MettaError(msg)
     head = atom.head.name
     if head not in schema:
         msg = (
             f"cannot {verb} {atom}: unknown persistent head {head!r}; "
             f"declared heads are {list(schema)!r}"
         )
-        raise PettaError(msg)
+        raise MettaError(msg)
     expected = schema[head]
     if len(atom.args) != expected:
         msg = f"cannot {verb} {atom}: {head!r} has arity {expected}, got {len(atom.args)}"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return head, atom.args
 
 
@@ -675,7 +675,7 @@ def _persistent_argument_wire(
 ) -> list[Any]:
     if not _is_ground(argument):
         msg = f"cannot {verb} {atom}: argument {index} ({argument}) is not ground"
-        raise PettaError(msg)
+        raise MettaError(msg)
     if isinstance(argument, Symbol):
         return argument.to_wire()
     if isinstance(argument, Grounded):
@@ -687,12 +687,12 @@ def _persistent_argument_wire(
             f"object of type {type(value).__name__}; persistent facts "
             "accept only numbers, symbols, strings, and booleans"
         )
-        raise PettaError(msg)
+        raise MettaError(msg)
     msg = (
         f"cannot {verb} {atom}: argument {index} ({argument}) is not "
         "a number, symbol, string, or boolean"
     )
-    raise PettaError(msg)
+    raise MettaError(msg)
 
 
 @dataclass
@@ -793,7 +793,7 @@ class PersistentFactSpace(SpaceProvider):
         with _STATE_LOCK:
             if self._path in _ACTIVE_PATHS:
                 msg = f"persistent journal {self._path} is already attached in this process"
-                raise PettaError(msg)
+                raise MettaError(msg)
             _ACTIVE_PATHS.add(self._path)
             self._claimed = True
 
@@ -871,7 +871,7 @@ class PersistentFactSpace(SpaceProvider):
         removed = row.get("Removed", _MISSING)
         if removed not in (0, 1):
             msg = f"persistent remove returned an invalid verdict: {removed!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return removed == 1
 
     def clear(self) -> None:
@@ -921,7 +921,7 @@ class PersistentFactSpace(SpaceProvider):
         """Journal one immutable world's ordinary fact diff."""
         if self._transaction_state() is not None:
             msg = "cannot commit a reified world inside a provider transaction"
-            raise PettaError(msg)
+            raise MettaError(msg)
         self._commit_diff(base, removed, added)
 
     def sync(self) -> None:
@@ -968,7 +968,7 @@ class PersistentFactSpace(SpaceProvider):
             require_open=False,
         )
 
-    def _read_invalid_journal(self, validation_error: PettaError) -> bytes:
+    def _read_invalid_journal(self, validation_error: MettaError) -> bytes:
         try:
             return self._path.read_bytes()
         except OSError as read_error:
@@ -976,12 +976,12 @@ class PersistentFactSpace(SpaceProvider):
                 f"cannot inspect persistent journal {self._path} after "
                 f"validation failed: {read_error}"
             )
-            raise PettaError(msg) from validation_error
+            raise MettaError(msg) from validation_error
 
     def _terminal_tail(
         self,
         contents: bytes,
-        validation_error: PettaError,
+        validation_error: MettaError,
     ) -> tuple[int, bytes]:
         boundary = contents.rfind(b"\n") + 1
         tail = contents[boundary:]
@@ -997,7 +997,7 @@ class PersistentFactSpace(SpaceProvider):
     def _require_incomplete_tail(
         self,
         tail: bytes,
-        validation_error: PettaError,
+        validation_error: MettaError,
     ) -> None:
         try:
             tail_text = tail.decode("utf-8")
@@ -1028,7 +1028,7 @@ class PersistentFactSpace(SpaceProvider):
         self,
         contents: bytes,
         boundary: int,
-        validation_error: PettaError,
+        validation_error: MettaError,
     ) -> None:
         try:
             prefix = contents[:boundary].decode("utf-8")
@@ -1057,7 +1057,7 @@ class PersistentFactSpace(SpaceProvider):
                     {"Text": prefix},
                     require_open=False,
                 )
-        except PettaError as prefix_error:
+        except MettaError as prefix_error:
             msg = (
                 f"persistent journal {self._path} is corrupt before its "
                 f"incomplete terminal record. Correct or remove the "
@@ -1080,14 +1080,14 @@ class PersistentFactSpace(SpaceProvider):
                 f"backup {backup} already exists. Move that backup aside, "
                 f"then reopen the journal."
             )
-            raise PettaError(msg) from backup_error
+            raise MettaError(msg) from backup_error
         except OSError as backup_error:
             msg = (
                 f"cannot save the incomplete terminal record from "
                 f"persistent journal {self._path} to {backup}: "
                 f"{backup_error}"
             )
-            raise PettaError(msg) from backup_error
+            raise MettaError(msg) from backup_error
         return backup
 
     def _truncate_journal(self, boundary: int, backup: Path) -> None:
@@ -1103,7 +1103,7 @@ class PersistentFactSpace(SpaceProvider):
                 f"{boundary}: {truncate_error}. Repair the journal before "
                 f"reopening it."
             )
-            raise PettaError(msg) from truncate_error
+            raise MettaError(msg) from truncate_error
 
     def _validate_or_repair_tail(self) -> None:
         """Validate the journal or remove one incomplete final record.
@@ -1115,7 +1115,7 @@ class PersistentFactSpace(SpaceProvider):
         """
         try:
             self._validate_journal()
-        except PettaError as caught:
+        except MettaError as caught:
             validation_error = caught
             logger.debug(
                 "persistent journal validation failed; inspecting its tail",
@@ -1149,7 +1149,7 @@ class PersistentFactSpace(SpaceProvider):
             f"head(s) {rendered}; remove the absent name(s) from rename= or "
             "correct them, then reopen the journal"
         )
-        raise PettaError(msg)
+        raise MettaError(msg)
 
     def _migrate_replay_rename(self) -> None:
         """Materialize one validated name migration before SWI attaches."""
@@ -1165,7 +1165,7 @@ class PersistentFactSpace(SpaceProvider):
             )
         except OSError as exc:
             msg = f"cannot stage replay rename for {self._path}: {exc}"
-            raise PettaError(msg) from exc
+            raise MettaError(msg) from exc
         os.close(descriptor)
         temporary = Path(temp_name)
         replaced = False
@@ -1212,7 +1212,7 @@ class PersistentFactSpace(SpaceProvider):
                     f"{exc}. The journal was not replaced; correct the cause "
                     "and retry with rename=."
                 )
-            raise PettaError(msg) from exc
+            raise MettaError(msg) from exc
         finally:
             if not replaced:
                 try:
@@ -1238,14 +1238,14 @@ class PersistentFactSpace(SpaceProvider):
         with self._call_lock:
             if self._closed:
                 msg = f"persistent fact space for {self._path} is closed"
-                raise PettaError(msg)
+                raise MettaError(msg)
             if self._write_failure is not None:
                 msg = (
                     f"persistent fact space for {self._path} is unusable for "
                     f"writes because an earlier {self._write_failure}. Close "
                     f"it, repair the journal if needed, and reopen it."
                 )
-                raise PettaError(msg)
+                raise MettaError(msg)
             try:
                 return self._call(helper, arguments, inputs)
             except BaseException as exc:
@@ -1272,7 +1272,7 @@ class PersistentFactSpace(SpaceProvider):
         wires = row.get("Wires", _MISSING)
         if not isinstance(wires, (list, tuple)):
             msg = f"persistent enumeration returned invalid wires: {wires!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
 
         facts: list[Atom] = []
         for wire in wires:
@@ -1280,10 +1280,10 @@ class PersistentFactSpace(SpaceProvider):
                 fact = _atom_from_wire(wire)
             except (TypeError, ValueError) as exc:
                 msg = f"persistent journal {self._path} returned malformed fact wire {wire!r}"
-                raise PettaError(msg) from exc
+                raise MettaError(msg) from exc
             if not isinstance(fact, Expression):
                 msg = f"persistent journal {self._path} returned non-fact {fact!r}"
-                raise PettaError(msg)
+                raise MettaError(msg)
             facts.append(fact)
         return facts
 
@@ -1320,7 +1320,7 @@ class PersistentFactSpace(SpaceProvider):
         transaction_state = self._transaction_state()
         if transaction_state is None:
             msg = f"cannot {operation} persistent journal {self._path}: no transaction is active"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return transaction_state
 
     def _commit_diff(
@@ -1337,7 +1337,7 @@ class PersistentFactSpace(SpaceProvider):
                     f"persistent journal {self._path} changed after its base was "
                     "captured; refusing a stale diff"
                 )
-                raise PettaError(msg)
+                raise MettaError(msg)
             removed_parts = [
                 list(self._fact_parts(atom, "commit world removal"))
                 for atom in removed
@@ -1371,7 +1371,7 @@ class PersistentFactSpace(SpaceProvider):
                         "cell whose process-local value cannot survive "
                         "journal close and replay"
                     )
-                    raise PettaError(msg)
+                    raise MettaError(msg)
         wires = [
             _persistent_argument_wire(atom, argument, index, verb)
             for index, argument in enumerate(arguments, start=1)
@@ -1389,7 +1389,7 @@ class PersistentFactSpace(SpaceProvider):
         with self._call_lock:
             if require_open and self._closed:
                 msg = f"persistent fact space for {self._path} is closed"
-                raise PettaError(msg)
+                raise MettaError(msg)
             predicate = self._helpers[helper]
             goal = f"{self._module}:{predicate}"
             if arguments:
@@ -1400,7 +1400,7 @@ class PersistentFactSpace(SpaceProvider):
                     f"SWI-Prolog refused persistent operation {helper!r} for "
                     f"{self._path}: {goal} failed"
                 )
-                raise PettaError(msg)
+                raise MettaError(msg)
             return row
 
     def _release_path(self) -> None:

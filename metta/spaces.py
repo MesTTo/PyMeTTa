@@ -54,7 +54,7 @@ from .atoms import (
     ground,
     substitute,
 )
-from .errors import PettaError
+from .errors import MettaError
 from .foreign import Matcher, Snapshotter, SpaceProvider
 from .structures import _canonical
 
@@ -200,7 +200,7 @@ class ObjectView(SpaceProvider):
         if isinstance(relation, str):
             if not relation:
                 msg = "an object view relation name cannot be empty"
-                raise PettaError(msg)
+                raise MettaError(msg)
             relation = Symbol(relation)
         elif not isinstance(relation, Symbol):
             msg = "an object view relation is a symbol or its string name"
@@ -247,11 +247,11 @@ class ObjectView(SpaceProvider):
                 f"an object view writes ({self.relation} <object> <field> <value>); "
                 f"got {atom}"
             )
-            raise PettaError(msg)
+            raise MettaError(msg)
         root, name_atom, value_atom = parts
         if root != self._root:
             msg = "an object view writes only the object it presents"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if isinstance(name_atom, Symbol):
             name = name_atom.name
         elif isinstance(name_atom, Grounded) and isinstance(
@@ -260,7 +260,7 @@ class ObjectView(SpaceProvider):
             name = name_atom.value
         else:
             msg = "an object view write needs one ground field name"
-            raise PettaError(msg)
+            raise MettaError(msg)
         setattr(self.object, name, _decode(value_atom))
 
     def _parts(self, atom: Atom) -> tuple[Atom, Atom, Atom] | None:
@@ -307,7 +307,7 @@ class _Member:
                 f"a combinator takes a MeTTa handle or a SpaceProvider, not "
                 f"the name {target!r}; a name alone carries no engine"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         self.target = target
@@ -354,11 +354,11 @@ class _Member:
                 f"cannot reify {self.describe()}: member "
                 f"{type(source).__name__} is live and provides no snapshot()"
             )
-            raise PettaError(msg)
+            raise MettaError(msg)
         captured = tuple(source.snapshot())
         if any(not isinstance(atom, Atom) for atom in captured):
             msg = f"{self.describe()}.snapshot() returned a non-Atom member"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return captured
 
     def describe(self) -> str:
@@ -407,7 +407,7 @@ def union(*spaces: Any) -> _Union:
     """
     if not spaces:
         msg = "union needs at least one space"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return _Union([_Member(space) for space in spaces])
 
 
@@ -501,7 +501,7 @@ class _Mapped(SpaceProvider):
                 f"{atom} does not fit this view's shape {self._outer}; the "
                 f"view admits only atoms the declaration maps"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         self._member.add(inward)
@@ -541,7 +541,7 @@ def mapped(inner: Any, declaration: Any) -> _Mapped:
             f"a mapped declaration is (bridge <outer-shape> <inner-shape>), "
             f"got {parsed}"
         )
-        raise PettaError(
+        raise MettaError(
             msg
         )
     outer, inner_shape = parsed.children[1], parsed.children[2]

@@ -44,7 +44,7 @@ from . import tables as _tables
 from ._engine import runtime
 from ._space import Space
 from .atoms import Atom, Expression, Grounded, Symbol, _expr, parse
-from .errors import PettaError
+from .errors import MettaError
 
 _VOCABULARY = ("load", "attach", "bridge", "serve")
 
@@ -59,13 +59,13 @@ def _read_forms(source: str) -> list[Atom]:
     for kind, text in row["Forms"]:
         if kind == "runnable":
             msg = f"a manifest declares, it does not run: {text} (drop the !)"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if kind != "expression":
             msg = (
                 f"a manifest declares, it does not define: {text} "
                 f"(definitions belong in a loaded file)"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         forms.append(parse(text))
@@ -246,7 +246,7 @@ def boot(
             f"{len(assembler.performed)} forms before it performed and their "
             f"writes stand; every started server is closed."
         )
-        raise PettaError(
+        raise MettaError(
             msg
         ) from exc
     return Boot(assembler.m, tuple(assembler.servers), tuple(assembler.performed))
@@ -269,7 +269,7 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expression, Expressi
     forms = _read_forms(path.read_text(encoding="utf-8"))
     if not forms:
         msg = f"the manifest {str(path)!r} declares nothing"
-        raise PettaError(msg)
+        raise MettaError(msg)
     directives = []
     problems = []
     for position, form in enumerate(forms, start=1):
@@ -297,7 +297,7 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expression, Expressi
     if problems:
         detail = "\n  ".join(problems)
         msg = f"the manifest {str(path)!r} does not boot:\n  {detail}"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return directives
 
 

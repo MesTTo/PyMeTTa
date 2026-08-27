@@ -39,7 +39,7 @@ import pytest
 
 from metta import (
     Expression,
-    PettaError,
+    MettaError,
     S,
     State,
     V,
@@ -155,7 +155,7 @@ def test_a_replay_rename_migrates_every_journal_action_once(tmp_path):
             S.new(S.old),
             S.new(S.last),
         ]
-        with pytest.raises(PettaError, match="unknown persistent head 'old'"):
+        with pytest.raises(MettaError, match="unknown persistent head 'old'"):
             migrated.add(S.old(S.alias))
     finally:
         migrated.close()
@@ -173,7 +173,7 @@ def test_a_replay_rename_with_an_absent_old_name_refuses_with_the_remedy(tmp_pat
     _write_old_head_journal(journal)
     original = journal.read_bytes()
 
-    with pytest.raises(PettaError, match=r"absent old.*'missing'.*remove.*rename="):
+    with pytest.raises(MettaError, match=r"absent old.*'missing'.*remove.*rename="):
         PersistentFactSpace(
             journal,
             {"new": 1, "other": 1},
@@ -196,7 +196,7 @@ def test_a_second_replay_does_not_reapply_the_rename(tmp_path):
     )
     migrated.close()
 
-    with pytest.raises(PettaError, match=r"absent old.*'old'.*remove.*rename="):
+    with pytest.raises(MettaError, match=r"absent old.*'old'.*remove.*rename="):
         PersistentFactSpace(
             journal,
             {"new": 1},
@@ -237,15 +237,15 @@ def test_replay_rename_composes_with_terminal_tail_recovery(tmp_path):
 def test_schema_and_native_refusals_name_the_offender(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = PersistentFactSpace(tmp_path / "refusals.db", {"edge": 2})
     try:
-        with pytest.raises(PettaError, match="unknown persistent head 'other'"):
+        with pytest.raises(MettaError, match="unknown persistent head 'other'"):
             space.add(S.other(S.a, S.b))
-        with pytest.raises(PettaError, match="'edge' has arity 2, got 1"):
+        with pytest.raises(MettaError, match="'edge' has arity 2, got 1"):
             space.add(S.edge(S.a))
-        with pytest.raises(PettaError, match="live Python object of type object"):
+        with pytest.raises(MettaError, match="live Python object of type object"):
             space.add(S.edge(ground(object()), S.b))
-        with pytest.raises(PettaError, match=r"argument 1 \(\$x\) is not ground"):
+        with pytest.raises(MettaError, match=r"argument 1 \(\$x\) is not ground"):
             space.add(S.edge(V.x, S.b))
-        with pytest.raises(PettaError, match=r"argument 1 .* is not a number"):
+        with pytest.raises(MettaError, match=r"argument 1 .* is not a number"):
             space.add(S.edge(S.node(S.a), S.b))
     finally:
         space.close()
@@ -257,7 +257,7 @@ def test_a_live_state_cell_never_enters_the_persistent_journal(metta, tmp_path):
     cell = State(1, space=metta)
     space = PersistentFactSpace(journal, {"Hits": 1}, sync="close")
     try:
-        with pytest.raises(PettaError, match="live State cell"):
+        with pytest.raises(MettaError, match="live State cell"):
             space.add(S.Hits(cell))
     finally:
         space.close()
@@ -522,7 +522,7 @@ def test_failed_append_rolls_back_memory_and_refuses_more_writes(tmp_path):  # n
         with pytest.raises(EngineError, match="source_sink"):
             space.add(rejected)
         assert list(space.atoms()) == [first]
-        with pytest.raises(PettaError, match=r"unusable for writes.*earlier add"):
+        with pytest.raises(MettaError, match=r"unusable for writes.*earlier add"):
             space.add(S.edge(S.e, S.f))
     finally:
         if journal.is_dir():
@@ -555,7 +555,7 @@ def test_failed_retract_append_rolls_back_every_memory_change(tmp_path, operatio
             else:
                 space.clear()
         assert list(space.atoms()) == facts
-        with pytest.raises(PettaError, match=f"earlier {operation}"):
+        with pytest.raises(MettaError, match=f"earlier {operation}"):
             space.clear()
     finally:
         if journal.is_dir():
@@ -720,7 +720,7 @@ def test_invalid_tail_status_keeps_validation_failure_as_cause(tmp_path, monkeyp
     monkeypatch.setattr(PersistentFactSpace, "_call", invalid_tail_status)
     with pytest.raises(EngineError, match="invalid status") as caught:
         PersistentFactSpace(journal, {"edge": 2}, sync="close")
-    assert isinstance(caught.value.__cause__, PettaError)
+    assert isinstance(caught.value.__cause__, MettaError)
 
 
 def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -728,7 +728,7 @@ def test_detached_modules_are_reused_without_weakening_path_claims(tmp_path):  #
     first = PersistentFactSpace(journal, {"edge": 2}, sync="close")
     first_module = first._module
     try:
-        with pytest.raises(PettaError, match="already attached"):
+        with pytest.raises(MettaError, match="already attached"):
             PersistentFactSpace(journal, {"edge": 2}, sync="close")
     finally:
         first.close()

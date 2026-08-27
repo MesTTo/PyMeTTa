@@ -113,7 +113,7 @@ def _forms(interactive: bool):  # noqa: FBT001  -- the boolean is established AP
 def _repl(_arguments) -> int:
     from ._space import Space  # noqa: PLC0415 -- version and help must not boot
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
-    from .errors import PettaError  # noqa: PLC0415  deferred: --version and help must not boot
+    from .errors import MettaError  # noqa: PLC0415  deferred: --version and help must not boot
 
     with contextlib.suppress(ImportError):
         # history and line editing where the platform has readline
@@ -125,7 +125,7 @@ def _repl(_arguments) -> int:
     for source in _forms(interactive):
         try:
             _print_groups(m.run(source))
-        except PettaError as error:
+        except MettaError as error:
             print(f"error: {error}", file=sys.stderr)
     return 0
 

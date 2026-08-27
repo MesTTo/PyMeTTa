@@ -37,7 +37,7 @@ import metta
 import metta._network as network
 from metta import S, remote
 from metta import testing as remote_testing
-from metta.errors import PettaError
+from metta.errors import MettaError
 from metta.foreign import SpaceProvider
 
 
@@ -109,7 +109,7 @@ def test_bearer_token_uses_constant_time_comparison(monkeypatch):  # noqa: D103 
     ],
 )
 def test_remote_connect_refuses_non_http_urls(url, scheme):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(PettaError, match=scheme):
+    with pytest.raises(MettaError, match=scheme):
         remote.connect(url)
 
 
@@ -119,7 +119,7 @@ def test_remote_connect_refuses_non_http_urls(url, scheme):  # noqa: D103  -- py
 )
 def test_remote_connect_refuses_credentials_over_http(headers):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     options = {"token": "secret"} if headers is None else {"headers": headers}
-    with pytest.raises(PettaError, match="credentials require an https URL"):
+    with pytest.raises(MettaError, match="credentials require an https URL"):
         remote.connect("http://example.test", **options)
 
 
@@ -144,12 +144,12 @@ def test_network_clients_refuse_invalid_timeouts(timeout):  # noqa: D103  -- pyt
     ],
 )
 def test_remote_connect_refuses_malformed_base_urls(url, message):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(PettaError, match=message):
+    with pytest.raises(MettaError, match=message):
         remote.connect(url)
 
 
 def test_remote_connect_refuses_embedded_credentials_without_echoing_them():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(PettaError, match="embedded credentials") as failure:
+    with pytest.raises(MettaError, match="embedded credentials") as failure:
         remote.connect("https://operator:top-secret@example.test")
     assert "top-secret" not in str(failure.value)
 
@@ -161,7 +161,7 @@ def test_remote_serve_reports_worker_startup_failure(metta, monkeypatch):  # noq
 
     monkeypatch.setattr(janus_swi, "attach_engine", fail_attach)
 
-    with pytest.raises(PettaError, match="injected remote attach failure"):
+    with pytest.raises(MettaError, match="injected remote attach failure"):
         remote.serve(metta)
 
 
@@ -264,7 +264,7 @@ def test_authorize_can_serve_a_space_read_only(metta):  # noqa: D103  -- pytest 
         transport = remote.connect(server.url)
         space = remote.RemoteSpace(transport, name)
         assert list(space.atoms()) == [S.stock(S.apple)]
-        with pytest.raises(PettaError, match="not authorized"):
+        with pytest.raises(MettaError, match="not authorized"):
             space.add(S.stock(S.pear))
         assert list(space.atoms()) == [S.stock(S.apple)]
     finally:
@@ -329,7 +329,7 @@ def test_http_endpoint_closes_transport_resources(monkeypatch, read_fails, overs
     endpoint = network.HTTPEndpoint(
         "http://example.test/api",
         subject="test",
-        error_type=PettaError,
+        error_type=MettaError,
     )
 
     if read_fails:
@@ -371,7 +371,7 @@ def test_health_advertises_the_projection(metta):  # noqa: D103  -- pytest disco
 
 def test_server_capabilities_refuses_a_health_less_transport():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = remote.RemoteSpace(lambda _operation, _payload: {"atoms": []})
-    with pytest.raises(PettaError, match="health"):
+    with pytest.raises(MettaError, match="health"):
         space.server_capabilities()
 
 
@@ -386,7 +386,7 @@ def test_bound_crosses_and_is_honored_exactly(metta):  # noqa: D103  -- pytest d
         assert len(list(space.match(pattern, limit=2))) == 2
         assert len(list(space.match(pattern))) == 3
         assert list(space.match(pattern, limit=0)) == []
-        with pytest.raises(PettaError, match="bound"):
+        with pytest.raises(MettaError, match="bound"):
             list(space.match(pattern, limit=-1))
     finally:
         server.close()
@@ -614,7 +614,7 @@ def test_an_answer_set_too_large_for_one_body_still_crosses_in_chunks(metta, mon
         space = remote.RemoteSpace(remote.connect(server.url), scratch.name)
         pattern = metta.parse("(re_big $n)")
         monkeypatch.setattr(network, "MAX_HTTP_RESPONSE_BYTES", 1024)
-        with pytest.raises(PettaError, match="response body exceeds"):
+        with pytest.raises(MettaError, match="response body exceeds"):
             list(space.match(pattern))
         with space.stream(pattern, batch=10) as answers:
             assert len(list(answers)) == 200
@@ -638,9 +638,9 @@ def test_a_gateway_is_a_drop_in_transport(metta):
         assert [str(a) for a in space.match(metta.parse("(re_drop $x)"))] == ["(re_drop a)"]
         # Both doors name the field a request left out, rather than
         # answering a KeyError whose whole message is 'pattern'.
-        with pytest.raises(PettaError, match="needs the `pattern` field"):
+        with pytest.raises(MettaError, match="needs the `pattern` field"):
             gateway("ask", {"space": scratch.name})
-        with pytest.raises(PettaError, match="needs the `pattern` field"):
+        with pytest.raises(MettaError, match="needs the `pattern` field"):
             gateway("match", {"space": scratch.name})
     finally:
         gateway.close()
@@ -688,9 +688,9 @@ def test_pulling_a_cursor_that_is_gone_is_refused_rather_than_answered_empty(met
         )
         token = opened["cursor"]
         assert gateway("stop", {"cursor": token}) == {"stopped": True}
-        with pytest.raises(PettaError, match="no such cursor"):
+        with pytest.raises(MettaError, match="no such cursor"):
             gateway("next", {"cursor": token})
-        with pytest.raises(PettaError, match="cursor must be a string"):
+        with pytest.raises(MettaError, match="cursor must be a string"):
             gateway("next", {"cursor": 7})
     finally:
         gateway.close()
@@ -702,7 +702,7 @@ def test_a_malformed_batch_is_refused(metta, batch):  # noqa: D103  -- pytest di
     scratch = metta._new_space()
     gateway = remote.Gateway(metta)
     try:
-        with pytest.raises(PettaError, match="batch must be a positive integer"):
+        with pytest.raises(MettaError, match="batch must be a positive integer"):
             gateway(
                 "ask",
                 {
@@ -736,7 +736,7 @@ def test_an_idle_cursor_is_released(metta):
         )["cursor"]
         assert _live_engines(metta) == before + 1
         time.sleep(0.2)
-        with pytest.raises(PettaError, match=r"untouched for 0\.05 seconds"):
+        with pytest.raises(MettaError, match=r"untouched for 0\.05 seconds"):
             gateway("next", {"cursor": token})
         assert _live_engines(metta) == before
     finally:
@@ -760,7 +760,7 @@ def test_a_gateway_refuses_more_cursors_than_it_holds(metta):
     try:
         held = [gateway("ask", ask)["cursor"] for _ in range(2)]
         assert all(held)
-        with pytest.raises(PettaError, match="already holds 2 answer cursors"):
+        with pytest.raises(MettaError, match="already holds 2 answer cursors"):
             gateway("ask", ask)
         assert gateway("stop", {"cursor": held[0]}) == {"stopped": True}
         assert gateway("ask", ask)["cursor"]
@@ -858,13 +858,13 @@ def test_a_remote_cursor_refuses_a_server_that_would_loop_it(metta):  # pytest i
     def looping(operation, payload):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return {"atoms": [], "cursor": "forever"}
 
-    with pytest.raises(PettaError, match="live cursor with no atoms"):
+    with pytest.raises(MettaError, match="live cursor with no atoms"):
         remote.RemoteCursor(looping, "&self", metta.parse("(re_loop $x)"))
 
     def shapeless(operation, payload):  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
         return {"cursor": None}
 
-    with pytest.raises(PettaError, match="chunk without an atom list"):
+    with pytest.raises(MettaError, match="chunk without an atom list"):
         remote.RemoteCursor(shapeless, "&self", metta.parse("(re_loop $x)"))
 
 
@@ -880,7 +880,7 @@ def test_a_closed_remote_cursor_refuses_further_pulls(metta):  # noqa: D103  -- 
         answers.close()
         answers.close()  # idempotent
         assert "closed" in repr(answers)
-        with pytest.raises(PettaError, match="this cursor is closed"):
+        with pytest.raises(MettaError, match="this cursor is closed"):
             next(answers)
         # An exhausted cursor is the other state, and it stays an
         # ordinary iterator: StopIteration, again and again.

@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from metta import S, V, remote, wire
-from metta.errors import PettaError
+from metta.errors import MettaError
 from metta.subscribe import bridge
 
 
@@ -69,7 +69,7 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
         assert not provider.can_run("subscribe")
 
         # And the refusal says what is missing, not just that it is missing.
-        with pytest.raises(PettaError, match="no event") as caught:
+        with pytest.raises(MettaError, match="no event") as caught:
             metta._at(space).subscribe(S.fact(V.x), lambda _event: None)
         assert "bridge" in str(caught.value), "the refusal names no way forward"
 

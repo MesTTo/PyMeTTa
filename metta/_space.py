@@ -264,7 +264,7 @@ from .atoms import (
     unify,
 )
 from .define import Defined, PrologBacked
-from .errors import EngineError, PettaError, SourceNotFound, StrictError, Timeout
+from .errors import EngineError, MettaError, SourceNotFound, StrictError, Timeout
 from .results import (
     Answers,
     Rows,
@@ -572,7 +572,7 @@ def _checked_new_space_request(
         raise TypeError(msg)
     if inherits is not None and inherits._dropped:
         msg = "space(inherits=...) takes a live Space handle"
-        raise PettaError(msg)
+        raise MettaError(msg)
     if not isinstance(restricted, bool):
         msg = "space(restricted=...) takes a bool"
         raise TypeError(msg)
@@ -843,7 +843,7 @@ class Space(Handle):
                 f"already belong to another space, so writes through it would "
                 f"land there. Take a new handle from space()."
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         return self._name
@@ -2124,7 +2124,7 @@ class Space(Handle):
             return self.eval(Expression([Symbol("transaction"), _to_atom(target)]))
         try:
             row = self._rt.once("metta_py_transaction(F, R)", F=target)
-        except PettaError as error:
+        except MettaError as error:
             term = getattr(error.__cause__, "term", None)
             original = (
                 self._rt._original_python_error(term, base=BaseException)
@@ -3079,7 +3079,7 @@ class Space(Handle):
                 f"{name!r} has no compiled clauses here; is_function() "
                 f"tells whether the engine knows the name at all"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         return str(row["Text"])

@@ -60,7 +60,7 @@ from ._atoms_core import (
     _wire_sym,
     _wire_var,
 )
-from .errors import PettaError
+from .errors import MettaError
 
 _SPACE_NAMES: list[frozenset[str]] = [frozenset()]
 _SPACE_NAMES_LOCK = threading.RLock()
@@ -196,7 +196,7 @@ class Undefined:
         self.why = why
 
     def __bool__(self) -> bool:
-        raise PettaError(_undefined_truth_message(self.why))
+        raise MettaError(_undefined_truth_message(self.why))
 
     def __eq__(self, other: object) -> bool:
         return (

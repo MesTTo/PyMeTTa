@@ -86,7 +86,7 @@ from typing import Any, Final, Self
 from ._under import _UNSET
 from ._under import selected as _selected_under
 from .atoms import Atom, _atom_from_wire, _is_ground, _match, _to_atom
-from .errors import PettaError, SubscriberError
+from .errors import MettaError, SubscriberError
 from .structures import MatchIndex
 from .vocabularies import SubscriptionEdge
 
@@ -254,7 +254,7 @@ class Fold:
                         f"in an object the step mutates instead of a value it "
                         f"replaces."
                     )
-                    raise PettaError(msg, atom=event.atom, space=self.space)
+                    raise MettaError(msg, atom=event.atom, space=self.space)
                 self.state = after
                 self._version += 1
             # Waking is for wait(), and most folds have no waiter: a callback
@@ -510,7 +510,7 @@ class _FoldRegistry:
         except BaseException as publication_error:
             try:
                 runtime.must("metta_py_subscriptions(Spaces)", Spaces=current_spaces)
-            except (PettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
+            except (MettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
                 msg = "subscription guard publication and rollback both failed"
                 raise BaseExceptionGroup(
                     msg,

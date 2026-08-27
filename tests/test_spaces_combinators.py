@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from metta import PettaError, S, V, ground, parse, spaces, testing, view
+from metta import MettaError, S, V, ground, parse, spaces, testing, view
 
 
 @pytest.fixture()
@@ -76,15 +76,15 @@ def test_union_refuses_writes_through_the_engine(metta, pair):  # noqa: D103  --
     name = "&cmb-union-ro"
     metta._register_space(spaces.union(kb, rules), name)
     try:
-        with pytest.raises(PettaError) as failure:
+        with pytest.raises(MettaError) as failure:
             metta._at(name).add(S.nope(1))
         assert failure.value.capability == "add"
         assert len(kb) == 0 and len(rules) == 0
     finally:
         metta._unregister_space(name)
-    with pytest.raises(PettaError, match="at least one"):
+    with pytest.raises(MettaError, match="at least one"):
         spaces.union()
-    with pytest.raises(PettaError, match="carries no engine"):
+    with pytest.raises(MettaError, match="carries no engine"):
         spaces.union("&by-name")
 
 
@@ -96,7 +96,7 @@ def test_readonly_strips_every_write(metta, pair):  # noqa: D103  -- pytest disc
     try:
         assert [str(a) for a in metta._at(name).atoms()] == ["(fact 1)"]
         for source in (f"!(add-atom {name} (w 1))", f"!(remove-atom {name} (fact 1))"):
-            with pytest.raises(PettaError):
+            with pytest.raises(MettaError):
                 metta.run(source)
         assert len(kb) == 1  # nothing reached the inner space
     finally:
@@ -119,7 +119,7 @@ def test_mapped_presents_and_writes_through_the_declaration(metta, pair):  # noq
         assert vs.remove(S.edge(S.a, V.y)) is True
         assert parse("(triple a linked-to b)") not in inner
         assert parse("(other junk here)") in inner  # untouched underneath
-        with pytest.raises(PettaError, match="shape"):
+        with pytest.raises(MettaError, match="shape"):
             vs.add(S.wrong(1))
     finally:
         metta._unregister_space(name)
@@ -143,7 +143,7 @@ def test_mapped_repeated_variable_pattern_stays_sound(metta, pair):  # noqa: D10
 
 def test_mapped_refuses_a_malformed_declaration(pair):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     inner, _ = pair
-    with pytest.raises(PettaError, match="bridge"):
+    with pytest.raises(MettaError, match="bridge"):
         spaces.mapped(inner, "(not-a-bridge (a) (b))")
 
 
@@ -210,7 +210,7 @@ def test_combinators_compose(metta, pair):  # noqa: D103  -- pytest discovers or
     try:
         got = metta.run(f"!(collapse (match {name} (edge $x $y) ($x $y)))")
         assert str(got[0][0]) == "((a b) (b c))"
-        with pytest.raises(PettaError):
+        with pytest.raises(MettaError):
             metta._at(name).add(S.w(1))
     finally:
         metta._unregister_space(name)

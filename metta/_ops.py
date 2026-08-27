@@ -98,7 +98,7 @@ from .atoms import (
     _decode,
     _encode,
 )
-from .errors import NotReducible, PettaError, is_transport_failure
+from .errors import MettaError, NotReducible, is_transport_failure
 from .vocabularies import EffectClass
 
 __all__ = [
@@ -433,7 +433,7 @@ def _preimages(name: str, result: Any):
         # Only an operation whose clause carries the mode test can reach here,
         # so the two registries disagreeing is a bug rather than a user error.
         msg = f"{name} was called backwards and declares no inverse"
-        raise PettaError(msg)
+        raise MettaError(msg)
     try:
         answers = op.inverse(result)
     except NotReducible:
@@ -545,7 +545,7 @@ def _context_stream(token: int, stream: Any):
             _task_context.run(token, close)
 
 
-class _RelationContractError(PettaError):
+class _RelationContractError(MettaError):
     """A malformed candidate row, which error modes must never reinterpret."""
 
 
@@ -759,7 +759,7 @@ def _refuse_raw_relation_candidate(value: Any) -> None:
         "cannot carry unbound variables, so register the operation with "
         'transport="encoded"'
     )
-    raise PettaError(msg)
+    raise MettaError(msg)
 
 
 def _refuse_raw_answer(value: Any) -> Any:
@@ -774,7 +774,7 @@ def _refuse_raw_answer(value: Any) -> Any:
             "wire the bindings cross on, so register the operation with "
             'transport="encoded" to answer bindings'
         )
-        raise PettaError(
+        raise MettaError(
             msg
         )
     return value

@@ -4,12 +4,12 @@ Guarantees:
   - Timeout is both the PeTTa coordination miss and a builtin TimeoutError,
     so callers may catch at either abstraction [tested:
     test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - every PettaError carries atom, space, operation and capability
+  - every MettaError carries atom, space, operation and capability
     attributes, None by default, the message unchanged for their presence
     [tested test_base_fields_default_to_none]
   - MettaOperationError.operation is the base field, not a shadow
     [tested test_operation_error_operation_is_the_base_field]
-  - AssertionFailure is a PettaError and NOT an EngineError, so a harness
+  - AssertionFailure is a MettaError and NOT an EngineError, so a harness
     separates a false claim from a broken engine by type [tested
     test_a_failing_assertion_is_a_different_exception_from_an_engine_fault]
   - SpaceCapabilityError carries the refused space, operation, and capability
@@ -45,11 +45,11 @@ __all__ = [
     "EngineError",
     "InferenceLimitError",
     "Interrupted",
+    "MettaError",
     "MettaOperationError",
     "MettaResultError",
     "MettaSyntaxError",
     "NotReducible",
-    "PettaError",
     "ResourceLimitError",
     "SourceNotFound",
     "SpaceCapabilityError",
@@ -134,7 +134,7 @@ def _grounded_type_error(message: str, *, ground: _RefusalGround) -> TypeError:
     return _GroundedTypeError(message, ground=ground)
 
 
-class PettaError(Exception):
+class MettaError(Exception):
     """Base class for everything this library raises on purpose.
 
     Machine-readable parts ride beside the message, the way
@@ -164,26 +164,26 @@ class PettaError(Exception):
         self.ground = ground
 
 
-class Timeout(PettaError, TimeoutError):  # noqa: N818 -- a timeout is the public outcome, not an implementation error suffix
+class Timeout(MettaError, TimeoutError):  # noqa: N818 -- a timeout is the public outcome, not an implementation error suffix
     """A bounded coordination wait ended before anything arrived."""
 
 
-class MettaSyntaxError(PettaError):
+class MettaSyntaxError(MettaError):
     """The reader refused the source. Carries the engine's own message."""
 
 
-class SourceNotFound(PettaError, FileNotFoundError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
+class SourceNotFound(MettaError, FileNotFoundError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """A file this library was asked to load is not there.
 
     Both bases on purpose. A caller reaching for a source file writes
     `except FileNotFoundError`, and a caller wrapping a whole registration
-    writes `except PettaError`; one exception answering to both is what
+    writes `except MettaError`; one exception answering to both is what
     stops the second reading from silently missing this case, which is what
     a plain FileNotFoundError did.
     """
 
 
-class EngineError(PettaError):
+class EngineError(MettaError):
     """A Prolog-side exception crossed the boundary.
 
     The original janus exception rides along as __cause__, so nothing is
@@ -236,7 +236,7 @@ class MettaOperationError(EngineError):
         self.culprit = culprit
 
 
-class MettaResultError(PettaError):
+class MettaResultError(MettaError):
     """The evaluation ANSWERED an `(Error ...)` atom, at a door that
     answers a single value.
 
@@ -265,14 +265,14 @@ class MettaResultError(PettaError):
         self.reason = reason
 
 
-class AssertionFailure(PettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
+class AssertionFailure(MettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """A MeTTa `(test ...)` or `(assert ...)` said something false.
 
     Deliberately NOT an EngineError: the engine worked, the program's claim
     did not hold. A harness runs a suite and has to tell "this file's
     assertion is red" from "the interpreter under it broke", and those two
     call for opposite responses, so they are opposite types. Both are still
-    PettaError, so a caller wrapping a whole run keeps catching both.
+    MettaError, so a caller wrapping a whole run keeps catching both.
 
     `operation` is the form that failed, "test" or "assert"; `actual` is what
     the expression produced and `expected` what the source asked for, each
@@ -293,7 +293,7 @@ class AssertionFailure(PettaError):  # noqa: N818  -- the exception name is a do
         self.expected = expected
 
 
-class SubscriberError(PettaError):
+class SubscriberError(MettaError):
     """A watcher raised, and the write it was watching had already landed.
 
     A subscription callback runs inside the write that triggered it, so its
@@ -350,7 +350,7 @@ class Interrupted(EngineError):  # noqa: N818  -- the exception name is a domain
     """
 
 
-class StrictError(PettaError):
+class StrictError(MettaError):
     """An opt-in strict run or eval refused an answer nothing reduced.
 
     Strict means every directive must reduce. `term` is the answer the
@@ -367,7 +367,7 @@ class StrictError(PettaError):
         self.directive = directive
 
 
-class CompileError(PettaError):
+class CompileError(MettaError):
     """A Python construct the define compiler refuses, with the reason.
 
     Refusals are the contract: every one names the construct, the line, and
@@ -421,7 +421,7 @@ class CompileError(PettaError):
         self.end_column = end_column
 
 
-class TransportFailure(PettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
+class TransportFailure(MettaError):  # noqa: N818  -- the exception name is a domain outcome in the public protocol, not an implementation error suffix
     """The backend is ABSENT rather than wrong: a connection, a timeout, a
     closed stream. The seam's error trichotomy treats these differently
     from application errors: a declared keep or empty mode never applies,
@@ -441,7 +441,7 @@ def is_transport_failure(error: BaseException) -> bool:
     """
     from ._optional import optional_module  # noqa: PLC0415  optional probe
 
-    cause = error.__cause__ if isinstance(error, PettaError) else error
+    cause = error.__cause__ if isinstance(error, MettaError) else error
     if isinstance(error, TransportFailure):
         return True
     if isinstance(cause, (OSError, TimeoutError)):

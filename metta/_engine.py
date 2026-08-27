@@ -20,7 +20,7 @@ Guarantees:
     test_engine_thread_owns_only_its_attachment,
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - a rehydrated PettaError keeps the __cause__ it was raised with, so the
+  - a rehydrated MettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]
   - a failed MeTTa assertion arrives as AssertionFailure and an engine fault
@@ -63,9 +63,9 @@ from .errors import (
     EngineError,
     InferenceLimitError,
     Interrupted,
+    MettaError,
     MettaOperationError,
     MettaSyntaxError,
-    PettaError,
     SpaceCapabilityError,
     TimeLimitError,
 )
@@ -492,7 +492,7 @@ class Runtime:
         failures through _raise. The two consults did neither, in a package
         that ships a thread pool and an async surface, so a syntax error in a
         library's shipped .pl arrived as a raw janus PrologError that a
-        caller's `except PettaError` missed.
+        caller's `except MettaError` missed.
 
         The engine side raises what SWI would only have printed, which is the
         half no wrapper here could reach: a syntax error inside a consulted
@@ -632,7 +632,7 @@ class Runtime:
                 # The library's own raise crossed Prolog and came back:
                 # re-raise the very object, structured fields intact,
                 # instead of an EngineError holding its transcript. Only
-                # PettaError rehydrates; an op author's ValueError keeps
+                # MettaError rehydrates; an op author's ValueError keeps
                 # arriving wrapped, the boundary it crossed visible.
                 #
                 # An error that already chose its own cause keeps it. `from
@@ -707,7 +707,7 @@ class Runtime:
         ) from exc
 
     def _original_python_error(
-        self, term: object, base: type[BaseException] = PettaError
+        self, term: object, base: type[BaseException] = MettaError
     ) -> BaseException | None:
         """The live exception a Python callback raised, when the Prolog
         term still carries the object reference and the object is a

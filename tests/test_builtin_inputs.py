@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pytest
 
-from metta import MeTTa, PettaError
+from metta import MeTTa, MettaError
 
 REPO = Path(__file__).resolve().parents[3]
 
@@ -51,7 +51,7 @@ REPO = Path(__file__).resolve().parents[3]
 _PROBE = r"""
 import json, sys
 sys.path.insert(0, sys.argv[1])
-from metta import MeTTa, PettaError
+from metta import MeTTa, MettaError
 
 TABLE = (
     "findall([_Name, _Position, _Kinds], "
@@ -82,7 +82,7 @@ for name, position, kinds in rows:
     report["probed"] += 1
     try:
         answers = engine.run(source)
-    except PettaError as refused:
+    except MettaError as refused:
         if name not in str(refused):
             report["unnamed"].append([source, str(refused)])
         continue
@@ -151,7 +151,7 @@ def test_the_measured_examples_read_as_metta():
         ("!(sort-atom $u)", 1),
         ("!(size-atom $u)", 1),
     ):
-        with pytest.raises(PettaError) as refused:
+        with pytest.raises(MettaError) as refused:
             engine.run(source)
         message = str(refused.value)
         assert f"argument {position}" in message, source
@@ -210,7 +210,7 @@ def test_the_residual_positions_refuse_by_their_own_names(metta):
         ("sleep", "!(sleep $u)", "must_be"),
         ("sread", "!(sread $u)", "atom_codes"),
     ):
-        with pytest.raises(PettaError) as refused:
+        with pytest.raises(MettaError) as refused:
             engine.run(source)
         message = str(refused.value)
         assert operation in message, source
@@ -285,7 +285,7 @@ def test_arithmetic_inverts_past_the_linear_case_or_refuses_with_the_reason():
         # refusal through the recovery rather than through the solver.
         ("!(let 10.0 (* 2.0 $x) $x)", "an operand is still unbound"),
     ):
-        with pytest.raises(PettaError) as refused:
+        with pytest.raises(MettaError) as refused:
             engine.run(source)
         message = str(refused.value)
         assert reason in message, (source, message)

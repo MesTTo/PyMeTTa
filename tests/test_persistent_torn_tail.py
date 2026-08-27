@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from metta import PettaError, S, ground
+from metta import MettaError, S, ground
 from metta._persistent import PersistentFactSpace
 from metta.errors import EngineError
 
@@ -79,7 +79,7 @@ def test_every_truncation_point_of_the_torn_tail_classifies(tmp_path):
             path.write_bytes(prefix + record[:cut])
             try:
                 space = PersistentFactSpace(path, SCHEMA, sync="close")
-            except PettaError as exc:
+            except MettaError as exc:
                 refused.append((label, cut, record[:cut], str(exc).splitlines()[0]))
                 continue
             try:

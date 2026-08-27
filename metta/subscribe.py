@@ -42,7 +42,7 @@ from collections.abc import Callable, Mapping
 from typing import Any, Final, Self
 
 from .atoms import Atom, Expression, Symbol, Variable, _map_atoms, _to_atom
-from .errors import EngineError, PettaError
+from .errors import EngineError, MettaError
 from .events import _REGISTRY, STATELESS, Event, Fold
 from .foreign import require_capability
 from .ops import _REFLECTION_SPACE, _reflect_add, _reflect_remove
@@ -102,7 +102,7 @@ class Subscription(Fold):
                 f"queue_max=. Dropping the oldest silently is the one "
                 f"thing it will not do."
             )
-            raise PettaError(
+            raise MettaError(
                 msg,
                 atom=event.atom,
                 space=self.space,
@@ -129,7 +129,7 @@ class Subscription(Fold):
                 "events() consumes the no-callback queue; this subscription "
                 "delivers through its callback"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         while True:
@@ -156,11 +156,11 @@ class Subscription(Fold):
                     rollback_errors: list[BaseException] = []
                     try:
                         _ensure_reflection_present(cancellation.runtime, self._fact)
-                    except (PettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
+                    except (MettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
                         rollback_errors.append(rollback_error)
                     try:
                         _REGISTRY.restore(cancellation, self)
-                    except (PettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
+                    except (MettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
                         rollback_errors.append(rollback_error)
                     if rollback_errors:
                         msg = "subscription cancellation and rollback both failed"
@@ -243,7 +243,7 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
                     _ensure_reflection_present(runtime, subscription._fact)
                 else:
                     _ensure_reflection_absent(runtime, subscription._fact)
-            except (PettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
+            except (MettaError, RuntimeError, BaseExceptionGroup) as rollback_error:
                 rollback_errors.append(rollback_error)
             if rollback_errors:
                 msg = "subscription publication and rollback both failed"

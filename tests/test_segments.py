@@ -29,7 +29,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from metta import Expression, Grounded, S, V, seg, solve
-from metta.errors import PettaError
+from metta.errors import MettaError
 
 # The gap glyph the law grants and Python already spells. Kept as a value so a
 # reader sees WHAT is being asserted rather than an Ellipsis literal buried in a
@@ -127,7 +127,7 @@ def test_a_star_in_a_template_still_splices():  # noqa: D103  -- pytest discover
 
 
 def test_a_mixed_role_pattern_refuses_naming_the_law(orders):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(PettaError) as refusal:
+    with pytest.raises(MettaError) as refusal:
         list(orders[(S.Order, seg(V.m), V.m)])
     message = str(refusal.value)
     assert "outside the proved finitary fragment" in message
@@ -138,7 +138,7 @@ def test_a_mixed_role_pattern_refuses_naming_the_law(orders):  # noqa: D103  -- 
 def test_the_commuting_equation_refuses_naming_kutsia(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # Kutsia's own infinitary witness: X u = u X has the family X = u^n for
     # every n, so no complete finite answer set exists.
-    with pytest.raises(PettaError) as refusal:
+    with pytest.raises(MettaError) as refusal:
         metta.run("!(unify (f (:seg $x) a) (f a (:seg $x)) matched none)")
     message = str(refusal.value)
     assert "Theorem 62" in message

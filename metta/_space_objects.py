@@ -75,7 +75,7 @@ from .atoms import (
     _to_atom,
     _variables,
 )
-from .errors import EngineError, PettaError
+from .errors import EngineError, MettaError
 from .results import Rows, _row_class
 
 if TYPE_CHECKING:
@@ -551,7 +551,7 @@ class Cursor:
             raise StopIteration
         if self._closed:
             msg = "this cursor is closed"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if self._timeout is None and self._stack < 0:
             answer = self._rt.apply_must("metta_py_cursor_next", self._handle)
         else:
@@ -1154,7 +1154,7 @@ def _refuse_in_batch(space_name: str, operation: str) -> None:
             f"would silently order around the adds the block is holding; "
             f"leave the `with m.batch():` block first"
         )
-        raise PettaError(
+        raise MettaError(
             msg
         )
 
@@ -1180,7 +1180,7 @@ class _Batch:
                 f"a batch is already collecting for {name} in this "
                 f"context; batches do not nest per space"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         self._pending = []
