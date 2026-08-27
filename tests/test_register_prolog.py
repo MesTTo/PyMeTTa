@@ -383,7 +383,7 @@ repo = Path(sys.argv[1])
 sys.path.insert(0, str(repo / "bindings" / "python"))
 from metta import MeTTa
 
-m = MeTTa(petta_path=str(repo)).self
+m = MeTTa(metta_path=str(repo)).self
 def types(form):
     return {str(atom) for row in m.run(form) for atom in row}
 

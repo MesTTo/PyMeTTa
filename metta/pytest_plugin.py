@@ -8,7 +8,7 @@ Guarantees:
 Decides:
   - the fixtures use pytest's own override rule: a conftest defining metta
     or scratch_space wins over these, which is how a project customizes
-    the boot (a petta_path, a preloaded library) without a plugin knob
+    the boot (a metta_path, a preloaded library) without a plugin knob
 Open Obligations:
   To Do: None
   Hacks: None

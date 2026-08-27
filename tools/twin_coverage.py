@@ -1531,7 +1531,7 @@ _PREAMBLE = (
     "    if isinstance(head, Expression) and head.children:\n"
     "        return f'{head.children[0]}/{len(head.children) - 1}'\n"
     "    return f'{head}/0'\n"
-    "m = MeTTa(petta_path='.').self\n"
+    "m = MeTTa(metta_path='.').self\n"
 )
 
 _EPILOGUE = (

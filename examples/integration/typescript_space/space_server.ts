@@ -676,7 +676,7 @@ export function startServer(options: ServerOptions = {}): Promise<RunningServer>
 
 function parseArguments(argv: readonly string[]): ServerOptions {
   const options: ServerOptions = {
-    token: process.env["PETTA_SPACE_TOKEN"] ?? null,
+    token: process.env["METTA_SPACE_TOKEN"] ?? null,
   };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];

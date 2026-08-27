@@ -41,7 +41,7 @@ class CettaSpace(SpaceProvider):
     """Atoms stored beside their text, pattern queries answered by CeTTa."""
 
     def __init__(self, cetta: str | None = None, timeout: float = 30.0):
-        self._cetta = cetta or os.environ.get("PETTA_CETTA", "cetta")
+        self._cetta = cetta or os.environ.get("METTA_CETTA", "cetta")
         self._timeout = timeout
         self._atoms: list[Any] = []
 
@@ -173,9 +173,9 @@ def _bracket_items(answer: str, errors: str = "") -> list[str]:
 def demo() -> None:
     """The worked run: PeTTa queries answered over atoms CeTTa matches,
     and CeTTa evaluation results binding variables inside PeTTa unify."""
-    cetta = os.environ.get("PETTA_CETTA") or shutil.which("cetta")
+    cetta = os.environ.get("METTA_CETTA") or shutil.which("cetta")
     if cetta is None:
-        skip("cetta is not on PATH and PETTA_CETTA does not name it")
+        skip("cetta is not on PATH and METTA_CETTA does not name it")
     import metta
     from metta import S, V, Expression
     from metta.atoms import Grounded

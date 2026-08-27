@@ -217,7 +217,7 @@ def bridge() -> JanusBridge:
         return _STATE.janus
 
 
-def _resolve_petta_path() -> str:
+def _resolve_metta_path() -> str:
     """Locate the configured, bundled, or checkout PeTTa runtime tree.
 
     importlib.resources for the bundled case, because that is the supported
@@ -233,7 +233,7 @@ def _resolve_petta_path() -> str:
     __file__ stays for a source checkout, where the package is not installed
     at all.
     """
-    configured = os.environ.get("PETTA_PATH")
+    configured = os.environ.get("METTA_PATH")
     if configured:
         return str(Path(configured).resolve())
 
@@ -310,28 +310,28 @@ def engine_thread() -> Iterator[None]:
             raise EngineError(msg) from exc
 
 
-def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
+def runtime(metta_path: str | None = None, verbose: bool = False) -> Runtime:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
     """The process's runtime, started on first use.
 
     There is exactly one engine per process, so a later caller cannot have
-    a different tree: an explicit petta_path that disagrees with the one
+    a different tree: an explicit metta_path that disagrees with the one
     already consulted raises rather than being silently ignored. Verbosity
     is per-call state and simply applies.
     """
     with _LOCK:
         if _STATE.runtime is None:
             logger.debug("starting the shared PeTTa runtime")
-            _STATE.runtime = Runtime(petta_path=petta_path, verbose=verbose)
+            _STATE.runtime = Runtime(metta_path=metta_path, verbose=verbose)
         else:
-            active = _STATE.runtime.petta_path
+            active = _STATE.runtime.metta_path
             if (
-                petta_path is not None
+                metta_path is not None
                 and active is not None
-                and Path(petta_path).resolve() != Path(active).resolve()
+                and Path(metta_path).resolve() != Path(active).resolve()
             ):
                 msg = (
                     f"the engine was consulted from {active!r} and cannot "
-                    f"be reconsulted from {petta_path!r}: PeTTa keeps one "
+                    f"be reconsulted from {metta_path!r}: PeTTa keeps one "
                     f"engine per process. Start a new process for a "
                     f"different tree."
                 )
@@ -358,16 +358,16 @@ class Runtime:
     process and this class refuses to pretend otherwise.
     """
 
-    def __init__(self, petta_path: str | None = None, verbose: bool = False) -> None:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
+    def __init__(self, metta_path: str | None = None, verbose: bool = False) -> None:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
         self.verbose = bool(verbose)
         with CONSULT_LOCK:
             if not CONSULTED.is_set():
-                if petta_path is None:
-                    petta_path = _resolve_petta_path()
+                if metta_path is None:
+                    metta_path = _resolve_metta_path()
                 with config._startup() as startup:
-                    _STATE.janus = self._consult_engine(petta_path, startup[0])
+                    _STATE.janus = self._consult_engine(metta_path, startup[0])
                 CONSULTED.set()
-            self.petta_path = petta_path
+            self.metta_path = metta_path
             self._janus = bridge()
             # The functional calling convention (apply_once, cmd) skips the
             # per-thread engine handling query_once performs: on a thread
@@ -392,7 +392,7 @@ class Runtime:
 
     # ------------------------------------------------------------------ startup
 
-    def _consult_engine(self, petta_path: str, stack_limit: int) -> JanusBridge:
+    def _consult_engine(self, metta_path: str, stack_limit: int) -> JanusBridge:
         """Stack limit, native backends, main.pl.
 
         `backends` asks the engine to load every native backend that is built.
@@ -401,8 +401,8 @@ class Runtime:
         for MORK's shared library here and pass `mork`, which put a backend's
         build path in the embedding host.
         """
-        logger.debug("consulting the PeTTa engine from %s", petta_path)
-        root = Path(petta_path)
+        logger.debug("consulting the PeTTa engine from %s", metta_path)
+        root = Path(metta_path)
         janus = cast(JanusBridge, importlib.import_module("janus_swi"))
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
         janus.query_once("set_prolog_flag(argv, ['backends'])")
@@ -410,8 +410,8 @@ class Runtime:
         helper_file = root / "bindings" / "python" / "helper.pl"
         if not main_file.is_file():
             msg = (
-                f"PeTTa runtime not found under {petta_path!r} (expected "
-                f"{main_file!r}). Set PETTA_PATH or pass petta_path."
+                f"PeTTa runtime not found under {metta_path!r} (expected "
+                f"{main_file!r}). Set METTA_PATH or pass metta_path."
             )
             raise FileNotFoundError(
                 msg

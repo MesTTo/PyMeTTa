@@ -862,7 +862,7 @@ def test_load_restores_the_working_directory(metta, tmp_path):
 
 def test_runtime_refuses_a_second_tree(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError):
-        MeTTa(petta_path="/definitely/not/this/tree")
+        MeTTa(metta_path="/definitely/not/this/tree")
 
 
 def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

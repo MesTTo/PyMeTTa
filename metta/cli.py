@@ -17,7 +17,7 @@ import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
-from . import _resolve_petta_path
+from . import _resolve_metta_path
 from ._config import config
 
 #: The two flags the launcher answers itself. Everything else is forwarded,
@@ -56,7 +56,7 @@ def main(argv=None):
         print(f"metta {__version__}" if argv[0] in ("--version", "-V") else USAGE)
         return 0
 
-    runtime_root = Path(_resolve_petta_path())
+    runtime_root = Path(_resolve_metta_path())
     upstream_mork = (
         runtime_root / "mork_ffi" / "target" / "release" / "libmork_ffi.so"
     )

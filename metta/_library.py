@@ -173,11 +173,11 @@ class _LibraryNamespace:
         # [tested: test_the_fn_namespace_is_generated].
         from ._engine import (  # noqa: PLC0415  -- the import-lightness contract above
             _STATE,
-            _resolve_petta_path,
+            _resolve_metta_path,
         )
 
         active = getattr(_STATE, "runtime", None)
-        root = active.petta_path if active is not None else _resolve_petta_path()
+        root = active.metta_path if active is not None else _resolve_metta_path()
         names = set()
         for entry in Path(root, "lib").glob("*"):
             stem = entry.stem

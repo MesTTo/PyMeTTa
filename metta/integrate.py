@@ -260,7 +260,7 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
 
 
 def discover(m) -> list[str]:
-    """Install advertised integrations after satisfying PETTA_REQUIRES."""
+    """Install advertised integrations after satisfying METTA_REQUIRES."""
     advertised = tuple(metadata.entry_points(group=ENTRY_POINT_GROUP))
     entries: dict[str, Any] = {}
     for entry in advertised:
@@ -275,17 +275,17 @@ def discover(m) -> list[str]:
 
     graph: dict[str, tuple[str, ...]] = {}
     for name, target in targets.items():
-        raw = getattr(target, "PETTA_REQUIRES", ())
+        raw = getattr(target, "METTA_REQUIRES", ())
         if isinstance(raw, str) or not isinstance(raw, Iterable):
             msg = (
-                f"integration {name!r} PETTA_REQUIRES must be an iterable "
+                f"integration {name!r} METTA_REQUIRES must be an iterable "
                 "of entry-point names"
             )
             raise MettaError(msg)
         dependencies = tuple(raw)
         invalid = [item for item in dependencies if not isinstance(item, str)]
         if invalid:
-            msg = f"integration {name!r} PETTA_REQUIRES contains a non-string name"
+            msg = f"integration {name!r} METTA_REQUIRES contains a non-string name"
             raise MettaError(msg)
         missing = sorted(set(dependencies) - targets.keys())
         if missing:

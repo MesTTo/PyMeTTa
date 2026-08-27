@@ -30,15 +30,15 @@ def test_backend_info_reports_versions_and_consulted_tree():  # noqa: D103  -- p
         "janus",
         "swi_prolog",
         "python",
-        "petta_path",
+        "metta_path",
     }
     for key in ("metta", "janus", "swi_prolog", "python"):
         assert re.fullmatch(r"\d+(?:\.\d+)+", info[key])
     assert info["python"] == ".".join(map(str, sys.version_info[:3]))
-    petta_path = metta.engine().info()["petta_path"]
+    metta_path = metta.engine().info()["metta_path"]
 
-    assert isinstance(petta_path, str)
-    runtime_tree = Path(petta_path)
+    assert isinstance(metta_path, str)
+    runtime_tree = Path(metta_path)
     assert runtime_tree.is_dir()
     assert (runtime_tree / "engine" / "main.pl").is_file()
 
@@ -48,7 +48,7 @@ def test_engine_info_owns_the_runtime_it_reports():
     program = (
         "import metta\n"
         "info = metta.engine().info()\n"
-        "assert info['petta_path'], info\n"
+        "assert info['metta_path'], info\n"
         "assert info['janus'] and info['swi_prolog']\n"
         "print('ENGINE-INFO-OK')\n"
     )

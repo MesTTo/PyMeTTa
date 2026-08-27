@@ -22,7 +22,7 @@ _MODULE_PATH = Path(__file__).resolve().parents[1] / "examples" / "integration" 
 
 
 def _cetta_binary():
-    named = os.environ.get("PETTA_CETTA")
+    named = os.environ.get("METTA_CETTA")
     if named and os.access(named, os.X_OK):
         return named
     return shutil.which("cetta")
@@ -46,7 +46,7 @@ def _cetta_space_module():
 def cetta_space():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     binary = _cetta_binary()
     if binary is None:
-        pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")
+        pytest.skip("METTA_CETTA does not name a cetta binary and none is on PATH")
     module = _cetta_space_module()
     return module.CettaSpace(cetta=binary)
 
@@ -104,7 +104,7 @@ def test_the_kit_catches_cettas_rational_tree_divergence(cetta_space):  # noqa: 
 def test_cetta_answers_bind_inside_metta_unification():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     binary = _cetta_binary()
     if binary is None:
-        pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")
+        pytest.skip("METTA_CETTA does not name a cetta binary and none is on PATH")
     from metta import Expression
     from metta.atoms import Grounded
 

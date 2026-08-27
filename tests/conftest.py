@@ -73,7 +73,7 @@ def metta_module():  # noqa: D103  -- pytest discovers or injects this callable;
 
 
 @pytest.fixture(scope="session")
-def petta_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def metta_path(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     return str(repo_root)
 
 
@@ -83,7 +83,7 @@ def dummy_metta_path(repo_root):  # noqa: D103  -- pytest discovers or injects t
 
 
 @pytest.fixture(scope="session")
-def metta(petta_path):
+def metta(metta_path):
     """Return the default rich space on the repository runtime."""
-    os.environ.setdefault("PETTA_PATH", petta_path)
-    return MeTTa(petta_path=petta_path).self
+    os.environ.setdefault("METTA_PATH", metta_path)
+    return MeTTa(metta_path=metta_path).self

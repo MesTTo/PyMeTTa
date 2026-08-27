@@ -80,7 +80,7 @@ node mettascript_space_server.js --port 8700 \
 ```
 
 Flags: `--host` (default 127.0.0.1), `--port` (0 picks a free one, the
-readiness line on stdout names it), `--token` or `PETTA_SPACE_TOKEN`
+readiness line on stdout names it), `--token` or `METTA_SPACE_TOKEN`
 for Bearer auth, `--spaces a,b` to allowlist served names, `--max-body`
 bytes, `--cursor-idle` seconds before an untouched answer cursor is
 released (300), `--cursor-limit` how many stay open at once (256).
@@ -102,7 +102,7 @@ esbuild space_server.test.ts --bundle --platform=node --format=esm \
 `bindings/python/tests/test_typescript_space.py` drives the whole story from
 PeTTa: MeTTa-driven queries, the conformance kit over the attached
 provider, a thread pool, the async surface, one-request batches, and
-the MeTTaScript backend when `PETTA_METTASCRIPT_CORE` names its core
+the MeTTaScript backend when `METTA_METTASCRIPT_CORE` names its core
 module. Both servers are also certified by
 `metta.testing.GatewayComplianceSuite`, the protocol's own conformance
 suite, which any implementation in any language can subclass against a

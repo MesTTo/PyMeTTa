@@ -770,12 +770,12 @@ class Space(Handle):
         name: str | Symbol | Expression = _DEFAULT_SPACE,
         *,
         verbose: bool = False,
-        petta_path: str | None = None,
+        metta_path: str | None = None,
         _runtime: Runtime | None = None,
         _created_at: tuple[str, int] | None = None,
     ) -> None:
         super().__init__()
-        self._rt = _runtime or runtime(petta_path=petta_path, verbose=verbose)
+        self._rt = _runtime or runtime(metta_path=metta_path, verbose=verbose)
         self._name_atom: Symbol | Expression | None = None
         if isinstance(name, Symbol):
             self._name_atom = name
@@ -4556,12 +4556,12 @@ class MeTTa:
         self,
         *,
         verbose: bool = False,
-        petta_path: str | None = None,
+        metta_path: str | None = None,
         _self_name: str = _DEFAULT_SPACE,
         _runtime: Runtime | None = None,
     ) -> None:
         self._rt = (
-            runtime(petta_path=petta_path, verbose=verbose)
+            runtime(metta_path=metta_path, verbose=verbose)
             if _runtime is None
             else _runtime
         )
@@ -4595,7 +4595,7 @@ class MeTTa:
                 f"{sys.version_info.major}.{sys.version_info.minor}."
                 f"{sys.version_info.micro}"
             ),
-            "petta_path": self._rt.petta_path,
+            "metta_path": self._rt.metta_path,
         }
 
     def space(

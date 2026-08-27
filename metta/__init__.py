@@ -190,9 +190,9 @@ def _path_exists(path: str) -> bool:
     return _os.path.exists(path)  # noqa: FURB141 -- pathlib adds eager imports to plain ``import metta``
 
 
-def _resolve_petta_path() -> str:
+def _resolve_metta_path() -> str:
     """Locate either the upstream or current bundled/source runtime tree."""
-    env_path = _os.environ.get("PETTA_PATH")
+    env_path = _os.environ.get("METTA_PATH")
     if env_path:
         return _os.path.abspath(env_path)
 

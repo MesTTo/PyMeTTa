@@ -111,7 +111,7 @@ def _bounded_call(fn: Callable[[], Any], seconds: float = 10) -> Any:
 def _isolated_python(repo_root, source: str) -> subprocess.CompletedProcess[str]:
     """Run a singleton-lifecycle probe in a fresh interpreter."""
     environment = os.environ | {
-        "PETTA_PATH": str(repo_root),
+        "METTA_PATH": str(repo_root),
         "PYTHONPATH": str(repo_root / "bindings" / "python"),
         "PYTHONDONTWRITEBYTECODE": "1",
     }
@@ -963,7 +963,7 @@ def test_the_async_loop_recovers_from_stop_and_thread_start_failure(repo_root):
         from metta import _async_ops
         from metta.errors import EngineError
 
-        m = MeTTa(petta_path=str(__import__("os").environ["PETTA_PATH"])).self
+        m = MeTTa(metta_path=str(__import__("os").environ["METTA_PATH"])).self
         stop_entered = threading.Event()
         stop_release = asyncio.Event()
 
@@ -1041,7 +1041,7 @@ def test_async_loop_shutdown_finalizes_pending_coroutines(repo_root):
 
         from metta import MeTTa, S
 
-        m = MeTTa(petta_path=str(__import__("os").environ["PETTA_PATH"])).self
+        m = MeTTa(metta_path=str(__import__("os").environ["METTA_PATH"])).self
         entered = threading.Event()
 
         async def pending() -> int:

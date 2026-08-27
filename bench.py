@@ -86,7 +86,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--memory-repetitions", type=int, default=3)
     parser.add_argument("--memory-quick", action="store_true")
-    parser.add_argument("--memory-cause-commit", default=os.environ.get("PETTA_MEMORY_CAUSE_COMMIT", "WORKTREE"))
+    parser.add_argument("--memory-cause-commit", default=os.environ.get("METTA_MEMORY_CAUSE_COMMIT", "WORKTREE"))
     parser.add_argument("--update-baseline", action="store_true")
     parser.add_argument("--compare-wall", action="store_true")
     parser.add_argument("--json", type=Path)
@@ -108,8 +108,8 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _run_case(pytest_arguments: list[str], *, update: bool) -> None:
-    os.environ["PETTA_BENCHMARK_COUNTERS"] = "1"
-    os.environ["PETTA_UPDATE_BENCHMARK_BASELINE"] = "1" if update else "0"
+    os.environ["METTA_BENCHMARK_COUNTERS"] = "1"
+    os.environ["METTA_UPDATE_BENCHMARK_BASELINE"] = "1" if update else "0"
     result = pytest.main(pytest_arguments)
     if result:
         raise SystemExit(int(result))

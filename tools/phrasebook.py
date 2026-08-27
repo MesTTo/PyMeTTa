@@ -978,7 +978,7 @@ def main(argv: list[str]) -> int:
 
     import metta  # noqa: PLC0415  -- deferred so the lane imports without an engine
 
-    engine = metta.MeTTa(petta_path=str(REPO)).self
+    engine = metta.MeTTa(metta_path=str(REPO)).self
     answers = json.loads(ANSWERS.read_text(encoding="utf-8")) if ANSWERS.is_file() else {}
     visibility = visibility_drift(engine, entries)
     if visibility:

@@ -24,10 +24,10 @@ from metta.results import Rows
 def test_configuration_reads_and_validates_environment():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     configured = Config(
         {
-            "PETTA_STACK_LIMIT": "64000000",
-            "PETTA_HEARTBEAT_INTERVAL": "25000",
-            "PETTA_DECLARATION_LIMIT": "64",
-            "PETTA_DISPLAY_ROWS": "7",
+            "METTA_STACK_LIMIT": "64000000",
+            "METTA_HEARTBEAT_INTERVAL": "25000",
+            "METTA_DECLARATION_LIMIT": "64",
+            "METTA_DISPLAY_ROWS": "7",
         }
     )
     assert configured.as_dict() == {
@@ -36,10 +36,10 @@ def test_configuration_reads_and_validates_environment():  # noqa: D103  -- pyte
         "declaration_limit": 64,
         "display_rows": 7,
     }
-    with pytest.raises(ValueError, match=r"PETTA_STACK_LIMIT.*positive integer"):
-        Config({"PETTA_STACK_LIMIT": "eight gigabytes"})
-    with pytest.raises(ValueError, match=r"PETTA_DISPLAY_ROWS.*positive"):
-        Config({"PETTA_DISPLAY_ROWS": "0"})
+    with pytest.raises(ValueError, match=r"METTA_STACK_LIMIT.*positive integer"):
+        Config({"METTA_STACK_LIMIT": "eight gigabytes"})
+    with pytest.raises(ValueError, match=r"METTA_DISPLAY_ROWS.*positive"):
+        Config({"METTA_DISPLAY_ROWS": "0"})
 
 
 def test_configuration_updates_are_atomic():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

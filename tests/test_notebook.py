@@ -73,7 +73,7 @@ def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # no
     python_path = str(repo_root / "bindings" / "python")
     env = {
         **os.environ,
-        "PETTA_PATH": str(repo_root),
+        "METTA_PATH": str(repo_root),
         "PYTHONPATH": os.pathsep.join(
             filter(None, [python_path, os.environ.get("PYTHONPATH")])
         ),

@@ -447,7 +447,7 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noq
         "from metta import convert, parse\n"
         "class Early: pass\n"
         "convert.register_type(Early, image='handle', name='CtSnapshot')\n"
-        "m = metta.MeTTa(petta_path='.')\n"
+        "m = metta.MeTTa(metta_path='.')\n"
         "print(parse('(type-image CtSnapshot handle)') in m.space('&metta'))\n"
     )
     result = subprocess.run(

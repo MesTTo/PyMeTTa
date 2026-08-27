@@ -202,7 +202,7 @@ export class MettascriptStore implements WireSpaceStore {
 
 function parseArguments(argv: readonly string[]): ServerOptions & { corePath: string } {
   let corePath = process.env["METTASCRIPT_CORE"] ?? "@mettascript/core";
-  const options: ServerOptions = { token: process.env["PETTA_SPACE_TOKEN"] ?? null };
+  const options: ServerOptions = { token: process.env["METTA_SPACE_TOKEN"] ?? null };
   let spaces: readonly string[] | null = null;
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];

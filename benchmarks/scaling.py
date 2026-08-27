@@ -60,7 +60,7 @@ Guarantees:
     any family is measured, rather than reading the configuration's own cost as
     a regression. The C reader alone is worth 10.58x to 10.86x on parse-forms
     [measured 2026-08-27; command=python -m benchmarks.scaling parse-forms under
-    PETTA_C_READER=off, recorded into a throwaway ledger; fixture=the parse-forms
+    METTA_C_READER=off, recorded into a throwaway ledger; fixture=the parse-forms
     ladder 200/400/800/1600; commit=75d75b1ea5ed229a598925111f8bdc759a3fbb6e]
     [tested: test_a_drifted_ledger_refuses_the_run_before_it_measures_anything;
     commit=75d75b1ea5ed229a598925111f8bdc759a3fbb6e]
@@ -171,7 +171,7 @@ def _reader_route(space: Space) -> Callable[[], str]:
     """Which reader answered: the C extension, or the Prolog grammar behind it.
 
     `parser:metta_c_reader_active/0` is asserted only when `engine/reader.so`
-    loaded AND `PETTA_C_READER` is not `off` AND the foreign arity matched, so
+    loaded AND `METTA_C_READER` is not `off` AND the foreign arity matched, so
     it is the fact rather than the intention. `metta_reader_mode/1` is NOT this
     question: its two answers are `custom` and `shipped`, and they distinguish
     custom reader TOKENS, so it says `shipped` with no C reader present at all
@@ -1157,7 +1157,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="also measure retired instructions for families that declare it",
     )
     parser.add_argument(
-        "--cause-commit", default=os.environ.get("PETTA_SCALING_CAUSE_COMMIT", "WORKTREE")
+        "--cause-commit", default=os.environ.get("METTA_SCALING_CAUSE_COMMIT", "WORKTREE")
     )
     arguments = parser.parse_args(argv)
     if arguments.list_families:

@@ -371,7 +371,7 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
     class Target:
         def __init__(self, name, requires=()):
             self.name = name
-            self.PETTA_REQUIRES = requires
+            self.METTA_REQUIRES = requires
 
         def install(self, _metta):
             installed.append(self.name)

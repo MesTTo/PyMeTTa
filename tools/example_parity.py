@@ -178,7 +178,7 @@ def run_library(path: Path, root: Path = REPO) -> Outcome:
     source = (
         "import sys; sys.path.insert(0, 'bindings/python')\n"
         "from metta import MeTTa\n"
-        f"for group in MeTTa(petta_path='.').self.load({str(path.relative_to(root))!r}):\n"
+        f"for group in MeTTa(metta_path='.').self.load({str(path.relative_to(root))!r}):\n"
         "    print('" + MARKER + "(' + ' '.join(str(a) for a in group) + ')')\n"
     )
     return _run([sys.executable, "-c", source], root)[0]

@@ -26,7 +26,7 @@ def counter_configuration() -> dict[str, bool]:
     return {
         "c_reader": (
             (_ROOT / "engine" / "reader.so").is_file()
-            and os.environ.get("PETTA_C_READER") != "off"
+            and os.environ.get("METTA_C_READER") != "off"
         ),
         "c_extension": (
             (c_extension / "cbump.so").is_file()
