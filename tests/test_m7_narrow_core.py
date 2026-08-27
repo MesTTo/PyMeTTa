@@ -15,7 +15,8 @@ Guarantees:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the retired root doors ``HERE`` and ``query`` are absent on a plain import
     rather than only under pytest [tested:
-    test_retired_root_names_are_absent_in_a_fresh_process; commit=WORKTREE]
+    test_retired_root_names_are_absent_in_a_fresh_process;
+    commit=11c0101356844c9b8b1c7638059bfbc5235d11d1]
   - the strategies namespace is one lazy root satellite while its fifteen
     reified constructors stay inside that namespace [tested:
     test_m7_narrow_core_surface and

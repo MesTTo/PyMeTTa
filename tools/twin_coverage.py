@@ -51,7 +51,8 @@ Guarantees:
   - a twin importing the DISTRIBUTION name is a finding: the distribution is
     `pymetta` and the module it installs is `metta`, so `import pymetta`
     imports nothing
-    [tested: test_a_retired_module_import_is_a_finding; commit=WORKTREE]
+    [tested: test_a_retired_module_import_is_a_finding;
+    commit=11c0101356844c9b8b1c7638059bfbc5235d11d1]
   - every door the surface tracks landed reads clean: the naming factories,
     the answer view with its defaulted cells, the keyword builders, the
     coordination verbs, the class door, the verdict builders under
