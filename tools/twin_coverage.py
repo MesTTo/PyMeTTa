@@ -48,10 +48,11 @@ Guarantees:
     `HERE`, `m.query(...)` and every `declare_*` method cannot pass as
     vocabulary [tested:
     test_a_retired_name_is_a_finding_naming_its_replacement; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
-  - a twin importing the module the rename deleted is a finding, whichever
-    spelling it reaches for: the distribution is `pymetta` and the module it
-    installs is `metta`, so neither `petta` nor `pymetta` imports
-    [tested: test_a_retired_module_import_is_a_finding; commit=5c67147566907276a95a5fbf059cf8f98b6685f1]
+  - a twin importing the DISTRIBUTION name is a finding: the distribution is
+    `pymetta` and the module it installs is `metta`, so `import pymetta`
+    imports nothing
+    [tested: test_a_retired_module_import_is_a_finding;
+    commit=11c0101356844c9b8b1c7638059bfbc5235d11d1]
   - every door the surface tracks landed reads clean: the naming factories,
     the answer view with its defaulted cells, the keyword builders, the
     coordination verbs, the class door, the verdict builders under
@@ -100,6 +101,14 @@ Decides:
   - the budget lives in the twin as BUDGET, not in a side table, so a twin
     file is the whole of what it claims and the number is reviewed in the
     same diff as the code it prices
+  - BUDGET and RUNG sit at the END of a twin, each under the `#:` run that
+    documents it, and a re-pin APPENDS to that run rather than growing a
+    header. The chain never shrinks and every merge adds a paragraph, so at
+    the top it buries what the file is for: `basics/identity.py` opened with
+    297 comment lines before its first statement [tested:
+    test_a_twin_declaring_above_its_code_is_a_finding,
+    test_the_layout_check_passes_the_shipped_twins;
+    commit=845d851b7241ccea3b6a13f532172945bf6d8d9e]
   - an integer BUDGET is a point claim; a mapping BUDGET is an empirical
     envelope with exactly minimum, maximum, observations, and protocol, so a
     reviewer can falsify both its bounds and the conditions that produced it
@@ -127,11 +136,13 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
 import json
 import keyword
 import os
 import re
 import sys
+import textwrap
 from collections import Counter
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -430,7 +441,6 @@ RETIRED_ROOT = {
     "Var": "Variable",
     "MettaName": "Symbol",
     "SpaceName": "Handle",
-    "PeTTa": "MeTTa, the runtime context",
     "DECLINE": "NotReducible",
     "Decline": "NotReducible",
     # The rename removed the root's own name for the context space. `_HERE` is
@@ -535,15 +545,13 @@ RETIRED_CALL_SHAPES = {
     "stream": (1, "iterating the answers"),
 }
 
-#: Import roots the rename deleted. The distribution is `pymetta` and the
-#: module it installs is `metta`, so a twin that imports either of the old
-#: names imports nothing at all; the finding says which name to write, where
+#: Import roots that are not importable. The distribution is `pymetta` and the
+#: module it installs is `metta`, so a twin reaching for the distribution name
+#: imports nothing at all; the finding says which name to write, where
 #: `ModuleNotFoundError` says only that something is missing
 #: [source: CHANGELOG.md "Rename the Python distribution to `pymetta` and its
-#: import module to `metta` ... Neither `petta` nor `pymetta` remains an
-#: importable module"; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
+#: import module to `metta`"; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 RETIRED_MODULES = {
-    "petta": "metta",
     "pymetta": "metta",
 }
 
@@ -1322,7 +1330,7 @@ def retired(twin: Path) -> list[str]:
 
     The MODULE is read the same way and for the same reason. A twin written
     against the old package imports a name that no longer exists at all, and
-    `ModuleNotFoundError: No module named 'petta'` says nothing about the
+    `ModuleNotFoundError: No module named 'metta'` says nothing about the
     rename that caused it.
 
     A FACTORY access is never either one, whatever it spells: `V.query` is the
@@ -1377,6 +1385,124 @@ def retired(twin: Path) -> list[str]:
     return [f"line {line}: {what}" for line, what in sorted(set(findings))]
 
 
+def layout(twin: Path) -> list[str]:
+    """Where a twin's pricing declarations sit relative to its own code.
+
+    Every re-pin appends one more paragraph to the `#:` chain above `BUDGET`,
+    and the chain never shrinks, so a twin's top of file grew without bound
+    until the example it exists to show was off the screen: `basics/identity.py`
+    opened with 297 comment lines before its first statement. The declarations
+    and their narrative belong at the END, each still directly under the `#:`
+    run that documents it, so a reader meets the example first and the next
+    re-pin lands where the last one did rather than back on top.
+    """
+    tree = _parse(twin)
+    if tree is None:
+        return []
+    declared = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id in DECLARATION_NAMES
+            for target in node.targets
+        )
+    ]
+    if not declared:
+        return []
+    first = tree.body.index(declared[0])
+    above = [node for node in tree.body[first + 1 :] if node not in declared]
+    if not above:
+        return []
+    return [
+        f"line {above[0].lineno}: the twin's own code follows its declaration "
+        f"at line {declared[0].lineno}; the pricing block and its `#:` re-pin "
+        f"chain belong at the END of the file, so the example is what opens it"
+    ]
+
+
+#: The measurement tag a `--repin` writes into the twin it prices. Its opening
+#: word is a parameter rather than a literal because this file is inside the
+#: evidence lane's own scan, which reads a bracketed measurement tag anywhere
+#: in the text as a claim ABOUT this file, and would then ask it for a date
+#: only the run has. Substituting the word keeps the template out of the lane's
+#: reach while the twin it writes carries a complete tag [source:
+#: tests/check_evidence_tags.py SOURCES and measured_problems;
+#: commit=845d851b7241ccea3b6a13f532172945bf6d8d9e].
+_REPIN_TAG = (
+    "[{kind} {date}: min-of-{rounds} serial fresh processes; "
+    "command={command}; commit=WORKTREE]"
+)
+_REPIN_COMMAND = "python bindings/python/tools/twin_coverage.py --repin"
+
+
+def repinned(
+    source: str, measured: int, reason: str, *, today: str, rounds: int = 3
+) -> str:
+    """One twin's source with its point budget re-pinned and the move recorded.
+
+    The paragraph is APPENDED to the chain that already documents `BUDGET`,
+    which the layout rule has put at the end of the file, so a re-pin can no
+    longer grow the header a reader has to scroll past. Writing the chain by
+    hand is what let it grow there in the first place, so this is the door:
+    it refuses a twin whose declarations are still on top, refuses an
+    envelope, and refuses a silent move, since a re-pin without its mechanism
+    is the thing the whole chain exists to prevent.
+
+    The evidence tag it writes carries `commit=WORKTREE`, the lawful
+    in-progress spelling, so `RELEASE=1 tests/check_evidence_tags.py` refuses
+    a tree that ships one before the provenance pin.
+    """
+    tree = ast.parse(source)
+    lines = source.splitlines()
+    declared = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "BUDGET"
+            for target in node.targets
+        )
+    ]
+    if not declared:
+        msg = "the twin states no BUDGET, so there is nothing to re-pin"
+        raise ValueError(msg)
+    if any(not isinstance(node, ast.Assign) for node in tree.body[tree.body.index(declared[0]) + 1 :]):
+        msg = (
+            "the twin's declarations still sit above its code; move the "
+            "pricing block to the end of the file before re-pinning, so the "
+            "new paragraph lands at the bottom rather than on the header"
+        )
+        raise ValueError(msg)
+    node = declared[0]
+    current = ast.literal_eval(node.value)
+    if not isinstance(current, int) or isinstance(current, bool):
+        msg = (
+            "an empirical envelope is a claim about a protocol's spread, not a "
+            "point; widen it with --observe and record the observations"
+        )
+        raise ValueError(msg)
+    if not reason.strip():
+        msg = "a re-pin states the mechanism that moved the count"
+        raise ValueError(msg)
+
+    delta = measured - current
+    tag = _REPIN_TAG.format(
+        kind="measured", date=today, rounds=rounds, command=_REPIN_COMMAND
+    )
+    paragraph = (
+        f"RE-PINNED {today}, {current} to {measured} ({delta:+d}), "
+        f"{reason.strip().rstrip('.')} {tag}."
+    )
+    written = [
+        f"#: {line}"
+        for line in textwrap.wrap(paragraph, width=76, break_long_words=False)
+    ]
+    head = lines[: node.lineno - 1]
+    tail = lines[node.end_lineno :]
+    return "\n".join([*head, *written, f"BUDGET = {measured}", *tail]) + "\n"
+
+
 # ---------------------------------------------------------------------- running
 
 
@@ -1403,7 +1529,7 @@ _PREAMBLE = (
     "    if isinstance(head, Expression) and head.children:\n"
     "        return f'{head.children[0]}/{len(head.children) - 1}'\n"
     "    return f'{head}/0'\n"
-    "m = MeTTa(petta_path='.').self\n"
+    "m = MeTTa(metta_path='.').self\n"
 )
 
 _EPILOGUE = (
@@ -1720,6 +1846,7 @@ def check(
     findings = [f"{relative}: {finding}" for finding in scan(twin)]
     findings += [f"{relative}: {finding}" for finding in idiom(twin)]
     findings += [f"{relative}: {finding}" for finding in retired(twin)]
+    findings += [f"{relative}: {finding}" for finding in layout(twin)]
 
     left, right = run_example(example, root), run_twin(twin, root)
     if left.outcome.error or right.outcome.error:
@@ -2095,7 +2222,13 @@ def main() -> int:
         action="store_true",
         help="report repeated full-lane empirical extrema, and change nothing",
     )
+    mode.add_argument(
+        "--repin",
+        action="store_true",
+        help="measure, then APPEND the move to each twin's chain at the bottom",
+    )
     parser.add_argument("--rounds", type=int, default=3)
+    parser.add_argument("--reason", default="", help="the mechanism a --repin records")
     parser.add_argument("paths", nargs="*", help="examples, default every twinned one")
     arguments = parser.parse_args()
 
@@ -2113,6 +2246,35 @@ def main() -> int:
         if arguments.rounds < 10:
             parser.error("--observe needs at least 10 full-lane observations")
         _observe(examples, residue(), arguments.rounds)
+        return 0
+
+    if arguments.repin:
+        today = datetime.date.today().isoformat()
+        moved = 0
+        for example in examples:
+            twin = twin_for(example)
+            cost = min(run_twin(twin).cost or 0 for _ in range(arguments.rounds))
+            budget = budget_of(twin)
+            if isinstance(budget, int) and abs(cost - budget) <= TOLERANCE:
+                continue
+            source = twin.read_text(encoding="utf-8")
+            try:
+                twin.write_text(
+                    repinned(
+                        source,
+                        cost,
+                        arguments.reason,
+                        today=today,
+                        rounds=arguments.rounds,
+                    ),
+                    encoding="utf-8",
+                )
+            except ValueError as error:
+                print(f"{twin.relative_to(REPO)}: {error}", file=sys.stderr)
+                return 2
+            print(f"{twin.relative_to(REPO)}: {budget} -> {cost}")
+            moved += 1
+        print(f"re-pinned {moved} of {len(examples)} twins")
         return 0
 
     if arguments.measure:

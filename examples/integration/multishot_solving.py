@@ -82,7 +82,7 @@ class Part:
 
 
 m = MeTTa().space()
-m.run("!(add-atom &petta (dispatch-policy reach NoMatchEnum NoMatchFail))")
+m.run("!(add-atom &metta (dispatch-policy reach NoMatchEnum NoMatchFail))")
 
 # The base part: a graph as tabular facts, and step zero of reachability.
 tables.add(m, "edge", [(S.a, S.b), (S.b, S.c), (S.c, S.d)])

@@ -28,6 +28,47 @@ untouched one are the same question put to two handles.
 import metta
 from metta import S, V, equation, fn, if_
 
+
+def twin(m):
+    """Shadow one definition and one builtin, then delegate to each."""
+
+    # (= (store $atom) (stored $atom)): the definition every space below
+    # this one inherits.
+    @m.define
+    def store(atom):
+        return S.stored(atom)
+
+    # A space that gates it. `super` names the next definition up THIS space's
+    # chain, so the guard delegates without naming what it delegates to.
+    guarded = metta.space(S.guarded)
+    guarded += equation(S.store(V.atom)).to(
+        if_(S.eq(V.atom, S.bad), S.refused, fn.super(S.store(V.atom)))  # rung: the stored body of an equation naming `super`, which no compiled body reaches
+    )
+
+    assert guarded.eval(S.store(S.good)) == [S.stored(S.good)]
+    assert guarded.eval(S.store(S.bad)) == [S.refused]
+    # The space above is untouched by the shadow, which is what makes a shadow
+    # a shadow rather than a replacement.
+    assert store(S.bad) == [S.stored(S.bad)]
+
+    # `super` reaches the engine's own definitions too.
+    wrapping = metta.space(S.wrapping)
+    head = fn.car_atom(V.expr)
+    wrapping += equation(head).to(S.wrapped(fn.super(head)))  # rung: as above
+
+    # `e[0]` is the dissolved spelling of car-atom everywhere the question is
+    # "what is this expression's head". It is the wrong question here: this
+    # example OVERRIDES car-atom, so the claim has to reach the space's own
+    # equations, which only naming the head does.
+    assert wrapping.fn.car_atom((1, 2, 3)) == [S.wrapped(1)]   # rung: the subject is the override, not the head
+    # And every other space still gets the builtin it always had.
+    assert m.fn.car_atom((1, 2, 3)) == [1]   # rung: as above
+
+    # `evalc` is the other direction: it names the space absolutely, where
+    # `super` names the next definition along, relatively.
+    assert m.eval(S.store(S.good)) == [S.stored(S.good)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -39,7 +80,7 @@ from metta import S, V, equation, fn, if_
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -103,41 +144,3 @@ from metta import S, V, equation, fn, if_
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 20454
-def twin(m):
-    """Shadow one definition and one builtin, then delegate to each."""
-
-    # (= (store $atom) (stored $atom)): the definition every space below
-    # this one inherits.
-    @m.define
-    def store(atom):
-        return S.stored(atom)
-
-    # A space that gates it. `super` names the next definition up THIS space's
-    # chain, so the guard delegates without naming what it delegates to.
-    guarded = metta.space(S.guarded)
-    guarded += equation(S.store(V.atom)).to(
-        if_(S.eq(V.atom, S.bad), S.refused, fn.super(S.store(V.atom)))  # rung: the stored body of an equation naming `super`, which no compiled body reaches
-    )
-
-    assert guarded.eval(S.store(S.good)) == [S.stored(S.good)]
-    assert guarded.eval(S.store(S.bad)) == [S.refused]
-    # The space above is untouched by the shadow, which is what makes a shadow
-    # a shadow rather than a replacement.
-    assert store(S.bad) == [S.stored(S.bad)]
-
-    # `super` reaches the engine's own definitions too.
-    wrapping = metta.space(S.wrapping)
-    head = fn.car_atom(V.expr)
-    wrapping += equation(head).to(S.wrapped(fn.super(head)))  # rung: as above
-
-    # `e[0]` is the dissolved spelling of car-atom everywhere the question is
-    # "what is this expression's head". It is the wrong question here: this
-    # example OVERRIDES car-atom, so the claim has to reach the space's own
-    # equations, which only naming the head does.
-    assert wrapping.fn.car_atom((1, 2, 3)) == [S.wrapped(1)]   # rung: the subject is the override, not the head
-    # And every other space still gets the builtin it always had.
-    assert m.fn.car_atom((1, 2, 3)) == [1]   # rung: as above
-
-    # `evalc` is the other direction: it names the space absolutely, where
-    # `super` names the next definition along, relatively.
-    assert m.eval(S.store(S.good)) == [S.stored(S.good)]

@@ -21,7 +21,7 @@ def test_numpy_scalar_strategy_round_trips_through_the_engine(metta, scalar):  #
     assert atom.value is scalar
     assert atom.to_wire()[0] == "o"
     row = metta.runtime.once(
-        "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)",
+        "metta_py_decode_shared(W, _T, _), metta_py_encode(_T, W2)",
         W=atom.to_wire(),
     )
     restored = wire.from_wire(row["W2"])

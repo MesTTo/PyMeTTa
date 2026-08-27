@@ -35,6 +35,52 @@ LIB_IMPORT, LIB_FILE = lib["lib_import"], lib.file
 HANDLE_SO = Path("examples/integration/c_extension/handle.so")
 HANDLE_LOADER_PL = Path("examples/integration/c_extension/handle_loader.pl")
 
+
+def twin(m):
+    """Make native vectors, read them, bump them, and ask what one is."""
+    # (import! &self (library lib_import)) and (library lib_file): the write
+    # door imports, and the receiver is the target space.
+    for library in (LIB_IMPORT, LIB_FILE):
+        m += library
+
+    if not HANDLE_SO.exists():
+        # The example prints its skip here. A twin has no door for prose, and
+        # a body cannot compile a call to a function nothing registered, so
+        # `bump-thrice` is below this line rather than above it.
+        return
+
+    m.register_prolog(
+        path=HANDLE_LOADER_PL,
+        names=["vector-new", "vector-nth", "vector-bump", "vector-length"],
+    )
+
+    # A thousand elements, one value: length and element access are C calls.
+    assert m.fn.vector_length(S.vector_new(1000)) == [1000]
+    assert m.fn.vector_nth(S.vector_new(1000), 700) == [700]
+
+    @m.define
+    def bump_thrice():                     # (= (bump-thrice)
+        vector = fn.vector_new(4)          #    (let $v (vector-new 4)
+        _first = fn.vector_bump(vector, 0)  #        (progn (vector-bump $v 0)
+        _second = fn.vector_bump(vector, 0)  #               (vector-bump $v 0)
+        return fn.vector_bump(vector, 0)   #               (vector-bump $v 0))))
+
+    # The state behind the handle is the native one, so three bumps through
+    # three separate calls land on the same memory.
+    assert bump_thrice() == [3]
+
+    # It is an ordinary grounded value, and it compares by identity. The
+    # design's rule holds in the class tree now: a Handle IS a Grounded
+    # species (the canonical glossary's own law), so isinstance is the whole
+    # claim. `metatype` answering the string rather than the symbol is a
+    # separate surface decision, recorded with its consumer list in the
+    # known-issues ledger rather than flipped blind.
+    vector = m.answers(S.vector_new(1)).one()
+    assert isinstance(vector, Grounded)
+    assert vector.metatype == S.Grounded.name
+    assert m.fn.eq(vector, vector).one() is True   # (eval (let $v (vector-new 1) (== $v $v)))
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -46,7 +92,7 @@ HANDLE_LOADER_PL = Path("examples/integration/c_extension/handle_loader.pl")
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -95,46 +141,3 @@ HANDLE_LOADER_PL = Path("examples/integration/c_extension/handle_loader.pl")
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 76053
-def twin(m):
-    """Make native vectors, read them, bump them, and ask what one is."""
-    # (import! &self (library lib_import)) and (library lib_file): the write
-    # door imports, and the receiver is the target space.
-    for library in (LIB_IMPORT, LIB_FILE):
-        m += library
-
-    if not HANDLE_SO.exists():
-        # The example prints its skip here. A twin has no door for prose, and
-        # a body cannot compile a call to a function nothing registered, so
-        # `bump-thrice` is below this line rather than above it.
-        return
-
-    m.register_prolog(
-        path=HANDLE_LOADER_PL,
-        names=["vector-new", "vector-nth", "vector-bump", "vector-length"],
-    )
-
-    # A thousand elements, one value: length and element access are C calls.
-    assert m.fn.vector_length(S.vector_new(1000)) == [1000]
-    assert m.fn.vector_nth(S.vector_new(1000), 700) == [700]
-
-    @m.define
-    def bump_thrice():                     # (= (bump-thrice)
-        vector = fn.vector_new(4)          #    (let $v (vector-new 4)
-        _first = fn.vector_bump(vector, 0)  #        (progn (vector-bump $v 0)
-        _second = fn.vector_bump(vector, 0)  #               (vector-bump $v 0)
-        return fn.vector_bump(vector, 0)   #               (vector-bump $v 0))))
-
-    # The state behind the handle is the native one, so three bumps through
-    # three separate calls land on the same memory.
-    assert bump_thrice() == [3]
-
-    # It is an ordinary grounded value, and it compares by identity. The
-    # design's rule holds in the class tree now: a Handle IS a Grounded
-    # species (the canonical glossary's own law), so isinstance is the whole
-    # claim. `metatype` answering the string rather than the symbol is a
-    # separate surface decision, recorded with its consumer list in the
-    # known-issues ledger rather than flipped blind.
-    vector = m.answers(S.vector_new(1)).one()
-    assert isinstance(vector, Grounded)
-    assert vector.metatype == S.Grounded.name
-    assert m.fn.eq(vector, vector).one() is True   # (eval (let $v (vector-new 1) (== $v $v)))

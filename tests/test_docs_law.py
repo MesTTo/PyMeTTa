@@ -150,7 +150,7 @@ def test_grouped_metta_errors_render_atoms_without_python_stacks() -> None:
 
 
 def test_attribute_docstrings_are_source_only_not_field_runtime_docs() -> None:
-    """PeTTa parses the source prose; CPython does not attach it to a field."""
+    """MeTTa parses the source prose; CPython does not attach it to a field."""
     with MeTTa().space() as target:
 
         @target.define
@@ -201,7 +201,7 @@ def test_guides_keep_documentation_law_explainers() -> None:
     assert "`Order.total.__doc__ is None`" in records
 
     floor = _guide("getting-started.md")
-    assert "PeTTa supports Python 3.12 and newer" in floor
+    assert "MeTTa supports Python 3.12 and newer" in floor
     assert "Python 3.14 adds t-string syntax" in floor
 
     spaces = _guide("spaces.md")
@@ -218,6 +218,16 @@ def test_twin_docs_state_python_stack_engine_lco_and_answer_equality() -> None:
     assert "recursion limit of 80" in text
     assert "`n=100`" in text
     assert "Whenever both routes finish, they must answer the same value" in text
+
+
+def test_twin_docs_state_where_the_pricing_block_lives() -> None:
+    """The convention a twin author reads, and the door that keeps it true."""
+    path = _REPOSITORY / "bindings" / "python" / "tests" / "twins" / "README.md"
+    text = " ".join(path.read_text(encoding="utf-8").split())
+    assert "sit at the END of the file" in text
+    assert "a re-pin APPENDS one more paragraph there" in text
+    assert "opened with 297 comment lines" in text
+    assert "twin_coverage.py --repin" in text
 
 
 def test_twin_depth_divergence_is_operational_not_an_answer_difference(tmp_path) -> None:

@@ -85,7 +85,7 @@ def test_take_peek_and_watch_retire_the_thread_linda_fn_strings(metta):
 
 def test_watch_close_before_first_event_cancels_its_eager_subscription(metta):
     """Closing a never-started watch releases its standing query."""
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     descriptor = S.subscription(S[metta.name], S.r5_watch(V.n), S["add"])
     changes = metta.watch(S.r5_watch(V.n))
     assert len(reflection.match(descriptor)) == 1
@@ -291,7 +291,7 @@ def test_rules_lower_emits_queryable_declaration_and_registers_the_head(metta):
     assert declaration == S.lowering(
         S["r5-lower"], S.topdown, S.requires(S.mork)
     )
-    assert declaration in metta._at("&petta")
+    assert declaration in metta._at("&metta")
     assert metta.eval(S["r5-lower"](3)) == [S.r5_lowered(3)]
 
 
@@ -334,7 +334,7 @@ def test_eval_keeps_unreduced_guarded_head_and_status(metta):
     assert metta.eval_status(call) == [("not-reducible", call)]
 
     policy = S["dispatch-policy"](S["r5-pick"], S.NoMatchEnum, S.NoMatchFail)
-    catalog = metta._at("&petta")
+    catalog = metta._at("&metta")
     catalog.add(policy)
     try:
         assert metta.eval(call) == []

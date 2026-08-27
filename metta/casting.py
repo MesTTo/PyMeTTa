@@ -30,7 +30,7 @@ from typing import Any, overload
 
 from ._convert_registry import _is_plain_class
 from .atoms import Atom, Grounded, Symbol, _atom_from_wire, _encode, parse
-from .errors import PettaError
+from .errors import MettaError
 
 __all__ = ["CastError", "cast"]
 
@@ -47,7 +47,7 @@ _PYTHON_SPELLINGS: tuple[tuple[type, str], ...] = (
 )
 
 
-class CastError(PettaError, TypeError):
+class CastError(MettaError, TypeError):
     """A cast the engine's type discipline refuses."""
 
 
@@ -103,7 +103,7 @@ def cast(space: Any, value: Any, type_: Any, /) -> Any:
         return _narrow(value)
     atom = value if isinstance(value, Atom) else _encode(value)
     answered = space.runtime.apply_must(
-        "petta_py_cast", space._space, atom.to_wire(), target.to_wire()
+        "metta_py_cast", space._space, atom.to_wire(), target.to_wire()
     )
     if answered[0] == "s" and answered[1] == "ok":
         return _narrow(value)

@@ -17,6 +17,55 @@ spelling too, hyperon and the mechanised interpreter alike.
 
 from metta import S, arrow, fn, typed
 
+
+def twin(m):
+    """Declare two arrows for one name, then watch the output type filter."""
+    # (: f (-> Type1 Type1)) (: f (-> Type2 Type2))
+    m += typed(S.f, arrow(S.Type1, S.Type1))
+    m += typed(S.f, arrow(S.Type2, S.Type2))
+
+    @m.define
+    def f(a):
+        """(= (f $a) (if (=alpha $a T1in) T1out (if (=alpha $a T2in) T2out Tdefault)))."""
+        if fn["=alpha"](a, S.T1in):
+            return S.T1out
+        if fn["=alpha"](a, S.T2in):
+            return S.T2out
+        return S.Tdefault
+
+    # (: T1in Type1) (: T1out Type1) (: T2in Type2) (: T2out Type2)
+    # (: T3in Type1) (: Tdefault Type2)
+    for name, declared in (
+        (S.T1in, S.Type1),
+        (S.T1out, S.Type1),
+        (S.T2in, S.Type2),
+        (S.T2out, S.Type2),
+        (S.T3in, S.Type1),
+        (S.Tdefault, S.Type2),
+    ):
+        m += typed(name, declared)
+
+    # !(test (f T1in) T1out)
+    assert f(S.T1in) == [S.T1out]
+    # !(test (f T2in) T2out)
+    assert f(S.T2in) == [S.T2out]
+
+    # (: T3in Type1) — and the arbiter (LeaTTa 9ea9f9d) selects the Type2
+    # result path and answers Tdefault, the conformance-2 rewrite of this
+    # example's own row; the old no-answer pin went with it, and the flat
+    # call runs the same output-typed dispatch the engine's form runs, so
+    # the collapse wrapper this line once needed is gone too.
+    # !(test (f T3in) Tdefault)
+    m += typed(S.T3in, S.Type1)
+    assert f(S.T3in) == [S.Tdefault]
+
+    # Declare T3in a Type2 as well and the Type2 signature admits it.
+    # (: T3in Type2)
+    # !(test (f T3in) Tdefault)
+    m += typed(S.T3in, S.Type2)
+    assert f(S.T3in) == [S.Tdefault]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -29,7 +78,7 @@ from metta import S, arrow, fn, typed
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -78,49 +127,3 @@ from metta import S, arrow, fn, typed
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 13918
-def twin(m):
-    """Declare two arrows for one name, then watch the output type filter."""
-    # (: f (-> Type1 Type1)) (: f (-> Type2 Type2))
-    m += typed(S.f, arrow(S.Type1, S.Type1))
-    m += typed(S.f, arrow(S.Type2, S.Type2))
-
-    @m.define
-    def f(a):
-        """(= (f $a) (if (=alpha $a T1in) T1out (if (=alpha $a T2in) T2out Tdefault)))."""
-        if fn["=alpha"](a, S.T1in):
-            return S.T1out
-        if fn["=alpha"](a, S.T2in):
-            return S.T2out
-        return S.Tdefault
-
-    # (: T1in Type1) (: T1out Type1) (: T2in Type2) (: T2out Type2)
-    # (: T3in Type1) (: Tdefault Type2)
-    for name, declared in (
-        (S.T1in, S.Type1),
-        (S.T1out, S.Type1),
-        (S.T2in, S.Type2),
-        (S.T2out, S.Type2),
-        (S.T3in, S.Type1),
-        (S.Tdefault, S.Type2),
-    ):
-        m += typed(name, declared)
-
-    # !(test (f T1in) T1out)
-    assert f(S.T1in) == [S.T1out]
-    # !(test (f T2in) T2out)
-    assert f(S.T2in) == [S.T2out]
-
-    # (: T3in Type1) — and the arbiter (LeaTTa 9ea9f9d) selects the Type2
-    # result path and answers Tdefault, the conformance-2 rewrite of this
-    # example's own row; the old no-answer pin went with it, and the flat
-    # call runs the same output-typed dispatch the engine's form runs, so
-    # the collapse wrapper this line once needed is gone too.
-    # !(test (f T3in) Tdefault)
-    m += typed(S.T3in, S.Type1)
-    assert f(S.T3in) == [S.Tdefault]
-
-    # Declare T3in a Type2 as well and the Type2 signature admits it.
-    # (: T3in Type2)
-    # !(test (f T3in) Tdefault)
-    m += typed(S.T3in, S.Type2)
-    assert f(S.T3in) == [S.Tdefault]

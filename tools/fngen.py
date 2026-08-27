@@ -71,7 +71,7 @@ def catalog_snapshot() -> tuple[list[str], dict[str, str]]:
         "import json\n"
         "from metta import MeTTa, S, V\n"
         "space = MeTTa().self\n"
-        "rows = space._at('&petta').match(S.visibility(V.name, V.level))\n"
+        "rows = space._at('&metta').match(S.visibility(V.name, V.level))\n"
         "print(json.dumps({'names': space.builtins(), 'visibility': "
         "[(str(row.name), str(row.level)) for row in rows]}))\n"
     )

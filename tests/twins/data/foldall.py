@@ -22,6 +22,61 @@ default is, so `g` is two ordinary defs.
 
 from metta import TRUE, Expression, S, V, if_
 
+
+def twin(m):
+    """Fold two answers into five, ten ways round."""
+
+    @m.define
+    def f():                        # (= (f) 2)
+        yield 2                     # (= (f) 3)
+        yield 3                     #   one equation per alternative
+
+    @m.define
+    def g(_=1):                     # (= (g 1) 2): the default IS the head's
+        return 2                    #   literal, so the parameter never appears
+
+    @m.define
+    def g(_=2):  # noqa: F811  -- two literal heads are two equations, so the second def stacks rather than replacing
+        return 3                    # (= (g 2) 3)
+
+    @m.define
+    def merge(a, b):                # (= (merge $A $B) (+ $A $B))
+        return a + b
+
+    def fold(aggregate, generator, start=0):
+        """Aggregate every answer of `generator`, starting from `start`."""
+        return m.fn.foldall(aggregate, generator, start).one()
+
+    add = S["|->"]((V.x, V.y), V.x + V.y)     # (|-> ($x $y) (+ $x $y))
+    answering_f = S["|->"]((V.z,), S.f())     # (|-> ($z) (f))
+    answering_g = S["|->"]((V.z,), S.g(V.z))  # (|-> ($z) (g $z))
+    twice_g = S["|->"]((V.z,), 2 * S.g(V.z))  # (|-> ($z) (* 2 (g $z)))
+
+    # A named aggregator, over an argument-free and then an argument-ful
+    # generator.
+    assert fold(S.merge, S.f()) == 5          # (foldall merge (f) 0)
+    assert fold(S.merge, S.g(V.x)) == 5       # (foldall merge (g $x) 0)
+
+    # The same folds with a lambda. `(let $agglambda <lambda> ...)` is this
+    # local: a let that only names a value is Python's own assignment. The
+    # original states the third of these twice, so this does too.
+    assert fold(add, S.f()) == 5
+    assert fold(add, S.g(V.z)) == 5
+    assert fold(add, S.g(V.z)) == 5
+
+    # A lambda generator, applied to a variable it ignores and then uses.
+    assert fold(add, Expression((answering_f, V.x))) == 5
+    assert fold(add, Expression((answering_g, V.x))) == 5
+    assert fold(add, Expression((answering_g, V.w))) == 5
+
+    # And the aggregator arriving out of a syntactic construct rather than out
+    # of a name. `if_` has the arity the engine's `if` has, which is why it is
+    # the builder for stored code.
+    chosen = if_(TRUE, S.let(V.f, add, V.f), S.empty())  # rung: this `let` is inside a STORED term, where there is no Python statement position for an assignment
+    assert fold(chosen, Expression((answering_g, V.w))) == 5
+    assert fold(chosen, Expression((twice_g, V.w))) == 10
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -79,55 +134,3 @@ from metta import TRUE, Expression, S, V, if_
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 36910
-def twin(m):
-    """Fold two answers into five, ten ways round."""
-
-    @m.define
-    def f():                        # (= (f) 2)
-        yield 2                     # (= (f) 3)
-        yield 3                     #   one equation per alternative
-
-    @m.define
-    def g(_=1):                     # (= (g 1) 2): the default IS the head's
-        return 2                    #   literal, so the parameter never appears
-
-    @m.define
-    def g(_=2):  # noqa: F811  -- two literal heads are two equations, so the second def stacks rather than replacing
-        return 3                    # (= (g 2) 3)
-
-    @m.define
-    def merge(a, b):                # (= (merge $A $B) (+ $A $B))
-        return a + b
-
-    def fold(aggregate, generator, start=0):
-        """Aggregate every answer of `generator`, starting from `start`."""
-        return m.fn.foldall(aggregate, generator, start).one()
-
-    add = S["|->"]((V.x, V.y), V.x + V.y)     # (|-> ($x $y) (+ $x $y))
-    answering_f = S["|->"]((V.z,), S.f())     # (|-> ($z) (f))
-    answering_g = S["|->"]((V.z,), S.g(V.z))  # (|-> ($z) (g $z))
-    twice_g = S["|->"]((V.z,), 2 * S.g(V.z))  # (|-> ($z) (* 2 (g $z)))
-
-    # A named aggregator, over an argument-free and then an argument-ful
-    # generator.
-    assert fold(S.merge, S.f()) == 5          # (foldall merge (f) 0)
-    assert fold(S.merge, S.g(V.x)) == 5       # (foldall merge (g $x) 0)
-
-    # The same folds with a lambda. `(let $agglambda <lambda> ...)` is this
-    # local: a let that only names a value is Python's own assignment. The
-    # original states the third of these twice, so this does too.
-    assert fold(add, S.f()) == 5
-    assert fold(add, S.g(V.z)) == 5
-    assert fold(add, S.g(V.z)) == 5
-
-    # A lambda generator, applied to a variable it ignores and then uses.
-    assert fold(add, Expression((answering_f, V.x))) == 5
-    assert fold(add, Expression((answering_g, V.x))) == 5
-    assert fold(add, Expression((answering_g, V.w))) == 5
-
-    # And the aggregator arriving out of a syntactic construct rather than out
-    # of a name. `if_` has the arity the engine's `if` has, which is why it is
-    # the builder for stored code.
-    chosen = if_(TRUE, S.let(V.f, add, V.f), S.empty())  # rung: this `let` is inside a STORED term, where there is no Python statement position for an assignment
-    assert fold(chosen, Expression((answering_g, V.w))) == 5
-    assert fold(chosen, Expression((twice_g, V.w))) == 10

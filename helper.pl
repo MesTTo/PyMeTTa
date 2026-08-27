@@ -26,7 +26,7 @@ helper_restore_silent(none) :- !, retractall(silent(_)).
 helper_restore_silent(some(Value)) :- metta_host_set_silent(Value).
 
 run_metta_helper(Verbose, Predicate, Arg, ResultsR) :-
-    with_mutex(petta_helper_state,
+    with_mutex(metta_helper_state,
         setup_call_cleanup(
             helper_set_silent(Verbose, Previous),
             ( call(Predicate, Arg, Results),

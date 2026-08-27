@@ -14,7 +14,7 @@ from typing import Any, Final, Self
 
 _UNSET: Final = object()
 _SCOPED_UNDER: ContextVar[Any | None] = ContextVar(
-    "petta_scoped_under", default=None
+    "metta_scoped_under", default=None
 )
 
 

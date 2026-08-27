@@ -20,6 +20,13 @@ Open Obligations:
 
 from metta import FALSE, TRUE, and_, if_, or_
 
+
+def twin(m):
+    """Reduce the connectives in the engine, then choose in Python."""
+    # (or (and true false) true)
+    assert m.answers(if_(or_(and_(TRUE, FALSE), TRUE), 1, 2)) == [1]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -44,9 +51,3 @@ from metta import FALSE, TRUE, and_, if_, or_
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 1276
-
-
-def twin(m):
-    """Reduce the connectives in the engine, then choose in Python."""
-    # (or (and true false) true)
-    assert m.answers(if_(or_(and_(TRUE, FALSE), TRUE), 1, 2)) == [1]

@@ -1,5 +1,5 @@
 """Purpose: make metta importable from a repository checkout regardless of
-the example's folder depth, point PETTA_PATH at that checkout, and provide
+the example's folder depth, point METTA_PATH at that checkout, and provide
 small helpers that make each example self-verifying rather than a printout
 to trust.
 Guarantees:
@@ -32,13 +32,13 @@ def _find_repo(start: Path) -> Path:
             candidate / "lib"
         ).is_dir():
             return candidate
-    raise RuntimeError(f"cannot find the PeTTa repository above {start}")
+    raise RuntimeError(f"cannot find the MeTTa repository above {start}")
 
 
 REPO = _find_repo(Path(__file__))
 sys.path.insert(0, str(REPO / "bindings" / "python"))
 sys.path.insert(0, str(REPO / "bindings" / "python" / "tools"))
-os.environ.setdefault("PETTA_PATH", str(REPO))
+os.environ.setdefault("METTA_PATH", str(REPO))
 
 from executable_docs import (  # noqa: E402  -- checkout paths must be installed first
     render_answers,

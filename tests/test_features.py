@@ -43,7 +43,7 @@ import pytest
 from metta import (
     Bindings,
     Expression,
-    PettaError,
+    MettaError,
     S,
     V,
     convert,
@@ -87,7 +87,7 @@ class _SubscriptionRuntime:
         self.removed = threading.Event()
 
     def must(self, goal, **inputs):
-        assert goal == "petta_py_subscriptions(Spaces)"
+        assert goal == "metta_py_subscriptions(Spaces)"
         self.published.append(list(inputs["Spaces"]))
         if self.sync_failures:
             self.sync_failures -= 1
@@ -96,9 +96,9 @@ class _SubscriptionRuntime:
         return {"truth": True}
 
     def do(self, predicate, *inputs):
-        assert predicate == "petta_py_contains"
+        assert predicate == "metta_py_contains"
         space, wire = inputs
-        assert space == "&petta"
+        assert space == "&metta"
         return any(fact.to_wire() == wire for fact in self.facts)
 
 
@@ -210,7 +210,7 @@ def test_subscription_cancel_waits_for_inflight_delivery(monkeypatch):  # noqa: 
 
 
 def test_identical_subscriptions_share_one_reflection_fact(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    reflection = m._at("&petta")
+    reflection = m._at("&metta")
     first = m.subscribe(S.identical(V.value))
     second = m.subscribe(S.identical(V.value))
     descriptor = S.subscription(S[m.name], V.pattern, V.on)
@@ -264,7 +264,7 @@ def test_clear_empties_a_space_nobody_is_watching(m):  # noqa: D103  -- pytest d
 
 def test_subscription_hooks_follow_the_active_space_set(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def installed(kind):
-        return bool(m._rt.once(f"petta_py_subscription_hook_ref({kind}, _)"))
+        return bool(m._rt.once(f"metta_py_subscription_hook_ref({kind}, _)"))
 
     assert not installed("added")
     assert not installed("removed")
@@ -635,7 +635,7 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
         assert local.run("!(collapse (match &hq (users 3 $n) $n))") == [[Expression()]]
         # A space outside the allowlist is refused with the remote's words.
         stray = remote.RemoteSpace(remote.connect(info["url"]), "&self")
-        with pytest.raises(PettaError):
+        with pytest.raises(MettaError):
             list(stray.match(S.anything(V.x)))
         local._unregister_space("&hq")
     finally:
@@ -698,7 +698,7 @@ def test_remote_auth_token_and_hook_requires_tls(metta):  # noqa: D103  -- pytes
         authorize=lambda request: request.headers.get("x-tenant") == "acme",
     )
     try:
-        with pytest.raises(PettaError, match="credentials require an https URL"):
+        with pytest.raises(MettaError, match="credentials require an https URL"):
             remote.connect(server.url, token="s3cret", headers={"x-tenant": "acme"})
     finally:
         server.close()
@@ -753,7 +753,7 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
         )
         atoms = list(remote.RemoteSpace(transport, served.name).atoms())
         assert atoms == [Expression(S.tls, S.ok)]
-        with pytest.raises(PettaError, match="not authorized"):
+        with pytest.raises(MettaError, match="not authorized"):
             bad_token = remote.connect(
                 server.url,
                 token="wrong",
@@ -761,7 +761,7 @@ def test_remote_serves_tls(metta, tmp_path):  # noqa: D103  -- pytest discovers 
                 ssl_context=client_context,
             )
             list(remote.RemoteSpace(bad_token, served.name).atoms())
-        with pytest.raises(PettaError, match="not authorized"):
+        with pytest.raises(MettaError, match="not authorized"):
             no_tenant = remote.connect(server.url, token="s3cret", ssl_context=client_context)
             list(remote.RemoteSpace(no_tenant, served.name).atoms())
     finally:
@@ -976,7 +976,7 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):  # noqa: D103  -- pytest d
         assert m._one("(+ 1 2)") == 3
         second = next(rows)
         assert (second.a, second.b, second.c) == (1, 2, 3)
-    with pytest.raises(PettaError):
+    with pytest.raises(MettaError):
         next(rows)  # leaving the with-block closed it
 
 
@@ -1227,7 +1227,7 @@ def test_events_times_out_quiet_and_refuses_callback_mode(m):  # noqa: D103  -- 
         quiet.cancel()
     with (
         m.subscribe(S.dnothing(V.x), lambda _event: None) as with_callback,
-        pytest.raises(PettaError, match="delivers through its callback"),
+        pytest.raises(MettaError, match="delivers through its callback"),
     ):
         next(iter(with_callback.events()))
 

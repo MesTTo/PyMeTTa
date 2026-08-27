@@ -657,31 +657,29 @@ def test_a_retired_name_is_a_finding_naming_its_replacement(tmp_path):
 
 
 def test_a_retired_module_import_is_a_finding(tmp_path):
-    """The rename left no module behind, so the import itself is the finding.
+    """The distribution name is not the module name, so importing it is a finding.
 
-    `ModuleNotFoundError: No module named 'petta'` says something is missing
-    and nothing about the rename that removed it, and a twin carried over from
-    the old surface writes that line before it writes anything else.
+    `ModuleNotFoundError: No module named 'pymetta'` says something is missing
+    and nothing about which name to write instead, and reaching for the name
+    you installed is the natural mistake.
     """
     planted = tmp_path / "planted.py"
     planted.write_text(
         '"""Doc."""\n'
-        "import petta\n"
         "import pymetta\n"
-        "from petta import S, V\n"
-        "from petta.atoms import Expression\n"
+        "from pymetta import S, V\n"
+        "from pymetta.atoms import Expression\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
-        "    assert petta.space() is not None\n",
+        "    assert metta.space() is not None\n",
         encoding="utf-8",
     )
     findings = coverage.retired(planted)
-    assert "line 2: petta is retired; write import metta" in findings
-    assert "line 3: pymetta is retired; write import metta" in findings
-    assert "line 4: petta is retired; import from metta" in findings
-    assert "line 5: petta.atoms is retired; import from metta" in findings
+    assert "line 2: pymetta is retired; write import metta" in findings
+    assert "line 3: pymetta is retired; import from metta" in findings
+    assert "line 4: pymetta.atoms is retired; import from metta" in findings
 
-    # And the live module is not reported for sharing four of its letters,
+    # And the live module is not reported for sharing five of its letters,
     # satellites included.
     live = tmp_path / "live.py"
     live.write_text(
@@ -1056,6 +1054,121 @@ def test_the_full_lane_protocol_names_every_scheduling_input():
         coverage.full_lane_protocol(0)
 
 
+def test_a_twin_declaring_above_its_code_is_a_finding(tmp_path):
+    """The 297-line header this convention exists to prevent, in miniature.
+
+    Both directions, because the shipped corpus reads clean and a check that
+    passes everywhere it is pointed proves nothing on its own.
+    """
+    heavy = tmp_path / "heavy.py"
+    heavy.write_text(
+        '"""Purpose: a planted top-heavy twin."""\n'
+        "#: RE-PINNED 2026-08-27, 1 to 2, by a paragraph that buried the example.\n"
+        "BUDGET = 2\n"
+        "def twin(m):\n"
+        "    assert m\n",
+        encoding="utf-8",
+    )
+    findings = "\n".join(coverage.layout(heavy))
+    assert "belong at the END of the file" in findings
+    assert "line 4" in findings, findings
+
+    tidy = tmp_path / "tidy.py"
+    tidy.write_text(
+        '"""Purpose: a planted twin that opens with its example."""\n'
+        "def twin(m):\n"
+        "    assert m\n"
+        "\n"
+        "\n"
+        "#: Why this twin sits below the top rung; see the module docstring.\n"
+        'RUNG = "a planted rung"\n'
+        "\n"
+        "#: RE-PINNED 2026-08-27, 1 to 2, by a paragraph that landed at the bottom.\n"
+        "BUDGET = 2\n",
+        encoding="utf-8",
+    )
+    assert coverage.layout(tidy) == []
+
+
+def test_the_layout_check_passes_the_shipped_twins():
+    """The rule has to be one a real twin can follow, or it is not a rule."""
+    for example in coverage.written():
+        twin = coverage.twin_for(example)
+        assert coverage.layout(twin) == [], f"{twin}: {coverage.layout(twin)}"
+
+
+_TIDY_TWIN = (
+    '"""Purpose: a planted twin that opens with its example."""\n'
+    "def twin(m):\n"
+    "    assert m\n"
+    "\n"
+    "\n"
+    "#: RE-PINNED 2026-08-26, 1 to 100, by the paragraph before this one.\n"
+    "BUDGET = 100\n"
+)
+
+
+def test_a_repin_appends_below_the_code_and_rewrites_the_number(tmp_path):
+    """The writer that keeps the convention true after the corpus moved.
+
+    Hand-written chains are what grew a 297-line header, so the door measures
+    and appends rather than leaving the placement to whoever re-pins next.
+    """
+    twin = tmp_path / "tidy.py"
+    twin.write_text(
+        coverage.repinned(
+            _TIDY_TWIN, 142, "the planted mechanism", today="2026-08-27"
+        ),
+        encoding="utf-8",
+    )
+    rewritten = twin.read_text(encoding="utf-8")
+
+    assert coverage.budget_of(twin) == 142
+    assert coverage.layout(twin) == []
+    # The example still opens the file, and the new paragraph is the last one.
+    body = rewritten.splitlines()
+    assert body[1] == "def twin(m):"
+    chain = [line for line in body if line.startswith("#:")]
+    assert "RE-PINNED 2026-08-26" in chain[0]
+    assert "RE-PINNED 2026-08-27, 100 to 142 (+42)" in chain[1]
+    # The paragraph is wrapped, so the tag is read as prose rather than lines.
+    written = " ".join(" ".join(chain).replace("#:", " ").split())
+    assert "the planted mechanism" in written
+    # The tag the twin carries is a complete one: a date, so it can go stale,
+    # the command that produced it, and the in-progress commit spelling.
+    assert (
+        "[measured 2026-08-27: min-of-3 serial fresh processes; "
+        "command=python bindings/python/tools/twin_coverage.py --repin; "
+        "commit=WORKTREE]" in written
+    )
+    assert body[-1] == "BUDGET = 142"
+    assert max(len(line) for line in chain) <= 79
+
+
+@pytest.mark.parametrize(
+    ("source", "reason", "complaint"),
+    [
+        (
+            '"""D."""\n#: chain\nBUDGET = 1\ndef twin(m):\n    assert m\n',
+            "a mechanism",
+            "still sit above its code",
+        ),
+        (
+            '"""D."""\ndef twin(m):\n    assert m\n\n\nBUDGET = {"minimum": 1, '
+            '"maximum": 2, "observations": 2, "protocol": "serial"}\n',
+            "a mechanism",
+            "empirical envelope",
+        ),
+        (_TIDY_TWIN, "   ", "states the mechanism"),
+        ('"""D."""\ndef twin(m):\n    assert m\n', "a mechanism", "no BUDGET"),
+    ],
+)
+def test_a_repin_refuses_the_four_ways_it_could_be_wrong(source, reason, complaint):
+    """Each refusal names what to do instead, which is the point of refusing."""
+    with pytest.raises(ValueError, match=complaint):
+        coverage.repinned(source, 5, reason, today="2026-08-27")
+
+
 def test_every_shipped_twin_states_a_budget():
     """P14.14's start: the parity claim is frozen the moment a twin ships."""
     for example in coverage.written():
@@ -1308,7 +1421,7 @@ def test_a_shipped_twin_agrees_with_its_example_end_to_end(name):
 def test_the_residue_json_is_the_one_definition_of_what_is_missing():
     """The lane's own file, read the way every runner reads example_skips."""
     document = json.loads(coverage.RESIDUE.read_text(encoding="utf-8"))
-    assert document["schema"] == "petta-twin-residue-1"
+    assert document["schema"] == "metta-twin-residue-1"
     assert document["entries"] == coverage.residue()
 
 

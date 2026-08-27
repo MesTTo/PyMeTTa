@@ -22,6 +22,21 @@ from metta import S, lib
 #: The imported module, named by the atom the example itself writes.
 PATH = S["examples/basics/fibsmart"]
 
+
+def twin(m):
+    """Import the accumulator fib, then run it."""
+    # (import! &self fibsmart): the module is named by its path atom, and
+    # the lib door carries the exact form to the engine's own resolution.
+    m += lib(PATH)
+
+    # COST, the library's rather than this twin's: naming `fib` through the
+    # space resolves a handle against the engine (~1,200 inferences) and the
+    # first answer view sets up a held evaluation (~4,700), which is the whole
+    # of this twin's 16,564 against the example's 12,672. The spelling is the
+    # right one [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
+    assert m.fn.fib(100) == [354224848179261915075]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -33,7 +48,7 @@ PATH = S["examples/basics/fibsmart"]
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -67,17 +82,3 @@ PATH = S["examples/basics/fibsmart"]
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 14538
-
-
-def twin(m):
-    """Import the accumulator fib, then run it."""
-    # (import! &self fibsmart): the module is named by its path atom, and
-    # the lib door carries the exact form to the engine's own resolution.
-    m += lib(PATH)
-
-    # COST, the library's rather than this twin's: naming `fib` through the
-    # space resolves a handle against the engine (~1,200 inferences) and the
-    # first answer view sets up a held evaluation (~4,700), which is the whole
-    # of this twin's 16,564 against the example's 12,672. The spelling is the
-    # right one [measured 2026-08-23 on this worktree; commit=4df40a9de00bbc7fb9c55715a5d802512d6f7dc4].
-    assert m.fn.fib(100) == [354224848179261915075]

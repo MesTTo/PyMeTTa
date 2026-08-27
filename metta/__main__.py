@@ -113,7 +113,7 @@ def _forms(interactive: bool):  # noqa: FBT001  -- the boolean is established AP
 def _repl(_arguments) -> int:
     from ._space import Space  # noqa: PLC0415 -- version and help must not boot
     from ._version import __version__  # noqa: PLC0415  deferred: --version and help must not boot
-    from .errors import PettaError  # noqa: PLC0415  deferred: --version and help must not boot
+    from .errors import MettaError  # noqa: PLC0415  deferred: --version and help must not boot
 
     with contextlib.suppress(ImportError):
         # history and line editing where the platform has readline
@@ -121,11 +121,11 @@ def _repl(_arguments) -> int:
     m = Space()
     interactive = sys.stdin.isatty()
     if interactive:
-        print(f"PeTTa {__version__}; a bare `exit` leaves, Ctrl-D too.")
+        print(f"MeTTa {__version__}; a bare `exit` leaves, Ctrl-D too.")
     for source in _forms(interactive):
         try:
             _print_groups(m.run(source))
-        except PettaError as error:
+        except MettaError as error:
             print(f"error: {error}", file=sys.stderr)
     return 0
 
@@ -212,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: D103  -- the package re
 
     parser = argparse.ArgumentParser(
         prog="python -m metta",
-        description="PeTTa's command-line surface on the library engine.",
+        description="MeTTa's command-line surface on the library engine.",
     )
     parser.add_argument("--version", action="version", version=f"metta {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)

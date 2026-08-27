@@ -32,7 +32,7 @@ def dumps(value: Any) -> bytes:
     """Encode one strict JSON value to UTF-8 bytes."""
     runtime = _engine.runtime()
     with _engine.engine_thread():
-        row = runtime.must("petta_py_json_encode(Value, Text)", Value=value)
+        row = runtime.must("metta_py_json_encode(Value, Text)", Value=value)
     return row["Text"].encode("utf-8")
 
 
@@ -42,5 +42,5 @@ def loads(data: bytes | bytearray | memoryview | str) -> Any:
         data = bytes(data).decode("utf-8")
     runtime = _engine.runtime()
     with _engine.engine_thread():
-        row = runtime.must("petta_py_json_decode(Text, Value)", Text=data)
+        row = runtime.must("metta_py_json_decode(Text, Value)", Text=data)
     return row["Value"]

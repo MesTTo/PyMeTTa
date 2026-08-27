@@ -15,7 +15,7 @@ Open Obligations:
 
 import pytest
 
-from metta import MeTTa, PettaError
+from metta import MeTTa, MettaError
 from metta.errors import AssertionFailure, EngineError
 
 
@@ -37,16 +37,16 @@ def test_a_failing_assertion_is_a_different_exception_from_an_engine_fault():
         msg = "the op broke"
         raise RuntimeError(msg)
 
-    m.op(boom, name="petta-broken-op", effect="pureStructural")
+    m.op(boom, name="metta-broken-op", effect="pureStructural")
     with pytest.raises(EngineError) as fault:
-        m.run("!(petta-broken-op)")
+        m.run("!(metta-broken-op)")
 
     assert not isinstance(fault.value, AssertionFailure)
     assert not isinstance(failed_test.value, EngineError)
     assert not isinstance(failed_assert.value, EngineError)
     # Both remain catchable by the one base a caller wraps a whole run in.
     for caught in (failed_test.value, failed_assert.value, fault.value):
-        assert isinstance(caught, PettaError)
+        assert isinstance(caught, MettaError)
 
 
 def test_an_assertion_failure_carries_its_parts():

@@ -1,10 +1,10 @@
 """Purpose: the error story across the seam: structured fields on the
-PettaError family, `(Error ...)` answers raising at single-value doors while
+MettaError family, `(Error ...)` answers raising at single-value doors while
 aggregation keeps them as data, Rows.raise_for_errors as the explicit bridge,
 and the boundary re-raising the library's own exceptions instead of
 transcripts.
 Guarantees:
-  - a PettaError raised inside a Python callback crosses Prolog and
+  - a MettaError raised inside a Python callback crosses Prolog and
     re-arrives as the same object, fields intact [tested
     test_a_provider_refusal_carries_its_parts_across_the_boundary]
   - an op author's own exception class still arrives wrapped as EngineError
@@ -17,7 +17,7 @@ Open Obligations:
 
 import pytest
 
-from metta import PettaError, S, V, wire
+from metta import MettaError, S, V, wire
 from metta.errors import EngineError, MettaOperationError, MettaResultError
 from metta.foreign import SpaceProvider
 
@@ -35,7 +35,7 @@ def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its d
 
 
 def test_base_fields_default_to_none():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    error = PettaError("plain")
+    error = MettaError("plain")
     assert (error.atom, error.space, error.operation, error.capability) == (
         None,
         None,
@@ -47,7 +47,7 @@ def test_base_fields_default_to_none():  # noqa: D103  -- pytest discovers or in
 def test_operation_error_operation_is_the_base_field():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     error = MettaOperationError("m", operation="op", kind="type_error")
     assert error.operation == "op"
-    assert isinstance(error, PettaError)
+    assert isinstance(error, MettaError)
     assert error.capability is None
 
 
@@ -62,7 +62,7 @@ def test_one_raises_a_structured_error_on_an_error_answer(m):  # noqa: D103  -- 
     # The call rides as a note, so the message stays one sentence.
     assert any("err-div" in note for note in error.__notes__)
     # It is the program's own error value, not an engine throw.
-    assert isinstance(error, PettaError)
+    assert isinstance(error, MettaError)
     assert not isinstance(error, EngineError)
 
 
@@ -148,11 +148,11 @@ def test_a_provider_refusal_carries_its_parts_across_the_boundary(metta):  # noq
     metta._register_space(Moody(), name)
     try:
         space = metta._at(name)
-        with pytest.raises(PettaError) as failure:
+        with pytest.raises(MettaError) as failure:
             space.add(S.fact(1))
         error = failure.value
         # The very object the seam raised, not a transcript of it.
-        assert type(error) is PettaError
+        assert type(error) is MettaError
         assert (error.space, error.operation, error.capability) == (
             name,
             "add-atom",

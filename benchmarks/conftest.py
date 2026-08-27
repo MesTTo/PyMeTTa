@@ -3,7 +3,7 @@ Guarantees:
   - native wall baselines omit live CPU frequency fields that change between
     adjacent runs [tested test_benchmark_machine_info_is_stable]
 Owns:
-  - inference_baseline writes only when PETTA_UPDATE_BENCHMARK_BASELINE=1
+  - inference_baseline writes only when METTA_UPDATE_BENCHMARK_BASELINE=1
     and finishes the atomic update after the session [tested
     test_baseline_update_is_atomic_json]
 Open Obligations:
@@ -37,10 +37,10 @@ def pytest_benchmark_update_machine_info(config, machine_info):
 @pytest.fixture(scope="session")
 def inference_baseline():
     path = Path(__file__).with_name("baseline.json")
-    counter_setting = os.environ.get("PETTA_BENCHMARK_COUNTERS", "0")
+    counter_setting = os.environ.get("METTA_BENCHMARK_COUNTERS", "0")
     if counter_setting not in {"0", "1"}:
-        raise ValueError("PETTA_BENCHMARK_COUNTERS must be 0 or 1")
-    update = os.environ.get("PETTA_UPDATE_BENCHMARK_BASELINE") == "1"
+        raise ValueError("METTA_BENCHMARK_COUNTERS must be 0 or 1")
+    update = os.environ.get("METTA_UPDATE_BENCHMARK_BASELINE") == "1"
     baseline = BenchmarkBaseline(
         path,
         update=update,

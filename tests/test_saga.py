@@ -44,7 +44,7 @@ from collections import Counter
 import pytest
 
 from metta import Atom, Expression, S, Symbol, V, ground
-from metta.errors import PettaError
+from metta.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.vocabularies import Atomicity
 
@@ -68,7 +68,7 @@ def _quoted_receipt(value: Atom) -> Expression:
 def _remove_declaration(space, declaration: Atom | None) -> None:
     """Remove one test-owned catalog row if it was installed."""
     if declaration is not None:
-        space._at("&petta").remove(declaration)
+        space._at("&metta").remove(declaration)
 
 
 def _unregister(space, *names: str) -> None:
@@ -278,7 +278,7 @@ def test_saga_preflights_missing_compensations_before_undo(metta):
                 saga.run(f"({missing} 2)")
                 _raise_test_error(RuntimeError("trigger recovery"))
         assert any(
-            isinstance(error, PettaError)
+            isinstance(error, MettaError)
             and error.capability == "compensation"
             for error in caught.value.exceptions
         )
@@ -349,10 +349,10 @@ def test_a_structural_operation_cannot_declare_a_compensation(metta):
 
     space = metta._new_space()
     try:
-        with pytest.raises(PettaError, match="writesState or oracleIO"):
+        with pytest.raises(MettaError, match="writesState or oracleIO"):
             space.compensates(operation, compensation)
         assert list(
-            space._at("&petta").match(
+            space._at("&metta").match(
                 S.compensates(S[operation], V.compensation)
             )
         ) == []
@@ -425,7 +425,7 @@ def test_missing_receipt_multiplicity_refuses_before_any_compensation(metta):
                 assert receipts.remove(receipts.atoms()[0])
                 _raise_test_error(RuntimeError("recover with one receipt missing"))
         assert any(
-            isinstance(error, PettaError)
+            isinstance(error, MettaError)
             and error.capability == "receipt-multiplicity"
             for error in caught.value.exceptions
         )
@@ -688,12 +688,12 @@ def test_saga_refuses_transaction_speculation_and_batch_boundaries(metta):
     receipts = metta._new_space()
     try:
         with space.saga(receipts) as saga:
-            with pytest.raises(PettaError, match="user transaction"):
+            with pytest.raises(MettaError, match="user transaction"):
                 space.transaction(lambda: saga.run(f"({operation} 1)"))
-            with pytest.raises(PettaError, match="speculative"):
+            with pytest.raises(MettaError, match="speculative"):
                 with space.speculative():
                     saga.run(f"({operation} 2)")
-            with pytest.raises(PettaError, match="batch"):
+            with pytest.raises(MettaError, match="batch"):
                 with space.batch():
                     saga.run(f"({operation} 3)")
         assert receipts.atoms() == []
@@ -793,16 +793,16 @@ def test_a_refused_wrapper_installation_leaves_no_saga_instrumentation(metta):
     try:
         state = space._rt.must(
             """
-            catch(( petta_py_saga_wrap_all(
+            catch(( metta_py_saga_wrap_all(
                         [spaces:'add-atom'/3, not_a_predicate_indicator],
                         [], _Wrapped),
                     Outcome = installed ),
                   _Error,
                   Outcome = refused),
-            ( catch(unwrap_predicate(spaces:'add-atom'/3, petta_saga_receipt),
+            ( catch(unwrap_predicate(spaces:'add-atom'/3, metta_saga_receipt),
                     _, fail)
             -> Wrapper = present ; Wrapper = absent ),
-            ( nb_current('$petta_saga_receipt_sink', _)
+            ( nb_current('$metta_saga_receipt_sink', _)
             -> Sink = present ; Sink = absent )
             """
         )
@@ -819,19 +819,19 @@ def test_saga_teardown_retires_every_wrapper_past_a_missing_one(metta):
     try:
         state = space._rt.must(
             """
-            petta_py_saga_wrap_all(
+            metta_py_saga_wrap_all(
                 [spaces:'add-atom'/3, spaces:'remove-atom'/3], [], _Wrapped),
             _Wrapped = [_First|_],
-            unwrap_predicate(_First, petta_saga_receipt),
-            petta_py_saga_capture_end(_Wrapped),
-            ( catch(unwrap_predicate(spaces:'add-atom'/3, petta_saga_receipt),
+            unwrap_predicate(_First, metta_saga_receipt),
+            metta_py_saga_capture_end(_Wrapped),
+            ( catch(unwrap_predicate(spaces:'add-atom'/3, metta_saga_receipt),
                     _, fail)
             -> Adder = present ; Adder = absent ),
             ( catch(unwrap_predicate(spaces:'remove-atom'/3,
-                                     petta_saga_receipt),
+                                     metta_saga_receipt),
                     _, fail)
             -> Remover = present ; Remover = absent ),
-            ( nb_current('$petta_saga_receipt_sink', _)
+            ( nb_current('$metta_saga_receipt_sink', _)
             -> Sink = present ; Sink = absent )
             """
         )
@@ -879,7 +879,7 @@ def test_a_receipt_this_saga_never_wrote_refuses_before_it_is_compensated(metta)
                 _raise_test_error(RuntimeError("trigger recovery"))
         group = raised.value
         assert any(
-            isinstance(member, PettaError)
+            isinstance(member, MettaError)
             and "did not write" in str(member)
             for member in group.exceptions
         ), group.exceptions

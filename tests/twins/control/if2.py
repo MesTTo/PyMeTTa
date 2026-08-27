@@ -22,6 +22,18 @@ Open Obligations:
 
 from metta import S, fn
 
+
+def twin(m):
+    """Ask whether a symbol is a variable, and take the arm that answers."""
+    @m.define
+    def branch(x):
+        # (if (is-var $x) (() (+ 1 1)) (+ 2 2))
+        return ((), 1 + 1) if fn.is_var(x) else 2 + 2
+
+    # !(test (if (is-var a) (() (+ 1 1)) (+ 2 2)) 4)
+    assert branch(S.a) == [4]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -31,7 +43,7 @@ from metta import S, fn
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -80,12 +92,3 @@ from metta import S, fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 6781
-def twin(m):
-    """Ask whether a symbol is a variable, and take the arm that answers."""
-    @m.define
-    def branch(x):
-        # (if (is-var $x) (() (+ 1 1)) (+ 2 2))
-        return ((), 1 + 1) if fn.is_var(x) else 2 + 2
-
-    # !(test (if (is-var a) (() (+ 1 1)) (+ 2 2)) 4)
-    assert branch(S.a) == [4]

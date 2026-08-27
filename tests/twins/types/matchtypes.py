@@ -20,6 +20,40 @@ the engine's `if` has.
 
 from metta import FALSE, TRUE, S, equation, if_
 
+
+def twin(m):
+    """Define the two functions, then compare four pairs of types."""
+
+    @m.rules
+    def comparison(left, right, then, otherwise, value):
+        """The example's two equations, over five shared rule variables."""
+        # (= (match-types $A $B $Then $Else) (if (== $A $B) $Then $Else))
+        yield equation(S.match_types(left, right, then, otherwise)).to(
+            if_(S.eq(left, right), then, otherwise)
+        )
+        # (= (match-type-or $value $type1 $type2)
+        #    (match-types $type1 $type2 True $value))
+        yield equation(S.match_type_or(value, left, right)).to(
+            S.match_types(left, right, TRUE, value)
+        )
+
+    # !(match-types Atom Atom "Matched!" "Didn't match")
+    assert m.fn.match_types(S.Atom, S.Atom, S.yes, S.no) == [S.yes]
+    # !(match-types Atom Number "Matched!" "Didn't match")
+    assert m.fn.match_types(S.Atom, S.Number, S.yes, S.no) == [S.no]
+
+    # The two types agree, so the value never gets a say; when they differ it
+    # is the answer.
+    # !(test (match-type-or True Number Number) True)
+    assert m.fn.match_type_or(TRUE, S.Number, S.Number) == [True]
+    # !(test (match-type-or False Number Number) True)
+    assert m.fn.match_type_or(FALSE, S.Number, S.Number) == [True]
+    # !(test (match-type-or True Number Bool) True)
+    assert m.fn.match_type_or(TRUE, S.Number, S.Bool) == [True]
+    # !(test (match-type-or False Number Bool) False)
+    assert m.fn.match_type_or(FALSE, S.Number, S.Bool) == [False]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -30,7 +64,7 @@ from metta import FALSE, TRUE, S, equation, if_
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -73,36 +107,3 @@ from metta import FALSE, TRUE, S, equation, if_
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 10096
-
-
-def twin(m):
-    """Define the two functions, then compare four pairs of types."""
-
-    @m.rules
-    def comparison(left, right, then, otherwise, value):
-        """The example's two equations, over five shared rule variables."""
-        # (= (match-types $A $B $Then $Else) (if (== $A $B) $Then $Else))
-        yield equation(S.match_types(left, right, then, otherwise)).to(
-            if_(S.eq(left, right), then, otherwise)
-        )
-        # (= (match-type-or $value $type1 $type2)
-        #    (match-types $type1 $type2 True $value))
-        yield equation(S.match_type_or(value, left, right)).to(
-            S.match_types(left, right, TRUE, value)
-        )
-
-    # !(match-types Atom Atom "Matched!" "Didn't match")
-    assert m.fn.match_types(S.Atom, S.Atom, S.yes, S.no) == [S.yes]
-    # !(match-types Atom Number "Matched!" "Didn't match")
-    assert m.fn.match_types(S.Atom, S.Number, S.yes, S.no) == [S.no]
-
-    # The two types agree, so the value never gets a say; when they differ it
-    # is the answer.
-    # !(test (match-type-or True Number Number) True)
-    assert m.fn.match_type_or(TRUE, S.Number, S.Number) == [True]
-    # !(test (match-type-or False Number Number) True)
-    assert m.fn.match_type_or(FALSE, S.Number, S.Number) == [True]
-    # !(test (match-type-or True Number Bool) True)
-    assert m.fn.match_type_or(TRUE, S.Number, S.Bool) == [True]
-    # !(test (match-type-or False Number Bool) False)
-    assert m.fn.match_type_or(FALSE, S.Number, S.Bool) == [False]

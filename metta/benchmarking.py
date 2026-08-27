@@ -794,9 +794,9 @@ def _run_perf(
                 os.set_inheritable(descriptor, True)  # noqa: FBT003  -- os.set_inheritable is positional-only and the literal states the requested descriptor state
             child_environment.update(
                 {
-                    "PETTA_PERF_CONTROL_FD": str(control_write),
-                    "PETTA_PERF_ACK_FD": str(acknowledge_read),
-                    "PETTA_PERF_CLOSE_FDS": f"{control_read},{acknowledge_write}",
+                    "METTA_PERF_CONTROL_FD": str(control_write),
+                    "METTA_PERF_ACK_FD": str(acknowledge_read),
+                    "METTA_PERF_CLOSE_FDS": f"{control_read},{acknowledge_write}",
                 }
             )
             control_arguments = [

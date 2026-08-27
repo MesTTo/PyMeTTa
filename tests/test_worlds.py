@@ -38,7 +38,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from metta import S, State, V, spaces
-from metta.errors import PettaError
+from metta.errors import MettaError
 
 
 def _unique(prefix: str) -> str:
@@ -92,7 +92,7 @@ def test_an_uncovered_world_refuses_before_creating_scratch_or_running_the_opera
     try:
         with monkeypatch.context() as patch:
             patch.setattr(type(parent), "_new_space", forbid_scratch)
-            with pytest.raises(PettaError) as caught:
+            with pytest.raises(MettaError) as caught:
                 world.eval(f"({name} 7)")
         error = caught.value
         assert error.operation == name
@@ -136,7 +136,7 @@ def test_world_coverage_admits_the_joined_plan(metta):
 def test_redeclaring_coverage_removes_every_stale_duplicate(metta):
     """The host declaration door replaces even manually duplicated rows."""
     parent = metta._new_space()
-    catalog = parent._at("&petta")
+    catalog = parent._at("&metta")
     subject = parent._name_atom or S[str(parent)]
     operation = _unique("world-coverage-downgrade")
     called = []
@@ -158,7 +158,7 @@ def test_redeclaring_coverage_removes_every_stale_duplicate(metta):
         parent.covers("pureStructural")
         world = parent.reify()
         try:
-            with pytest.raises(PettaError) as caught:
+            with pytest.raises(MettaError) as caught:
                 world.eval(f"({operation})")
             assert caught.value.operation == operation
             assert caught.value.capability == "oracleIO"
@@ -175,7 +175,7 @@ def test_lowered_nondeterminism_remains_visible_to_world_admission(metta):
     parent = metta._new_space()
     world = parent.reify()
     try:
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval("(superpose (1 2))")
         assert caught.value.operation == "superpose"
         assert caught.value.capability == "nondeterministicReadOnly"
@@ -218,7 +218,7 @@ def test_native_control_profiles_keep_pure_calls_and_nested_effects_distinct(met
             assert answers == [3]
         finally:
             successor.close()
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval("(and-then True (random-int 1 1000000))")
         assert caught.value.operation == "random-int"
         assert caught.value.capability == "oracleIO"
@@ -237,7 +237,7 @@ def test_a_masked_runtime_result_remains_dynamic(metta):
     )
     world = parent.reify()
     try:
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval(f"({function} (random-int 1 1000000))")
         assert caught.value.operation == "<dynamic-operation>"
         assert caught.value.capability == "oracleIO"
@@ -283,7 +283,7 @@ def test_sealed_freshening_requires_state_coverage(metta):
     parent = metta._new_space()
     world = parent.reify()
     try:
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval("(sealed () (pair $x $x))")
         assert caught.value.operation == "sealed"
         assert caught.value.capability == "writesState"
@@ -313,12 +313,12 @@ def test_function_descends_into_nested_host_effects(metta):
             assert called == []
         finally:
             successor.close()
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval(f"(function (eval ({operation})))")
         assert caught.value.capability == "writesState"
         assert operation in str(caught.value)
         assert called == []
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval("(function (eval (git-module! example)))")
         assert caught.value.operation == "git-module!"
         assert caught.value.capability == "oracleIO"
@@ -337,7 +337,7 @@ def test_elapsed_and_timeout_require_oracle_coverage(metta):
             ("(elapsed (+ 1 2))", "elapsed"),
             ("(timeout 1 (+ 1 2))", "timeout"),
         ):
-            with pytest.raises(PettaError) as caught:
+            with pytest.raises(MettaError) as caught:
                 world.eval(target)
             assert caught.value.operation == operation
             assert caught.value.capability == "oracleIO"
@@ -367,7 +367,7 @@ def test_raw_prolog_escape_hatches_require_oracle_coverage(
     parent = metta._new_space()
     world = parent.reify()
     try:
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval(target)
         assert caught.value.operation == operation
         assert caught.value.capability == "oracleIO"
@@ -426,7 +426,7 @@ def test_refused_custom_translator_runs_no_compile_time_effect(metta):
         world = parent.reify()
         try:
             assert seen == []
-            with pytest.raises(PettaError) as caught:
+            with pytest.raises(MettaError) as caught:
                 world.eval(f"({rule})")
             assert caught.value.operation == operation
             assert caught.value.capability == "writesState"
@@ -458,7 +458,7 @@ def test_a_translator_expansion_cannot_hide_an_oracle_call(metta):
         )
         world = parent.reify()
         try:
-            with pytest.raises(PettaError) as caught:
+            with pytest.raises(MettaError) as caught:
                 world.eval(f"({rule})")
             assert caught.value.operation == operation
             assert caught.value.capability == "oracleIO"
@@ -477,7 +477,7 @@ def test_lambda_compilation_is_admitted_before_its_translator_rule_runs(metta):
     world = parent.reify()
     try:
         seen.clear()
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval(f"(|-> () ({rule}))")
         assert caught.value.operation == operation
         assert caught.value.capability == "oracleIO"
@@ -496,7 +496,7 @@ def test_program_write_compilation_is_included_in_world_admission(metta):
     world = parent.reify()
     try:
         seen.clear()
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval(
                 f"(add-atom &self (= (world-added-program) ({rule})))"
             )
@@ -539,7 +539,7 @@ def test_reify_refuses_an_effectful_captured_compilation_before_replay(
         seen.clear()
         with monkeypatch.context() as patch:
             patch.setattr(type(parent), "_new_space", forbid_image)
-            with pytest.raises(PettaError) as caught:
+            with pytest.raises(MettaError) as caught:
                 parent.reify()
         assert caught.value.operation == rule
         assert caught.value.capability == "oracleIO"
@@ -577,7 +577,7 @@ def test_reducing_space_writes_plan_the_expression_they_execute(
     world = parent.reify()
     payload = f"({effect})" if operation == "add-reduct" else f"(({effect}))"
     try:
-        with pytest.raises(PettaError) as caught:
+        with pytest.raises(MettaError) as caught:
             world.eval(f"({operation} &self {payload})")
         assert caught.value.capability == "oracleIO"
         assert effect in str(caught.value)
@@ -632,12 +632,12 @@ def test_world_commit_preserves_multiplicity_and_refuses_stale_or_wrong_origins(
 
     parent.commit(doubled)
     assert parent.atoms() == [S.dup(1), S.dup(1)]
-    with pytest.raises(PettaError, match=r"changed after.*reified|stale"):
+    with pytest.raises(MettaError, match=r"changed after.*reified|stale"):
         parent.commit(doubled)
 
     other = metta._new_space()
     try:
-        with pytest.raises(PettaError, match="belongs to"):
+        with pytest.raises(MettaError, match="belongs to"):
             other.commit(doubled)
     finally:
         other.drop()
@@ -678,7 +678,7 @@ def test_reify_refuses_and_names_a_live_composite_member(metta):
     live = spaces.object_view({"answer": 42})
     composite = metta.metta.space(backing=spaces.union(native, live))
     try:
-        with pytest.raises(PettaError, match="ObjectView"):
+        with pytest.raises(MettaError, match="ObjectView"):
             composite.reify()
     finally:
         composite.drop()
@@ -697,7 +697,7 @@ def test_world_eval_fences_state_and_emits_nothing(metta):
         assert seen == []
         assert parent.atoms() == []
 
-        with pytest.raises(PettaError, match=r"state.*world|world.*state"):
+        with pytest.raises(MettaError, match=r"state.*world|world.*state"):
             parent.reify().eval(S["change-state!"](cell, 8))
         assert cell.value == 7
     finally:

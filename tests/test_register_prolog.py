@@ -1,5 +1,5 @@
 """Purpose: MeTTa.register_prolog, the native-speed extension point for
-libraries built on PyPeTTa.
+libraries built on pymetta.
 
 register_op is the extension point people find first and it crosses the janus
 boundary on every call. A library whose hot path is arithmetic or matching
@@ -24,7 +24,7 @@ Guarantees:
     test_generated_sources_do_not_erase_each_other]
   - a typo anywhere in the name list registers nothing [tested
     test_a_typo_in_the_list_registers_nothing]
-  - a syntax error in the source raises a PettaError naming the line, where
+  - a syntax error in the source raises a MettaError naming the line, where
     SWI would only have printed it [tested test_a_syntax_error_names_the_line]
   - one name has one owning tier, refused in both directions and leaving the
     incumbent usable [tested test_a_python_operation_is_not_silently_replaced,
@@ -46,7 +46,7 @@ from pathlib import Path
 
 import pytest
 
-from metta import PettaError
+from metta import MettaError
 from metta.errors import EngineError, SourceNotFound
 
 
@@ -101,15 +101,15 @@ def test_source_and_path_are_exclusive(space, tmp_path):  # noqa: D103  -- pytes
 
 # Both readings catch it: a caller reaching for a file writes
 # `except FileNotFoundError` and a caller wrapping a whole registration writes
-# `except PettaError`, and a plain FileNotFoundError silently escaped the
+# `except MettaError`, and a plain FileNotFoundError silently escaped the
 # second one.
 def test_a_missing_file_is_named(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(SourceNotFound, match="no Prolog source"):
-        space.register_prolog(path="/nonexistent/petta/none.pl", names=["rp-x"])
+        space.register_prolog(path="/nonexistent/metta/none.pl", names=["rp-x"])
     with pytest.raises(FileNotFoundError):
-        space.register_prolog(path="/nonexistent/petta/none.pl", names=["rp-x"])
-    with pytest.raises(PettaError):
-        space.register_prolog(path="/nonexistent/petta/none.pl", names=["rp-x"])
+        space.register_prolog(path="/nonexistent/metta/none.pl", names=["rp-x"])
+    with pytest.raises(MettaError):
+        space.register_prolog(path="/nonexistent/metta/none.pl", names=["rp-x"])
 
 
 def test_a_non_string_name_is_refused(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -252,7 +252,7 @@ def test_a_rival_declaring_source_is_refused_before_it_can_clobber(space, tmp_pa
 # 'rp-syntax' was defined", naming the symptom rather than the cause, with the
 # line and column only on stderr.
 def test_a_syntax_error_names_the_line(space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(PettaError, match="Syntax error"):
+    with pytest.raises(MettaError, match="Syntax error"):
         space.register_prolog("'rp-syntax'(X, Y) :- Y is X * .", names=["rp-syntax"])
 
 
@@ -313,7 +313,7 @@ def declared(space, tmp_path):  # noqa: D103  -- pytest discovers or injects thi
     source = tmp_path / "rp_demo.pl"
     source.write_text(EXPORT_LIBRARY)
     yield source
-    with contextlib.suppress(PettaError):
+    with contextlib.suppress(MettaError):
         space.unregister_prolog("rp_demo")
 
 
@@ -321,7 +321,7 @@ def test_inline_source_declares_its_own_exports_too(space):
     """A declaration records itself under the name the LOAD runs under.
 
     For a file that is the path; for inline source it is the generated
-    module name, and the Python side asked under a fixed "petta_inline"
+    module name, and the Python side asked under a fixed "metta_inline"
     instead, which matched nothing. So a source declaring its own exports
     inline was told it had declared none, while the same text in a file
     worked.
@@ -337,7 +337,7 @@ def test_inline_source_declares_its_own_exports_too(space):
         assert space.register_prolog(inline) == ("rp-inline-scale",)
         assert space._one("(rp-inline-scale 3)") == 21
     finally:
-        with contextlib.suppress(PettaError):
+        with contextlib.suppress(MettaError):
             space.unregister_prolog("rp_inline")
 
 
@@ -362,7 +362,7 @@ def test_an_extension_unloads_whole(space, declared):  # noqa: D103  -- pytest d
     assert set(released) == {"rp-demo-scale", "rp-demo-shape", "rp-demo-plain"}
     assert not space.is_function("rp-demo-scale")
     assert str(space._one("(rp-demo-scale 3)")) == "(rp-demo-scale 3)"
-    with pytest.raises(PettaError, match="does not exist"):
+    with pytest.raises(MettaError, match="does not exist"):
         space.unregister_prolog("rp_demo")
 
 
@@ -383,7 +383,7 @@ repo = Path(sys.argv[1])
 sys.path.insert(0, str(repo / "bindings" / "python"))
 from metta import MeTTa
 
-m = MeTTa(petta_path=str(repo)).self
+m = MeTTa(metta_path=str(repo)).self
 def types(form):
     return {str(atom) for row in m.run(form) for atom in row}
 
@@ -473,7 +473,7 @@ def test_a_provider_only_file_registers_no_functions_and_is_accepted(space, tmp_
         assert space.register_prolog(path=source) == ()
         assert str(space._one("(collapse (get-atoms &rp-provider-demo))")) == "((fact a))"
     finally:
-        with contextlib.suppress(PettaError):
+        with contextlib.suppress(MettaError):
             space.unregister_prolog("rp_provider_demo")
 
 

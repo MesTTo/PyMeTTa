@@ -27,6 +27,47 @@ where the scalar doors take the loud reading and raise.
 
 from metta import G, S, V, arrow, lib, typed
 
+
+def twin(m):
+    """Observe arrows, cast five atoms, unify four type pairs, take two halves."""
+    m += lib.he
+
+    is_function = m.fn.is_function
+    assert is_function(arrow(S.Atom, S.Atom)) == [True]
+    assert is_function(S.Atom) == [False]
+
+    # type-cast answers the atom when it has the type and (Error $atom BadType)
+    # when it does not. Three ways to have it: the type is the atom's metatype,
+    # a declared type matches it, or the atom has no declaration at all, which
+    # the engine answers as %Undefined%, a wildcard matching any type.
+    m += typed(S.type1, S.Type)
+    m += typed(S.A, S.type1)
+
+    cast = m.fn.type_cast
+    assert cast(S.A, S.type1, m) == [S.A]
+    assert cast(1, S.type1, m) == [S.Error(1, S.BadType)]
+
+    # A metatype counts, so any symbol casts to Symbol and any number to Number.
+    assert cast(S.A, S.Symbol, m) == [S.A]
+    assert cast(1, S.Number, m) == [1]
+    # An atom nobody declared is not the wrong type.
+    assert cast(S.B, S.type1, m) == [S.B]
+
+    # match-types is unification with wildcards, Hyperon's own contract:
+    # %Undefined% and Atom on EITHER side match anything, and otherwise the two
+    # types unify, so a type carrying a variable matches its instance.
+    match_types = m.fn.match_types
+    matched, missed = G("Matched!"), G("Didn't match")
+    assert match_types(S.Atom, S.Atom, matched, missed) == [matched]
+    assert match_types(S.Atom, S.Number, matched, missed) == [matched]
+    assert match_types(S.Bool, S.Number, matched, missed) == [missed]
+    assert match_types(S.List(V.x), S.List(S.Number), matched, missed) == [matched]
+
+    assert m.fn.first_from_pair((S.A, S.B)) == [S.A]
+    assert m.fn.second_from_pair((S.A, S.B)) == [S.B]
+    assert m.fn.match_type_or(True, S.Number, S.Bool) == [True]  # noqa: FBT003  -- True is the folded accumulator this call carries, an ordinary atom, not a flag
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -38,7 +79,7 @@ from metta import G, S, V, arrow, lib, typed
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -81,43 +122,3 @@ from metta import G, S, V, arrow, lib, typed
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 35166
-
-
-def twin(m):
-    """Observe arrows, cast five atoms, unify four type pairs, take two halves."""
-    m += lib.he
-
-    is_function = m.fn.is_function
-    assert is_function(arrow(S.Atom, S.Atom)) == [True]
-    assert is_function(S.Atom) == [False]
-
-    # type-cast answers the atom when it has the type and (Error $atom BadType)
-    # when it does not. Three ways to have it: the type is the atom's metatype,
-    # a declared type matches it, or the atom has no declaration at all, which
-    # the engine answers as %Undefined%, a wildcard matching any type.
-    m += typed(S.type1, S.Type)
-    m += typed(S.A, S.type1)
-
-    cast = m.fn.type_cast
-    assert cast(S.A, S.type1, m) == [S.A]
-    assert cast(1, S.type1, m) == [S.Error(1, S.BadType)]
-
-    # A metatype counts, so any symbol casts to Symbol and any number to Number.
-    assert cast(S.A, S.Symbol, m) == [S.A]
-    assert cast(1, S.Number, m) == [1]
-    # An atom nobody declared is not the wrong type.
-    assert cast(S.B, S.type1, m) == [S.B]
-
-    # match-types is unification with wildcards, Hyperon's own contract:
-    # %Undefined% and Atom on EITHER side match anything, and otherwise the two
-    # types unify, so a type carrying a variable matches its instance.
-    match_types = m.fn.match_types
-    matched, missed = G("Matched!"), G("Didn't match")
-    assert match_types(S.Atom, S.Atom, matched, missed) == [matched]
-    assert match_types(S.Atom, S.Number, matched, missed) == [matched]
-    assert match_types(S.Bool, S.Number, matched, missed) == [missed]
-    assert match_types(S.List(V.x), S.List(S.Number), matched, missed) == [matched]
-
-    assert m.fn.first_from_pair((S.A, S.B)) == [S.A]
-    assert m.fn.second_from_pair((S.A, S.B)) == [S.B]
-    assert m.fn.match_type_or(True, S.Number, S.Bool) == [True]  # noqa: FBT003  -- True is the folded accumulator this call carries, an ordinary atom, not a flag

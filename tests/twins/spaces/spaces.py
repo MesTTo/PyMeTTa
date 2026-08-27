@@ -15,6 +15,24 @@ ordinary Python.
 
 from metta import S, V, fn, match
 
+
+def twin(m):
+    """Store one self-writing definition, then read what calling it answers."""
+
+    # (= (matchtrickery)
+    #    (let* (($t1 (add-atom &self (foo a)))
+    #           ($t2 (add-atom &self (foo b))))
+    #          (match &self (foo $1) (bar $1))))
+    @m.define
+    def matchtrickery():
+        space = fn.context_space()
+        space += S.foo(S.a)
+        space += S.foo(S.b)
+        return match(space, S.foo(V.x), S.bar(V.x))
+
+    assert matchtrickery() == [S.bar(S.a), S.bar(S.b)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -26,7 +44,7 @@ from metta import S, V, fn, match
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -75,18 +93,3 @@ from metta import S, V, fn, match
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 6140
-def twin(m):
-    """Store one self-writing definition, then read what calling it answers."""
-
-    # (= (matchtrickery)
-    #    (let* (($t1 (add-atom &self (foo a)))
-    #           ($t2 (add-atom &self (foo b))))
-    #          (match &self (foo $1) (bar $1))))
-    @m.define
-    def matchtrickery():
-        space = fn.context_space()
-        space += S.foo(S.a)
-        space += S.foo(S.b)
-        return match(space, S.foo(V.x), S.bar(V.x))
-
-    assert matchtrickery() == [S.bar(S.a), S.bar(S.b)]

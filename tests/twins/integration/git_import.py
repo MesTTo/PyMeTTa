@@ -14,7 +14,7 @@ function: cloning is packaging, and packaging's Python spelling is pip.
 
 Two library names take lib's bracket door: `lib_import` strips to the
 keyword `import`, which Python cannot say after a dot, and
-`petta_fixture_lib` sits outside the `lib_` family the attribute map
+`metta_fixture_lib` sits outside the `lib_` family the attribute map
 prefixes. `git_fixture_url` keeps fn's bracket for the same reason it
 always did: its underscores are real and the function map writes hyphens.
 """
@@ -34,7 +34,26 @@ FIXTURE_PL = Path("examples/integration/_fixtures/git_fixture.pl")
 #: underscore, so every one takes rung 5.
 LIB_IMPORT = lib["lib_import"]
 FIXTURE_URL = S["git_fixture_url"]
-FIXTURE_LIB = lib["petta_fixture_lib"]
+FIXTURE_LIB = lib["metta_fixture_lib"]
+
+
+def twin(m):
+    """Build a repository, clone it, import it, ask it a question."""
+    # (import! &self (library lib_import)): the write door imports, and the
+    # receiver is the target space.
+    m += LIB_IMPORT
+
+    # The URL comes from Prolog, which register_prolog installs as a MeTTa
+    # function of one argument: the base directory in, the clone URL out.
+    m.register_prolog(path=FIXTURE_PL, names=["git_fixture_url"])
+    m.fn["git-import!"](FIXTURE_URL(REPOS))     # (git-import! (git_fixture_url "./repos"))
+
+    # The clone is now an ordinary named library, and the dotted part is the
+    # two-argument (library metta_fixture_lib fixture) form.
+    m += FIXTURE_LIB.fixture
+
+    assert m.fn.fixture_answer(14) == [42]   # [42]
+
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
@@ -47,7 +66,7 @@ FIXTURE_LIB = lib["petta_fixture_lib"]
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -81,21 +100,3 @@ FIXTURE_LIB = lib["petta_fixture_lib"]
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 34108
-
-
-def twin(m):
-    """Build a repository, clone it, import it, ask it a question."""
-    # (import! &self (library lib_import)): the write door imports, and the
-    # receiver is the target space.
-    m += LIB_IMPORT
-
-    # The URL comes from Prolog, which register_prolog installs as a MeTTa
-    # function of one argument: the base directory in, the clone URL out.
-    m.register_prolog(path=FIXTURE_PL, names=["git_fixture_url"])
-    m.fn["git-import!"](FIXTURE_URL(REPOS))     # (git-import! (git_fixture_url "./repos"))
-
-    # The clone is now an ordinary named library, and the dotted part is the
-    # two-argument (library petta_fixture_lib fixture) form.
-    m += FIXTURE_LIB.fixture
-
-    assert m.fn.fixture_answer(14) == [42]   # [42]

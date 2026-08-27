@@ -31,7 +31,7 @@ def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its d
 
 
 def test_fast_save_load_round_trip_recompiles_equations(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    path = tmp_path / "knowledge.petta-fast"
+    path = tmp_path / "knowledge.metta-fast"
     with metta._new_space() as source, metta._new_space() as loaded:
         source.run("(fast-io-fact alpha) (fast-io-fact beta) (= (fast-io-next $x) (+ $x 1))")
         assert source.save(path, format="fast") == 3
@@ -139,7 +139,7 @@ def test_save_failure_preserves_existing_file(m, tmp_path, monkeypatch, format, 
         m.save(target, format=format)
 
     assert target.read_bytes() == b"old data stays\n"
-    assert list(tmp_path.glob(".petta-save-*")) == []
+    assert list(tmp_path.glob(".metta-save-*")) == []
 
 
 @pytest.mark.parametrize("format", ["metta", "fast"])
@@ -152,7 +152,7 @@ def test_save_validation_preserves_existing_file(m, tmp_path, format):  # noqa: 
         m.save(target, format=format)
 
     assert target.read_bytes() == b"old data stays\n"
-    assert list(tmp_path.glob(".petta-save-*")) == []
+    assert list(tmp_path.glob(".metta-save-*")) == []
 
 
 def test_text_save_write_failure_preserves_existing_file(m, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -183,7 +183,7 @@ def test_text_save_write_failure_preserves_existing_file(m, tmp_path, monkeypatc
         m.save(target)
 
     assert target.read_text() == "old data stays\n"
-    assert list(tmp_path.glob(".petta-save-*")) == []
+    assert list(tmp_path.glob(".metta-save-*")) == []
 
 
 def test_save_syncs_before_replacing(m, tmp_path, monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -225,7 +225,7 @@ def test_fast_load_refuses_a_different_swi_version_before_payload(m, tmp_path): 
 
 @pytest.mark.parametrize(
     ("field", "replacement", "message"),
-    [(1, b"PETTA-NOT-FAST", "magic tag"), (2, b"999", "format version")],
+    [(1, b"METTA-NOT-FAST", "magic tag"), (2, b"999", "format version")],
 )
 def test_fast_load_refuses_other_incompatible_headers(m, tmp_path, field, replacement, message):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     path = tmp_path / f"wrong-header-{field}.fast"
@@ -301,9 +301,9 @@ def test_fast_file_starts_with_the_magic_header(m, tmp_path):  # noqa: D103  -- 
     m.add(S.header(S.fact))
     m.save(path, format="fast")
     data = path.read_bytes()
-    assert data.startswith(b"PETTA-CACHE\tPETTA-FAST\t2\t")
+    assert data.startswith(b"METTA-CACHE\tMETTA-FAST\t2\t")
     header = data.split(b"\n", 1)[0] + b"\n"
-    assert re.fullmatch(rb"PETTA-CACHE\tPETTA-FAST\t2\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
+    assert re.fullmatch(rb"METTA-CACHE\tMETTA-FAST\t2\t\d+\.\d+\.\d+\t[0-9a-f]{64}\n", header)
     assert header[:-1].split(b"\t")[3].decode() == engine().info()["swi_prolog"]
 
 

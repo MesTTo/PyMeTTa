@@ -19,7 +19,7 @@ import uuid
 import pytest
 
 from metta import S, V
-from metta.errors import EngineError, PettaError
+from metta.errors import EngineError, MettaError
 
 
 def _named_pool(metta, purpose):
@@ -114,7 +114,7 @@ def test_two_declared_admission_checks_interact_over_one_store(metta):
                     pool += S.admits(S.RelativeWidget)
 
                 assert len(pool) == 0
-                catalog = metta._at("&petta")
+                catalog = metta._at("&metta")
                 pool_name = S[str(pool.name)]
                 assert S.admits(pool_name, S.RelativeWidget) in catalog
                 assert S.capacity(pool_name, 1) in catalog
@@ -145,7 +145,7 @@ def test_relative_declarations_refuse_inside_an_active_batch(metta):
     try:
         with pool.batch():
             pool += S.item(1)
-            with pytest.raises(PettaError, match="inside its own batch"):
+            with pytest.raises(MettaError, match="inside its own batch"):
                 pool += S.capacity(1)
         assert pool.atoms() == [S.item(1)]
     finally:

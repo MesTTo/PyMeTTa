@@ -63,7 +63,7 @@ import metta
 from metta import (
     Expression,
     MeTTa,
-    PettaError,
+    MettaError,
     S,
     V,
     _engine,
@@ -176,7 +176,7 @@ def test_an_operation_error_keeps_the_variables_the_source_wrote(m):  # noqa: D1
     # arithmetic refusal names; it used to be SWI's bare instantiation_error.
     with pytest.raises(MettaOperationError) as absent:
         m.run("!(+ $left $right)")
-    assert absent.value.kind == "petta_unsolved_arithmetic"
+    assert absent.value.kind == "metta_unsolved_arithmetic"
     assert absent.value.operation == "+"
     assert absent.value.expected is None
     assert absent.value.culprit is None
@@ -510,8 +510,8 @@ def test_a_malformed_wire_target_is_refused(m):
     answered nothing. Before this it failed, and findall turned that into an
     empty answer list no caller could tell from a real one.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with pytest.raises(EngineError, match="petta_py_wire_term"):
-        m._rt.apply_must("petta_py_eval_all", m.name, ["n", 1, "extra"])
+    with pytest.raises(EngineError, match="metta_py_wire_term"):
+        m._rt.apply_must("metta_py_eval_all", m.name, ["n", 1, "extra"])
 
 
 def test_parse_keeps_variable_names():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -865,7 +865,7 @@ def test_load_restores_the_working_directory(metta, tmp_path):
 
 def test_runtime_refuses_a_second_tree(metta):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError):
-        MeTTa(petta_path="/definitely/not/this/tree")
+        MeTTa(metta_path="/definitely/not/this/tree")
 
 
 def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -876,7 +876,7 @@ def test_a_dropped_handle_cannot_write_into_the_name_it_released(metta):  # noqa
     dead.drop()
     reused = metta._new_space()
     assert reused.name == released
-    with pytest.raises(PettaError) as failure:
+    with pytest.raises(MettaError) as failure:
         dead.add(S.ghost(1))
     assert "was dropped" in str(failure.value)
     assert len(reused) == 0

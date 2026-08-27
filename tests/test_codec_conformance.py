@@ -2,8 +2,8 @@
 prove the kit still discriminates.
 
 The two codecs are not two names for one implementation. The janus tagged
-form encodes and decodes in Prolog (petta_py_encode_named/3,
-petta_py_decode_shared/3) and carries its terms through janus's own term
+form encodes and decodes in Prolog (metta_py_encode_named/3,
+metta_py_decode_shared/3) and carries its terms through janus's own term
 conversion. The remote JSON wire encodes and decodes in Python
 (Atom.to_wire, atom_from_wire) and carries them as JSON bytes through the
 engine's library(json), which is what metta.remote puts on a socket. So a
@@ -48,7 +48,7 @@ class JanusCodec:
     frames is {"a"} rather than every frame because the frames are
     directional. The engine WRITES the u frame and the host reads it, so
     there is no Prolog reader for one; the engine READS the a frame, which
-    petta_py_answer_form/5 is.
+    metta_py_answer_form/5 is.
     """
 
     name = "janus"
@@ -67,16 +67,16 @@ class JanusCodec:
 
     def read(self, text):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return self._rt.must(
-            "sread_with_names(T, _X, _M), petta_py_encode_named(_X, _M, W)", T=text
+            "sread_with_names(T, _X, _M), metta_py_encode_named(_X, _M, W)", T=text
         )["W"]
 
     def roundtrip(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         return self._rt.must(
-            "petta_py_decode_shared(W, _T, _B), petta_py_encode_named(_T, _B, W2)", W=wire
+            "metta_py_decode_shared(W, _T, _B), metta_py_encode_named(_T, _B, W2)", W=wire
         )["W2"]
 
     def render(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
-        return self._rt.must("petta_py_decode_shared(W, _T, _B), swrite(_T, S)", W=wire)["S"]
+        return self._rt.must("metta_py_decode_shared(W, _T, _B), swrite(_T, S)", W=wire)["S"]
 
     def transport(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         # janus's own term conversion, in and out, which is this codec's
@@ -85,7 +85,7 @@ class JanusCodec:
 
     def frame(self, wire):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol
         row = self._rt.must(
-            "petta_py_answer_form(W, Theta, _R0, K, _V0), "
+            "metta_py_answer_form(W, Theta, _R0, K, _V0), "
             "( _R0 == '@'(true) -> Residue = '@'(none) ; Residue = _R0 ), "
             "( _V0 = value(_V1) -> Value = _V1 ; Value = '@'(none) )",
             W=wire,
@@ -106,7 +106,7 @@ class JanusCodec:
         # the other codec's run of the same program, would see it twice.
         with self._metta._new_space() as scratch:
             return self._rt.must(
-                "petta_py_run(S, Sp, G)", S=program, Sp=scratch.name
+                "metta_py_run(S, Sp, G)", S=program, Sp=scratch.name
             )["G"]
 
 

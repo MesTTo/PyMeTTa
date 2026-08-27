@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 from ._space_objects import _apply_limited, _limits
 from .atoms import Atom, Undefined, _atom_from_wire, _from_wire, _to_atom
-from .errors import _EFFECT_SAFETY_GROUND, PettaError
+from .errors import _EFFECT_SAFETY_GROUND, MettaError
 from .foreign import Transactional, WorldCommitter
 from .spaces import _Member, _surplus
 from .vocabularies import EffectClass
@@ -64,7 +64,7 @@ def _raise_world_refusal(
         f"Declare the handler coverage with space.covers({str(required)!r}), "
         "or route this evaluation through the mutable space instead."
     )
-    raise PettaError(
+    raise MettaError(
         msg,
         atom=target,
         space=str(origin),
@@ -84,7 +84,7 @@ def _admit_world_effect(
     """Refuse the joined target-and-image plan or return its stable snapshot."""
     target_wire = target if isinstance(target, str) else _to_atom(target).to_wire()
     rows, required_raw, coverage_raw = plan._rt.apply_must(
-        "petta_py_world_effect_plan",
+        "metta_py_world_effect_plan",
         plan._space,
         origin._space,
         target_wire,
@@ -139,7 +139,7 @@ class ReifiedWorld:
     def _require_open(self) -> None:
         if not self._finalizer.alive:
             msg = "this ReifiedWorld is closed; reify the source space again"
-            raise PettaError(msg, space=str(self._origin))
+            raise MettaError(msg, space=str(self._origin))
 
     def eval(
         self,
@@ -173,13 +173,13 @@ class ReifiedWorld:
             limits = _limits(timeout, inferences)
             if limits is None:
                 result = self._origin._rt.apply_must(
-                    "petta_py_world_eval", *inputs
+                    "metta_py_world_eval", *inputs
                 )
             else:
                 result = _apply_limited(
                     self._origin._rt,
                     limits,
-                    "petta_py_world_eval",
+                    "metta_py_world_eval",
                     inputs,
                 )
             if str(result[0]) == "refused":
@@ -226,7 +226,7 @@ def reify_space(space: Space) -> ReifiedWorld:
     """Capture one space through its native or explicit provider snapshot."""
     captured = _Member(space).snapshot()
     image_rows_raw, image_effect_raw, coverage_raw = space._rt.apply_must(
-        "petta_py_world_image_effect_plan",
+        "metta_py_world_image_effect_plan",
         space._space,
         space._space,
         [atom.to_wire() for atom in captured],
@@ -247,7 +247,7 @@ def reify_space(space: Space) -> ReifiedWorld:
     plan = space._new_space()
     try:
         space._rt.must(
-            "petta_py_world_prepare(Space, Origin, Atoms)",
+            "metta_py_world_prepare(Space, Origin, Atoms)",
             Space=plan._space,
             Origin=space._space,
             Atoms=[atom.to_wire() for atom in captured],
@@ -275,22 +275,22 @@ def commit_world(space: Space, world: ReifiedWorld) -> None:
             f"world belongs to {world._origin}, not {space}; commit it through "
             "the space that produced it"
         )
-        raise PettaError(msg)
+        raise MettaError(msg)
     removed = _surplus(list(world._base), list(world.atoms))
     added = _surplus(list(world.atoms), list(world._base))
     backing = getattr(space, "_backing", None)
     if isinstance(backing, WorldCommitter):
-        if space._rt.once("petta_in_user_transaction"):
+        if space._rt.once("metta_in_user_transaction"):
             msg = (
                 "a provider-owned world commit cannot nest inside an engine "
                 "transaction; commit the world as the transaction boundary"
             )
-            raise PettaError(msg)
+            raise MettaError(msg)
         backing.commit_world(world._base, removed, added)
         # The provider has finished its durable delta. Feed exactly those
         # ordinary changes through the same observer seam native writes use.
         space._rt.must(
-            "petta_py_publish_world_diff(Space, Removed, Added)",
+            "metta_py_publish_world_diff(Space, Removed, Added)",
             Space=space._space,
             Removed=[atom.to_wire() for atom in removed],
             Added=[atom.to_wire() for atom in added],
@@ -302,7 +302,7 @@ def commit_world(space: Space, world: ReifiedWorld) -> None:
             "but cannot commit a world atomically because it implements no "
             "WorldCommitter or Transactional protocol"
         )
-        raise PettaError(msg)
+        raise MettaError(msg)
 
     def apply_diff() -> None:
         current = _Member(space).snapshot()
@@ -311,11 +311,11 @@ def commit_world(space: Space, world: ReifiedWorld) -> None:
                 f"{space} changed after this world was reified; refusing a "
                 "stale diff that could erase or duplicate concurrent writes"
             )
-            raise PettaError(msg)
+            raise MettaError(msg)
         for atom in removed:
             if not space.remove(atom):
                 msg = f"world commit could not remove its base atom {atom} from {space}"
-                raise PettaError(msg)
+                raise MettaError(msg)
         if added:
             space.add(*added)
 

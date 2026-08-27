@@ -38,69 +38,6 @@ import time
 
 from metta import Expression, S, V, channel, lib, par_map, race, spawn
 
-#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
-#: the integrator prices every budget in one pass on the merged tree. This one
-#: needs an EMPIRICAL ENVELOPE rather than a point: its cost moved across
-#: 1,248,269 inferences over the concurrent lane's own observations, because
-#: the spin loop that proves a race really races is cut wherever the winning
-#: branch happens to be
-#: [assumed: this twin's inference cost is unmeasured on this branch;
-#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
-#: Until it is measured again, this file's own distribution-budget residue
-#: entry, retired 2026-08-22 because the twin declared an envelope, is
-#: unbacked: a point budget is not the envelope that retired it.
-#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
-#: RE-PINNED 2026-08-25, 252593 to 254352, at the flat-door
-#: typed-dispatch gate and the library import door landing
-#: together: every flat call prices one declaration read through
-#: type_declaration_in/3, a declared head's flat call routes
-#: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
-#: residue retirement), and an import-bearing twin now spells
-#: its import as `m += lib.x` on the write door [measured
-#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
-#: on the tree carrying both].
-#: RE-PINNED 2026-08-25, 254352 to 254061, on the QLF-boot final
-#: tree: the engine now boots through engine/qlf_boot.pl, and any
-#: boot-content change moves twin counts a few tens through SWI's
-#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
-#: so the corpus re-pins once on the exact shipping tree
-#: [measured 2026-08-25 through tools/twin_coverage.py --measure
-#: min-of-3 on the final tree].
-#: RE-PINNED 2026-08-25, 254061 to 254019, on the release tree:
-#: the typed-dispatch question moved engine-side
-#: (metta_typed_dispatch_applies/2, one extra frame per direct
-#: call), the conformance kit gained the family, source and
-#: round-trip laws, extensions gained the spaces([...]) readying
-#: moment, and any boot-content change also moves counts a few
-#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
-#: carries the A/B), so the corpus re-pins once on the exact
-#: shipping tree [measured 2026-08-25 through
-#: tools/twin_coverage.py --measure min-of-3 after a canonical
-#: single-boot QLF regeneration].
-#: ENVELOPED 2026-08-25 by the observe pass: this twin's count is
-#: intrinsically multi-valued (allocation-timing jitter moves GC
-#: work between runs; ten serial runs of one such twin answered six
-#: distinct counts), so a point pin with the +-4 tolerance is a
-#: false claim here. Bounds are the exact extrema of 9
-#: full-lane observations under 'full-lane/218/workers=32'; a cost outside them
-#: is a real finding, and a new mode discovered later extends the
-#: envelope with its observation count rather than widening blind.
-#: ENVELOPED 2026-08-25 by the observe pass: this twin's count is
-#: intrinsically multi-valued (allocation-timing jitter moves GC
-#: work between runs; ten serial runs of one such twin answered six
-#: distinct counts), so a point pin with the +-4 tolerance is a
-#: false claim here. Bounds are the exact extrema of 10
-#: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
-#: is a real finding, and a new mode discovered later extends the
-#: envelope with its observation count rather than widening blind.
-BUDGET = {
-    "minimum": 253588,
-    "maximum": 382714,
-    "observations": 20,
-    "protocol": "full-lane/219/workers=32",
-}
-
 
 def twin(m):
     """Run parallel collections, futures, timers, channels, pools, and locks."""
@@ -216,3 +153,67 @@ def twin(m):
     assert list(m.fn["with_mutex"](S.demo_lock, values)) == [1]
     assert list(m.fn.timeout(10, values)) == [1, 2, 3]
     assert m.fn.timeout(10, S.inc(41)) == [42]
+
+
+#: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
+#: the integrator prices every budget in one pass on the merged tree. This one
+#: needs an EMPIRICAL ENVELOPE rather than a point: its cost moved across
+#: 1,248,269 inferences over the concurrent lane's own observations, because
+#: the spin loop that proves a race really races is cut wherever the winning
+#: branch happens to be
+#: [assumed: this twin's inference cost is unmeasured on this branch;
+#: commit=1e264c186c531e69acde5ad03ff6a79210626df4].
+#: Until it is measured again, this file's own distribution-budget residue
+#: entry, retired 2026-08-22 because the twin declared an envelope, is
+#: unbacked: a point budget is not the envelope that retired it.
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 252593 to 254352, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, 254352 to 254061, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 254061 to 254019, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+#: ENVELOPED 2026-08-25 by the observe pass: this twin's count is
+#: intrinsically multi-valued (allocation-timing jitter moves GC
+#: work between runs; ten serial runs of one such twin answered six
+#: distinct counts), so a point pin with the +-4 tolerance is a
+#: false claim here. Bounds are the exact extrema of 9
+#: full-lane observations under 'full-lane/218/workers=32'; a cost outside them
+#: is a real finding, and a new mode discovered later extends the
+#: envelope with its observation count rather than widening blind.
+#: ENVELOPED 2026-08-25 by the observe pass: this twin's count is
+#: intrinsically multi-valued (allocation-timing jitter moves GC
+#: work between runs; ten serial runs of one such twin answered six
+#: distinct counts), so a point pin with the +-4 tolerance is a
+#: false claim here. Bounds are the exact extrema of 10
+#: full-lane observations under 'full-lane/219/workers=32'; a cost outside them
+#: is a real finding, and a new mode discovered later extends the
+#: envelope with its observation count rather than widening blind.
+BUDGET = {
+    "minimum": 253588,
+    "maximum": 382714,
+    "observations": 20,
+    "protocol": "full-lane/219/workers=32",
+}

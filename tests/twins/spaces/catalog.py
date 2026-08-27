@@ -20,6 +20,62 @@ import metta
 from metta import S, V
 from metta.vocabularies import Fidelity, Semiring
 
+
+def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the default handle stays untouched
+    """Read four shipped catalog rows, then declare a kind of your own."""
+    reflection = metta.reflection
+
+    # The fidelity vocabulary is the four words the handles router acts on.
+    assert [
+        (row.a, row.b, row.c, row.d)
+        for row in reflection[S.vocabulary(S.fidelity, V.a, V.b, V.c, V.d)]
+    ] == [(
+        S[Fidelity.Exact],
+        S[Fidelity.Partial],
+        S[Fidelity.Sound],
+        S[Fidelity.Refuse],
+    )]
+
+    # The handles kind row is the shape every (handles ...) declaration fits.
+    assert [
+        row.claim for row in reflection[S.kind(S.handles, V.ctx, V.entry, V.claim, V.det)]
+    ] == [S.one_of(S.fidelity)]
+
+    # Orderedness is a claim on a semiring value, which is what (top k ...)
+    # consults rather than a word list compiled into the engine. The claim
+    # carries the DIRECTION beside the property, because ordered alone does
+    # not say which end a top-k slice takes: ranked counts down from the
+    # best, tropical counts up from the cheapest.
+    assert [
+        (row.p, row.direction)
+        for row in reflection[
+            S.claim(S.semiring, S[Semiring.ranked], V.p, V.direction)
+        ]
+    ] == [(S.ordered, S.descending)]
+    assert [
+        (row.p, row.direction)
+        for row in reflection[
+            S.claim(S.semiring, S[Semiring.tropical], V.p, V.direction)
+        ]
+    ] == [(S.ordered, S.ascending)]
+
+    # A third-party kind is the same machinery: declare its vocabulary and its
+    # shape, and the same checker guards it.
+    rows = metta.space(S.rows)
+    reflection += (S.vocabulary, S.freshness_level, S.live, S.cached, S.stale)
+    reflection += (S.kind, S.freshness, S.symbol, S.pattern, S.one_of(S.freshness_level))
+    reflection += (S.freshness, rows, S.edge(V.a, V.b), S.cached)
+
+    assert [
+        row.level for row in reflection[S.freshness(rows, V.shape, V.level)]
+    ] == [S.cached]
+
+    # (routed-by-shape head) gives the kind the SAME router the shipped
+    # handles declarations use, inherited rather than reimplemented.
+    reflection += (S.routed_by_shape, S.freshness)
+    assert S.routed_by_shape(S.freshness) in reflection
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -77,56 +133,3 @@ from metta.vocabularies import Fidelity, Semiring
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 787
-def twin(m):  # noqa: ARG001  -- the catalog lives in the reflection space; the default handle stays untouched
-    """Read four shipped catalog rows, then declare a kind of your own."""
-    reflection = metta.reflection
-
-    # The fidelity vocabulary is the four words the handles router acts on.
-    assert [
-        (row.a, row.b, row.c, row.d)
-        for row in reflection[S.vocabulary(S.fidelity, V.a, V.b, V.c, V.d)]
-    ] == [(
-        S[Fidelity.Exact],
-        S[Fidelity.Partial],
-        S[Fidelity.Sound],
-        S[Fidelity.Refuse],
-    )]
-
-    # The handles kind row is the shape every (handles ...) declaration fits.
-    assert [
-        row.claim for row in reflection[S.kind(S.handles, V.ctx, V.entry, V.claim, V.det)]
-    ] == [S.one_of(S.fidelity)]
-
-    # Orderedness is a claim on a semiring value, which is what (top k ...)
-    # consults rather than a word list compiled into the engine. The claim
-    # carries the DIRECTION beside the property, because ordered alone does
-    # not say which end a top-k slice takes: ranked counts down from the
-    # best, tropical counts up from the cheapest.
-    assert [
-        (row.p, row.direction)
-        for row in reflection[
-            S.claim(S.semiring, S[Semiring.ranked], V.p, V.direction)
-        ]
-    ] == [(S.ordered, S.descending)]
-    assert [
-        (row.p, row.direction)
-        for row in reflection[
-            S.claim(S.semiring, S[Semiring.tropical], V.p, V.direction)
-        ]
-    ] == [(S.ordered, S.ascending)]
-
-    # A third-party kind is the same machinery: declare its vocabulary and its
-    # shape, and the same checker guards it.
-    rows = metta.space(S.rows)
-    reflection += (S.vocabulary, S.freshness_level, S.live, S.cached, S.stale)
-    reflection += (S.kind, S.freshness, S.symbol, S.pattern, S.one_of(S.freshness_level))
-    reflection += (S.freshness, rows, S.edge(V.a, V.b), S.cached)
-
-    assert [
-        row.level for row in reflection[S.freshness(rows, V.shape, V.level)]
-    ] == [S.cached]
-
-    # (routed-by-shape head) gives the kind the SAME router the shipped
-    # handles declarations use, inherited rather than reimplemented.
-    reflection += (S.routed_by_shape, S.freshness)
-    assert S.routed_by_shape(S.freshness) in reflection

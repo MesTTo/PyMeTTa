@@ -19,6 +19,30 @@ compiled body mentions it.
 
 from metta import S
 
+
+def twin(m):
+    """Answer a partial application from a definition, then compose two."""
+
+    @m.define
+    def mp():
+        # (= (mp) (+))
+        return S.add()
+
+    assert m.eval(S.mp(1, 1)) == [2]
+
+    @m.define(name="..")
+    def compose(f1, f2, arg):
+        # (= (.. $f1 $f2 $arg) ($f1 ($f2 $arg)))
+        return f1(f2(arg))
+
+    @m.define
+    def plus1times2():
+        # (= (plus1times2) (.. (* 2) (+ 1)))
+        return compose(S.mul(2), S.add(1))
+
+    assert m.eval(S.plus1times2(1)) == [4]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -30,7 +54,7 @@ from metta import S
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -79,24 +103,3 @@ from metta import S
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 8911
-def twin(m):
-    """Answer a partial application from a definition, then compose two."""
-
-    @m.define
-    def mp():
-        # (= (mp) (+))
-        return S.add()
-
-    assert m.eval(S.mp(1, 1)) == [2]
-
-    @m.define(name="..")
-    def compose(f1, f2, arg):
-        # (= (.. $f1 $f2 $arg) ($f1 ($f2 $arg)))
-        return f1(f2(arg))
-
-    @m.define
-    def plus1times2():
-        # (= (plus1times2) (.. (* 2) (+ 1)))
-        return compose(S.mul(2), S.add(1))
-
-    assert m.eval(S.plus1times2(1)) == [4]

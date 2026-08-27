@@ -17,6 +17,78 @@ which is exactly what the example's `(let $probe ... ($probe $who))` says.
 import metta
 from metta import Expression, S, V, lib
 
+
+def twin(m):
+    """Load soft matching, state two similarities, then check all seventeen claims."""
+    # !(import! &self (library lib_measure))
+    # !(import! &self (library lib_soft))
+    m += lib.measure
+    m += lib.soft
+
+    # (similar cat feline 0.8) (similar dog wolf 0.7)
+    m += S.similar(S.cat, S.feline, 0.8)
+    m += S.similar(S.dog, S.wolf, 0.7)
+
+    sym_sim = m.fn.sym_sim
+    soft_score = m.fn.soft_score
+
+    # Symbol closeness: identity is 1.0, declared similarity reads both ways,
+    # anything else is 0.0.
+    # !(test (sym-sim cat cat) 1.0), and three more
+    assert sym_sim(S.cat, S.cat) == [1.0]
+    assert sym_sim(S.cat, S.feline) == [0.8]
+    assert sym_sim(S.feline, S.cat) == [0.8]
+    assert sym_sim(S.cat, S.dog) == [0.0]
+
+    # Weak unification: structure crisp, symbols soft, minimum aggregation.
+    # !(test (soft-score (likes cat fish) (likes cat fish)) 1.0), and six more
+    assert soft_score(S.likes(S.cat, S.fish), S.likes(S.cat, S.fish)) == [1.0]
+    assert soft_score(S.likes(S.feline, S.fish), S.likes(S.cat, S.fish)) == [0.8]
+    assert soft_score(S.likes(S.feline, S.wolf), S.likes(S.cat, S.dog)) == [0.7]
+    assert soft_score(S.likes(S.cat), S.likes(S.cat, S.fish)) == [0.0]
+    assert soft_score(S.likes(S.cat, S.fish), S.hates(S.cat, S.fish)) == [0.0]
+    assert soft_score(3, 3) == [1.0]
+    assert soft_score(3, 4) == [0.0]
+
+    # A variable binds at degree one, and the binding is real.
+    # !(test (soft-score $x anything) 1.0)
+    assert soft_score(V.x, S.anything) == [1.0]
+    # !(test (let $probe (soft-score (likes $who fish) (likes cat fish))
+    #             ($probe $who))
+    #        (1.0 cat))
+    scored = S.soft_score(S.likes(V.who, S.fish), S.likes(S.cat, S.fish))
+    assert m.solve(1.0, scored).who == S.cat
+
+    # Soft matching over a space, feeding the measure algebra.
+    # !(add-atom &zoo (likes cat fish)), and two more
+    zoo = metta.space()
+    zoo += S.likes(S.cat, S.fish)
+    zoo += S.likes(S.dog, S.bones)
+    zoo += S.likes(S.bird, S.seeds)
+
+    soft_match = m.fn.soft_match
+    # !(test (collapse (soft-match &zoo (likes feline fish) 0.5))
+    #        ((0.8 (likes cat fish))))
+    closest = soft_match(zoo, S.likes(S.feline, S.fish), 0.5).one()
+    assert tuple(closest) == (0.8, S.likes(S.cat, S.fish))
+    # !(test (soft-best &zoo (likes feline fish)) (likes cat fish))
+    assert m.fn.soft_best(zoo, S.likes(S.feline, S.fish)) == [S.likes(S.cat, S.fish)]
+
+    # Attention over terms: every candidate scored, softmaxed into a
+    # distribution, which sums to one whatever the temperature.
+    # `Expression(answers)` is the collapse door: the scored candidates become
+    # ONE ordered atom, which is what the measure algebra takes.
+    # !(test (size-atom (collapse (soft-match &zoo (likes $x $y) 0.0))) 3)
+    assert len(soft_match(zoo, S.likes(V.x, V.y), 0.0)) == 3
+    # !(test (< (abs-math (- (ws-total (ws-softmax (collapse (soft-match ...)) 1.0))
+    #                        1.0))
+    #           1.0e-9)
+    #        true)
+    candidates = Expression(soft_match(zoo, S.likes(S.feline, V.f), 0.0))
+    distribution = m.fn.ws_softmax(candidates, 1.0).one()
+    assert abs(m.fn.ws_total(distribution).one() - 1.0) < 1.0e-9
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here. THIS TWIN'S
@@ -30,7 +102,7 @@ from metta import Expression, S, V, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -108,72 +180,3 @@ from metta import Expression, S, V, lib
 #: fixture=engine/reader.so and the MORK artefact present;
 #: commit=58d0332489da668251edcd52ccc5cb42ba2e57bb].
 BUDGET = 302279
-def twin(m):
-    """Load soft matching, state two similarities, then check all seventeen claims."""
-    # !(import! &self (library lib_measure))
-    # !(import! &self (library lib_soft))
-    m += lib.measure
-    m += lib.soft
-
-    # (similar cat feline 0.8) (similar dog wolf 0.7)
-    m += S.similar(S.cat, S.feline, 0.8)
-    m += S.similar(S.dog, S.wolf, 0.7)
-
-    sym_sim = m.fn.sym_sim
-    soft_score = m.fn.soft_score
-
-    # Symbol closeness: identity is 1.0, declared similarity reads both ways,
-    # anything else is 0.0.
-    # !(test (sym-sim cat cat) 1.0), and three more
-    assert sym_sim(S.cat, S.cat) == [1.0]
-    assert sym_sim(S.cat, S.feline) == [0.8]
-    assert sym_sim(S.feline, S.cat) == [0.8]
-    assert sym_sim(S.cat, S.dog) == [0.0]
-
-    # Weak unification: structure crisp, symbols soft, minimum aggregation.
-    # !(test (soft-score (likes cat fish) (likes cat fish)) 1.0), and six more
-    assert soft_score(S.likes(S.cat, S.fish), S.likes(S.cat, S.fish)) == [1.0]
-    assert soft_score(S.likes(S.feline, S.fish), S.likes(S.cat, S.fish)) == [0.8]
-    assert soft_score(S.likes(S.feline, S.wolf), S.likes(S.cat, S.dog)) == [0.7]
-    assert soft_score(S.likes(S.cat), S.likes(S.cat, S.fish)) == [0.0]
-    assert soft_score(S.likes(S.cat, S.fish), S.hates(S.cat, S.fish)) == [0.0]
-    assert soft_score(3, 3) == [1.0]
-    assert soft_score(3, 4) == [0.0]
-
-    # A variable binds at degree one, and the binding is real.
-    # !(test (soft-score $x anything) 1.0)
-    assert soft_score(V.x, S.anything) == [1.0]
-    # !(test (let $probe (soft-score (likes $who fish) (likes cat fish))
-    #             ($probe $who))
-    #        (1.0 cat))
-    scored = S.soft_score(S.likes(V.who, S.fish), S.likes(S.cat, S.fish))
-    assert m.solve(1.0, scored).who == S.cat
-
-    # Soft matching over a space, feeding the measure algebra.
-    # !(add-atom &zoo (likes cat fish)), and two more
-    zoo = metta.space()
-    zoo += S.likes(S.cat, S.fish)
-    zoo += S.likes(S.dog, S.bones)
-    zoo += S.likes(S.bird, S.seeds)
-
-    soft_match = m.fn.soft_match
-    # !(test (collapse (soft-match &zoo (likes feline fish) 0.5))
-    #        ((0.8 (likes cat fish))))
-    closest = soft_match(zoo, S.likes(S.feline, S.fish), 0.5).one()
-    assert tuple(closest) == (0.8, S.likes(S.cat, S.fish))
-    # !(test (soft-best &zoo (likes feline fish)) (likes cat fish))
-    assert m.fn.soft_best(zoo, S.likes(S.feline, S.fish)) == [S.likes(S.cat, S.fish)]
-
-    # Attention over terms: every candidate scored, softmaxed into a
-    # distribution, which sums to one whatever the temperature.
-    # `Expression(answers)` is the collapse door: the scored candidates become
-    # ONE ordered atom, which is what the measure algebra takes.
-    # !(test (size-atom (collapse (soft-match &zoo (likes $x $y) 0.0))) 3)
-    assert len(soft_match(zoo, S.likes(V.x, V.y), 0.0)) == 3
-    # !(test (< (abs-math (- (ws-total (ws-softmax (collapse (soft-match ...)) 1.0))
-    #                        1.0))
-    #           1.0e-9)
-    #        true)
-    candidates = Expression(soft_match(zoo, S.likes(S.feline, V.f), 0.0))
-    distribution = m.fn.ws_softmax(candidates, 1.0).one()
-    assert abs(m.fn.ws_total(distribution).one() - 1.0) < 1.0e-9

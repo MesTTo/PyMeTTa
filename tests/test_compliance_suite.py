@@ -29,7 +29,7 @@ import pytest
 
 from metta import MeTTa
 from metta.atoms import Expression, S, Symbol, Variable
-from metta.errors import PettaError
+from metta.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.testing import SpaceComplianceSuite
 
@@ -189,7 +189,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
     A foreign space holds DATA unless it says otherwise, so an equation added
     to one that has not declared `rules` is refused rather than stored where
     it could never fire. That refusal had no message clause, so it printed as
-    `Unknown error term: petta_foreign_space_holds_no_rules(...)`, which names
+    `Unknown error term: metta_foreign_space_holds_no_rules(...)`, which names
     the capability without saying it is one or how to opt in.
     """
     engine = MeTTa().space()
@@ -198,7 +198,7 @@ def test_a_space_without_rules_says_how_to_hold_one():
     try:
         space = engine._at(name)
         rule = Expression(Symbol("="), Expression(Symbol("rl-double"), Variable("x")), Expression(Symbol("*"), 2, Variable("x")))
-        with pytest.raises(PettaError) as refused:
+        with pytest.raises(MettaError) as refused:
             space.add(rule)
         message = str(refused.value)
         assert "does not hold rules" in message, message

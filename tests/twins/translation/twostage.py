@@ -15,6 +15,26 @@ the other side, refusing an unknown callee and naming `S.g` as the remedy.
 
 from metta import S
 
+
+def twin(m):
+    """Install the three nullary equations in their original order."""
+
+    @m.define
+    def f():
+        return S.g()        # (= (f) (g)): g is not a function yet, so it is data
+
+    @m.define
+    def g():                # (= (g) 42)
+        return 42
+
+    @m.define
+    def h():
+        return g()          # (= (h) (g)): now g is a name a body can call
+
+    assert f() == [42]   # [42]
+    assert h() == [42]   # [42]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -26,7 +46,7 @@ from metta import S
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -73,22 +93,3 @@ BUDGET = {
     "observations": 21,
     "protocol": "full-lane/219/workers=32",
 }
-
-
-def twin(m):
-    """Install the three nullary equations in their original order."""
-
-    @m.define
-    def f():
-        return S.g()        # (= (f) (g)): g is not a function yet, so it is data
-
-    @m.define
-    def g():                # (= (g) 42)
-        return 42
-
-    @m.define
-    def h():
-        return g()          # (= (h) (g)): now g is a name a body can call
-
-    assert f() == [42]   # [42]
-    assert h() == [42]   # [42]

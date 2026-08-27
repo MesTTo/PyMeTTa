@@ -227,7 +227,7 @@ def test_tabledmap_caches_and_stays_fresh(metta):  # noqa: D103  -- pytest disco
 
 
 def test_tabledmap_mapping_edges(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    from metta import PettaError
+    from metta import MettaError
     from metta.structures import TabledMap
 
     m = metta._new_space()
@@ -237,7 +237,7 @@ def test_tabledmap_mapping_edges(metta):  # noqa: D103  -- pytest discovers or i
     with pytest.raises(KeyError):
         halves[3]  # the call answers nothing: absent key
     assert (4 in halves) is True and (3 in halves) is False
-    with pytest.raises(PettaError, match="argument"):
+    with pytest.raises(MettaError, match="argument"):
         halves[(1, 2)]
 
 

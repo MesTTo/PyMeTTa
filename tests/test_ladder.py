@@ -9,7 +9,7 @@ Guarantees:
     test_module_tier_op_forwards_identity_to_the_default_receiver;
     commit=fc7ec0b08cd8b5876a3f4105211c487185f6a9bf]
   - scoped stack bounds retain an explicit byte count for
-    ``petta_py_limited/6`` [tested:
+    ``metta_py_limited/6`` [tested:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - class declarations are context-relative through ``Space.define`` and the
     retired root ``record`` door is not used [tested:
@@ -42,7 +42,7 @@ import pytest
 from hypothesis import given
 
 import metta
-from metta import PettaError, S, V
+from metta import MettaError, S, V
 from metta._space_objects import _apply_limited, _limits
 from metta.errors import InferenceLimitError
 
@@ -136,7 +136,7 @@ def test_module_tier_op_requires_effect_before_registration() -> None:
     with pytest.raises(TypeError, match=r"requires effect=.*pureStructural.*oracleIO"):
         metta.op(root_op_without_effect, name="root-op-without-effect")
     assert metta.run(
-        "!(match &petta (op root-op-without-effect $arity $kind) $kind)"
+        "!(match &metta (op root-op-without-effect $arity $kind) $kind)"
     ) == [[]]
 
 
@@ -182,20 +182,20 @@ def test_stack_limit_is_carried_to_the_limited_six_seam(metta) -> None:
         bounded = _limits(None, None)
         assert bounded == (-1.0, -1, 4_000_000)
         runtime = RecordingRuntime()
-        assert _apply_limited(runtime, bounded, "petta_py_eval_all", ["&self", []]) == (
+        assert _apply_limited(runtime, bounded, "metta_py_eval_all", ["&self", []]) == (
             "answered"
         )
     assert runtime.call == (
-        "petta_py_limited",
+        "metta_py_limited",
         -1.0,
         -1,
         4_000_000,
-        "petta_py_eval_all",
+        "metta_py_eval_all",
         ["&self", []],
     )
 
 
-def test_stack_limit_through_petta_py_limited_6(metta) -> None:
+def test_stack_limit_through_metta_py_limited_6(metta) -> None:
     """Exercise the merged sibling engine seam through the public block."""
     with metta.limits(stack=4_000_000):
         assert metta.eval(S["+"](1, 2)) == [3]
@@ -279,10 +279,10 @@ def test_batch_crosses_once_and_reads_see_the_pre_batch_space(metta):  # noqa: D
 def test_batch_edges_are_enforced(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta._new_space()
     m.add(S.keep(1))
-    with pytest.raises(PettaError, match="batch"):
+    with pytest.raises(MettaError, match="batch"):
         with m.batch():
             m.remove(S.keep(1))
-    with pytest.raises(PettaError, match="batch"):
+    with pytest.raises(MettaError, match="batch"):
         with m.batch():
             m.clear()
     # An exception discards the pending adds rather than landing writes
@@ -296,7 +296,7 @@ def test_batch_edges_are_enforced(metta):  # noqa: D103  -- pytest discovers or 
     # Same-space batches do not nest; different spaces batch independently.
     other = metta._new_space()
     with m.batch():
-        with pytest.raises(PettaError, match="nest"):
+        with pytest.raises(MettaError, match="nest"):
             with m.batch():
                 pass
         with other.batch():

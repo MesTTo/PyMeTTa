@@ -70,7 +70,7 @@ class _FunctionNamespace:
     collapse: Symbol
     "collapse: (-> Atom Atom)\n\n`list()` is the everyday spelling, materialising the answers; `tuple()` is the same act when you want MeTTa's own `( )` atom back, which is what collapse answers."
     collapse_bind: Symbol
-    "collapse-bind: (-> Atom Expression)\ncollapse-bind: (TU Expression)\n\nThe deep-tier collapse that keeps each alternative's BINDINGS, `((a (bindings ...)) ...)`. It belongs to the bindings-carrying tier, never to the surface; PeTTa's engine has the bindings carrier (`answer_bindings`) but not this instruction."
+    "collapse-bind: (-> Atom Expression)\ncollapse-bind: (TU Expression)\n\nThe deep-tier collapse that keeps each alternative's BINDINGS, `((a (bindings ...)) ...)`. It belongs to the bindings-carrying tier, never to the surface; MeTTa's engine has the bindings carrier (`answer_bindings`) but not this instruction."
     cons: Symbol
     cons_atom: Symbol
     "cons-atom: (-> Atom Expression Atom)\n\nConstruction: call the head, or rebuild from head and tail with `*`."
@@ -118,13 +118,13 @@ class _FunctionNamespace:
     "format-args: (-> String Expression String)\n\nAn f-string. MeTTa's `{}` holes are Python's own interpolation."
     format_time: Symbol
     function: Symbol
-    "function: (-> Atom Atom)\n\nThe core's function frame, which `return` closes. PeTTa's compiled definitions do not go through this instruction and it is not implemented."
+    "function: (-> Atom Atom)\n\nThe core's function frame, which `return` closes. MeTTa's compiled definitions do not go through this instruction and it is not implemented."
     ge: Symbol
     ">=: (-> Number Number Bool)\n\nPython's own operator."
     get_atoms: Symbol
     "get-atoms: (-> SpaceType Atom)\n\n`space.atoms()`, or `for atom in space` when you want to walk them."
     get_doc: Symbol
-    "get-doc: (-> SpaceType Atom %Undefined%)\n\nPython's builtin `help`, over the docstring a decorated function already carries. PeTTa answers nothing here because no documentation atoms are written yet, which is the doc-vocabulary gap."
+    "get-doc: (-> SpaceType Atom %Undefined%)\n\nPython's builtin `help`, over the docstring a decorated function already carries. This engine answers nothing here because no documentation atoms are written yet, which is the doc-vocabulary gap."
     get_doc_space: Symbol
     get_metatype: Symbol
     "get-metatype: (-> Atom Atom)\n\nPython's own builtin `type`: the four atom classes ARE the four metatypes, so `type(a).__name__` is the metatype by construction."
@@ -315,7 +315,7 @@ class _FunctionNamespace:
     "trace!: (-> %Undefined% Atom %Undefined%)\n\n`print` or `logging` beside the value; `m.trace()` is the engine's own reduction trace, a different and deeper thing."
     transaction: Symbol
     truediv: Symbol
-    "/: (-> Number Number Number)\n\nPython's `/` is true division, and so is PeTTa's. LeaTTa's integer `/` is EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on floats all three agree."
+    "/: (-> Number Number Number)\n\nPython's `/` is true division, and so is this engine's. LeaTTa's integer `/` is EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on floats all three agree."
     trunc_math: Symbol
     "trunc-math: (-> Number Number)\n\n`math.trunc`, or `int` on a float."
     type_cast: Symbol

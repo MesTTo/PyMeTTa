@@ -2,7 +2,7 @@
 reached as a subprocess: the same SpaceProvider seam that carries SQLite,
 DuckDB, Redis and remote engines carries a sibling MeTTa implementation.
 
-The bridge is STORAGE-level on purpose. The atoms live here as PeTTa
+The bridge is STORAGE-level on purpose. The atoms live here as MeTTa
 atoms; CeTTa is consulted per query as a matcher over their text, its
 evaluator never runs, and the engine binds every answer through its own
 unification. A semantic quirk in CeTTa's matcher surfaces as a missing
@@ -34,14 +34,14 @@ from _common import check, done, skip
 
 from metta.foreign import SpaceProvider
 
-_PROBE = "petta-cetta-probe"
+_PROBE = "metta-cetta-probe"
 
 
 class CettaSpace(SpaceProvider):
     """Atoms stored beside their text, pattern queries answered by CeTTa."""
 
     def __init__(self, cetta: str | None = None, timeout: float = 30.0):
-        self._cetta = cetta or os.environ.get("PETTA_CETTA", "cetta")
+        self._cetta = cetta or os.environ.get("METTA_CETTA", "cetta")
         self._timeout = timeout
         self._atoms: list[Any] = []
 
@@ -88,7 +88,7 @@ class CettaSpace(SpaceProvider):
             "-e",
             " ".join(f"({_PROBE} {i} {atom})" for i, atom in enumerate(self._atoms)),
             "-e",
-            f"!(match &self ({_PROBE} $petta-cetta-i {pattern}) $petta-cetta-i)",
+            f"!(match &self ({_PROBE} $metta-cetta-i {pattern}) $metta-cetta-i)",
         ]
         answer, errors = self._run(program)
         if not answer:
@@ -171,11 +171,11 @@ def _bracket_items(answer: str, errors: str = "") -> list[str]:
 
 
 def demo() -> None:
-    """The worked run: PeTTa queries answered over atoms CeTTa matches,
-    and CeTTa evaluation results binding variables inside PeTTa unify."""
-    cetta = os.environ.get("PETTA_CETTA") or shutil.which("cetta")
+    """The worked run: this engine's queries answered over atoms CeTTa
+    matches, and CeTTa evaluation results binding variables inside it."""
+    cetta = os.environ.get("METTA_CETTA") or shutil.which("cetta")
     if cetta is None:
-        skip("cetta is not on PATH and PETTA_CETTA does not name it")
+        skip("cetta is not on PATH and METTA_CETTA does not name it")
     import metta
     from metta import S, V, Expression
     from metta.atoms import Grounded
@@ -186,7 +186,7 @@ def demo() -> None:
     m.run("!(add-atom &cetta (edge a b))")
     m.run("!(add-atom &cetta (edge a c))")
     (group,) = m.run("!(collapse (match &cetta (edge a $x) $x))")
-    check("CeTTa matches, PeTTa binds", sorted(str(a) for a in group[0]),
+    check("CeTTa matches, this engine binds", sorted(str(a) for a in group[0]),
           ["b", "c"])
 
     matcher = CettaMatch(

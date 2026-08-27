@@ -22,7 +22,7 @@ Guarantees:
     the active runtime [tested: test_space_handles_are_term_operands_and_round_trip;
     commit=4e2398075da67bb2cbcc123a9fc1e078ecac6fbf]
   - the tag alone decides the species: an s payload is a Symbol however it is
-    spelled, because the engine's encoder asks petta_space_operand/1, the same
+    spelled, because the engine's encoder asks metta_space_operand/1, the same
     test metatype_of/2 asks, and writes p for every atom the language calls a
     space [tested: test_the_s_tag_stays_a_symbol_however_it_is_spelled,
     test_a_space_the_engine_made_crosses_as_a_space,
@@ -33,7 +33,7 @@ Guarantees:
     test_an_async_operation_answers_a_future_space,
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - object decoding removes every __petta_wire_value__ carrier by protocol,
+  - object decoding removes every __metta_wire_value__ carrier by protocol,
     so transport classes cannot replace the carried object's identity
     [tested: test_bridge_answers_preserve_python_object_identity;
     commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f]
@@ -61,7 +61,7 @@ from ._atoms_core import (
     _wire_sym,
     _wire_var,
 )
-from .errors import PettaError
+from .errors import MettaError
 
 
 class _PendingExpr:
@@ -176,7 +176,7 @@ class Undefined:
         self.why = why
 
     def __bool__(self) -> bool:
-        raise PettaError(_undefined_truth_message(self.why))
+        raise MettaError(_undefined_truth_message(self.why))
 
     def __eq__(self, other: object) -> bool:
         return (

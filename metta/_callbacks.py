@@ -1,4 +1,4 @@
-"""Purpose: expose engine callbacks lazily under the ``petta_ops`` alias.
+"""Purpose: expose engine callbacks lazily under the ``metta_ops`` alias.
 
 Guarantees:
   - the facade owns no registry state and each callback is the exact object

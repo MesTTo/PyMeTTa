@@ -13,6 +13,27 @@ The source stores `==`. Python's comparison compiles to the engine-native
 The digest lane reports it.
 """
 
+
+def twin(m):
+    """Define the accumulator fib and its entry point, then run it."""
+    @m.define
+    def fib_tr(n, a, b):
+        # Source: (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
+        # Twin:   (= (fib-tr $n $a $b) (if (py-eq $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
+        return a if n == 0 else fib_tr(n - 1, b, a + b)
+
+    # A body calling the definition above it is the ordinary call: `fib_tr` is
+    # bound here to the decorated object, and the compiler emits that object's
+    # installed MeTTa name, so the stored body is `(fib-tr $n 0 1)` even
+    # though the two names differ.
+    @m.define
+    def fib(n):
+        # (= (fib $n) (fib-tr $n 0 1))
+        return fib_tr(n, 0, 1)
+
+    assert fib(100) == [354224848179261915075]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -24,7 +45,7 @@ The digest lane reports it.
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -73,21 +94,3 @@ The digest lane reports it.
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 13335
-def twin(m):
-    """Define the accumulator fib and its entry point, then run it."""
-    @m.define
-    def fib_tr(n, a, b):
-        # Source: (= (fib-tr $n $a $b) (if (== $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
-        # Twin:   (= (fib-tr $n $a $b) (if (py-eq $n 0) $a (fib-tr (- $n 1) $b (+ $a $b))))
-        return a if n == 0 else fib_tr(n - 1, b, a + b)
-
-    # A body calling the definition above it is the ordinary call: `fib_tr` is
-    # bound here to the decorated object, and the compiler emits that object's
-    # installed MeTTa name, so the stored body is `(fib-tr $n 0 1)` even
-    # though the two names differ.
-    @m.define
-    def fib(n):
-        # (= (fib $n) (fib-tr $n 0 1))
-        return fib_tr(n, 0, 1)
-
-    assert fib(100) == [354224848179261915075]

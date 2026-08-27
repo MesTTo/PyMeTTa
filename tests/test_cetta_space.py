@@ -1,4 +1,4 @@
-"""Purpose: prove the CeTTa bridge: PeTTa queries answered over atoms
+"""Purpose: prove the CeTTa bridge: this engine's queries answered over atoms
 whose matching runs in the sibling C MeTTa runtime, certified by the
 conformance kit and driven from MeTTa source.
 Open Obligations:
@@ -22,7 +22,7 @@ _MODULE_PATH = Path(__file__).resolve().parents[1] / "examples" / "integration" 
 
 
 def _cetta_binary():
-    named = os.environ.get("PETTA_CETTA")
+    named = os.environ.get("METTA_CETTA")
     if named and os.access(named, os.X_OK):
         return named
     return shutil.which("cetta")
@@ -33,7 +33,7 @@ def _cetta_space_module():
     sys.path.insert(0, examples_root)
     try:
         specification = _importlib_util.spec_from_file_location(
-            "petta_example_cetta_space", _MODULE_PATH
+            "metta_example_cetta_space", _MODULE_PATH
         )
         module = _importlib_util.module_from_spec(specification)
         specification.loader.exec_module(module)
@@ -46,7 +46,7 @@ def _cetta_space_module():
 def cetta_space():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     binary = _cetta_binary()
     if binary is None:
-        pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")
+        pytest.skip("METTA_CETTA does not name a cetta binary and none is on PATH")
     module = _cetta_space_module()
     return module.CettaSpace(cetta=binary)
 
@@ -88,7 +88,7 @@ def test_the_conformance_kit_certifies_the_cetta_provider(cetta_space):  # noqa:
 
 def test_the_kit_catches_cettas_rational_tree_divergence(cetta_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # (fact $y $y) against a stored (fact (f $x) $x) is a rational-tree
-    # match: PeTTa's matcher answers it (Prolog unification, no occurs
+    # match: MeTTa's matcher answers it (Prolog unification, no occurs
     # check) and CeTTa's refuses it. The kit's repeated-variable fold is
     # exactly the probe that finds such divergences, and this pin is the
     # measured record of one: a semantic difference between two MeTTa
@@ -101,10 +101,10 @@ def test_the_kit_catches_cettas_rational_tree_divergence(cetta_space):  # noqa: 
         )
 
 
-def test_cetta_answers_bind_inside_petta_unification():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_cetta_answers_bind_inside_metta_unification():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     binary = _cetta_binary()
     if binary is None:
-        pytest.skip("PETTA_CETTA does not name a cetta binary and none is on PATH")
+        pytest.skip("METTA_CETTA does not name a cetta binary and none is on PATH")
     from metta import Expression
     from metta.atoms import Grounded
 

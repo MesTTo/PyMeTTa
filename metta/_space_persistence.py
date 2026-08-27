@@ -45,13 +45,13 @@ from .atoms import Atom, Expression, Grounded, Handle, Symbol, _atom_from_wire
 from .errors import EngineError, ResourceLimitError
 from .vocabularies import SaveFormat
 
-_FAST_PREFIX = b"PETTA-CACHE\t"
+_FAST_PREFIX = b"METTA-CACHE\t"
 _FAST_ERRORS = (
-    "petta_fast_header_mismatch",
-    "petta_fast_integrity_header",
-    "petta_fast_integrity_mismatch",
-    "petta_fast_read_failed",
-    "petta_fast_payload_not_atom_list",
+    "metta_fast_header_mismatch",
+    "metta_fast_integrity_header",
+    "metta_fast_integrity_mismatch",
+    "metta_fast_read_failed",
+    "metta_fast_payload_not_atom_list",
 )
 
 
@@ -71,7 +71,7 @@ def _open_maybe_gz(path: str | os.PathLike[str], mode: Literal["rb", "wt"]):
 
 def _temporary_sibling(target: Path) -> Path:
     descriptor, name = tempfile.mkstemp(
-        prefix=".petta-save-", suffix=target.suffix, dir=target.parent
+        prefix=".metta-save-", suffix=target.suffix, dir=target.parent
     )
     os.close(descriptor)
     temporary = Path(name)
@@ -157,15 +157,15 @@ def _validate_atoms(rt: Runtime, space: str, atoms: list[Atom]) -> None:
     # a fourth class that is not a name, a number whose printed form is not
     # read back as that number. The engine enumerates, so no atom crosses the
     # wire for the question.
-    row = rt.once("petta_py_unwritable_atom(Space, Bad)", Space=space)
+    row = rt.once("metta_py_unwritable_atom(Space, Bad)", Space=space)
     if row:
         raise_unsafe_text_atom(_atom_from_wire(row["Bad"]), "save")
 
 
 def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
-    result = rt.apply_must("petta_py_fast_save", str(temporary), space)
+    result = rt.apply_must("metta_py_fast_save", str(temporary), space)
     if not isinstance(result, list) or len(result) != 2:
-        msg = f"petta_py_fast_save returned an invalid result: {result!r}"
+        msg = f"metta_py_fast_save returned an invalid result: {result!r}"
         raise EngineError(msg)
     kind, value = result
     if kind == "object":
@@ -178,7 +178,7 @@ def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
     if kind == "symbol":
         raise_unsafe_text_atom(_atom_from_wire(value), "save")
     if kind != "saved":
-        msg = f"petta_py_fast_save returned an unknown result: {result!r}"
+        msg = f"metta_py_fast_save returned an unknown result: {result!r}"
         raise EngineError(msg)
     return int(value)
 
@@ -237,7 +237,7 @@ def _fast_header(path: str) -> list[bytes]:
 def _cache_rejection(path: str, reason: str) -> EngineError:
     return EngineError(
         f"cannot load fast cache {path!r}: {reason}; re-save it with this "
-        f"PeTTa and SWI-Prolog version"
+        f"MeTTa and SWI-Prolog version"
     )
 
 
@@ -270,7 +270,7 @@ def _load_fast(
     try:
         if stack < 0:
             rt.must(
-                "petta_py_guarded(T, I, petta_py_fast_load(File, Space))",
+                "metta_py_guarded(T, I, metta_py_fast_load(File, Space))",
                 T=seconds,
                 I=steps,
                 File=path,
@@ -280,7 +280,7 @@ def _load_fast(
             _apply_limited(
                 rt,
                 bounds,
-                "petta_py_fast_load_unit",
+                "metta_py_fast_load_unit",
                 [path, space],
             )
     except ResourceLimitError:
@@ -310,7 +310,7 @@ def load_space(
     """Load a text program or validated fast cache into a named space.
 
     Time and inference bounds retain the direct guarded path. A scoped stack
-    bound selects the explicit ``petta_py_limited/6`` whitelist entry instead,
+    bound selects the explicit ``metta_py_limited/6`` whitelist entry instead,
     so the predicate name remains closed even on the stack-aware route.
     """
     file = str(path)
@@ -325,7 +325,7 @@ def load_space(
     seconds, steps, stack = bounds
     if stack < 0:
         row = rt.must(
-            "petta_py_guarded(T, I, petta_py_load(File, Space, Groups))",
+            "metta_py_guarded(T, I, metta_py_load(File, Space, Groups))",
             T=seconds,
             I=steps,
             File=file,
@@ -333,5 +333,5 @@ def load_space(
         )
         groups = row.get("Groups", [])
     else:
-        groups = _apply_limited(rt, bounds, "petta_py_load", [file, space])
+        groups = _apply_limited(rt, bounds, "metta_py_load", [file, space])
     return [[_atom_from_wire(wire) for wire in group] for group in groups]

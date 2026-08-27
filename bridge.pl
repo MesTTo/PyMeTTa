@@ -46,13 +46,13 @@
 :- multifile seam:grounded_structure/2.
 :- multifile seam:grounded_text/2.
 
-%This surface is hyperon-experimental's, and PeTTa had none of it: `py-atom`,
+%This surface is hyperon-experimental's, and this engine had none of it: `py-atom`,
 %`py-dot`, `py-list`, `py-tuple`, `py-dict` and `Kwargs` are what the language's
 %own tutorials teach, and every one of them ran unreduced here
 %[source: metta-lang-docs/learn__tutorials__python_use__py_atom.md].
 %
 %`py-call` stays exactly as it is, and the reason is not taste: it is UPSTREAM
-%PeTTa's, so it is one of the few things here that carries a compatibility
+%MeTTa's, so it is one of the few things here that carries a compatibility
 %constraint. It appears nowhere in those tutorials and it converts by janus's
 %defaults, which is why a dict arrives as an atom and a generator arrives
 %drained. This surface has no such constraint and does not repeat any of it.
@@ -62,14 +62,14 @@
 %load time, so an engine that never calls Python never imports anything.
 %The directory is captured at LOAD time, because prolog_load_context/2 has
 %nothing to say once loading is over and this runs on first use.
-:- dynamic petta_py_ready/0.
-:- dynamic petta_py_dir/1.
-:- prolog_load_context(directory, Dir), assertz(petta_py_dir(Dir)).
+:- dynamic metta_py_ready/0.
+:- dynamic metta_py_dir/1.
+:- prolog_load_context(directory, Dir), assertz(metta_py_dir(Dir)).
 
-petta_py_bridge :- petta_py_ready, !.
-petta_py_bridge :- petta_py_dir(Dir),
+metta_py_bridge :- metta_py_ready, !.
+metta_py_bridge :- metta_py_dir(Dir),
                    py_add_lib_dir(Dir),
-                   assertz(petta_py_ready).
+                   assertz(metta_py_ready).
 
 %Everything crosses as an OBJECT. That is the whole policy of this surface and
 %it is why it composes: resolving gives an atom, applying an atom gives an atom,
@@ -78,13 +78,13 @@ petta_py_bridge :- petta_py_dir(Dir),
 %option; primitive subclasses remain references, which is the identity law
 %this bridge requires [tested: bindings/python/tests/test_identity_wire.py;
 %commit=a0f1cc5f15a15e5ca6958fe02a20be8832c7237f].
-petta_py_opts([py_object(true), py_string_as(string)]).
+metta_py_opts([py_object(true), py_string_as(string)]).
 
-petta_py(Call, Goal, Result) :-
-    petta_py_bridge,
-    petta_py_opts(Opts),
-    petta_py_guard(Call, py_call(metta_py:Goal, Raw, Opts)),
-    petta_py_result(Raw, Result).
+metta_py_call(Call, Goal, Result) :-
+    metta_py_bridge,
+    metta_py_opts(Opts),
+    metta_py_guard(Call, py_call(metta_py:Goal, Raw, Opts)),
+    metta_py_result(Raw, Result).
 
 %%%% Failure %%%%
 
@@ -110,21 +110,21 @@ petta_py(Call, Goal, Result) :-
 %[source: bindings/python/tests/test_control_signals.py]. KeyboardInterrupt arrives from
 %Python as an ordinary python_error and would have been converted into a
 %catchable one, which is the same hole by another door.
-petta_py_guard(Call, Goal) :-
-    catch(Goal, Error, petta_py_failure(Call, Error)).
+metta_py_guard(Call, Goal) :-
+    catch(Goal, Error, metta_py_failure(Call, Error)).
 
-petta_py_failure(_, Error) :- control_exception(Error), !, throw(Error).
-petta_py_failure(_, error(python_error(Class, _), _)) :-
-    petta_py_signal_class(Class), !,
+metta_py_failure(_, Error) :- control_exception(Error), !, throw(Error).
+metta_py_failure(_, error(python_error(Class, _), _)) :-
+    metta_py_signal_class(Class), !,
     throw(metta_host_interrupted).
-petta_py_failure(Call, error(python_error(Class, Value), _)) :- !,
-    petta_py_exception_message(Value, Message),
+metta_py_failure(Call, error(python_error(Class, Value), _)) :- !,
+    metta_py_exception_message(Value, Message),
     throw(error(python_error(Class, Message),
                 context(Call, 'while calling Python'))).
-petta_py_failure(_, Error) :- throw(Error).
+metta_py_failure(_, Error) :- throw(Error).
 
-petta_py_signal_class('KeyboardInterrupt').
-petta_py_signal_class('SystemExit').
+metta_py_signal_class('KeyboardInterrupt').
+metta_py_signal_class('SystemExit').
 
 :- multifile prolog:message//1.
 
@@ -136,12 +136,12 @@ petta_py_signal_class('SystemExit').
 %The guard is the trap this file inherits from the engine's own message
 %clauses: janus throws python_error/2 with an UNBOUND context, so a head that
 %binds the context would claim every ordinary janus error and rename it. Two
-%things separate ours: petta_error_context/3 reads a context WITHOUT writing to
+%things separate ours: metta_error_context/3 reads a context WITHOUT writing to
 %it, which is the engine's own guard against exactly this, and the message has
 %already been rendered to a string where janus's second argument is the live
 %exception object [tested: a_python_failure_names_the_metta_call].
 prolog:message(error(python_error(Class, Message), Context)) -->
-    { petta_error_context(Context, Call, 'while calling Python'),
+    { metta_error_context(Context, Call, 'while calling Python'),
       string(Message),
       swrite(Call, CallText) },
     [ 'Python ~w in ~w'-[Class, CallText], nl, '  ~w'-[Message] ],
@@ -182,8 +182,8 @@ unbound_argument_phrase(Positions, Phrase) :-
 %str() of the exception, which is the message without the class name repeated.
 %Rendering can itself fail, a __str__ raising being the obvious way, and the
 %error being reported must not be replaced by the error of reporting it.
-petta_py_exception_message(Value, Message) :-
-    petta_py_opts(Opts),
+metta_py_exception_message(Value, Message) :-
+    metta_py_opts(Opts),
     (   catch(py_call(builtins:str(Value), Text, Opts), _, fail)
     ->  Message = Text
     ;   Message = "the exception's own __str__ raised"
@@ -211,10 +211,10 @@ petta_py_exception_message(Value, Message) :-
 %`if result is None: return [Atoms.UNIT]` in python/hyperon/atoms.py, and
 %UNIT_ATOM is `metta_const!(())`, asserted equal to `Atom::expr([])`, in
 %lib/src/metta/mod.rs.
-petta_py_result('@'(none), Unit) :- !, Unit = [].
-petta_py_result('@'(true), true) :- !.
-petta_py_result('@'(false), false) :- !.
-petta_py_result(Value, Value).
+metta_py_result('@'(none), Unit) :- !, Unit = [].
+metta_py_result('@'(true), true) :- !.
+metta_py_result('@'(false), false) :- !.
+metta_py_result(Value, Value).
 
 %%%% The structural view %%%%
 
@@ -234,8 +234,8 @@ petta_py_result(Value, Value).
 %None inside a tuple reads as `()` here. The carrier itself is left exactly as
 %janus made it, because that is what has to go back.
 seam:grounded_structure(Tuple, Elements) :-
-    petta_py_tuple_arguments(Tuple, Raw),
-    maplist(petta_py_result, Raw, Elements).
+    metta_py_tuple_arguments(Tuple, Raw),
+    maplist(metta_py_result, Raw, Elements).
 
 %And a Python object that IS a sequence, which costs a crossing because the
 %elements live on the other side. PEP 634's rule decides which objects qualify;
@@ -247,7 +247,7 @@ seam:grounded_structure(Tuple, Elements) :-
 seam:grounded_structure(Obj, Elements) :-
     python_object_blob(Obj),
     py_is_object(Obj),
-    petta_py_bridge,
+    metta_py_bridge,
     py_call(metta_py:sequence_length(Obj), Length),
     Length >= 0,
     (   is_list(Elements)
@@ -269,7 +269,7 @@ seam:grounded_structure(Obj, Elements) :-
 %rather than cause [see bindings/python/benchmarks/baseline.json, alpha-unique's
 %instruction_noise_comment]. Doing less work before failing is still right; it
 %is just not worth 10%.
-petta_py_tuple_arguments(Tuple, Arguments) :-
+metta_py_tuple_arguments(Tuple, Arguments) :-
     compound(Tuple),
     compound_name_arity(Tuple, -, _),
     compound_name_arguments(Tuple, -, Arguments).
@@ -284,14 +284,14 @@ petta_py_tuple_arguments(Tuple, Arguments) :-
 %(a list inside a tuple) has a repr but no round-trip text, and a display
 %is presentation, exactly as the answer printers already treat it.
 seam:grounded_text(Tuple, Text) :-
-    petta_py_tuple_arguments(Tuple, Raw),
+    metta_py_tuple_arguments(Tuple, Raw),
     !,
-    maplist(petta_py_result, Raw, Elements),
+    maplist(metta_py_result, Raw, Elements),
     sdisplay(Elements, Text).
 seam:grounded_text(Obj, Text) :-
     python_object_blob(Obj),
     py_is_object(Obj),
-    petta_py_bridge,
+    metta_py_bridge,
     py_call(metta_py:render(Obj), Text).
 
 %%%% Resolution %%%%
@@ -304,7 +304,7 @@ seam:grounded_text(Obj, Text) :-
 %A STRING argument is an expression and a SYMBOL is a name, which is the
 %distinction the language's own surface draws and the reason both fit in one
 %operator.
-'py-atom'(Spec, Result) :- petta_py_resolve(Spec, Result).
+'py-atom'(Spec, Result) :- metta_py_resolve(Spec, Result).
 
 %(py-atom f Type) DECLARES what the resolved atom is, and the declaration is
 %kept rather than accepted and dropped. Everything arriving from Python is
@@ -331,13 +331,13 @@ seam:grounded_text(Obj, Text) :-
 %way to say something MeTTa could not already say.
 'py-atom'(Spec, Type, Result) :-
     (   nonvar(Type), Type == 'Grounded'
-    ->  petta_py_resolve_grounded(Spec, Resolved)
-    ;   petta_py_resolve(Spec, Resolved)
+    ->  metta_py_resolve_grounded(Spec, Resolved)
+    ;   metta_py_resolve(Spec, Resolved)
     ),
     (   var(Type)
     ->  Result = Resolved
     ;   Type == 'Expression'
-    ->  petta_py_materialize(Resolved, Result)
+    ->  metta_py_materialize(Resolved, Result)
     ;   Result = Resolved,
         assert_declared_python_type(Result, Type)
     ).
@@ -350,28 +350,28 @@ seam:grounded_text(Obj, Text) :-
 %Deep rather than one level, because a declared Expression that turned out to
 %hold handles one layer down would be neither reading. One level is spelled
 %`(collapse (py-iter x))` and is still there for anyone who wants it.
-petta_py_materialize(Value, Expression) :-
-    petta_py_materialize_(Value, [], Expression).
+metta_py_materialize(Value, Expression) :-
+    metta_py_materialize_(Value, [], Expression).
 
-petta_py_materialize_(Value, Seen, Expression) :-
+metta_py_materialize_(Value, Seen, Expression) :-
     (   seam:grounded_structure(Value, Elements)
-    ->  petta_py_cycle_check(Value, Seen, Deeper),
-        maplist(petta_py_materialize_r(Deeper), Elements, Expression)
+    ->  metta_py_cycle_check(Value, Seen, Deeper),
+        maplist(metta_py_materialize_r(Deeper), Elements, Expression)
     ;   Expression = Value
     ).
 
-petta_py_materialize_r(Seen, Value, Expression) :-
-    petta_py_materialize_(Value, Seen, Expression).
+metta_py_materialize_r(Seen, Value, Expression) :-
+    metta_py_materialize_(Value, Seen, Expression).
 
 %A Python container may hold itself, and materializing one is not a slow answer
 %but no answer: it recurses until the stack goes. Say so instead, because the
 %value is fine and only this reading of it is impossible.
-petta_py_cycle_check(Value, Seen, [Id|Seen]) :-
+metta_py_cycle_check(Value, Seen, [Id|Seen]) :-
     (   python_object_blob(Value),
         py_is_object(Value)
     ->  py_call(builtins:id(Value), Id),
         (   memberchk(Id, Seen)
-        ->  throw(error(petta_cyclic_python_value(Value),
+        ->  throw(error(metta_cyclic_python_value(Value),
                         context('py-atom'/3,
                                 'a value that contains itself has no \c
                                  Expression reading; hold it as Grounded')))
@@ -380,19 +380,19 @@ petta_py_cycle_check(Value, Seen, [Id|Seen]) :-
     ;   Id = Value            %a tuple is finite by construction
     ).
 
-:- dynamic petta_py_declared_type/2.
+:- dynamic metta_py_declared_type/2.
 :- multifile seam:grounded_extra_type/2.
 
 %Keyed on the object, and recorded once: resolving the same name twice gives
 %the same Python object, so a repeated (py-atom f T) must not stack duplicate
 %type candidates and make get-type answer twice.
 assert_declared_python_type(Obj, Type) :-
-    (   petta_py_declared_type(Obj, Existing), Existing == Type
+    (   metta_py_declared_type(Obj, Existing), Existing == Type
     ->  true
-    ;   assertz(petta_py_declared_type(Obj, Type))
+    ;   assertz(metta_py_declared_type(Obj, Type))
     ).
 
-seam:grounded_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
+seam:grounded_extra_type(Obj, Type) :- metta_py_declared_type(Obj, Type).
 
 %The class walk, this host's clause of the fallback seam: every visible class
 %on the value's MRO except object, each a type candidate, which is what lets a
@@ -405,7 +405,7 @@ seam:grounded_extra_type(Obj, Type) :- petta_py_declared_type(Obj, Type).
 %test_a_python_tuple_answers_the_same_through_both_doors].
 :- multifile seam:grounded_class_type/2.
 seam:grounded_class_type(X, T) :-
-    petta_py_bridge,
+    metta_py_bridge,
     py_call(metta_py:class_names(X), Names, [py_string_as(string)]),
     member(Name, Names),
     ( atom(Name) -> T = Name ; atom_string(T, Name) ).
@@ -413,23 +413,23 @@ seam:grounded_class_type(X, T) :-
 %The standard numeric tower is the admission rule, rather than an MRO class
 %name: numpy.int64 is a Number without inheriting builtins.int. Execution goes
 %through one guarded bridge call so Python owns reflected-operator selection and
-%the result remains a reference under petta_py_opts/1.
+%the result remains a reference under metta_py_opts/1.
 seam:grounded_numeric(X) :-
     python_object_blob(X),
-    petta_py_bridge,
+    metta_py_bridge,
     py_call(metta_py:is_numeric(X), @true).
 
 seam:grounded_numeric_operation(Operation, Arguments, Result) :-
     member(Operand, Arguments),
     python_object_blob(Operand), !,
-    petta_py([Operation|Arguments],
+    metta_py_call([Operation|Arguments],
              numeric_operation(Operation, Arguments), Result).
 
-petta_py_resolve(Spec, Result) :-
+metta_py_resolve(Spec, Result) :-
     (   string(Spec)
-    ->  petta_py(['py-atom', Spec], evaluate(Spec), Result)
+    ->  metta_py_call(['py-atom', Spec], evaluate(Spec), Result)
     ;   atom(Spec)
-    ->  petta_py(['py-atom', Spec], resolve(Spec), Result)
+    ->  metta_py_call(['py-atom', Spec], resolve(Spec), Result)
     ;   throw(error(type_error(python_name, Spec),
                     context('py-atom'/2,
                             'a symbol names a Python object and a string is a \c
@@ -441,12 +441,12 @@ petta_py_resolve(Spec, Result) :-
 %exact value, which Janus therefore carries as a reference. Every bridge call
 %unwraps it before applying Python, so Grounded means a handle without changing
 %the value Python receives.
-petta_py_resolve_grounded(Spec, Result) :-
+metta_py_resolve_grounded(Spec, Result) :-
     (   string(Spec)
-    ->  petta_py(['py-atom', Spec, 'Grounded'],
+    ->  metta_py_call(['py-atom', Spec, 'Grounded'],
                  evaluate_grounded(Spec), Result)
     ;   atom(Spec)
-    ->  petta_py(['py-atom', Spec, 'Grounded'],
+    ->  metta_py_call(['py-atom', Spec, 'Grounded'],
                  resolve_grounded(Spec), Result)
     ;   throw(error(type_error(python_name, Spec),
                     context('py-atom'/3,
@@ -457,29 +457,29 @@ petta_py_resolve_grounded(Spec, Result) :-
 %(py-dot obj attr) READS an attribute. py-call's `.name` spelling always calls,
 %so a property, a bound method taken as a value, or a plain field needed
 %getattr by hand.
-'py-dot'(Obj, Attr, Result) :- petta_py(['py-dot', Obj, Attr], dot(Obj, Attr), Result).
+'py-dot'(Obj, Attr, Result) :- metta_py_call(['py-dot', Obj, Attr], dot(Obj, Attr), Result).
 
 %%%% Construction %%%%
 
 %MeTTa could receive Python's containers and not build them. `(py-list (1 2 3))`
 %and its siblings close that, and they take a MeTTa expression rather than a
 %variadic call so that a computed list works: `(py-list (collapse (foo)))`.
-'py-list'(Items, Result) :- petta_py_items(Items, 'py-list', List),
-                            petta_py(['py-list', Items], build_list(List), Result).
-'py-tuple'(Items, Result) :- petta_py_items(Items, 'py-tuple', List),
-                             petta_py(['py-tuple', Items], build_tuple(List), Result).
-'py-dict'(Pairs, Result) :- petta_py_items(Pairs, 'py-dict', List),
-                            maplist(petta_py_pair, List, Converted),
-                            petta_py(['py-dict', Pairs], build_dict(Converted), Result).
+'py-list'(Items, Result) :- metta_py_items(Items, 'py-list', List),
+                            metta_py_call(['py-list', Items], build_list(List), Result).
+'py-tuple'(Items, Result) :- metta_py_items(Items, 'py-tuple', List),
+                             metta_py_call(['py-tuple', Items], build_tuple(List), Result).
+'py-dict'(Pairs, Result) :- metta_py_items(Pairs, 'py-dict', List),
+                            maplist(metta_py_pair, List, Converted),
+                            metta_py_call(['py-dict', Pairs], build_dict(Converted), Result).
 
-petta_py_items(Items, Who, List) :-
+metta_py_items(Items, Who, List) :-
     (   is_list(Items)
     ->  maplist(py_arg_norm, Items, List)
     ;   throw(error(type_error(expression, Items),
                     context(Who/2, 'takes one expression of items')))
     ).
 
-petta_py_pair(Pair, [Key, Value]) :-
+metta_py_pair(Pair, [Key, Value]) :-
     (   Pair = [Key0, Value0]
     ->  py_arg_norm(Key0, Key), py_arg_norm(Value0, Value)
     ;   throw(error(type_error(pair, Pair),
@@ -499,14 +499,14 @@ petta_py_pair(Pair, [Key, Value]) :-
 seam:grounded_apply(Obj, Args, Result) :-
     python_object_blob(Obj),
     py_is_object(Obj),
-    petta_py_bridge,
+    metta_py_bridge,
     py_call(metta_py:is_callable(Obj), @true),
-    petta_py_split_kwargs(Args, Positional0, Kwargs),
+    metta_py_split_kwargs(Args, Positional0, Kwargs),
     maplist(py_arg_norm, Positional0, Positional),
-    petta_py_opts(Opts),
-    petta_py_guard([Obj|Args],
+    metta_py_opts(Opts),
+    metta_py_guard([Obj|Args],
                    py_call(metta_py:apply(Obj, Positional, Kwargs), Raw, Opts)),
-    petta_py_result(Raw, Result).
+    metta_py_result(Raw, Result).
 
 :- multifile seam:grounded_applicable/1.
 
@@ -527,14 +527,14 @@ seam:grounded_apply(Obj, Args, Result) :-
 seam:grounded_applicable(Obj) :-
     python_object_blob(Obj),
     py_is_object(Obj),
-    petta_py_bridge,
+    metta_py_bridge,
     py_call(metta_py:is_callable(Obj), @true).
 
 %(Kwargs (start 2) (stop 10)) in the argument list, which is the language's own
 %spelling. Anything before it is positional.
-petta_py_split_kwargs(Args, Positional, Kwargs) :-
+metta_py_split_kwargs(Args, Positional, Kwargs) :-
     (   append(Positional, [['Kwargs'|Pairs]], Args)
-    ->  maplist(petta_py_kwarg, Pairs, Converted),
+    ->  maplist(metta_py_kwarg, Pairs, Converted),
         dict_pairs(Kwargs, py, Converted)
     ;   Positional = Args, Kwargs = py{}
     ).
@@ -542,14 +542,14 @@ petta_py_split_kwargs(Args, Positional, Kwargs) :-
 %The pair arrives unevaluated, so the NAME is a name and the VALUE is whatever
 %was written. Evaluating the value here is what keeps `(Kwargs (n (+ 1 2)))`
 %meaning 3 while `(Kwargs (reverse true))` still means the keyword `reverse`.
-petta_py_kwarg([Name, Value0], Name-Value) :-
+metta_py_kwarg([Name, Value0], Name-Value) :-
     !,
     (   is_list(Value0), Value0 \== []
     ->  reduce(Value0, Evaluated, _)
     ;   Evaluated = Value0
     ),
     py_arg_norm(Evaluated, Value).
-petta_py_kwarg(Other, _) :-
+metta_py_kwarg(Other, _) :-
     throw(error(type_error(keyword_argument, Other),
                 context('Kwargs'/1, 'takes (name value) pairs'))).
 
@@ -563,10 +563,10 @@ petta_py_kwarg(Other, _) :-
 %
 %py_iter/2 is janus's lazy path and backtracks with one-item lookahead.
 'py-iter'(Obj, Element) :-
-    petta_py_bridge,
-    petta_py_opts(Opts),
-    petta_py_guard(['py-iter', Obj], py_iter(metta_py:iterate(Obj), Raw, Opts)),
-    petta_py_result(Raw, Element).
+    metta_py_bridge,
+    metta_py_opts(Opts),
+    metta_py_guard(['py-iter', Obj], py_iter(metta_py:iterate(Obj), Raw, Opts)),
+    metta_py_result(Raw, Element).
 
 
 %%%% The Python surface the engine used to carry %%%%
@@ -624,7 +624,7 @@ py_arg_norm(L, L1) :- is_list(L), !, maplist(py_arg_norm, L, L1).
 %non-object argument; metta_py:unboxed/1 is _unwrap, the same law
 %apply/3 already runs on its own route.
 py_arg_norm(X, Y) :- python_object_blob(X), py_is_object(X), !,
-                     petta_py_bridge,
+                     metta_py_bridge,
                      py_call(metta_py:unboxed(X), Y, [py_object(true)]).
 py_arg_norm(X, X).
 
@@ -718,7 +718,7 @@ resolve_python_import_path(File, CanonPath) :-
 
 python_module_names(CanonPath, ModuleKey, ModuleName) :-
     crypto_data_hash(CanonPath, Hash, [algorithm(sha256)]),
-    atom_concat('_petta_import_', Hash, ModuleKey),
+    atom_concat('_metta_import_', Hash, ModuleKey),
     file_base_name(CanonPath, BaseName),
     file_name_extension(ModuleName, _, BaseName).
 
@@ -817,6 +817,6 @@ metta_host_transport_failure(error(python_error('TransportFailure', _), _)).
 :- multifile metta_host_error_reason/2.
 metta_host_error_reason(error(python_error(Class, Message0), _), Reason) :-
     (   string(Message0) -> Message = Message0
-    ;   petta_py_exception_message(Message0, Message)
+    ;   metta_py_exception_message(Message0, Message)
     ),
     format(string(Reason), "~w: ~w", [Class, Message]).

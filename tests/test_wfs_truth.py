@@ -17,7 +17,7 @@ Open Obligations:
 
 import pytest
 
-from metta import PettaError
+from metta import MettaError
 from metta._engine import bridge
 from metta.atoms import Undefined
 from metta.errors import EngineError
@@ -51,7 +51,7 @@ def test_undefined_answers_cross_as_undefined(m, wfs_program):  # noqa: ARG001, 
     assert isinstance(answer, Undefined)
     assert "wfs_loop" in answer.why
     assert not hasattr(answer, "residual")
-    with pytest.raises(PettaError, match="undefined"):
+    with pytest.raises(MettaError, match="undefined"):
         bool(answer)
 
 

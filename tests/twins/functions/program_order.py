@@ -14,6 +14,20 @@ against P14.4.
 
 from metta import S, equation
 
+
+def twin(m):
+    """Call before the definition, then after it."""
+    respond = S.p121_example_respond
+
+    # Nothing defines it yet, so the call answers ITSELF.
+    assert m.eval(respond(S.me)) == [respond(S.me)]
+
+    # (= (p121-example-respond me) hello)
+    m += equation(respond(S.me)).to(S.hello)  # rung: the head fixes a SYMBOL
+
+    assert m.eval(respond(S.me)) == [S.hello]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -25,7 +39,7 @@ from metta import S, equation
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -58,16 +72,3 @@ from metta import S, equation
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
 BUDGET = 1017
-
-
-def twin(m):
-    """Call before the definition, then after it."""
-    respond = S.p121_example_respond
-
-    # Nothing defines it yet, so the call answers ITSELF.
-    assert m.eval(respond(S.me)) == [respond(S.me)]
-
-    # (= (p121-example-respond me) hello)
-    m += equation(respond(S.me)).to(S.hello)  # rung: the head fixes a SYMBOL
-
-    assert m.eval(respond(S.me)) == [S.hello]

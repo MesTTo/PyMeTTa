@@ -43,7 +43,7 @@ from .atoms import Expression, Symbol, Variable, _encode
 __all__ = ["Rules", "equation", "rules"]
 
 _STAGING_DEFINED_CALLS: contextvars.ContextVar[list[LintEvent] | None] = contextvars.ContextVar(
-    "petta_staging_defined_calls",
+    "metta_staging_defined_calls",
     default=None,
 )
 
@@ -165,7 +165,7 @@ class Rules(tuple[Expression, ...]):
             )
             for head in heads
         ]
-        catalog = space._at("&petta")
+        catalog = space._at("&metta")
         catalog.add(*declarations)
         for head in heads:
             answers = space.eval(Expression([Symbol("add-translator-rule!"), head]))

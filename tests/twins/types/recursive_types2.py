@@ -19,6 +19,39 @@ the name of the symbol factory, so it is written `S.S`.
 
 from metta import FALSE, TRUE, S, arrow, equation, typed
 
+
+class Nat:
+    """The MeTTa type `Nat`, so the three arrows can be built from Python types."""
+
+
+def twin(m):
+    """Build two Peano numbers and compare them."""
+    succ = S.S
+
+    # (: Z Nat) (: S (-> Nat Nat)) (: Greater (-> Nat Nat Bool))
+    m += typed(S.Z, Nat)
+    m += typed(succ, arrow(Nat, Nat))
+    m += typed(S.Greater, arrow(Nat, Nat, bool))
+
+    @m.rules
+    def order(smaller, larger):
+        """The example's three clauses, over two shared rule variables."""
+        # (= (Greater (S $x) Z) True)
+        yield equation(S.Greater(succ(smaller), S.Z)).to(TRUE)
+        # (= (Greater Z $x) False)
+        yield equation(S.Greater(S.Z, smaller)).to(FALSE)
+        # (= (Greater (S $x) (S $y)) (Greater $x $y))
+        yield equation(S.Greater(succ(smaller), succ(larger))).to(
+            S.Greater(smaller, larger)
+        )
+
+    one, two = succ(S.Z), succ(succ(S.Z))
+    # !(test (Greater (S Z) (S Z)) false)
+    assert m.fn.Greater(one, one) == [False]
+    # !(test (Greater (S (S Z)) (S Z)) true)
+    assert m.fn.Greater(two, one) == [True]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -29,7 +62,7 @@ from metta import FALSE, TRUE, S, arrow, equation, typed
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -82,33 +115,3 @@ from metta import FALSE, TRUE, S, arrow, equation, typed
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 11742
-class Nat:
-    """The MeTTa type `Nat`, so the three arrows can be built from Python types."""
-
-
-def twin(m):
-    """Build two Peano numbers and compare them."""
-    succ = S.S
-
-    # (: Z Nat) (: S (-> Nat Nat)) (: Greater (-> Nat Nat Bool))
-    m += typed(S.Z, Nat)
-    m += typed(succ, arrow(Nat, Nat))
-    m += typed(S.Greater, arrow(Nat, Nat, bool))
-
-    @m.rules
-    def order(smaller, larger):
-        """The example's three clauses, over two shared rule variables."""
-        # (= (Greater (S $x) Z) True)
-        yield equation(S.Greater(succ(smaller), S.Z)).to(TRUE)
-        # (= (Greater Z $x) False)
-        yield equation(S.Greater(S.Z, smaller)).to(FALSE)
-        # (= (Greater (S $x) (S $y)) (Greater $x $y))
-        yield equation(S.Greater(succ(smaller), succ(larger))).to(
-            S.Greater(smaller, larger)
-        )
-
-    one, two = succ(S.Z), succ(succ(S.Z))
-    # !(test (Greater (S Z) (S Z)) false)
-    assert m.fn.Greater(one, one) == [False]
-    # !(test (Greater (S (S Z)) (S Z)) true)
-    assert m.fn.Greater(two, one) == [True]

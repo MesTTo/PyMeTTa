@@ -27,7 +27,7 @@ except ImportError:
 from metta import MeTTa, S, V, Expression
 from metta import wire
 from metta.atoms import Atom, Expression, Grounded, Symbol, Variable
-from metta.errors import PettaError
+from metta.errors import MettaError
 from metta.foreign import SpaceProvider
 
 # SQL NULL as an atom: the symbol NULL, SQL's own name for it. A string
@@ -91,7 +91,7 @@ class DuckDBSpace(SpaceProvider):
             [table],
         ).fetchall()
         if not rows:
-            raise PettaError(f"no table {table!r} in this DuckDB space")
+            raise MettaError(f"no table {table!r} in this DuckDB space")
         return [r[0] for r in rows]
 
     # ---------------------------------------------------------------- matching
@@ -208,11 +208,11 @@ class DuckDBSpace(SpaceProvider):
 
     def _row_of(self, atom: Atom, verb: str) -> tuple[str, list[Any]]:
         if not (isinstance(atom, Expression) and atom.children and isinstance(atom.head, Symbol)):
-            raise PettaError(f"cannot {verb} {atom}: a row is (table values...)")
+            raise MettaError(f"cannot {verb} {atom}: a row is (table values...)")
         table = atom.head.name
         columns = self.columns(table)
         if len(atom.args) != len(columns):
-            raise PettaError(
+            raise MettaError(
                 f"cannot {verb} {atom}: {table} has columns {columns}"
             )
         values = []
@@ -220,7 +220,7 @@ class DuckDBSpace(SpaceProvider):
             if isinstance(arg, (Grounded, Symbol)):
                 values.append(_to_sql_value(arg))
             else:
-                raise PettaError(f"cannot {verb} {atom}: {arg} is not a value")
+                raise MettaError(f"cannot {verb} {atom}: {arg} is not a value")
         return table, values
 
 

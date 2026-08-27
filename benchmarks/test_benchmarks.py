@@ -101,7 +101,7 @@ _ROWS = 2_000
 # 6152/86805/1377097 before and 9267/136002/2163602 after, while the accepted
 # 12/15/18/20 minima are the four rows below.
 # RE-PINNED 2026-08-25, plain +3/+3/+3/+5 and automatic +3 at every
-# size, after petta_function_eval/3 became an emitted helper available in each
+# size, after metta_function_eval/3 became an emitted helper available in each
 # execution module.  The change is fixed setup and final program-layout cost:
 # both growth classes are unchanged, and only the n=20 plain floor exceeds the
 # four-inference allowance.
@@ -182,7 +182,7 @@ def _automatic_tabling_sample(n: int, mode: str) -> int:
     try:
         space.run("!(pragma! max-stack-depth 100000000)")
         if mode == "plain":
-            space.run(f"!(add-atom &petta {declaration})")
+            space.run(f"!(add-atom &metta {declaration})")
         space.run(
             f"""
             (= ({name} $n)
@@ -199,7 +199,7 @@ def _automatic_tabling_sample(n: int, mode: str) -> int:
         return stats.inferences
     finally:
         if mode == "plain":
-            space.run(f"!(remove-atom &petta {declaration})")
+            space.run(f"!(remove-atom &metta {declaration})")
         space.drop()
 
 
@@ -902,7 +902,7 @@ def test_space_name(benchmark, inference_baseline):
 
 
 def _save_state(format):
-    directory = TemporaryDirectory(prefix="petta-benchmark-")
+    directory = TemporaryDirectory(prefix="metta-benchmark-")
     source = _empty_space()
     target = _empty_space()
     source.add(*(S["benchmark-save-node"](i, i + 1) for i in range(20_000)))
@@ -945,7 +945,7 @@ def _save_case(benchmark, baseline, format):
 
 
 def _file_load_state():
-    directory = TemporaryDirectory(prefix="petta-benchmark-")
+    directory = TemporaryDirectory(prefix="metta-benchmark-")
     source = _empty_space()
     source.add(*(S["benchmark-load-node"](i, i + 1) for i in range(20_000)))
     source.run("(= (benchmark-load-next $x) (+ $x 1))")

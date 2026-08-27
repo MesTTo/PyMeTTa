@@ -18,6 +18,36 @@ Open Obligations:
 
 from metta import Expression, S, superpose
 
+
+def twin(m):
+    """Fan out four numbers, filter them, and dispatch what survives."""
+    @m.define
+    def f(_x):
+        # (= (f $x) 42): the head variable the body never reads
+        return 42
+
+    @m.define
+    def progme():
+        # (= (progme)
+        #    (let $y (superpose (2 3 4 5))
+        #            (if (> $y 2)
+        #                (case (1 $y) (((1 3) (f 0)) ((1 4) (42 42)) ($else (42 42 42))))
+        #                answertoeverything)))
+        y = superpose(2, 3, 4, 5)
+        if y > 2:
+            match 1, y:
+                case (1, 3):
+                    return f(0)
+                case (1, 4):
+                    return 42, 42
+                case _:
+                    return 42, 42, 42
+        return S.answertoeverything
+
+    # !(test (collapse (progme)) (answertoeverything 42 (42 42) (42 42 42)))
+    assert progme() == [S.answertoeverything, 42, Expression((42, 42)), Expression((42, 42, 42))]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -27,7 +57,7 @@ from metta import Expression, S, superpose
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -76,30 +106,3 @@ from metta import Expression, S, superpose
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 11853
-def twin(m):
-    """Fan out four numbers, filter them, and dispatch what survives."""
-    @m.define
-    def f(_x):
-        # (= (f $x) 42): the head variable the body never reads
-        return 42
-
-    @m.define
-    def progme():
-        # (= (progme)
-        #    (let $y (superpose (2 3 4 5))
-        #            (if (> $y 2)
-        #                (case (1 $y) (((1 3) (f 0)) ((1 4) (42 42)) ($else (42 42 42))))
-        #                answertoeverything)))
-        y = superpose(2, 3, 4, 5)
-        if y > 2:
-            match 1, y:
-                case (1, 3):
-                    return f(0)
-                case (1, 4):
-                    return 42, 42
-                case _:
-                    return 42, 42, 42
-        return S.answertoeverything
-
-    # !(test (collapse (progme)) (answertoeverything 42 (42 42) (42 42 42)))
-    assert progme() == [S.answertoeverything, 42, Expression((42, 42)), Expression((42, 42, 42))]

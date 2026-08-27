@@ -34,72 +34,7 @@ import metta
 from metta import Atom, S, arrow, equation, fn, typed
 from metta.vocabularies import NoMatchEnum
 
-#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
-#: measurement: the twins wave prices the whole corpus in one re-pin pass on
-#: the merged tree, and a number measured in this worktree would pin a cost
-#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
-#: integrator; commit=8fd49997be43f7909c3582062138c5011df7e811].
-#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
-#: RE-PINNED 2026-08-25, 21974 to 0, at the flat-door
-#: typed-dispatch gate and the library import door landing
-#: together: every flat call prices one declaration read through
-#: type_declaration_in/3, a declared head's flat call routes
-#: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
-#: residue retirement), and an import-bearing twin now spells
-#: its import as `m += lib.x` on the write door [measured
-#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
-#: on the tree carrying both].
-#: RE-PINNED 2026-08-25, at the P14.32 gate closing the fast path: the
-#: rule-path claim moved to the bare written call (the prelude's own
-#: double-noeval hand-back idiom; the pre-gate fast path had pinned the
-#: equation-path answer), and the corpus reprice had recorded this twin's
-#: failed run as 0 [measured 2026-08-25, tools/twin_coverage.py, min-of-2
-#: identical at 22742 on the final tree].
-#: RE-PINNED 2026-08-25, 22742 to 22682, on the release tree:
-#: the typed-dispatch question moved engine-side
-#: (metta_typed_dispatch_applies/2, one extra frame per direct
-#: call), the conformance kit gained the family, source and
-#: round-trip laws, extensions gained the spaces([...]) readying
-#: moment, and any boot-content change also moves counts a few
-#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
-#: carries the A/B), so the corpus re-pins once on the exact
-#: shipping tree [measured 2026-08-25 through
-#: tools/twin_coverage.py --measure min-of-3 after a canonical
-#: single-boot QLF regeneration].
-#: RE-PINNED 2026-08-25, 22682 to 22702, at the release cut: the
-#: identity-wire merge (numeric ownership seams, exact-primitive
-#: wire, Python operator dispatch), the rules-body staging split
-#: (ground folds, op-call staging), and the door-combinations
-#: example growing the corpus each move counts through SWI's
-#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
-#: so the whole corpus re-pins once on the exact release tree
-#: [measured 2026-08-25 through tools/twin_coverage.py --measure
-#: min-of-3 after a canonical single-boot QLF regeneration].
-#: RE-PINNED 2026-08-26, 22702 to 22933 (+231), by the open-tail-index
-#: pricing pass, one sweep over the whole corpus after four attributed
-#: engine movements: the writable-specialization merge 5c731b03 prices
-#: each lazily translated match-bearing equation (~+1,500, first-call
-#: probe 2,208 to 3,724 across that merge alone;
-#: ai-brief-p14-specializer-translation-tax names the follow-up), the
-#: relational-candidate rows of 6917bef7, and the open-tail head-index
-#: and deprecation apply-seam fixes recovering their shares; the
-#: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-#: RE-PINNED 2026-08-26, 22933 to 22968 (+35), on the composed
-#: async-scheduler tree: a live operation call pays the six-inference
-#: admission probe the baseline's p14_async_scheduler_comment prices,
-#: and the scheduler, context-callback and exact-memo lifecycle clauses
-#: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-#: RE-PINNED 2026-08-26, 22968 to 22973 (+5), at the tabling-seam
-#: merge: compiled-image layout from the library's dispatch and
-#: reflection clauses, the tens-scale class this file's chain documents
-#: [measured: min-of-3 serial fresh processes; command=python
-#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
-#: fixture=tabling-seam merged tree with engine/reader.so;
-#: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
-BUDGET = 22973
+
 def twin(m):
     """Register five guarded rules, and ask each of them a hit and a miss."""
     metta.reflection += (
@@ -197,3 +132,71 @@ def twin(m):
         yield S.bw_two
 
     assert both_ways(S.q) == [S.bw_one, S.bw_two]
+
+
+#: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
+#: measurement: the twins wave prices the whole corpus in one re-pin pass on
+#: the merged tree, and a number measured in this worktree would pin a cost
+#: the merge moves [assumed 2026-08-24: unpriced placeholder, re-pinned by the
+#: integrator; commit=8fd49997be43f7909c3582062138c5011df7e811].
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 21974 to 0, at the flat-door
+#: typed-dispatch gate and the library import door landing
+#: together: every flat call prices one declaration read through
+#: type_declaration_in/3, a declared head's flat call routes
+#: through the same call-site typed dispatch the engine's own
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
+#: residue retirement), and an import-bearing twin now spells
+#: its import as `m += lib.x` on the write door [measured
+#: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
+#: on the tree carrying both].
+#: RE-PINNED 2026-08-25, at the P14.32 gate closing the fast path: the
+#: rule-path claim moved to the bare written call (the prelude's own
+#: double-noeval hand-back idiom; the pre-gate fast path had pinned the
+#: equation-path answer), and the corpus reprice had recorded this twin's
+#: failed run as 0 [measured 2026-08-25, tools/twin_coverage.py, min-of-2
+#: identical at 22742 on the final tree].
+#: RE-PINNED 2026-08-25, 22742 to 22682, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+#: RE-PINNED 2026-08-25, 22682 to 22702, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+#: RE-PINNED 2026-08-26, 22702 to 22933 (+231), by the open-tail-index
+#: pricing pass, one sweep over the whole corpus after four attributed
+#: engine movements: the writable-specialization merge 5c731b03 prices
+#: each lazily translated match-bearing equation (~+1,500, first-call
+#: probe 2,208 to 3,724 across that merge alone;
+#: ai-brief-p14-specializer-translation-tax names the follow-up), the
+#: relational-candidate rows of 6917bef7, and the open-tail head-index
+#: and deprecation apply-seam fixes recovering their shares; the
+#: remainder is compiled-image layout, the class this file's own chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: RE-PINNED 2026-08-26, 22933 to 22968 (+35), on the composed
+#: async-scheduler tree: a live operation call pays the six-inference
+#: admission probe the baseline's p14_async_scheduler_comment prices,
+#: and the scheduler, context-callback and exact-memo lifecycle clauses
+#: move compiled-image layout by tens, the class this file's chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: RE-PINNED 2026-08-26, 22968 to 22973 (+5), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
+BUDGET = 22973

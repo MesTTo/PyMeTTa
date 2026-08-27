@@ -156,10 +156,10 @@ def _acknowledge(descriptor: int) -> None:
 
 def _controlled(operation) -> int:
     try:
-        control = int(os.environ["PETTA_PERF_CONTROL_FD"])
-        acknowledge = int(os.environ["PETTA_PERF_ACK_FD"])
+        control = int(os.environ["METTA_PERF_CONTROL_FD"])
+        acknowledge = int(os.environ["METTA_PERF_ACK_FD"])
         close_descriptors = tuple(
-            int(value) for value in os.environ["PETTA_PERF_CLOSE_FDS"].split(",")
+            int(value) for value in os.environ["METTA_PERF_CLOSE_FDS"].split(",")
         )
     except (KeyError, ValueError) as error:
         raise RuntimeError("controlled perf descriptors are missing or invalid") from error

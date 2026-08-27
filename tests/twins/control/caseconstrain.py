@@ -28,12 +28,6 @@ Open Obligations:
 
 from metta import Expression
 
-#: PLACEHOLDER, never measured in this worktree: the integrator's single
-#: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
-#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
-BUDGET = 5
-
 
 def twin(m):  # noqa: ARG001  -- the engine is unreachable here: the example's cons pattern needs a star arm, which the compiled subset refuses, and the destructuring it demonstrates is native Python (residue, P14.4)
     """Take the head of an expression, the way Python takes it."""
@@ -51,3 +45,10 @@ def twin(m):  # noqa: ARG001  -- the engine is unreachable here: the example's c
     head, *tail = Expression((1, 2, 3))
     assert head == 1
     assert tail == [2, 3]
+
+
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+BUDGET = 5

@@ -93,7 +93,7 @@ def test_engine_wire_round_trip(metta_session, atom):
     # _T stays goal-internal: janus cannot convert an unbound variable back
     # to Python, and a decoded Variable is exactly that.
     row = rt.once(
-        "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)", W=atom.to_wire()
+        "metta_py_decode_shared(W, _T, _), metta_py_encode(_T, W2)", W=atom.to_wire()
     )
     assert wire.from_wire(row["W2"]).alpha_eq(atom)
 
@@ -123,13 +123,13 @@ def test_every_generated_atom_survives_the_write_parse_round_trip(
     """The writer either closes the reader loop or refuses before text exists."""
     rt = metta_session.runtime
     try:
-        printed = rt.once("petta_py_swrite(W, Str)", W=atom.to_wire())["Str"]
+        printed = rt.once("metta_py_swrite(W, Str)", W=atom.to_wire())["Str"]
     except EngineError as error:
         message = str(error)
         assert "cannot write" in message
         assert "read back as a different value" in message
         return
-    reread = rt.once("petta_py_parse(Src, W2)", Src=printed)["W2"]
+    reread = rt.once("metta_py_parse(Src, W2)", Src=printed)["W2"]
     assert wire.from_wire(reread).alpha_eq(atom)
 
 
@@ -138,8 +138,8 @@ def test_swrite_writes_mettas_own_boolean_literal(metta_session):
     rt = metta_session.runtime
     true_atom = metta_session.parse("True")
     false_atom = metta_session.parse("False")
-    assert rt.once("petta_py_swrite(W, Str)", W=true_atom.to_wire())["Str"] == "True"
-    assert rt.once("petta_py_swrite(W, Str)", W=false_atom.to_wire())["Str"] == "False"
+    assert rt.once("metta_py_swrite(W, Str)", W=true_atom.to_wire())["Str"] == "True"
+    assert rt.once("metta_py_swrite(W, Str)", W=false_atom.to_wire())["Str"] == "False"
 
 
 @given(_atoms(), _atoms())
@@ -215,7 +215,7 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     rt = metta_session.runtime
     row = rt.once(
-        "petta_py_decode_shared(W, _T, _), petta_py_encode(_T, W2)",
+        "metta_py_decode_shared(W, _T, _), metta_py_encode(_T, W2)",
         W=Symbol("true").to_wire(),
     )
     assert wire.from_wire(row["W2"]) == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch

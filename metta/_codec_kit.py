@@ -112,7 +112,7 @@ def _corpus_path() -> Path:
     # the engine is only where the file happens to live.
     from . import _engine  # noqa: PLC0415
 
-    path = Path(_engine._resolve_petta_path()) / "tests" / "codec" / "corpus.json"
+    path = Path(_engine._resolve_metta_path()) / "tests" / "codec" / "corpus.json"
     if not path.is_file():
         msg = (
             f"the codec corpus is not at {path}; a checkout carries it at "

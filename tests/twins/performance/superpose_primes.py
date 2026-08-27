@@ -34,6 +34,33 @@ Open Obligations:
 
 from metta import TRUE, Expression, S, fn
 
+#: The branch allowance these searches state above the evaluator's 100000
+#: default. `m.limits` bounds inferences and time, not stack depth.
+DEEP = (S.max_stack_depth(1_000_000),)
+
+
+def twin(m):
+    """Define trial division, then ask it about four primes."""
+
+    @m.define
+    def find_divisor(n, test_divisor):
+        if test_divisor * test_divisor > n:
+            return n
+        if fn.eq(0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
+            return test_divisor
+        return find_divisor(n, test_divisor + 1)
+
+    @m.define(name="prime?")
+    def prime(n):
+        return fn.eq(n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
+
+    # Four searches share one branch budget, so the benchmark states a finite
+    # allowance above the evaluator's 100000 default.
+    searches = (S["prime?"](53537257), S["prime?"](53781811),
+                S["prime?"](54218443), S["prime?"](54734431))
+    assert m.fn.with_pragma(DEEP, searches) == [Expression((TRUE, TRUE, TRUE, TRUE))]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -45,7 +72,7 @@ from metta import TRUE, Expression, S, fn
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -94,28 +121,3 @@ from metta import TRUE, Expression, S, fn
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 668015
-#: The branch allowance these searches state above the evaluator's 100000
-#: default. `m.limits` bounds inferences and time, not stack depth.
-DEEP = (S.max_stack_depth(1_000_000),)
-
-
-def twin(m):
-    """Define trial division, then ask it about four primes."""
-
-    @m.define
-    def find_divisor(n, test_divisor):
-        if test_divisor * test_divisor > n:
-            return n
-        if fn.eq(0, n % test_divisor):  # rung: `==` lowers to the prelude's `py-eq`, a host crossing per iteration, where the example writes MeTTa's own `==`
-            return test_divisor
-        return find_divisor(n, test_divisor + 1)
-
-    @m.define(name="prime?")
-    def prime(n):
-        return fn.eq(n, fn.find_divisor(n, 2))  # rung: the same host crossing, in answer position
-
-    # Four searches share one branch budget, so the benchmark states a finite
-    # allowance above the evaluator's 100000 default.
-    searches = (S["prime?"](53537257), S["prime?"](53781811),
-                S["prime?"](54218443), S["prime?"](54734431))
-    assert m.fn.with_pragma(DEEP, searches) == [Expression((TRUE, TRUE, TRUE, TRUE))]

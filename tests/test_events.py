@@ -27,7 +27,7 @@ import pytest
 
 import metta as metta_module
 from metta import S, State, V, counting, tropical
-from metta.errors import PettaError
+from metta.errors import MettaError
 from metta.foreign import SpaceProvider, delivery_promise
 from metta.subscribe import bridge
 
@@ -94,7 +94,7 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
     try:
         # The promise is an ordinary declaration atom, so a MeTTa program
         # reads what the engine acts on.
-        rows = metta._at("&petta").match(S.events(V.ctx, V.delivery, V.order))
+        rows = metta._at("&metta").match(S.events(V.ctx, V.delivery, V.order))
         promises = {str(row.ctx): (str(row.delivery), str(row.order)) for row in rows}
         assert promises["&ev-declared"] == ("per-write-exactly", "ordered")
         assert "&ev-silent" not in promises
@@ -121,11 +121,11 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
             subscription.cancel()
 
         # Refused: each of the three, naming what is missing.
-        with pytest.raises(PettaError, match="declares no event capability"):
+        with pytest.raises(MettaError, match="declares no event capability"):
             metta._at("&ev-silent").subscribe(S.tick(V.n), seen.append)
-        with pytest.raises(PettaError, match="declares no event capability"):
+        with pytest.raises(MettaError, match="declares no event capability"):
             bridge(metta._at("&ev-silent"), S.tick(V.n), target)
-        with pytest.raises(PettaError, match="events &ev-silent"):
+        with pytest.raises(MettaError, match="events &ev-silent"):
             metta._at("&ev-silent").reaction("(tick $n)", "(insert &ev-mirror (reacted $n))"
             )
 
@@ -286,7 +286,7 @@ def test_a_fold_that_writes_into_its_own_pattern_says_so(metta):
         feed, space=space.name, pattern=S.loop(V.n), state=[]
     )
     try:
-        with pytest.raises(PettaError, match="wrote an atom its own pattern"):
+        with pytest.raises(MettaError, match="wrote an atom its own pattern"):
             space.add(S.loop(1))
     finally:
         fold.cancel()

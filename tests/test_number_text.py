@@ -92,7 +92,7 @@ def test_real_valued_math_treats_integer_and_float_operands_alike(metta):
     LeaTTa's ``toFloat?``-based ``floatUn`` and ``floatBin`` paths govern
     sqrt, log, trig, and pow. Its ``powMath`` additionally limits an integer
     exponent to signed i32 while permitting an unbounded Float exponent and
-    always returning Float. ``exp-math`` is covered separately by PeTTa's
+    always returning Float. ``exp-math`` is covered separately by MeTTa's
     existing real-valued doctrine because LeaTTa's floatUn table excludes it.
     """
     unary_pairs = {

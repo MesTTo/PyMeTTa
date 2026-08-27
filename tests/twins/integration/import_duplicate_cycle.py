@@ -24,6 +24,22 @@ DUPLICATE = S["examples/integration/_fixtures/imports/overhaul/duplicate"]
 DUPLICATE_METTA = S["examples/integration/_fixtures/imports/overhaul/./duplicate.metta"]
 CYCLE = S["examples/integration/_fixtures/imports/overhaul/cycle_a"]
 
+
+def twin(m):
+    """Import one file twice and a cycle once, then read all three."""
+    # (import! &self <target>), once per spelling of the duplicate and once
+    # for the cycle; the write door imports, the engine decides the skips.
+    for target in (DUPLICATE, DUPLICATE_METTA, CYCLE):
+        m += lib(target)
+
+    # Loaded once, so the marker answers once.
+    assert m.fn.duplicate_import_result() == [S.loaded_once]
+
+    # Both halves of the cycle finished loading.
+    assert m.fn.cycle_a() == [S.a]
+    assert m.fn.cycle_b() == [S.b]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -35,7 +51,7 @@ CYCLE = S["examples/integration/_fixtures/imports/overhaul/cycle_a"]
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -69,18 +85,3 @@ CYCLE = S["examples/integration/_fixtures/imports/overhaul/cycle_a"]
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 7508
-
-
-def twin(m):
-    """Import one file twice and a cycle once, then read all three."""
-    # (import! &self <target>), once per spelling of the duplicate and once
-    # for the cycle; the write door imports, the engine decides the skips.
-    for target in (DUPLICATE, DUPLICATE_METTA, CYCLE):
-        m += lib(target)
-
-    # Loaded once, so the marker answers once.
-    assert m.fn.duplicate_import_result() == [S.loaded_once]
-
-    # Both halves of the cycle finished loading.
-    assert m.fn.cycle_a() == [S.a]
-    assert m.fn.cycle_b() == [S.b]

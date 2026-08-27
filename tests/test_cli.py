@@ -48,7 +48,7 @@ def test_main_forwards_arguments_and_exit_status(monkeypatch, tmp_path):  # noqa
     main_file.parent.mkdir(parents=True)
     main_file.touch()
     call = Mock(return_value=23)
-    monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
+    monkeypatch.setattr(cli, "_resolve_metta_path", lambda: str(runtime))
     monkeypatch.setattr(cli.subprocess, "call", call)
 
     status = cli.main(["program with spaces.metta", "--example"])
@@ -76,7 +76,7 @@ def test_main_retains_the_upstream_layout(monkeypatch, tmp_path):
     main_file.parent.mkdir(parents=True)
     main_file.touch()
     call = Mock(return_value=23)
-    monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
+    monkeypatch.setattr(cli, "_resolve_metta_path", lambda: str(runtime))
     monkeypatch.setattr(cli.subprocess, "call", call)
 
     assert cli.main(["program with spaces.metta", "--example"]) == 23
@@ -102,15 +102,15 @@ def test_main_retains_the_upstream_optional_mork_preload(monkeypatch, tmp_path):
     mork_library.parent.mkdir(parents=True)
     mork_library.touch()
     call = Mock(return_value=0)
-    monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
+    monkeypatch.setattr(cli, "_resolve_metta_path", lambda: str(runtime))
     monkeypatch.setattr(cli.subprocess, "call", call)
-    monkeypatch.setenv("PETTA_CLI_TEST", "inherited")
+    monkeypatch.setenv("METTA_CLI_TEST", "inherited")
 
     assert cli.main(["program.metta"]) == 0
     assert call.call_args.args[0][-2:] == ["program.metta", "mork"]
     child_env = call.call_args.kwargs["env"]
     assert child_env["LD_PRELOAD"] == str(mork_library)
-    assert child_env["PETTA_CLI_TEST"] == "inherited"
+    assert child_env["METTA_CLI_TEST"] == "inherited"
     assert child_env is not os.environ
 
 
@@ -126,7 +126,7 @@ def test_main_asks_for_native_backends_and_names_none(monkeypatch, tmp_path):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     runtime = tmp_path / "runtime"
     call = Mock(return_value=0)
-    monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
+    monkeypatch.setattr(cli, "_resolve_metta_path", lambda: str(runtime))
     monkeypatch.setattr(cli.subprocess, "call", call)
 
     assert cli.main(["program.metta"]) == 0
@@ -142,7 +142,7 @@ def test_main_names_the_missing_swipl_binary(monkeypatch, tmp_path):  # noqa: D1
     main_file = runtime / "engine" / "main.pl"
     main_file.parent.mkdir(parents=True)
     main_file.touch()
-    monkeypatch.setattr(cli, "_resolve_petta_path", lambda: str(runtime))
+    monkeypatch.setattr(cli, "_resolve_metta_path", lambda: str(runtime))
     monkeypatch.setattr(
         cli.subprocess,
         "call",
@@ -207,10 +207,10 @@ def test_the_launcher_answers_version_and_help_without_booting(capsys):
     assert "python -m metta" in printed, "the help names the subcommand surface"
 
     # Not the whole command line, so it belongs to the program being run.
-    assert "--help" not in petta_cli_self_answered_for(["program.metta", "--help"])
+    assert "--help" not in metta_cli_self_answered_for(["program.metta", "--help"])
 
 
-def petta_cli_self_answered_for(argv):
+def metta_cli_self_answered_for(argv):
     """Which of argv the launcher would answer itself, as a set."""
     from metta.cli import SELF_ANSWERED
 

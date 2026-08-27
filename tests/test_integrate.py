@@ -22,7 +22,7 @@ import pytest
 
 from metta import (
     Expression,
-    PettaError,
+    MettaError,
     S,
     Symbol,
     V,
@@ -64,7 +64,7 @@ def test_uninspectable_callable_errors_are_classified(metta):  # noqa: D103  -- 
         effect="pureStructural",
     ) == ["target"]
     assert metta.run("!(target 7)") == [[7]]
-    with pytest.raises(PettaError, match=r"pass arities=\[\.\.\.\]") as caught:
+    with pytest.raises(MettaError, match=r"pass arities=\[\.\.\.\]") as caught:
         pi.wrap_callable(
             metta,
             "strict-target",
@@ -78,7 +78,7 @@ def test_wrap_callable_rejects_required_keyword_only_parameters(metta):  # noqa:
     def target(value, *, required):
         return value + required
 
-    with pytest.raises(PettaError, match="required keyword-only parameter 'required'"):
+    with pytest.raises(MettaError, match="required keyword-only parameter 'required'"):
         pi.wrap_callable(
             metta,
             "keyword-only",
@@ -175,7 +175,7 @@ def test_protocol_and_reflector_registrations_can_be_removed(metta):  # noqa: D1
     with pytest.raises(CastError):
         metta.cast(target, "ExtensionTargetProtocol")
     assert str(ground(target)) == "<ExtensionTarget>"
-    with pytest.raises(PettaError, match="no reflector claims ExtensionTarget"):
+    with pytest.raises(MettaError, match="no reflector claims ExtensionTarget"):
         pi.reflect(metta, "removed", target)
     with pytest.raises(KeyError, match="ExtensionTargetProtocol"):
         pi.unregister_object_type(type_predicate, "ExtensionTargetProtocol")
@@ -371,9 +371,9 @@ def test_entry_point_discovery_is_unloaded_and_loading_is_by_name(monkeypatch): 
         pi.load_entry_point("paths", group=pi.LIBRARIES_GROUP)
         is sys_module.path
     )
-    with pytest.raises(PettaError, match="not callable"):
+    with pytest.raises(MettaError, match="not callable"):
         pi.load_entry_point("paths", "extra", group=pi.LIBRARIES_GROUP)
 
     # a typo reads as one: the refusal lists what IS installed
-    with pytest.raises(PettaError, match=r"no metta\.spaces entry point named 'nope'; installed: db"):
+    with pytest.raises(MettaError, match=r"no metta\.spaces entry point named 'nope'; installed: db"):
         pi.load_entry_point("nope")

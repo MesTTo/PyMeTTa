@@ -53,7 +53,7 @@ from .atoms import (
     _is_ground,
     _to_atom,
 )
-from .errors import EngineError, PettaError
+from .errors import EngineError, MettaError
 from .foreign import Adder, Enumerable, Remover, Transactional
 from .structures import _canonical
 
@@ -127,7 +127,7 @@ class Saga:
                     f"saga receipt space {receipts} cannot own recovery data: "
                     f"its {type(backing).__name__} provider lacks {listed}"
                 )
-                raise PettaError(
+                raise MettaError(
                     msg,
                     space=str(receipts),
                     capability="saga-receipt-store",
@@ -137,7 +137,7 @@ class Saga:
             Space=receipts._space,
         ):
             writes = receipts._rt.must(
-                "petta_writes(Space, Atomicity)",
+                "metta_writes(Space, Atomicity)",
                 Space=receipts._space,
             )["Atomicity"]
             if writes != "transactional":
@@ -146,13 +146,13 @@ class Saga:
                     "receipts must commit and roll back with the forward "
                     "transaction, so declare transactional writes"
                 )
-                raise PettaError(
+                raise MettaError(
                     msg,
                     space=str(receipts),
                     capability="transactional-writes",
                 )
         events = receipts._rt.must(
-            "petta_event_capability(Space, Delivery, Order)",
+            "metta_event_capability(Space, Delivery, Order)",
             Space=receipts._space,
         )
         if (events["Delivery"], events["Order"]) != (
@@ -164,7 +164,7 @@ class Saga:
                 f"{events['Delivery']} and order {events['Order']}; recovery "
                 "requires per-write-exactly ordered post-commit events"
             )
-            raise PettaError(
+            raise MettaError(
                 msg,
                 space=str(receipts),
                 capability="per-write-exactly-ordered-events",
@@ -186,19 +186,19 @@ class Saga:
         with self._lock:
             if self._entered:
                 msg = "a Saga context cannot be entered twice"
-                raise PettaError(msg)
+                raise MettaError(msg)
             if self._committed or self._recovery_failed:
                 msg = (
                     "this Saga has pending recovery; call rollback() until it "
                     "succeeds before entering a new scope"
                 )
-                raise PettaError(msg, operation="enter", space=str(self._space))
+                raise MettaError(msg, operation="enter", space=str(self._space))
             if self._subscription is not None:
                 msg = (
                     "this Saga still owns a subscription whose cancellation "
                     "failed; call close() before entering it again"
                 )
-                raise PettaError(msg, operation="enter", space=str(self._receipts))
+                raise MettaError(msg, operation="enter", space=str(self._receipts))
             self._require_boundary("enter")
             self._subscription = self._receipts.subscribe(
                 Expression([Symbol("did"), V.op, V.args, V.result]),
@@ -227,7 +227,7 @@ class Saga:
                     failures.append(rollback_error)
             elif error is None and self._recovery_failed:
                 failures.append(
-                    PettaError(
+                    MettaError(
                         "the saga still has a failed recovery; retry rollback()",
                         operation="rollback",
                         space=str(self._space),
@@ -264,22 +264,22 @@ class Saga:
     def _require_entered(self, operation: str) -> None:
         if not self._entered:
             msg = f"Saga.{operation}() requires an active 'with space.saga(receipts)' scope"
-            raise PettaError(msg, operation=operation, space=str(self._space))
+            raise MettaError(msg, operation=operation, space=str(self._space))
 
     def _require_boundary(self, operation: str) -> None:
         """Refuse ambient scopes that can invalidate receipt ordering."""
-        if self._space._rt.once("petta_in_user_transaction"):
+        if self._space._rt.once("metta_in_user_transaction"):
             msg = (
                 f"Saga.{operation}() is already inside a user transaction; "
                 "each saga step or compensation must be the durable boundary"
             )
-            raise PettaError(msg, operation=operation, space=str(self._space))
+            raise MettaError(msg, operation=operation, space=str(self._space))
         if speculative_enabled():
             msg = (
                 f"Saga.{operation}() cannot run in a speculative scope, "
                 "which discards writes after the receipt decision"
             )
-            raise PettaError(msg, operation=operation, space=str(self._space))
+            raise MettaError(msg, operation=operation, space=str(self._space))
         active_batches = _ACTIVE_BATCHES.get()
         if active_batches:
             names = ", ".join(sorted(active_batches))
@@ -288,7 +288,7 @@ class Saga:
                 f"{names}; a host operation could queue an effect whose receipt "
                 "would commit first"
             )
-            raise PettaError(msg, operation=operation, space=str(self._space))
+            raise MettaError(msg, operation=operation, space=str(self._space))
 
     def _observe_receipt(self, event: Any) -> None:
         """Record a committed receipt event this runner did not write.
@@ -328,7 +328,7 @@ class Saga:
             "or keep other writers out of this one; compensating a receipt "
             "this saga never earned would undo somebody else's work"
         )
-        raise PettaError(msg, operation=operation, space=str(self._receipts))
+        raise MettaError(msg, operation=operation, space=str(self._receipts))
 
     def run(self, target: Any) -> list[Atom | Undefined]:
         """Run one forward step and atomically commit its ``(did ...)`` data.
@@ -344,16 +344,16 @@ class Saga:
             self._require_entered("run")
             if self._running:
                 msg = "Saga.run() cannot re-enter the same runner"
-                raise PettaError(msg, operation="run", space=str(self._space))
+                raise MettaError(msg, operation="run", space=str(self._space))
             if self._recovering:
                 msg = "Saga.run() cannot start while this runner is recovering"
-                raise PettaError(msg, operation="run", space=str(self._space))
+                raise MettaError(msg, operation="run", space=str(self._space))
             if self._recovery_failed:
                 msg = (
                     "Saga.run() cannot add work while a failed recovery is pending; "
                     "retry rollback() first"
                 )
-                raise PettaError(msg, operation="run", space=str(self._space))
+                raise MettaError(msg, operation="run", space=str(self._space))
             self._require_boundary("run")
             self._running = True
             committed_start = len(self._committed)
@@ -373,7 +373,7 @@ class Saga:
                         pending.append(self._native_receipt(wire))
 
                     answer_wires = self._space._rt.apply_must(
-                        "petta_py_saga_eval_all",
+                        "metta_py_saga_eval_all",
                         self._space._space,
                         target_wire,
                         _select_receipt_operations,
@@ -428,7 +428,7 @@ class Saga:
                 "its receipt records the pattern, not the concrete "
                 "occurrence selected for recovery"
             )
-            raise PettaError(
+            raise MettaError(
                 msg,
                 atom=receipt,
                 operation="remove-atom",
@@ -543,12 +543,12 @@ class Saga:
         """Run a callback with explicit durable-outcome notifications."""
         try:
             row = self._space._rt.once(
-                "petta_py_saga_transaction(F, C, B, R)",
+                "metta_py_saga_transaction(F, C, B, R)",
                 F=target,
                 C=committed,
                 B=rolled_back,
             )
-        except PettaError as error:
+        except MettaError as error:
             term = getattr(error.__cause__, "term", None)
             original = (
                 self._space._rt._original_python_error(term, base=BaseException)
@@ -565,13 +565,13 @@ class Saga:
 
     def _compensation_for(self, receipt: Expression) -> str:
         operation = str(receipt.children[1])
-        compensation = self._space._rt.apply("petta_compensation", operation)
+        compensation = self._space._rt.apply("metta_compensation", operation)
         if compensation is None:
             msg = (
                 f"receipt {receipt} has no compensation; declare one with "
                 f"space.compensates({operation!r}, <operation>) before rollback"
             )
-            raise PettaError(
+            raise MettaError(
                 msg,
                 atom=receipt,
                 operation=operation,
@@ -579,7 +579,7 @@ class Saga:
             )
         compensation_name = str(compensation)
         if not self._space._rt.once(
-            "petta_py_saga_compensation_callable(Space, Name)",
+            "metta_py_saga_compensation_callable(Space, Name)",
             Space=self._space._space,
             Name=compensation_name,
         ):
@@ -588,7 +588,7 @@ class Saga:
                 f"{compensation_name!r}; register a one-receipt callable "
                 "visible from the saga space before rollback"
             )
-            raise PettaError(
+            raise MettaError(
                 msg,
                 atom=receipt,
                 operation=compensation_name,
@@ -625,14 +625,14 @@ class Saga:
                 self._require_entered("rollback")
             if self._running:
                 msg = "Saga.rollback() cannot run inside a forward saga step"
-                raise PettaError(
+                raise MettaError(
                     msg,
                     operation="rollback",
                     space=str(self._space),
                 )
             if self._recovering:
                 msg = "Saga.rollback() cannot re-enter recovery"
-                raise PettaError(
+                raise MettaError(
                     msg,
                     operation="rollback",
                     space=str(self._space),
@@ -677,7 +677,7 @@ class Saga:
                 f"of receipt {receipt}; restore every receipt before any "
                 "compensation runs"
             )
-            raise PettaError(
+            raise MettaError(
                 msg,
                 atom=receipt,
                 operation="rollback",
@@ -743,7 +743,7 @@ class Saga:
                         "idempotent handler may be retried with "
                         "Saga.rollback()"
                     )
-                    raise PettaError(
+                    raise MettaError(
                         msg,
                         atom=receipt,
                         operation=compensation,

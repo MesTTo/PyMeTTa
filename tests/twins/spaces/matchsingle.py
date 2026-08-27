@@ -20,6 +20,38 @@ engine evaluates, with the handle itself in the space position.
 
 from metta import S, V, equation
 
+
+def twin(m):
+    """Store two matching facts, then take one match two ways."""
+    m += (S.a, S.b)
+    m += (S.a, S.c)
+
+    # (= (match-single-via-cut $space $pattern $outPattern)
+    #    (let* (($x (match $space $pattern $outPattern))
+    #           ($temp (cut)))
+    #          $x))
+    m += equation(S.match_single_via_cut(V.space, V.pattern, V.out)).to(
+        S["let*"](  # rung: `cut` is a translator form, not a registry function, so no compiled body names it
+            (
+                (V.found, S.match(V.space, V.pattern, V.out)),  # rung: the stored body of an equation the decorator cannot compile
+                (V.stop, S.cut()),
+            ),
+            V.found,
+        )
+    )
+
+    # (= (match-single-via-once $space $pattern $outPattern)
+    #    (once (match $space $pattern $outPattern)))
+    m += equation(S.match_single_via_once(V.space, V.pattern, V.out)).to(
+        S.once(S.match(V.space, V.pattern, V.out))  # rung: as above, with `once` in place of `cut`
+    )
+
+    # Each call carries the caller's own $x, so its answers are rows and the
+    # claim reads the projection: one solution, bound to the first fact.
+    assert m.fn.match_single_via_cut(m, S.a(V.x), S.a(V.x)).x == [S.b]
+    assert m.fn.match_single_via_once(m, S.a(V.x), S.a(V.x)).x == [S.b]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -31,7 +63,7 @@ from metta import S, V, equation
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -73,34 +105,3 @@ from metta import S, V, equation
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 5800
-
-
-def twin(m):
-    """Store two matching facts, then take one match two ways."""
-    m += (S.a, S.b)
-    m += (S.a, S.c)
-
-    # (= (match-single-via-cut $space $pattern $outPattern)
-    #    (let* (($x (match $space $pattern $outPattern))
-    #           ($temp (cut)))
-    #          $x))
-    m += equation(S.match_single_via_cut(V.space, V.pattern, V.out)).to(
-        S["let*"](  # rung: `cut` is a translator form, not a registry function, so no compiled body names it
-            (
-                (V.found, S.match(V.space, V.pattern, V.out)),  # rung: the stored body of an equation the decorator cannot compile
-                (V.stop, S.cut()),
-            ),
-            V.found,
-        )
-    )
-
-    # (= (match-single-via-once $space $pattern $outPattern)
-    #    (once (match $space $pattern $outPattern)))
-    m += equation(S.match_single_via_once(V.space, V.pattern, V.out)).to(
-        S.once(S.match(V.space, V.pattern, V.out))  # rung: as above, with `once` in place of `cut`
-    )
-
-    # Each call carries the caller's own $x, so its answers are rows and the
-    # claim reads the projection: one solution, bound to the first fact.
-    assert m.fn.match_single_via_cut(m, S.a(V.x), S.a(V.x)).x == [S.b]
-    assert m.fn.match_single_via_once(m, S.a(V.x), S.a(V.x)).x == [S.b]

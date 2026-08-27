@@ -40,7 +40,7 @@ def main() -> None:
     engine = MeTTa()
     owner = engine.self
     audit = engine.space("&gallery-order-audit")
-    with TemporaryDirectory(prefix="petta-gallery-orders-") as directory:
+    with TemporaryDirectory(prefix="metta-gallery-orders-") as directory:
         journal = f"{directory}/orders.db"
         orders = engine.space(
             "&gallery-orders",

@@ -14,6 +14,27 @@ variable, because the original ignores it as well.
 
 from metta import S, V, match
 
+
+def twin(m):
+    """Put three facts in the space, then count them by folding ones."""
+    m += [(S.foo, n) for n in (1, 2, 3)]         # (foo 1) (foo 2) (foo 3)
+
+    @m.define
+    def countitem():                             # (= (countitem)
+        _row = match(m, S.foo(V.n), S.foo(V.n))  #    (let $x (match &self (foo $1) (foo $1))
+        return 1                                 #         1))
+
+    @m.define
+    def merge(a, b):                             # (= (merge $a $b) (+ $a $b))
+        return a + b
+
+    @m.define
+    def spacecount(_):                           # (= (spacecount $x)
+        return S.foldall(merge, countitem(), 0)  #    (foldall merge (countitem) 0))
+
+    assert m.fn.foldall(S.merge, S.countitem(), 0) == [3]   # [3]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -71,21 +92,3 @@ from metta import S, V, match
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 8027
-def twin(m):
-    """Put three facts in the space, then count them by folding ones."""
-    m += [(S.foo, n) for n in (1, 2, 3)]         # (foo 1) (foo 2) (foo 3)
-
-    @m.define
-    def countitem():                             # (= (countitem)
-        _row = match(m, S.foo(V.n), S.foo(V.n))  #    (let $x (match &self (foo $1) (foo $1))
-        return 1                                 #         1))
-
-    @m.define
-    def merge(a, b):                             # (= (merge $a $b) (+ $a $b))
-        return a + b
-
-    @m.define
-    def spacecount(_):                           # (= (spacecount $x)
-        return S.foldall(merge, countitem(), 0)  #    (foldall merge (countitem) 0))
-
-    assert m.fn.foldall(S.merge, S.countitem(), 0) == [3]   # [3]

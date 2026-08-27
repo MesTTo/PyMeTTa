@@ -28,6 +28,37 @@ the call as an ordinary operand.
 import metta
 from metta import S, V
 
+
+def twin(m):
+    """Fill a parent and a child, then read the chain from both ends."""
+    parent = metta.space(S.family_parent)
+    parent += S.edge(S.a, S.b)
+    parent += S.parent_only(S.kept)
+    parent += S.layer(S.parent)
+
+    child = metta.space(inherits=parent)
+    child += S.edge(S.b, S.c)
+    child += S.child_only(S.local)
+    child += S.layer(S.child)
+
+    # One conjunction joins a parent fact to a child fact, because each
+    # conjunct is matched through the whole read chain.
+    assert [(row.x, row.z) for row in child[S.edge(V.x, V.y), S.edge(V.y, V.z)]] == [
+        (S.a, S.c)
+    ]
+
+    # Same-shaped facts pin child-first reads without relying on clause order
+    # across different arities.
+    assert [row.x for row in child[S.layer(V.x)]] == [S.child, S.parent]
+    assert m.fn.space_atom_count(child) == [3]
+
+    # Writes never mutate an ancestor: the parent keeps what it had, the child
+    # can read it, and the parent cannot read the child.
+    assert [row.x for row in parent[S.parent_only(V.x)]] == [S.kept]
+    assert [row.x for row in child[S.parent_only(V.x)]] == [S.kept]
+    assert not parent[S.child_only(V.x)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -39,7 +70,7 @@ from metta import S, V
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -88,31 +119,3 @@ from metta import S, V
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 1162
-def twin(m):
-    """Fill a parent and a child, then read the chain from both ends."""
-    parent = metta.space(S.family_parent)
-    parent += S.edge(S.a, S.b)
-    parent += S.parent_only(S.kept)
-    parent += S.layer(S.parent)
-
-    child = metta.space(inherits=parent)
-    child += S.edge(S.b, S.c)
-    child += S.child_only(S.local)
-    child += S.layer(S.child)
-
-    # One conjunction joins a parent fact to a child fact, because each
-    # conjunct is matched through the whole read chain.
-    assert [(row.x, row.z) for row in child[S.edge(V.x, V.y), S.edge(V.y, V.z)]] == [
-        (S.a, S.c)
-    ]
-
-    # Same-shaped facts pin child-first reads without relying on clause order
-    # across different arities.
-    assert [row.x for row in child[S.layer(V.x)]] == [S.child, S.parent]
-    assert m.fn.space_atom_count(child) == [3]
-
-    # Writes never mutate an ancestor: the parent keeps what it had, the child
-    # can read it, and the parent cannot read the child.
-    assert [row.x for row in parent[S.parent_only(V.x)]] == [S.kept]
-    assert [row.x for row in child[S.parent_only(V.x)]] == [S.kept]
-    assert not parent[S.child_only(V.x)]

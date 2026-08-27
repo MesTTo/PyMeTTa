@@ -31,7 +31,7 @@ import pytest
 
 from metta import TRUE, Answer, Bindings, Expression, S, V, parse
 from metta.atoms import Grounded, Symbol, Variable
-from metta.errors import EngineError, MettaResultError, PettaError, TransportFailure
+from metta.errors import EngineError, MettaError, MettaResultError, TransportFailure
 from metta.foreign import SpaceProvider
 from metta.results import Answers
 
@@ -155,9 +155,9 @@ def test_an_enumeration_refuses_answers(metta):  # noqa: D103  -- pytest discove
             yield Bindings({"x": 1})
 
     metta._register_space(_Wrong(), "&ap-enum")
-    # The seam raises its own PettaError, and the boundary re-raises
+    # The seam raises its own MettaError, and the boundary re-raises
     # the original object rather than an EngineError transcript.
-    with pytest.raises(PettaError, match="enumeration has no query"):
+    with pytest.raises(MettaError, match="enumeration has no query"):
         metta.run("!(collapse (get-atoms &ap-enum))")
 
 
@@ -445,7 +445,7 @@ def test_declare_annotations_validates_and_replaces(metta):  # noqa: D103  -- py
         metta.annotations("&ap-v", "sorta")
     metta.annotations("&ap-v", "ranked")
     metta.annotations("&ap-v", "prob")
-    rows = metta._at("&petta").match(parse("(annotations &ap-v $s)"))
+    rows = metta._at("&metta").match(parse("(annotations &ap-v $s)"))
     assert [str(row.s) for row in rows] == ["prob"]
 
 
@@ -453,7 +453,7 @@ def test_declare_emits_validates(metta):  # noqa: D103  -- pytest discovers or i
     with pytest.raises(ValueError, match="best-first"):
         metta._at("&ap-v").emits("fastest")
     metta._at("&ap-v").emits("best-first")
-    rows = metta._at("&petta").match(parse("(emits &ap-v $p)"))
+    rows = metta._at("&metta").match(parse("(emits &ap-v $p)"))
     assert [str(row.p) for row in rows] == ["best-first"]
 
 
@@ -757,7 +757,7 @@ def test_a_transactional_declaration_without_the_methods_is_loud(metta):  # noqa
 
     metta._register_space(_Plain(), "&tx-nm")
     metta._at("&tx-nm").writes("transactional")
-    with pytest.raises(PettaError, match="Transactional"):
+    with pytest.raises(MettaError, match="Transactional"):
         metta.run("!(transaction (add-atom &tx-nm (edge a b)))")
 
 
@@ -899,12 +899,12 @@ def test_declare_capacity_validates(metta):  # noqa: D103  -- pytest discovers o
 def test_admission_is_sugar_over_the_pre_add_hook(metta):
     """declare_admits claims the pool's pre-add hook like any handler.
 
-    The claim is visible through the same &petta contract atom every hook
+    The claim is visible through the same &metta contract atom every hook
     claim leaves, and a second claimant meets the one-claimant rule, not a
     bespoke wrapper.
     """
     metta._at("&pool4").admits("Space")
-    out = metta.run("!(match &petta (pre-add &pool4 $h) $h)")
+    out = metta.run("!(match &metta (pre-add &pool4 $h) $h)")
     assert str(out[0][0]) == "space-admission-guard-&pool4"
     with pytest.raises(EngineError, match="claims"):
         metta.run("!(declare-pre-add! &pool4 my-own-guard)")

@@ -3,7 +3,7 @@
 shim.pl calls dispatch/dispatch_many for encoded operations and dispatch_raw
 variants for raw ones; the registry maps a MeTTa function name to the Python
 callable behind it, decoding arguments to atoms-or-values and encoding results
-back. Importable as petta_ops, the name the Prolog side uses.
+back. Importable as metta_ops, the name the Prolog side uses.
 Guarantees:
   - operation records distinguish MeTTa names from declaration-space names
     [tested: test_canonical_context_types_replace_public_newtypes;
@@ -19,7 +19,7 @@ Guarantees:
     directions, so an annotation cannot describe one image while carrying
     another [tested: test_a_typed_dict_annotation_agrees_with_its_value;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - type_names removes every __petta_wire_value__ carrier before reading the
+  - type_names removes every __metta_wire_value__ carrier before reading the
     MRO, so transport classes never become MeTTa types [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -98,7 +98,7 @@ from .atoms import (
     _decode,
     _encode,
 )
-from .errors import NotReducible, PettaError, is_transport_failure
+from .errors import MettaError, NotReducible, is_transport_failure
 from .vocabularies import EffectClass
 
 __all__ = [
@@ -142,7 +142,7 @@ class _CapturedReceipt:
 
 
 _RECEIPT_CAPTURE: ContextVar[_ReceiptCapture | None] = ContextVar(
-    "petta_receipt_capture",
+    "metta_receipt_capture",
     default=None,
 )
 
@@ -257,7 +257,7 @@ class Operation:
     pass_atoms: bool = False  # derived from (arguments name atoms)
     space: _SpaceId | None = None  # where the type declarations were added
     declarations: tuple = ()  # the (: ...) atoms, for unregistration
-    catalog: tuple = ()  # policy atoms owned in &petta
+    catalog: tuple = ()  # policy atoms owned in &metta
     arities: tuple = ()  # every registered arity, for reflection facts
     inverse: Callable[..., Any] | None = None  # the backwards direction
     parameter_names: tuple[str, ...] = ()
@@ -433,7 +433,7 @@ def _preimages(name: str, result: Any):
         # Only an operation whose clause carries the mode test can reach here,
         # so the two registries disagreeing is a bug rather than a user error.
         msg = f"{name} was called backwards and declares no inverse"
-        raise PettaError(msg)
+        raise MettaError(msg)
     try:
         answers = op.inverse(result)
     except NotReducible:
@@ -545,7 +545,7 @@ def _context_stream(token: int, stream: Any):
             _task_context.run(token, close)
 
 
-class _RelationContractError(PettaError):
+class _RelationContractError(MettaError):
     """A malformed candidate row, which error modes must never reinterpret."""
 
 
@@ -598,7 +598,7 @@ def _stream_error(error: Exception) -> list:
 
     Raising while Janus is pulling ``py_iter/2`` loses the Python exception
     behind a bare ``SystemError``. The shim recognizes this reserved frame and
-    hands the live object to ``petta_py_failure/2``, the same structured error
+    hands the live object to ``metta_py_failure/2``, the same structured error
     boundary deterministic operations use.
     """
     return ["x", "raise", type(error).__name__, error]
@@ -759,7 +759,7 @@ def _refuse_raw_relation_candidate(value: Any) -> None:
         "cannot carry unbound variables, so register the operation with "
         'transport="encoded"'
     )
-    raise PettaError(msg)
+    raise MettaError(msg)
 
 
 def _refuse_raw_answer(value: Any) -> Any:
@@ -774,7 +774,7 @@ def _refuse_raw_answer(value: Any) -> Any:
             "wire the bindings cross on, so register the operation with "
             'transport="encoded" to answer bindings'
         )
-        raise PettaError(
+        raise MettaError(
             msg
         )
     return value

@@ -22,6 +22,15 @@ Open Obligations:
 
 from metta import S, V, if_, solve
 
+
+def twin(m):
+    """Bind in both directions at once, then use what was bound."""
+    # !(test (let ($x (42 (if (== $x 2) 43 44))) (3 (42 $z)) (+ $x $z)) 47)
+    with m:
+        bound = solve((V.x, (42, if_(S.eq(V.x, 2), 43, 44))), (3, (42, V.z)))
+    assert m.eval(bound.x + bound.z) == [47]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -31,7 +40,7 @@ from metta import S, V, if_, solve
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -64,11 +73,3 @@ from metta import S, V, if_, solve
 #: [measured 2026-08-25 through tools/twin_coverage.py --measure
 #: min-of-3 after a canonical single-boot QLF regeneration].
 BUDGET = 1214
-
-
-def twin(m):
-    """Bind in both directions at once, then use what was bound."""
-    # !(test (let ($x (42 (if (== $x 2) 43 44))) (3 (42 $z)) (+ $x $z)) 47)
-    with m:
-        bound = solve((V.x, (42, if_(S.eq(V.x, 2), 43, 44))), (3, (42, V.z)))
-    assert m.eval(bound.x + bound.z) == [47]

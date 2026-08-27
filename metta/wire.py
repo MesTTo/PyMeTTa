@@ -1,4 +1,4 @@
-"""Purpose: encode Python values for PeTTa's tagged atom wire and decode them.
+"""Purpose: encode Python values for MeTTa's tagged atom wire and decode them.
 
 Guarantees:
   - encode, decode, from_wire, and atom_from_wire are the only public codec

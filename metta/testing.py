@@ -127,7 +127,7 @@ def _st():
 
 
 def names():
-    """Symbol and variable names PeTTa's tokeniser reads back whole: no
+    """Symbol and variable names MeTTa's tokeniser reads back whole: no
     whitespace, parens or quotes, none of the characters that mean
     something else at the front, and never the boolean spellings (the
     engine holds its booleans as those very atoms, so True and true are
@@ -171,7 +171,7 @@ def numbers():
 def numpy_scalars():
     """Generate NumPy integer and real scalar values.
 
-    These retain identity while PeTTa accepts them as Number operands and
+    These retain identity while MeTTa accepts them as Number operands and
     dispatches through Python operators.
 
     NumPy is optional. Install ``pymetta[arrays,test]`` before requesting this
@@ -482,16 +482,16 @@ def _claim_patterns(atom):
     positions = range(len(children))
     for index in positions:
         opened = children.copy()
-        opened[index] = Variable(f"petta-check-{index}")
+        opened[index] = Variable(f"metta-check-{index}")
         yield Expression(opened)
     if len(children) > 2:
-        yield Expression([children[0], *(Variable(f"petta-check-{i}") for i in positions if i)])
+        yield Expression([children[0], *(Variable(f"metta-check-{i}") for i in positions if i)])
     for low in positions:
         for high in positions:
             if high <= low:
                 continue
             folded = children.copy()
-            folded[low] = folded[high] = Variable("petta-check-fold")
+            folded[low] = folded[high] = Variable("metta-check-fold")
             yield Expression(folded)
 
 
@@ -512,14 +512,14 @@ def _joined(pattern, atom):
     instead returns the joined pattern under the engine's occurs-checked law,
     in miniKanren's walk/unify shape. Variables bind by name in one namespace,
     `_` matches anything and binds nothing, and the occurs check applies,
-    because petta_match_atoms unifies with unify_with_occurs_check
+    because metta_match_atoms unifies with unify_with_occurs_check
     (the arbiter's variable cases, LeaTTa matchAtomsWith), and
     match_native guards every answer with acyclic_term/1, so a
     rational-tree instantiation is never an answer there. Check-side
-    variables are named petta-check-*, so a collision would need a stored
-    $petta-check-* variable.
+    variables are named metta-check-*, so a collision would need a stored
+    $metta-check-* variable.
     [source: bindings/python/metta/atoms.py:unify and
-    engine/spaces/bounded_matching.pl:petta_match_atoms/2; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
+    engine/spaces/bounded_matching.pl:metta_match_atoms/2; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     bindings: dict = {}
     stack = [(_encode(pattern), _encode(atom))]

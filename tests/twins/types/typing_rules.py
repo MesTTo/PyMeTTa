@@ -15,7 +15,7 @@ Both directives are performed rather than built, because their engine names end
 in `!` and a banged name on the BOUND namespace performs on the line that
 writes it. The refusal is read through the flat call itself: a declared head's
 flat call runs the same call-site typed dispatch the engine's own form runs
-(petta_py_typed_dispatch_applies/2), which retired this file's P14.9 residue
+(metta_py_typed_dispatch_applies/2), which retired this file's P14.9 residue
 row on 2026-08-25; the collapse spelling it once needed is gone.
 Guarantees:
   - the flat call, the eval door, and the engine's own form agree on the
@@ -23,6 +23,48 @@ Guarantees:
 """
 
 from metta import Atom, S
+
+#: The unconstrained type, as the rule's own argument spells it. `Any` is
+#: its image where a declaration is being BUILT; here it is being named.
+UNDEFINED = S["%Undefined%"]
+
+
+class DemoPayload:
+    """The MeTTa type `DemoPayload`, so a signature can name it."""
+
+
+def twin(m):
+    """Accept, then refuse under a user rule, then accept again."""
+    payload = S.unknown_demo
+    rule, words = S.deny_unknown_demo, S.unknown_demo_is_not_a_payload
+
+    @m.define
+    def typing_rule_demo(value: DemoPayload) -> Atom:
+        """(: typing-rule-demo (-> DemoPayload Atom)), answering (seen $value)."""
+        return S.seen(value)
+
+    # !(test (typing-rule-demo unknown-demo) (seen unknown-demo))
+    assert typing_rule_demo(payload) == [S.seen(payload)]
+
+    # !(add-typing-rule! deny-unknown-demo ordinary %Undefined% DemoPayload
+    #                    (refuse unknown-demo-is-not-a-payload))
+    m.fn.add_typing_rule(rule, S.ordinary, UNDEFINED, S.DemoPayload, S.refuse(words))
+
+    # !(test (typing-rule-demo unknown-demo)
+    #        (Error (typing-rule-demo unknown-demo)
+    #               (BadArgType 1 DemoPayload %Undefined%
+    #                (TypingRuleRefusal deny-unknown-demo
+    #                                   unknown-demo-is-not-a-payload))))
+    refusal = S.BadArgType(1, S.DemoPayload, UNDEFINED,
+                           S.TypingRuleRefusal(rule, words))
+    demo = S.typing_rule_demo(payload)
+    assert typing_rule_demo(payload) == [S.Error(demo, refusal)]
+
+    # !(remove-typing-rule! deny-unknown-demo)
+    # !(test (typing-rule-demo unknown-demo) (seen unknown-demo))
+    m.fn.remove_typing_rule(rule)
+    assert typing_rule_demo(payload) == [S.seen(payload)]
+
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -34,7 +76,7 @@ from metta import Atom, S
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -90,43 +132,3 @@ from metta import Atom, S
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 6850
-#: The unconstrained type, as the rule's own argument spells it. `Any` is
-#: its image where a declaration is being BUILT; here it is being named.
-UNDEFINED = S["%Undefined%"]
-
-
-class DemoPayload:
-    """The MeTTa type `DemoPayload`, so a signature can name it."""
-
-
-def twin(m):
-    """Accept, then refuse under a user rule, then accept again."""
-    payload = S.unknown_demo
-    rule, words = S.deny_unknown_demo, S.unknown_demo_is_not_a_payload
-
-    @m.define
-    def typing_rule_demo(value: DemoPayload) -> Atom:
-        """(: typing-rule-demo (-> DemoPayload Atom)), answering (seen $value)."""
-        return S.seen(value)
-
-    # !(test (typing-rule-demo unknown-demo) (seen unknown-demo))
-    assert typing_rule_demo(payload) == [S.seen(payload)]
-
-    # !(add-typing-rule! deny-unknown-demo ordinary %Undefined% DemoPayload
-    #                    (refuse unknown-demo-is-not-a-payload))
-    m.fn.add_typing_rule(rule, S.ordinary, UNDEFINED, S.DemoPayload, S.refuse(words))
-
-    # !(test (typing-rule-demo unknown-demo)
-    #        (Error (typing-rule-demo unknown-demo)
-    #               (BadArgType 1 DemoPayload %Undefined%
-    #                (TypingRuleRefusal deny-unknown-demo
-    #                                   unknown-demo-is-not-a-payload))))
-    refusal = S.BadArgType(1, S.DemoPayload, UNDEFINED,
-                           S.TypingRuleRefusal(rule, words))
-    demo = S.typing_rule_demo(payload)
-    assert typing_rule_demo(payload) == [S.Error(demo, refusal)]
-
-    # !(remove-typing-rule! deny-unknown-demo)
-    # !(test (typing-rule-demo unknown-demo) (seen unknown-demo))
-    m.fn.remove_typing_rule(rule)
-    assert typing_rule_demo(payload) == [S.seen(payload)]

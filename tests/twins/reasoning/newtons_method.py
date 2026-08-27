@@ -28,6 +28,34 @@ records the missing batch door against P14.4.
 from metta import S, lib
 from metta.vocabularies import MemoStrategy
 
+
+def twin(m):
+    """Define the recursion, memoise it, then read two of its values."""
+    # The library's file name is `lib_memo.metta`, and the factory attribute
+    # door maps every underscore to a hyphen, so the name takes the bracket.
+    # !(import! &self (library lib_memo))
+    m += lib.memo
+
+    @m.define
+    def energy(x, n):
+        """(= (energy $x $n) (if (<= $n 0) (* $x $x) (+ (energy ...) (energy ...))))."""
+        if n <= 0:
+            return x * x
+        return energy(0.5 * x + 0.4, n - 1) + energy(0.5 * x + 0.4, n - 1)
+
+    # !(config-memoize (strategy wtinylfu) (unique-limit 100))
+    # !(memoize energy)
+    m.eval(S.config_memoize(S.strategy(S[MemoStrategy.wtinylfu]), S.unique_limit(100)))
+    m.eval(S.memoize(energy))
+
+    # Base case: x*x.
+    # !(test (energy 2.0 0) 4.0)
+    assert energy(2.0, 0) == [4.0]
+    # One level down: 1.4*1.4 twice.
+    # !(test (energy 2.0 1) 3.9199999999999995)
+    assert energy(2.0, 1) == [3.9199999999999995]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -38,7 +66,7 @@ from metta.vocabularies import MemoStrategy
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -87,28 +115,3 @@ from metta.vocabularies import MemoStrategy
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 98150
-def twin(m):
-    """Define the recursion, memoise it, then read two of its values."""
-    # The library's file name is `lib_memo.metta`, and the factory attribute
-    # door maps every underscore to a hyphen, so the name takes the bracket.
-    # !(import! &self (library lib_memo))
-    m += lib.memo
-
-    @m.define
-    def energy(x, n):
-        """(= (energy $x $n) (if (<= $n 0) (* $x $x) (+ (energy ...) (energy ...))))."""
-        if n <= 0:
-            return x * x
-        return energy(0.5 * x + 0.4, n - 1) + energy(0.5 * x + 0.4, n - 1)
-
-    # !(config-memoize (strategy wtinylfu) (unique-limit 100))
-    # !(memoize energy)
-    m.eval(S.config_memoize(S.strategy(S[MemoStrategy.wtinylfu]), S.unique_limit(100)))
-    m.eval(S.memoize(energy))
-
-    # Base case: x*x.
-    # !(test (energy 2.0 0) 4.0)
-    assert energy(2.0, 0) == [4.0]
-    # One level down: 1.4*1.4 twice.
-    # !(test (energy 2.0 1) 3.9199999999999995)
-    assert energy(2.0, 1) == [3.9199999999999995]

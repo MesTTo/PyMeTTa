@@ -53,7 +53,7 @@ Open Obligations:
   Future Enhancements:
     - the holding evaluation covers the plain cursor only. A carrier cursor
       (evaluate_answers under=) answers an annotation beside every value,
-      which petta_py_eval_count_retaining/6 does not hold, so its declined
+      which metta_py_eval_count_retaining/6 does not hold, so its declined
       count still counts through one materializing pass.
 """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
@@ -87,7 +87,7 @@ from .errors import EngineError
 from .results import Answers, _AnswerItem, _row_class, error_answer
 
 _SCOPED_EXECUTION: ContextVar[frozenset[str]] = ContextVar(
-    "petta_scoped_execution", default=frozenset()
+    "metta_scoped_execution", default=frozenset()
 )
 
 _CAPTURED_OUTPUT: ContextVar[CapturedOutput | None]
@@ -148,7 +148,7 @@ class CapturedOutput:
         self._chunks.append(text)
 
 
-_CAPTURED_OUTPUT = ContextVar("petta_captured_output", default=None)
+_CAPTURED_OUTPUT = ContextVar("metta_captured_output", default=None)
 
 
 def execution_scope(mode: str) -> ScopedExecution:
@@ -165,9 +165,9 @@ def strict_enabled() -> bool:
 
 def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[str, list[Any]]:
     if not using:
-        return "petta_py_run", [source, space]
+        return "metta_py_run", [source, space]
     pairs = [[name, _encode(value).to_wire()] for name, value in using.items()]
-    return "petta_py_run_using", [source, space, pairs]
+    return "metta_py_run_using", [source, space, pairs]
 
 
 def _direct_run(
@@ -192,11 +192,11 @@ def _controlled_run(
     speculative: bool,
 ) -> Any:
     if atomic:
-        predicate, inputs = "petta_py_atomic", [predicate, inputs]
+        predicate, inputs = "metta_py_atomic", [predicate, inputs]
     elif speculative:
-        predicate, inputs = "petta_py_speculative", [predicate, inputs]
+        predicate, inputs = "metta_py_speculative", [predicate, inputs]
     if capture:
-        predicate, inputs = "petta_py_captured", [predicate, inputs]
+        predicate, inputs = "metta_py_captured", [predicate, inputs]
     return _apply_limited(
         rt,
         limits if limits is not None else (-1.0, -1, -1),
@@ -258,7 +258,7 @@ def profile_source(
     output, samples, ticks, nodes = _apply_limited(
         rt,
         _limits(timeout, inferences) or (-1.0, -1, -1),
-        "petta_py_profiled",
+        "metta_py_profiled",
         [predicate, inputs],
     )
     return _decode_groups(output), EngineProfile(samples, ticks, nodes)
@@ -313,7 +313,7 @@ def profile_extension(
     costs: list[FunctionCost] = []
     for name in names:
         tier, detail, arities, determinism = rt.apply_must(
-            "petta_py_function_shape", name
+            "metta_py_function_shape", name
         )
         shapes: list[tuple[int | None, float, bool]] = [
             (int(arity), float(speedup), bool(indexed))
@@ -354,7 +354,7 @@ def evaluate(
     *,
     using: dict[str, Any] | None = None,
 ) -> list[Atom | Undefined]:
-    predicate = "petta_py_eval_all"
+    predicate = "metta_py_eval_all"
     # Source text goes over as text. Parsing it here would cross to the engine's
     # reader, build an Atom from the wire form it answers, and walk that Atom
     # straight back to the same wire form for this call, so a string target cost
@@ -363,7 +363,7 @@ def evaluate(
     # parsed first against 449.00 read where it is evaluated].
     inputs = [space, target if isinstance(target, str) else _to_atom(target).to_wire()]
     if using:
-        predicate = "petta_py_eval_using_all"
+        predicate = "metta_py_eval_using_all"
         inputs = [
             *inputs,
             [[name, _encode(value).to_wire()] for name, value in using.items()],
@@ -419,7 +419,7 @@ def _count_call(
     limits = _limits(timeout, inferences)
     captured = _CAPTURED_OUTPUT.get()
     if captured is not None:
-        predicate, inputs = "petta_py_captured", [predicate, inputs]
+        predicate, inputs = "metta_py_captured", [predicate, inputs]
     output = (
         rt.apply_must(predicate, *inputs)
         if limits is None
@@ -448,9 +448,9 @@ def evaluate_count(
     and the repeatability question does not arise.
     """
     inputs = _count_inputs(space, target, using)
-    predicate = "petta_py_eval_count"
+    predicate = "metta_py_eval_count"
     if under is not None:
-        predicate = "petta_py_eval_count_under"
+        predicate = "metta_py_eval_count_under"
         inputs.append(under)
     return int(_count_call(rt, predicate, inputs, timeout, inferences))
 
@@ -473,9 +473,9 @@ def evaluate_count_if_repeatable(
     count is a second evaluation whatever algebra tags it.
     """
     inputs = _count_inputs(space, target, using)
-    predicate = "petta_py_eval_count_if_repeatable"
+    predicate = "metta_py_eval_count_if_repeatable"
     if under is not None:
-        predicate = "petta_py_eval_count_under_if_repeatable"
+        predicate = "metta_py_eval_count_under_if_repeatable"
         inputs.append(under)
     output = _count_call(rt, predicate, inputs, timeout, inferences)
     return int(output[0]) if output else None
@@ -493,10 +493,10 @@ def _retain_and_count(
     pull, and the inference limit rides inside the predicate as it does for
     the cursor, because this single call is the whole enumeration.
     """
-    predicate = "petta_py_eval_count_retaining"
+    predicate = "metta_py_eval_count_retaining"
     captured = _CAPTURED_OUTPUT.get()
     if captured is not None:
-        predicate, inputs = "petta_py_captured", [predicate, inputs]
+        predicate, inputs = "metta_py_captured", [predicate, inputs]
     if seconds is None and stack < 0:
         output = rt.apply_must(predicate, *inputs)
     else:
@@ -589,10 +589,10 @@ def evaluate_answers(
         if retained:
             handle = retained.pop()
         else:
-            predicate = "petta_py_eval_cursor_open"
+            predicate = "metta_py_eval_cursor_open"
             inputs: list[Any] = [space, encoded_target, pairs or [], columns, steps]
             if under is not None:
-                predicate = "petta_py_eval_cursor_open_under"
+                predicate = "metta_py_eval_cursor_open_under"
                 inputs.extend((under, order or "none"))
             handle = rt.apply_must(predicate, *inputs)
         row_cls = _row_class(tuple(columns))
@@ -600,11 +600,11 @@ def evaluate_answers(
         try:
             while True:
                 captured = _CAPTURED_OUTPUT.get()
-                predicate = "petta_py_cursor_next"
+                predicate = "metta_py_cursor_next"
                 pull_inputs: list[Any] = [handle]
                 if captured is not None:
                     predicate, pull_inputs = (
-                        "petta_py_captured",
+                        "metta_py_captured",
                         [predicate, pull_inputs],
                     )
                 if seconds is None and stack < 0:
@@ -659,7 +659,7 @@ def evaluate_answers(
                 else:
                     yield value
         finally:
-            rt.do("petta_py_cursor_close", handle)
+            rt.do("metta_py_cursor_close", handle)
 
     return Answers(
         stream(),
@@ -702,13 +702,13 @@ def evaluate_status(
     using: dict[str, Any] | None = None,
 ) -> list[tuple[str, Atom | Undefined | None]]:
     """Pair each answer with the evaluation path that produced it."""
-    predicate = "petta_py_eval_status_all"
+    predicate = "metta_py_eval_status_all"
     inputs: list[Any] = [
         space,
         target if isinstance(target, str) else _to_atom(target).to_wire(),
     ]
     if using:
-        predicate = "petta_py_eval_status_using_all"
+        predicate = "metta_py_eval_status_using_all"
         inputs.append(
             [[name, _encode(value).to_wire()] for name, value in using.items()]
         )
@@ -745,7 +745,7 @@ def run_status(
     groups = _apply_limited(
         rt,
         _limits(timeout, inferences) or (-1.0, -1, -1),
-        "petta_py_run_status",
+        "metta_py_run_status",
         [source, space],
     )
     return [

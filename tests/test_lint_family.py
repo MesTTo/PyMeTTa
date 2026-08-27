@@ -4,7 +4,7 @@ Guarantees:
   - all fifteen assigned design rows map to nine warning kinds plus one named
     suppression intent, and every warning has a positive and allowed-control
     test [tested: bindings/python/tests/test_lint_family.py; commit=acb40f1912f131ae088083d1af29b4b283019bea]
-  - lint evidence and suppression intent remain queryable in ``&petta`` until
+  - lint evidence and suppression intent remain queryable in ``&metta`` until
     the owning space is cleared [tested:
     test_lint_evidence_and_intent_follow_space_clear; commit=acb40f1912f131ae088083d1af29b4b283019bea]
 """
@@ -362,7 +362,7 @@ def test_a_named_metta_ok_intent_suppresses_only_its_bound_rule(m):
 
     assert m.eval(S["lint-suppressed-loop"]((1, 2))) == [5]
     assert not _kind(m, "operation-crossing-in-loop")
-    catalog = m._at("&petta")
+    catalog = m._at("&metta")
     intents = catalog.match(_intent_pattern(m, "operation-crossing-in-loop"))
     evidence = catalog.match(_evidence_pattern(m, "operation-crossing-in-loop"))
     assert len(intents) == 1
@@ -394,7 +394,7 @@ def test_lint_evidence_and_intent_follow_space_clear(m):
             total += lint_clear_crossing(value)
         return total
 
-    catalog = m._at("&petta")
+    catalog = m._at("&metta")
     intent = _intent_pattern(m, "operation-crossing-in-loop")
     evidence = _evidence_pattern(m, "operation-crossing-in-loop")
     assert catalog.match(intent)

@@ -73,8 +73,8 @@ RUFF_FAMILY_BURN_DOWN = {
     # (TRY004). Every one is a per-line suppression with its own reason.
     # 2119 -> 2120 at the CLI-demo repair: its regression test's scenario
     # docstring carries the same one-invariant D205 convention.
-    # 2120 -> 2118 removing the legacy python.petta path: its two pinned
-    # tests went with it, each carrying a D103 suppression.
+    # 2120 -> 2118 removing the legacy root python package path: its two
+    # pinned tests went with it, each carrying a D103 suppression.
     # 2118 -> 2125 at the p3-typing-cluster merge: its three new test
     # modules received the repository's docstring-suppression conventions
     # (the obligation-header D205 and the named-contract D103 forms).
@@ -367,11 +367,11 @@ def test_a_generated_clause_carries_no_cut(metta):
     both `zero` and `other` only if neither clause cut, so this asserts the
     behaviour AND the text, and the behaviour is the part that matters.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    metta.run("(= (petta-cut-probe 0) zero)")
-    metta.run("(= (petta-cut-probe $x) other)")
-    compiled = metta._disassemble("petta-cut-probe")
+    metta.run("(= (metta-cut-probe 0) zero)")
+    metta.run("(= (metta-cut-probe $x) other)")
+    compiled = metta._disassemble("metta-cut-probe")
     assert "!" not in compiled, f"a generated clause contains a cut:\n{compiled}"
-    answers = [str(a) for group in metta.run("!(petta-cut-probe 0)") for a in group]
+    answers = [str(a) for group in metta.run("!(metta-cut-probe 0)") for a in group]
     assert answers == ["zero", "other"], (
         f"both clauses should answer; got {answers}, which is what a cut looks like"
     )

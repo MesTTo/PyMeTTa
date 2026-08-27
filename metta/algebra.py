@@ -73,7 +73,7 @@ from .atoms import (
     parse,
     substitute,
 )
-from .errors import PettaError
+from .errors import MettaError
 from .vocabularies import EffectClass, Semiring, SemiringOrder
 
 __all__ = [
@@ -104,7 +104,7 @@ __all__ = [
 ]
 
 
-class AlgebraDeclarationError(PettaError, ValueError):
+class AlgebraDeclarationError(MettaError, ValueError):
     """A declaration is incomplete, conflicting, or cannot be certified."""
 
 
@@ -116,7 +116,7 @@ class AlgebraRequirementError(AlgebraDeclarationError):
     """A context lacks a capability required by its declared algebra."""
 
 
-class AlgebraOperationError(PettaError):
+class AlgebraOperationError(MettaError):
     """A declared operation does not answer one value for two carrier values."""
 
 
@@ -124,7 +124,7 @@ class RateDeclarationError(AlgebraDeclarationError):
     """A rate is not a finite nonnegative real value."""
 
 
-class LinearEvidenceError(PettaError):
+class LinearEvidenceError(MettaError):
     """One stored premise occurrence was consumed twice in one derivation."""
 
 
@@ -458,8 +458,8 @@ def _canonical_laws(laws: Iterable[str]) -> frozenset[str]:
 
 
 def _catalog_declaration(metta: Space, name: str) -> DeclaredAlgebra | None:
-    """Reify a direct ``&petta`` algebra row through the Python door."""
-    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+    """Reify a direct ``&metta`` algebra row through the Python door."""
+    for atom in Space("&metta", _runtime=metta.runtime).atoms():
         if not isinstance(atom, Expression) or len(atom.children) != 9:
             continue
         head, declared_name, combine, extend, zero, one, laws, carrier, requires = (
@@ -518,7 +518,7 @@ def _catalog_order(
 ) -> SemiringOrder | None:
     """Read the direction attached to an ordered semiring claim."""
     expected = (Symbol("claim"), Symbol("semiring"), Symbol(name), Symbol("ordered"))
-    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+    for atom in Space("&metta", _runtime=metta.runtime).atoms():
         if not isinstance(atom, Expression) or atom.children[:4] != expected:
             continue
         if len(atom.children) < 5 or not isinstance(atom.children[4], Symbol):
@@ -563,7 +563,7 @@ def require(metta: Space, name: str) -> DeclaredAlgebra:
 
 def _context_capabilities(metta: Space, algebra: str) -> frozenset[str]:
     context = Symbol(str(metta.name))
-    for atom in Space("&petta", _runtime=metta.runtime).atoms():
+    for atom in Space("&metta", _runtime=metta.runtime).atoms():
         # policy-inventory-exempt: mechanism-internal; reason=three and four are the only lengths the annotations catalog row is written with, the fourth child being the optional (capabilities ...) field; evidence=bindings/python/metta/_space.py:annotations
         if not isinstance(atom, Expression) or len(atom.children) not in {3, 4}:
             continue
@@ -813,7 +813,7 @@ def declare(
             _symbol_list("requires", sorted(declaration.requires)),
         )
     )
-    Space("&petta", _runtime=metta.runtime).add(atom)
+    Space("&metta", _runtime=metta.runtime).add(atom)
     _REGISTRY[_key(metta, name)] = declaration
     return atom
 
@@ -1134,7 +1134,7 @@ def evaluate(
     return AlgebraEvaluation(tuple(retained), plan)
 
 
-class AlgebraEvaluationError(PettaError):
+class AlgebraEvaluationError(MettaError):
     """A tagged program exceeded its declared finite evaluation boundary."""
 
 
@@ -1192,7 +1192,7 @@ def has_tagged_program(metta: Space, query: str | Atom) -> bool:
     """Ask whether a normative tagged fact or rule can answer this query."""
     encoded = query if isinstance(query, str) else _encode(query).to_wire()
     return metta.runtime.apply_must(
-        "petta_py_has_tagged_program", metta.name, encoded
+        "metta_py_has_tagged_program", metta.name, encoded
     ) == "true"
 
 
@@ -1226,10 +1226,10 @@ def count_tagged(
 
     bounds = _limits(timeout, inferences)
     output = (
-        metta.runtime.apply_must("petta_py_tagged_count", *inputs)
+        metta.runtime.apply_must("metta_py_tagged_count", *inputs)
         if bounds is None
         else _apply_limited(
-            metta.runtime, bounds, "petta_py_tagged_count", inputs
+            metta.runtime, bounds, "metta_py_tagged_count", inputs
         )
     )
     return int(output)

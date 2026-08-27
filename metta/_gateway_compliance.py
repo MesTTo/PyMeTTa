@@ -2,7 +2,7 @@
 
 check-space-provider lifted over the wire: `GatewayComplianceSuite` is a
 pytest class that certifies ANY implementation of the protocol
-documented in website/live/remote-protocol.md, with no PeTTa checkout
+documented in website/live/remote-protocol.md, with no MeTTa checkout
 knowledge on the serving side. The two TypeScript reference servers are
 certified by it, and a third party's gateway is certified the same way,
 by subclassing with a `gateway_url` fixture. "Speaks the space protocol"
@@ -48,7 +48,7 @@ from . import remote, testing
 from ._network import HTTPEndpoint
 from ._optional import require_module
 from .atoms import parse
-from .errors import PettaError
+from .errors import MettaError
 from .remote import RemoteSpace
 
 pytest = require_module(
@@ -64,7 +64,7 @@ def _post(url: str, operation: str, payload: Any) -> tuple[int, Any]:
     """One POST against the gateway, refusal statuses answered rather than
     raised, because reading them is half of what this suite is for.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    endpoint = HTTPEndpoint(url, subject="gateway under test", error_type=PettaError)
+    endpoint = HTTPEndpoint(url, subject="gateway under test", error_type=MettaError)
     status, _, raw = endpoint.request(
         "POST",
         operation,
@@ -128,7 +128,7 @@ class GatewayComplianceSuite:
 
     def test_health_names_the_protocol(self, gateway_url):
         endpoint = HTTPEndpoint(
-            gateway_url, subject="gateway under test", error_type=PettaError
+            gateway_url, subject="gateway under test", error_type=MettaError
         )
         status, _, raw = endpoint.request("GET", "health", timeout=30.0)
         assert status == 200
@@ -152,7 +152,7 @@ class GatewayComplianceSuite:
         under-approximation the protocol forbids.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         endpoint = HTTPEndpoint(
-            gateway_url, subject="gateway under test", error_type=PettaError
+            gateway_url, subject="gateway under test", error_type=MettaError
         )
         _, _, raw = endpoint.request("GET", "health", timeout=30.0)
         honors = json.loads(raw)["bound"]
@@ -229,7 +229,7 @@ class GatewayComplianceSuite:
         ), "only POST operates"
 
     def test_wide_integers_are_exact_or_refused(self, gateway_url, scratch):
-        """PeTTa's numbers are exact at any width, so the one forbidden
+        """MeTTa's numbers are exact at any width, so the one forbidden
         outcome is rounding: a server either refuses the literal (a JSON
         parser that would round past 2^53 must) or stores it exactly and
         answers it back exactly.
@@ -323,7 +323,7 @@ class GatewayComplianceSuite:
             assert status == 400 and "error" in body, f"batch {bad!r} was accepted"
 
     def test_a_client_cursor_takes_two_answers_and_stops(self, scratch):
-        """The lifecycle through the shipped client, which is how a PeTTa
+        """The lifecycle through the shipped client, which is how a MeTTa
         program reaches it: two answers taken, the rest never asked for,
         and the server's cursor released on the way out.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose

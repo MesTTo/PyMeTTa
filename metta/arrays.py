@@ -52,7 +52,7 @@ from . import integrate as _integrate
 from ._ops import REGISTRY
 from ._optional import optional_module, require_module
 from .atoms import Atom, Expression, Grounded, S, Variable, _decode, _expr, ground
-from .errors import PettaError
+from .errors import MettaError
 
 __all__ = [
     "ARRAY_OPS",
@@ -89,22 +89,22 @@ _STORE_SERIAL = itertools.count(1)
 
 _BROADCAST_SHAPE_SOURCE: Final = r"""
 :- use_module(library(clpfd)).
-:- metta_extension(petta_arrays_shape, [version('0.1.0')]).
+:- metta_extension(metta_arrays_shape, [version('0.1.0')]).
 :- metta_export("(: broadcast-shape (-> Expression Expression Expression Bool))").
 
 'broadcast-shape'(Left, Right, Shape, true) :-
     reverse(Left, LeftReversed),
     reverse(Right, RightReversed),
-    petta_broadcast_reversed(LeftReversed, RightReversed, ShapeReversed),
+    metta_broadcast_reversed(LeftReversed, RightReversed, ShapeReversed),
     reverse(ShapeReversed, Shape).
 
-petta_broadcast_reversed([], Shape, Shape) :- !.
-petta_broadcast_reversed(Shape, [], Shape) :- !.
-petta_broadcast_reversed([Left | Lefts], [Right | Rights], [Out | Outs]) :-
-    petta_broadcast_dimension(Left, Right, Out),
-    petta_broadcast_reversed(Lefts, Rights, Outs).
+metta_broadcast_reversed([], Shape, Shape) :- !.
+metta_broadcast_reversed(Shape, [], Shape) :- !.
+metta_broadcast_reversed([Left | Lefts], [Right | Rights], [Out | Outs]) :-
+    metta_broadcast_dimension(Left, Right, Out),
+    metta_broadcast_reversed(Lefts, Rights, Outs).
 
-petta_broadcast_dimension(D2, D1, D) :-
+metta_broadcast_dimension(D2, D1, D) :-
     D1 #\= 1 #/\ D1 #= D #\ D1 #= 1 #/\ D2 #= D,
     D2 #\= 1 #/\ D2 #= D #\ D2 #= 1 #/\ D1 #= D.
 """
@@ -276,7 +276,7 @@ def install(m, default: Any = None) -> list[str]:  # noqa: C901  -- install keep
                 f"refusing to register {name!r}: the engine already has a "
                 f"function by that name and it is not an array operation"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         m.op(fn, name=name, effect=effect, transport=transport, **kw)
@@ -586,7 +586,7 @@ def _randn(xp_default):
                 native.random.standard_normal(dims), dtype=xp_default.float32
             )
         msg = f"{module} offers no normal sampler for randn"
-        raise PettaError(msg)
+        raise MettaError(msg)
 
     return randn
 
@@ -623,7 +623,7 @@ class EmbeddingStore:
     ) -> None:
         if backend not in ("auto", "argsort", "faiss"):
             msg = f"backend is auto, argsort or faiss, not {backend!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if backend == "faiss":
             _faiss()
         self._m = m

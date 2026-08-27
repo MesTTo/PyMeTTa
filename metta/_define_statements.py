@@ -715,7 +715,7 @@ class StatementCompilerMixin(CompilerContext):
         variable: Atom = Variable(self._bind(target))
         if isinstance(head, ast.AnnAssign):
             claim = Expression([Symbol(":"), variable, self.annotation_atom(head.annotation)])
-            variable = Expression([Symbol("__petta_typed_binding__"), claim])
+            variable = Expression([Symbol("__metta_typed_binding__"), claim])
         return variable, value
 
     def _state_binding_target(

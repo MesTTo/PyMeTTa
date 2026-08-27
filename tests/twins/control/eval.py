@@ -32,6 +32,47 @@ Open Obligations:
 
 from metta import Expression, S, V, equation, fn
 
+
+def twin(m):
+    """Read a specialised body out of the space, then evaluate it."""
+    @m.define
+    def f(li, a, b):
+        # Source: (= (f $L $a $b) (let $result (+ $a $b) (append ($result) $L)))
+        # Twin:   (= (f $L $a $b) (let* (($result (+ $a $b))) (append ($result) $L)))
+        result = a + b
+        return fn.append((result,), li)
+
+    # !(test (let $fbody_specialized (match &self (= (f (42) 40.7 2) $x) $x)
+    #          (eval $fbody_specialized))
+    #        (42.7 42))
+    bodies = m[equation(S.f((42,), 40.7, 2)).to(V.x)]
+    assert m.eval(bodies.x[0]) == [Expression((42.7, 42))]
+
+    @m.define(name="evalCustom")
+    def eval_custom(body):
+        # Source: (= (evalCustom $body)
+        #    (let* (($a   (add-atom &self (= (myfunc) $body)))
+        #           ($res (reduce (myfunc)))
+        #           ($r   (remove-atom &self (= (myfunc) $body))))
+        #          $res))
+        # Twin: nested one-binding let* forms around add-atom, reduce, and
+        # remove-atom, with (context-space) in both write calls.
+        # The top rung is the write door itself, as a body statement:
+        #     here = S.context_space()
+        #     here += equation(S.myfunc()).to(body)
+        # A compiled body is pure atoms, so `+=` and `equation(...)` have no
+        # image there; worse, `+=` COMPILES, to `(+ $here $atom)`, and stores
+        # nothing. Residue: P14.4.
+        _a = S.add_atom(S.context_space(), S["="](S.myfunc(), body))  # rung: `space += atom` is a Python statement over a handle, and a compiled body is pure atoms
+        res = S.reduce(S.myfunc())
+        _r = S.remove_atom(S.context_space(), S["="](S.myfunc(), body))  # rung: `space -= atom` the same way
+        return res
+
+    # !(test (evalCustom (match &self (= (f (42) 40.7 2) $x) $x))
+    #        (42.7 42))
+    assert eval_custom(bodies.x[0]) == [Expression((42.7, 42))]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -41,7 +82,7 @@ from metta import Expression, S, V, equation, fn
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -90,43 +131,3 @@ BUDGET = {
     "observations": 22,
     "protocol": "full-lane/219/workers=32",
 }
-
-
-def twin(m):
-    """Read a specialised body out of the space, then evaluate it."""
-    @m.define
-    def f(li, a, b):
-        # Source: (= (f $L $a $b) (let $result (+ $a $b) (append ($result) $L)))
-        # Twin:   (= (f $L $a $b) (let* (($result (+ $a $b))) (append ($result) $L)))
-        result = a + b
-        return fn.append((result,), li)
-
-    # !(test (let $fbody_specialized (match &self (= (f (42) 40.7 2) $x) $x)
-    #          (eval $fbody_specialized))
-    #        (42.7 42))
-    bodies = m[equation(S.f((42,), 40.7, 2)).to(V.x)]
-    assert m.eval(bodies.x[0]) == [Expression((42.7, 42))]
-
-    @m.define(name="evalCustom")
-    def eval_custom(body):
-        # Source: (= (evalCustom $body)
-        #    (let* (($a   (add-atom &self (= (myfunc) $body)))
-        #           ($res (reduce (myfunc)))
-        #           ($r   (remove-atom &self (= (myfunc) $body))))
-        #          $res))
-        # Twin: nested one-binding let* forms around add-atom, reduce, and
-        # remove-atom, with (context-space) in both write calls.
-        # The top rung is the write door itself, as a body statement:
-        #     here = S.context_space()
-        #     here += equation(S.myfunc()).to(body)
-        # A compiled body is pure atoms, so `+=` and `equation(...)` have no
-        # image there; worse, `+=` COMPILES, to `(+ $here $atom)`, and stores
-        # nothing. Residue: P14.4.
-        _a = S.add_atom(S.context_space(), S["="](S.myfunc(), body))  # rung: `space += atom` is a Python statement over a handle, and a compiled body is pure atoms
-        res = S.reduce(S.myfunc())
-        _r = S.remove_atom(S.context_space(), S["="](S.myfunc(), body))  # rung: `space -= atom` the same way
-        return res
-
-    # !(test (evalCustom (match &self (= (f (42) 40.7 2) $x) $x))
-    #        (42.7 42))
-    assert eval_custom(bodies.x[0]) == [Expression((42.7, 42))]

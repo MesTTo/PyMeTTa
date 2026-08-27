@@ -1,5 +1,5 @@
 {
-  "schema": "petta-twin-residue-1",
+  "schema": "metta-twin-residue-1",
   "note": "What the twins could not say, and what they could only say the long way round. A `declined` entry names a FORM the twin yields None for, and its example loses that form's coverage; a `friction` entry names a form the twin does reach, through a spelling the surface should not have needed. Both derive backlog, which is why they are one table. `row` is the ai-spec-execution.md row the fix lands on and `section` is the ai-python-first-revamp-discussion.md section that predicted it, or the correction where it did not.",
   "provenance": {
     "purpose": "Record active and retired Python-twin surface residue.",
@@ -888,7 +888,7 @@
       "missing": "a subscript door that reads a wholly-variable (: $n $t) pattern the way the engine's own match reads it",
       "row": "P14.29",
       "section": "§9 risks: two sources of truth (the twins stay differential)",
-      "detail": "Measured 2026-08-22 on one atom, `(: program-own-type MyType)`, in a fresh engine: `m.eval(S.match(S[\"&self\"], S[\":\"](V.n, V.t), V.n))` answers `program-own-type`, the STRUCTURAL reading the example asserts and translator.pl's gate 1 implements (\"a pattern that IS a colon expression stays structural, so `(match &self (: $x Human) $x)` still retrieves stored declarations\", translator.pl:616), while `m.query(S[\":\"](V.n, V.t))` answers one row binding `n` to the WHOLE atom and `t` to %Undefined%, the in-place ANNOTATION reading. The two doors disagree on the same pattern and the same space. Both agree when either slot is concrete: `(: Zeus $t)` answers God through both, and `(knows (: $x Human) (: $y Human))` prunes by type through both. The cause is where gate 1 lives: the translator decides it while translating a match form, and the Python door hands a decoded pattern straight to match/4 (shim.pl:1299, petta_py_match_goal/3), which never sees the gate. The twin reads the space by iterating it instead. Sibling of P14.29's tuple divergence and probably wants its own row."
+      "detail": "Measured 2026-08-22 on one atom, `(: program-own-type MyType)`, in a fresh engine: `m.eval(S.match(S[\"&self\"], S[\":\"](V.n, V.t), V.n))` answers `program-own-type`, the STRUCTURAL reading the example asserts and translator.pl's gate 1 implements (\"a pattern that IS a colon expression stays structural, so `(match &self (: $x Human) $x)` still retrieves stored declarations\", translator.pl:616), while `m.query(S[\":\"](V.n, V.t))` answers one row binding `n` to the WHOLE atom and `t` to %Undefined%, the in-place ANNOTATION reading. The two doors disagree on the same pattern and the same space. Both agree when either slot is concrete: `(: Zeus $t)` answers God through both, and `(knows (: $x Human) (: $y Human))` prunes by type through both. The cause is where gate 1 lives: the translator decides it while translating a match form, and the Python door hands a decoded pattern straight to match/4 (shim.pl:1299, metta_py_match_goal/3), which never sees the gate. The twin reads the space by iterating it instead. Sibling of P14.29's tuple divergence and probably wants its own row."
     },
     {
       "kind": "friction",
@@ -897,7 +897,7 @@
       "missing": "a record whose constructor declares the ADT as its result type, and a record that may name itself",
       "row": "P14.10",
       "section": "§9k records and generics (the ADT story completes through generics)",
-      "detail": "An ADT's constructors are declared into the TYPE, `(: Z Nat)` and `(: S (-> Nat Nat))`, and §9k's own worked example writes `@petta.record class Cons[T]` with `tail: \"List[T]\"` producing `(: Cons (-> $t (List $t) (List $t)))`. Neither half is reachable today [both measured 2026-08-22]. The result type is the CLASS: a record `Nil` declares `(-> Nil)` and a record `Cons(Generic[T])` with fields `head: T, tail: Nil` declares `(-> $t Nil Cons)`, so the constructor never lands in the ADT it belongs to. And a self-referential field annotation does not resolve at all, at module scope or inside a function: `tail: \"Cons[T]\"` raises `TypeError: the field annotations of Cons do not resolve (name 'Cons' is not defined)` from _convert_registry.resolved_hints, because the decorator runs before the class name is bound. The Generic[T] half DOES work, mapping to `$t` in the argument position. This twin writes both constructors as declarations, which also side-steps the `S` collision: the example's successor constructor is literally named `S`, which is the symbol factory's own name in Python."
+      "detail": "An ADT's constructors are declared into the TYPE, `(: Z Nat)` and `(: S (-> Nat Nat))`, and §9k's own worked example writes `@metta.record class Cons[T]` with `tail: \"List[T]\"` producing `(: Cons (-> $t (List $t) (List $t)))`. Neither half is reachable today [both measured 2026-08-22]. The result type is the CLASS: a record `Nil` declares `(-> Nil)` and a record `Cons(Generic[T])` with fields `head: T, tail: Nil` declares `(-> $t Nil Cons)`, so the constructor never lands in the ADT it belongs to. And a self-referential field annotation does not resolve at all, at module scope or inside a function: `tail: \"Cons[T]\"` raises `TypeError: the field annotations of Cons do not resolve (name 'Cons' is not defined)` from _convert_registry.resolved_hints, because the decorator runs before the class name is bound. The Generic[T] half DOES work, mapping to `$t` in the argument position. This twin writes both constructors as declarations, which also side-steps the `S` collision: the example's successor constructor is literally named `S`, which is the symbol factory's own name in Python."
     },
     {
       "kind": "friction",
@@ -906,7 +906,7 @@
       "missing": "Python's own class hierarchy as the source of the (:< Sub Super) edge",
       "row": "P14.9",
       "section": "§9d the concept map (Python's word where both languages have the concept)",
-      "detail": "The twin already shows that a Python class IS a MeTTa type name in an annotation: `class Animal` plus `def speak(a: Animal) -> str` declares `(: speak (-> Animal String))` exactly [measured 2026-08-22]. The obvious next row of the same table does not hold: `class Dog(Animal)` declares no `(:< Dog Animal)`, and a `@petta.record` subclass writes no `:<` atom either (measured: no `:<` atom appears in the space). Subtyping is the one relation where Python's own syntax says the whole thing, so the declaration source is already written in every typed Python program. Until then the edge is `S[\":<\"](sub, super)`, which is the sibling wart the existing entry on this example files."
+      "detail": "The twin already shows that a Python class IS a MeTTa type name in an annotation: `class Animal` plus `def speak(a: Animal) -> str` declares `(: speak (-> Animal String))` exactly [measured 2026-08-22]. The obvious next row of the same table does not hold: `class Dog(Animal)` declares no `(:< Dog Animal)`, and a `@metta.record` subclass writes no `:<` atom either (measured: no `:<` atom appears in the space). Subtyping is the one relation where Python's own syntax says the whole thing, so the declaration source is already written in every typed Python program. Until then the edge is `S[\":<\"](sub, super)`, which is the sibling wart the existing entry on this example files."
     },
     {
       "kind": "friction",
@@ -2844,7 +2844,7 @@
       "missing": "a Python transaction door whose body can simply have no answers",
       "row": "P14.4",
       "section": "§4 surface gaps",
-      "detail": "`m.transaction(callable)` is the Python door and its own docstring says the rollback trigger is an EXCEPTION, \"because a Python callable cannot fail the Prolog way\". This file's rollback claim is a body that answers NOTHING, `(transaction (progn (add-atom ...) (superpose ())))`, which the Python door cannot express, so the three transaction claims stay terms. A callable that answers an empty iterable, or an explicit `petta.Rollback` sentinel, would give the door the second trigger.",
+      "detail": "`m.transaction(callable)` is the Python door and its own docstring says the rollback trigger is an EXCEPTION, \"because a Python callable cannot fail the Prolog way\". This file's rollback claim is a body that answers NOTHING, `(transaction (progn (add-atom ...) (superpose ())))`, which the Python door cannot express, so the three transaction claims stay terms. A callable that answers an empty iterable, or an explicit `metta.Rollback` sentinel, would give the door the second trigger.",
       "retired": "2026-08-23: CLOSED by p14-r5-doors. `transaction(term)` keeps the engine's empty-answer rollback where `transaction(callable)` keeps Python's exception rollback, so a body that simply answers nothing rolls back through the Python door. Measured 2026-08-23: all six transaction claims in this file now go through `m.transaction(term)`, the rolled-back write leaves no `(tx-rolled a)` behind, and the three-answer body answers [1, 2, 3]."
     },
     {
@@ -3134,7 +3134,7 @@
       "missing": "a Python sort key that agrees with MeTTa's `msort`",
       "row": "P14.10",
       "section": "§9e: max-atom, min-atom and sort-strings dissolve into Python's max, min and sorted",
-      "detail": "CLOSED by R5. `Atom.__lt__` and `petta.atoms.order_key` now use the engine's elementwise order, so plain `sorted(atoms)` IS msort: both answer ((foo 42 42) (foo (42 42))) for this file's own atoms, where the length-first key answered them the other way round. The twin sorts instead of counting [measured 2026-08-23].",
+      "detail": "CLOSED by R5. `Atom.__lt__` and `metta.atoms.order_key` now use the engine's elementwise order, so plain `sorted(atoms)` IS msort: both answer ((foo 42 42) (foo (42 42))) for this file's own atoms, where the length-first key answered them the other way round. The twin sorts instead of counting [measured 2026-08-23].",
       "retired": "2026-08-23"
     },
     {
@@ -3164,7 +3164,7 @@
       "missing": "a lane-visible way to pass a NAME as a Python keyword argument",
       "row": "P14.1",
       "section": "§7 the examples-twin coverage lane",
-      "detail": "CLOSED by the lane. `_call_strings` permits every keyword argument's text, so `petta.space(restricted=True, grants=[\"file\"])` reads clean and the twin no longer writes `S.file.name` [source: bindings/python/tools/twin_coverage.py _call_strings; measured 2026-08-23].",
+      "detail": "CLOSED by the lane. `_call_strings` permits every keyword argument's text, so `metta.space(restricted=True, grants=[\"file\"])` reads clean and the twin no longer writes `S.file.name` [source: bindings/python/tools/twin_coverage.py _call_strings; measured 2026-08-23].",
       "retired": "2026-08-23"
     },
     {
@@ -3204,7 +3204,7 @@
       "missing": "an evaluation door that opens a fuel scope",
       "row": "P14.8",
       "retired": "2026-08-22",
-      "detail": "CLOSED by P14.8. petta_py_eval_all/3 now wraps its findall in petta_run_with_fuel/3, the same fuel scope engine/translator.pl's translate_runnable_expr/4 wraps a runnable form in, so max-stack-depth applies through m.eval and a runaway branch answers (Error <culprit> StackOverflow) instead of exhausting SWI's stack. petta_py_eval_term_bounded/3 and petta_py_eval_status_all/3 take the same scope, so eval_using and eval_status agree with eval. The twin yields m.eval(S[\"bounded-factorial\"](5)) and the lane reads 148/148 forms alpha-equal where it read 147/148. The differential is test_the_same_source_answers_the_same_error_through_both_doors, which runs the identical source through both doors in separate interpreters and requires the same answers. CONSEQUENCE, recorded because it is user-visible: m.eval is now BOUNDED by default at the same 100,000 reductions a runnable form is bounded at, so a workload above that answers StackOverflow through m.eval exactly as it always did through `!`, and declares (pragma! max-stack-depth ...) to raise it. Two benchmark workloads were relying on the unbounded door and now declare it, as examples/basics/time_and_pragmas.metta already does for (fib 30)."
+      "detail": "CLOSED by P14.8. metta_py_eval_all/3 now wraps its findall in metta_run_with_fuel/3, the same fuel scope engine/translator.pl's translate_runnable_expr/4 wraps a runnable form in, so max-stack-depth applies through m.eval and a runaway branch answers (Error <culprit> StackOverflow) instead of exhausting SWI's stack. metta_py_eval_term_bounded/3 and metta_py_eval_status_all/3 take the same scope, so eval_using and eval_status agree with eval. The twin yields m.eval(S[\"bounded-factorial\"](5)) and the lane reads 148/148 forms alpha-equal where it read 147/148. The differential is test_the_same_source_answers_the_same_error_through_both_doors, which runs the identical source through both doors in separate interpreters and requires the same answers. CONSEQUENCE, recorded because it is user-visible: m.eval is now BOUNDED by default at the same 100,000 reductions a runnable form is bounded at, so a workload above that answers StackOverflow through m.eval exactly as it always did through `!`, and declares (pragma! max-stack-depth ...) to raise it. Two benchmark workloads were relying on the unbounded door and now declare it, as examples/basics/time_and_pragmas.metta already does for (fib 30)."
     },
     {
       "kind": "friction",
@@ -3877,7 +3877,7 @@
       "form": null,
       "missing": "a symbol whose name begins with `__` through the S factory",
       "row": "P14.5",
-      "detail": "CLOSED. `S['___']` builds the hole symbol: the subscript door no longer forwards a leading-double-underscore name to the attribute guard, so the twin needs no lowercase escape [measured 2026-08-23: PYTHONPATH=bindings/python python -c \"from petta import S; print(S['___'])\" answers `___`].",
+      "detail": "CLOSED. `S['___']` builds the hole symbol: the subscript door no longer forwards a leading-double-underscore name to the attribute guard, so the twin needs no lowercase escape [measured 2026-08-23: PYTHONPATH=bindings/python python -c \"from metta import S; print(S['___'])\" answers `___`].",
       "retired": "2026-08-23"
     },
     {
@@ -4212,8 +4212,8 @@
       "missing": "a space handle from the space a library function ANSWERS",
       "row": "P14.13",
       "section": "§9j: the web datastore IS a space",
-      "detail": "AS FILED, superseded by the retirement line below. json-decode, dict-space and file-space! each answer a space by NAME, as Symbol('&json-1'), and petta.space takes a string, refusing a Symbol with 'a space name is a string starting with &, as in &self or &kb'. So every use round-trips through str(): petta.space(str(decode(text).one())). Re-measured 2026-08-23 on this branch. The design point underneath works beautifully once the handle is in hand, and it is what makes these twins short: the decoded object's keys are the heads of its atoms, its lookup is a subscript, an absent key answers no rows, and file-space!'s (line N Text) atoms are queried by line number. text_lib needs the same round trip.",
-      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 12, petta.space accepts a space-name Symbol, so `opened` is petta.space(answers.one()) with no str() between them"
+      "detail": "AS FILED, superseded by the retirement line below. json-decode, dict-space and file-space! each answer a space by NAME, as Symbol('&json-1'), and metta.space takes a string, refusing a Symbol with 'a space name is a string starting with &, as in &self or &kb'. So every use round-trips through str(): metta.space(str(decode(text).one())). Re-measured 2026-08-23 on this branch. The design point underneath works beautifully once the handle is in hand, and it is what makes these twins short: the decoded object's keys are the heads of its atoms, its lookup is a subscript, an absent key answers no rows, and file-space!'s (line N Text) atoms are queried by line number. text_lib needs the same round trip.",
+      "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 12, metta.space accepts a space-name Symbol, so `opened` is metta.space(answers.one()) with no str() between them"
     },
     {
       "kind": "friction",
@@ -4482,7 +4482,7 @@
       "missing": "a capability ENUM, and a Path codec",
       "row": "P14.37",
       "section": "§9n: minimise strings",
-      "detail": "AS FILED, superseded by the retirement line below. Two option values cross this file as text where the string law rules objects. A capability is granted as `grants=[\"file\"]`: petta.vocabularies.SpaceCapability is a `Literal['file','process','network']` TYPE, so mypy checks the word and nothing autocompletes it, renames with it or greps for it; PERFECT is `grants=[SpaceCapability.FILE]`, the enum the option-value rule names. And a path crosses as `ground(str(SOURCE))`, because `ground(Path(...))` reaches the engine as an opaque box that `exists_file` refuses, \"cannot write <py_Box> as MeTTa text\" [measured 2026-08-23]; PERFECT is `S[\"exists_file\"](SOURCE)` with a Path codec doing the conversion the str() does by hand.",
+      "detail": "AS FILED, superseded by the retirement line below. Two option values cross this file as text where the string law rules objects. A capability is granted as `grants=[\"file\"]`: metta.vocabularies.SpaceCapability is a `Literal['file','process','network']` TYPE, so mypy checks the word and nothing autocompletes it, renames with it or greps for it; PERFECT is `grants=[SpaceCapability.FILE]`, the enum the option-value rule names. And a path crosses as `ground(str(SOURCE))`, because `ground(Path(...))` reaches the engine as an opaque box that `exists_file` refuses, \"cannot write <py_Box> as MeTTa text\" [measured 2026-08-23]; PERFECT is `S[\"exists_file\"](SOURCE)` with a Path codec doing the conversion the str() does by hand.",
       "retired": "2026-08-23: the p14 library-fixes merge (cf2c0e5a) fix 21; the twin passes SpaceCapability.file and a pathlib.Path across the call door"
     },
     {
@@ -5062,7 +5062,7 @@
       "missing": "an answer template that can carry a variable from the PATTERN side, which is what instantiating a declared arrow needs",
       "row": "P14.4",
       "section": "§10b the expression-position rule (unify(a, b, then, els))",
-      "detail": "NARROWED 2026-08-23. R5 shipped `Space.solve(pattern, subject)`, the relational let, and it derives the answer template from the SUBJECT's variables: `(get-type apply)` has none, so solve refuses with `solve needs at least one variable in its subject` and cannot say the example's `(let (get-type apply) (-> (-> Bool Bool) Bool $result) $result)`, whose answer variable lives in the pattern. `petta.unify` still cannot say it either, for the reason this entry recorded: it is one-way, and the arrow it matches against is all variables. The twin asks the type of the APPLICATION instead, which is the example's own second form [measured 2026-08-23: ai-tmp/e-probe-doors.py neighbours].",
+      "detail": "NARROWED 2026-08-23. R5 shipped `Space.solve(pattern, subject)`, the relational let, and it derives the answer template from the SUBJECT's variables: `(get-type apply)` has none, so solve refuses with `solve needs at least one variable in its subject` and cannot say the example's `(let (get-type apply) (-> (-> Bool Bool) Bool $result) $result)`, whose answer variable lives in the pattern. `metta.unify` still cannot say it either, for the reason this entry recorded: it is one-way, and the arrow it matches against is all variables. The twin asks the type of the APPLICATION instead, which is the example's own second form [measured 2026-08-23: ai-tmp/e-probe-doors.py neighbours].",
       "retired": "2026-08-24: `solve(pattern, subject)` answers the pattern's own variables, so the twin instantiates the declared arrow and reads `.result` off the answer."
     },
     {
@@ -5123,7 +5123,7 @@
       "row": "P14.7",
       "section": "§9e the performance note; §5 the three lanes",
       "detail": "RE-MEASURED 2026-08-23, and the twin now takes this route rather than routing around it: `len(m[conjuncts])` counts the 362,880-row join through Python's own conjunction door and costs 55,719,867 inferences against the engine's own 32,521,598, +71%, past the lane's 10% band, because every row's ten bindings become Python atoms. The missing door is a query that aggregates before it crosses [measured 2026-08-23: python bindings/python/tools/twin_coverage.py examples/reasoning/permutations.metta].",
-      "retired": "2026-08-24: `len(answers)` counts wholly inside the engine through `petta_py_query_count` and pulls no atom into Python, so the claim is `len(m.match(*conjuncts))`. What it costs is a LIBRARY item rather than a missing spelling: measured in one process over the same 29-way conjunction, the Python count spent 50,757,468 inferences against 27,170,677 for the engine's own (length (collapse (match ...))), 1.87x."
+      "retired": "2026-08-24: `len(answers)` counts wholly inside the engine through `metta_py_query_count` and pulls no atom into Python, so the claim is `len(m.match(*conjuncts))`. What it costs is a LIBRARY item rather than a missing spelling: measured in one process over the same 29-way conjunction, the Python count spent 50,757,468 inferences against 27,170,677 for the engine's own (length (collapse (match ...))), 1.87x."
     },
     {
       "kind": "friction",
@@ -5212,8 +5212,8 @@
       "missing": "a Python calling door that runs the argument type check the engine's own `!` form runs",
       "row": "P14.9",
       "section": "§9 risks: two sources of truth (the twins stay differential)",
-      "detail": "AS FILED, superseded by the retirement line below. Measured 2026-08-22, one program, four spellings of one call, two answers. After `(add-typing-rule! deny-unknown-demo ordinary %Undefined% DemoPayload (refuse ...))`, `m.run(\"!(typing-rule-demo unknown-demo)\")` answers the `(Error ... (BadArgType 1 DemoPayload %Undefined% (TypingRuleRefusal ...)))` the example asserts, and so do `m.eval(S[\"let\"](V.r, demo(payload), V.r))` and `m.eval(S.collapse(demo(payload)))` and `m.eval(demo(S.id(payload)))`; but `m.eval(demo(payload))` and `m.fn(\"typing-rule-demo\")(payload)` answer `(seen unknown-demo)`, with no check run at all. The discriminator is the shape of the call, which points straight at the fast path: shim.pl:1476 takes `petta_py_direct_goal/4` for \"a flat call of a compiled function whose arguments are all plain data\" and calls it without translating, and translation is what inserts the type-directed acceptance. So the doors a Python user reaches for all day are exactly the ones that skip the checker. The twin reads the refusal through `collapse` and says so on the line.",
-      "retired": "2026-08-25: petta_py_typed_dispatch_applies/2 closes the direct fast path for any head with a declaration in scope, so the flat call and m.fn both answer the rule's TypingRuleRefusal; the twin's collapse workaround is gone and tests/test_typed_flat_calls.py pins the flat door's refusal, its removal, and the undeclared fast path staying open"
+      "detail": "AS FILED, superseded by the retirement line below. Measured 2026-08-22, one program, four spellings of one call, two answers. After `(add-typing-rule! deny-unknown-demo ordinary %Undefined% DemoPayload (refuse ...))`, `m.run(\"!(typing-rule-demo unknown-demo)\")` answers the `(Error ... (BadArgType 1 DemoPayload %Undefined% (TypingRuleRefusal ...)))` the example asserts, and so do `m.eval(S[\"let\"](V.r, demo(payload), V.r))` and `m.eval(S.collapse(demo(payload)))` and `m.eval(demo(S.id(payload)))`; but `m.eval(demo(payload))` and `m.fn(\"typing-rule-demo\")(payload)` answer `(seen unknown-demo)`, with no check run at all. The discriminator is the shape of the call, which points straight at the fast path: shim.pl:1476 takes `metta_py_direct_goal/4` for \"a flat call of a compiled function whose arguments are all plain data\" and calls it without translating, and translation is what inserts the type-directed acceptance. So the doors a Python user reaches for all day are exactly the ones that skip the checker. The twin reads the refusal through `collapse` and says so on the line.",
+      "retired": "2026-08-25: metta_py_typed_dispatch_applies/2 closes the direct fast path for any head with a declaration in scope, so the flat call and m.fn both answer the rule's TypingRuleRefusal; the twin's collapse workaround is gone and tests/test_typed_flat_calls.py pins the flat door's refusal, its removal, and the undeclared fast path staying open"
     },
     {
       "kind": "friction",
@@ -5382,7 +5382,7 @@
       "missing": "a compliance kit that reaches a Prolog or C provider, not only a Python one",
       "row": "P14.15",
       "section": "§9i the catalog's four doors",
-      "detail": "NARROWED 2026-08-23: the half that said the MeTTa door names the space as a symbol is closed, because `check-space-provider` takes the handle (`m.answers(S[\"check-space-provider\"](store)).one()` answers the same seven lines as the symbol did, measured). What survives is that `petta.testing.check_space_provider(provider)` takes a Python `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and whose store lives in C is reachable only through the engine's own function. The twin has no rung line left; it calls the engine function like any other.",
+      "detail": "NARROWED 2026-08-23: the half that said the MeTTa door names the space as a symbol is closed, because `check-space-provider` takes the handle (`m.answers(S[\"check-space-provider\"](store)).one()` answers the same seven lines as the symbol did, measured). What survives is that `metta.testing.check_space_provider(provider)` takes a Python `SpaceProvider` OBJECT, so a provider whose clauses live in Prolog and whose store lives in C is reachable only through the engine's own function. The twin has no rung line left; it calls the engine function like any other.",
       "retired": "2026-08-25: the conformance kit is universal: lib_conformance's check-space-provider gained the pattern-family, source-discipline and round-trip laws, and metta.testing.check_space_provider dispatches an engine Space handle to it through the seam, so the Prolog-clause, C-store provider is held to the same contract as a Python object; the twin asserts the space's own kit call and test_conformance.py pins the handle dispatch (commit 1d28398f)."
     },
     {
@@ -5392,7 +5392,7 @@
       "missing": "a space-creation door on the handle's OWN context, not the process default",
       "row": "P14.13",
       "section": "§9b the space handle carries every context-relative door",
-      "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `petta.space(name)`, which rides `petta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`petta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it.",
+      "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `metta.space(name)`, which rides `metta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`metta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it.",
       "retired": "2026-08-25: Space.metta answers the owning evaluation context, so m.metta.space(name) is the ruled creation door on the handle's own context and the twin creates both spaces through it (commit 33456a98)."
     }
   ]

@@ -371,7 +371,7 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
     class Target:
         def __init__(self, name, requires=()):
             self.name = name
-            self.PETTA_REQUIRES = requires
+            self.METTA_REQUIRES = requires
 
         def install(self, _metta):
             installed.append(self.name)
@@ -397,7 +397,7 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
         lambda *, group: (entry("p5-cycle-left", left), entry("p5-cycle-right", right)),  # noqa: ARG005  -- the test double preserves entry_points' keyword-only signature its caller invokes by name
     )
     with pytest.raises(
-        pi.PettaError,
+        pi.MettaError,
         match=r"dependency cycle: p5-cycle-left -> p5-cycle-right -> p5-cycle-left",
     ):
         pi.discover(metta)
@@ -408,7 +408,7 @@ def test_each_remaining_annotation_shape_refuses_or_carries(metta, monkeypatch):
         "entry_points",
         lambda *, group: (entry("p5-duplicate", duplicate),) * 2,  # noqa: ARG005  -- the test double preserves entry_points' keyword-only signature its caller invokes by name
     )
-    with pytest.raises(pi.PettaError, match=r"duplicate.*p5-duplicate"):
+    with pytest.raises(pi.MettaError, match=r"duplicate.*p5-duplicate"):
         pi.discover(metta)
 
 

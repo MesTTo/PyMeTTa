@@ -165,7 +165,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
         and atom.args[0] in prelude_names
         for atom in metta.atoms()
     )
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     assert {
         row.name
         for row in reflection.match(Expression(S.arguments, V.name, S.atoms))
@@ -661,7 +661,7 @@ def test_a_pure_python_operation_can_be_declared_and_cached(metta):
     that said to do it named the bridge instead of the operation.
 
     Two halves. The refusal read the dispatch goal's functor, so it said
-    `petta_py_dispatch_det/3`, which is neither something an author wrote nor
+    `metta_py_dispatch_det/3`, which is neither something an author wrote nor
     something a declaration could match. And seam:pure_operation/1 was
     multifile but not dynamic, so a running process could add nothing to it
     even knowing the right name.
@@ -689,7 +689,7 @@ def test_a_pure_python_operation_can_be_declared_and_cached(metta):
         metta.run(f"!(tabled (uses-{stateful} $k))")
     message = str(refused.value)
     assert f"{stateful}/1" in message, message
-    assert "petta_py_dispatch" not in message, message
+    assert "metta_py_dispatch" not in message, message
 
 
 def test_registering_an_operation_leaves_the_engines_pure_list_alone(metta):
@@ -1135,7 +1135,7 @@ def test_a_generated_memo_clause_does_not_consume_a_registrable_name(metta):
     called bare between/3; the module-tier cache asserts into the base tier,
     the first replay resolved between/3 THERE, current_predicate answered
     true from then on, and registering a MeTTa operation named `between`
-    refused with petta_op_name_taken for the rest of the process. Found by
+    refused with metta_op_name_taken for the rest of the process. Found by
     bisecting a serial-order suite failure to
     test_a_cached_definition_memoizes_its_complete_answer_bag
     [measured 2026-08-26]. The generated body now says system:between.

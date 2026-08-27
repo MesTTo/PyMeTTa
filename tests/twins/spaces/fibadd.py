@@ -27,6 +27,18 @@ family carrying the branch allowance beside the two bounds it already carries.
 
 from metta import S
 
+
+def twin(m):
+    """Define the naive fib, then ask for fib(30) with the fuel raised."""
+
+    @m.define
+    def fib(n):
+        return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+    raised = (S.max_stack_depth(100_000_000),)
+    assert m.fn.with_pragma(raised, S.fib(30)) == [832040]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -77,12 +89,3 @@ from metta import S
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 38846
-def twin(m):
-    """Define the naive fib, then ask for fib(30) with the fuel raised."""
-
-    @m.define
-    def fib(n):
-        return n if n < 2 else fib(n - 1) + fib(n - 2)
-
-    raised = (S.max_stack_depth(100_000_000),)
-    assert m.fn.with_pragma(raised, S.fib(30)) == [832040]

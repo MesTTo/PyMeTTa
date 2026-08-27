@@ -90,7 +90,7 @@ def test_a_recycled_name_retains_no_restriction(metta):
     name = restricted.name
     restricted.drop()
 
-    metta.runtime.must("retract(petta_py_free_space(Name))", Name=name)
+    metta.runtime.must("retract(metta_py_free_space(Name))", Name=name)
     recycled = metta._at(name)
     try:
         assert recycled.name == name

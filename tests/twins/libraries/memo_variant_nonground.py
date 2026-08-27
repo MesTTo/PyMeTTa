@@ -19,6 +19,18 @@ in the variable's name.
 
 from metta import S, V, equation, lib
 
+
+def twin(m):
+    """Ask the same shape twice, under two different variable names."""
+    m += lib.memo
+
+    m += equation(S.shape_kind(S.Pair(V.x, V.y))).to(S.pair)
+    m.eval(S.memoize(m.fn.shape_kind))
+
+    assert m.fn.shape_kind(S.Pair(V.a, 2)) == [S.pair]
+    assert m.fn.shape_kind(S.Pair(V.b, 2)) == [S.pair]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -30,7 +42,7 @@ from metta import S, V, equation, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -72,14 +84,3 @@ from metta import S, V, equation, lib
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 28108
-
-
-def twin(m):
-    """Ask the same shape twice, under two different variable names."""
-    m += lib.memo
-
-    m += equation(S.shape_kind(S.Pair(V.x, V.y))).to(S.pair)
-    m.eval(S.memoize(m.fn.shape_kind))
-
-    assert m.fn.shape_kind(S.Pair(V.a, 2)) == [S.pair]
-    assert m.fn.shape_kind(S.Pair(V.b, 2)) == [S.pair]

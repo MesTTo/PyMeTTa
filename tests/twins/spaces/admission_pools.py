@@ -47,6 +47,90 @@ Open Obligations:
 import metta
 from metta import Atom, S, V, accept, fn, match, refuse, typed
 
+
+def twin(m):
+    """Install the surface-written judge, claim one pool, and compare verdicts."""
+    reflection = metta.reflection
+    pool = metta.space(S.metta_pool)
+
+    # space-atom-count is the store's own clause bookkeeping, a property read
+    # per add rather than an enumeration of everything the pool holds.
+    @m.define
+    def metta_admission_within(pool_, limits):
+        if limits == ():
+            return accept()
+        if fn.space_atom_count(pool_) < limits[0]:
+            return accept()
+        return refuse(S.pool_at_capacity(limits[0]))
+
+    @m.define
+    def metta_admission_bounded(pool_):
+        return metta_admission_within(pool_, S.collapse(match(reflection, S.capacity(pool_, V.limit), V.limit)))  # rung: a compiled body has no spelling for list()
+
+    # Every declared admits type must be carried, the witness reading: an atom
+    # whose type nothing declares is not evidence that it is one of these, and
+    # a judge that let it in would admit everything a program never got round
+    # to declaring.
+    @m.define
+    def metta_admission_typed(pool_, atom: Atom, types):
+        if types == ():
+            return metta_admission_bounded(pool_)
+        if fn.has_declared_type(atom, types[0]):
+            return metta_admission_typed(pool_, atom, types[1:])
+        return refuse(S.does_not_carry(types[0]))
+
+    @m.define
+    def metta_admission_verdict(pool_, atom: Atom):
+        return metta_admission_typed(pool_, atom, S.collapse(match(reflection, S.admits(pool_, V.type), V.type)))  # rung: as above
+
+    # Contract atoms for one pool: Ticket-typed members, at most two of them.
+    reflection += S.admits(pool, S.Ticket)
+    reflection += S.capacity(pool, 2)
+    m += typed(S.ticket(S.a), S.Ticket)
+    m += typed(S.ticket(S.b), S.Ticket)
+
+    # The guard is one line, and the claim is the ordinary general hook:
+    # nothing about admission is special-cased in the engine's write path.
+    @pool.pre_add
+    @m.define
+    def metta_pool_guard(incoming):
+        return metta_admission_verdict(pool, incoming)
+
+    # A typed atom enters; an untyped one is refused naming the missing type.
+    pool += S.ticket(S.a)
+    assert [row.x for row in pool[S.ticket(V.x)]] == [S.a]
+
+    stowaway = S.stowaway(1)
+    assert m.eval(fn.catch(fn.add_atom(pool, stowaway))) == [  # rung: catch keeps this failure as aggregate data, which is what the example claims about
+        S.Error(
+            S["metta_add_refused"](pool, stowaway, S.does_not_carry(S.Ticket)),
+            S.none,
+        )
+    ]
+
+    # The bound holds: the second ticket fills the pool and the third is
+    # refused.
+    pool += S.ticket(S.b)
+    assert m.eval(fn.catch(fn.add_atom(pool, S.ticket(S.a)))) == [  # rung: as above
+        S.Error(
+            S["metta_add_refused"](pool, S.ticket(S.a), S.pool_at_capacity(2)),
+            S.none,
+        )
+    ]
+
+    # The differential, across the judge's three verdict classes: the shipped
+    # builtin and the surface-written chain answer the same verdict for the
+    # same pool and atom, which is what licenses the Prolog body as an
+    # implementation choice.
+    builtin = m.fn.space_admission_verdict
+    assert builtin(pool, stowaway).one() == metta_admission_verdict(pool, stowaway).one()
+    assert builtin(pool, S.ticket(S.a)).one() == metta_admission_verdict(pool, S.ticket(S.a)).one()
+
+    reflection -= S.capacity(pool, 2)
+    assert builtin(pool, S.ticket(S.a)).one() == metta_admission_verdict(pool, S.ticket(S.a)).one()
+    assert builtin(pool, S.ticket(S.a)) == [S.accept()]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -61,7 +145,7 @@ from metta import Atom, S, V, accept, fn, match, refuse, typed
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -118,84 +202,3 @@ from metta import Atom, S, V, accept, fn, match, refuse, typed
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 48928
-def twin(m):
-    """Install the surface-written judge, claim one pool, and compare verdicts."""
-    reflection = metta.reflection
-    pool = metta.space(S.metta_pool)
-
-    # space-atom-count is the store's own clause bookkeeping, a property read
-    # per add rather than an enumeration of everything the pool holds.
-    @m.define
-    def metta_admission_within(pool_, limits):
-        if limits == ():
-            return accept()
-        if fn.space_atom_count(pool_) < limits[0]:
-            return accept()
-        return refuse(S.pool_at_capacity(limits[0]))
-
-    @m.define
-    def metta_admission_bounded(pool_):
-        return metta_admission_within(pool_, S.collapse(match(reflection, S.capacity(pool_, V.limit), V.limit)))  # rung: a compiled body has no spelling for list()
-
-    # Every declared admits type must be carried, the witness reading: an atom
-    # whose type nothing declares is not evidence that it is one of these, and
-    # a judge that let it in would admit everything a program never got round
-    # to declaring.
-    @m.define
-    def metta_admission_typed(pool_, atom: Atom, types):
-        if types == ():
-            return metta_admission_bounded(pool_)
-        if fn.has_declared_type(atom, types[0]):
-            return metta_admission_typed(pool_, atom, types[1:])
-        return refuse(S.does_not_carry(types[0]))
-
-    @m.define
-    def metta_admission_verdict(pool_, atom: Atom):
-        return metta_admission_typed(pool_, atom, S.collapse(match(reflection, S.admits(pool_, V.type), V.type)))  # rung: as above
-
-    # Contract atoms for one pool: Ticket-typed members, at most two of them.
-    reflection += S.admits(pool, S.Ticket)
-    reflection += S.capacity(pool, 2)
-    m += typed(S.ticket(S.a), S.Ticket)
-    m += typed(S.ticket(S.b), S.Ticket)
-
-    # The guard is one line, and the claim is the ordinary general hook:
-    # nothing about admission is special-cased in the engine's write path.
-    @pool.pre_add
-    @m.define
-    def metta_pool_guard(incoming):
-        return metta_admission_verdict(pool, incoming)
-
-    # A typed atom enters; an untyped one is refused naming the missing type.
-    pool += S.ticket(S.a)
-    assert [row.x for row in pool[S.ticket(V.x)]] == [S.a]
-
-    stowaway = S.stowaway(1)
-    assert m.eval(fn.catch(fn.add_atom(pool, stowaway))) == [  # rung: catch keeps this failure as aggregate data, which is what the example claims about
-        S.Error(
-            S["petta_add_refused"](pool, stowaway, S.does_not_carry(S.Ticket)),
-            S.none,
-        )
-    ]
-
-    # The bound holds: the second ticket fills the pool and the third is
-    # refused.
-    pool += S.ticket(S.b)
-    assert m.eval(fn.catch(fn.add_atom(pool, S.ticket(S.a)))) == [  # rung: as above
-        S.Error(
-            S["petta_add_refused"](pool, S.ticket(S.a), S.pool_at_capacity(2)),
-            S.none,
-        )
-    ]
-
-    # The differential, across the judge's three verdict classes: the shipped
-    # builtin and the surface-written chain answer the same verdict for the
-    # same pool and atom, which is what licenses the Prolog body as an
-    # implementation choice.
-    builtin = m.fn.space_admission_verdict
-    assert builtin(pool, stowaway).one() == metta_admission_verdict(pool, stowaway).one()
-    assert builtin(pool, S.ticket(S.a)).one() == metta_admission_verdict(pool, S.ticket(S.a)).one()
-
-    reflection -= S.capacity(pool, 2)
-    assert builtin(pool, S.ticket(S.a)).one() == metta_admission_verdict(pool, S.ticket(S.a)).one()
-    assert builtin(pool, S.ticket(S.a)) == [S.accept()]

@@ -1,4 +1,4 @@
-"""Purpose: the contract surface in &petta: a registration's declarations are
+"""Purpose: the contract surface in &metta: a registration's declarations are
 readable back as atoms and live and die with the registration, and
 (handles ...) entries route foreign matching, push or withhold the take
 bound, refuse loudly, and stay coherent, down to a SQL backend example.
@@ -43,10 +43,10 @@ def test_structural_registration_reflects_an_effect_atom(metta):  # noqa: D103  
         return x + 1
 
     metta.op(add1, name="ct-pure", effect=EffectClass.pureStructural)
-    petta_space = metta._at("&petta")
-    assert _effect_atom("ct-pure") in petta_space
+    metta_space = metta._at("&metta")
+    assert _effect_atom("ct-pure") in metta_space
     # The op fact and the effect fact are one surface.
-    assert parse("(op ct-pure 1 det)") in petta_space
+    assert parse("(op ct-pure 1 det)") in metta_space
 
 
 def test_unclassified_registration_is_refused_with_the_five_rank_remedy(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -57,7 +57,7 @@ def test_unclassified_registration_is_refused_with_the_five_rank_remedy(metta): 
         metta.op(add1, name="ct-unclassified", effect=None)
     for effect in EffectClass:
         assert f"EffectClass.{effect.value}" in str(error.value)
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     assert parse("(op ct-unclassified 1 det)") not in reflection
     assert reflection.match(parse("(effect ct-unclassified $effect)")) == []
 
@@ -69,11 +69,11 @@ def test_unregister_removes_the_effect_atom_with_the_op_facts(metta):  # noqa: D
         return values[x]
 
     metta.op(lookup, name="ct-gone", effect=EffectClass.readOnlyLookup)
-    petta_space = metta._at("&petta")
-    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) in petta_space
+    metta_space = metta._at("&metta")
+    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) in metta_space
     metta.unregister_op("ct-gone")
-    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) not in petta_space
-    assert parse("(op ct-gone 1 det)") not in petta_space
+    assert _effect_atom("ct-gone", EffectClass.readOnlyLookup) not in metta_space
+    assert parse("(op ct-gone 1 det)") not in metta_space
 
 
 def test_reregistration_replaces_the_effect_rank(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -87,13 +87,13 @@ def test_reregistration_replaces_the_effect_rank(metta):  # noqa: D103  -- pytes
         return x + 1
 
     metta.op(add1, name="ct-flip", effect=EffectClass.pureStructural)
-    petta_space = metta._at("&petta")
-    assert _effect_atom("ct-flip") in petta_space
+    metta_space = metta._at("&metta")
+    assert _effect_atom("ct-flip") in metta_space
     # Replacement owns exactly one rank. A claim from a previous registration
     # must not survive after the new operation takes ownership of its facts.
     metta.op(remember, name="ct-flip", effect=EffectClass.writesState)
-    assert _effect_atom("ct-flip") not in petta_space
-    assert _effect_atom("ct-flip", EffectClass.writesState) in petta_space
+    assert _effect_atom("ct-flip") not in metta_space
+    assert _effect_atom("ct-flip", EffectClass.writesState) in metta_space
     metta.unregister_op("ct-flip")
 
 
@@ -104,25 +104,25 @@ def test_the_effect_atom_is_matchable_from_metta(metta):  # noqa: D103  -- pytes
         return values[x]
 
     metta.op(lookup, name="ct-query", effect=EffectClass.readOnlyLookup)
-    rows = metta._at("&petta").match(parse("(effect ct-query $e)"))
+    rows = metta._at("&metta").match(parse("(effect ct-query $e)"))
     assert [str(row.e) for row in rows] == ["readOnlyLookup"]
 
 
 def test_the_ontology_is_loaded_at_boot(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    petta_space = metta._at("&petta")
-    assert parse("(: Declaration Type)") in petta_space
-    assert parse("(:< Exact Partial)") in petta_space
-    assert parse("(:< Partial Sound)") in petta_space
+    metta_space = metta._at("&metta")
+    assert parse("(: Declaration Type)") in metta_space
+    assert parse("(:< Exact Partial)") in metta_space
+    assert parse("(:< Partial Sound)") in metta_space
     for effect in EffectClass:
-        assert parse(f"(: {effect.value} Effect)") in petta_space
+        assert parse(f"(: {effect.value} Effect)") in metta_space
     # Refuse is a Fidelity but deliberately outside the chain.
-    assert parse("(: Refuse Fidelity)") in petta_space
-    assert parse("(:< Refuse Sound)") not in petta_space
+    assert parse("(: Refuse Fidelity)") in metta_space
+    assert parse("(:< Refuse Sound)") not in metta_space
 
 
 def test_lint_evidence_and_intent_are_typed_reflection_facts(metta):
     """The two lint records are declarations programs can query by type."""
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     evidence = '(lint-evidence &self kind "subject" "path.py" 1 2 "authority")'
     intent = '(lint-intent &self kind "path.py" 1 2 3 4 "authority")'
 
@@ -135,7 +135,7 @@ def test_the_ontology_loads_once(metta):  # noqa: D103  -- pytest discovers or i
 
     _contract.install(metta.runtime)
     _contract.install(metta.runtime)
-    rows = metta._at("&petta").match(parse("(: Declaration $t)"))
+    rows = metta._at("&metta").match(parse("(: Declaration $t)"))
     assert [str(row.t) for row in rows] == ["Type"]
 
 
@@ -192,7 +192,7 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
             EffectClass.pureStructural,
         ),
     )
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     assert parse("(: OpKind Type)") in reflection
     assert reflection.run("!(get-type async)") == [[parse("OpKind")]]
     assert parse("(: op (-> Symbol Number OpKind OpDecl))") in reflection
@@ -200,7 +200,7 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
         metta.op(fn, name=name, transport=transport, effect=effect)
         fact = parse(f"(op {name} 1 {kind})")
         assert fact in reflection
-        assert metta._at("&petta").run(f"!(get-type {fact})") == [[parse("OpDecl")]]
+        assert metta._at("&metta").run(f"!(get-type {fact})") == [[parse("OpDecl")]]
         docs = metta.run(f"!(get-doc {name})")
         assert len(docs) == 1 and "operation documentation." in str(docs[0][0])
 
@@ -247,7 +247,7 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
 
     def fail_compile(runtime, goal, **inputs):
         nonlocal failed
-        if not failed and goal == "petta_py_compile_op(Name)" and inputs.get("Name") == rollback:
+        if not failed and goal == "metta_py_compile_op(Name)" and inputs.get("Name") == rollback:
             failed = True
             msg = "forced registration failure"
             raise EngineError(msg)
@@ -272,9 +272,9 @@ def test_every_register_op_writes_its_declaration_and_get_doc_answers(metta, mon
 
 
 def test_the_fidelity_chain_rides_subtype_widening(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    petta_space = metta._at("&petta")
-    petta_space.run("!(add-atom &petta (: ct-widen Exact))")
-    answers = petta_space.run("!(get-type ct-widen)")
+    metta_space = metta._at("&metta")
+    metta_space.run("!(add-atom &metta (: ct-widen Exact))")
+    answers = metta_space.run("!(get-type ct-widen)")
     assert [str(a) for a in answers[0]] == ["Exact", "Partial", "Sound"]
 
 
@@ -286,7 +286,7 @@ def test_a_registered_structural_effect_reaches_the_purity_walk(metta):  # noqa:
     metta.run("!(import! &self (library lib_tabling))")
     metta.run("(= (ct-mwrap $x) (ct-mdecl $x))")
     assert metta.run("!(tabled (ct-mwrap $x))") == [[True]]
-    assert _effect_atom("ct-mdecl") in metta._at("&petta")
+    assert _effect_atom("ct-mdecl") in metta._at("&metta")
 
 
 def test_an_unchecked_declaration_memoizes_an_impure_body(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -301,7 +301,7 @@ def test_an_unchecked_declaration_memoizes_an_impure_body(metta):  # noqa: D103 
     metta.run("(= (ct-uwrap $x) (ct-draw $x))")
     with pytest.raises(EngineError):
         metta.run("!(memoize ct-uwrap)")
-    metta.run("!(add-atom &petta (cache ct-uwrap unchecked))")
+    metta.run("!(add-atom &metta (cache ct-uwrap unchecked))")
     assert metta.run("!(memoize ct-uwrap)") == [[True]]
     # The declared acceptance is real: the second call answers from the
     # cache, so Python runs once and the answer repeats.
@@ -321,7 +321,7 @@ def test_an_unchecked_declaration_tables_an_impure_body(metta):  # noqa: D103  -
     metta.op(now, name="ct-tnow", effect=EffectClass.writesState)
     metta.run("!(import! &self (library lib_tabling))")
     metta.run("(= (ct-twrap $x) (ct-tnow $x))")
-    metta.run("!(add-atom &petta (cache ct-twrap unchecked))")
+    metta.run("!(add-atom &metta (cache ct-twrap unchecked))")
     assert metta.run("!(tabled (ct-twrap $x))") == [[True]]
 
 
@@ -429,15 +429,15 @@ def test_register_type_reflects_an_image_atom(metta):  # noqa: D103  -- pytest d
         from_atom=lambda _x: _CtImaged(),
         name="CtImaged",
     )
-    petta_space = metta._at("&petta")
-    assert parse("(type-image CtImaged expression)") in petta_space
+    metta_space = metta._at("&metta")
+    assert parse("(type-image CtImaged expression)") in metta_space
     convert.unregister_type(_CtImaged)
-    assert parse("(type-image CtImaged expression)") not in petta_space
+    assert parse("(type-image CtImaged expression)") not in metta_space
 
 
 def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # The listener hears the future; the snapshot hears the past. A type
-    # registered before any engine exists must still appear in &petta.
+    # registered before any engine exists must still appear in &metta.
     import subprocess
     import sys
 
@@ -447,14 +447,14 @@ def test_a_pre_boot_registration_is_reflected_by_the_snapshot(repo_root):  # noq
         "from metta import convert, parse\n"
         "class Early: pass\n"
         "convert.register_type(Early, image='handle', name='CtSnapshot')\n"
-        "m = metta.MeTTa(petta_path='.')\n"
-        "print(parse('(type-image CtSnapshot handle)') in m.space('&petta'))\n"
+        "m = metta.MeTTa(metta_path='.')\n"
+        "print(parse('(type-image CtSnapshot handle)') in m.space('&metta'))\n"
     )
     result = subprocess.run(
         [sys.executable, "-c", script],
         capture_output=True,
         text=True,
-        cwd=repo_root / "PeTTa" if (repo_root / "PeTTa").exists() else repo_root,
+        cwd=repo_root / "MeTTa" if (repo_root / "MeTTa").exists() else repo_root,
         timeout=180,
     )
     assert result.stdout.strip().endswith("True"), result.stderr[-500:]
@@ -516,7 +516,7 @@ def _routed(metta, name, entries):
     provider = _RecordingProvider(_EDGES)
     metta._register_space(provider, name)
     for entry in entries:
-        metta.run(f"!(add-atom &petta (handles {name} {entry}))")
+        metta.run(f"!(add-atom &metta (handles {name} {entry}))")
     return provider
 
 
@@ -620,7 +620,7 @@ def test_a_declared_route_outranks_the_provider_pushdown_method(metta):  # noqa:
 
     provider = _Claimer(_EDGES)
     metta._register_space(provider, "&hr-rank")
-    metta.run("!(add-atom &petta (handles &hr-rank (edge $x $x) Sound))")
+    metta.run("!(add-atom &metta (handles &hr-rank (edge $x $x) Sound))")
     # The method says exact for everything; the declaration says Sound for
     # the repeated-variable shape, and the declaration wins there.
     metta.run("!(collapse (take 2 (match &hr-rank (edge $x $x) $x)))")
@@ -634,11 +634,11 @@ def test_a_declared_route_outranks_the_provider_pushdown_method(metta):  # noqa:
 def test_declare_handles_writes_the_atom_and_routes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     provider = _routed(metta, "&hr-sugar", [])
     atom = metta._at("&hr-sugar").handles("(edge $x $y)", "Exact")
-    assert atom in metta._at("&petta")
+    assert atom in metta._at("&metta")
     metta.run("!(collapse (take 2 (match &hr-sugar (edge $x $y) $y)))")
     assert provider.limits == [2]
     # Removing the returned atom withdraws the declaration: the floor.
-    metta._at("&petta").remove(atom)
+    metta._at("&metta").remove(atom)
     provider.limits.clear()
     metta.run("!(collapse (take 2 (match &hr-sugar (edge $x $y) $y)))")
     assert provider.limits == [None]

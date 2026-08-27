@@ -15,6 +15,32 @@ conversion the file is about.
 
 from metta import FALSE, TRUE, Expression, S
 
+
+def twin(m):
+    """Ten crossings of the boolean, and what each one answers."""
+    py = m.fn.py_call
+
+    # str() sees a Python bool, and its text returns as a symbol.
+    assert py(S.str(TRUE)) == [S["True"]]   # (repr (py-call (str true))) is "True"
+    assert py(S.str(FALSE)) == [S["False"]]
+
+    # A list argument converts its booleans in, and a list answer converts them
+    # back out, elementwise.
+    assert py(S.sorted((TRUE, FALSE))) == [Expression((FALSE, TRUE))]
+    assert py(S.len((TRUE, FALSE, TRUE))) == [3]
+
+    # Python sees bool all the way down, so isinstance and bool() agree.
+    assert py(S.isinstance(TRUE, S.py_call(S.type(FALSE)))).one() is True
+    assert py(S.bool(1)).one() is True
+    assert py(S.bool(0)).one() is False
+
+    # A boolean RECEIVER dispatches on bool, not on the text "true".
+    assert py(S[".bit_length"](TRUE)) == [1]
+
+    # Only the boolean atoms convert; every other symbol stays text.
+    assert py(S[".upper"](S.abc)) == [S.ABC]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -26,7 +52,7 @@ from metta import FALSE, TRUE, Expression, S
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -69,28 +95,3 @@ from metta import FALSE, TRUE, Expression, S
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 6702
-
-
-def twin(m):
-    """Ten crossings of the boolean, and what each one answers."""
-    py = m.fn.py_call
-
-    # str() sees a Python bool, and its text returns as a symbol.
-    assert py(S.str(TRUE)) == [S["True"]]   # (repr (py-call (str true))) is "True"
-    assert py(S.str(FALSE)) == [S["False"]]
-
-    # A list argument converts its booleans in, and a list answer converts them
-    # back out, elementwise.
-    assert py(S.sorted((TRUE, FALSE))) == [Expression((FALSE, TRUE))]
-    assert py(S.len((TRUE, FALSE, TRUE))) == [3]
-
-    # Python sees bool all the way down, so isinstance and bool() agree.
-    assert py(S.isinstance(TRUE, S.py_call(S.type(FALSE)))).one() is True
-    assert py(S.bool(1)).one() is True
-    assert py(S.bool(0)).one() is False
-
-    # A boolean RECEIVER dispatches on bool, not on the text "true".
-    assert py(S[".bit_length"](TRUE)) == [1]
-
-    # Only the boolean atoms convert; every other symbol stays text.
-    assert py(S[".upper"](S.abc)) == [S.ABC]

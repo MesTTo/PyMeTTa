@@ -29,6 +29,26 @@ Open Obligations:
 
 from metta import Expression, S, V, equation, if_, lib
 
+
+def twin(m):
+    """Mirror a name around its head, filter six numbers, and fold ten."""
+    m += lib.patrick
+
+    # The as-pattern names the whole argument and destructures it at the same
+    # time. It is a function, so it goes in the body under a `let` that unifies
+    # it with the argument: a head is a pattern and matches structurally.
+    m += equation(S.mirror(V.A)).to(S.let(V.A, S["@"](V.L, S.cons(V.head, V.tail)), S.append(S.reverse(V.L), V.tail)))  # rung: this `let` unifies a PATTERN against its argument rather than binding a name to a value, and its Python spelling, solve(), is refused inside a compiled body
+
+    mirrored = m.fn.mirror((S.h, S.a, S.n, S.n, S.e, S.s)).one()
+    assert list(mirrored) == [S.s, S.e, S.n, S.n, S.a, S.h, S.a, S.n, S.n, S.e, S.s]
+
+    kept = m.fn["for"](V.x, (1, 2, 3, 4, 5, 6), if_(S.gt(V.x, 3), V.x))
+    assert kept == [4, 5, 6]
+
+    step = S["|->"](Expression((V.i, V.x)), V.x + V.i)
+    assert m.fn.iterate(0, 10, 1, step) == [46]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -40,7 +60,7 @@ from metta import Expression, S, V, equation, if_, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -82,22 +102,3 @@ from metta import Expression, S, V, equation, if_, lib
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 41508
-
-
-def twin(m):
-    """Mirror a name around its head, filter six numbers, and fold ten."""
-    m += lib.patrick
-
-    # The as-pattern names the whole argument and destructures it at the same
-    # time. It is a function, so it goes in the body under a `let` that unifies
-    # it with the argument: a head is a pattern and matches structurally.
-    m += equation(S.mirror(V.A)).to(S.let(V.A, S["@"](V.L, S.cons(V.head, V.tail)), S.append(S.reverse(V.L), V.tail)))  # rung: this `let` unifies a PATTERN against its argument rather than binding a name to a value, and its Python spelling, solve(), is refused inside a compiled body
-
-    mirrored = m.fn.mirror((S.h, S.a, S.n, S.n, S.e, S.s)).one()
-    assert list(mirrored) == [S.s, S.e, S.n, S.n, S.a, S.h, S.a, S.n, S.n, S.e, S.s]
-
-    kept = m.fn["for"](V.x, (1, 2, 3, 4, 5, 6), if_(S.gt(V.x, 3), V.x))
-    assert kept == [4, 5, 6]
-
-    step = S["|->"](Expression((V.i, V.x)), V.x + V.i)
-    assert m.fn.iterate(0, 10, 1, step) == [46]

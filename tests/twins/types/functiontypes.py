@@ -31,6 +31,51 @@ from typing import Any
 
 from metta import Atom, Expression, S
 
+
+def twin(m):
+    """Declare four signatures, then watch each one shape its call."""
+
+    @m.define
+    def wu1(a: int, b: Atom) -> Any:
+        """(: wu1 (-> Number Atom %Undefined%)), (= (wu1 $a $b) (42 $a $b))."""
+        return (42, a, b)
+
+    @m.define
+    def wu1b(a: int, b: Atom) -> Atom:
+        """(: wu1b (-> Number Atom Atom)), preserving the produced expression."""
+        return (42, a, b)
+
+    @m.define
+    def wu2(a: int, b: int) -> int:
+        """(: wu2 (-> Number Number Number)), (= (wu2 $a $b) (+ $a $b))."""
+        return a + b
+
+    @m.define
+    def wu3(a: int, b: int) -> Any:
+        """(: wu3 (-> Number Number %Undefined%)), guarded on (< $a 10)."""
+        if a < 10:
+            return a + b
+        return S.a(S.list, S["not"], S.a, S.number)
+
+    # The Atom-typed argument arrives unevaluated, but wu1's %Undefined% result
+    # re-enters evaluation and reduces the held sum in the produced expression.
+    # !(test (wu1 (+ 2 4) (+ 4 2)) (42 6 6))
+    assert wu1(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, 6))]
+    # An Atom result answers as produced, retaining the held argument.
+    # !(test (wu1b (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
+    assert wu1b(S.add(2, 4), S.add(4, 2)) == [
+        Expression((42, 6, S.add(4, 2)))
+    ]
+    # !(test (wu2 (+ 2 4) (+ 4 2)) 12)
+    assert wu2(S.add(2, 4), S.add(4, 2)) == [12]
+
+    # %Undefined% output: either branch is acceptable to the checker.
+    # !(test (wu3 42 0) (a list not a number))
+    assert wu3(42, 0) == [S.a(S.list, S["not"], S.a, S.number)]
+    # !(test (wu3 2 0) 2)
+    assert wu3(2, 0) == [2]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -41,7 +86,7 @@ from metta import Atom, Expression, S
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -98,45 +143,3 @@ from metta import Atom, Expression, S
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 18350
-def twin(m):
-    """Declare four signatures, then watch each one shape its call."""
-
-    @m.define
-    def wu1(a: int, b: Atom) -> Any:
-        """(: wu1 (-> Number Atom %Undefined%)), (= (wu1 $a $b) (42 $a $b))."""
-        return (42, a, b)
-
-    @m.define
-    def wu1b(a: int, b: Atom) -> Atom:
-        """(: wu1b (-> Number Atom Atom)), preserving the produced expression."""
-        return (42, a, b)
-
-    @m.define
-    def wu2(a: int, b: int) -> int:
-        """(: wu2 (-> Number Number Number)), (= (wu2 $a $b) (+ $a $b))."""
-        return a + b
-
-    @m.define
-    def wu3(a: int, b: int) -> Any:
-        """(: wu3 (-> Number Number %Undefined%)), guarded on (< $a 10)."""
-        if a < 10:
-            return a + b
-        return S.a(S.list, S["not"], S.a, S.number)
-
-    # The Atom-typed argument arrives unevaluated, but wu1's %Undefined% result
-    # re-enters evaluation and reduces the held sum in the produced expression.
-    # !(test (wu1 (+ 2 4) (+ 4 2)) (42 6 6))
-    assert wu1(S.add(2, 4), S.add(4, 2)) == [Expression((42, 6, 6))]
-    # An Atom result answers as produced, retaining the held argument.
-    # !(test (wu1b (+ 2 4) (+ 4 2)) (noeval (42 6 (+ 4 2))))
-    assert wu1b(S.add(2, 4), S.add(4, 2)) == [
-        Expression((42, 6, S.add(4, 2)))
-    ]
-    # !(test (wu2 (+ 2 4) (+ 4 2)) 12)
-    assert wu2(S.add(2, 4), S.add(4, 2)) == [12]
-
-    # %Undefined% output: either branch is acceptable to the checker.
-    # !(test (wu3 42 0) (a list not a number))
-    assert wu3(42, 0) == [S.a(S.list, S["not"], S.a, S.number)]
-    # !(test (wu3 2 0) 2)
-    assert wu3(2, 0) == [2]

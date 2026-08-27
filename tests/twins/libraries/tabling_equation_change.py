@@ -22,6 +22,31 @@ no key, because atoms carry the engine's standard order of terms.
 
 from metta import S, V, equation, lib
 
+
+def twin(m):
+    """Table one equation, add a second, remove the first, watch the answers move."""
+    m += lib.tabling
+
+    @m.define
+    def pick(x):  # noqa: ARG001  -- the head variable is the example's own, and its body ignores it
+        # (= (pick $x) one)
+        return S.one
+
+    m.eval(S.tabled(S.pick(V.x)))
+
+    assert pick(S.a) == [S.one]
+    assert pick(S.a) == [S.one]
+
+    # A second equation for the same function. Without invalidation the table
+    # would keep answering [one].
+    m += equation(S.pick(V.x)).to(S.two)
+    assert sorted(pick(S.a)) == [S.one, S.two]
+
+    # Removing one again.
+    m -= equation(S.pick(V.x)).to(S.one)
+    assert pick(S.a) == [S.two]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -33,7 +58,7 @@ from metta import S, V, equation, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -98,25 +123,3 @@ from metta import S, V, equation, lib
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 60357
-def twin(m):
-    """Table one equation, add a second, remove the first, watch the answers move."""
-    m += lib.tabling
-
-    @m.define
-    def pick(x):  # noqa: ARG001  -- the head variable is the example's own, and its body ignores it
-        # (= (pick $x) one)
-        return S.one
-
-    m.eval(S.tabled(S.pick(V.x)))
-
-    assert pick(S.a) == [S.one]
-    assert pick(S.a) == [S.one]
-
-    # A second equation for the same function. Without invalidation the table
-    # would keep answering [one].
-    m += equation(S.pick(V.x)).to(S.two)
-    assert sorted(pick(S.a)) == [S.one, S.two]
-
-    # Removing one again.
-    m -= equation(S.pick(V.x)).to(S.one)
-    assert pick(S.a) == [S.two]

@@ -1,5 +1,5 @@
 """Purpose: source positions for the engine's own reader. The reader
-answers each form's KIND and verbatim TEXT (petta_py_read_forms); between
+answers each form's KIND and verbatim TEXT (metta_py_read_forms); between
 forms the grammar allows only whitespace and ;-comments, so a single
 deterministic walk recovers every form's line and column exactly, with
 no search and no engine change: the consumers that want positions pay
@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from ._engine import runtime
-from .errors import PettaError
+from .errors import MettaError
 
 
 class SourceForm(NamedTuple):
@@ -62,7 +62,7 @@ def positioned_forms(source: str) -> list[SourceForm]:
     next text in place, so a comment that quotes a later form can never
     mislead it, and any disagreement with the reader refuses loudly.
     """
-    row = runtime().must("petta_py_read_forms(Source, Forms)", Source=source)
+    row = runtime().must("metta_py_read_forms(Source, Forms)", Source=source)
     forms: list[SourceForm] = []
     cursor = 0
     for kind, text in row["Forms"]:
@@ -73,7 +73,7 @@ def positioned_forms(source: str) -> list[SourceForm]:
                     f"the position walk expected ! before a runnable form at "
                     f"offset {cursor}; the reader and the locator disagree"
                 )
-                raise PettaError(
+                raise MettaError(
                     msg
                 )
             cursor = _skip_between(source, cursor + 1)
@@ -82,7 +82,7 @@ def positioned_forms(source: str) -> list[SourceForm]:
                 f"the position walk expected the form {text[:40]!r} at offset "
                 f"{cursor}; the reader and the locator disagree"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         line = 1 + source.count("\n", 0, cursor)

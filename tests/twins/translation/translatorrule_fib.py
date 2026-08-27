@@ -15,6 +15,36 @@ comparison never leaves the engine.
 
 from metta import S
 
+
+def twin(m):
+    """Define a tail-recursive fib, then inline one call to it at compile time."""
+
+    @m.define
+    def fib_tr(n, a, b):                  # (= (fib-tr $n $a $b)
+        if n == 0:                        #    (if (== $n 0) $a
+            return a                      #        (fib-tr (- $n 1) $b (+ $a $b))))
+        return fib_tr(n - 1, b, a + b)
+
+    @m.define
+    def fib(n):                           # (= (fib $n) (fib-tr $n 0 1))
+        return fib_tr(n, 0, 1)
+
+    @m.define
+    def compilefib(n):                    # (= (compilefib $n) (fib $n))
+        return fib(n)
+
+    # Can be left out, but then `smartfun` recomputes fib(10) on every call.
+    m.fn.add_translator_rule(S.compilefib)   # (add-translator-rule! compilefib)
+
+    @m.define
+    def smartfun(b):                      # (= (smartfun $b) (* (compilefib 10) $b))
+        # compilefib is a rule now, so this call is expanded and evaluated
+        # while THIS definition is compiled, never per call.
+        return compilefib(10) * b
+
+    assert smartfun(42) == [2310]   # [2310]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -26,7 +56,7 @@ from metta import S
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -75,30 +105,3 @@ from metta import S
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 17898
-def twin(m):
-    """Define a tail-recursive fib, then inline one call to it at compile time."""
-
-    @m.define
-    def fib_tr(n, a, b):                  # (= (fib-tr $n $a $b)
-        if n == 0:                        #    (if (== $n 0) $a
-            return a                      #        (fib-tr (- $n 1) $b (+ $a $b))))
-        return fib_tr(n - 1, b, a + b)
-
-    @m.define
-    def fib(n):                           # (= (fib $n) (fib-tr $n 0 1))
-        return fib_tr(n, 0, 1)
-
-    @m.define
-    def compilefib(n):                    # (= (compilefib $n) (fib $n))
-        return fib(n)
-
-    # Can be left out, but then `smartfun` recomputes fib(10) on every call.
-    m.fn.add_translator_rule(S.compilefib)   # (add-translator-rule! compilefib)
-
-    @m.define
-    def smartfun(b):                      # (= (smartfun $b) (* (compilefib 10) $b))
-        # compilefib is a rule now, so this call is expanded and evaluated
-        # while THIS definition is compiled, never per call.
-        return compilefib(10) * b
-
-    assert smartfun(42) == [2310]   # [2310]

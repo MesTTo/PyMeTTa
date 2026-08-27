@@ -1,5 +1,5 @@
 """Purpose: prove the TypeScript space server serves the remote-space
-protocol PeTTa attaches to: MeTTa-driven queries, the conformance kit,
+protocol MeTTa attaches to: MeTTa-driven queries, the conformance kit,
 threaded and async clients, and the MeTTaScript-backed variant when a
 core module is named.
 Open Obligations:
@@ -70,9 +70,9 @@ def ts_server():  # noqa: D103  -- pytest discovers or injects this callable; it
 def mettascript_server():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     if _NODE is None:
         pytest.skip("node is not installed")
-    core = os.environ.get("PETTA_METTASCRIPT_CORE")
+    core = os.environ.get("METTA_METTASCRIPT_CORE")
     if not core:
-        pytest.skip("PETTA_METTASCRIPT_CORE does not name a @mettascript/core module")
+        pytest.skip("METTA_METTASCRIPT_CORE does not name a @mettascript/core module")
     process, url = _start("mettascript_space_server.js", "--mettascript", core)
     try:
         yield url

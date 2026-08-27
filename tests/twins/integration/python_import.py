@@ -22,6 +22,19 @@ from metta import S, ground, lib
 #: The file the import reads, named by the atom the example itself writes.
 FIXTURE = S["examples/integration/_fixtures/python_import_file.py"]
 
+
+def twin(m):
+    """Import a Python file, then call two of its functions."""
+    # (import! &self examples/integration/_fixtures/python_import_file.py):
+    # the write door imports, and the lib door carries the path atom.
+    m += lib(FIXTURE)
+
+    py = m.fn.py_call
+    greeting = py(S["python_import_file.greet"](ground("MeTTa User")))
+    assert greeting == [S["Hello, MeTTa User from Python!"]]
+    assert py(S["python_import_file.add"](10, 20)) == [30]   # [30]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -33,7 +46,7 @@ FIXTURE = S["examples/integration/_fixtures/python_import_file.py"]
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -67,15 +80,3 @@ FIXTURE = S["examples/integration/_fixtures/python_import_file.py"]
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 1942
-
-
-def twin(m):
-    """Import a Python file, then call two of its functions."""
-    # (import! &self examples/integration/_fixtures/python_import_file.py):
-    # the write door imports, and the lib door carries the path atom.
-    m += lib(FIXTURE)
-
-    py = m.fn.py_call
-    greeting = py(S["python_import_file.greet"](ground("PeTTa User")))
-    assert greeting == [S["Hello, PeTTa User from Python!"]]
-    assert py(S["python_import_file.add"](10, 20)) == [30]   # [30]

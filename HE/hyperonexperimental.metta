@@ -1,9 +1,9 @@
-!(import! &self pettamorph)
+!(import! &self mettamorph)
 
-!(petta compileme.metta)
-!(petta "(= (h $x) (+ $x 40))")
-!(petta (= (j $x) (+ $x 39)))
+!(metta compileme.metta)
+!(metta "(= (h $x) (+ $x 40))")
+!(metta (= (j $x) (+ $x 39)))
 
-!(petta (h 2))
-!(petta (j 2))
-!(petta (fib 10))
+!(metta (h 2))
+!(metta (j 2))
+!(metta (fib 10))

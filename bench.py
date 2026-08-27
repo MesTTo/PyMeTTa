@@ -86,7 +86,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--memory-repetitions", type=int, default=3)
     parser.add_argument("--memory-quick", action="store_true")
-    parser.add_argument("--memory-cause-commit", default=os.environ.get("PETTA_MEMORY_CAUSE_COMMIT", "WORKTREE"))
+    parser.add_argument("--memory-cause-commit", default=os.environ.get("METTA_MEMORY_CAUSE_COMMIT", "WORKTREE"))
     parser.add_argument("--update-baseline", action="store_true")
     parser.add_argument("--compare-wall", action="store_true")
     parser.add_argument("--json", type=Path)
@@ -108,8 +108,8 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _run_case(pytest_arguments: list[str], *, update: bool) -> None:
-    os.environ["PETTA_BENCHMARK_COUNTERS"] = "1"
-    os.environ["PETTA_UPDATE_BENCHMARK_BASELINE"] = "1" if update else "0"
+    os.environ["METTA_BENCHMARK_COUNTERS"] = "1"
+    os.environ["METTA_UPDATE_BENCHMARK_BASELINE"] = "1" if update else "0"
     result = pytest.main(pytest_arguments)
     if result:
         raise SystemExit(int(result))
@@ -274,7 +274,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps
 
     context = multiprocessing.get_context("spawn")
     failures: list[str] = []
-    with tempfile.TemporaryDirectory(prefix="petta-benchmark-json-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="metta-benchmark-json-") as temporary:
         json_paths: list[Path] = []
         for index, name in enumerate(selected):
             json_path = Path(temporary) / f"{index:03d}-{name}.json" if json_target else None
@@ -290,7 +290,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps
                     ),
                 ),
                 kwargs={"update": arguments.update_baseline},
-                name=f"petta-benchmark-{name}",
+                name=f"metta-benchmark-{name}",
             )
             process.start()
             process_failure = finish_process(process, arguments.timeout)

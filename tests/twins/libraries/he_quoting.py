@@ -21,6 +21,26 @@ Open Obligations:
 
 from metta import G, S, lib
 
+
+def twin(m):
+    """Quote a sum, unquote it, print it, and compare it unreduced."""
+    m += lib.he
+
+    sum_ = G(1) + 2
+    quoted = S.quote(sum_)
+    assert m.eval(quoted) == [quoted]
+
+    assert m.answers(sum_) == [3]
+    assert m.fn.unquote(quoted) == [3]
+
+    # Printing an atom is what MeTTa's repr answers, character for character.
+    assert str(S.unquote(42)) == "(unquote 42)"
+
+    # Comparing without reducing is Python's own structural equality.
+    assert sum_ == G(1) + 2
+    assert sum_ != 3
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -32,7 +52,7 @@ from metta import G, S, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -75,22 +95,3 @@ from metta import G, S, lib
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 2985
-
-
-def twin(m):
-    """Quote a sum, unquote it, print it, and compare it unreduced."""
-    m += lib.he
-
-    sum_ = G(1) + 2
-    quoted = S.quote(sum_)
-    assert m.eval(quoted) == [quoted]
-
-    assert m.answers(sum_) == [3]
-    assert m.fn.unquote(quoted) == [3]
-
-    # Printing an atom is what MeTTa's repr answers, character for character.
-    assert str(S.unquote(42)) == "(unquote 42)"
-
-    # Comparing without reducing is Python's own structural equality.
-    assert sum_ == G(1) + 2
-    assert sum_ != 3

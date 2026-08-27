@@ -66,7 +66,7 @@ REFUSING_RULE = """(: strength (-> Atom Atom %Undefined%))
 !(add-translator-rule! strength)
 !(strength (dose 250) (unit mg))
 !(strength (dose 5000) (unit mg))
-!(match &petta (translator-rule-refusal $rule $why) (refused $rule $why))
+!(match &metta (translator-rule-refusal $rule $why) (refused $rule $why))
 """
 
 

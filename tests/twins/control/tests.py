@@ -32,6 +32,49 @@ Open Obligations:
 
 from metta import Expression, fn, superpose
 
+
+def twin(m):
+    """Stack lets and superpositions four ways, then collapse the lot."""
+    @m.define
+    def program1(y):
+        # Source: (= (program1 $Y) (let $X $Y (collapse (superpose (12 (+ $X 4))))))
+        # Twin:   (= (program1 $Y) (let* (($X $Y)) (collapse (superpose (12 (+ $X 4))))))
+        x = y
+        return collapse(superpose(12, x + 4))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
+
+    @m.define
+    def program2(_y):
+        # Source: (= (program2 $Y) (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))
+        # Twin: nested one-binding let* forms for $L and the collapsed list.
+        values = (1, 2, 3)
+        answers = collapse(fn.superpose(values))  # noqa: F821  -- the same name
+        return fn.superpose(answers)
+
+    @m.define
+    def program3(x):
+        # Source: (= (program3 $x)
+        #    (if (== $x 2)
+        #        (let $z (superpose ((if (< $x 10) (superpose ((42 43))) 43))) $z)
+        #        (let $z 4 $z)))
+        # Twin: the same if shape with py-eq; both identity lets are elided.
+        if x == 2:
+            return superpose(superpose((42, 43)) if x < 10 else 43)
+        return 4
+
+    @m.define
+    def program4():
+        # (= (program4) (collapse ((program1 42) (program2 42) (program3 2))))
+        return collapse((program1(42), program2(42), program3(2)))  # noqa: F821  -- the same name
+
+    first = Expression((12, 46))
+    last = Expression((42, 43))
+
+    # !(test (program4)
+    #        (((12 46) 1 (42 43)) ((12 46) 2 (42 43)) ((12 46) 3 (42 43))))
+    rows = tuple(Expression((first, n, last)) for n in (1, 2, 3))
+    assert program4() == [Expression(rows)]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -41,7 +84,7 @@ from metta import Expression, fn, superpose
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -90,43 +133,3 @@ from metta import Expression, fn, superpose
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 21925
-def twin(m):
-    """Stack lets and superpositions four ways, then collapse the lot."""
-    @m.define
-    def program1(y):
-        # Source: (= (program1 $Y) (let $X $Y (collapse (superpose (12 (+ $X 4))))))
-        # Twin:   (= (program1 $Y) (let* (($X $Y)) (collapse (superpose (12 (+ $X 4))))))
-        x = y
-        return collapse(superpose(12, x + 4))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa, which the package exports nowhere yet (residue, P14.4)
-
-    @m.define
-    def program2(_y):
-        # Source: (= (program2 $Y) (let $list (let $L (1 2 3) (collapse (superpose $L))) (superpose $list)))
-        # Twin: nested one-binding let* forms for $L and the collapsed list.
-        values = (1, 2, 3)
-        answers = collapse(fn.superpose(values))  # noqa: F821  -- the same name
-        return fn.superpose(answers)
-
-    @m.define
-    def program3(x):
-        # Source: (= (program3 $x)
-        #    (if (== $x 2)
-        #        (let $z (superpose ((if (< $x 10) (superpose ((42 43))) 43))) $z)
-        #        (let $z 4 $z)))
-        # Twin: the same if shape with py-eq; both identity lets are elided.
-        if x == 2:
-            return superpose(superpose((42, 43)) if x < 10 else 43)
-        return 4
-
-    @m.define
-    def program4():
-        # (= (program4) (collapse ((program1 42) (program2 42) (program3 2))))
-        return collapse((program1(42), program2(42), program3(2)))  # noqa: F821  -- the same name
-
-    first = Expression((12, 46))
-    last = Expression((42, 43))
-
-    # !(test (program4)
-    #        (((12 46) 1 (42 43)) ((12 46) 2 (42 43)) ((12 46) 3 (42 43))))
-    rows = tuple(Expression((first, n, last)) for n in (1, 2, 3))
-    assert program4() == [Expression(rows)]

@@ -4,7 +4,7 @@ Guarantees:
     and no hosts/ path survives anywhere in it
     [tested: test_the_tree_partitions_by_seam]
   - the engine discovers the python seat through the glob, and the removed
-    legacy python.petta alias stays removed
+    legacy root python package stays removed
     [tested: test_the_tree_partitions_by_seam]
 Open Obligations:
   To Do: None
@@ -55,5 +55,5 @@ def test_the_tree_partitions_by_seam():
     assert "bindings/python/decider.pl" in deciders
 
     assert not (REPO / "python" / "__init__.py").exists(), (
-        "the retired python.petta package alias still exists"
+        "the retired root python package still exists"
     )

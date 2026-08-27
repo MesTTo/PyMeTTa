@@ -20,6 +20,28 @@ from metta import fn
 #: e, to the precision the original writes it at.
 E = 2.718281828459045
 
+
+def twin(m):
+    """Check exp against its own inverse, then check the dice stay in range."""
+    exp, log = m.fn.exp_math, m.fn.log_math
+
+    assert exp(0) == [1.0]
+    assert exp(1.0) == [E]
+    assert abs(exp(2.0).one() - E * E) < 1.0e-12
+    # log-math is the inverse: log base e of e^x is x, within float error.
+    assert abs(log(E, fn.exp_math(3.0)).one() - 3.0) < 1.0e-12
+
+    @m.define
+    def in_range(lo, hi, x):
+        # (= (in-range $lo $hi $x) (and (<= $lo $x) (<= $x $hi)))
+        return fn["and"](lo <= x, x <= hi)  # rung: & is refused inside a compiled body, and `and` is a keyword
+
+    # The random generators answer inside their bounds, every draw.
+    assert in_range(1, 6, fn.random_int(1, 6)) == [True]
+    assert in_range(0.0, 1.0, fn.random_float(0.0, 1.0)) == [True]
+    assert in_range(5, 5, fn.random_int(5, 5)) == [True]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -31,7 +53,7 @@ E = 2.718281828459045
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -80,22 +102,3 @@ E = 2.718281828459045
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 13225
-def twin(m):
-    """Check exp against its own inverse, then check the dice stay in range."""
-    exp, log = m.fn.exp_math, m.fn.log_math
-
-    assert exp(0) == [1.0]
-    assert exp(1.0) == [E]
-    assert abs(exp(2.0).one() - E * E) < 1.0e-12
-    # log-math is the inverse: log base e of e^x is x, within float error.
-    assert abs(log(E, fn.exp_math(3.0)).one() - 3.0) < 1.0e-12
-
-    @m.define
-    def in_range(lo, hi, x):
-        # (= (in-range $lo $hi $x) (and (<= $lo $x) (<= $x $hi)))
-        return fn["and"](lo <= x, x <= hi)  # rung: & is refused inside a compiled body, and `and` is a keyword
-
-    # The random generators answer inside their bounds, every draw.
-    assert in_range(1, 6, fn.random_int(1, 6)) == [True]
-    assert in_range(0.0, 1.0, fn.random_float(0.0, 1.0)) == [True]
-    assert in_range(5, 5, fn.random_int(5, 5)) == [True]

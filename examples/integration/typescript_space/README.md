@@ -1,4 +1,4 @@
-# A PeTTa space served from TypeScript
+# A MeTTa space served from TypeScript
 
 Two servers, one protocol. `space_server.ts` holds atoms in memory with
 its own two-sided unifier and zero dependencies beyond Node's modules,
@@ -8,7 +8,7 @@ so it doubles as the protocol's reference implementation.
 instead, that engine's own atoms and unifier answering underneath: two
 MeTTa implementations joined through one seam.
 
-Attach either from PeTTa and the space is ordinary:
+Attach either from MeTTa and the space is ordinary:
 
 ```python
 import metta
@@ -63,7 +63,7 @@ real unifier for it (pattern and stored variables renamed apart, so
 `(f $x 1)` removes a stored `(f 2 $x)`).
 
 Measured on localhost [2026-08-17]: a match round trip costs about
-243 microseconds and an add about 216, PeTTa client to Node server and
+243 microseconds and an add about 216, MeTTa client to Node server and
 back. The engine re-unifies every candidate a storage provider yields,
 so a defect in a remote store can cost time, never local soundness; a
 semantic matcher (a grounded value's own `match_`) is a different tier
@@ -80,7 +80,7 @@ node mettascript_space_server.js --port 8700 \
 ```
 
 Flags: `--host` (default 127.0.0.1), `--port` (0 picks a free one, the
-readiness line on stdout names it), `--token` or `PETTA_SPACE_TOKEN`
+readiness line on stdout names it), `--token` or `METTA_SPACE_TOKEN`
 for Bearer auth, `--spaces a,b` to allowlist served names, `--max-body`
 bytes, `--cursor-idle` seconds before an untouched answer cursor is
 released (300), `--cursor-limit` how many stay open at once (256).
@@ -100,9 +100,9 @@ esbuild space_server.test.ts --bundle --platform=node --format=esm \
 ```
 
 `bindings/python/tests/test_typescript_space.py` drives the whole story from
-PeTTa: MeTTa-driven queries, the conformance kit over the attached
+MeTTa: MeTTa-driven queries, the conformance kit over the attached
 provider, a thread pool, the async surface, one-request batches, and
-the MeTTaScript backend when `PETTA_METTASCRIPT_CORE` names its core
+the MeTTaScript backend when `METTA_METTASCRIPT_CORE` names its core
 module. Both servers are also certified by
 `metta.testing.GatewayComplianceSuite`, the protocol's own conformance
 suite, which any implementation in any language can subclass against a

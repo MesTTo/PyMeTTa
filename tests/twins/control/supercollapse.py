@@ -34,6 +34,23 @@ Open Obligations:
 
 from metta import Expression, fn, superpose
 
+
+def twin(m):
+    """Append two expressions, then count to nine with nothing else."""
+    @m.define(name="TupleConcat")
+    def concat(first, second):
+        # (= (TupleConcat $Ev1 $Ev2) (collapse (superpose ((superpose $Ev1) (superpose $Ev2)))))
+        return collapse(superpose(fn.superpose(first), fn.superpose(second)))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
+
+    @m.define(name="range")
+    def count_from(k, n):
+        # (= (range $K $N) (if (< $K $N) (TupleConcat ($K) (range (+ $K 1) $N)) ()))
+        return concat((k,), count_from(k + 1, n)) if k < n else ()
+
+    # !(test (range 1 10) (1 2 3 4 5 6 7 8 9))
+    assert count_from(1, 10) == [Expression((1, 2, 3, 4, 5, 6, 7, 8, 9))]
+
+
 #: PLACEHOLDER, never measured in this worktree: the integrator's single
 #: re-pin pass prices the whole corpus under the lane's own protocol after the
 #: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
@@ -43,7 +60,7 @@ from metta import Expression, fn, superpose
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -92,17 +109,3 @@ from metta import Expression, fn, superpose
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 18176
-def twin(m):
-    """Append two expressions, then count to nine with nothing else."""
-    @m.define(name="TupleConcat")
-    def concat(first, second):
-        # (= (TupleConcat $Ev1 $Ev2) (collapse (superpose ((superpose $Ev1) (superpose $Ev2)))))
-        return collapse(superpose(fn.superpose(first), fn.superpose(second)))  # noqa: F821  -- `collapse` is a name a compiled body reads as MeTTa; the package exports it nowhere yet (residue, P14.4)
-
-    @m.define(name="range")
-    def count_from(k, n):
-        # (= (range $K $N) (if (< $K $N) (TupleConcat ($K) (range (+ $K 1) $N)) ()))
-        return concat((k,), count_from(k + 1, n)) if k < n else ()
-
-    # !(test (range 1 10) (1 2 3 4 5 6 7 8 9))
-    assert count_from(1, 10) == [Expression((1, 2, 3, 4, 5, 6, 7, 8, 9))]

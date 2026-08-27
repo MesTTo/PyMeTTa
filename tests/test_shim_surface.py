@@ -43,7 +43,7 @@ HOST_SERVICES = {
     # rather than one goal-string read per name [measured 2026-08-26: 1,311
     # inferences per name's first call through the goal-string read, double
     # digits through the apply seam].
-    "petta_deprecation/3",
+    "metta_deprecation/3",
     # The modifier walk gained a fourth argument rather than a second walk:
     # it now also answers whether the pattern carries a sequence variable,
     # which the query door must know before it builds a candidate head, and
@@ -53,13 +53,13 @@ HOST_SERVICES = {
     # under. It is one call per gap query and none at all for a gap-free one,
     # and the alternative is the host reimplementing the fragment classifier
     # LeaTTa states and this engine already owns.
-    "petta_seq_query_plan/2",
+    "metta_seq_query_plan/2",
     # The query carrier is engine policy: the host enters one dynamic scope,
     # reads its effective declaration, and initializes annotations from that
     # declaration's one rather than rebuilding those rules in the transport.
-    "petta_with_under/2",
-    "petta_effective_algebra/2",
-    "petta_algebra_one/2",
+    "metta_with_under/2",
+    "metta_effective_algebra/2",
+    "metta_algebra_one/2",
     "match_foreign/5",
     "metta_host_load_file/3",
     "metta_host_read_forms/2",
@@ -83,7 +83,7 @@ HOST_SERVICES = {
     # The one row here that makes the floor SHRINK by being added. The engine
     # decides silent/1 from argv at load time, an embedded host has no argv,
     # and two seats had each written the same retract-then-assert privately
-    # (petta_py_set_silent/1 here, petta_c_set_silent/1 in bindings/cetta),
+    # (metta_py_set_silent/1 here, petta_c_set_silent/1 in bindings/cetta),
     # with engine/filereader.pl's own export comment naming the first. One
     # engine-side door replaces both copies and the engine stops depending on
     # a binding's internals.
@@ -133,37 +133,37 @@ HOST_SERVICES = {
     "metta_typed_dispatch_applies/2",
     "metta_source_declarations/2",
     "metta_space_names/1",
-    "petta_space_operand/1",
+    "metta_space_operand/1",
     "metta_string_declarations/2",
     "metta_substitute_self/3",
     "metta_trace_source/4",
     "metta_release_space/1",
-    "petta_annotations/2",
-    "petta_contract_fact/1",
-    "petta_error_answer/3",
-    "petta_handles_coherent/1",
-    "petta_on_error_mode/3",
-    "petta_name_pairs/2",
-    "petta_source_reset/1",
+    "metta_annotations/2",
+    "metta_contract_fact/1",
+    "metta_error_answer/3",
+    "metta_handles_coherent/1",
+    "metta_on_error_mode/3",
+    "metta_name_pairs/2",
+    "metta_source_reset/1",
     # Speculation and State fencing are engine-owned execution/store doors.
     # A host selects the boundary but does not reimplement snapshot rollback,
     # the non-backtrackable State guard, or live-cell identity.
-    "petta_speculate/1",
-    "petta_transaction/1",
+    "metta_speculate/1",
+    "metta_transaction/1",
     # Sagas need the durable transaction outcome before any post-commit
     # observer or foreign-provider failure is rethrown.
-    "petta_transaction_notified/3",
-    "petta_world_effect_coverage/2",
-    "petta_effect_covered/2",
-    "petta_compensation/2",
-    "petta_transport_failure/1",
-    "petta_with_state_write_fence/1",
-    "petta_live_state_cell/1",
+    "metta_transaction_notified/3",
+    "metta_world_effect_coverage/2",
+    "metta_effect_covered/2",
+    "metta_compensation/2",
+    "metta_transport_failure/1",
+    "metta_with_state_write_fence/1",
+    "metta_live_state_cell/1",
     # The platform census. Not shim orchestration moving host-side: it is a
     # fact about the running build that only the engine can answer, and a host
     # that cannot read it recovers the same knowledge by parsing SWI's boot
     # transcript, which is what bindings/node does today.
-    "petta_platform/4",
+    "metta_platform/4",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -206,12 +206,12 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: host would otherwise recover by parsing the boot transcript.
 FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
-    "petta_deprecation/3": "door",
+    "metta_deprecation/3": "door",
     "lift_pattern_modifiers/4": "door",
-    "petta_seq_query_plan/2": "door",
-    "petta_with_under/2": "door",
-    "petta_effective_algebra/2": "door",
-    "petta_algebra_one/2": "door",
+    "metta_seq_query_plan/2": "door",
+    "metta_with_under/2": "door",
+    "metta_effective_algebra/2": "door",
+    "metta_algebra_one/2": "door",
     "match_foreign/5": "door",
     "metta_add_atoms/2": "door",
     "metta_assert_space_releasable/1": "door",
@@ -256,27 +256,27 @@ FLOOR_REASONS = {
     "metta_space_names/1": "door",
     # The species decision behind the wire's p tag: an encoder asks what
     # metatype_of/2 asks, so get-metatype and the wire agree on every atom.
-    "petta_space_operand/1": "codec",
+    "metta_space_operand/1": "codec",
     "metta_string_declarations/2": "codec",
     "metta_substitute_self/3": "door",
     "metta_trace_source/4": "door",
-    "petta_annotations/2": "door",
-    "petta_contract_fact/1": "door",
-    "petta_error_answer/3": "error-vocabulary",
-    "petta_handles_coherent/1": "door",
-    "petta_on_error_mode/3": "host-choice",
-    "petta_name_pairs/2": "codec",
-    "petta_source_reset/1": "door",
-    "petta_speculate/1": "door",
-    "petta_transaction/1": "door",
-    "petta_transaction_notified/3": "door",
-    "petta_world_effect_coverage/2": "door",
-    "petta_effect_covered/2": "door",
-    "petta_compensation/2": "door",
-    "petta_transport_failure/1": "error-vocabulary",
-    "petta_with_state_write_fence/1": "door",
-    "petta_live_state_cell/1": "door",
-    "petta_platform/4": "census",
+    "metta_annotations/2": "door",
+    "metta_contract_fact/1": "door",
+    "metta_error_answer/3": "error-vocabulary",
+    "metta_handles_coherent/1": "door",
+    "metta_on_error_mode/3": "host-choice",
+    "metta_name_pairs/2": "codec",
+    "metta_source_reset/1": "door",
+    "metta_speculate/1": "door",
+    "metta_transaction/1": "door",
+    "metta_transaction_notified/3": "door",
+    "metta_world_effect_coverage/2": "door",
+    "metta_effect_covered/2": "door",
+    "metta_compensation/2": "door",
+    "metta_transport_failure/1": "error-vocabulary",
+    "metta_with_state_write_fence/1": "door",
+    "metta_live_state_cell/1": "door",
+    "metta_platform/4": "census",
     "sread_with_names/3": "codec",
     "swrite_with_names/3": "codec",
     "translate_cached_expr/3": "codec",

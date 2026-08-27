@@ -33,6 +33,26 @@ line that writes it.
 
 from metta import S, V, equation, lib
 
+#: The 70,000-step interpreter exercise states a budget above the engine default.
+DEEP_STACK = (S.max_stack_depth(1_000_000),)
+
+
+def twin(m):
+    """Write integer division as chain, eval and unify, then run it 70,000 deep."""
+    m += lib.he
+
+    m += equation(S.div(V.x, V.y, V.accum)).to(
+        S.chain(S.eval(V.x - V.y), V.r1,
+          S.chain(S.eval(S.lt(V.r1, 0)), V.r2,
+            S.chain(S.unify(V.r2, True,  # noqa: FBT003  -- True is the ATOM the comparison answers, matched against, not a flag
+              V.accum,
+              S.chain(S.eval(1 + V.accum), V.inc,
+                S.chain(S.eval(S.div(V.r1, V.y, V.inc)), V.r4, V.r4))), V.r3, V.r3))))
+
+    counted = S.chain(S.eval(S.div(350000, 5, 0)), V.rr, V.rr)
+    assert m.fn.with_pragma(DEEP_STACK, counted) == [70000]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -44,7 +64,7 @@ from metta import S, V, equation, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -71,23 +91,3 @@ from metta import S, V, equation, lib
 #: improvement of the same era as c7468b27's algebra-tower routing,
 #: stable across every later bracket probe [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 104380670
-
-
-#: The 70,000-step interpreter exercise states a budget above the engine default.
-DEEP_STACK = (S.max_stack_depth(1_000_000),)
-
-
-def twin(m):
-    """Write integer division as chain, eval and unify, then run it 70,000 deep."""
-    m += lib.he
-
-    m += equation(S.div(V.x, V.y, V.accum)).to(
-        S.chain(S.eval(V.x - V.y), V.r1,
-          S.chain(S.eval(S.lt(V.r1, 0)), V.r2,
-            S.chain(S.unify(V.r2, True,  # noqa: FBT003  -- True is the ATOM the comparison answers, matched against, not a flag
-              V.accum,
-              S.chain(S.eval(1 + V.accum), V.inc,
-                S.chain(S.eval(S.div(V.r1, V.y, V.inc)), V.r4, V.r4))), V.r3, V.r3))))
-
-    counted = S.chain(S.eval(S.div(350000, 5, 0)), V.rr, V.rr)
-    assert m.fn.with_pragma(DEEP_STACK, counted) == [70000]

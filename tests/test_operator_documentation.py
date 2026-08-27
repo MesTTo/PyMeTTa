@@ -123,9 +123,9 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
             assert callable(implementation)
             continue
         method = getattr(Atom, entry.dunder)
-        assert method.__petta_lowering__ == entry
+        assert method.__metta_lowering__ == entry
         if entry.reflected is not None:
-            assert getattr(Atom, entry.reflected).__petta_lowering__ == entry
+            assert getattr(Atom, entry.reflected).__metta_lowering__ == entry
 
     assert str(S.x // 2) == "(floor-math (/ x 2))"
     assert str(-S.x) == "(- 0 x)"

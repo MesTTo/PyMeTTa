@@ -19,6 +19,41 @@ would make `seen` an unbound local rather than a closure cell.
 import metta
 from metta import S, fn, lib
 
+
+def twin(m):
+    """Answer with the compiler's `once`, then the library's, then the compiler's."""
+    once = m.fn.once
+
+    # Before the import, `once` is the compiler's own clause.
+    assert once(S.superpose((1, 2, 3))) == [1]
+
+    m += lib.derived
+
+    # After it, `once` is an ordinary MeTTa equation, and it answers the same.
+    assert once(S.superpose((1, 2, 3))) == [1]
+    assert list(once(S.superpose((1, 2, 3)))) == [1]
+    assert list(once(S.empty())) == []
+
+    # It is still the FIRST answer of a generator with side effects, so the
+    # rest of the generator does not run.
+    seen = metta.space(S.seen)
+
+    @m.define
+    def noisy(x):
+        # (= (noisy $x) (let $_ (add-atom &seen (saw $x)) $x))
+        _ = fn.add_atom(seen, S.saw(x))
+        return x
+
+    assert once(S.superpose((S.noisy(S.a), S.noisy(S.b)))) == [S.a]
+    assert list(seen) == [S.saw(S.a)]
+
+    # The swap is a session decision, not a per-call one: registering is
+    # global, and removing puts the compiler's own clause back in charge.
+    m.fn.remove_translator_rule(S.once)
+
+    assert once(S.superpose((1, 2, 3))) == [1]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -30,7 +65,7 @@ from metta import S, fn, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -79,35 +114,3 @@ from metta import S, fn, lib
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 11253
-def twin(m):
-    """Answer with the compiler's `once`, then the library's, then the compiler's."""
-    once = m.fn.once
-
-    # Before the import, `once` is the compiler's own clause.
-    assert once(S.superpose((1, 2, 3))) == [1]
-
-    m += lib.derived
-
-    # After it, `once` is an ordinary MeTTa equation, and it answers the same.
-    assert once(S.superpose((1, 2, 3))) == [1]
-    assert list(once(S.superpose((1, 2, 3)))) == [1]
-    assert list(once(S.empty())) == []
-
-    # It is still the FIRST answer of a generator with side effects, so the
-    # rest of the generator does not run.
-    seen = metta.space(S.seen)
-
-    @m.define
-    def noisy(x):
-        # (= (noisy $x) (let $_ (add-atom &seen (saw $x)) $x))
-        _ = fn.add_atom(seen, S.saw(x))
-        return x
-
-    assert once(S.superpose((S.noisy(S.a), S.noisy(S.b)))) == [S.a]
-    assert list(seen) == [S.saw(S.a)]
-
-    # The swap is a session decision, not a per-call one: registering is
-    # global, and removing puts the compiler's own clause back in charge.
-    m.fn.remove_translator_rule(S.once)
-
-    assert once(S.superpose((1, 2, 3))) == [1]

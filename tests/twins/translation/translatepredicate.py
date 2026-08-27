@@ -19,6 +19,18 @@ variables: their bindings are the parallel row face on the same view.
 
 from metta import S, V
 
+
+def twin(m):
+    """Run two Prolog goals in sequence, and read what the second bound."""
+    translate = S.translatePredicate
+
+    assert m.fn.progn(                        # (progn
+        translate(S["is"](V.x, 2)),           #   (translatePredicate (is $x 2))
+        translate(S["+"](V.x, 40, V.z)),      #   (translatePredicate (+ $x 40 $z))
+        V.z,                                  #   $z)
+    ).one() == 42                             # [42]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -43,14 +55,3 @@ from metta import S, V
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 613
-
-
-def twin(m):
-    """Run two Prolog goals in sequence, and read what the second bound."""
-    translate = S.translatePredicate
-
-    assert m.fn.progn(                        # (progn
-        translate(S["is"](V.x, 2)),           #   (translatePredicate (is $x 2))
-        translate(S["+"](V.x, 40, V.z)),      #   (translatePredicate (+ $x 40 $z))
-        V.z,                                  #   $z)
-    ).one() == 42                             # [42]

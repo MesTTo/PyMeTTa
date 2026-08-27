@@ -3,7 +3,7 @@ building operators over the whole engine-evaluable algebra, declarations
 generalised (TypeVars, Unions superposing, Callable arrows, tuple shapes,
 classes as declared types), guarded and bounded queries, assumptions,
 prepared queries, general weighted relations, goal-directed soft proving with Proof objects, and
-the &petta reflection space the library describes itself into.
+the &metta reflection space the library describes itself into.
 Guarantees:
   - all rich comparisons order atoms while explicit symbolic heads retain
     truthiness-refusing comparison terms [tested:
@@ -16,7 +16,7 @@ Guarantees:
     test_define_decorator_declares_field_types; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
   - an unannotated weighted operation stays untyped without a typed flag
     [tested: test_a_weighted_relation_is_an_annotated_op; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - root ``metta.catalog`` is the ordinary queryable ``&petta`` reflection
+  - root ``metta.catalog`` is the ordinary queryable ``&metta`` reflection
     space [tested: test_catalog_is_the_root_queryable_reflection_space;
     commit=46ae646e5efe14320c01e1e110d9cfd6cd0fc7e1]
 Open Obligations:
@@ -294,7 +294,7 @@ def test_a_weighted_relation_is_an_annotated_op(m):  # noqa: D103  -- pytest dis
 
 def test_catalog_is_the_root_queryable_reflection_space():
     """The settled root spelling exposes catalog data through Space.match."""
-    assert catalog.name == "&petta"
+    assert catalog.name == "&metta"
     assert metta_package.catalog is catalog
     assert metta_package.reflection == catalog
     assert catalog.match(S.kind(V.name, V.subject, V.shape))
@@ -340,14 +340,14 @@ def test_reflection_facts_follow_a_dropped_space(metta):  # noqa: D103  -- pytes
 
 
 def test_metta_programs_steer_through_the_reflection_space(m):
-    """Deeper control without forking: a Python subscription on &petta
+    """Deeper control without forking: a Python subscription on &metta
     reacts to control atoms a MeTTa program writes there.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     reflection = catalog
     seen = []
     sub = reflection.subscribe(S.control(V.knob, V.value), lambda e: seen.append(e))
     try:
-        m.run("!(add-atom &petta (control verbosity 2))")
+        m.run("!(add-atom &metta (control verbosity 2))")
         assert len(seen) == 1
         assert seen[0].bindings["knob"] == S.verbosity
         assert seen[0].bindings["value"] == 2

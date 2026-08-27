@@ -1,4 +1,4 @@
-"""Purpose: own the engine bootstrap and bridge. Consults PeTTa and the shim
+"""Purpose: own the engine bootstrap and bridge. Consults MeTTa and the shim
 exactly once per process, serializes calls made on the home engine, lets a
 thread holding its own engine run without that lock, and turns Prolog
 exceptions into the library's own errors for both Python surfaces.
@@ -20,7 +20,7 @@ Guarantees:
     test_engine_thread_owns_only_its_attachment,
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - a rehydrated PettaError keeps the __cause__ it was raised with, so the
+  - a rehydrated MettaError keeps the __cause__ it was raised with, so the
     boundary term never displaces the diagnosis [tested
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]
   - a failed MeTTa assertion arrives as AssertionFailure and an engine fault
@@ -33,7 +33,7 @@ Guarantees:
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
-    no engine with any other thread, and PeTTa's shared structures already
+    no engine with any other thread, and MeTTa's shared structures already
     carry their own Prolog mutexes because hyperpose workers have always
     reached the same database [tested
     test_define_from_two_threads_is_serialized]
@@ -63,9 +63,9 @@ from .errors import (
     EngineError,
     InferenceLimitError,
     Interrupted,
+    MettaError,
     MettaOperationError,
     MettaSyntaxError,
-    PettaError,
     SpaceCapabilityError,
     TimeLimitError,
 )
@@ -92,10 +92,10 @@ class _CallLocks(threading.local):
     a janus.engine() crossing on every call a pool worker makes; one
     thread-local read is 59ns [measured 2026-08-15, ai-tmp/pool/lockcost.py].
 
-    What makes running free safe is that PeTTa's shared structures already
+    What makes running free safe is that MeTTa's shared structures already
     carry their own Prolog mutexes, because hyperpose workers have always
-    reached the same database: '$petta_specializer' in specializer.pl,
-    '$petta_native_storage' in spaces.pl, metta_loader around
+    reached the same database: '$metta_specializer' in specializer.pl,
+    '$metta_native_storage' in spaces.pl, metta_loader around
     process_metta_string in filereader.pl, and a per-function mutex in
     lib_memo.pl. SWI keeps individual dynamic predicates consistent itself.
     """
@@ -118,7 +118,7 @@ _FAILED = object()
 
 
 class JanusBridge(Protocol):
-    """The janus operations PeTTa uses across the package."""
+    """The janus operations MeTTa uses across the package."""
 
     PrologError: type[Exception]
 
@@ -207,7 +207,7 @@ def booted() -> bool:
 
 
 def bridge() -> JanusBridge:
-    """Import and return janus without starting the PeTTa runtime."""
+    """Import and return janus without starting the MeTTa runtime."""
     janus = _STATE.janus
     if janus is not None:
         return janus
@@ -217,12 +217,12 @@ def bridge() -> JanusBridge:
         return _STATE.janus
 
 
-def _resolve_petta_path() -> str:
-    """Locate the configured, bundled, or checkout PeTTa runtime tree.
+def _resolve_metta_path() -> str:
+    """Locate the configured, bundled, or checkout MeTTa runtime tree.
 
     importlib.resources for the bundled case, because that is the supported
     way to locate package data and the one that keeps working when the package
-    is not an ordinary directory on disk. This is latent for PeTTa itself,
+    is not an ordinary directory on disk. This is latent for MeTTa itself,
     since wheels are normally unpacked, and it is not latent for the pattern:
     every downstream library shipping a .pl beside its Python copies whatever
     the engine does, so getting it right once here is what gives them the
@@ -233,7 +233,7 @@ def _resolve_petta_path() -> str:
     __file__ stays for a source checkout, where the package is not installed
     at all.
     """
-    configured = os.environ.get("PETTA_PATH")
+    configured = os.environ.get("METTA_PATH")
     if configured:
         return str(Path(configured).resolve())
 
@@ -310,28 +310,28 @@ def engine_thread() -> Iterator[None]:
             raise EngineError(msg) from exc
 
 
-def runtime(petta_path: str | None = None, verbose: bool = False) -> Runtime:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
+def runtime(metta_path: str | None = None, verbose: bool = False) -> Runtime:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
     """The process's runtime, started on first use.
 
     There is exactly one engine per process, so a later caller cannot have
-    a different tree: an explicit petta_path that disagrees with the one
+    a different tree: an explicit metta_path that disagrees with the one
     already consulted raises rather than being silently ignored. Verbosity
     is per-call state and simply applies.
     """
     with _LOCK:
         if _STATE.runtime is None:
-            logger.debug("starting the shared PeTTa runtime")
-            _STATE.runtime = Runtime(petta_path=petta_path, verbose=verbose)
+            logger.debug("starting the shared MeTTa runtime")
+            _STATE.runtime = Runtime(metta_path=metta_path, verbose=verbose)
         else:
-            active = _STATE.runtime.petta_path
+            active = _STATE.runtime.metta_path
             if (
-                petta_path is not None
+                metta_path is not None
                 and active is not None
-                and Path(petta_path).resolve() != Path(active).resolve()
+                and Path(metta_path).resolve() != Path(active).resolve()
             ):
                 msg = (
                     f"the engine was consulted from {active!r} and cannot "
-                    f"be reconsulted from {petta_path!r}: PeTTa keeps one "
+                    f"be reconsulted from {metta_path!r}: MeTTa keeps one "
                     f"engine per process. Start a new process for a "
                     f"different tree."
                 )
@@ -354,20 +354,20 @@ def _clean_message(exc: BaseException) -> str:
 class Runtime:
     """One consulted engine, shared by every space and operation.
 
-    PeTTa compiles functions process-wide, so there is exactly one engine per
+    MeTTa compiles functions process-wide, so there is exactly one engine per
     process and this class refuses to pretend otherwise.
     """
 
-    def __init__(self, petta_path: str | None = None, verbose: bool = False) -> None:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
+    def __init__(self, metta_path: str | None = None, verbose: bool = False) -> None:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
         self.verbose = bool(verbose)
         with CONSULT_LOCK:
             if not CONSULTED.is_set():
-                if petta_path is None:
-                    petta_path = _resolve_petta_path()
+                if metta_path is None:
+                    metta_path = _resolve_metta_path()
                 with config._startup() as startup:
-                    _STATE.janus = self._consult_engine(petta_path, startup[0])
+                    _STATE.janus = self._consult_engine(metta_path, startup[0])
                 CONSULTED.set()
-            self.petta_path = petta_path
+            self.metta_path = metta_path
             self._janus = bridge()
             # The functional calling convention (apply_once, cmd) skips the
             # per-thread engine handling query_once performs: on a thread
@@ -392,7 +392,7 @@ class Runtime:
 
     # ------------------------------------------------------------------ startup
 
-    def _consult_engine(self, petta_path: str, stack_limit: int) -> JanusBridge:
+    def _consult_engine(self, metta_path: str, stack_limit: int) -> JanusBridge:
         """Stack limit, native backends, main.pl.
 
         `backends` asks the engine to load every native backend that is built.
@@ -401,8 +401,8 @@ class Runtime:
         for MORK's shared library here and pass `mork`, which put a backend's
         build path in the embedding host.
         """
-        logger.debug("consulting the PeTTa engine from %s", petta_path)
-        root = Path(petta_path)
+        logger.debug("consulting the MeTTa engine from %s", metta_path)
+        root = Path(metta_path)
         janus = cast(JanusBridge, importlib.import_module("janus_swi"))
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
         janus.query_once("set_prolog_flag(argv, ['backends'])")
@@ -410,8 +410,8 @@ class Runtime:
         helper_file = root / "bindings" / "python" / "helper.pl"
         if not main_file.is_file():
             msg = (
-                f"PeTTa runtime not found under {petta_path!r} (expected "
-                f"{main_file!r}). Set PETTA_PATH or pass petta_path."
+                f"MeTTa runtime not found under {metta_path!r} (expected "
+                f"{main_file!r}). Set METTA_PATH or pass metta_path."
             )
             raise FileNotFoundError(
                 msg
@@ -419,7 +419,7 @@ class Runtime:
         janus.consult(str(main_file))
         if helper_file.is_file():
             janus.consult(str(helper_file))
-        logger.debug("consulted the PeTTa engine")
+        logger.debug("consulted the MeTTa engine")
         return janus
 
     def _consult_shim(self) -> None:
@@ -427,9 +427,9 @@ class Runtime:
         if _SHIM_LOADED.is_set():
             return
         callbacks = importlib.import_module(f"{__package__}._callbacks")
-        # janus reaches Python operations by importing petta_ops; the alias
+        # janus reaches Python operations by importing metta_ops; the alias
         # makes that import resolve to the registry module.
-        sys.modules.setdefault("petta_ops", callbacks)
+        sys.modules.setdefault("metta_ops", callbacks)
         shim = str(Path(__file__).with_name("shim.pl"))
         logger.debug("consulting the Python bridge shim from %s", shim)
         self._janus.consult(shim)
@@ -493,7 +493,7 @@ class Runtime:
         failures through _raise. The two consults did neither, in a package
         that ships a thread pool and an async surface, so a syntax error in a
         library's shipped .pl arrived as a raw janus PrologError that a
-        caller's `except PettaError` missed.
+        caller's `except MettaError` missed.
 
         The engine side raises what SWI would only have printed, which is the
         half no wrapper here could reach: a syntax error inside a consulted
@@ -609,8 +609,8 @@ class Runtime:
         the library asks itself about, an operation's arities and a space's
         diagnostics, and why it is not the lazy route.
 
-        The lazy route is an SWI engine, not a findall: petta_py_cursor_open
-        holds the goal's state between pulls, petta_py_cursor_next takes one
+        The lazy route is an SWI engine, not a findall: metta_py_cursor_open
+        holds the goal's state between pulls, metta_py_cursor_next takes one
         answer, and unrelated calls interleave freely, which a raw janus
         cursor forbids because its frames nest LIFO and it dies crossing
         threads. MeTTa.stream() is that door in-process and
@@ -633,7 +633,7 @@ class Runtime:
                 # The library's own raise crossed Prolog and came back:
                 # re-raise the very object, structured fields intact,
                 # instead of an EngineError holding its transcript. Only
-                # PettaError rehydrates; an op author's ValueError keeps
+                # MettaError rehydrates; an op author's ValueError keeps
                 # arriving wrapped, the boundary it crossed visible.
                 #
                 # An error that already chose its own cause keeps it. `from
@@ -680,11 +680,11 @@ class Runtime:
             # NAMED variable of the query and an assertion form that carries
             # no expected value leaves one free, which janus reports as
             # "Arguments are not sufficiently instantiated" rather than as
-            # absence. petta_py_operation_part/2 maps that absence to None.
+            # absence. metta_py_operation_part/2 maps that absence to None.
             row = self._janus.query_once(
-                "petta_assertion_failure(Error, Form, _Actual, _Expected), "
-                "petta_py_operation_part(_Actual, Actual), "
-                "petta_py_operation_part(_Expected, Expected)",
+                "metta_assertion_failure(Error, Form, _Actual, _Expected), "
+                "metta_py_operation_part(_Actual, Actual), "
+                "metta_py_operation_part(_Expected, Expected)",
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
@@ -708,7 +708,7 @@ class Runtime:
         ) from exc
 
     def _original_python_error(
-        self, term: object, base: type[BaseException] = PettaError
+        self, term: object, base: type[BaseException] = MettaError
     ) -> BaseException | None:
         """The live exception a Python callback raised, when the Prolog
         term still carries the object reference and the object is a
@@ -718,7 +718,7 @@ class Runtime:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         try:
             row = self._janus.query_once(
-                "petta_py_original_exception(Error, Obj)", {"Error": term}
+                "metta_py_original_exception(Error, Obj)", {"Error": term}
             )
         except self._janus.PrologError:
             return None
@@ -733,7 +733,7 @@ class Runtime:
         """Raise SpaceCapabilityError with the refusal's stable fields."""
         try:
             row = self._janus.query_once(
-                "petta_py_space_capability_error(Error, Space, Operation, Capability)",
+                "metta_py_space_capability_error(Error, Space, Operation, Capability)",
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
@@ -764,7 +764,7 @@ class Runtime:
         """Raise MettaOperationError when the term names a MeTTa operation."""
         try:
             row = self._janus.query_once(
-                "petta_py_operation_error(Error, Operation, Kind, Expected, Culprit)",
+                "metta_py_operation_error(Error, Operation, Kind, Expected, Culprit)",
                 {"Error": term},
             )
         except self._janus.PrologError as classifier_error:
@@ -791,5 +791,5 @@ class Runtime:
     # ------------------------------------------------------------------- helpers
 
     def builtins(self) -> list[str]:
-        row = self.once("petta_py_builtins(Names)")
+        row = self.once("metta_py_builtins(Names)")
         return list(row.get("Names", []))

@@ -27,7 +27,7 @@ import time
 
 import pytest
 
-from metta import PettaError, S, V
+from metta import MettaError, S, V
 from metta.parallel import EnginePool, imap_unordered, pool
 
 hypothesis = pytest.importorskip("hypothesis")
@@ -201,7 +201,7 @@ def test_a_worker_error_does_not_kill_the_pool(p):  # noqa: D103  -- pytest disc
 
 
 def test_an_engine_error_crosses_to_the_caller(m, p):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    with pytest.raises(PettaError):
+    with pytest.raises(MettaError):
         p.map(lambda _: m.run("(this is not ("), [0])
 
 
@@ -284,7 +284,7 @@ def test_submit_and_close_linearize_accepted_work():
 def test_closed_pool_refuses_work():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     engine_pool = pool(workers=2)
     engine_pool.close()
-    with pytest.raises(PettaError, match="closed"):
+    with pytest.raises(MettaError, match="closed"):
         engine_pool.submit(lambda: 1)
 
 

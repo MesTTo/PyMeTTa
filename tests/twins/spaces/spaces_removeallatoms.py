@@ -22,6 +22,26 @@ why no bracket spelling is needed for a name MeTTa writes as
 
 from metta import S, lib
 
+
+def twin(m):
+    """Fill a space, empty it, then see what is left to answer with."""
+    m += lib.spaces
+
+    m += (S.friend, S.tim, S.tom)
+
+    @m.define
+    def f(_x):
+        return 42
+
+    m.fn.remove_all_atoms(m).one()  # rung: clear() empties the same space and answers nothing, where this answers one unit per atom
+
+    # The function was imported into this space, so it left with everything
+    # else: a second call has nothing to reduce it and answers itself.
+    assert m.answers(S.remove_all_atoms(m)) == [S.remove_all_atoms(m)]
+    assert m.answers(S.f(42)) == [S.f(42)]
+    assert len(m) == 0
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -33,7 +53,7 @@ from metta import S, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -82,20 +102,3 @@ from metta import S, lib
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 13577
-def twin(m):
-    """Fill a space, empty it, then see what is left to answer with."""
-    m += lib.spaces
-
-    m += (S.friend, S.tim, S.tom)
-
-    @m.define
-    def f(_x):
-        return 42
-
-    m.fn.remove_all_atoms(m).one()  # rung: clear() empties the same space and answers nothing, where this answers one unit per atom
-
-    # The function was imported into this space, so it left with everything
-    # else: a second call has nothing to reduce it and answers itself.
-    assert m.answers(S.remove_all_atoms(m)) == [S.remove_all_atoms(m)]
-    assert m.answers(S.f(42)) == [S.f(42)]
-    assert len(m) == 0

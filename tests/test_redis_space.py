@@ -21,7 +21,7 @@ import pytest
 
 from metta import Expression, S, V
 
-_CONTAINER = f"petta-redis-test-{uuid.uuid4().hex[:12]}"
+_CONTAINER = f"metta-redis-test-{uuid.uuid4().hex[:12]}"
 
 
 def _docker_ready() -> bool:

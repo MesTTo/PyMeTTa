@@ -3,7 +3,7 @@
 Six successor facts and a transitive closure over them, asked backwards: which
 letters come before `d`. The two dispatch policies go into the reflection space
 through the ordinary write door, `space += atom`, because that is what
-`add-atom` is; `metta.reflection` IS that space, so the `&petta` symbol is
+`add-atom` is; `metta.reflection` IS that space, so the `&metta` symbol is
 never written.
 
 Both relations are `@m.rules` bundles, the door for equations that COEXIST.
@@ -24,6 +24,48 @@ from metta.vocabularies import NoMatchEnum
 
 #: Six letters, each with the one before it.
 SUCCESSORS = ((S.b, S.a), (S.c, S.b), (S.d, S.c), (S.e, S.d), (S.f, S.e), (S.g, S.f))
+
+
+def twin(m):
+    """State six facts, close them transitively, and search backwards."""
+    # Reaching either relation's unmatched boundary must FAIL the search rather
+    # than answering the P3 residual-call dispatch value.
+    # !(add-atom &metta (dispatch-policy successor NoMatchEnum NoMatchFail))
+    # !(add-atom &metta (dispatch-policy later-in-alphabet NoMatchEnum NoMatchFail))
+    reflection = metta.reflection
+    reflection += S.dispatch_policy(
+        S.successor, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
+    )
+    reflection += S.dispatch_policy(
+        S.later_in_alphabet, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
+    )
+
+    @m.rules
+    def alphabet():
+        """(= (successor b a) True), and five more of the same shape."""
+        for after, before in SUCCESSORS:
+            yield equation(S.successor(after, before)).to(TRUE)
+
+    @m.rules
+    def closure(after, before, middle):
+        """The transitive closure, as the two coexisting clauses it is."""
+        # (= (later-in-alphabet $X $Y) (successor $X $Y))
+        yield equation(S.later_in_alphabet(after, before)).to(
+            S.successor(after, before)
+        )
+        # (= (later-in-alphabet $X $Y)
+        #    (and (successor $X $Z) (later-in-alphabet $Z $Y)))
+        yield equation(S.later_in_alphabet(after, before)).to(
+            S.successor(after, middle) & S.later_in_alphabet(middle, before)
+        )
+
+    # Asking with the second argument open enumerates every letter before d,
+    # nearest first, each paired with the True its clause answered.
+    # !(test (collapse ((later-in-alphabet d $1) $1)) ((True c) (True b) (True a)))
+    assert m.eval((S.later_in_alphabet(S.d, V.earlier), V.earlier)) == [
+        Expression((TRUE, S.c)), Expression((TRUE, S.b)), Expression((TRUE, S.a)),
+    ]
+
 
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
@@ -81,42 +123,3 @@ SUCCESSORS = ((S.b, S.a), (S.c, S.b), (S.d, S.c), (S.e, S.d), (S.f, S.e), (S.g, 
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
 BUDGET = 17446
-def twin(m):
-    """State six facts, close them transitively, and search backwards."""
-    # Reaching either relation's unmatched boundary must FAIL the search rather
-    # than answering the P3 residual-call dispatch value.
-    # !(add-atom &petta (dispatch-policy successor NoMatchEnum NoMatchFail))
-    # !(add-atom &petta (dispatch-policy later-in-alphabet NoMatchEnum NoMatchFail))
-    reflection = metta.reflection
-    reflection += S.dispatch_policy(
-        S.successor, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
-    )
-    reflection += S.dispatch_policy(
-        S.later_in_alphabet, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
-    )
-
-    @m.rules
-    def alphabet():
-        """(= (successor b a) True), and five more of the same shape."""
-        for after, before in SUCCESSORS:
-            yield equation(S.successor(after, before)).to(TRUE)
-
-    @m.rules
-    def closure(after, before, middle):
-        """The transitive closure, as the two coexisting clauses it is."""
-        # (= (later-in-alphabet $X $Y) (successor $X $Y))
-        yield equation(S.later_in_alphabet(after, before)).to(
-            S.successor(after, before)
-        )
-        # (= (later-in-alphabet $X $Y)
-        #    (and (successor $X $Z) (later-in-alphabet $Z $Y)))
-        yield equation(S.later_in_alphabet(after, before)).to(
-            S.successor(after, middle) & S.later_in_alphabet(middle, before)
-        )
-
-    # Asking with the second argument open enumerates every letter before d,
-    # nearest first, each paired with the True its clause answered.
-    # !(test (collapse ((later-in-alphabet d $1) $1)) ((True c) (True b) (True a)))
-    assert m.eval((S.later_in_alphabet(S.d, V.earlier), V.earlier)) == [
-        Expression((TRUE, S.c)), Expression((TRUE, S.b)), Expression((TRUE, S.a)),
-    ]

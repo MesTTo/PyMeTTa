@@ -73,7 +73,7 @@ def test_an_impure_function_is_never_cached_automatically() -> None:
     metta = MeTTa().space("&p14-auto-impure")
     declaration = "(cache p14-auto-impure force)"
     try:
-        metta.run(f"!(add-atom &petta {declaration})")
+        metta.run(f"!(add-atom &metta {declaration})")
         metta.run(
             """
             (= (p14-auto-impure $n)
@@ -90,7 +90,7 @@ def test_an_impure_function_is_never_cached_automatically() -> None:
             "(cache declined (impure "
         )
     finally:
-        metta.run(f"!(remove-atom &petta {declaration})")
+        metta.run(f"!(remove-atom &metta {declaration})")
 
 
 def test_automatic_cache_force_and_refuse_overrides() -> None:
@@ -119,8 +119,8 @@ def test_automatic_cache_force_and_refuse_overrides() -> None:
         "(cache automatic "
     )
     try:
-        metta.run(f"!(add-atom &petta {force})")
-        metta.run(f"!(add-atom &petta {refuse})")
+        metta.run(f"!(add-atom &metta {force})")
+        metta.run(f"!(add-atom &metta {refuse})")
         assert metta.run("!(is-memoized p14-auto-forced)") == [[True]]
         assert metta.run("!(is-memoized p14-auto-refused)") == [[False]]
         assert _cache_text(metta, "(p14-auto-forced 4 0)") == (
@@ -130,8 +130,8 @@ def test_automatic_cache_force_and_refuse_overrides() -> None:
             "(cache refused declaration)"
         )
     finally:
-        metta.run(f"!(remove-atom &petta {force})")
-        metta.run(f"!(remove-atom &petta {refuse})")
+        metta.run(f"!(remove-atom &metta {force})")
+        metta.run(f"!(remove-atom &metta {refuse})")
 
     assert metta.run("!(is-memoized p14-auto-forced)") == [[False]]
     assert metta.run("!(is-memoized p14-auto-refused)") == [[True]]
@@ -142,7 +142,7 @@ def test_automatic_caching_preserves_multiplicity_and_answer_limit() -> None:
     metta = MeTTa().space("&p14-auto-bag")
     refuse = "(cache p14-bag-plain refuse)"
     _memo_inspection(metta)
-    metta.run(f"!(add-atom &petta {refuse})")
+    metta.run(f"!(add-atom &metta {refuse})")
     try:
         metta.run(
             """
@@ -179,7 +179,7 @@ def test_automatic_caching_preserves_multiplicity_and_answer_limit() -> None:
             "!(config-memoize (answer-limit 2048) (aggregate none) (float 12))"
         )
         metta.run("!(clear-memoize)")
-        metta.run(f"!(remove-atom &petta {refuse})")
+        metta.run(f"!(remove-atom &metta {refuse})")
 
 
 def test_scc_profitability_is_per_rhs_and_selects_a_mutual_component() -> None:

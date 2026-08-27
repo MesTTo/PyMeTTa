@@ -122,7 +122,7 @@ from ._space import Space as MeTTa
 from ._space import _creation_site
 from ._under import _UNSET
 from .atoms import Atom
-from .errors import Interrupted, PettaError
+from .errors import Interrupted, MettaError
 from .results import Rows
 from .subscribe import SUBSCRIPTION_QUEUE_MAX
 from .vocabularies import (
@@ -281,7 +281,7 @@ class _EngineThread:
                     if closing:
                         _deliver(
                             request,
-                            PettaError("AsyncMeTTa closed before this request ran"),
+                            MettaError("AsyncMeTTa closed before this request ran"),
                             failed=True,
                         )
                         continue
@@ -362,9 +362,9 @@ class _EngineThread:
             cause = self._failure
             detail = f": {type(cause).__name__}: {cause}" if cause is not None else ""
             msg = f"AsyncMeTTa worker failed{detail}"
-            raise PettaError(msg) from cause
+            raise MettaError(msg) from cause
         msg = f"AsyncMeTTa worker is {self._state}"
-        raise PettaError(msg)
+        raise MettaError(msg)
 
     def _fail_worker(self, cause: BaseException) -> None:
         pending: list[_Request] = []
@@ -378,7 +378,7 @@ class _EngineThread:
                 if request is not None:
                     pending.append(request)
         for request in pending:
-            failure = PettaError(
+            failure = MettaError(
                 f"AsyncMeTTa worker failed before this request ran: {type(cause).__name__}: {cause}"
             )
             failure.__cause__ = cause
@@ -430,7 +430,7 @@ class _EngineThread:
             # goal holds that lock, and the signal is how it lets go.
             bridge().query_once(
                 "thread_signal(T, throw(error(metta_control_signal(interrupted, none), "
-                "context(petta, interrupted))))",
+                "context(metta, interrupted))))",
                 {"T": swi_thread},
             )
             logger.debug("sent an interrupt to the AsyncMeTTa worker")
@@ -462,7 +462,7 @@ class _EngineThread:
         for request in pending:
             _deliver(
                 request,
-                PettaError("AsyncMeTTa closed before this request ran"),
+                MettaError("AsyncMeTTa closed before this request ran"),
                 failed=True,
             )
         if pending:
@@ -477,7 +477,7 @@ class _EngineThread:
             return
         if thread is threading.current_thread():
             msg = "an AsyncMeTTa worker cannot stop itself"
-            raise PettaError(msg)
+            raise MettaError(msg)
         self.interrupt_if_running(None)
         thread.join(timeout)
         if thread.is_alive():
@@ -526,7 +526,7 @@ def _shutdown_workers() -> None:
     logger.debug("stopping %d AsyncMeTTa worker(s) at exit", len(workers))
     failures: list[Exception] = []
     shutdown_errors = (
-        PettaError,
+        MettaError,
         RuntimeError,
         TimeoutError,
         bridge().PrologError,
@@ -622,7 +622,7 @@ class AsyncMeTTa:
         """Start the engine thread; connect() and `async with` call this."""
         if self._closed:
             msg = "this AsyncMeTTa is closed"
-            raise PettaError(msg)
+            raise MettaError(msg)
         await self._worker.start()
         return self
 
@@ -633,7 +633,7 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self._closed:
             msg = "this AsyncMeTTa is closed"
-            raise PettaError(msg)
+            raise MettaError(msg)
         await self._worker.start()
         loop = asyncio.get_running_loop()
         request = _Request(fn, self._m, loop, loop.create_future())
@@ -801,7 +801,7 @@ class AsyncMeTTa:
             raise TypeError(msg)
         if world._am._worker is not self._worker:
             msg = "an async world must be committed through its originating engine worker"
-            raise PettaError(msg)
+            raise MettaError(msg)
         await self.call(lambda m: m.commit(world._world))
 
     async def covers(self, effect: EffectClass | str) -> Atom:
@@ -822,7 +822,7 @@ class AsyncMeTTa:
             raise TypeError(msg)
         if receipts._worker is not self._worker:
             msg = "an async saga and its receipt space must share one engine worker"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return AsyncSaga(self, receipts)
 
     async def drop(self) -> None:
@@ -1535,7 +1535,7 @@ class AsyncSaga:
         """Enter the synchronous saga entirely on the owning worker."""
         if self._saga is not None or self._acquiring:
             msg = "an AsyncSaga context cannot be entered twice"
-            raise PettaError(msg)
+            raise MettaError(msg)
 
         acquired: dict[str, Any] = {}
 
@@ -1609,7 +1609,7 @@ class AsyncSaga:
         saga = self._saga
         if saga is None:
             msg = f"AsyncSaga.{operation}() requires an active async saga"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return saga
 
 
@@ -1649,7 +1649,7 @@ class AsyncWorld:
             raise TypeError(msg)
         if other._am._worker is not self._am._worker:
             msg = "async worlds from different engine workers cannot be diffed"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return self._world.diff(other._world)
 
     async def aclose(self) -> None:
@@ -1886,7 +1886,7 @@ class _AsyncSubscription:
                 f"the synchronous surface, where a full queue refuses the "
                 f"write instead of outrunning the reader."
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         event = await events.get()

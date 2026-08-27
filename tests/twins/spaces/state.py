@@ -38,6 +38,30 @@ calls rather than named heads.
 
 from metta import S, State, fn, ground
 
+
+def twin(m):
+    """Make a cell, read it, write through it, and ask what it holds."""
+    # !(bind! state (new-state rest)): binding a name to the cell is Python's
+    # own name binding, which is why the two spellings read alike.
+    state = State(S.rest, space=m)
+    assert state.value == S.rest
+
+    # The write composes with the read, in the engine, for the reason above.
+    assert m.answers(fn.get_state(fn.change_state(state, S.active))) == [S.active]   # rung: no Python expression writes an attribute
+    # And the name still denotes the same cell, so the handle reads it too.
+    assert state.value == S.active
+
+    # The type says what the cell HOLDS, which is upstream's own signature
+    # (: new-state (-> $t (StateMonad $t))).
+    assert m.type(State(5, space=m)) == S.StateMonad(S.Number)
+    assert m.type(State(ground("hi"), space=m)) == S.StateMonad(S.String)
+
+    # And a cell needs no name at all: built in expression position, written
+    # through the binding the same line makes, and read.
+    (cell := State(1, space=m)).value = 2
+    assert cell.value == 2
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -49,7 +73,7 @@ from metta import S, State, fn, ground
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -83,26 +107,3 @@ from metta import S, State, fn, ground
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 2979
-
-
-def twin(m):
-    """Make a cell, read it, write through it, and ask what it holds."""
-    # !(bind! state (new-state rest)): binding a name to the cell is Python's
-    # own name binding, which is why the two spellings read alike.
-    state = State(S.rest, space=m)
-    assert state.value == S.rest
-
-    # The write composes with the read, in the engine, for the reason above.
-    assert m.answers(fn.get_state(fn.change_state(state, S.active))) == [S.active]   # rung: no Python expression writes an attribute
-    # And the name still denotes the same cell, so the handle reads it too.
-    assert state.value == S.active
-
-    # The type says what the cell HOLDS, which is upstream's own signature
-    # (: new-state (-> $t (StateMonad $t))).
-    assert m.type(State(5, space=m)) == S.StateMonad(S.Number)
-    assert m.type(State(ground("hi"), space=m)) == S.StateMonad(S.String)
-
-    # And a cell needs no name at all: built in expression position, written
-    # through the binding the same line makes, and read.
-    (cell := State(1, space=m)).value = 2
-    assert cell.value == 2

@@ -11,6 +11,19 @@ of its answers, and comparing that view to a list states the multiplicity as
 well as the values.
 """
 
+
+def twin(m):
+    """Two alternatives for one head, and the answers both of them give."""
+    @m.define
+    def mycalc(x, y):
+        # (= (mycalc $x $y) (+ $x $y))
+        yield x + y
+        # (= (mycalc $x $y) (- $x $y))
+        yield x - y
+
+    assert mycalc(1, 2) == [3, -1]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -22,7 +35,7 @@ well as the values.
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -71,13 +84,3 @@ well as the values.
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 4420
-def twin(m):
-    """Two alternatives for one head, and the answers both of them give."""
-    @m.define
-    def mycalc(x, y):
-        # (= (mycalc $x $y) (+ $x $y))
-        yield x + y
-        # (= (mycalc $x $y) (- $x $y))
-        yield x - y
-
-    assert mycalc(1, 2) == [3, -1]

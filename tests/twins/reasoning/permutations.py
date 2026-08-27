@@ -31,35 +31,6 @@ NE = S.ne
 HOLE = S["___"]
 SLOT = (V["_1"], V["_2"], V["_3"], V["_4"], V["_5"], V["_6"], V["_7"], V["_8"])
 
-#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
-#: integrator prices all 218 budgets in one pass on the merged tree, so no
-#: figure measured in a single agent's worktree is pinned here
-#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
-#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
-#: RE-PINNED 2026-08-25, 50760321 to 50760325, on the QLF-boot final
-#: tree: the engine now boots through engine/qlf_boot.pl, and any
-#: boot-content change moves twin counts a few tens through SWI's
-#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
-#: so the corpus re-pins once on the exact shipping tree
-#: [measured 2026-08-25 through tools/twin_coverage.py --measure
-#: min-of-3 on the final tree].
-#: RE-PINNED 2026-08-25, 50760325 to 50760323, on the release tree:
-#: the typed-dispatch question moved engine-side
-#: (metta_typed_dispatch_applies/2, one extra frame per direct
-#: call), the conformance kit gained the family, source and
-#: round-trip laws, extensions gained the spaces([...]) readying
-#: moment, and any boot-content change also moves counts a few
-#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
-#: carries the A/B), so the corpus re-pins once on the exact
-#: shipping tree [measured 2026-08-25 through
-#: tools/twin_coverage.py --measure min-of-3 after a canonical
-#: single-boot QLF regeneration].
-#: RE-PINNED 2026-08-26, 50760323 to 27172201 (-23588122): c7468b27 routed the
-#: algebra carriers' counting through the algebra tower and this twin's
-#: enumeration got 1.87x cheaper; the improvement was never re-pinned
-#: when it landed [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-BUDGET = 27172201
-
 
 def ne(left, right):
     """`($_left != $_right)`, one conjunct of the constraint graph."""
@@ -97,3 +68,33 @@ def twin(m):
         S.E(*SLOT, V.x, V.state),
     )
     assert len(m.match(*conjuncts)) == 362880
+
+
+#: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
+#: integrator prices all 218 budgets in one pass on the merged tree, so no
+#: figure measured in a single agent's worktree is pinned here
+#: [assumed: 1 is a placeholder rather than a measurement; commit=6a3e8b959229afa7adce172704045d1456a40df6].
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 50760321 to 50760325, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 50760325 to 50760323, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+#: RE-PINNED 2026-08-26, 50760323 to 27172201 (-23588122): c7468b27 routed the
+#: algebra carriers' counting through the algebra tower and this twin's
+#: enumeration got 1.87x cheaper; the improvement was never re-pinned
+#: when it landed [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+BUDGET = 27172201

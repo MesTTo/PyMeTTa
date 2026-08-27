@@ -21,6 +21,42 @@ answer where a runnable form keeps it.
 
 from metta import S, V, equation
 
+
+def twin(m):
+    """Take one clause out, put it back, take the other, then both."""
+
+    @m.define
+    def g(x):
+        # (= (g $x) (+ $x 1))
+        return x + 1
+
+    @m.define
+    def f(g):
+        # (= (f $g) ($g 1))
+        yield (g, 1)
+        # (= (f $g) 42)
+        yield 42
+
+    call = equation(S.f(V.g)).to((V.g, 1))
+    const = equation(S.f(V.g)).to(42)
+
+    assert m.eval(S.f(S.g)) == [2, 42]
+
+    m -= const
+    assert m.eval(S.f(S.g)) == [2]
+
+    m += const
+    m -= call
+    assert m.eval(S.f(S.g)) == [42]
+
+    m -= const
+    # !(test (collapse (f g)) ((f g))) — with every equation removed the
+    # call is retained as written, the boundary protocol's own answer;
+    # `reduce` now retains its OWN written frame, so the plain eval is the
+    # spelling that mirrors the example's collapse row.
+    assert m.eval(S.f(S.g)) == [S.f(S.g)]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -34,7 +70,7 @@ from metta import S, V, equation
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -91,36 +127,3 @@ from metta import S, V, equation
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 15923
-def twin(m):
-    """Take one clause out, put it back, take the other, then both."""
-
-    @m.define
-    def g(x):
-        # (= (g $x) (+ $x 1))
-        return x + 1
-
-    @m.define
-    def f(g):
-        # (= (f $g) ($g 1))
-        yield (g, 1)
-        # (= (f $g) 42)
-        yield 42
-
-    call = equation(S.f(V.g)).to((V.g, 1))
-    const = equation(S.f(V.g)).to(42)
-
-    assert m.eval(S.f(S.g)) == [2, 42]
-
-    m -= const
-    assert m.eval(S.f(S.g)) == [2]
-
-    m += const
-    m -= call
-    assert m.eval(S.f(S.g)) == [42]
-
-    m -= const
-    # !(test (collapse (f g)) ((f g))) — with every equation removed the
-    # call is retained as written, the boundary protocol's own answer;
-    # `reduce` now retains its OWN written frame, so the plain eval is the
-    # spelling that mirrors the example's collapse row.
-    assert m.eval(S.f(S.g)) == [S.f(S.g)]

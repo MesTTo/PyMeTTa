@@ -57,11 +57,17 @@ _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-
 # What the WebAssembly build refuses at boot, as bindings/node/src/engine.ts
 # names it. Restated here so the two have to agree: a refusal that appears in one
 # and not the other is a capability that moved without anyone saying so.
+# What the WebAssembly build does without, as the ENGINE names it. This was a
+# list of (file, missing library) recovered by regex over SWI's boot stderr,
+# with library(process) appearing twice because two files asked for it and only
+# the file told them apart. The engine declares its platform capabilities now,
+# so the host reads them: one row per capability, named for what a program
+# loses rather than for which directive failed, and the two files needing
+# subprocess are one capability because the cost is the same.
 _EXPECTED_REFUSALS = [
-    ("engine/metta.pl", "library(thread)"),
-    ("engine/metta.pl", "library(time)"),
-    ("engine/metta.pl", "library(process)"),
-    ("lib/lib_gitimport.pl", "library(process)"),
+    ("concurrency", "library(thread)"),
+    ("deadlines", "library(time)"),
+    ("subprocess", "library(process)"),
 ]
 
 # Where the two hosts render the SAME atom differently. It is a pinned
@@ -354,7 +360,9 @@ def test_the_binding_runs_every_leg_and_says_which_cases_it_does_not(node_driver
 
     plan = codec_plan(node_driver)
     assert plan["legs"] == ["read", "render", "roundtrip", "transport"]
-    assert len(plan["run"]) == 67
+    # 69, up from 67: the codec's species-tag landing added symbol-ampersand
+    # and space-in-expression to the shared corpus, and this binding runs both.
+    assert len(plan["run"]) == 69
     assert "space-handle" in plan["run"]
     for case, why in plan["out_of_profile"]:
         # A capability reason would mean this binding claimed less than it
@@ -375,8 +383,10 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
     """
     engine = metta.MeTTa().self
 
-    reported = [(entry["file"], entry["missing"]) for entry in node_report["refusals"]]
-    assert reported == _EXPECTED_REFUSALS
+    reported = sorted(
+        (entry["capability"], entry["requires"]) for entry in node_report["refusals"]
+    )
+    assert reported == sorted(_EXPECTED_REFUSALS)
 
     assert len(node_report["programs"]) == len(_CORPUS["programs"])
     divergences: set[tuple[str, str]] = set()

@@ -43,7 +43,7 @@ Guarantees:
     test_known_call_site_keywords_bind_to_positional_metta_arguments;
     commit=c2ad5892fbfdd690dd7e9b507e76e87d7d1376d1]
   - generated class-method operations declare their Atom delivery policy in
-    &petta rather than passing a boolean registration flag [tested:
+    &metta rather than passing a boolean registration flag [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - an annotation-derived declaration lands before the equation it governs
@@ -138,7 +138,7 @@ def _convert_api():
 def clear_definitions(space: Any) -> None:
     """Clear one space and the process state describing its definitions."""
     with _DEFINE_LOCK:
-        space.runtime.must("petta_py_clear(Space)", Space=space.name)
+        space.runtime.must("metta_py_clear(Space)", Space=space.name)
         for key in [key for key in _DEFINE_REFLECTION if key[0] == space.name]:
             for fact in _DEFINE_REFLECTION.pop(key):
                 _release_definition_fact(space, fact)
@@ -199,7 +199,7 @@ def _refuse_mismatched_twin_arity(
     the output, which is the convention every registered predicate follows.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     expected = len(params) + 1
-    _, _, shapes, _ = space.runtime.apply_must("petta_py_function_shape", name)
+    _, _, shapes, _ = space.runtime.apply_must("metta_py_function_shape", name)
     arities = [int(arity) for arity, _speedup, _indexed in shapes]
     if arities and expected not in arities:
         msg = (
@@ -227,7 +227,7 @@ def _operation_effect(space: Any, called: str) -> EffectClass:
     if operation is not None:
         return operation.effect
     row = space.runtime.once(
-        "petta_operation_effect(Name, Effect)",
+        "metta_operation_effect(Name, Effect)",
         Name=called,
     )
     effect = row.get("Effect")
@@ -591,7 +591,7 @@ def _retain_definition_fact(space: Any, fact: Expression) -> None:
     count = _DEFINE_FACT_REFS.get(key, 0)
     if count == 0:
         space.runtime.must(
-            "petta_py_add(Space, W)",
+            "metta_py_add(Space, W)",
             Space=_ops_module._REFLECTION_SPACE,
             W=fact.to_wire(),
         )
@@ -604,7 +604,7 @@ def _release_definition_fact(space: Any, fact: Expression) -> None:
     if count <= 1:
         _DEFINE_FACT_REFS.pop(key, None)
         space.runtime.once(
-            "petta_py_remove(Space, W, _)",
+            "metta_py_remove(Space, W, _)",
             Space=_ops_module._REFLECTION_SPACE,
             W=fact.to_wire(),
         )

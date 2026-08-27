@@ -15,9 +15,9 @@ Assumes:
   - metta._engine.engine_thread attaches an engine to a bare foreign thread
     and detaches exactly the engine it attached [tested
     test_engine_thread_owns_only_its_attachment]
-  - PeTTa's shared Prolog structures carry their own mutexes, so concurrent
-    engines do not corrupt them: '$petta_specializer' in specializer.pl,
-    '$petta_native_storage' in spaces.pl, metta_loader around
+  - MeTTa's shared Prolog structures carry their own mutexes, so concurrent
+    engines do not corrupt them: '$metta_specializer' in specializer.pl,
+    '$metta_native_storage' in spaces.pl, metta_loader around
     process_metta_string in filereader.pl, and a per-function mutex in
     lib_memo.pl [source 2026-08-15]
 Guarantees:
@@ -84,7 +84,7 @@ from typing import Any, Self
 from ._engine import engine_thread, runtime
 from ._space import Space
 from .atoms import Atom, Expression, Symbol, Variable, _to_atom
-from .errors import PettaError, Timeout
+from .errors import MettaError, Timeout
 
 logger = logging.getLogger(__name__)
 
@@ -161,14 +161,14 @@ class EnginePool:
         except threading.BrokenBarrierError as exc:
             self.close()
             msg = "a pool worker could not attach its Prolog engine"
-            raise PettaError(
+            raise MettaError(
                 msg
             ) from self._start_error or exc
         if self._start_error is not None:
             failure = self._start_error
             self.close()
             msg = "a pool worker could not attach its Prolog engine"
-            raise PettaError(msg) from failure
+            raise MettaError(msg) from failure
 
     def _worker(self) -> None:
         """Attach one engine, then serve the queue until the stop sentinel.
@@ -219,7 +219,7 @@ class EnginePool:
                     "this pool is closed and cannot take new work; "
                     "build another with metta.parallel.pool()"
                 )
-                raise PettaError(
+                raise MettaError(
                     msg
                 )
             # ThreadPoolExecutor uses the same transition: accepting work and
@@ -293,7 +293,7 @@ class EnginePool:
         still_running = [t.name for t in self._started if t.is_alive()]
         if still_running:
             msg = f"pool workers did not stop within 30s: {', '.join(still_running)}"
-            raise PettaError(
+            raise MettaError(
                 msg
             )
 
@@ -423,7 +423,7 @@ def _future(owner: Space, head: str, *arguments: Any) -> FutureSpace:
     result = _call(owner, head, *arguments).one()
     if not isinstance(result, Space):
         msg = f"{head} returned {result!r}, not its promised future space"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return FutureSpace(result, owner)
 
 
@@ -452,7 +452,7 @@ def par_map(function: Any, items: Iterable[Any]) -> Expression:
     result = _call(_ambient_space(), "par-map", function, Expression(items)).one()
     if not isinstance(result, Expression):
         msg = f"par-map returned {result!r}, not its promised result expression"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return result
 
 
@@ -477,7 +477,7 @@ class Channel:
         if result is sentinel:
             if deadline is None:
                 msg = "channel receive ended without an answer"
-                raise PettaError(msg)
+                raise MettaError(msg)
             msg = f"no channel message arrived within {deadline} seconds"
             raise Timeout(msg)
         return result

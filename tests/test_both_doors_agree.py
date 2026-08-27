@@ -64,7 +64,7 @@ def test_load_pre_registers_signatures_so_a_later_definition_resolves(door_fixtu
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     source = door_fixture(
         "signature_prepass",
-        "!(memoize petta-prepass)\n(= (petta-prepass) ok)\n!(test (petta-prepass) ok)\n",
+        "!(memoize metta-prepass)\n(= (metta-prepass) ok)\n!(test (metta-prepass) ok)\n",
     )
     library = parity.run_library(source, root=REPO)
     assert library.error is None, (
@@ -83,9 +83,9 @@ def test_a_forward_call_behaves_the_same_through_both_doors(door_fixture):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     source = door_fixture(
         "forward_call",
-        "(= (petta-forward-caller) (petta-forward-callee))\n"
-        "(= (petta-forward-callee) ok)\n"
-        "!(test (petta-forward-caller) ok)\n",
+        "(= (metta-forward-caller) (metta-forward-callee))\n"
+        "(= (metta-forward-callee) ok)\n"
+        "!(test (metta-forward-caller) ok)\n",
     )
     difference = parity.compare(source, root=REPO)
     assert difference is None, f"the two doors disagree on a forward call: {difference}"

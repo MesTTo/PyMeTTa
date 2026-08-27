@@ -13,6 +13,36 @@ metatype is what the engine MAKES of it.
 
 from metta import Expression, Grounded, S, Symbol, V, Variable, ground
 
+
+def twin(m):
+    """Ask both sides for the metatype of one atom of every kind."""
+    metatype = m.fn.get_metatype
+
+    # An expression, however it was built.
+    # !(test (get-metatype (foo 1 2)) Expression)
+    assert type(S.foo(1, 2)) is Expression
+    assert metatype(S.foo(1, 2)) == [S.Expression]
+    # !(test (get-metatype (a b)) Expression)
+    assert type(S.a(S.b)) is Expression
+    assert metatype(S.a(S.b)) == [S.Expression]
+
+    # A ground value, a variable and a plain symbol.
+    # !(test (get-metatype 1) Grounded)
+    assert type(ground(1)) is Grounded
+    assert metatype(ground(1)) == [S.Grounded]
+    # !(test (get-metatype $x) Variable)
+    assert type(V.x) is Variable
+    assert metatype(V.x) == [S.Variable]
+    # !(test (get-metatype a) Symbol)
+    assert type(S.a) is Symbol
+    assert metatype(S.a) == [S.Symbol]
+
+    # The one disagreement, and it is not a defect on either side.
+    # !(test (get-metatype +) Grounded)
+    assert type(S.add) is Symbol
+    assert metatype(S.add) == [S.Grounded]
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -23,7 +53,7 @@ from metta import Expression, Grounded, S, Symbol, V, Variable, ground
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -57,32 +87,3 @@ from metta import Expression, Grounded, S, Symbol, V, Variable, ground
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 1279
-
-
-def twin(m):
-    """Ask both sides for the metatype of one atom of every kind."""
-    metatype = m.fn.get_metatype
-
-    # An expression, however it was built.
-    # !(test (get-metatype (foo 1 2)) Expression)
-    assert type(S.foo(1, 2)) is Expression
-    assert metatype(S.foo(1, 2)) == [S.Expression]
-    # !(test (get-metatype (a b)) Expression)
-    assert type(S.a(S.b)) is Expression
-    assert metatype(S.a(S.b)) == [S.Expression]
-
-    # A ground value, a variable and a plain symbol.
-    # !(test (get-metatype 1) Grounded)
-    assert type(ground(1)) is Grounded
-    assert metatype(ground(1)) == [S.Grounded]
-    # !(test (get-metatype $x) Variable)
-    assert type(V.x) is Variable
-    assert metatype(V.x) == [S.Variable]
-    # !(test (get-metatype a) Symbol)
-    assert type(S.a) is Symbol
-    assert metatype(S.a) == [S.Symbol]
-
-    # The one disagreement, and it is not a defect on either side.
-    # !(test (get-metatype +) Grounded)
-    assert type(S.add) is Symbol
-    assert metatype(S.add) == [S.Grounded]

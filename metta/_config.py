@@ -1,11 +1,11 @@
-"""Purpose: validate and hold process-wide PeTTa runtime settings.
+"""Purpose: validate and hold process-wide MeTTa runtime settings.
 Assumes:
   - startup settings are configured before the first engine consult [tested
     test_runtime_settings_freeze_after_startup]
 Guarantees:
   - configuration updates are validated and applied atomically [tested
     test_configuration_updates_are_atomic]
-  - invalid PETTA_* environment values stop package import with a named error
+  - invalid METTA_* environment values stop package import with a named error
     [tested test_configuration_reads_and_validates_environment]
 Guarded by: Config._lock protects settings and the startup freeze.
 Open Obligations:
@@ -32,10 +32,10 @@ _DEFAULTS = {
     "display_rows": 100,
 }
 _ENVIRONMENT = {
-    "stack_limit": "PETTA_STACK_LIMIT",
-    "heartbeat_interval": "PETTA_HEARTBEAT_INTERVAL",
-    "declaration_limit": "PETTA_DECLARATION_LIMIT",
-    "display_rows": "PETTA_DISPLAY_ROWS",
+    "stack_limit": "METTA_STACK_LIMIT",
+    "heartbeat_interval": "METTA_HEARTBEAT_INTERVAL",
+    "declaration_limit": "METTA_DECLARATION_LIMIT",
+    "display_rows": "METTA_DISPLAY_ROWS",
 }
 _STARTUP_SETTINGS = frozenset({"stack_limit", "heartbeat_interval"})
 
@@ -110,7 +110,7 @@ class Config:
             ]
             if frozen:
                 names = ", ".join(sorted(frozen))
-                msg = f"cannot change {names} after the PeTTa runtime has started"
+                msg = f"cannot change {names} after the MeTTa runtime has started"
                 raise RuntimeError(msg)
             self._values.update(updates)
 

@@ -85,7 +85,7 @@ def _module():
     sys.path.insert(0, examples_root)
     try:
         specification = _importlib_util.spec_from_file_location(
-            "petta_example_sqlite_space", _MODULE_PATH
+            "metta_example_sqlite_space", _MODULE_PATH
         )
         module = _importlib_util.module_from_spec(specification)
         specification.loader.exec_module(module)
@@ -102,8 +102,8 @@ def attached(request):  # noqa: D103  -- pytest discovers or injects this callab
     try:
         yield m, name, provider
     finally:
-        m.run(f"!(remove-atom &petta (bridge {name} $shape $row))")
-        m.run(f"!(remove-atom &petta (image {name} $type $setting))")
+        m.run(f"!(remove-atom &metta (bridge {name} $shape $row))")
+        m.run(f"!(remove-atom &metta (image {name} $type $setting))")
         m._unregister_space(name)
         m.drop()
 
@@ -139,8 +139,8 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
 
     m, name, opaque_provider = attached
     image = m.parse(f"(image {name} Blob opaque)")
-    assert image in m._at("&petta")
-    assert m._at("&petta").run(f"!(get-type {image})") == [
+    assert image in m._at("&metta")
+    assert m._at("&metta").run(f"!(get-type {image})") == [
         [m.parse("ImageDecl")]
     ]
     payload = bytes(range(256)) * 16
@@ -180,8 +180,8 @@ def test_an_opaque_blob_column_is_reached_by_a_lazy_path_without_crossing(
 
     m._unregister_space(name)
     transparent_image = m._at(name).image("Blob", "transparent")
-    assert image not in m._at("&petta")
-    assert transparent_image in m._at("&petta")
+    assert image not in m._at("&metta")
+    assert transparent_image in m._at("&metta")
     transparent_provider = metta.tables.TableBridge.from_context(
         m, name, opaque_provider.connection
     )
@@ -304,7 +304,7 @@ def test_metta_source_declares_its_own_schema(attached):  # noqa: D103  -- pytes
     from metta.tables import TableBridge
 
     m.run(
-        "!(add-atom &petta"
+        "!(add-atom &metta"
         " (bridge &src-decl (pair $x $y) (row pairs (x $x) (y $y))))"
     )
     try:
@@ -314,4 +314,4 @@ def test_metta_source_declares_its_own_schema(attached):  # noqa: D103  -- pytes
         provider.add(m.parse("(pair l r)"))
         assert [str(atom) for atom in provider.atoms()] == ["(pair l r)"]
     finally:
-        m.run("!(remove-atom &petta (bridge &src-decl $shape $row))")
+        m.run("!(remove-atom &metta (bridge &src-decl $shape $row))")

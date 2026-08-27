@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from metta import PettaError, S, V
+from metta import MettaError, S, V
 from metta.errors import EngineError, SubscriberError
 from metta.foreign import Adder, Enumerable, SpaceProvider
 
@@ -83,8 +83,8 @@ def test_a_watcher_failure_is_distinguishable_from_a_failed_write(metta):
         # It says the write stands, and the space agrees.
         assert "applied" in str(failure)
         assert len(space.match(S.fact(V.q))) == 1
-        # Still a PettaError, so nothing that caught it before stops doing so.
-        assert isinstance(failure, PettaError)
+        # Still a MettaError, so nothing that caught it before stops doing so.
+        assert isinstance(failure, MettaError)
 
         # The removal direction reads the same way, and the removal stands too.
         removing = space.subscribe(S.fact(V.x), angry, on="remove")

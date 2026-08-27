@@ -27,6 +27,29 @@ readable.
 
 from metta import Expression, S, fn
 
+
+def twin(m):
+    """Map a half-applied builtin and its defined twin over one list."""
+
+    @m.define
+    def mymap(f, items):                    # (= (mymap $f ()) ())
+        match items:                        # (= (mymap $f (cons $x $xs))
+            case ():                        #    (cons ($f $x) (mymap $f $xs)))
+                return ()
+            case (S.cons, x, rest):
+                head = f(x)
+                tail = mymap(f, rest)
+                return S.cons(head, tail)
+
+    @m.define
+    def eq(a, b):                           # (= (eq $a $b) (== $a $b))
+        return a == b
+
+    numbers = Expression((1, 2, 3))
+    defined = S["eq"](1)  # rung: the word table owns S.eq, which is ==, so the symbol named eq takes rung 5's exact door
+    assert mymap(fn.eq(1), numbers) == mymap(defined, numbers)   # [(True False False)]
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER rather than a
 #: measurement: the twins wave prices the whole corpus in one re-pin pass on
 #: the merged tree, and a number measured in this worktree would pin a cost
@@ -38,7 +61,7 @@ from metta import Expression, S, fn
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -95,23 +118,3 @@ from metta import Expression, S, fn
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 33804
-def twin(m):
-    """Map a half-applied builtin and its defined twin over one list."""
-
-    @m.define
-    def mymap(f, items):                    # (= (mymap $f ()) ())
-        match items:                        # (= (mymap $f (cons $x $xs))
-            case ():                        #    (cons ($f $x) (mymap $f $xs)))
-                return ()
-            case (S.cons, x, rest):
-                head = f(x)
-                tail = mymap(f, rest)
-                return S.cons(head, tail)
-
-    @m.define
-    def eq(a, b):                           # (= (eq $a $b) (== $a $b))
-        return a == b
-
-    numbers = Expression((1, 2, 3))
-    defined = S["eq"](1)  # rung: the word table owns S.eq, which is ==, so the symbol named eq takes rung 5's exact door
-    assert mymap(fn.eq(1), numbers) == mymap(defined, numbers)   # [(True False False)]

@@ -34,14 +34,14 @@ def _substitute(atom, bindings):
 
 
 class SpaceStateMachine(RuleBasedStateMachine):
-    """A real PeTTa space checked against a Counter reference model."""
+    """A real MeTTa space checked against a Counter reference model."""
 
     def __init__(self):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         super().__init__()
         self._owner = MeTTa().self
         self.space = self._owner._new_space()
         self.model = Counter()
-        self._temporary = TemporaryDirectory(prefix="petta-stateful-")
+        self._temporary = TemporaryDirectory(prefix="metta-stateful-")
 
     @rule(atom=testing.expressions(max_leaves=5, ground=True))
     def add(self, atom):  # noqa: D102  -- the test double method is documented by its containing scenario and protocol

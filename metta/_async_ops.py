@@ -7,7 +7,7 @@ Guarantees:
     test_a_transaction_commits_async_launch_before_its_landing;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
   - success, failure, and cancellation each land exactly once through
-    ``petta_py_async_land/3`` and release the copied launch Context [tested:
+    ``metta_py_async_land/3`` and release the copied launch Context [tested:
     test_an_async_operation_answers_a_future_space,
     test_a_transaction_commits_async_launch_before_its_landing,
     test_cancelling_from_the_launch_observer_keeps_a_settled_future;
@@ -290,7 +290,7 @@ def _publish_landing(token: int, status: str, payload: Any) -> None:
     if engine is None:
         msg = "the engine disappeared before an async operation landed"
         raise RuntimeError(msg)
-    engine.do_must("petta_py_async_land", token, status, payload)
+    engine.do_must("metta_py_async_land", token, status, payload)
 
 
 def _event_loop() -> asyncio.AbstractEventLoop:  # noqa: C901 -- startup, publication, teardown, and recovery share one locked state transition

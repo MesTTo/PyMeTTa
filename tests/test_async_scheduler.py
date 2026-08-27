@@ -111,7 +111,7 @@ def _bounded_call(fn: Callable[[], Any], seconds: float = 10) -> Any:
 def _isolated_python(repo_root, source: str) -> subprocess.CompletedProcess[str]:
     """Run a singleton-lifecycle probe in a fresh interpreter."""
     environment = os.environ | {
-        "PETTA_PATH": str(repo_root),
+        "METTA_PATH": str(repo_root),
         "PYTHONPATH": str(repo_root / "bindings" / "python"),
         "PYTHONDONTWRITEBYTECODE": "1",
     }
@@ -128,7 +128,7 @@ def _isolated_python(repo_root, source: str) -> subprocess.CompletedProcess[str]
 def _record_async_lifecycle(metta, name: str) -> tuple[list[Any], Any]:
     """Subscribe to both phases and return the owned cancellation handle."""
     seen: list[Any] = []
-    subscription = metta._at("&petta").subscribe(
+    subscription = metta._at("&metta").subscribe(
         S["async-op"](S[name], V.space, V.phase),
         seen.append,
     )
@@ -181,7 +181,7 @@ def test_async_reflection_has_one_public_return_and_effect(metta):
         assert f"(: {name} (-> Number SpaceType))" in claims
         assert f"(annotation {name} (return SpaceType))" in claims
         assert f"(annotation {name} (return String))" not in claims
-        effects = metta._at("&petta").match(
+        effects = metta._at("&metta").match(
             S.effect(S[name], V.effect)
         )
         assert [row.effect for row in effects] == [S.writesState]
@@ -304,7 +304,7 @@ def test_async_operation_failure_and_cancellation_settle_once(metta):
     metta.op(fail, name=error_name, effect="pureStructural")
     metta.op(block, name=cancel_name, effect="oracleIO")
     metta.op(decline, name=decline_name, effect="pureStructural")
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     landed: list[Any] = []
     subscription = reflection.subscribe(
         S["async-op"](S[cancel_name], V.space, S.landing),
@@ -369,7 +369,7 @@ def test_a_failed_landing_watcher_does_not_rewrite_the_future(metta):
         raise ValueError(msg)
 
     metta.op(answer, name=name, effect="pureStructural")
-    subscription = metta._at("&petta").subscribe(
+    subscription = metta._at("&metta").subscribe(
         S["async-op"](S[name], V.space, S.landing),
         refuse_landing,
     )
@@ -403,7 +403,7 @@ def test_a_landing_observer_can_await_the_future_it_observes(metta):
         observed.set()
 
     metta.op(answer, name=name, effect="oracleIO")
-    subscription = metta._at("&petta").subscribe(
+    subscription = metta._at("&metta").subscribe(
         S["async-op"](S[name], V.space, S.landing),
         await_landed,
     )
@@ -447,7 +447,7 @@ def test_a_landing_observer_can_await_another_async_future(metta):
         observed_answers.extend(second_future.wait())
         observer_returned.set()
 
-    subscription = metta._at("&petta").subscribe(
+    subscription = metta._at("&metta").subscribe(
         S["async-op"](S[first_name], V.space, S.landing),
         await_second,
     )
@@ -480,7 +480,7 @@ def test_cancelling_from_the_launch_observer_keeps_a_settled_future(metta):
     def cancel_launch(event) -> None:
         cancelled.append(event.atom.children[2].cancel())
 
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     metta.op(should_not_run, name=name, effect="writesState")
     cancelling = reflection.subscribe(
         S["async-op"](S[name], V.space, S.launch),
@@ -597,7 +597,7 @@ def test_a_failed_launch_watcher_does_not_strand_committed_async_work(metta):
         raise ValueError(msg)
 
     metta.op(answer, name=name, effect="pureStructural")
-    subscription = metta._at("&petta").subscribe(
+    subscription = metta._at("&metta").subscribe(
         S["async-op"](S[name], V.space, S.launch),
         refuse_launch,
     )
@@ -625,7 +625,7 @@ def test_a_direct_launch_watcher_failure_still_starts_and_lands(metta):
         raise ValueError(msg)
 
     metta.op(answer, name=name, effect="pureStructural")
-    reflection = metta._at("&petta")
+    reflection = metta._at("&metta")
     refusing = reflection.subscribe(
         S["async-op"](S[name], V.space, S.launch),
         refuse_launch,
@@ -669,7 +669,7 @@ def test_a_rolled_back_async_launch_never_starts_or_lands(metta):
         assert entered.is_set() is False
         assert seen == []
         registry = runtime().once(
-            "(petta_future(Space, _, _) -> Present = true ; Present = false)",
+            "(metta_future(Space, _, _) -> Present = true ; Present = false)",
             Space=held[0].name,
         )
         assert registry is not None
@@ -718,7 +718,7 @@ def test_a_blocking_oracle_uses_the_dirty_lane_without_pinning_normal_work(metta
         with metta:
             warmup = spawn(S["+"](1, 1))
             assert _bounded_call(lambda: list(warmup.wait())) == [2]
-            row = runtime().once("petta_scheduler_lane_size(normal, Size)")
+            row = runtime().once("metta_scheduler_lane_size(normal, Size)")
             assert row is not None
             normal_carriers = int(row["Size"])
             blocker_count = normal_carriers + 2
@@ -963,7 +963,7 @@ def test_the_async_loop_recovers_from_stop_and_thread_start_failure(repo_root):
         from metta import _async_ops
         from metta.errors import EngineError
 
-        m = MeTTa(petta_path=str(__import__("os").environ["PETTA_PATH"])).self
+        m = MeTTa(metta_path=str(__import__("os").environ["METTA_PATH"])).self
         stop_entered = threading.Event()
         stop_release = asyncio.Event()
 
@@ -1041,7 +1041,7 @@ def test_async_loop_shutdown_finalizes_pending_coroutines(repo_root):
 
         from metta import MeTTa, S
 
-        m = MeTTa(petta_path=str(__import__("os").environ["PETTA_PATH"])).self
+        m = MeTTa(metta_path=str(__import__("os").environ["METTA_PATH"])).self
         entered = threading.Event()
 
         async def pending() -> int:

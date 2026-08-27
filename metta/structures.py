@@ -63,7 +63,7 @@ from .atoms import (
     _variables,
     substitute,
 )
-from .errors import PettaError
+from .errors import MettaError
 
 __all__ = [
     "AlphaSet",
@@ -500,7 +500,7 @@ class TabledMap:
                     f"{name!r} has {len(compiled)} compiled arities; pass "
                     f"arity= to say which one this map views"
                 )
-                raise PettaError(
+                raise MettaError(
                     msg
                 )
             arity = compiled[0] - 1
@@ -511,13 +511,13 @@ class TabledMap:
         declared = space.run(f"!(tabled {spelled})")
         if declared != [[True]]:
             msg = f"tabling {spelled} was not accepted: {declared!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
 
     def _key(self, key: Any) -> tuple:
         parts = key if isinstance(key, tuple) else (key,)
         if len(parts) != self._arity:
             msg = f"{self._name} takes {self._arity} argument(s), got {len(parts)}"
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         return parts
@@ -533,7 +533,7 @@ class TabledMap:
     def __contains__(self, key: Any) -> bool:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         try:
             parts = self._key(key)
-        except PettaError:
+        except MettaError:
             return False
         return bool(self._space.eval(_call_expr(self._name, parts)))
 
@@ -546,7 +546,7 @@ class TabledMap:
         (answer,) = self._space.eval(f"(table-stats {self._call_pattern})")
         if not isinstance(answer, Expression):
             msg = f"table-stats answered {answer!r}, not an expression"
-            raise PettaError(msg)
+            raise MettaError(msg)
         report: dict[str, int] = {}
         for pair in answer.children:
             if isinstance(pair, Expression) and len(pair.children) == 2:
@@ -710,7 +710,7 @@ class ClosureView:
             accepted = space.run(f"!(tabled ({declared} $a $b))")
             if accepted != [[True]]:
                 msg = f"tabling ({declared} ...) was not accepted: {accepted!r}"
-                raise PettaError(
+                raise MettaError(
                     msg
                 )
 

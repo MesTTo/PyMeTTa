@@ -1,12 +1,12 @@
 """Purpose: the contract ontology, the typed vocabulary every seam
-declaration is stated in. Loaded into &petta at boot, before any user
+declaration is stated in. Loaded into &metta at boot, before any user
 declaration, so a declaration's kind, fidelity, effect, image, source,
 error-mode, atomicity, merge-policy and semiring names are ordinary typed
 atoms a program can match, get-type, and widen over. The fidelity chain
 Exact :< Partial :< Sound rides the engine's own subtype widening, which is
 what lets a stronger claim stand wherever a weaker one is required.
 Assumes:
-  - the &petta reflection space exists by the time install runs, which
+  - the &metta reflection space exists by the time install runs, which
     engine boot guarantees by installing the prelude operations first
     [tested test_the_ontology_is_loaded_at_boot]
 Guarantees:
@@ -25,7 +25,7 @@ Guarantees:
     than comments lost after parsing [tested:
     test_lint_evidence_and_intent_are_typed_reflection_facts; commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - callable argument delivery is a typed `(arguments name atoms|values)`
-    policy in &petta [tested:
+    policy in &metta [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - context image declarations state whether one Python type crosses as a
@@ -216,7 +216,7 @@ ONTOLOGY: tuple[tuple[str, str, str | Expression], ...] = (
     (_COLON, "nondet", "Determinism"),
 )
 
-_SPACE = "&petta"
+_SPACE = "&metta"
 # The atom whose presence says the ontology is in; its own first triple.
 _SENTINEL = Expression([Symbol(_COLON), Symbol("Declaration"), Symbol("Type")])
 
@@ -227,23 +227,23 @@ def _image_atom(registration) -> Expression:
 
 def _reflect_image(runtime, old, new) -> None:
     if old is not None:
-        runtime.once("petta_py_remove(Space, W, _)", Space=_SPACE, W=_image_atom(old).to_wire())
+        runtime.once("metta_py_remove(Space, W, _)", Space=_SPACE, W=_image_atom(old).to_wire())
     if new is not None:
-        runtime.must("petta_py_add(Space, W)", Space=_SPACE, W=_image_atom(new).to_wire())
+        runtime.must("metta_py_add(Space, W)", Space=_SPACE, W=_image_atom(new).to_wire())
 
 
 def install(runtime) -> None:
-    """Assert the ontology into &petta, once per engine, and keep the
+    """Assert the ontology into &metta, once per engine, and keep the
     registry's explicit type images reflected there: one
     (type-image TypeName registry-image) atom per register_type, retired on
     unregister. The registry stays engine-free; this listener is the whole
     coupling, and it hears the past (the snapshot) before the future.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    if runtime.do("petta_py_contains", _SPACE, _SENTINEL.to_wire()):
+    if runtime.do("metta_py_contains", _SPACE, _SENTINEL.to_wire()):
         return
     for head, subject, obj in ONTOLOGY:
         atom = Expression([Symbol(head), Symbol(subject), obj if isinstance(obj, Expression) else Symbol(obj)])
-        runtime.must("petta_py_add(Space, W)", Space=_SPACE, W=atom.to_wire())
+        runtime.must("metta_py_add(Space, W)", Space=_SPACE, W=atom.to_wire())
 
     def listener(_cls, old, new, _runtime=runtime):
         _reflect_image(_runtime, old, new)

@@ -11,6 +11,32 @@ removes it, and `equation(head).to(body)` names which atom to remove.
 
 from metta import S, V, equation
 
+
+def twin(m):
+    """Define two functions, remove one, and see which answers survive."""
+
+    @m.define
+    def f(x, y):
+        return x + y
+
+    @m.define
+    def g(x, y):
+        return x + y
+
+    # An equation is an ordinary atom, so the operator that removes an atom
+    # removes it, and the compiled clause leaves with the atom.
+    m -= equation(S.f(V.x, V.y)).to(V.x + V.y)
+
+    # With nothing left to reduce it, the call is its own answer.
+    assert m.eval(S.f(3, 4)) == [S.f(3, 4)]
+    assert g(3, 4) == [7]
+
+    # A plain fact is the same story with no compilation in it.
+    m += (S.my, S.test)
+    m -= (S.my, S.test)
+    assert (S.my, S.test) not in m
+
+
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's
 #: single re-pin pass prices the whole corpus on the merged tree, because a
 #: cost measured in one agent's worktree is a cost measured on a base nothing
@@ -22,7 +48,7 @@ from metta import S, V, equation
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -71,26 +97,3 @@ from metta import S, V, equation
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 6410
-def twin(m):
-    """Define two functions, remove one, and see which answers survive."""
-
-    @m.define
-    def f(x, y):
-        return x + y
-
-    @m.define
-    def g(x, y):
-        return x + y
-
-    # An equation is an ordinary atom, so the operator that removes an atom
-    # removes it, and the compiled clause leaves with the atom.
-    m -= equation(S.f(V.x, V.y)).to(V.x + V.y)
-
-    # With nothing left to reduce it, the call is its own answer.
-    assert m.eval(S.f(3, 4)) == [S.f(3, 4)]
-    assert g(3, 4) == [7]
-
-    # A plain fact is the same story with no compilation in it.
-    m += (S.my, S.test)
-    m -= (S.my, S.test)
-    assert (S.my, S.test) not in m

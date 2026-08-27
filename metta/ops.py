@@ -126,10 +126,10 @@ __all__ = [
 #: (defined space name) per @define function, (subscription space pattern
 #: on) per standing query. It is a space like any other, so MeTTa programs
 #: can query the library's surface, and writing to it composes with
-#: subscriptions: a Python subscription on &petta reacts to control atoms
+#: subscriptions: a Python subscription on &metta reacts to control atoms
 #: a MeTTa program adds, which is steering the library from inside MeTTa
 #: without forking it.
-_REFLECTION_SPACE = "&petta"
+_REFLECTION_SPACE = "&metta"
 
 _EFFECT_NAMES = tuple(effect.value for effect in EffectClass)
 # PostgreSQL's volatility contract makes IMMUTABLE a pure computation,
@@ -157,11 +157,11 @@ def _op_facts(op: Operation) -> list[Expression]:
 
 
 def _reflect_add(runtime, atom: Expression) -> None:
-    runtime.must("petta_py_add(Space, W)", Space=_REFLECTION_SPACE, W=atom.to_wire())
+    runtime.must("metta_py_add(Space, W)", Space=_REFLECTION_SPACE, W=atom.to_wire())
 
 
 def _reflect_remove(runtime, atom: Expression) -> None:
-    runtime.once("petta_py_remove(Space, W, _)", Space=_REFLECTION_SPACE, W=atom.to_wire())
+    runtime.once("metta_py_remove(Space, W, _)", Space=_REFLECTION_SPACE, W=atom.to_wire())
 
 
 # Declarations are shared: two signatures naming Point both need
@@ -177,7 +177,7 @@ def _retain_declaration(runtime, space: str, declaration: Expression) -> None:
     count = _DECLARATION_REFS.get(key, 0)
     if count == 0:
         runtime.must(
-            "petta_py_add_strict_declaration(Space, W)",
+            "metta_py_add_strict_declaration(Space, W)",
             Space=space,
             W=declaration.to_wire(),
         )
@@ -189,7 +189,7 @@ def _release_declaration(runtime, space: str, declaration: Expression) -> None:
     count = _DECLARATION_REFS.get(key, 0)
     if count <= 1:
         _DECLARATION_REFS.pop(key, None)
-        runtime.once("petta_py_remove(Space, W, _)", Space=space, W=declaration.to_wire())
+        runtime.once("metta_py_remove(Space, W, _)", Space=space, W=declaration.to_wire())
     else:
         _DECLARATION_REFS[key] = count - 1
 
@@ -464,11 +464,11 @@ def _partition_declarations(
     declarations: Iterable[Atom],
     effect: EffectClass | str | None,
 ) -> tuple[list[Expression], tuple[Expression, ...], EffectClass]:
-    """Split operation-local declarations from &petta policy facts.
+    """Split operation-local declarations from &metta policy facts.
 
     Type and documentation atoms govern compilation in the operation's own
     declaration space. Every other atom is catalog policy and therefore lives
-    in &petta. The registration owns both sets for rollback, replacement, and
+    in &metta. The registration owns both sets for rollback, replacement, and
     unregistration. `(op ...)` is reserved because arity and transport derive
     that fact from the callable and cannot safely disagree with it.
     """
@@ -578,7 +578,7 @@ def _operation_declarations(
 
 def _require_readable_name(runtime: Any, name: _OperationName) -> None:
     """Refuse a name the engine reader would turn into anything but itself."""
-    refusal = runtime.apply("petta_py_symbol_refusal", name)
+    refusal = runtime.apply("metta_py_symbol_refusal", name)
     if refusal is None:
         return
     kind, *detail = refusal
@@ -605,9 +605,9 @@ def _rollback_registration(
         _release_declaration(runtime, operation.space or "&self", declaration)
     if previous is not None:
         # The added atoms are gone again, so the previous life's atoms are
-        # what &petta holds; recompiling from them IS the restoration, the
+        # what &metta holds; recompiling from them IS the restoration, the
         # same route forward registration takes.
-        runtime.must("petta_py_compile_op(Name)", Name=previous.name)
+        runtime.must("metta_py_compile_op(Name)", Name=previous.name)
         # The purity claim is part of the previous life too. Without this, a
         # failed re-registration of a pure operation left it impure in the
         # engine while the registry still said pure.
@@ -615,7 +615,7 @@ def _rollback_registration(
         return
     for arity in operation.arities:
         runtime.must(
-            "petta_py_unregister_op(Name, Arity)",
+            "metta_py_unregister_op(Name, Arity)",
             Name=operation.name,
             Arity=arity,
         )
@@ -649,14 +649,14 @@ def _register_transaction(
             retained.append(declaration)
         # The atoms are the registration: reflect them first, then compile
         # the predicate FROM them. The keywords this function received are
-        # sugar; petta_py_compile_op reads (op ...) and (inverse ...) back
-        # out of &petta, and the cube gate holds the compiled clause
+        # sugar; metta_py_compile_op reads (op ...) and (inverse ...) back
+        # out of &metta, and the cube gate holds the compiled clause
         # identical to the passed-parameter route's.
         for fact in new_facts:
             if fact not in old_facts:
                 _reflect_add(runtime, fact)
                 added_facts.append(fact)
-        runtime.must("petta_py_compile_op(Name)", Name=operation.name)
+        runtime.must("metta_py_compile_op(Name)", Name=operation.name)
         _declare_purity(runtime, operation)
     except BaseException:
         _rollback_registration(runtime, operation, previous, retained, added_facts)
@@ -802,7 +802,7 @@ def register[**P, R](
     Additional declaration atoms are owned for
     the operation's complete lifecycle: type atoms live in its declaration
     space, while its canonical effect row and other policy atoms live in
-    &petta and can be matched there. Only ``pureStructural`` enters the
+    &metta and can be matched there. Only ``pureStructural`` enters the
     compatibility allow-list for tabled or memoized bodies.
     """
     metta_name = _metta_name(fn, name)
@@ -986,7 +986,7 @@ def unregister(runtime, name: str) -> None:
     longer exists.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     op = REGISTRY.get(name)
-    arities = list(runtime.iter("petta_py_op_spec(Name, Arity, _)", Name=name))
+    arities = list(runtime.iter("metta_py_op_spec(Name, Arity, _)", Name=name))
     # The registry walk above already knows whether anything is there, so the
     # existence check costs nothing extra. Asking builtins() instead listed
     # every registered function per call, +69.6% on the register-op counter.
@@ -994,7 +994,7 @@ def unregister(runtime, name: str) -> None:
         msg = f"no operation named {name!r} is registered"
         raise KeyError(msg)
     for arity_row in arities:
-        runtime.must("petta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"])
+        runtime.must("metta_py_unregister_op(Name, Arity)", Name=name, Arity=arity_row["Arity"])
     if op is not None:
         for declaration in op.declarations:
             _release_declaration(runtime, op.space or "&self", declaration)

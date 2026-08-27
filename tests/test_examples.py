@@ -37,7 +37,7 @@ def test_example_runs_and_verifies_itself(example):  # noqa: D103  -- pytest dis
         cwd=str(example.parent),
         env={
             **os.environ,
-            "PETTA_PATH": str(repo),
+            "METTA_PATH": str(repo),
             "JAX_PLATFORMS": "cpu",
             "PYTHONPATH": str(EXAMPLES_ROOT)
             + os.pathsep
@@ -67,7 +67,7 @@ def _run_example_source(tmp_path, source: str, *flags: str):
         cwd=str(tmp_path),
         env={
             **os.environ,
-            "PETTA_PATH": str(EXAMPLES_ROOT.parents[2]),
+            "METTA_PATH": str(EXAMPLES_ROOT.parents[2]),
             "PYTHONPATH": str(EXAMPLES_ROOT)
             + os.pathsep
             + os.environ.get("PYTHONPATH", ""),

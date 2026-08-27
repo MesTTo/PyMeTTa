@@ -40,61 +40,7 @@ GENERATOR = S["|->"]((V.x,), S.g(V.x))
 #: `(|-> ($x) (* 100 (g $x)))`, the generator that scales what it gives.
 SCALED = S["|->"]((V.x,), 100 * S.g(V.x))
 
-#: PLACEHOLDER, never measured in this worktree: the integrator's single
-#: re-pin pass prices the whole corpus under the lane's own protocol after the
-#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
-#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
-#: RE-PINNED 2026-08-25, 52958 to 51945, on the QLF-boot final
-#: tree: the engine now boots through engine/qlf_boot.pl, and any
-#: boot-content change moves twin counts a few tens through SWI's
-#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
-#: so the corpus re-pins once on the exact shipping tree
-#: [measured 2026-08-25 through tools/twin_coverage.py --measure
-#: min-of-3 on the final tree].
-#: RE-PINNED 2026-08-25, 51945 to 51875, on the release tree:
-#: the typed-dispatch question moved engine-side
-#: (metta_typed_dispatch_applies/2, one extra frame per direct
-#: call), the conformance kit gained the family, source and
-#: round-trip laws, extensions gained the spaces([...]) readying
-#: moment, and any boot-content change also moves counts a few
-#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
-#: carries the A/B), so the corpus re-pins once on the exact
-#: shipping tree [measured 2026-08-25 through
-#: tools/twin_coverage.py --measure min-of-3 after a canonical
-#: single-boot QLF regeneration].
-#: RE-PINNED 2026-08-25, 51875 to 51631, at the release cut: the
-#: identity-wire merge (numeric ownership seams, exact-primitive
-#: wire, Python operator dispatch), the rules-body staging split
-#: (ground folds, op-call staging), and the door-combinations
-#: example growing the corpus each move counts through SWI's
-#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
-#: so the whole corpus re-pins once on the exact release tree
-#: [measured 2026-08-25 through tools/twin_coverage.py --measure
-#: min-of-3 after a canonical single-boot QLF regeneration].
-#: RE-PINNED 2026-08-26, 51631 to 52689 (+1058), by the open-tail-index
-#: pricing pass, one sweep over the whole corpus after four attributed
-#: engine movements: the writable-specialization merge 5c731b03 prices
-#: each lazily translated match-bearing equation (~+1,500, first-call
-#: probe 2,208 to 3,724 across that merge alone;
-#: ai-brief-p14-specializer-translation-tax names the follow-up), the
-#: relational-candidate rows of 6917bef7, and the open-tail head-index
-#: and deprecation apply-seam fixes recovering their shares; the
-#: remainder is compiled-image layout, the class this file's own chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
-#: RE-PINNED 2026-08-26, 52689 to 51941 (-748), on the composed
-#: async-scheduler tree: a live operation call pays the six-inference
-#: admission probe the baseline's p14_async_scheduler_comment prices,
-#: and the scheduler, context-callback and exact-memo lifecycle clauses
-#: move compiled-image layout by tens, the class this file's chain
-#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-#: RE-PINNED 2026-08-26, 51941 to 51429 (-512), at the tabling-seam
-#: merge: compiled-image layout from the library's dispatch and
-#: reflection clauses, the tens-scale class this file's chain documents
-#: [measured: min-of-3 serial fresh processes; command=python
-#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
-#: fixture=tabling-seam merged tree with engine/reader.so;
-#: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
-BUDGET = 51429
+
 def below(limit):
     """`(|-> ($v) (< $v <limit>))`, the check the original writes inline.
 
@@ -214,3 +160,60 @@ def twin(m):
     assert m.eval(S.forall((GENERATOR, V.z), wrapped_20)) == [True]
     # !(test (forall ((|-> ($x) (* 100 (g $x))) $z) (if True (|-> ($v) (< $v 20)) 42)) false)
     assert m.eval(S.forall((SCALED, V.z), wrapped_20)) == [False]
+
+
+#: PLACEHOLDER, never measured in this worktree: the integrator's single
+#: re-pin pass prices the whole corpus under the lane's own protocol after the
+#: wave merges [assumed: BUDGET states no measured cost; commit=028b41a056cfd706e516cd0b945cbf69ac066da7].
+#: PRICED 2026-08-25 by the corpus pricing pass: tools/twin_coverage.py --measure min-of-3 on p14-integration at the store-wave merge, pinned exactly under the suite's two-sided +-4 deterministic allowance.
+#: RE-PINNED 2026-08-25, 52958 to 51945, on the QLF-boot final
+#: tree: the engine now boots through engine/qlf_boot.pl, and any
+#: boot-content change moves twin counts a few tens through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the corpus re-pins once on the exact shipping tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 on the final tree].
+#: RE-PINNED 2026-08-25, 51945 to 51875, on the release tree:
+#: the typed-dispatch question moved engine-side
+#: (metta_typed_dispatch_applies/2, one extra frame per direct
+#: call), the conformance kit gained the family, source and
+#: round-trip laws, extensions gained the spaces([...]) readying
+#: moment, and any boot-content change also moves counts a few
+#: tens through SWI's clause-indexing shape (qlf_boot.pl's header
+#: carries the A/B), so the corpus re-pins once on the exact
+#: shipping tree [measured 2026-08-25 through
+#: tools/twin_coverage.py --measure min-of-3 after a canonical
+#: single-boot QLF regeneration].
+#: RE-PINNED 2026-08-25, 51875 to 51631, at the release cut: the
+#: identity-wire merge (numeric ownership seams, exact-primitive
+#: wire, Python operator dispatch), the rules-body staging split
+#: (ground folds, op-call staging), and the door-combinations
+#: example growing the corpus each move counts through SWI's
+#: clause-indexing shape (qlf_boot.pl's header carries the A/B),
+#: so the whole corpus re-pins once on the exact release tree
+#: [measured 2026-08-25 through tools/twin_coverage.py --measure
+#: min-of-3 after a canonical single-boot QLF regeneration].
+#: RE-PINNED 2026-08-26, 51631 to 52689 (+1058), by the open-tail-index
+#: pricing pass, one sweep over the whole corpus after four attributed
+#: engine movements: the writable-specialization merge 5c731b03 prices
+#: each lazily translated match-bearing equation (~+1,500, first-call
+#: probe 2,208 to 3,724 across that merge alone;
+#: ai-brief-p14-specializer-translation-tax names the follow-up), the
+#: relational-candidate rows of 6917bef7, and the open-tail head-index
+#: and deprecation apply-seam fixes recovering their shares; the
+#: remainder is compiled-image layout, the class this file's own chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
+#: RE-PINNED 2026-08-26, 52689 to 51941 (-748), on the composed
+#: async-scheduler tree: a live operation call pays the six-inference
+#: admission probe the baseline's p14_async_scheduler_comment prices,
+#: and the scheduler, context-callback and exact-memo lifecycle clauses
+#: move compiled-image layout by tens, the class this file's chain
+#: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
+#: RE-PINNED 2026-08-26, 51941 to 51429 (-512), at the tabling-seam
+#: merge: compiled-image layout from the library's dispatch and
+#: reflection clauses, the tens-scale class this file's chain documents
+#: [measured: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --measure --rounds 3;
+#: fixture=tabling-seam merged tree with engine/reader.so;
+#: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
+BUDGET = 51429

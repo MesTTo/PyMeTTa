@@ -18,6 +18,31 @@ compiled body `type()` has no lowering, which is the friction P14.4 records.
 
 from metta import Expression, S, Symbol, fn, typed
 
+
+class OpaquePayload:
+    """The MeTTa type `OpaquePayload`, so a signature can name it."""
+
+
+def twin(m):
+    """Declare the lazy type, then read what the body was handed."""
+    # (: OpaquePayload DontEvalType)
+    m += typed(S.OpaquePayload, S.DontEvalType)
+
+    @m.define
+    def inspect_opaque(written: OpaquePayload) -> Symbol:
+        """(= (inspect-opaque $written) (get-metatype $written))."""
+        return fn.get_metatype(written)
+
+    sum_term = S.add(1, 2)
+
+    # !(test (inspect-opaque (+ 1 2)) Expression)
+    assert inspect_opaque(sum_term) == [S.Expression]
+
+    # The same question on the Python side of the seam: the metatype IS the
+    # class, so nothing crosses to ask it.
+    assert type(sum_term) is Expression
+
+
 #: Inferences this twin spends, its own tripwire. A PLACEHOLDER: the wave's
 #: integrator prices all 218 budgets in one pass on the merged tree, so no
 #: figure measured in a single agent's worktree is pinned here
@@ -28,7 +53,7 @@ from metta import Expression, S, Symbol, fn, typed
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -85,25 +110,3 @@ from metta import Expression, S, Symbol, fn, typed
 #: inferences at every later position. The walk is first-order now, at
 #: 4.0 inferences per position against 17.0. [measured: two independent full-lane rounds on this tree agreeing exactly, against one on the unchanged tree and one on the same tree plus an inert never-called clause; command=python bindings/python/tools/twin_coverage.py; fixture=p14-specializer-tax off 694c12f7 with engine/reader.so and the MORK backend; commit=7e7cac85fee08c117032b2efa5a58a40f3b21365].
 BUDGET = 3886
-class OpaquePayload:
-    """The MeTTa type `OpaquePayload`, so a signature can name it."""
-
-
-def twin(m):
-    """Declare the lazy type, then read what the body was handed."""
-    # (: OpaquePayload DontEvalType)
-    m += typed(S.OpaquePayload, S.DontEvalType)
-
-    @m.define
-    def inspect_opaque(written: OpaquePayload) -> Symbol:
-        """(= (inspect-opaque $written) (get-metatype $written))."""
-        return fn.get_metatype(written)
-
-    sum_term = S.add(1, 2)
-
-    # !(test (inspect-opaque (+ 1 2)) Expression)
-    assert inspect_opaque(sum_term) == [S.Expression]
-
-    # The same question on the Python side of the seam: the metatype IS the
-    # class, so nothing crosses to ask it.
-    assert type(sum_term) is Expression

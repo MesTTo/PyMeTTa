@@ -1,4 +1,4 @@
-/* Purpose: a PeTTa space served from TypeScript: the remote-space wire
+/* Purpose: a MeTTa space served from TypeScript: the remote-space wire
  *   protocol implemented outside the engine's own languages, so
  *   metta.remote.attach() reaches atoms held by a Node process exactly as
  *   it reaches a served Python engine.
@@ -46,7 +46,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 // ---------------------------------------------------------------------------
-// The wire atom grammar, as petta's own to_wire()/atom_from_wire() speak it.
+// The wire atom grammar, as metta's own to_wire()/atom_from_wire() speak it.
 
 export type WireAtom =
   | ["s", string]      // symbol
@@ -676,7 +676,7 @@ export function startServer(options: ServerOptions = {}): Promise<RunningServer>
 
 function parseArguments(argv: readonly string[]): ServerOptions {
   const options: ServerOptions = {
-    token: process.env["PETTA_SPACE_TOKEN"] ?? null,
+    token: process.env["METTA_SPACE_TOKEN"] ?? null,
   };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];

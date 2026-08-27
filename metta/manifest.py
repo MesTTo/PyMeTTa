@@ -4,7 +4,7 @@ one existing imperative call, and records every performed form in the
 booted space, so the deployment is queryable knowledge rather than dead
 config.
 Assumes:
-  - shim.pl petta_py_read_forms answers every form in a source without
+  - shim.pl metta_py_read_forms answers every form in a source without
     compiling, storing, or running any [tested
     test_a_manifest_neither_runs_nor_defines]
 Guarantees:
@@ -44,7 +44,7 @@ from . import tables as _tables
 from ._engine import runtime
 from ._space import Space
 from .atoms import Atom, Expression, Grounded, Symbol, _expr, parse
-from .errors import PettaError
+from .errors import MettaError
 
 _VOCABULARY = ("load", "attach", "bridge", "serve")
 
@@ -54,18 +54,18 @@ def _read_forms(source: str) -> list[Atom]:
     engine door answers each form's own text, so variable names in bridge
     shapes survive into the recorded topology.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    row = runtime().must("petta_py_read_forms(Source, Forms)", Source=source)
+    row = runtime().must("metta_py_read_forms(Source, Forms)", Source=source)
     forms = []
     for kind, text in row["Forms"]:
         if kind == "runnable":
             msg = f"a manifest declares, it does not run: {text} (drop the !)"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if kind != "expression":
             msg = (
                 f"a manifest declares, it does not define: {text} "
                 f"(definitions belong in a loaded file)"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         forms.append(parse(text))
@@ -246,7 +246,7 @@ def boot(
             f"{len(assembler.performed)} forms before it performed and their "
             f"writes stand; every started server is closed."
         )
-        raise PettaError(
+        raise MettaError(
             msg
         ) from exc
     return Boot(assembler.m, tuple(assembler.servers), tuple(assembler.performed))
@@ -269,7 +269,7 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expression, Expressi
     forms = _read_forms(path.read_text(encoding="utf-8"))
     if not forms:
         msg = f"the manifest {str(path)!r} declares nothing"
-        raise PettaError(msg)
+        raise MettaError(msg)
     directives = []
     problems = []
     for position, form in enumerate(forms, start=1):
@@ -297,7 +297,7 @@ def _validated(path: Path, connections: dict) -> list[tuple[Expression, Expressi
     if problems:
         detail = "\n  ".join(problems)
         msg = f"the manifest {str(path)!r} does not boot:\n  {detail}"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return directives
 
 

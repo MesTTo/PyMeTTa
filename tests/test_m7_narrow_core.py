@@ -13,9 +13,10 @@ Guarantees:
   - plain import and ``dir(metta)`` load no satellite, while either explicit
     import order preserves real module identity [tested:
     test_m7_satellites_are_lazy_and_identity_stable; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - the upstream ``python.petta`` alias and its two-method ``PeTTa`` wrapper
-    are absent [tested: test_upstream_python_package_path_is_gone;
-    commit=b2527d32dc851615e6cf1e11c94ac017d4e78c86]
+  - the retired root doors ``HERE`` and ``query`` are absent on a plain import
+    rather than only under pytest [tested:
+    test_retired_root_names_are_absent_in_a_fresh_process;
+    commit=11c0101356844c9b8b1c7638059bfbc5235d11d1]
   - the strategies namespace is one lazy root satellite while its fifteen
     reified constructors stay inside that namespace [tested:
     test_m7_narrow_core_surface and
@@ -181,7 +182,6 @@ REMOVED_FROM_METTA = {
 
 REMOVED_FROM_ROOT = {
     "HERE",
-    "PeTTa",
     "DECLINE",
     "Decline",
     "Expr",
@@ -447,8 +447,8 @@ def test_m7_unknown_attribute_has_normal_module_error():
     assert str(raised.value) == "module 'metta' has no attribute 'misspelled'"
 
 
-def test_upstream_python_package_path_is_gone():
-    """The old package alias and source-string wrapper have no import path."""
+def test_retired_root_names_are_absent_in_a_fresh_process():
+    """The retired root doors stay absent on a plain import, not only under pytest."""
     root = Path(__file__).resolve().parents[3]
     environment = os.environ | {"PYTHONPATH": str(root / "bindings" / "python")}
     subprocess.run(
@@ -458,18 +458,10 @@ def test_upstream_python_package_path_is_gone():
             """
 import metta
 
-assert 'PeTTa' not in metta.__all__
 assert 'HERE' not in metta.__all__
 assert 'query' not in metta.__all__
-assert not hasattr(metta, 'PeTTa')
 assert not hasattr(metta, 'HERE')
 assert not hasattr(metta, 'query')
-try:
-    __import__('python.petta')
-except ModuleNotFoundError:
-    pass
-else:
-    raise AssertionError('python.petta still imports')
 """,
         ],
         cwd=root,

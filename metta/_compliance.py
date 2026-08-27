@@ -26,7 +26,7 @@ into the other would make a failure ambiguous about whose code was wrong, which
 is the whole value of having two. Run both; they answer different questions.
 
 The exclusion half is already here and is better than SQLAlchemy's, which needs
-a parallel `SuiteRequirements` class: a PeTTa provider declares its
+a parallel `SuiteRequirements` class: a MeTTa provider declares its
 capabilities on itself through `can_run`, so this reads the provider rather
 than a second declaration that can disagree with it.
 
@@ -82,7 +82,7 @@ from ._api_types import _SpaceId
 from ._optional import require_module
 from ._space import MeTTa
 from .atoms import Expression, Symbol, Variable, _expr
-from .errors import PettaError
+from .errors import MettaError
 from .foreign import Enumerable
 
 pytest = require_module(
@@ -95,7 +95,7 @@ CAPABILITIES = (
     "match", "enumerate", "add", "add-many", "remove", "clear", "subscribe",
     "plan", "rules",
 )
-MARKER = Symbol("petta-compliance-marker")
+MARKER = Symbol("metta-compliance-marker")
 
 _NAMES = itertools.count()
 
@@ -471,7 +471,7 @@ class SpaceComplianceSuite:
         Written this way round on purpose. The suite does not get to choose
         what a backend can store: an invented marker atom is a shape a
         schema-bound provider has no table for, and DuckDB refused exactly
-        that with "no table 'petta-compliance-marker' in this DuckDB space".
+        that with "no table 'metta-compliance-marker' in this DuckDB space".
         An atom the provider already holds is the one thing every backend is
         certainly able to accept, so the round trip uses that.
         """
@@ -584,7 +584,7 @@ class SpaceComplianceSuite:
         exercised["skipped"].update(absent)
         marker = Expression([MARKER, Symbol("refused")])
         for capability in absent:
-            with pytest.raises(PettaError):
+            with pytest.raises(MettaError):
                 if capability == "add":
                     space.add(marker)
                 elif capability == "remove":
@@ -606,11 +606,11 @@ class SpaceComplianceSuite:
         self.requires(provider, exercised, "match")
         atom = self.shape_or_skip(stored)
         with space._new_space() as native:
-            native.add(Expression([Symbol("petta-compliance-native"), atom.args[0]]))
+            native.add(Expression([Symbol("metta-compliance-native"), atom.args[0]]))
             answered = native.run(
                 f"!(collapse (match {space.name} {open_pattern(atom)} "
                 f"(match (context-space) "
-                f"(petta-compliance-native $shared) (reached $shared))))"
+                f"(metta-compliance-native $shared) (reached $shared))))"
             )
         assert answered and answered[0] and answered[0][0].children, (
             "a join between a native space and the provider answered nothing"

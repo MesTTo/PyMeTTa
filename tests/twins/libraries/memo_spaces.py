@@ -21,6 +21,56 @@ new one in without ceremony.
 import metta
 from metta import S, V, equation, lib
 
+
+def twin(m):
+    """Two spaces, one function name, two caches, and one equation change."""
+    m += lib.memo
+
+    metric = metta.space(S.metric)
+    metric += equation(S.shipping_cost(V.w)).to(V.w * 9)
+
+    @m.define
+    def shipping_cost(w):
+        # (= (shipping-cost $w) (* $w 2))
+        return w * 2
+
+    here, there = m.fn.shipping_cost, metric.fn.shipping_cost
+    memoized, memoized_there = m.fn.is_memoized, metric.fn.is_memoized
+
+    assert here(3) == [6]
+    assert there(3) == [27]
+    assert memoized(S.shipping_cost) == [False]
+    assert memoized_there(S.shipping_cost) == [False]
+
+    # Memoizing here caches this space's function and leaves the other alone.
+    m.eval(S.memoize(shipping_cost))
+
+    assert memoized(S.shipping_cost) == [True]
+    assert memoized_there(S.shipping_cost) == [False]
+
+    # Both answers stand, and stand again on the call that hits the cache.
+    assert here(3) == [6]
+    assert here(3) == [6]
+    assert there(3) == [27]
+    assert there(3) == [27]
+
+    # Memoizing the other space's function adds a second cache, not a shared one.
+    metric.eval(S.memoize(there))
+
+    assert memoized_there(S.shipping_cost) == [True]
+    assert there(3) == [27]
+    assert there(3) == [27]
+    assert here(3) == [6]
+
+    # Changing one space's equation invalidates that space's cache and answers
+    # the new value, while the other space keeps answering its own.
+    m -= equation(S.shipping_cost(V.w)).to(V.w * 2)
+    m += equation(S.shipping_cost(V.w)).to(V.w * 3)
+
+    assert here(3) == [9]
+    assert there(3) == [27]
+
+
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and
 #: the integrator prices every budget in one pass on the merged tree, so a
 #: figure measured here would pin a tree that does not ship
@@ -32,7 +82,7 @@ from metta import S, V, equation, lib
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -81,50 +131,3 @@ from metta import S, V, equation, lib
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 BUDGET = 37294
-def twin(m):
-    """Two spaces, one function name, two caches, and one equation change."""
-    m += lib.memo
-
-    metric = metta.space(S.metric)
-    metric += equation(S.shipping_cost(V.w)).to(V.w * 9)
-
-    @m.define
-    def shipping_cost(w):
-        # (= (shipping-cost $w) (* $w 2))
-        return w * 2
-
-    here, there = m.fn.shipping_cost, metric.fn.shipping_cost
-    memoized, memoized_there = m.fn.is_memoized, metric.fn.is_memoized
-
-    assert here(3) == [6]
-    assert there(3) == [27]
-    assert memoized(S.shipping_cost) == [False]
-    assert memoized_there(S.shipping_cost) == [False]
-
-    # Memoizing here caches this space's function and leaves the other alone.
-    m.eval(S.memoize(shipping_cost))
-
-    assert memoized(S.shipping_cost) == [True]
-    assert memoized_there(S.shipping_cost) == [False]
-
-    # Both answers stand, and stand again on the call that hits the cache.
-    assert here(3) == [6]
-    assert here(3) == [6]
-    assert there(3) == [27]
-    assert there(3) == [27]
-
-    # Memoizing the other space's function adds a second cache, not a shared one.
-    metric.eval(S.memoize(there))
-
-    assert memoized_there(S.shipping_cost) == [True]
-    assert there(3) == [27]
-    assert there(3) == [27]
-    assert here(3) == [6]
-
-    # Changing one space's equation invalidates that space's cache and answers
-    # the new value, while the other space keeps answering its own.
-    m -= equation(S.shipping_cost(V.w)).to(V.w * 2)
-    m += equation(S.shipping_cost(V.w)).to(V.w * 3)
-
-    assert here(3) == [9]
-    assert there(3) == [27]

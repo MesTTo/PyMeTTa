@@ -467,7 +467,7 @@ function startServer(options = {}) {
 }
 function parseArguments(argv) {
   const options = {
-    token: process.env["PETTA_SPACE_TOKEN"] ?? null
+    token: process.env["METTA_SPACE_TOKEN"] ?? null
   };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];

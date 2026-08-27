@@ -54,7 +54,7 @@ EXAMPLES = [
 _LIBRARY_RUNNER = r"""
 import os, sys
 sys.path.insert(0, {python_dir!r})
-os.environ["PETTA_PATH"] = {repo!r}
+os.environ["METTA_PATH"] = {repo!r}
 from metta import MeTTa
 
 m = MeTTa().self
@@ -62,7 +62,7 @@ groups = m.load(sys.argv[1])
 rt = m.runtime
 for group in groups:
     for atom in group:
-        row = rt.once("petta_py_swrite(W, S)", W=atom.to_wire())
+        row = rt.once("metta_py_swrite(W, S)", W=atom.to_wire())
         print(row["S"])
 """
 

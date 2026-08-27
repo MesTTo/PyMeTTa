@@ -1,4 +1,4 @@
-"""Purpose: the @define path: write Python, get PeTTa. For whoever is fluent
+"""Purpose: the @define path: write Python, get MeTTa. For whoever is fluent
 in Python rather than s-expressions, language models included; the compiled
 subset keeps a callable Python twin so both sides stay checkable.
 Open Obligations:

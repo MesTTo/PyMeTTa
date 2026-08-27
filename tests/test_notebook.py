@@ -39,7 +39,7 @@ def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # no
     assert _has_rows_table(stored)
 
     jupyter_data = tmp_path / "jupyter"
-    kernel_dir = jupyter_data / "kernels" / "petta-test"
+    kernel_dir = jupyter_data / "kernels" / "metta-test"
     kernel_dir.mkdir(parents=True)
     (kernel_dir / "kernel.json").write_text(
         json.dumps(
@@ -51,7 +51,7 @@ def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # no
                     "-f",
                     "{connection_file}",
                 ],
-                "display_name": "PeTTa test kernel",
+                "display_name": "MeTTa test kernel",
                 "language": "python",
             }
         ),
@@ -73,7 +73,7 @@ def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # no
     python_path = str(repo_root / "bindings" / "python")
     env = {
         **os.environ,
-        "PETTA_PATH": str(repo_root),
+        "METTA_PATH": str(repo_root),
         "PYTHONPATH": os.pathsep.join(
             filter(None, [python_path, os.environ.get("PYTHONPATH")])
         ),
@@ -81,7 +81,7 @@ def test_tour_executes_and_renders_rows(repo_root, tmp_path, monkeypatch):  # no
     client = nbclient.NotebookClient(
         notebook,
         timeout=300,
-        kernel_name="petta-test",
+        kernel_name="metta-test",
         resources={"metadata": {"path": str(repo_root)}},
         allow_errors=False,
     )

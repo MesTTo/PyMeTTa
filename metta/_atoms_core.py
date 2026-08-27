@@ -77,7 +77,7 @@ Guarantees:
     [tested: test_dunder_metta_is_read_off_the_class_not_the_instance;
      commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - Box publishes its transport value through the reserved
-    __petta_wire_value__ protocol, so host bridges can remove the wire layer
+    __metta_wire_value__ protocol, so host bridges can remove the wire layer
     without importing the Python package [tested:
     test_a_python_tuple_answers_the_same_through_both_doors;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -256,7 +256,7 @@ class Box:
         return f"Box({self.value!r})"
 
     @property
-    def __petta_wire_value__(self) -> Any:
+    def __metta_wire_value__(self) -> Any:
         """The host value hidden by this private transport envelope."""
         return self.value
 
@@ -279,10 +279,10 @@ class Box:
 
 def _unbox_wire_value(value: Any) -> Any:
     """Remove transport envelopes through their reserved value protocol."""
-    wire_value = getattr(type(value), "__petta_wire_value__", None)
+    wire_value = getattr(type(value), "__metta_wire_value__", None)
     if isinstance(wire_value, property):
         if wire_value.fget is None:
-            msg = "__petta_wire_value__ must be a readable property"
+            msg = "__metta_wire_value__ must be a readable property"
             raise TypeError(msg)
         return _unbox_wire_value(wire_value.fget(value))
     return value
@@ -727,7 +727,7 @@ class Variable(Atom):
 class Grounded(Atom):
     """A grounded value: a host value carried whole.
 
-    Strings, numbers and booleans have native PeTTa terms. Anything else
+    Strings, numbers and booleans have native MeTTa terms. Anything else
     crosses as an object reference, stays the same object on the way back,
     and unifies by identity, which is the equality the engine applies to it.
 
@@ -1083,7 +1083,7 @@ class _NativeHandle(Handle):
 
         runtime = _engine.active_runtime()
         if runtime is not None:
-            runtime.do("petta_py_handle_release", self.ident)
+            runtime.do("metta_py_handle_release", self.ident)
 
     def __del__(self) -> None:
         # Interpreter teardown cannot promise engine calls, so collection
@@ -1402,7 +1402,7 @@ def _operator_method(
     operator.__name__ = name
     operator.__qualname__ = f"Atom.{name}"
     operator.__doc__ = f"Lower {entry.syntax} through the {entry.kind} operator-table entry."
-    operator.__dict__["__petta_lowering__"] = entry
+    operator.__dict__["__metta_lowering__"] = entry
     return operator
 
 

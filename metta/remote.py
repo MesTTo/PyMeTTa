@@ -86,7 +86,7 @@ from ._network import HTTPEndpoint, validated_timeout
 from ._space import Space as MeTTa
 from ._space_objects import Cursor
 from .atoms import Atom, Expression, Variable, substitute
-from .errors import PettaError
+from .errors import MettaError
 from .foreign import SpaceProvider
 
 logger = logging.getLogger(__name__)
@@ -285,20 +285,20 @@ class RemoteCursor:
         atoms = answer.get("atoms")
         if not isinstance(atoms, list):
             msg = f"the remote engine answered a chunk without an atom list: {answer!r}"
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         token = answer.get("cursor")
         if token is not None and not isinstance(token, str):
             msg = f"the remote engine answered a non-string cursor: {token!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if token is not None and not atoms:
             msg = (
                 "the remote engine answered a live cursor with no atoms; a "
                 "chunk that carries nothing ends the stream and must answer "
                 "a null cursor"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         self._token = token
@@ -310,7 +310,7 @@ class RemoteCursor:
     def __next__(self) -> Atom:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         if self._closed:
             msg = "this cursor is closed"
-            raise PettaError(msg)
+            raise MettaError(msg)
         while not self._buffer:
             if self._token is None:
                 raise StopIteration
@@ -508,7 +508,7 @@ class RemoteSpace(SpaceProvider):
                 "with metta.remote.connect(), or give the callable a "
                 "`health` attribute answering the health body"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         body = health()
@@ -566,7 +566,7 @@ def connect(
     endpoint = HTTPEndpoint(
         url,
         subject="remote engine",
-        error_type=PettaError,
+        error_type=MettaError,
         ssl_context=ssl_context,
     )
     timeout = validated_timeout(timeout, subject="remote engine timeout")
@@ -575,7 +575,7 @@ def connect(
     )
     if endpoint.scheme != "https" and has_credentials:
         msg = "remote engine credentials require an https URL"
-        raise PettaError(msg)
+        raise MettaError(msg)
     sent = {"content-type": "application/json"}
     if token is not None:
         sent["authorization"] = f"Bearer {token}"
@@ -599,7 +599,7 @@ def connect(
                 exc_info=True,
             )
             msg = f"the remote engine request {operation} failed: {exc}"
-            raise PettaError(msg) from exc
+            raise MettaError(msg) from exc
         logger.debug(
             "remote engine operation %s answered with HTTP %d",
             operation,
@@ -610,22 +610,22 @@ def connect(
         except (UnicodeDecodeError, ValueError) as exc:
             detail = raw.decode("utf-8", "replace")[:200]
             msg = f"the remote engine answered {status} {reason} with invalid JSON: {detail}"
-            raise PettaError(
+            raise MettaError(
                 msg
             ) from exc
         if status >= 400:
             body = raw.decode("utf-8", "replace")
             detail = answer.get("error", body) if isinstance(answer, dict) else body
             msg = f"the remote engine refused {operation}: {detail}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if not isinstance(answer, dict):
             msg = f"the remote engine returned {type(answer).__name__}, expected an object"
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         if "error" in answer:
             msg = f"the remote engine refused {operation}: {answer['error']}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return answer
 
     def health() -> dict:
@@ -638,7 +638,7 @@ def connect(
             )
         except (HTTPException, OSError) as exc:
             msg = f"the remote engine health request failed: {exc}"
-            raise PettaError(msg) from exc
+            raise MettaError(msg) from exc
         try:
             answer = _json.loads(raw)
         except (UnicodeDecodeError, ValueError) as exc:
@@ -646,12 +646,12 @@ def connect(
                 f"the remote engine answered health with invalid JSON "
                 f"({status} {reason})"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             ) from exc
         if status >= 400 or not isinstance(answer, dict):
             msg = f"the remote engine refused health: {status} {reason}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return answer
 
     return _HTTPTransport(transport, health)
@@ -687,7 +687,7 @@ def _batch_of(payload: dict) -> int:
     value = payload.get("batch", _DEFAULT_BATCH)
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         msg = f"batch must be a positive integer, got {value!r}"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return value
 
 
@@ -701,7 +701,7 @@ def _atom_of(payload: dict, name: str) -> Atom:
     wire = payload.get(name)
     if wire is None:
         msg = f"this operation needs the `{name}` field, holding a wire atom"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return _atom_from_wire(wire)
 
 
@@ -710,7 +710,7 @@ def _atoms_of(payload: dict, name: str) -> list[Atom]:
     wires = payload.get(name)
     if not isinstance(wires, list):
         msg = f"this operation needs the `{name}` field, holding a list of wire atoms"
-        raise PettaError(
+        raise MettaError(
             msg
         )
     return [_atom_from_wire(wire) for wire in wires]
@@ -731,7 +731,7 @@ def _bound_of(payload: dict) -> int | None:
         return None
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         msg = f"bound must be a non-negative integer, got {value!r}"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return value
 
 
@@ -791,7 +791,7 @@ class _Cursors:
                     f"open; stop one before asking for another, or serve with "
                     f"a larger cursor_limit"
                 )
-                raise PettaError(
+                raise MettaError(
                     msg
                 )
             entry.deadline = time.monotonic() + self._idle
@@ -808,7 +808,7 @@ class _Cursors:
         self._sweep()
         if not isinstance(token, str):
             msg = f"cursor must be a string, got {token!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         with self._lock:
             entry = self._open.get(token)
             if entry is not None:
@@ -819,7 +819,7 @@ class _Cursors:
                 f"went untouched for {self._idle:g} seconds and the gateway "
                 f"released it. Ask again for a new one"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         return entry
@@ -828,7 +828,7 @@ class _Cursors:
         self._sweep()
         if not isinstance(token, str):
             msg = f"cursor must be a string, got {token!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         with self._lock:
             entry = self._open.pop(token, None)
         if entry is None:
@@ -907,7 +907,7 @@ class Gateway:
         if operation == "health":
             return self._health()
         msg = f"unknown operation {operation!r}"
-        raise PettaError(msg)
+        raise MettaError(msg)
 
     def health(self) -> dict:
         """The transport-side spelling of GET /health, so a Gateway is a
@@ -933,7 +933,7 @@ class Gateway:
         name = payload.get("space", "&self")
         if self._allowed is not None and name not in self._allowed:
             msg = f"space {name!r} is not served"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return (
             self._metta
             if name == self._metta.name
@@ -965,11 +965,11 @@ class Gateway:
             groups = space.run("!(collapse (match (context-space) pat pat))")
         if len(groups) != 1 or len(groups[0]) != 1:
             msg = f"remote match returned an invalid collapse result: {groups!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         group = groups[0][0]
         if not isinstance(group, Expression):
             msg = f"remote match returned a non-expression collapse: {group!r}"
-            raise PettaError(msg)
+            raise MettaError(msg)
         return {"atoms": [a.to_wire() for a in group]}
 
     def _pull(self, entry: _OpenCursor, batch: int) -> tuple[list[Atom], bool]:
@@ -1106,7 +1106,7 @@ class _RemoteWorker:
         if failure is not None:
             self.thread.join(timeout)
             msg = f"remote engine worker could not attach: {type(failure).__name__}: {failure}"
-            raise PettaError(
+            raise MettaError(
                 msg
             ) from failure
         with self._lock:
@@ -1117,7 +1117,7 @@ class _RemoteWorker:
         with self._lock:
             if self._state != "live" or not self.thread.is_alive():
                 msg = f"remote engine worker is {self._state}"
-                raise PettaError(msg)
+                raise MettaError(msg)
             reply: queue.SimpleQueue = queue.SimpleQueue()
             self._work.put((operation, payload, reply))
         try:
@@ -1145,7 +1145,7 @@ class _RemoteWorker:
                 failures = ()
         if thread is threading.current_thread():
             msg = "a remote engine worker cannot stop itself"
-            raise PettaError(msg)
+            raise MettaError(msg)
         if thread.is_alive():
             thread.join(timeout)
         if thread.is_alive():
@@ -1158,7 +1158,7 @@ class _RemoteWorker:
             if len(failures) == 1:
                 failure = failures[0]
                 msg = f"remote engine worker failed: {type(failure).__name__}: {failure}"
-                raise PettaError(
+                raise MettaError(
                     msg
                 ) from failure
             msg = "remote engine worker failed"
@@ -1266,7 +1266,7 @@ class Server:
                 return
             if self._thread is threading.current_thread():
                 msg = "the remote HTTP server cannot close itself"
-                raise PettaError(msg)
+                raise MettaError(msg)
             failures = [*self._stop_http(timeout), *self._stop_worker(timeout)]
             try:
                 self._gateway.close()

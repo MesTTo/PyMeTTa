@@ -30,6 +30,44 @@ import math
 
 from metta import G, S
 
+
+def twin(m):
+    """Ask each numeric operation for its answer."""
+    sqrt_math = m.fn.sqrt_math
+    isnan, isinf = m.fn.isnan_math, m.fn.isinf_math
+
+    assert m.answers(G(2) ** 3) == [8.0]
+    assert isnan(sqrt_math(-1)) == [True]
+    assert isinf(G(0) ** -1) == [True]
+    # The signed-i32 bound is enforced only for INTEGER exponents.
+    assert m.answers(G(1) ** 2147483648.0) == [1.0]
+    assert sqrt_math(9) == [3.0]
+    assert m.answers(abs(G(-5))) == [5]
+    assert m.fn.log_math(10, 100) == [2.0]
+
+    assert m.eval(math.trunc(G(5.6))) == [5]
+    assert m.eval(math.ceil(G(5.2))) == [6]
+    assert m.eval(math.floor(G(5.8))) == [5]
+    assert m.eval(round(G(5.4))) == [5]
+    assert m.eval(round(G(5.6))) == [6]
+
+    assert m.fn.sin_math(0) == [0.0]
+    assert m.fn.asin_math(0) == [0.0]
+    assert m.fn.cos_math(0) == [1.0]
+    assert m.fn.acos_math(1) == [0.0]
+    assert m.fn.tan_math(0) == [0.0]
+    assert m.fn.atan_math(0) == [0.0]
+
+    assert isnan(0.0) == [False]
+    assert isinf(0.0) == [False]
+
+    assert m.fn.min_atom((2, 6, 7, 4, 9, 3)) == [2]
+    assert m.fn.max_atom((2, 6, 7, 4, 9, 3)) == [9]
+
+    assert isinf(S.inf) == [True]
+    assert isnan(S.nan) == [True]
+
+
 #: Why this twin sits below the top rung: `min-atom` and `max-atom` dissolve
 #: into Python's `min` and `max` everywhere else in the corpus, and here they
 #: are two of the numeric operations under test, so a Python max over a Python
@@ -47,7 +85,7 @@ RUNG = "min-atom and max-atom are two of the stdlib numeric operations this file
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -90,40 +128,3 @@ RUNG = "min-atom and max-atom are two of the stdlib numeric operations this file
 #: remainder is compiled-image layout, the class this file's own chain
 #: documents [measured: min-of-3 serial fresh processes; command=python bindings/python/tools/twin_coverage.py --measure --rounds 3; fixture=p14-integration open-tail-index pricing tree with engine/reader.so; commit=5ca9ef775933e349f8dc3ec64ec3cb85273a5a00].
 BUDGET = 4724
-
-
-def twin(m):
-    """Ask each numeric operation for its answer."""
-    sqrt_math = m.fn.sqrt_math
-    isnan, isinf = m.fn.isnan_math, m.fn.isinf_math
-
-    assert m.answers(G(2) ** 3) == [8.0]
-    assert isnan(sqrt_math(-1)) == [True]
-    assert isinf(G(0) ** -1) == [True]
-    # The signed-i32 bound is enforced only for INTEGER exponents.
-    assert m.answers(G(1) ** 2147483648.0) == [1.0]
-    assert sqrt_math(9) == [3.0]
-    assert m.answers(abs(G(-5))) == [5]
-    assert m.fn.log_math(10, 100) == [2.0]
-
-    assert m.eval(math.trunc(G(5.6))) == [5]
-    assert m.eval(math.ceil(G(5.2))) == [6]
-    assert m.eval(math.floor(G(5.8))) == [5]
-    assert m.eval(round(G(5.4))) == [5]
-    assert m.eval(round(G(5.6))) == [6]
-
-    assert m.fn.sin_math(0) == [0.0]
-    assert m.fn.asin_math(0) == [0.0]
-    assert m.fn.cos_math(0) == [1.0]
-    assert m.fn.acos_math(1) == [0.0]
-    assert m.fn.tan_math(0) == [0.0]
-    assert m.fn.atan_math(0) == [0.0]
-
-    assert isnan(0.0) == [False]
-    assert isinf(0.0) == [False]
-
-    assert m.fn.min_atom((2, 6, 7, 4, 9, 3)) == [2]
-    assert m.fn.max_atom((2, 6, 7, 4, 9, 3)) == [9]
-
-    assert isinf(S.inf) == [True]
-    assert isnan(S.nan) == [True]

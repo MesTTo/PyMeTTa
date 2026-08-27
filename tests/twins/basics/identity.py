@@ -10,6 +10,16 @@ Guarantees:
     test_a_shipped_twin_agrees_with_its_example_end_to_end; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
 """
 
+
+def twin(m):
+    """Define the square, then check it."""
+    @m.define
+    def f(x):
+        return x * x
+
+    assert f(1) == [1]
+
+
 #: Inferences this twin spends, its own tripwire.
 #: PLACEHOLDER for the twins wave: every budget in the corpus is 1 here and
 #: the integrator's single re-pin pass prices them all on the merged tree, so
@@ -69,7 +79,7 @@ Guarantees:
 #: branch: an ordinary added equation compiles for +3 (the mask read), an
 #: equation whose body compiles to NO goals costs +144 more for its result
 #: continuation, and the first m.define in a process pays +42 one-time in two
-#: petta_py_add calls of the three-element contract atoms, where the same
+#: metta_py_add calls of the three-element contract atoms, where the same
 #: adds measured directly in Prolog are 15 cheaper on that tree; a single
 #: inert clause in any compiled engine file moves the reading +-10
 #: [measured 2026-08-24, min-of-3 through tools/twin_coverage.py --measure
@@ -98,7 +108,7 @@ Guarantees:
 #: [measured 2026-08-25, the twin reading 2784 stable across the suite run
 #: and a direct re-run on the fixed tree].
 #: RE-PINNED 2026-08-25, 2784 to 2814, by the computed-head value dispatch:
-#: petta_dynamic_head_masks/1 and petta_dynamic_value_call/4 join
+#: metta_dynamic_head_masks/1 and metta_dynamic_value_call/4 join
 #: seam:engine_emitted/1 at the documented three inferences per name per
 #: execution-module build, and this workload builds several spaces. The
 #: dispatch removes per-activation tail retranslation at computed-head
@@ -115,7 +125,7 @@ Guarantees:
 #: together: every flat call prices one declaration read through
 #: type_declaration_in/3, a declared head's flat call routes
 #: through the same call-site typed dispatch the engine's own
-#: form runs (petta_py_typed_dispatch_applies/2, the P14.9
+#: form runs (metta_py_typed_dispatch_applies/2, the P14.9
 #: residue retirement), and an import-bearing twin now spells
 #: its import as `m += lib.x` on the write door [measured
 #: 2026-08-25 through tools/twin_coverage.py --measure min-of-3
@@ -150,7 +160,7 @@ Guarantees:
 #: twin's definition and assertion are unchanged; the fixed 28-inference move
 #: is the compiled program-layout cost after adding the named-lifecycle and
 #: wide-query bridge clauses. Removing only the hashtable import and then only
-#: the hot petta_py_query/4 wide clause left the same 2850 count, ruling out
+#: the hot metta_py_query/4 wide clause left the same 2850 count, ruling out
 #: both an import charge and per-query traversal. The pin is the minimum of
 #: three fresh processes on the merged tree with engine/reader.so present
 #: [measured: 2850 inferences; command=tools/twin_coverage.py --measure
@@ -205,7 +215,7 @@ Guarantees:
 #: immutable-world, and State-fence tree. The reading prices the combined
 #: engine source and compiled QLF layout; three fresh serial processes each
 #: read metta=2817 and twin=2880.
-#: [measured: 2880; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/basics/identity.metta; fixture=three fresh serial processes under the required PeTTa venv with worktree.sh artifacts; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+#: [measured: 2880; command=python bindings/python/tools/twin_coverage.py --measure --rounds 1 examples/basics/identity.metta; fixture=three fresh serial processes under the required MeTTa venv with worktree.sh artifacts; commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
 #: RE-PINNED 2026-08-26, on the worlds integration merge: 2826 against the
 #: example's own 2801. Five landings now compose in this boot image and
 #: their layout costs do not add: the single-parent pins above read 2830,
@@ -217,7 +227,7 @@ Guarantees:
 #: RE-PINNED 2026-08-26, 2826 to 2891, after materializing the callable
 #: visibility catalog. The identity definition and assertion are unchanged,
 #: and the MeTTa example remains 2801; the fixed movement is the engine image
-#: and &petta catalog layout, the same non-monotonic layout effect recorded by
+#: and &metta catalog layout, the same non-monotonic layout effect recorded by
 #: the preceding merge receipts [measured: 2891 inferences;
 #: command=tools/twin_coverage.py --measure --rounds 3
 #: examples/basics/identity.metta; fixture=merged exact-spellings tree with

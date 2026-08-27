@@ -11,7 +11,7 @@ compares answer BAGS: order is unspecified in MeTTa, multiplicity is not.
 Assumes:
     - ``metta.op(effect="writesState")`` is the classification that makes the
       count door decline, and ``pure=True`` the one that makes it accept
-      [source: bindings/python/metta/shim.pl, petta_py_eval_repeatable/2]
+      [source: bindings/python/metta/shim.pl, metta_py_eval_repeatable/2]
 Guarantees:
     - the retained route replays exactly the bag the evaluating cursor
       answers, over ground rows, sparse rows, repeated and shared variables,
@@ -185,7 +185,7 @@ def test_a_repeatable_count_still_leaves_its_cursor_to_run(metta) -> None:
     """An effect-safe goal keeps the second evaluation the count door allows.
 
     A space read reaches no host operation, so the walk in
-    ``petta_py_eval_repeatable/2`` accepts it, the count runs on its own
+    ``metta_py_eval_repeatable/2`` accepts it, the count runs on its own
     engine, and the cursor is still unopened afterwards. Nothing is retained,
     which is why the later pull sees a row written in between.
     """

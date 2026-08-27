@@ -1,5 +1,5 @@
 """Purpose: the interface any Python library implements to work deeply with
-PeTTa, and the toolkit that makes implementing it a page of code rather than
+MeTTa, and the toolkit that makes implementing it a page of code rather than
 a project. An integration is a module with install_metta(m), an object with
 name and install(m), or an entry point in the metta.integrations group; the
 toolkit covers the capabilities an integration is made of: bulk operations
@@ -72,7 +72,7 @@ from .atoms import (
     _unregister_protocol_repr,
     ground,
 )
-from .errors import PettaError
+from .errors import MettaError
 from .foreign import SpaceProvider
 from .vocabularies import EffectClass
 
@@ -157,7 +157,7 @@ def integrate(m, target: Any) -> str:
             f"METTA_PROLOG naming the .pl files your package ships, or "
             f"provide an object with .name and .install(m)"
         )
-        raise PettaError(
+        raise MettaError(
             msg
         )
     key = (m.name, name)
@@ -242,7 +242,7 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
     if name not in advertised:
         known = ", ".join(sorted(advertised)) or "none"
         msg = f"no {group} entry point named {name!r}; installed: {known}"
-        raise PettaError(
+        raise MettaError(
             msg
         )
     target = advertised[name].load()
@@ -253,14 +253,14 @@ def load_entry_point(name: str, /, *args: Any, group: str = SPACES_GROUP, **kwar
             f"the {group} entry point {name!r} is not callable, "
             f"but arguments were given"
         )
-        raise PettaError(
+        raise MettaError(
             msg
         )
     return target
 
 
 def discover(m) -> list[str]:
-    """Install advertised integrations after satisfying PETTA_REQUIRES."""
+    """Install advertised integrations after satisfying METTA_REQUIRES."""
     advertised = tuple(metadata.entry_points(group=ENTRY_POINT_GROUP))
     entries: dict[str, Any] = {}
     for entry in advertised:
@@ -269,31 +269,31 @@ def discover(m) -> list[str]:
                 f"duplicate {ENTRY_POINT_GROUP} entry point {entry.name!r}; "
                 "integration names must be unique"
             )
-            raise PettaError(msg)
+            raise MettaError(msg)
         entries[entry.name] = entry
     targets = {name: entry.load() for name, entry in entries.items()}
 
     graph: dict[str, tuple[str, ...]] = {}
     for name, target in targets.items():
-        raw = getattr(target, "PETTA_REQUIRES", ())
+        raw = getattr(target, "METTA_REQUIRES", ())
         if isinstance(raw, str) or not isinstance(raw, Iterable):
             msg = (
-                f"integration {name!r} PETTA_REQUIRES must be an iterable "
+                f"integration {name!r} METTA_REQUIRES must be an iterable "
                 "of entry-point names"
             )
-            raise PettaError(msg)
+            raise MettaError(msg)
         dependencies = tuple(raw)
         invalid = [item for item in dependencies if not isinstance(item, str)]
         if invalid:
-            msg = f"integration {name!r} PETTA_REQUIRES contains a non-string name"
-            raise PettaError(msg)
+            msg = f"integration {name!r} METTA_REQUIRES contains a non-string name"
+            raise MettaError(msg)
         missing = sorted(set(dependencies) - targets.keys())
         if missing:
             msg = (
                 f"integration {name!r} requires missing integration(s): "
                 f"{', '.join(missing)}"
             )
-            raise PettaError(msg)
+            raise MettaError(msg)
         graph[name] = dependencies
 
     try:
@@ -301,7 +301,7 @@ def discover(m) -> list[str]:
     except graphlib.CycleError as exc:
         cycle = " -> ".join(exc.args[1])
         msg = f"integration dependency cycle: {cycle}"
-        raise PettaError(msg) from exc
+        raise MettaError(msg) from exc
     return [integrate(m, targets[name]) for name in order]
 
 
@@ -320,7 +320,7 @@ def _require_callable(module: Any, pyname: str) -> Callable:
     target = getattr(module, pyname)
     if not callable(target):
         msg = f"{module.__name__}.{pyname} is not callable"
-        raise PettaError(msg)
+        raise MettaError(msg)
     return target
 
 
@@ -416,7 +416,7 @@ def _callable_arities(name: str, target: Callable) -> list[int]:
             f"{name}: the callable's signature is not inspectable, so "
             f"its call forms cannot be derived; pass arities=[...]"
         )
-        raise PettaError(
+        raise MettaError(
             msg
         ) from exc
     positional = []
@@ -432,7 +432,7 @@ def _callable_arities(name: str, target: Callable) -> list[int]:
                 f"{parameter.name!r} is unreachable from a positional "
                 f"MeTTa call site"
             )
-            raise PettaError(
+            raise MettaError(
                 msg
             )
         elif parameter.kind in (
@@ -503,7 +503,7 @@ def wrap_object(
             details.append(f"missing {missing}")
         if extra:
             details.append(f"unknown {extra}")
-        raise PettaError(
+        raise MettaError(
             "wrap_object effects must classify exactly the wrapped methods: "
             + "; ".join(details)
         )
@@ -598,7 +598,7 @@ def reflect(m, name: str, obj: Any) -> int:
         f"no reflector claims {type(obj).__name__}; register one with "
         f"metta.integrate.register_reflector"
     )
-    raise PettaError(
+    raise MettaError(
         msg
     )
 
