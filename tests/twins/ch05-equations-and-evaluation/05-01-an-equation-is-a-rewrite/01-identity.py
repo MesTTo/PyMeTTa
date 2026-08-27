@@ -413,4 +413,39 @@ def twin(m):
 #: planted; command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
 #: fixture=the p14-integration checkout with engine/reader.so and the MORK
 #: backend loaded; commit=1d3c85464994d4c9e5d45cf7e3d6e755a4e456cd]. metta=2800, unchanged.
-BUDGET = 2841
+#: RE-PINNED 2026-08-28, 2826 to 2841, by the platform census extension
+#: (regex, compressed-sources, fast-cache). NOT this change's work, and two
+#: direct probes say so rather than an argument: a trace on entry to
+#: metta_require_platform/2 counts 0 calls over the whole twin process, and
+#: the same trace on metta_platform/4 counts 0 census reads, so no line the
+#: three new rows added executes anywhere here. What moved is the compiled
+#: image, the class every entry above records: planting 1, 2, 4, 8, 16 or 40
+#: inert facts in engine/metta.pl moves the BASE from 2826 to 2831 and this
+#: tree from 2841 to 2846, flat in count both times; applying the changed
+#: files one at a time to the base tree puts the whole move in
+#: engine/metta.pl (interop.pl and source_lifecycle.pl each read 2826
+#: unchanged); and MOVING the one pcre re-export directive down the base's
+#: own file, changing nothing else, reads metta=2788 twin=2808, so the
+#: reading tracks where the image puts things rather than what this program
+#: does. 2841 is inside the 2816..2846 band the cursor-budget control above
+#: measured. The example itself is 2800 on both trees, unchanged
+#: [measured 2026-08-28: base twin=2826, candidate twin=2841, both min-of-3
+#: fresh serial processes; command=python
+#: extensions/python/tools/twin_coverage.py --measure --rounds 3
+#: examples/ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta;
+#: fixture=this worktree and a clone of 6269f241 beside it, each with
+#: engine/reader.so and the MORK backend linked in;
+#: commit=6269f2418cd844c45f97f0b21df2f5ab81cdba8b]. metta=2800, unchanged.
+#: RE-PINNED 2026-08-28, 2841 to 2821, at the platform-census merge, both
+#: parents' chains kept above: each parent independently measured 2841 on its
+#: own tree, and the merged tree reads 2821, three identical runs, QLF warmed
+#: through run.sh first (a plt-path boot reads a stale set after engine edits;
+#: engine/main.pl entries purge). DOWN 20, and layout rather than work: on
+#: THIS tree the one-inert-kind-row control moves the reading not at all
+#: (2821 with a planted row), where the doors merge measured +5 per row --
+#: the banding is non-monotonic in the compiled image, as the 2826..2846
+#: entries above already record. metta=2800, unchanged
+#: [measured 2026-08-28: 2821 x3; command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
+#: fixture=the p14-integration checkout with engine/reader.so and the MORK
+#: backend loaded; commit=WORKTREE].
+BUDGET = 2821
