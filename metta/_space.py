@@ -2066,10 +2066,13 @@ class Space(Handle):
         so a huge join costs one row of work per row actually taken where
         match() computes and decodes every answer up front. `timeout`
         bounds each pull's wall time; `inferences` is one budget for the
-        cursor's whole engine work, spent across pulls, because an
-        engine's inferences are its own. The cursor enumerates under the
-        engine's logical update view: writes made after the first pull
-        are not seen by this cursor.
+        cursor's whole engine work, spent across pulls, and the cursor
+        stops on the answer that passes it. Because the budget counts the
+        cursor's own engine, it is not the number ``stats()`` reports for
+        the same work: ``stats()`` reads the calling thread's counters,
+        which see the pull loop rather than the engine. The cursor
+        enumerates under the engine's logical update view: writes made
+        after the first pull are not seen by this cursor.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return Cursor(self, patterns, where, timeout, inferences)
 
@@ -2797,11 +2800,19 @@ class Space(Handle):
             s.gc_count, s.gc_freed, s.gc_time
             s.table_bytes       # answer-table bytes grown, tabling's memory
 
-        The counters are the engine's statistics/2, and the engine is one
-        per process, so a block that runs other threads' engine work counts
-        that work too; the honest reading is "what the engine did while
-        this block ran". The z3py Solver.statistics() reading, on the
-        engine this library actually has.
+        The counters are SWI's statistics/2 read on the CALLING thread, so
+        a block that runs other threads' engine work counts that work too;
+        the honest reading is "what this thread saw the engine do while the
+        block ran". A lazy cursor is the exception, and a large one: its
+        goal runs in an SWI engine, an engine counts its own inferences,
+        and this thread cannot see them. Draining 20,000 rows through the
+        match cursor reports 40,049 inferences against about 381,000 the
+        cursor's engine really spent, 10.5% of the work; the real cost is
+        readable off the `inferences` budget, which does count the engine
+        [measured 2026-08-27]. The evaluation cursor behind `answers()`
+        does report its engine's spend, so that one is whole. The z3py
+        Solver.statistics() reading, on the engine this library actually
+        has.
         """
         return _StatsBlock(self._rt)
 

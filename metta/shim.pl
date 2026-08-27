@@ -865,18 +865,19 @@ petta_py_speculative(Pred, Ins, Out) :-
 % under the logical update view: a fact added after the first pull is not
 % seen by this cursor, the snapshot-like enumeration contract.
 
-%Inf bounds the cursor's WHOLE engine work, installed inside the engine:
-%an engine counts its own inferences, so an outer call_with_inference_limit
-%around one pull sees almost none of the work (measured: a 100M-step guard
-%ran to completion under a 1000-inference outer bound). The limiter's
-%dynamic extent lives on the engine's own stack, so it spans every resume,
-%the cumulative-budget reading. Wall bounds stay outside, per pull, where
-%idle time between pulls cannot count.
+%Inf bounds the cursor's WHOLE engine work, cumulatively across pulls, and the
+%engine publishes the wrapper because a host cannot place this bound correctly
+%from outside: an engine counts its own inferences and this thread cannot see
+%them, so a limiter around one pull charges the pull loop rather than the
+%engine. This file used to read that measurement the other way round and wrap
+%each pull, which left the budget inert; metta_host_inference_budget/3 in
+%engine/metta/control.pl carries the numbers and the reasoning. Wall bounds
+%stay outside, per pull, where idle time between pulls cannot count.
 petta_py_cursor_open(Space, PatternsTagged, GuardTagged, VarNames, Limit, Inf,
                      prolog(Engine)) :-
     petta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
                          Row, Goal),
-    petta_py_cursor_bounded(Goal, Inf, Bounded),
+    metta_host_inference_budget(Goal, Inf, Bounded),
     engine_create(Row, Bounded, Engine).
 
 petta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
@@ -891,14 +892,6 @@ petta_py_cursor_goal(Space, PatternsTagged, GuardTagged, VarNames, Limit,
                                        VarNames, Row)
     ),
     ( Limit > 0 -> Goal = limit(Limit, Goal0) ; Goal = Goal0 ).
-
-petta_py_cursor_bounded(Goal, Inf, Bounded) :-
-    ( Inf < 0 -> Bounded = Goal
-    ; Bounded = ( call_with_inference_limit(Goal, Inf, Result),
-                  ( Result == inference_limit_exceeded
-                    -> petta_py_raise(inference_limit, Inf)
-                  ; true ) )
-    ).
 
 %The annotation-returning cursor is a separate wire so the ordinary hot path
 %keeps its one Row. The override lives INSIDE the held engine goal, because
@@ -919,7 +912,7 @@ petta_py_cursor_open_under(Space, PatternsTagged, GuardTagged, VarNames,
     ),
     Scoped = petta_with_under(Algebra, Goal),
     Encoded = ( Scoped, petta_py_encode(K, KWire) ),
-    petta_py_cursor_bounded(Encoded, Inf, Bounded),
+    metta_host_inference_budget(Encoded, Inf, Bounded),
     engine_create([Row, KWire], Bounded, Engine).
 
 petta_py_under_query(Space, Producer, K) :-
@@ -2375,7 +2368,7 @@ petta_py_eval_cursor_open(Space, Target, Pairs, VarNames, Inf, prolog(Engine)) :
              petta_py_eval_term_bounded(Space, Term, Encoded),
              petta_py_row(VarNames, Bindings, Row),
              statistics(inferences, Now), Used is Now - Before ),
-    petta_py_cursor_bounded(Goal, Inf, Bounded),
+    metta_host_inference_budget(Goal, Inf, Bounded),
     engine_create([Encoded, Row, Used], Bounded, Engine).
 
 petta_py_eval_cursor_open_under(Space, Target, Pairs, VarNames, Inf, Algebra,
@@ -2393,7 +2386,7 @@ petta_py_eval_cursor_open_under(Space, Target, Pairs, VarNames, Inf, Algebra,
                  statistics(inferences, Now), Used is Now - Before )
     ),
     Goal = ( petta_with_under(Algebra, Core), petta_py_encode(K, KWire) ),
-    petta_py_cursor_bounded(Goal, Inf, Bounded),
+    metta_host_inference_budget(Goal, Inf, Bounded),
     engine_create([Encoded, Row, KWire, Used], Bounded, Engine).
 
 petta_py_ordered_eval_under(Space, Term, VarNames, Direction, Bindings, Encoded,
@@ -2463,12 +2456,19 @@ petta_py_eval_count_term(Space, Term, Count) :-
 %open cursor without re-running the query: PostgreSQL materializes a SCROLL
 %cursor once and MOVE FORWARD ALL reports the row count with no row reaching
 %the client [source: PostgreSQL 17 manual, SQL-DECLARE and SQL-MOVE].
+%
+%This is the one budget site that does NOT run in an engine: findall/3 drives
+%the whole enumeration here, on the calling thread, so the counter it reads
+%has been growing since the process started. That is why
+%metta_host_inference_budget/3 takes a base when the goal starts rather than
+%comparing the raw counter, and why the base cannot be dropped as dead weight
+%on the grounds that an engine's counter starts near zero.
 petta_py_eval_count_retaining(Space, Target, Pairs, VarNames, Inf,
                               [Count, prolog(Engine)]) :-
     petta_py_eval_target(Space, Target, Pairs, Term, Bindings),
     Collect = ( petta_py_eval_retained(Space, Term, Retained),
                 petta_py_row(VarNames, Bindings, Row) ),
-    petta_py_cursor_bounded(Collect, Inf, Bounded),
+    metta_host_inference_budget(Collect, Inf, Bounded),
     findall(Retained-Row, Bounded, Bag),
     length(Bag, Count),
     %Same cumulative-inference report the evaluating cursor makes, so a

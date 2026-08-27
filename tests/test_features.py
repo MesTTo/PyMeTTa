@@ -826,6 +826,78 @@ def test_limits_on_query_eval_value_and_prepared(m):  # noqa: D103  -- pytest di
     assert len(prepared.solve(timeout=30.0)) == 198
 
 
+def _rows_until_the_budget_stops(cursor):
+    """Pull until the budget fires, answering how many rows arrived first."""
+    seen = 0
+    with pytest.raises(InferenceLimitError):
+        for _ in cursor:
+            seen += 1
+    return seen
+
+
+def test_a_cursor_budget_is_cumulative_and_counts_engine_work(m):
+    """A cursor's `inferences` budget spans pulls and meters the ENGINE.
+
+    Sized from a measurement rather than a constant, because the number a
+    budget has to beat is not one this process can read directly: a cursor's
+    goal runs in an SWI engine, an engine counts its own inferences, and
+    stats() reads this thread's counters instead. So the budget is the ruler.
+    A budget that fires after R rows says a row costs about budget/R, and
+    every other budget here is derived from that.
+
+    The discriminating assertion is the last one. A meter placed around the
+    pull loop instead of inside the engine charges a fixed amount per pull, so
+    it buys the same number of rows however much work an answer did; the
+    engine's budget buys far fewer rows of expensive answers than cheap ones.
+    """
+    tables.add(m, "edge", [(i, i + 1) for i in range(4_000)])
+
+    probe = 20_000
+    partway = _rows_until_the_budget_stops(
+        m._stream(S.edge(V.a, V.b), inferences=probe)
+    )
+    # Partway: neither stopped before the first answer nor drained.
+    assert 0 < partway < 4_000
+    per_row = probe / partway
+
+    # Below the whole cost: stops, and later than a quarter of the budget did.
+    smaller = _rows_until_the_budget_stops(
+        m._stream(S.edge(V.a, V.b), inferences=probe // 4)
+    )
+    assert 0 < smaller < partway
+
+    # Above it: drains. match() builds the same cursor, so it drains too.
+    generous = int(per_row * 4_000 * 4)
+    assert len(list(m._stream(S.edge(V.a, V.b), inferences=generous))) == 4_000
+    assert len(m.match(S.edge(V.a, V.b), inferences=generous)) == 4_000
+
+    # The evaluation cursor is a second engine door and carries the same bound.
+    m.run("(= (from $n) (superpose ($n (from (+ $n 1)))))")
+    m.run("(= (burn $n) (if (== $n 0) 0 (burn (- $n 1))))")
+    m.run("(= (slow $n) (superpose ((burn 100) (slow (+ $n 1)))))")
+    cheap = _rows_until_the_budget_stops(m.answers("(from 0)", inferences=probe))
+    dear = _rows_until_the_budget_stops(m.answers("(slow 0)", inferences=probe))
+    assert cheap > 0
+    assert dear > 0
+    assert cheap > 10 * dear
+
+
+def test_a_cursor_budget_stops_a_resume_that_never_answers(m):
+    """The budget bounds work INSIDE one pull, not only between pulls.
+
+    A check that runs after each answer cannot see a resume that never yields
+    one, so the wrapper keeps SWI's per-solution limiter as well. The wall
+    bound is a BACKSTOP rather than the mechanism under test: dropping the
+    limiter for the bare check would make this case run forever, and the gate
+    should learn that as a failure in seconds rather than as a hang. The
+    budget fires within a millisecond, so reaching the backstop at all means
+    the inference bound did nothing.
+    """
+    m.run("(= (spin $n) (if (== $n 0) done (spin (- $n 1))))")
+    with pytest.raises(InferenceLimitError):
+        list(m.answers("(spin 100000000)", inferences=5_000, timeout=10.0))
+
+
 def test_limit_validation_refuses_nonsense(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError):
         m.run("!(+ 1 1)", timeout=0)

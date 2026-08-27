@@ -508,8 +508,11 @@ class Cursor:
         self.columns = tuple(columns)
         self._row_cls = _row_class(self.columns)
         limits = _limits(timeout, inferences)
-        # The inference budget rides inside the engine (its work is its
-        # own counter's, invisible to a per-pull wrapper); the wall bound
+        # The inference budget rides inside the engine, because the engine's
+        # work is its own counter's and a per-pull wrapper cannot see it.
+        # Placement alone is not the whole of it: SWI bounds inferences per
+        # SOLUTION, so the engine-side wrapper also reads that counter against
+        # a base and stops on the answer that passes the budget. The wall bound
         # wraps each pull outside, where idle time between pulls is free.
         self._timeout = None if limits is None or limits[0] < 0 else limits[0]
         steps = -1 if limits is None else limits[1]
