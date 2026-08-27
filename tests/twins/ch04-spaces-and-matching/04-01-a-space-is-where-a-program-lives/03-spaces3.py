@@ -66,4 +66,16 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: symbols each pay one indexed lookup. Six identical readings, three before
 #: and three after [measured 2026-08-27 through the end-to-end twin test,
 #: 238 on the unchanged tree at 5d8769c7 and 252 here].
-BUDGET = 252
+#: RE-PINNED 2026-08-28, 252 to 242 (-10), metta_space_operand/1's ampersand
+#: guard. metta_py_encode/2 asks it of every atom it encodes, the entry above
+#: records that as the +18 this pin last took, and it reads the prefix before
+#: probing either space registry now, so an ordinary symbol costs 3 inferences
+#: there instead of 8. The whole move is this change: three identical serial
+#: min-of-three rounds read 252 on the unchanged tree, which is exactly this
+#: pin, and 242 here, and the pytest lane's own end-to-end run reads the same
+#: 242 through xdist. Both sides confirmed current_predicate(mork/3) first,
+#: because a round taken while this worktree's MORK link was dangling read 240
+#: and 234 instead and would have pinned a configuration the gate does not run
+#: [measured 2026-08-28: min-of-3 serial fresh processes; command=python
+#: bindings/python/tools/twin_coverage.py --repin; commit=0289cbd162aeb0380fbbe502129bca3b976b32c7].
+BUDGET = 242
