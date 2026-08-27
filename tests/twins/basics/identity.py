@@ -325,7 +325,7 @@ Guarantees:
 #: all identical; command=python bindings/python/tools/twin_coverage.py
 #: --measure --rounds 3 examples/basics/identity.metta; fixture=this worktree
 #: with engine/reader.so, the C extension objects and the MORK backend loaded;
-#: commit=WORKTREE].
+#: commit=6da1b0dacc500fc7691a66722ba58f52ab2df081].
 BUDGET = 2846
 def twin(m):
     """Define the square, then check it."""
