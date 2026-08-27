@@ -577,7 +577,7 @@ metta_py_kwarg(Other, _) :-
 %janus boundary, the py-call operator, the import-as alias table and its
 %form rewriter, and the .py import machinery. The engine reaches all of it
 %through declared seams (seam:host_import/1, seam:form_rewriter/1,
-%seam:host_builtin/1) and publishes the services this file calls back
+%seam:extension_builtin/2) and publishes the services this file calls back
 %(import_when/4, resolve_existing_import_path/3, current_working_dir/1,
 %import_file_string/2, throw_missing_import/1, refuse_unbound_input/2), so
 %an engine with no host loaded has no clause at any of the seams and pays
@@ -586,14 +586,34 @@ metta_py_kwarg(Other, _) :-
 %This host's builtins, registered by the engine's own directive after its
 %builtin list, from these declarations rather than from a list there that
 %would name the host.
-:- multifile seam:host_builtin/1.
-seam:host_builtin('py-call').
-seam:host_builtin('py-atom').
-seam:host_builtin('py-dot').
-seam:host_builtin('py-list').
-seam:host_builtin('py-tuple').
-seam:host_builtin('py-dict').
-seam:host_builtin('py-iter').
+%
+%The second argument is the effect class, and it is a REVIEW rather than a
+%default. It used to be missing, because seam:host_builtin/1 had no room for
+%one, so all seven were classified by name in engine/metta/effects.pl's
+%metta_builtin_effect_override list instead -- a list inside the engine naming
+%a host's predicates, which is the one thing EXTENDING.md promises an extension
+%author never has to force, and which MORK stopped needing when its own seam
+%grew this argument. The classification does not change; where it lives does.
+%
+%All seven are oracleIO, and honestly so: every one crosses into a Python
+%runtime through metta_py_call/3, which the engine cannot bound. py-call, and
+%py-atom over a string, run whatever the DATA names. py-dot resolves an
+%attribute chosen at run time, which may be a property, __getattr__, or a
+%descriptor. py-iter drives __iter__ and __next__. py-list, py-tuple and
+%py-dict look structural and are not: they build a live Python object whose
+%IDENTITY is observable, so two calls with equal arguments answer distinct
+%objects and none of them is pureStructural; py-dict additionally hashes its
+%keys, which runs __hash__ on whatever was handed in. A weaker class here would
+%let a world admit them and be wrong; oracleIO says reviewed and unbounded
+%rather than nobody looked.
+:- multifile seam:extension_builtin/2.
+seam:extension_builtin('py-call',  oracleIO).
+seam:extension_builtin('py-atom',  oracleIO).
+seam:extension_builtin('py-dot',   oracleIO).
+seam:extension_builtin('py-list',  oracleIO).
+seam:extension_builtin('py-tuple', oracleIO).
+seam:extension_builtin('py-dict',  oracleIO).
+seam:extension_builtin('py-iter',  oracleIO).
 
 %This host claims an import whose source is a .py file, and does the whole
 %job through the engine's own published lifecycle.

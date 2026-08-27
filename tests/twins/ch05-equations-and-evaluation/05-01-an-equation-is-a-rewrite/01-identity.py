@@ -364,4 +364,17 @@ def twin(m):
 #: fixture=this worktree with engine/reader.so, the C extension objects and
 #: the MORK backend loaded;
 #: commit=6c1a6a9ff5420791bd6e7004283949b005ea5c8e]. metta=2800, unchanged.
-BUDGET = 2831
+#: RE-PINNED 2026-08-28, 2831 back to 2826, by the REMOVAL of one kind/2 row.
+#: seam:host_builtin/1 and seam:backend_builtin/2 merged into one
+#: seam:extension_builtin/2, so engine/ext_points.pl went from 187 declaration
+#: rows to 186. Same cause as the two entries above, in the other direction,
+#: and the same control confirms it in both: planting ONE inert kind/2 row
+#: beside kind(extension_builtin/2, declaration) and changing nothing else puts
+#: the reading back on 2831 exactly, and removing it returns 2826. So the
+#: measured cost of a scanned declaration row is 5 inferences at boot, read
+#: now from both sides. It is not the twin's own work
+#: [measured 2026-08-28: 2826 with 186 rows, 2831 with an inert 187th planted;
+#: command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
+#: fixture=this checkout with engine/reader.so and the MORK backend loaded;
+#: commit=WORKTREE]. metta=2800, unchanged.
+BUDGET = 2826
