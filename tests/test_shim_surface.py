@@ -142,6 +142,11 @@ HOST_SERVICES = {
     "petta_transport_failure/1",
     "petta_with_state_write_fence/1",
     "petta_live_state_cell/1",
+    # The platform census. Not shim orchestration moving host-side: it is a
+    # fact about the running build that only the engine can answer, and a host
+    # that cannot read it recovers the same knowledge by parsing SWI's boot
+    # transcript, which is what bindings/node does today.
+    "petta_platform/4",
     "sread_with_names/3",
     "swrite_with_names/3",
     # Eval crosses through a cached translation template while source forms
@@ -179,7 +184,9 @@ def test_the_host_service_scoreboard_matches_the_tree(repo_root):  # noqa: D103 
 #: is a text or wire need of the transport itself; "host-orchestration" is
 #: the engine-side surface the shrink moves BUILT (the metta_host_* rows);
 #: "error-vocabulary" is the failure contract a transport classifies by;
-#: "host-choice" is a consult whose answer only the host can make.
+#: "host-choice" is a consult whose answer only the host can make; "census"
+#: is a fact about the running build that the engine alone observes and a
+#: host would otherwise recover by parsing the boot transcript.
 FLOOR_REASONS = {
     "catch_recover/2": "host-choice",
     "petta_deprecation/3": "door",
@@ -247,6 +254,7 @@ FLOOR_REASONS = {
     "petta_transport_failure/1": "error-vocabulary",
     "petta_with_state_write_fence/1": "door",
     "petta_live_state_cell/1": "door",
+    "petta_platform/4": "census",
     "sread_with_names/3": "codec",
     "swrite_with_names/3": "codec",
     "translate_cached_expr/3": "codec",
@@ -278,7 +286,7 @@ def test_the_shim_surface_shrank_to_the_transport_floor():
         f"{over_classified}"
     )
     allowed = {"door", "codec", "host-orchestration", "error-vocabulary",
-               "host-choice"}
+               "host-choice", "census"}
     stray = {name: why for name, why in FLOOR_REASONS.items()
              if why not in allowed}
     assert not stray, f"a reason outside the floor taxonomy: {stray}"
