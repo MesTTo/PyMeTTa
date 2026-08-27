@@ -140,9 +140,9 @@ DERIVED_FORMS = {
 DERIVED_FORM_SITES = [
     ("examples/ch07-control-flow/07-01-if-and-booleans/10-and_then_or_else.metta", "examples/ch07-control-flow/07-01-if-and-booleans/10-and_then_or_else.metta"),
     ("examples/ch06-many-answers/09-streamops.metta", "examples/ch06-many-answers/09-streamops.metta"),
-    ("lib/lib_roman.metta", "examples/ch08-data/08-01-atoms-lists-and-folds/15-roman.metta"),
-    ("lib/lib_pln.metta", "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/05-pln_direct.metta"),
-    ("lib/lib_nars.metta", "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/08-nars_direct.metta"),
+    ("lib/lib_roman/lib_roman.metta", "examples/ch08-data/08-01-atoms-lists-and-folds/15-roman.metta"),
+    ("lib/lib_pln/lib_pln.metta", "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/05-pln_direct.metta"),
+    ("lib/lib_nars/lib_nars.metta", "examples/ch22-a-reasoner-you-can-serve/22-02-weighted-answers/08-nars_direct.metta"),
 ]
 
 

@@ -321,7 +321,7 @@ def test_minimal_lib_install_is_idempotent_after_cross_file_traffic(metta):
     clone = metta.copy()
     clone.drop()
 
-    lib = Path(__file__).resolve().parents[3] / "lib"
+    lib = Path(__file__).resolve().parents[3] / "lib" / "minimal_metta_lib"
     sys.path.insert(0, str(lib))
     try:
         import minimal_metta_lib

@@ -42,7 +42,7 @@ def product(left, right):
     """`(multiplication-sign left right)`, the NARS product of two terms.
 
     The head is the REAL U+00D7, and it matches the rules in
-    `lib/lib_nars.metta` because the engine reads its sources as UTF-8
+    `lib/lib_nars/lib_nars.metta` because the engine reads its sources as UTF-8
     whatever the locale, which `twin_coverage.py`'s `_environment` pins to
     `LC_ALL=C` [measured 2026-08-23 under `LC_ALL=C`: 0 U+FFFD replacement
     characters and 12 real U+00D7 heads in the imported library, where the

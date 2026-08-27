@@ -1163,7 +1163,7 @@ def test_a_declaration_that_cannot_type_what_the_source_defines_is_refused(metta
 def test_load_memoizes_a_function_the_same_file_defines_lower_down(metta, tmp_path):
     """The shape the seven shipped examples are written in: `!(memoize f)`
     reads fun/1, and under load() nothing had asserted it yet
-    [source: lib/lib_memo.pl:888].
+    [source: lib/lib_memo/lib_memo.pl:888].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     source = tmp_path / "p111_memo.metta"
     source.write_text(

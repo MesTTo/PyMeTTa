@@ -1,4 +1,4 @@
-"""Purpose: the in-language measure library, lib/lib_measure.metta, driven
+"""Purpose: the in-language measure library, lib/lib_measure/lib_measure.metta, driven
 through the public surface only. The library is pure MeTTa over explicit
 (weight value) pair data; nothing in the Python library wraps it, so these
 tests import it the way any program does.

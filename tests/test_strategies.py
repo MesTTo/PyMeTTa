@@ -1,6 +1,6 @@
 """Purpose: prove Python builds the same reified plans lib_strategy executes.
 
-Assumes: ``m += lib.strategy`` imports ``lib/lib_strategy.metta`` through the
+Assumes: ``m += lib.strategy`` imports ``lib/lib_strategy/lib_strategy.metta`` through the
 normal library door.
 Guarantees:
   - the satellite exports fifteen Symbols and no grounded callback

@@ -14,7 +14,7 @@ lift, and the strings the errors carry are named once and carried whole.
 
 `lib_he` takes the bracket. The factory's attribute map is total, so
 `S.lib_he` is the atom `lib-he` and the import would look for a library of
-that name; the library on disk is `lib/lib_he.metta`.
+that name; the library on disk is `lib/lib_he/lib_he.metta`.
 Guarantees:
   - every ordered atom assembled in this file passes one iterable to
     Expression [tested: test_expression_assembles_one_ordered_atom_from_an_iterable; commit=028b41a056cfd706e516cd0b945cbf69ac066da7]

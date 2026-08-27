@@ -179,7 +179,10 @@ class _LibraryNamespace:
         active = getattr(_STATE, "runtime", None)
         root = active.metta_path if active is not None else _resolve_metta_path()
         names = set()
-        for entry in Path(root, "lib").glob("*"):
+        # A shipped library is a DIRECTORY under lib/ named for the library,
+        # holding its MeTTa surface beside the Prolog it rides on, so the
+        # source files are one level down [source: engine/metta.pl:library_within/2].
+        for entry in Path(root, "lib").glob("*/*"):
             stem = entry.stem
             # policy-inventory-exempt: mechanism-internal; reason=the two source suffixes a shipped library file can have, the catalog filter rather than an operator policy; evidence=engine/metta/interop.pl:resolve_module_form/2
             if entry.suffix in {".metta", ".pl"} and stem.startswith("lib_"):

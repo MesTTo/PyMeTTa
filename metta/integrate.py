@@ -172,7 +172,7 @@ def _prolog_installer(target: Any) -> Callable:
     """The installer for a package that ships Prolog and no Python setup.
 
     A native library still had to hand-write an install() that hardcoded a
-    __file__-relative path to its .pl, which is what lib/minimal_metta_lib.py
+    __file__-relative path to its .pl, which is what lib/minimal_metta_lib/minimal_metta_lib.py
     does, so the standard plugin mechanism carried no Prolog at all. Name the
     files instead:
 

@@ -7,8 +7,8 @@ Guarantees:
     commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
 Decides:
   - the fourteen math names are the declarations in
-    ``lib/lib_builtin_types.metta`` from ``pow-math`` through ``atan-math``
-    [source: lib/lib_builtin_types.metta:45; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
+    ``lib/lib_builtin_types/lib_builtin_types.metta`` from ``pow-math`` through ``atan-math``
+    [source: lib/lib_builtin_types/lib_builtin_types.metta:45; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
 """
 
 from __future__ import annotations

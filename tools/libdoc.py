@@ -6,7 +6,7 @@ The coverage table is the burn-down surface, interrogate's role for the
 MeTTa side: a library gains entries here by gaining @doc atoms.
 
 Assumes:
-  - the engine's own reader parses every lib/lib_*.metta; forms are READ
+  - the engine's own reader parses every lib/lib_*/lib_*.metta; forms are READ
     and never run, so a library needing an absent backend still documents
     [tested test_the_metta_library_page_is_up_to_date]
 Guarantees:
@@ -134,7 +134,7 @@ def _library(path: pathlib.Path) -> tuple[str, int, int, list[str]]:
 
 
 def page() -> str:
-    rows = [_library(path) for path in sorted((_REPO / "lib").glob("lib_*.metta"))]
+    rows = [_library(path) for path in sorted((_REPO / "lib").glob("lib_*/lib_*.metta"))]
     table = ["| library | names | documented |", "|---|---|---|"]
     table += [f"| {name} | {total} | {done} |" for name, total, done, _ in rows]
     body: list[str] = []

@@ -147,8 +147,8 @@ def counts() -> list[tuple[str, int]]:
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
         (r"(\d+) runnable Python programs", len(list(ROOT.glob("bindings/python/examples/*/*.py")))),
         (r"([\d,]+) lines: `engine/metta.pl`", src_lines),
-        (r"(\d+) MeTTa libraries loaded", len(list(ROOT.glob("lib/lib_*.metta")))),
-        (r"(\d+) libraries load with", len(list(ROOT.glob("lib/lib_*.metta")))),
+        (r"(\d+) MeTTa libraries loaded", len(list(ROOT.glob("lib/lib_*/lib_*.metta")))),
+        (r"(\d+) libraries load with", len(list(ROOT.glob("lib/lib_*/lib_*.metta")))),
         (r"(\d+) builtins are registered", -1),
         (r"has (six|five|seven) subcommands", main.count("commands.add_parser(")),
     ]
@@ -256,9 +256,11 @@ def check() -> list[str]:
             continue
         if name not in builtins:
             bad.append(f"{name} is listed as a builtin but the engine does not register it")
+    # A shipped library is a directory named for itself, holding its MeTTa
+    # surface beside its Prolog [source: engine/metta.pl:library_within/2].
     for name in BACKTICK.findall(paragraph(language, r"\d+ libraries load with")):
-        if name.startswith("lib_") and not (ROOT / "lib" / f"{name}.metta").exists():
-            bad.append(f"library claim resolves to nothing: lib/{name}.metta")
+        if name.startswith("lib_") and not (ROOT / "lib" / name / f"{name}.metta").exists():
+            bad.append(f"library claim resolves to nothing: lib/{name}/{name}.metta")
 
     for pattern, actual in counts():
         builtins_claim = actual == -1

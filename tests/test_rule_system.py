@@ -141,7 +141,7 @@ def test_overriding_a_protected_name_is_refused_with_the_name(repo_root, tmp_pat
 
     # An unprotected head the compiler also gives meaning to is still the
     # program's to take over. `once` is a special form AND ships as a rule in
-    # lib/lib_derived.metta, so refusing it would refuse the engine's own work.
+    # lib/lib_derived/lib_derived.metta, so refusing it would refuse the engine's own work.
     allowed = tmp_path / "unprotected.metta"
     allowed.write_text(UNPROTECTED_RULE)
     accepted = _run_metta(repo_root, allowed)

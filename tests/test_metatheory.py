@@ -215,7 +215,7 @@ def _translator_rule_files(repo_root: Path) -> list[Path]:
     """Every shipped MeTTa file that REGISTERS a translator rule.
 
     The marker is the runnable form rather than the bare name, because
-    lib/lib_builtin_types.metta declares the builtin's type and registers
+    lib/lib_builtin_types/lib_builtin_types.metta declares the builtin's type and registers
     nothing, and a report over it would have no rule set to analyse.
     """
     roots = [repo_root / "examples", repo_root / "lib"]
