@@ -34,6 +34,17 @@ Guarantees:
     every update, so a seat whose deciding counter is not the default one
     cannot ship a file that states the opposite of its own rule [tested
     test_a_declared_policy_is_written_on_every_update]
+  - observe_cpu records process CPU seconds beside an instruction pin and
+    never compares them, which is what a foreign-boundary row needs: the
+    inference counter is blind past the boundary, so instructions:u decides
+    and CPU is the counter it is checked against
+    [tested: extensions/mork/benchmarks/bench.py]
+  - the two CPU doors are one choice, made per row and visibly: a seat whose
+    CPU reading should GATE declares Metric.CPU_SECONDS through
+    observe_measurement and accepts the wide band a noisy counter needs, and a
+    seat that wants CPU only as the artifact beside an instruction pin calls
+    observe_cpu, which never compares. Reaching for one is a statement about
+    whether that row's CPU number can decide anything
 Owns:
   - BenchmarkBaseline owns an update file only until its atomic replace
     completes [tested test_baseline_update_is_atomic_json]; update mode may
@@ -603,6 +614,30 @@ class BenchmarkBaseline:
             raise KeyError(msg)
         if self.update:
             case["wall_seconds_per_operation"] = seconds_per_operation
+
+    def observe_cpu(self, name: str, seconds_per_operation: float) -> None:
+        """Record process CPU time, the advisory counter beside instructions.
+
+        Wall time advises for a workload the engine runs by itself. It cannot
+        advise for one that crosses a foreign boundary, where the reason to
+        record a second counter at all is that the first one is blind: SWI's
+        inference counter retires nothing for work done inside C or Rust, and
+        a change measured 526x faster by inferences was 1.8x SLOWER by CPU.
+        instructions:u decides those rows and this is what it is checked
+        against, so the pairing is an artifact rather than a claim.
+
+        Never compared, for the reason wall time is never compared: CPU seconds
+        move with frequency scaling and with what else the box is doing.
+        """
+        if seconds_per_operation <= 0:
+            msg = "benchmark CPU time must be positive"
+            raise ValueError(msg)
+        case = self._document["benchmarks"].get(name)
+        if case is None:
+            msg = f"benchmark {name!r} has no counter observation"
+            raise KeyError(msg)
+        if self.update:
+            case["cpu_seconds_per_operation"] = seconds_per_operation
 
     def observe_measurement(
         self, name: str, metric: Metric, samples: Sequence[float]
