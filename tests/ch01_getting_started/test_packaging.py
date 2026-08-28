@@ -47,6 +47,24 @@ def _manifest() -> dict:
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
+#: The gate is the root driver plus every component check.sh it SOURCES, and
+#: the three lanes read below are the Python component's, so they live in
+#: extensions/python/check.sh. Reading the root file alone is not a narrower
+#: check, it is a check that stops seeing its subject: measured 2026-08-28, the
+#: `python -m` scan fell from 18 targets to 1 the moment those lanes moved, and
+#: it went on passing, which is the shape of a lane that can no longer fail.
+GATE_SCRIPTS = ("check.sh", "engine/check.sh", "extensions/*/check.sh")
+
+
+def _gate_text() -> str:
+    """Every gate script's text, discovered the way check.sh discovers them."""
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for pattern in GATE_SCRIPTS
+        for path in sorted(ROOT.glob(pattern))
+    )
+
+
 def test_package_and_tools_share_one_manifest():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert (ROOT / "extensions" / "python" / "pyproject.toml").samefile(ROOT / "pyproject.toml")
     project = _manifest()["project"]
@@ -161,7 +179,7 @@ def test_the_minimal_version_matrix_installs_every_required_dependency():
 
 def test_the_pytest_lane_is_deterministic_under_load_protocol():
     """Pin the exact worker policy exercised by the repeated load protocol."""
-    gate = (ROOT / "check.sh").read_text(encoding="utf-8")
+    gate = _gate_text()
     lane = next(line for line in gate.splitlines() if line.startswith("run GATE pytest"))
     protocol = re.search(
         r"-p no:benchmark -n (?P<workers>\S+) --dist (?P<dist>\S+) "
@@ -249,8 +267,7 @@ def test_the_codec_builds_under_mypyc_as_an_option(tmp_path):
 
 
 def test_benchmark_gate_reports_the_whole_inventory():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    gate = (ROOT / "check.sh").read_text(encoding="utf-8")
-    assert "bench.py --counter-only --keep-going" in gate
+    assert "bench.py --counter-only --keep-going" in _gate_text()
 
 
 def test_dependency_audit_treats_tool_extras_as_development_dependencies():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -345,9 +362,7 @@ def test_every_module_invocation_in_the_gate_reaches_an_entry_point():
     written, while 62 real contract violations accumulated behind it.
     """
     commands = "\n".join(
-        line
-        for line in (ROOT / "check.sh").read_text(encoding="utf-8").splitlines()
-        if not line.lstrip().startswith("#")
+        line for line in _gate_text().splitlines() if not line.lstrip().startswith("#")
     )
     targets = sorted(set(re.findall(r"-m ([A-Za-z_][\w.]*)", commands)))
     assert targets, commands
