@@ -23,14 +23,12 @@
 # tests/prolog in determinism's case, because what a lane CHECKS is what decides
 # whose it is, not the directory it starts in.
 
-# Each worker is a process with its own engine. Keeping one test file whole
-# preserves module fixtures, and a worker crash fails instead of being retried.
-# The benchmark plugin is disabled here because it refuses parallel timing;
-# the dedicated benchmark gates below own those measurements. Four workers is
-# the fixed load-tested ceiling, rather than a machine-size-dependent `auto`
-# expansion [tested: test_the_pytest_lane_is_deterministic_under_load_protocol;
-# commit=dcfc20be4933c19140ccb5759291401d13058301].
-run GATE pytest       sh -c "cd '$PYDIR' && '$PY' -m pytest tests -q -p no:benchmark -n 4 --dist loadfile --max-worker-restart=0"
+# The suite, through the seat's own entry point rather than a command spelled
+# here. The parallel configuration and the reasons for it live in
+# extensions/python/test.sh, so a developer running that file gets the settings
+# that make the run correct instead of a plainer pytest invocation that shares
+# one engine across workers.
+run GATE pytest       env CHECK_PY="$PY" sh "$HERE/extensions/python/test.sh"
 run GATE gallery      sh -c "cd '$PYDIR' && '$PY' -m pytest tests/repository/test_executable_docs.py tests/repository/test_gallery.py tests/repository/test_twin_coverage.py::test_answer_multisets_ignore_order_and_alpha_names_but_keep_multiplicity -q --rootdir=. -c pyproject.toml"
 run GATE benchmarks   in_py "$PY" bench.py --counter-only --keep-going
 run GATE instructions in_py "$PY" -m benchmarks.check_instructions

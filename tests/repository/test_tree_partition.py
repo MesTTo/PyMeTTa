@@ -66,3 +66,57 @@ def test_the_tree_partitions_by_seam():
     assert not (REPO / "python" / "__init__.py").exists(), (
         "the retired root python package still exists"
     )
+
+
+# The contract files the `metta` CLI's own header names: build.sh, check.sh,
+# run.sh, test.sh, bench.sh. A component is a directory carrying at least one of
+# them, which is the same rule check.sh's discovery loop, build.sh's and the CLI's
+# components() all apply.
+COMPONENTS = ("engine", *(f"extensions/{seat}" for seat in ("python", "node", "cetta", "mork")))
+
+
+def _components() -> list[Path]:
+    return [REPO / name for name in COMPONENTS if (REPO / name).is_dir()]
+
+
+def test_the_component_list_is_not_empty():
+    """A path list that stopped resolving would make the checks below vacuous."""
+    assert len(_components()) >= 4
+
+
+def test_a_component_that_ships_a_benchmark_suite_ships_its_baseline():
+    """A suite with no committed pin measures without deciding anything.
+
+    The whole point of a component's bench.sh is that a regression is named
+    against a number somebody agreed to. A suite that ships without one runs,
+    prints, and gates nothing.
+    """
+    unpinned = [
+        component.name
+        for component in _components()
+        if (component / "bench.sh").is_file()
+        and not list(component.glob("**/*baseline*.json"))
+    ]
+    assert not unpinned, (
+        f"these components run a benchmark suite against no committed baseline: "
+        f"{unpinned}. A suite with no pin cannot report a regression"
+    )
+
+
+def test_a_component_that_owns_tests_ships_the_script_that_runs_them():
+    """Tests reachable only by whoever knows the path are tests nobody runs.
+
+    MORK shipped for months with what tests it had living in the Python seat's
+    ch19 chapter and the prolog suites, so the seat could be present and broken
+    in a configuration neither of those exercised.
+    """
+    unrunnable = [
+        component.name
+        for component in _components()
+        if any((component / directory).is_dir() for directory in ("tests", "test"))
+        and not (component / "test.sh").is_file()
+    ]
+    assert not unrunnable, (
+        f"these components own a test directory and no test.sh to run it: "
+        f"{unrunnable}. The gate and the developer should run one file"
+    )
