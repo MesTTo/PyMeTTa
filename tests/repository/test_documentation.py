@@ -25,6 +25,13 @@ Guarantees:
     pins derive and name every pinned tier, so the page cannot drift from
     the gate again [tested:
     test_the_extension_cost_tables_match_the_committed_pins]
+  - the site publishes the root documents by including them, and every
+    include resolves, which VitePress itself does not check: its include is
+    fail-open and an unresolved one publishes an empty page under a green
+    build [tested: test_every_site_include_resolves; commit=WORKTREE]
+  - every page in the site is reachable from the navigation rather than only
+    from the search box [tested:
+    test_every_site_page_is_reachable_from_the_navigation; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -170,6 +177,127 @@ def test_the_legacy_reference_generator_tracks_the_narrow_public_modules():
     assert not (_REPO / "website" / "reference" / "metta-das.md").exists()
     assert not (_REPO / "website" / "reference" / "metta-persistent.md").exists()
     assert not (_REPO / "website" / "live" / "das.md").exists()
+
+
+_SITE = _REPO / "website"
+_SITE_CONFIG = _SITE / ".vitepress" / "config.ts"
+# VitePress's own directive, and its own suffixes: `#region` selects a marked
+# block and `{3,10}` a line range, both stripped before the path is resolved
+# [source: website/node_modules/vitepress/dist/node/chunk-D3CUZ4fa.js,
+# processIncludes; commit=WORKTREE].
+_INCLUDE = re.compile(r"<!--\s*@include:\s*(.*?)\s*-->")
+_INCLUDE_SUFFIX = re.compile(r"(#[\w-]+)?(\{\d*,\d*\})?$")
+_SITE_LINK = re.compile(r'link:\s*"([^"]+)"')
+_REWRITE = re.compile(r'"([^"]+\.md)":\s*"([^"]+\.md)"')
+# `navigation: false` in a page's opening frontmatter block: the page's own way
+# to say it is unlisted on purpose. Anchored at the start of the file, because
+# frontmatter is only frontmatter there.
+_OPTS_OUT_OF_NAVIGATION = re.compile(
+    r"\A---\r?\n(?:.*\r?\n)*?navigation:\s*false\s*\r?\n(?:.*\r?\n)*?---"
+)
+
+
+def _site_pages() -> list[Path]:
+    """Every markdown page the site publishes, home page excluded.
+
+    The home page is what `/` serves, so nothing links it and nothing has to.
+    """
+    return sorted(
+        page
+        for page in _SITE.rglob("*.md")
+        if "node_modules" not in page.parts
+        and ".vitepress" not in page.parts
+        and page != _SITE / "index.md"
+    )
+
+
+def _site_rewrites() -> dict[str, str]:
+    return dict(_REWRITE.findall(_SITE_CONFIG.read_text(encoding="utf-8")))
+
+
+def test_the_site_page_list_is_not_empty():
+    """A glob that stopped matching would make both checks below vacuous."""
+    assert len(_site_pages()) >= 40
+
+
+def test_every_site_include_resolves():
+    """A page that includes a document must include a document that is there.
+
+    VitePress's include is fail-open: `processIncludes` catches the read error,
+    leaves the directive text in the page, and warns only under DEBUG, so a
+    renamed source file publishes an EMPTY page and a green build. Every other
+    documentation toolchain treats this as an error rather than a warning
+    (Sphinx under -W, mkdocs' pymdownx.snippets under check_paths, Rust's
+    include_str!), and this is that error.
+    """
+    resolved = 0
+    for page in _site_pages():
+        for directive in _INCLUDE.findall(page.read_text(encoding="utf-8")):
+            path = _INCLUDE_SUFFIX.sub("", directive)
+            # `@` means the site's source root; anything else is relative to
+            # the including page, which is how the four engine pages reach the
+            # repository's own documents one directory up.
+            target = (
+                _SITE / path.lstrip("@/")
+                if path.startswith("@")
+                else (page.parent / path)
+            )
+            assert target.is_file(), (
+                f"{page.relative_to(_REPO)} includes {directive}, which "
+                f"resolves to {target}, and no such file exists: the page would "
+                f"publish empty and the build would still pass"
+            )
+            resolved += 1
+    # Not a count of the engine section's pages, which may grow or shrink: only
+    # that SOMETHING is included, since a site that includes nothing makes the
+    # walk above prove nothing.
+    assert resolved >= 1, (
+        "no page in the site includes another file any more, so this check "
+        "passes vacuously: delete it, or restore the include it was written for"
+    )
+
+
+def test_every_site_page_is_reachable_from_the_navigation():
+    """A page nobody links is a page nobody reads, unless it says it means to.
+
+    Five shipped pages were reachable only through the search box when this was
+    first checked: guide/contract.md, integrations/sqlite-blobs.md, and the
+    generated reference pages for metta.paths, metta.events and metta.answer.
+
+    A page that is deliberately unlisted says so in its own frontmatter, which
+    is where VitePress already keeps a page's per-page settings. A draft, a
+    fragment another page includes, or a page reached only from prose writes
+    `navigation: false` and this passes. The exemption lives in the page rather
+    than in a list here, so it is visible to whoever opens the page and it
+    leaves with the page.
+    """
+    config = _SITE_CONFIG.read_text(encoding="utf-8")
+    linked = set(_SITE_LINK.findall(config))
+    rewrites = _site_rewrites()
+    unreachable = []
+    for page in _site_pages():
+        text = page.read_text(encoding="utf-8")
+        if _OPTS_OUT_OF_NAVIGATION.match(text):
+            continue
+        relative = page.relative_to(_SITE).as_posix()
+        # A rewritten page is published under its rewritten name, so that is
+        # the name the navigation has to carry.
+        published = rewrites.get(relative, relative).removesuffix(".md")
+        # A directory's index page is served as the directory, and only a
+        # WHOLE final segment counts: an "appendix" page is not an index.
+        if published == "index" or published.endswith("/index"):
+            published = published[: -len("index")]
+        link = "/" + published
+        if link not in linked:
+            unreachable.append(
+                f'{page.relative_to(_REPO)}: add {{ text: "...", link: "{link}" }} '
+                f"to website/.vitepress/config.ts, or put `navigation: false` in "
+                f"the page's frontmatter if it is meant to be unlisted"
+            )
+    assert not unreachable, (
+        "these pages are in the site and in no navigation entry, so only the "
+        "search box finds them.\n  " + "\n  ".join(unreachable)
+    )
 
 
 def test_a_tag_shaped_word_in_prose_is_escaped_and_code_is_not():
