@@ -28,10 +28,10 @@ Guarantees:
   - the site publishes the root documents by including them, and every
     include resolves, which VitePress itself does not check: its include is
     fail-open and an unresolved one publishes an empty page under a green
-    build [tested: test_every_site_include_resolves; commit=WORKTREE]
+    build [tested: test_every_site_include_resolves; commit=a7d2f292004fe06d7671b7931cfc2ce4620b7b35]
   - every page in the site is reachable from the navigation rather than only
     from the search box [tested:
-    test_every_site_page_is_reachable_from_the_navigation; commit=WORKTREE]
+    test_every_site_page_is_reachable_from_the_navigation; commit=a7d2f292004fe06d7671b7931cfc2ce4620b7b35]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -184,7 +184,7 @@ _SITE_CONFIG = _SITE / ".vitepress" / "config.ts"
 # VitePress's own directive, and its own suffixes: `#region` selects a marked
 # block and `{3,10}` a line range, both stripped before the path is resolved
 # [source: website/node_modules/vitepress/dist/node/chunk-D3CUZ4fa.js,
-# processIncludes; commit=WORKTREE].
+# processIncludes; commit=a7d2f292004fe06d7671b7931cfc2ce4620b7b35].
 _INCLUDE = re.compile(r"<!--\s*@include:\s*(.*?)\s*-->")
 _INCLUDE_SUFFIX = re.compile(r"(#[\w-]+)?(\{\d*,\d*\})?$")
 _SITE_LINK = re.compile(r'link:\s*"([^"]+)"')
