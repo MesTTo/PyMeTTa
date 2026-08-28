@@ -933,3 +933,37 @@ def test_a_subset_updater_verifies_without_restamping(tmp_path):  # noqa: D103  
     second.observe_configuration({"c_reader": True}, stamp=False)
     second.finish()
     assert "counter_configuration" not in json.loads(bare.read_text())
+
+
+def test_the_recording_cpu_door_never_compares_where_the_gating_one_does(tmp_path):
+    """Two CPU doors, and the difference between them is the whole point.
+
+    observe_measurement(CPU_SECONDS) GATES: a moved number is a regression or a
+    stale pin, at the cost of a band wide enough for a counter that moves with
+    frequency scaling and with what else the box is doing. observe_cpu RECORDS:
+    the number is written and never refereed, which is what a row wants whose
+    verdict belongs to instructions:u. A seat picks one per row, and picking is
+    a statement about whether that row's CPU number can decide anything.
+    """
+    path = tmp_path / "baseline.json"
+    updating = BenchmarkBaseline(path, update=True)
+    updating.observe_counter("crossing", unit="calls", operations=1, samples=None)
+    updating.observe_cpu("crossing", 0.400)
+    updating.finish()
+
+    assert json.loads(path.read_text())["benchmarks"]["crossing"][
+        "cpu_seconds_per_operation"
+    ] == 0.400
+
+    # Twice the pinned time, and four times it, both accepted in silence: this
+    # door has no opinion, which is exactly what distinguishes it.
+    baseline = BenchmarkBaseline(path)
+    assert baseline.observe_cpu("crossing", 0.800) is None
+    assert baseline.observe_cpu("crossing", 1.600) is None
+
+    # What it does refuse is an impossible reading and an unknown case, because
+    # those are defects in the caller rather than movements in the workload.
+    with pytest.raises(ValueError, match="CPU time must be positive"):
+        baseline.observe_cpu("crossing", 0.0)
+    with pytest.raises(KeyError, match="no counter observation"):
+        baseline.observe_cpu("never-measured", 0.400)

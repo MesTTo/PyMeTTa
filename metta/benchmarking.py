@@ -44,7 +44,8 @@ Guarantees:
     observe_measurement and accepts the wide band a noisy counter needs, and a
     seat that wants CPU only as the artifact beside an instruction pin calls
     observe_cpu, which never compares. Reaching for one is a statement about
-    whether that row's CPU number can decide anything
+    whether that row's CPU number can decide anything [tested
+    test_the_recording_cpu_door_never_compares_where_the_gating_one_does]
 Owns:
   - BenchmarkBaseline owns an update file only until its atomic replace
     completes [tested test_baseline_update_is_atomic_json]; update mode may
