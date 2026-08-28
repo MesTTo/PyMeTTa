@@ -257,6 +257,29 @@ def test_every_site_include_resolves():
     )
 
 
+def test_every_extension_has_a_site_area():
+    """A seat the engine can load is a seat a reader can look up.
+
+    A folder under extensions/ carrying an extension.pl is a seat, which is the
+    same rule the engine's loader, build.sh and the metta CLI all apply, so
+    adding one and forgetting its page would leave it documented nowhere.
+    """
+    seats = sorted(
+        control.parent.name
+        for control in (_REPO / "extensions").glob("*/extension.pl")
+    )
+    assert seats, "no extension.pl found at all, so this check proves nothing"
+    missing = [
+        seat
+        for seat in seats
+        if not (_SITE / "extensions" / f"{seat}.md").is_file()
+    ]
+    assert not missing, (
+        f"these seats ship without a site area: {missing}. Add "
+        f"website/extensions/<seat>.md and a navigation entry for it"
+    )
+
+
 def test_every_site_page_is_reachable_from_the_navigation():
     """A page nobody links is a page nobody reads, unless it says it means to.
 

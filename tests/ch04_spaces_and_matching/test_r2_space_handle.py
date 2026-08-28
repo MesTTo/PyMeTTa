@@ -147,7 +147,7 @@ def test_the_s_tag_stays_a_symbol_however_it_is_spelled(spaces):  # noqa: D103  
 def test_a_space_the_engine_made_crosses_as_a_space(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _context, host, _target = spaces
 
-    # The encoder tagged exactly &self and &petta, so this crossed as an
+    # The encoder tagged exactly &self and &metta, so this crossed as an
     # ordinary Symbol and could not be used as a space.
     (made,) = host.eval(S["new-space"]())
     assert isinstance(made, Space)

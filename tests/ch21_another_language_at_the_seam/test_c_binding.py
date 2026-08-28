@@ -75,7 +75,7 @@ _KIND_TO_METATYPE = {
 #
 # EMPTY, and that is the claim. It held one entry while the two seats asked
 # two different questions: C asked metta_space_names/1 for the whole registry
-# while the Python shim hardcoded `&self` and `&petta`, so a space
+# while the Python shim hardcoded `&self` and `&metta`, so a space
 # !(new-space) had just made crossed to Python as an ordinary Symbol
 # [measured 2026-08-27]. Both seats ask metta_space_operand/1 now, which is
 # the test the engine's own metatype_of/2 consults, so an atom has one species

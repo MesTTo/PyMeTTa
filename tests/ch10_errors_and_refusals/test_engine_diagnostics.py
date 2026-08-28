@@ -67,12 +67,12 @@ def test_a_failing_assertion_stays_off_the_hosts_stdout(metta, capfd,
     # The beacon makes the stdout claim below falsifiable. Without it an
     # engine that had stopped writing to stdout and a capture that was never
     # reading it would look exactly the same from here.
-    metta.run('!(println! "petta-stdout-beacon")')
+    metta.run('!(println! "metta-stdout-beacon")')
     with pytest.raises(AssertionFailure):
         metta.run("!(assertEqual 1 2)")
     seen = capfd.readouterr()
 
-    assert "petta-stdout-beacon" in seen.out, (
+    assert "metta-stdout-beacon" in seen.out, (
         "the beacon never reached stdout, so this test cannot tell a clean "
         "stdout from one it is not reading"
     )
@@ -128,7 +128,7 @@ def test_no_binding_carries_its_own_verbosity_setter(metta, repo_root):
     assert runtime.once("current_predicate(metta_host_set_silent/1)"), (
         "the published door is not defined in the running engine"
     )
-    for private in ("metta_py_set_silent/1", "petta_c_set_silent/1"):
+    for private in ("metta_py_set_silent/1", "metta_c_set_silent/1"):
         assert runtime.once(f"current_predicate({private})") == {}, (
             f"{private} is still defined; the binding-private setter it "
             f"replaces was supposed to leave with the door's arrival"

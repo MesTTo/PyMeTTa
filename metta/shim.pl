@@ -307,10 +307,10 @@ metta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
 %metta_space_operand(X)]. Asking it here is what makes get-metatype and the
 %wire agree on every atom.
 %
-%The pair '&self' and '&petta' used to be written out here, which tagged
+%The pair '&self' and '&metta' used to be written out here, which tagged
 %exactly two names, so a space !(new-space) had just made crossed as an
 %ordinary symbol and Python could not use it as a space
-%[measured 2026-08-27: &petta-space-1 encoded ["s", "&petta-space-1"] while
+%[measured 2026-08-27: &metta-space-1 encoded ["s", "&metta-space-1"] while
 %being listed by metta_space_names/1 and answering Grounded to get-metatype].
 %
 %NOT metta_space_name/1, the WIDER test that is-space/2 answers. That one is

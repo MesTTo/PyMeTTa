@@ -36,7 +36,7 @@ from .errors import EngineError
 #: neighbouring kinds too. NOT the generated reference page, which
 #: reproduces signatures and docstrings and names no kind at all.
 _LINT_DOCS = (
-    "https://github.com/trueagi-io/PeTTa/blob/main/website/guide/run-query.md"
+    "https://github.com/MesTTo/MeTTa-Kernel/blob/main/website/guide/run-query.md"
     "#lint-a-space"
 )
 

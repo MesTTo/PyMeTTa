@@ -868,7 +868,7 @@ class Space(Handle):
 
     def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and
-        '&petta' from boot, every native space something created or wrote to,
+        '&metta' from boot, every native space something created or wrote to,
         and every foreign space currently bound. (new-space) and (spawn ...)
         create, so their answers are here at once; naming a space never
         registers it, so Space('&kb') is not here until a write, and a bind!

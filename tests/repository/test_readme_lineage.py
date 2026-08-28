@@ -18,6 +18,8 @@ def test_the_readme_records_the_fork_relationship():  # noqa: D103  -- pytest di
     text = README.read_text(encoding="utf-8")
     assert "### Lineage" in text, "the lineage section is gone"
     section = text.split("### Lineage", 1)[1].split("###", 1)[0]
+    # The two upstream URLs are the point of the section: it records what this
+    # repository forked FROM, so they keep their own names.
     for required in (
         "Patrick Hammer",
         "github.com/trueagi-io/PeTTa",
