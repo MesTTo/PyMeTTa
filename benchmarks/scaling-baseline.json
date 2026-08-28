@@ -1,6 +1,7 @@
 {
   "configuration": {
     "c_extension": true,
+    "c_json": true,
     "c_reader": true,
     "c_writer": true,
     "mork_backend": "foreign",
@@ -15,34 +16,34 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "linear",
       "fit": {
         "best_model": "linear",
-        "coefficient": 19.312316828264702,
-        "exponent": 0.9744271237726175,
+        "coefficient": 19.308578941973657,
+        "exponent": 0.9744607269179966,
         "growth": [
           1.0,
           1.0,
           1.0,
-          1.0
+          1.0001
         ],
         "normalised_rms": {
-          "constant": 0.704043,
-          "cubic": 0.490058,
-          "linear": 0.008935,
-          "log_n": 0.584009,
-          "n_log_n": 0.081085,
-          "quadratic": 0.349331
+          "constant": 0.704079,
+          "cubic": 0.490029,
+          "linear": 0.008908,
+          "log_n": 0.584046,
+          "n_log_n": 0.08105,
+          "quadratic": 0.349299
         },
         "pair_slopes": [
           0.9471,
           0.9824,
-          0.9911
+          0.9912
         ],
-        "r_squared": 0.9998904770240529
+        "r_squared": 0.999890027268516
       },
       "noise": {
         "absolute_max": 0,
@@ -52,7 +53,7 @@
         3402,
         6559,
         12959,
-        25759
+        25761
       ],
       "sizes": [
         200,
@@ -70,39 +71,38 @@
     "mork-write": {
       "cause": {
         "chain": [
-          "the C writer in engine/writer.c: the MORK bridge converts every atom it stores through swrite/2 (backends/mork/mork_ffi/morkspaces.pl), so the whole ladder halves, 30010 to 15609 at size 200 and 240505 to 124809 at size 1600, -47.99% to -48.11% across the four sizes. The declared LINEAR class still holds and is unchanged in kind: the exponent reads 1.000 against 1.001 before, and r-squared rises to 0.99999998, because the port removes a constant per atom rather than a term in the size. Control: METTA_C_WRITER=off in this same worktree reads [31410, 62697, 125501, 251705], within 4.7% of the prior pin, so the move is this change and not the box",
           "python -m benchmarks.scaling --record measured mork-write",
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "a9663314a626d6227ef948658b5de769992c0afa"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "linear",
       "fit": {
         "best_model": "linear",
-        "coefficient": 78.12947767009452,
-        "exponent": 0.9997746507195127,
+        "coefficient": 78.1321868189736,
+        "exponent": 0.9997723399306273,
         "growth": [
-          0.5201,
-          0.521,
-          0.5205,
-          0.5189
+          1.0,
+          1.0001,
+          1.0,
+          1.0
         ],
         "normalised_rms": {
-          "constant": 0.714839,
-          "cubic": 0.486681,
-          "linear": 7.1e-05,
-          "log_n": 0.594643,
-          "n_log_n": 0.073446,
+          "constant": 0.714835,
+          "cubic": 0.48668,
+          "linear": 7.3e-05,
+          "log_n": 0.594639,
+          "n_log_n": 0.073448,
           "quadratic": 0.344376
         },
         "pair_slopes": [
-          0.9994,
-          0.9999,
-          0.9999
+          0.9995,
+          0.9998,
+          1.0
         ],
-        "r_squared": 0.9999999825399544
+        "r_squared": 0.9999999882903918
       },
       "noise": {
         "absolute_max": 0,
@@ -110,9 +110,9 @@
       },
       "representative": [
         15609,
-        31205,
+        31207,
         62407,
-        124809
+        124811
       ],
       "sizes": [
         200,
@@ -132,48 +132,46 @@
         "chain": [
           "python -m benchmarks.scaling --record measured parse-forms",
           "minimum of 3 fresh processes per size",
-          "the declared class is linear",
-          "RE-PINNED 2026-08-27, [5222, 10422, 20822, 41624] to [8029, 16029, 32031, 64031], 1.538x at every size, by metta_py_encode/2 asking metta_space_operand/1 of every atom it encodes: that is the species question the wire's p tag carries and the one metatype_of/2 itself asks, and it costs 7 inferences on an atom that is no space (4 for seam:foreign_space/1, 2 for native_storage_module_cache/2, 1 for the call) measured over 100,000 iterations against a bare loop",
-          "the class is unchanged and the arithmetic says why: each form is (scaling-form N (nested N)), two symbols and two numbers, and only the two SYMBOLS reach the species clause, so the cost is 2 x 7 = 14 inferences per form. The measured marginal slope moves from 26 to 40 per form, exponent 1.000 with r-squared 1.0000, which is a constant factor on a linear family rather than a class change"
+          "the declared class is linear"
         ],
-        "commit": "dee7dd651135f124376c183977b31320e1f9b3a1"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "linear",
       "fit": {
         "best_model": "linear",
-        "coefficient": 40.446007045695445,
-        "exponent": 0.9985219384843521,
+        "coefficient": 30.37597761143377,
+        "exponent": 0.9983385453229567,
         "growth": [
-          1.5375,
-          1.538,
-          1.5383,
-          1.5383
+          0.7503,
+          0.7503,
+          0.75,
+          0.75
         ],
         "normalised_rms": {
-          "constant": 0.714234,
-          "cubic": 0.486913,
-          "linear": 0.000559,
-          "log_n": 0.594041,
-          "n_log_n": 0.073898,
-          "quadratic": 0.344693
+          "constant": 0.714148,
+          "cubic": 0.486927,
+          "linear": 0.00063,
+          "log_n": 0.593956,
+          "n_log_n": 0.073955,
+          "quadratic": 0.344724
         },
         "pair_slopes": [
           0.9974,
-          0.9988,
+          0.9983,
           0.9993
         ],
-        "r_squared": 0.9999998094732416
+        "r_squared": 0.9999998040635623
       },
       "noise": {
         "absolute_max": 0,
         "relative_max": 0.0
       },
       "representative": [
-        8029,
-        16029,
-        32031,
-        64031
+        6024,
+        12026,
+        24024,
+        48026
       ],
       "sizes": [
         200,
@@ -195,44 +193,44 @@
           "The distance between this row and the control's measurement is the planted constant-factor loss, so it is copied rather than measured and never reflects the control's own cost.",
           "The class is untouched, so the control passes the exponent gate and fails only the growth gate."
         ],
-        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "linear",
       "fit": {
         "best_model": "linear",
-        "coefficient": 27.44626830656026,
-        "exponent": 0.9978090214396321,
+        "coefficient": 27.07438943437373,
+        "exponent": 0.9996361779955124,
         "growth": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
+          0.9956,
+          0.9979,
+          0.9988,
+          0.9995
         ],
         "normalised_rms": {
-          "constant": 0.713918,
-          "cubic": 0.487022,
-          "linear": 0.000816,
-          "log_n": 0.593729,
-          "n_log_n": 0.074126,
-          "quadratic": 0.344848
+          "constant": 0.714765,
+          "cubic": 0.486706,
+          "linear": 0.000127,
+          "log_n": 0.59457,
+          "n_log_n": 0.0735,
+          "quadratic": 0.344413
         },
         "pair_slopes": [
-          0.996,
-          0.9983,
-          0.999
+          0.9993,
+          0.9997,
+          0.9999
         ],
-        "r_squared": 0.9999995274051957
+        "r_squared": 0.999999983797817
       },
       "noise": {
         "absolute_max": 0,
         "relative_max": 0.0
       },
       "representative": [
-        5429,
-        10828,
-        21630,
-        43230
+        5405,
+        10805,
+        21605,
+        43207
       ],
       "sizes": [
         200,
@@ -254,44 +252,44 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "linear",
       "fit": {
         "best_model": "linear",
-        "coefficient": 35.961379295216645,
-        "exponent": 0.9684585389131932,
+        "coefficient": 26.215972589942755,
+        "exponent": 0.9528693620016953,
         "growth": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
+          0.6808,
+          0.6686,
+          0.6624,
+          0.6588
         ],
         "normalised_rms": {
-          "constant": 0.700099,
-          "cubic": 0.491997,
-          "linear": 0.012057,
-          "log_n": 0.56509,
-          "n_log_n": 0.092086,
-          "quadratic": 0.351809
+          "constant": 0.692452,
+          "cubic": 0.494879,
+          "linear": 0.01828,
+          "log_n": 0.557515,
+          "n_log_n": 0.097785,
+          "quadratic": 0.355778
         },
         "pair_slopes": [
-          0.9458,
-          0.9725,
-          0.9857
+          0.9197,
+          0.959,
+          0.9779
         ],
-        "r_squared": 0.9999130972231698
+        "r_squared": 0.9998090849442962
       },
       "noise": {
         "absolute_max": 0,
         "relative_max": 0.0
       },
       "representative": [
-        3133,
-        6035,
-        11842,
-        23451
+        2133,
+        4035,
+        7844,
+        15449
       ],
       "sizes": [
         100,
@@ -313,7 +311,7 @@
           "minimum of 3 fresh processes per size",
           "the declared class is constant"
         ],
-        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "constant",
@@ -372,44 +370,44 @@
           "minimum of 3 fresh processes per size",
           "the declared class is linear"
         ],
-        "commit": "906a4057ac57a340a3544ad909e829f851f35af3"
+        "commit": "WORKTREE"
       },
       "counter": "inferences",
       "expected_class": "linear",
       "fit": {
         "best_model": "linear",
-        "coefficient": 27.44626830656026,
-        "exponent": 0.9978090214396321,
+        "coefficient": 27.07438943437373,
+        "exponent": 0.9996361779955124,
         "growth": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
+          0.9956,
+          0.9979,
+          0.9988,
+          0.9995
         ],
         "normalised_rms": {
-          "constant": 0.713918,
-          "cubic": 0.487022,
-          "linear": 0.000816,
-          "log_n": 0.593729,
-          "n_log_n": 0.074126,
-          "quadratic": 0.344848
+          "constant": 0.714765,
+          "cubic": 0.486706,
+          "linear": 0.000127,
+          "log_n": 0.59457,
+          "n_log_n": 0.0735,
+          "quadratic": 0.344413
         },
         "pair_slopes": [
-          0.996,
-          0.9983,
-          0.999
+          0.9993,
+          0.9997,
+          0.9999
         ],
-        "r_squared": 0.9999995274051957
+        "r_squared": 0.999999983797817
       },
       "noise": {
         "absolute_max": 0,
         "relative_max": 0.0
       },
       "representative": [
-        5429,
-        10828,
-        21630,
-        43230
+        5405,
+        10805,
+        21605,
+        43207
       ],
       "sizes": [
         200,
