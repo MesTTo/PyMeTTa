@@ -637,16 +637,23 @@ def test_the_json_wire_row_is_not_registered_engine_free():
     """The JSON codec crosses into the engine, so its row carries inferences.
 
     metta/_json.py IS the engine's codec: dumps and loads each reach
-    library(json) through janus, so one round trip is two crossings and two
-    Prolog passes. The bench registered ``engine=None`` anyway, which pinned
-    the row at ``"inferences": null`` and made ``_compare_counter`` require
-    it to STAY null, so the heaviest crossing in the roster was gated on
-    retired instructions alone. This measures one trip through the case's
-    own payload and requires the engine to have been charged for it, then
-    requires the shipped row to carry the integer pin. That pin is what
-    defends the wiring: with it in place, registering the row engine-free
-    again raises "json-wire is engine-free but its baseline has inferences"
-    instead of passing green.
+    engine/json_codec.pl through janus. The bench registered ``engine=None``
+    anyway, which pinned the row at ``"inferences": null`` and made
+    ``_compare_counter`` require it to STAY null, so the heaviest crossing in
+    the roster was gated on retired instructions alone. This requires the
+    engine to have been charged PER TRIP, then requires the shipped row to
+    carry the integer pin. That pin is what defends the wiring: with it in
+    place, registering the row engine-free again raises "json-wire is
+    engine-free but its baseline has inferences" instead of passing green.
+
+    The property is the SCALING, not the magnitude. A floor on one trip's
+    count was the Prolog codec's own size and went red the day the C codec
+    landed, which moved a round trip from 84,725 inferences to 72 without
+    moving it off the engine at all. An engine-free codec charges a constant,
+    so the discriminating question is whether ten trips cost about ten times
+    one, and both configurations answer it the same way: 725 against 77 with
+    engine/json_codec.so, 847,259 against 84,729 under METTA_C_JSON=off
+    [measured 2026-08-28].
     """
     import json
     from pathlib import Path
@@ -655,14 +662,20 @@ def test_the_json_wire_row_is_not_registered_engine_free():
 
     space = MeTTa().space()
     try:
-        with space.stats() as stats:
+        # The first trip in a process pays a one-time 75 inferences the rest
+        # do not, which is enough to sink a ratio taken against it.
+        json_wire(json_payload(), trips=1)
+        with space.stats() as once:
             assert json_wire(json_payload(), trips=1) == 1
+        with space.stats() as ten_times:
+            assert json_wire(json_payload(), trips=10) == 10
     finally:
         space.drop()
-    # One trip measured 84,668 inferences over the pinned 2,000-trip
-    # workload, so a floor three orders below that separates "crosses the
-    # boundary" from the null this row used to claim without being brittle.
-    assert stats.inferences > 1_000, "the JSON codec charged the engine nothing"
+    assert once.inferences > 0, "the JSON codec charged the engine nothing"
+    assert ten_times.inferences > once.inferences * 5, (
+        "the JSON codec's charge does not scale with trips, so it is not the "
+        "engine doing the work"
+    )
 
     root = Path(__file__).resolve().parents[4]
     assert '"json-wire": "test_json_wire"' in (

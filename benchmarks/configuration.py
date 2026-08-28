@@ -33,6 +33,15 @@ def counter_configuration() -> dict[str, bool]:
             (_ROOT / "engine" / "writer.so").is_file()
             and os.environ.get("METTA_C_WRITER") != "off"
         ),
+        # json-wire reads 178,013 inferences with engine/json_codec.so present
+        # and 169,336,779 without, so a baseline measured in one configuration
+        # is unreadable in the other; the stamp is what makes a pin refuse to
+        # compare across that line. Added at the json-c merge, which is where
+        # the artifact joined the tree and where its own worker filed the gap.
+        "c_json": (
+            (_ROOT / "engine" / "json_codec.so").is_file()
+            and os.environ.get("METTA_C_JSON") != "off"
+        ),
         "c_extension": (
             (c_extension / "cbump.so").is_file()
             and (c_extension / "handle.so").is_file()

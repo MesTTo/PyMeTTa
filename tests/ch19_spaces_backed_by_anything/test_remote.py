@@ -465,17 +465,35 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
     and module setup cannot masquerade as size-dependent work. Each point is
     the minimum of three samples. `statistics(inferences)` is process-wide in
     SWI, so the server's own worker thread is what these numbers count.
+
+    The two comparisons AGAINST the eager door are counted in atoms rather
+    than inferences, and the difference is not cosmetic. Until 2026-08-28 they
+    read `lazy[10_000] < eager[10]` and `eager[10_000] > 100 * lazy[10_000]`,
+    and what made those true was the client decoding the reply with
+    `library(json)`: an eager reply carrying ten thousand atoms cost 1,490,407
+    inferences to READ where two atoms cost 1,250. The C codec in
+    engine/json_codec.c moved that reading out of the inference counter --
+    the same run now reads 77 for both eager sizes -- so the counter stopped
+    seeing reply volume at all and both comparisons went vacuous, then red.
+    Reply volume is what they were always about, so it is counted directly and
+    no codec can blind it again. The claim measured in inferences is the one
+    the counter can still see: two answers cost the same whatever is behind
+    them.
     """
     server = remote.serve(metta)
     scratch = metta._new_space()
-    lazy, eager, crossings = {}, {}, {}
+    lazy, eager, crossings, sent, drained = {}, {}, {}, {}, {}
     try:
         calls: list[str] = []
+        atoms_seen: list[int] = []
         inner = remote.connect(server.url)
 
-        def counting(operation, payload, _inner=inner, _calls=calls):
+        def counting(operation, payload, _inner=inner, _calls=calls,
+                     _seen=atoms_seen):
             _calls.append(operation)
-            return _inner(operation, payload)
+            answer = _inner(operation, payload)
+            _seen.append(len(answer.get("atoms", ())))
+            return answer
 
         space = remote.RemoteSpace(counting, scratch.name)
         pattern = metta.parse("(re_lazy $n)")
@@ -495,8 +513,11 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
             lazy_samples = []
             crossing_samples = []
             eager_samples = []
+            sent_samples = []
+            drained_samples = []
             for _ in range(3):
                 calls.clear()
+                atoms_seen.clear()
                 with metta.stats() as counted, space.stream(
                     pattern, batch=1
                 ) as answers:
@@ -507,12 +528,17 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
                 ]
                 lazy_samples.append(counted.inferences)
                 crossing_samples.append(list(calls))
+                sent_samples.append(sum(atoms_seen))
+                atoms_seen.clear()
                 with metta.stats() as counted_all:
                     assert len(list(space.match(pattern))) == size
                 eager_samples.append(counted_all.inferences)
+                drained_samples.append(sum(atoms_seen))
             lazy[size] = min(lazy_samples)
             eager[size] = min(eager_samples)
             crossings[size] = crossing_samples
+            sent[size] = min(sent_samples)
+            drained[size] = min(drained_samples)
     finally:
         server.close()
         scratch.drop()
@@ -528,9 +554,18 @@ def test_two_answers_cross_the_wire_without_the_third_being_computed(metta):
         f"{lazy[10]} over 10; the lifecycle computed something the client "
         f"never asked for"
     )
-    # Taking two of ten thousand is cheaper than taking all ten of ten.
-    assert lazy[10_000] < eager[10]
-    assert eager[10_000] > 100 * lazy[10_000]
+    # Taking two of ten thousand carries less than taking all ten of ten.
+    assert sent[10_000] < drained[10], (
+        f"two answers of 10,000 carried {sent[10_000]} atoms and all ten of "
+        f"ten carried {drained[10]}"
+    )
+    # And the eager door's volume grows with the space where the lazy door's
+    # does not, which is the gap the lifecycle exists to close.
+    assert drained[10_000] > 100 * sent[10_000], (
+        f"the eager door carried {drained[10_000]} atoms over 10,000 against "
+        f"the lazy door's {sent[10_000]}"
+    )
+    assert sent[10] == sent[10_000] == 2
 
 
 def test_a_served_provider_is_pulled_per_answer_not_drained(metta):
