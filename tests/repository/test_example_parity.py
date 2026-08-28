@@ -303,7 +303,13 @@ def test_the_llms_builtin_claim_holds_in_a_bare_configuration(tmp_path):
     assert _absent_artefact_diagnosis(stated, bare, root=tmp_path) == note
 
     # With the artefact present the diagnosis stands aside entirely.
+    # BOTH artefacts, because the seat declares both: morkspaces.pl opens
+    # libmork_ffi.so for its global symbols and then loads morklib.so for
+    # mork/3 itself. Creating one and calling the backend built is the exact
+    # half-built tree the second need was added to refuse, so the diagnosis is
+    # right to keep standing and the fixture was the thing that was wrong.
     artefact = backend / "target" / "release"
     artefact.mkdir(parents=True)
     (artefact / "libmork_ffi.so").touch()
+    (backend / "morklib.so").touch()
     assert _absent_artefact_diagnosis(stated, bare, root=tmp_path) is None

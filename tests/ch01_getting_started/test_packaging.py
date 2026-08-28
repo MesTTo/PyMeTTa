@@ -178,21 +178,36 @@ def test_the_minimal_version_matrix_installs_every_required_dependency():
 
 
 def test_the_pytest_lane_is_deterministic_under_load_protocol():
-    """Pin the exact worker policy exercised by the repeated load protocol."""
-    gate = _gate_text()
-    lane = next(line for line in gate.splitlines() if line.startswith("run GATE pytest"))
+    """Pin the exact worker policy exercised by the repeated load protocol.
+
+    The policy lives in the seat's own test.sh, so a developer running that file
+    gets the settings that make the run correct rather than a plainer pytest
+    invocation sharing one engine across workers. Both halves are pinned: the
+    lane must DELEGATE to that file, and that file must carry the protocol.
+    Pinning only the lane let the policy walk out of the gate's reach the moment
+    the command moved.
+    """
+    lane = next(
+        line for line in _gate_text().splitlines() if line.startswith("run GATE pytest")
+    )
+    entry = "extensions/python/test.sh"
+    assert entry in lane, f"the pytest lane no longer delegates to {entry}: {lane}"
+
     protocol = re.search(
         r"-p no:benchmark -n (?P<workers>\S+) --dist (?P<dist>\S+) "
         r"--max-worker-restart=(?P<restarts>\d+)",
-        lane,
+        (ROOT / entry).read_text(encoding="utf-8"),
     )
-    assert protocol is not None, lane
+    assert protocol is not None, f"{entry} no longer states the worker protocol"
     assert protocol.groupdict() == {
         "workers": "4",
         "dist": "loadfile",
         "restarts": "0",
     }
+    # A retry would make a flaky test pass by repetition, and it would now be
+    # added where the command is rather than where the lane is.
     assert "--reruns" not in lane
+    assert "--reruns" not in (ROOT / entry).read_text(encoding="utf-8")
 
 
 def _build_ext(destination: Path, environment: dict[str, str]) -> subprocess.CompletedProcess:
