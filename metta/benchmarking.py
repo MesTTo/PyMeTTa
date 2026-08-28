@@ -22,6 +22,18 @@ Guarantees:
     test_baseline_without_configuration_stamp_refuses_counter_comparison]
   - perf instruction measurements fail loudly when perf or its event output
     fails [tested test_measure_instructions_parses_perf_csv]
+  - one perf run may count several events, matched on the event NAME field so
+    a unit-carrying event reads beside a bare one, and it hands back each
+    run's own standard output so a workload can report a counter perf cannot
+    see [tested test_measure_counters_reads_every_requested_event]
+  - an instruction pin and a CPU-time pin are ONE mechanism under two Metric
+    declarations, so a counter that crosses a foreign boundary can be gated
+    on both, which is the only safe reading there: foreign code retires no
+    inferences at all [tested test_a_cpu_time_pin_bands_on_both_sides]
+  - a document's policy prose is owned by its runner's SOURCE and rewritten on
+    every update, so a seat whose deciding counter is not the default one
+    cannot ship a file that states the opposite of its own rule [tested
+    test_a_declared_policy_is_written_on_every_update]
 Owns:
   - BenchmarkBaseline owns an update file only until its atomic replace
     completes [tested test_baseline_update_is_atomic_json]; update mode may
@@ -48,6 +60,7 @@ import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +68,9 @@ from .atoms import Atom, Expression
 
 _SCHEMA = 1
 _COUNTER_SAMPLES = 3
+# What a run counts when its caller names nothing else. One literal, so the
+# public entry point and the perf invocation behind it cannot disagree.
+_DEFAULT_EVENTS = ("instructions:u",)
 # A regression must clear a small absolute allowance. The join benchmarks
 # reproduce a +2 shift that three measurements prove is not work: the changed
 # predicates are never called, the delta does not scale with the workload,
@@ -71,6 +87,69 @@ _COUNTER_TOLERANCE = 4
 # 2.5 in silence, so both lanes stood gated tighter than their own documented
 # noise (3.13% and 1.56%) and would go red for code layout alone.
 _INSTRUCTION_NOISE_PERCENT = 1.0
+# The band a CPU-time row gets when it declares none. CPU time is
+# scheduler-sensitive where retired instructions are not: a 58ms region on this
+# box measured 0.00021% spread on instructions:u and 5.4% on task-clock over
+# ten runs at load 11 [measured 2026-08-28], so a CPU row bands an order of
+# magnitude looser than an instruction row and still catches the failure it
+# exists for.
+_CPU_NOISE_PERCENT = 10.0
+# What a document says about itself when its owner declares nothing else. A
+# reader meets these before any number, so they have to be true of the rows
+# below them; a seat measuring across a foreign boundary overrides them.
+_DEFAULT_POLICIES = {
+    "counter_policy": (
+        "stats().inferences minimum of three and fixed two-point growth "
+        "slopes decide; wall time advises"
+    ),
+    "instruction_policy": (
+        "perf instructions:u minimum of three, one percent noise "
+        "allowance unless a row declares its own beside the "
+        "measurement that justified it"
+    ),
+}
+
+
+@dataclass(frozen=True)
+class Metric:
+    """One percent-banded, two-sided pin over the minimum of several samples.
+
+    `noun` names it in a failure message, `value_key` and `band_key` are its
+    two fields inside a baseline case, and `integral` says whether a sample
+    must be a whole number. Retired instructions are whole and CPU seconds are
+    not; nothing else about the two pins differs, which is why they are one
+    mechanism wearing two faces rather than two mechanisms.
+    """
+
+    noun: str
+    value_key: str
+    band_key: str
+    default_percent: float
+    integral: bool
+
+    def show(self, value: float) -> str:
+        """The value as a failure message should print it."""
+        return f"{value:.0f}" if self.integral else f"{value:.6f}"
+
+
+#: perf's retired-instruction counter, and the reason its band is DECLARED
+#: rather than imposed is written at _INSTRUCTION_NOISE_PERCENT.
+INSTRUCTIONS = Metric(
+    "instruction", "instructions", "instruction_noise_percent",
+    _INSTRUCTION_NOISE_PERCENT, integral=True,
+)
+#: CPU seconds the same run spent, from perf's task-clock. It exists because an
+#: instruction count cannot see time: a change that keeps every instruction and
+#: wrecks the memory behaviour behind them is invisible to the first counter
+#: and plain in the second. nanobench reports ins/op beside cyc/op and IPC for
+#: that reason [source: https://github.com/martinus/nanobench README, "6.65
+#: instructions are executed in 24.07 CPU cycles"], and this tree has the
+#: failure on record: a C wire encoder measured 526x faster on the inference
+#: counter while CPU time said it was 1.8x SLOWER. Pair them across any foreign
+#: boundary; neither alone decides.
+CPU_SECONDS = Metric(
+    "CPU time", "cpu_seconds", "cpu_noise_percent", _CPU_NOISE_PERCENT, integral=False,
+)
 
 
 def count_atoms(atom: Any) -> int:
@@ -273,40 +352,54 @@ def _compare_counter_slope(
     return observed
 
 
-def _instruction_observation(name: str, samples: Sequence[int]) -> int:
+def _measurement_observation(
+    name: str, metric: Metric, samples: Sequence[float]
+) -> float:
     if len(samples) < _COUNTER_SAMPLES or any(
-        not isinstance(value, int) or isinstance(value, bool) or value <= 0
+        not isinstance(value, (int, float))
+        or isinstance(value, bool)
+        or value <= 0
+        or (metric.integral and not isinstance(value, int))
         for value in samples
     ):
-        msg = f"invalid instruction samples for {name}: {samples!r}"
+        msg = f"invalid {metric.noun} samples for {name}: {samples!r}"
         raise ValueError(msg)
     return min(samples)
 
 
-def _compare_instructions(
+def _compare_measurement(
     name: str,
+    metric: Metric,
     case: Mapping[str, Any],
-    samples: Sequence[int],
-    observed: int,
-) -> int:
-    baseline = case.get("instructions")
-    allowance = case.get("instruction_noise_percent")
-    if not isinstance(baseline, int) or baseline <= 0:
-        msg = f"{name} has no valid instruction baseline"
+    samples: Sequence[float],
+    observed: float,
+) -> float:
+    baseline = case.get(metric.value_key)
+    allowance = case.get(metric.band_key)
+    #The kinds are written out rather than reached through a tuple built from
+    #metric.integral, because a dynamically built tuple narrows nothing for the
+    #type checker and the arithmetic three lines down is on `object` after it.
+    if (
+        isinstance(baseline, bool)
+        or not isinstance(baseline, (int, float))
+        or baseline <= 0
+        or (metric.integral and not isinstance(baseline, int))
+    ):
+        msg = f"{name} has no valid {metric.noun} baseline"
         raise AssertionError(msg)
     if (
         isinstance(allowance, bool)
         or not isinstance(allowance, (int, float))
         or allowance < 0
     ):
-        msg = f"{name} has no valid instruction noise allowance"
+        msg = f"{name} has no valid {metric.noun} noise allowance"
         raise AssertionError(msg)
     ceiling = baseline * (1.0 + allowance / 100.0)
     if observed > ceiling:
         msg = (
-            f"{name} instruction regression: minimum of {list(samples)!r} is "
+            f"{name} {metric.noun} regression: minimum of {list(samples)!r} is "
             f"{observed}, baseline {baseline} plus {allowance:g}% is "
-            f"{ceiling:.0f}"
+            f"{metric.show(ceiling)}"
         )
         raise AssertionError(
             msg
@@ -314,10 +407,10 @@ def _compare_instructions(
     floor = baseline * (1.0 - allowance / 100.0)
     if observed < floor:
         msg = (
-            f"{name} instruction improvement left unpinned: minimum of "
+            f"{name} {metric.noun} improvement left unpinned: minimum of "
             f"{list(samples)!r} is {observed}, baseline {baseline} minus "
-            f"{allowance:g}% is {floor:.0f}; re-pin with --update and record "
-            f"the mechanism beside the pin"
+            f"{allowance:g}% is {metric.show(floor)}; re-pin with --update and "
+            f"record the mechanism beside the pin"
         )
         raise AssertionError(
             msg
@@ -334,25 +427,26 @@ class BenchmarkBaseline:
         *,
         update: bool = False,
         compare_counters: bool = True,
+        policies: Mapping[str, str] | None = None,
     ):
         self.path = Path(path)
         self.update = update
         self.compare_counters = compare_counters or update
+        #A seat whose deciding counter is not the default one says so here, and
+        #says it in SOURCE rather than in the file: the C seat's counters are
+        #instructions:u and CPU time paired, because foreign code retires no
+        #inferences, so a document of its rows carrying the sentence
+        #"stats().inferences ... decide" would state the opposite of its own
+        #rule. Declared policies are written on every update, unlike a per-row
+        #noise band, because prose is authored and a band is measured.
+        self.policies = dict(_DEFAULT_POLICIES | dict(policies or {}))
         if not self.path.is_file():
             if not update:
                 msg = f"benchmark baseline does not exist: {self.path}"
                 raise FileNotFoundError(msg)
             self._document: dict[str, Any] = {
                 "schema": _SCHEMA,
-                "counter_policy": (
-                    "stats().inferences minimum of three and fixed two-point growth "
-                    "slopes decide; wall time advises"
-                ),
-                "instruction_policy": (
-                    "perf instructions:u minimum of three, one percent noise "
-                    "allowance unless a row declares its own beside the "
-                    "measurement that justified it"
-                ),
+                **self.policies,
                 "benchmarks": {},
             }
             return
@@ -510,35 +604,41 @@ class BenchmarkBaseline:
         if self.update:
             case["wall_seconds_per_operation"] = seconds_per_operation
 
-    def observe_instructions(self, name: str, samples: Sequence[int]) -> int:
-        """Record or compare perf's retired-instruction counter.
+    def observe_measurement(
+        self, name: str, metric: Metric, samples: Sequence[float]
+    ) -> float:
+        """Record or compare one percent-banded counter beside its band.
 
         The count is measured; the noise band beside it is DECLARED, so an
         update writes the fresh count and leaves the declaration standing.
         A row whose band was widened for measured layout noise keeps that
         band across every re-pin, and a row that declares none is filled
-        with the default once.
+        with the metric's default once.
         """
-        observed = _instruction_observation(name, samples)
+        observed = _measurement_observation(name, metric, samples)
+        case = self._document["benchmarks"].get(name)
         if self.update:
-            case = self._document["benchmarks"].get(name)
             if case is None:
                 msg = f"benchmark {name!r} has no wall/counter baseline"
                 raise KeyError(msg)
-            case["instructions"] = observed
-            case.setdefault("instruction_noise_percent", _INSTRUCTION_NOISE_PERCENT)
+            case[metric.value_key] = observed
+            case.setdefault(metric.band_key, metric.default_percent)
             return observed
 
-        case = self._document["benchmarks"].get(name)
         if case is None:
             msg = f"benchmark baseline has no case named {name!r}"
             raise AssertionError(msg)
-        return _compare_instructions(name, case, samples, observed)
+        return _compare_measurement(name, metric, case, samples, observed)
+
+    def observe_instructions(self, name: str, samples: Sequence[int]) -> int:
+        """Record or compare perf's retired-instruction counter."""
+        return int(self.observe_measurement(name, INSTRUCTIONS, samples))
 
     def finish(self) -> None:
         """Atomically write an update; normal comparison mode writes nothing."""
         if not self.update:
             return
+        self._document.update(self.policies)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         descriptor, temporary_name = tempfile.mkstemp(
             prefix=f".{self.path.name}.", dir=self.path.parent
@@ -683,57 +783,93 @@ def benchmark_counter_slope(
     )
 
 
-def _instruction_request(
+def _counter_request(
     command: Sequence[str],
+    events: Sequence[str],
     rounds: int,
     timeout: float,
 ) -> tuple[str, float]:
     if rounds < _COUNTER_SAMPLES:
-        msg = f"instruction measurement needs at least {_COUNTER_SAMPLES} rounds"
+        msg = f"counter measurement needs at least {_COUNTER_SAMPLES} rounds"
         raise ValueError(msg)
     if not command:
-        msg = "instruction measurement command cannot be empty"
+        msg = "counter measurement command cannot be empty"
+        raise ValueError(msg)
+    if not events:
+        msg = "counter measurement needs at least one perf event"
         raise ValueError(msg)
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
-        msg = f"instruction measurement timeout must be positive, got {timeout!r}"
+        msg = f"counter measurement timeout must be positive, got {timeout!r}"
         raise ValueError(msg)
     perf = shutil.which("perf")
     if perf is None:
-        msg = "perf is required to measure instructions:u"
+        msg = f"perf is required to measure {', '.join(events)}"
         raise FileNotFoundError(msg)
     if not os.access("/usr/bin/setarch", os.X_OK):
-        msg = "setarch is required to measure instructions:u reproducibly"
+        msg = f"setarch is required to measure {', '.join(events)} reproducibly"
         raise FileNotFoundError(
             msg
         )
     return perf, float(timeout)
 
 
-def _parse_instruction_sample(returncode: int, stdout: str, stderr: str) -> int:
+def _parse_counter_sample(
+    returncode: int, stdout: str, stderr: str, events: Sequence[str]
+) -> dict[str, float]:
     if returncode != 0:
         detail = stderr.strip() or stdout.strip()
         msg = f"perf stat failed with exit {returncode}: {detail}"
         raise RuntimeError(msg)
-    fields = [
-        line.split(",", 1)[0] for line in stderr.splitlines() if ",instructions:u," in line
-    ]
-    if len(fields) != 1 or not fields[0].isdigit():
-        msg = f"perf stat did not return one numeric instructions:u counter: {stderr.strip()}"
-        raise RuntimeError(
-            msg
-        )
-    return int(fields[0])
+    #perf's -x, row is value,unit,event,run-time,percentage, so the event NAME
+    #is field 2 and matching there rather than on a substring is what lets one
+    #run ask for several events: task-clock carries the unit `msec` where
+    #instructions:u carries none [source: perf-stat(1), -x SEP].
+    rows: dict[str, list[str]] = {event: [] for event in events}
+    for line in stderr.splitlines():
+        fields = line.split(",")
+        if len(fields) > 2 and fields[2] in rows:
+            rows[fields[2]].append(fields[0])
+    sample: dict[str, float] = {}
+    for event, values in rows.items():
+        if len(values) != 1:
+            msg = f"perf stat did not return one {event} counter: {stderr.strip()}"
+            raise RuntimeError(msg)
+        try:
+            #An integer count stays an exact int rather than passing through a
+            #float, so a billion-instruction pin never rounds. `<not counted>`
+            #and `<not supported>` land in the handler rather than reading as
+            #a zero that would gate nothing.
+            sample[event] = int(values[0]) if values[0].isdigit() else float(values[0])
+        except ValueError as error:
+            msg = f"perf stat did not return a numeric {event} counter: {stderr.strip()}"
+            raise RuntimeError(msg) from error
+    return sample
 
 
-def measure_instructions(
+@dataclass(frozen=True)
+class CounterRuns:
+    """What repeated runs of one command counted, and what each printed.
+
+    `events` maps a perf event name to one value per run in run order, and
+    `outputs` is each run's standard output, which is how a workload reports a
+    counter perf cannot see -- the engine's own inferences -- from inside the
+    very run that was counted.
+    """
+
+    events: Mapping[str, tuple[float, ...]]
+    outputs: tuple[str, ...]
+
+
+def measure_counters(
     command: Sequence[str],
     *,
+    events: Sequence[str] = _DEFAULT_EVENTS,
     rounds: int = _COUNTER_SAMPLES,
     controlled: bool = False,
     timeout: float = 60.0,
-) -> tuple[int, ...]:
-    """Run command under perf stat and return retired instructions per run."""
-    perf, timeout = _instruction_request(command, rounds, timeout)
+) -> CounterRuns:
+    """Run command under perf stat and return each run's counters and output."""
+    perf, timeout = _counter_request(command, events, rounds, timeout)
     #The child environment is BUILT, not inherited, for two measured reasons.
     #PYTHONHASHSEED pinned: per-launch hash randomization moves a dict-heavy
     #workload's retired-instruction count by more than the gate's whole noise
@@ -752,7 +888,8 @@ def measure_instructions(
         for name in ("PATH", "HOME", "LD_LIBRARY_PATH", "SWI_HOME_DIR")
         if name in os.environ
     } | {"LC_ALL": "C", "PYTHONHASHSEED": "0"}
-    samples: list[int] = []
+    collected: dict[str, list[float]] = {event: [] for event in events}
+    outputs: list[str] = []
     for _ in range(rounds):
         returncode, stdout, stderr = _run_perf(
             perf,
@@ -760,9 +897,31 @@ def measure_instructions(
             environment,
             controlled=controlled,
             timeout=timeout,
+            events=events,
         )
-        samples.append(_parse_instruction_sample(returncode, stdout, stderr))
-    return tuple(samples)
+        for event, value in _parse_counter_sample(
+            returncode, stdout, stderr, events
+        ).items():
+            collected[event].append(value)
+        outputs.append(stdout)
+    return CounterRuns(
+        {event: tuple(values) for event, values in collected.items()},
+        tuple(outputs),
+    )
+
+
+def measure_instructions(
+    command: Sequence[str],
+    *,
+    rounds: int = _COUNTER_SAMPLES,
+    controlled: bool = False,
+    timeout: float = 60.0,
+) -> tuple[int, ...]:
+    """Run command under perf stat and return retired instructions per run."""
+    runs = measure_counters(
+        command, rounds=rounds, controlled=controlled, timeout=timeout
+    )
+    return tuple(int(value) for value in runs.events["instructions:u"])
 
 
 def _run_perf(
@@ -772,6 +931,7 @@ def _run_perf(
     *,
     controlled: bool,
     timeout: float,
+    events: Sequence[str] = _DEFAULT_EVENTS,
 ) -> tuple[int, str, str]:
     """Run perf without a shell and capture both output streams."""
     with (
@@ -809,14 +969,14 @@ def _run_perf(
         #the heap and stack bases per launch, which selects the same
         #alignment modes the environment block does. ASLR is the third
         #security feature with no place in a reproducibility harness.
+        event_arguments = [word for event in events for word in ("-e", event)]
         argv = [
             "/usr/bin/setarch",
             "-R",
             executable,
             "stat",
             "-x,",
-            "-e",
-            "instructions:u",
+            *event_arguments,
             *control_arguments,
             "--",
             *command,
@@ -866,9 +1026,14 @@ def _run_perf(
 
 
 __all__ = [
+    "CPU_SECONDS",
+    "INSTRUCTIONS",
     "BenchmarkBaseline",
+    "CounterRuns",
+    "Metric",
     "benchmark_case",
     "benchmark_counter_slope",
     "count_atoms",
+    "measure_counters",
     "measure_instructions",
 ]

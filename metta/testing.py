@@ -50,10 +50,15 @@ from ._space import Space
 from .atoms import Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode
 from .atoms import parse as atoms_parse
 from .benchmarking import (
+    CPU_SECONDS,
+    INSTRUCTIONS,
     BenchmarkBaseline,
+    CounterRuns,
+    Metric,
     benchmark_case,
     benchmark_counter_slope,
     count_atoms,
+    measure_counters,
     measure_instructions,
 )
 from .foreign import (
@@ -66,9 +71,13 @@ from .foreign import (
 )
 
 __all__ = [
+    "CPU_SECONDS",
+    "INSTRUCTIONS",
     "BenchmarkBaseline",
     "CodecDriver",
+    "CounterRuns",
     "GatewayComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
+    "Metric",
     "SpaceComplianceSuite",  # noqa: F822  resolved by __getattr__ below, PEP 562
     "atoms",
     "benchmark_case",
@@ -85,6 +94,7 @@ __all__ = [
     "from_pattern",
     "ground_atoms",
     "grounded",
+    "measure_counters",
     "measure_instructions",
     "names",
     "numbers",

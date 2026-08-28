@@ -38,10 +38,12 @@ from benchmarks.workloads import json_payload, json_wire, term_operators, wire_a
 from metta import S
 from metta.benchmarking import _run_perf
 from metta.testing import (
+    CPU_SECONDS,
     BenchmarkBaseline,
     benchmark_case,
     benchmark_counter_slope,
     count_atoms,
+    measure_counters,
     measure_instructions,
 )
 
@@ -337,15 +339,112 @@ def test_baseline_without_configuration_stamp_refuses_counter_comparison(tmp_pat
 def test_measure_instructions_parses_perf_csv(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     calls = []
 
-    def run(executable, command, environment, *, controlled, timeout):
-        calls.append((executable, command, environment, controlled, timeout))
+    def run(executable, command, environment, *, controlled, timeout, events):
+        calls.append((executable, command, environment, controlled, timeout, events))
         return 0, "", "12345,,instructions:u,1000,100.00,,\n"
 
     monkeypatch.setattr("metta.benchmarking._run_perf", run)
     assert measure_instructions(["python", "work.py"]) == (12345, 12345, 12345)
     assert all(
-        call[1] == ["python", "work.py"] and not call[3] and call[4] == 60.0 for call in calls
+        call[1] == ["python", "work.py"]
+        and not call[3]
+        and call[4] == 60.0
+        and tuple(call[5]) == ("instructions:u",)
+        for call in calls
     )
+
+
+def test_measure_counters_reads_every_requested_event(monkeypatch):
+    """One run counts several events, and its own stdout comes back with them.
+
+    The event NAME is matched in perf's third CSV field rather than as a
+    substring, because task-clock carries the unit `msec` where instructions:u
+    carries none, so a run asking for both has two differently shaped rows to
+    read [source: perf-stat(1), -x SEP].
+    """
+    asked = []
+
+    def run(executable, command, environment, *, controlled, timeout, events):
+        asked.append((executable, command, environment, controlled, timeout, tuple(events)))
+        return 0, "inferences 4242\n", (
+            "Events disabled\n"
+            "700155618,,instructions:u,57673473,100.00,,\n"
+            "56.42,msec,task-clock,57673473,100.00,,\n"
+        )
+
+    monkeypatch.setattr("metta.benchmarking._run_perf", run)
+    runs = measure_counters(
+        ["cases", "boot"], events=("instructions:u", "task-clock"), controlled=True
+    )
+    assert runs.events["instructions:u"] == (700155618, 700155618, 700155618)
+    assert runs.events["task-clock"] == (56.42, 56.42, 56.42)
+    assert runs.outputs == ("inferences 4242\n",) * 3
+    assert [(call[1], call[3], call[5]) for call in asked] == [
+        (["cases", "boot"], True, ("instructions:u", "task-clock"))
+    ] * 3
+
+
+def test_measure_counters_refuses_a_counter_perf_did_not_produce(monkeypatch):
+    """`<not counted>` is refused rather than read as a zero that gates nothing."""
+
+    def run(*_arguments, **_keywords):
+        return 0, "", "<not counted>,,instructions:u,0,0.00,,\n"
+
+    monkeypatch.setattr("metta.benchmarking._run_perf", run)
+    with pytest.raises(RuntimeError, match="did not return a numeric instructions:u"):
+        measure_counters(["cases", "boot"])
+
+
+def test_a_declared_policy_is_written_on_every_update(tmp_path):
+    """The runner's source owns the prose, so a re-pin cannot revert it.
+
+    A per-row noise band is measured and lives in the file; a policy sentence
+    is authored and lives in the runner, because a document created by a seat
+    whose counters are not the default ones would otherwise carry the default
+    seat's rule and state the opposite of its own.
+    """
+    path = tmp_path / "baseline.json"
+    declared = {"counter_policy": "instructions:u and CPU time, paired, decide"}
+    first = BenchmarkBaseline(path, update=True, policies=declared)
+    first.observe_counter("c-boot", unit="boots", operations=1, samples=[7, 7, 7])
+    first.finish()
+    assert json.loads(path.read_text())["counter_policy"] == declared["counter_policy"]
+
+    stale = json.loads(path.read_text())
+    stale["counter_policy"] = "inferences decide"
+    path.write_text(json.dumps(stale))
+    again = BenchmarkBaseline(path, update=True, policies=declared)
+    again.observe_counter("c-boot", unit="boots", operations=1, samples=[7, 7, 7])
+    again.finish()
+    written = json.loads(path.read_text())
+    assert written["counter_policy"] == declared["counter_policy"]
+    # The default a seat did not override is still there beside the one it did.
+    assert "instructions:u minimum of three" in written["instruction_policy"]
+
+
+def test_a_cpu_time_pin_bands_on_both_sides(tmp_path):
+    """CPU seconds gate the same way instructions do, with their own band.
+
+    Both directions fail: a slower run is the regression, and a faster one is
+    a stale pin, which is what a foreign boundary needs because the inference
+    counter is blind there and cannot referee either direction.
+    """
+    path = tmp_path / "baseline.json"
+    updating = BenchmarkBaseline(path, update=True)
+    updating.observe_counter("c-boot", unit="boots", operations=1, samples=None)
+    updating.observe_measurement("c-boot", CPU_SECONDS, [0.400, 0.410, 0.420])
+    updating.finish()
+
+    stored = json.loads(path.read_text())["benchmarks"]["c-boot"]
+    assert stored["cpu_seconds"] == 0.400
+    assert stored["cpu_noise_percent"] == 10.0
+
+    baseline = BenchmarkBaseline(path)
+    assert baseline.observe_measurement("c-boot", CPU_SECONDS, [0.43, 0.44, 0.44]) == 0.43
+    with pytest.raises(AssertionError, match="CPU time regression"):
+        baseline.observe_measurement("c-boot", CPU_SECONDS, [0.441, 0.45, 0.46])
+    with pytest.raises(AssertionError, match="CPU time improvement left unpinned"):
+        baseline.observe_measurement("c-boot", CPU_SECONDS, [0.359, 0.36, 0.37])
 
 
 def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -364,7 +463,14 @@ def test_perf_timeout_kills_and_reaps_process_group(monkeypatch):  # noqa: D103 
     monkeypatch.setattr("metta.benchmarking.time.monotonic", lambda: next(ticks))
 
     with pytest.raises(TimeoutError, match="1 second limit"):
-        _run_perf("/usr/bin/perf", ["python"], {}, controlled=False, timeout=1.0)
+        _run_perf(
+            "/usr/bin/perf",
+            ["python"],
+            {},
+            controlled=False,
+            timeout=1.0,
+            events=("instructions:u",),
+        )
     assert killed == [(42, signal.SIGKILL)]
     assert waits == [(42, os.WNOHANG), (42, 0)]
 
