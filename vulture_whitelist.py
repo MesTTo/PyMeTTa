@@ -172,6 +172,13 @@ _.network
 _.observe_configuration
 _.remove_case
 
+# The same, one component further out: observe_cpu records the counter that a
+# foreign-boundary row is checked against, and its caller is the MORK seat's
+# own benchmark, extensions/mork/benchmarks/bench.py. DEVELOPING.md tells a
+# sibling to import this harness rather than copy it, so a caller outside
+# extensions/python is the arrangement rather than a gap.
+_.observe_cpu
+
 # The scheduler's context-propagation callbacks: the engine invokes them by
 # name through _callbacks.py's string table ("fork_contexts" ->
 # ("_task_context", "fork_many"), "release_contexts" ->

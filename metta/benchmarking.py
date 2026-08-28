@@ -22,6 +22,11 @@ Guarantees:
     test_baseline_without_configuration_stamp_refuses_counter_comparison]
   - perf instruction measurements fail loudly when perf or its event output
     fails [tested test_measure_instructions_parses_perf_csv]
+  - observe_cpu records process CPU seconds beside an instruction pin and
+    never compares them, which is what a foreign-boundary row needs: the
+    inference counter is blind past the boundary, so instructions:u decides
+    and CPU is the counter it is checked against
+    [tested: extensions/mork/benchmarks/bench.py]
 Owns:
   - BenchmarkBaseline owns an update file only until its atomic replace
     completes [tested test_baseline_update_is_atomic_json]; update mode may
@@ -509,6 +514,30 @@ class BenchmarkBaseline:
             raise KeyError(msg)
         if self.update:
             case["wall_seconds_per_operation"] = seconds_per_operation
+
+    def observe_cpu(self, name: str, seconds_per_operation: float) -> None:
+        """Record process CPU time, the advisory counter beside instructions.
+
+        Wall time advises for a workload the engine runs by itself. It cannot
+        advise for one that crosses a foreign boundary, where the reason to
+        record a second counter at all is that the first one is blind: SWI's
+        inference counter retires nothing for work done inside C or Rust, and
+        a change measured 526x faster by inferences was 1.8x SLOWER by CPU.
+        instructions:u decides those rows and this is what it is checked
+        against, so the pairing is an artifact rather than a claim.
+
+        Never compared, for the reason wall time is never compared: CPU seconds
+        move with frequency scaling and with what else the box is doing.
+        """
+        if seconds_per_operation <= 0:
+            msg = "benchmark CPU time must be positive"
+            raise ValueError(msg)
+        case = self._document["benchmarks"].get(name)
+        if case is None:
+            msg = f"benchmark {name!r} has no counter observation"
+            raise KeyError(msg)
+        if self.update:
+            case["cpu_seconds_per_operation"] = seconds_per_operation
 
     def observe_instructions(self, name: str, samples: Sequence[int]) -> int:
         """Record or compare perf's retired-instruction counter.
