@@ -16,10 +16,10 @@ Guarantees:
     process with it [tested:
     test_json_codec_refuses_a_value_that_contains_itself,
     test_json_codec_refuses_a_value_nested_too_deeply,
-    test_a_refused_value_leaves_the_codec_usable; commit=WORKTREE]
+    test_a_refused_value_leaves_the_codec_usable; commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
   - a value merely REACHED twice still encodes, because sharing is not a
     cycle [tested: test_json_codec_encodes_a_shared_value_reached_twice;
-    commit=WORKTREE]
+    commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
 Decides:
   - the codec is the engine's: one JSON implementation for the whole
     system, with janus carrying True, False and None across as

@@ -35,12 +35,12 @@ Guarantees:
     call is unaffected on every door [tested:
     test_text_with_no_utf8_encoding_is_refused_by_kind,
     test_a_refused_crossing_does_not_fail_the_next_call,
-    test_no_door_leaves_the_next_call_carrying_the_refusal; commit=WORKTREE]
+    test_no_door_leaves_the_next_call_carrying_the_refusal; commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
   - a Python exception raised inside the engine classifies the same through
     the goal-string door and the predicate door [tested:
     test_an_enumeration_refuses_answers,
     test_an_enumeration_refuses_answers_through_the_term_door_too;
-    commit=WORKTREE]
+    commit=3b82643dd18ad5153bca71fa0c4bd09d59b0b7d0]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
