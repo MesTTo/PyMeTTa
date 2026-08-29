@@ -46,16 +46,44 @@ m.run(source)                    # run program text, one answer group per !
 An answer set is iterable, and a generator registered as an operation is
 nondeterminism, so `yield` and `for` mean what they mean in Python.
 
-## Python functions as MeTTa functions
+## Python functions as MeTTa functions, and the two doors
 
 ```python
-@m.define
+@m.define                      # LOWERED: the body becomes equations
 def double(x: int) -> int:
     return x * 2
+
+m.op(fetch)                    # CALLED: the engine calls into Python
 ```
 
-`@m.define` compiles the body into equations. `m.op` registers the callable
-itself when you want the call to cross into Python at run time.
+The two are a choice, not a convenience and its longhand, and the price is
+measured:
+
+| door | µs/call | what the engine can do with it |
+|---|---|---|
+| `@m.define` | 0.15 | read it, specialise it, match on it |
+| `m.op`, `transport="raw"` | 1.05 | call it, and nothing else |
+| `m.op`, encoded | 3.93 | the same, through the wire codec |
+
+So reach for `@m.define` when the body is expressible as MeTTa, and `m.op` when
+it must stay Python: it touches the network, holds a file, or calls a library
+you are not going to re-express. A called operation must declare its effect
+class, because the engine cannot see inside it.
+
+## What a VALUE crosses as, which is a different choice
+
+`py-atom` takes the image as an argument, and it is independent of the door
+above: a lowered body can still take an opaque argument.
+
+```python
+m.run('!(py-atom numpy.absolute Grounded)')     # opaque: the live reference
+m.run('!(py-atom numpy.absolute Expression)')   # transparent: a snapshot
+```
+
+Transparent means translated into MeTTa structure. Opaque means carried whole
+as a blob the engine holds and does not read, which keeps host identity and
+skips a translation you may not want. Neither is the lesser one. An iterator is
+always opaque, because measuring one drains it.
 
 ## Spaces
 
