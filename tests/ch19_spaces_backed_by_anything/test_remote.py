@@ -955,3 +955,40 @@ class TestServeSpeaksItsOwnProtocol(remote_testing.GatewayComplianceSuite):
             yield server.url
         finally:
             server.close()
+
+
+def test_a_server_is_a_context_manager(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    with remote.serve(metta) as server:
+        assert server.url.startswith("http://")
+        opened = server
+    # Closing is idempotent, so the with-block's exit is the whole teardown.
+    opened.close()
+
+
+def test_attaching_a_space_this_process_serves_is_refused_with_the_remedy(metta):
+    """The one configuration that cannot work, refused where it is written.
+
+    Janus holds the GIL across a Prolog call, so the serving thread cannot run
+    while the evaluation waiting on it holds the interpreter. Before this the
+    attach succeeded and the first match hung for the transport's whole
+    timeout, then failed on a broken pipe with nothing naming the cause.
+    """
+    with remote.serve(metta, spaces=[metta.name]) as server:
+        client = metta._new_space()
+        with pytest.raises(MettaError) as refusal:
+            remote.attach(client, "&hq", server.url, metta.name)
+    message = str(refusal.value)
+    assert "same process" in message
+    assert "Gateway" in message, "the refusal has to name the transport that works"
+
+    # And the remedy the message gives does work, in this same process.
+    client = metta._new_space()
+    remote.attach(client, "&hq", remote.Gateway(metta, [metta.name]), metta.name)
+    assert client.run("!(match &hq (re_ctx_probe $x) $x)") == [[]]
+
+
+def test_a_url_no_server_in_this_process_owns_is_not_refused(metta):
+    """The guard is on the address, so an ordinary remote URL still attaches."""
+    # Nothing is listening; attaching is still allowed, and only a call fails.
+    client = metta._new_space()
+    remote.attach(client, "&elsewhere", "http://127.0.0.1:9/", "&self")

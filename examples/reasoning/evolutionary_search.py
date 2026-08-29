@@ -27,13 +27,13 @@ for index in range(16):
     m.add(Expression(S.member, index, Expression(*genome)))
 
 
-@m.op(effect="pureStructural")
+@m.pure
 def fitness(genome) -> int:
     bits = [int(wire.decode(b)) for b in genome]
     return sum(1 for got, want in zip(bits, TARGET) if got == want)
 
 
-@m.op(effect="oracleIO")
+@m.io
 def breed(a, b):
     cut = random.randrange(1, len(TARGET))
     bits_a = [int(wire.decode(x)) for x in a]
@@ -45,7 +45,7 @@ def breed(a, b):
     return Expression(*child)
 
 
-@m.op(name="next-generation", effect="oracleIO")
+@m.io(name="next-generation")
 def next_generation() -> bool:
     rows = m.match(S.member(V.i, V.g))
     scored = sorted(rows, key=lambda r: -fitness(r.g))

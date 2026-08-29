@@ -78,7 +78,12 @@ FINAL_METTA_METHODS = 20
 # ai-python-first-revamp-discussion.md:3742-3748. Two sibling branches each
 # moved this pin 100 -> 102 for their own pair, which merged clean and wrong;
 # the merged surface carries all four.
-FINAL_METTA_EXPORTS = 104
+# +4 for ``pure``, ``reads``, ``writes`` and ``io``, the effect classes as
+# named doors rather than a stringly-typed ``effect=`` argument. They widen the
+# count and not the surface's MEANING: each is ``op`` with one argument filled
+# in, which is why there is no fifth for ``nondeterministicReadOnly`` (a
+# generator is nondeterministic and the registration lifts the class itself).
+FINAL_METTA_EXPORTS = 108
 
 SATELLITES = {
     "aio",

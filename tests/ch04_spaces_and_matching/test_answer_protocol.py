@@ -664,7 +664,7 @@ def test_an_undeclared_foreign_write_in_a_transaction_is_loud(metta):  # noqa: D
 def test_best_effort_is_the_declared_acceptance(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-be")
-    metta._at("&tx-be").writes("best-effort")
+    metta._at("&tx-be").atomicity("best-effort")
     metta.run(
         "!(transaction (let $t (add-atom &tx-be (edge a b))"
         " (match &self (tx-no-such $q) $q)))"
@@ -677,7 +677,7 @@ def test_best_effort_is_the_declared_acceptance(metta):  # noqa: D103  -- pytest
 def test_a_transactional_provider_commits_with_the_engine(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-ok")
-    metta._at("&tx-ok").writes("transactional")
+    metta._at("&tx-ok").atomicity("transactional")
     metta.run("!(add-atom &self (tx-native base))")
     metta.run(
         "!(transaction (let $t1 (add-atom &tx-ok (edge a b))"
@@ -695,7 +695,7 @@ def test_a_file_transaction_enlists_and_commits_a_foreign_provider(
     """A source load commits writes to its enlisted foreign provider."""
     store = _TxStore()
     metta._register_space(store, "&tx-file-ok")
-    metta._at("&tx-file-ok").writes("transactional")
+    metta._at("&tx-file-ok").atomicity("transactional")
     source = tmp_path / "foreign_transaction_commit.metta"
     source.write_text("!(transaction (add-atom &tx-file-ok (edge a b)))\n")
 
@@ -711,7 +711,7 @@ def test_a_failed_file_transaction_rolls_a_foreign_provider_back(
     """A failed source load rolls its foreign-provider writes back."""
     store = _TxStore()
     metta._register_space(store, "&tx-file-rb")
-    metta._at("&tx-file-rb").writes("transactional")
+    metta._at("&tx-file-rb").atomicity("transactional")
     source = tmp_path / "foreign_transaction_rollback.metta"
     source.write_text(
         "!(transaction (let $written (add-atom &tx-file-rb (edge a b)) "
@@ -727,7 +727,7 @@ def test_a_failed_file_transaction_rolls_a_foreign_provider_back(
 def test_a_failed_transaction_rolls_both_stores_back(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-rb")
-    metta._at("&tx-rb").writes("transactional")
+    metta._at("&tx-rb").atomicity("transactional")
     metta.run(
         "!(transaction (let $t1 (add-atom &tx-rb (edge a b))"
         " (let $t2 (add-atom &self (tx-native aborted))"
@@ -742,7 +742,7 @@ def test_a_failed_transaction_rolls_both_stores_back(metta):  # noqa: D103  -- p
 def test_a_throwing_transaction_rolls_back_and_rethrows(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-throw")
-    metta._at("&tx-throw").writes("transactional")
+    metta._at("&tx-throw").atomicity("transactional")
     with pytest.raises(EngineError):
         metta.run(
             "!(transaction (let $t1 (add-atom &tx-throw (edge a b))"
@@ -755,7 +755,7 @@ def test_a_throwing_transaction_rolls_back_and_rethrows(metta):  # noqa: D103  -
 def test_atomic_single_refuses_transactional_writes(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     store = _TxStore()
     metta._register_space(store, "&tx-as")
-    metta._at("&tx-as").writes("atomic-single")
+    metta._at("&tx-as").atomicity("atomic-single")
     with pytest.raises(EngineError, match="atomic-single"):
         metta.run("!(transaction (add-atom &tx-as (edge a b)))")
     # Outside a transaction the single write is untouched, the floor.
@@ -775,14 +775,14 @@ def test_a_transactional_declaration_without_the_methods_is_loud(metta):  # noqa
             self.rows.append(atom)
 
     metta._register_space(_Plain(), "&tx-nm")
-    metta._at("&tx-nm").writes("transactional")
+    metta._at("&tx-nm").atomicity("transactional")
     with pytest.raises(MettaError, match="Transactional"):
         metta.run("!(transaction (add-atom &tx-nm (edge a b)))")
 
 
 def test_declare_writes_validates(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises(ValueError, match="transactional, atomic-single"):
-        metta._at("&tx-v").writes("eventually")
+        metta._at("&tx-v").atomicity("eventually")
 
 
 # ------------------------------------------------------- merge policy (G4)

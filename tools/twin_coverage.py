@@ -522,7 +522,7 @@ RETIRED_HANDLE = {
     "declare_on_error": "space.on_error(...)",
     "declare_reaction": "space.reacts(...)",
     "declare_source": "space.source(...)",
-    "declare_writes": "space.writes(...)",
+    "declare_writes": "space.atomicity(...)",
 }
 
 #: Retired CALL SHAPES rather than retired names: each name survives on

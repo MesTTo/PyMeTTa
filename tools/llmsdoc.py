@@ -149,7 +149,13 @@ def counts() -> list[tuple[str, int]]:
         # part that helps, and that does not move with a file.
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
-        (r"(\d+) runnable Python programs", len(list(ROOT.glob("extensions/python/examples/*/*.py")))),
+        # No count of the runnable Python programs, for the reason the two
+        # counts above are absent: this file is a cheat sheet for USING the
+        # repository, and how many example programs the tree carries tells a
+        # consumer nothing it can act on. It churns on every example added --
+        # adding one worked example turned the `llms` lane red for a number no
+        # reader had ever wanted. The row stays, because WHERE the examples
+        # live and what they check is the part that helps.
         # No engine line count. This file is a cheat sheet for USING the
         # repository, and a reader gets nothing from how many lines the engine
         # is; the number churned on every engine edit and was hand-re-pinned

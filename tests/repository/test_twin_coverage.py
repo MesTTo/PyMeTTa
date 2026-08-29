@@ -335,7 +335,7 @@ def test_a_declaration_takes_members_and_refuses_a_program(tmp_path):
         "BUDGET = 1\n"
         "def twin(m):\n"
         "    m.emits(AnswerPolicy.best_first)\n"
-        "    m.writes(Atomicity.transactional)\n"
+        "    m.atomicity(Atomicity.transactional)\n"
         "    m.context(World.closed_world)\n"
         "    m.events(Delivery.at_least_once, EventOrder.ordered)\n"
         "    m.handles(S.user(V.n), Fidelity.Exact, det=Determinism.semidet)\n"
@@ -531,7 +531,7 @@ LANDED_DOORS = (
     "    def bounds(x):\n"
     '        yield equation(S.clamped(x)).to(S["<"](x, 0))\n'
     "    kb.emits(AnswerPolicy.best_first)\n"
-    "    kb.writes(Atomicity.transactional)\n"
+    "    kb.atomicity(Atomicity.transactional)\n"
     "    kb.source(SourceKind.linear)\n"
     "    kb.context(World.closed_world)\n"
     "    kb.agenda(AgendaPolicy.specificity)\n"

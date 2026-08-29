@@ -78,6 +78,7 @@ from dataclasses import dataclass
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Self
+from urllib.parse import urlsplit
 
 from . import _json
 from ._atom_wire import _atom_from_wire
@@ -545,6 +546,63 @@ class RemoteSpace(SpaceProvider):
         return bool(answer.get("removed"))
 
 
+#: Every live server in THIS process, keyed by the address it accepts on.
+#: attach() reads it to refuse a configuration that cannot work; Server
+#: registers on construction and releases on close.
+_LIVE_SERVERS: dict[tuple[str, int], tuple[str, ...]] = {}
+_LIVE_SERVERS_LOCK = threading.Lock()
+#: The spellings of one loopback address, so a server bound to 127.0.0.1 is
+#: recognised through `localhost` too.
+_LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def _refuse_this_process(url: object, name: str) -> None:
+    """Refuse attaching a space served by THIS process over HTTP.
+
+    Janus holds the GIL across a Prolog call, so while one thread is inside an
+    evaluation no other thread can run Prolog, whatever engine it attached.
+    An attached space is only ever matched from inside an evaluation, so this
+    configuration cannot complete: measured, the request times out after the
+    transport's whole timeout and the serving side then fails on a broken
+    pipe, and neither message names the cause.
+
+    A plain HTTP call to the same server from outside an evaluation works and
+    is not refused here; the guard is on attach, which is the door that can
+    only be used from inside one.
+    """
+    if not isinstance(url, str):
+        return
+    parsed = urlsplit(url)
+    if parsed.hostname is None or parsed.port is None:
+        return  # nothing to match an address against; connect() judges the URL
+    hosts = _LOOPBACK if parsed.hostname in _LOOPBACK else {parsed.hostname}
+    endpoint_port = parsed.port
+    with _LIVE_SERVERS_LOCK:
+        served = next(
+            (
+                spaces
+                for host in hosts
+                if (spaces := _LIVE_SERVERS.get((host, endpoint_port))) is not None
+            ),
+            None,
+        )
+    if served is None:
+        return
+    remote_space = served[0] if served else "&self"
+    msg = (
+        f"{url} is served by this same process, and attaching it over HTTP "
+        f"cannot work: janus holds the GIL across a Prolog call, so the "
+        f"serving thread cannot run while the evaluation that is waiting on "
+        f"it holds the interpreter. Left to run it times out and then breaks "
+        f"the connection.\n\n"
+        f"In one process, use the transport that runs on the calling thread:\n\n"
+        f"    gateway = metta.remote.Gateway(server_space)\n"
+        f"    metta.remote.attach(m, {name!r}, gateway, {remote_space!r})\n\n"
+        f"A URL is for reaching an engine in ANOTHER process."
+    )
+    raise MettaError(msg)
+
+
 def connect(
     url: str,
     timeout: float = 30.0,
@@ -676,6 +734,8 @@ def attach(
         metta.remote.attach(m, "&hq", url, batch=1)
         m.run('!(once (match &hq (users $id $n) $n))')  # one answer computed
     """
+    if not callable(url_or_transport):
+        _refuse_this_process(url_or_transport, name)
     transport = url_or_transport if callable(url_or_transport) else connect(url_or_transport)
     provider = RemoteSpace(transport, remote_space, batch=batch)
     m._register_space(provider, name)
@@ -1201,24 +1261,7 @@ class _RemoteWorker:
         self._started.put(None)
         logger.debug("remote engine server worker attached a Prolog engine")
         try:
-            while True:
-                item = self._work.get()
-                if item is None:
-                    return
-                operation, payload, reply = item
-                try:
-                    reply.put(("ok", self._handle(operation, payload)))
-                except Exception as exc:
-                    logger.warning(
-                        "remote engine operation %s failed",
-                        operation,
-                        exc_info=True,
-                    )
-                    reply.put(("error", str(exc)))
-                except BaseException as exc:  # noqa: BLE001
-                    reply.put(("error", str(exc)))
-                    self._fail_running(exc)
-                    return
+            self._work_loop()
         except BaseException as exc:  # noqa: BLE001
             self._fail_running(exc)
         finally:
@@ -1229,9 +1272,38 @@ class _RemoteWorker:
             else:
                 logger.debug("remote engine server worker detached its Prolog engine")
 
+    def _work_loop(self) -> None:
+        """Serve one request at a time until asked to stop."""
+        while True:
+            item = self._work.get()
+            if item is None:
+                return
+            operation, payload, reply = item
+            try:
+                reply.put(("ok", self._handle(operation, payload)))
+            except Exception as exc:
+                logger.warning(
+                    "remote engine operation %s failed",
+                    operation,
+                    exc_info=True,
+                )
+                reply.put(("error", str(exc)))
+            except BaseException as exc:  # noqa: BLE001
+                reply.put(("error", str(exc)))
+                self._fail_running(exc)
+                return
+
 
 class Server:
-    """This engine's spaces, served. close() stops accepting."""
+    """This engine's spaces, served. close() stops accepting.
+
+    A context manager, because it owns a socket, an accept thread and an
+    engine worker, which is more than any other handle in this library and
+    exactly the shape Python spells `with`. `metta.space()` and
+    `metta.aio.connect()` are already `with`-able; a server that had to be
+    closed by hand was the one resource whose leak on an exception path was
+    silent.
+    """
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
@@ -1250,6 +1322,21 @@ class Server:
         raw_host, self.port = httpd.server_address[:2]
         self.host = raw_host.decode("ascii") if isinstance(raw_host, bytes) else raw_host
         self.url = f"{scheme}://{self.host}:{self.port}"
+        # attach() reads this to refuse the one configuration that cannot
+        # work, so the entry has to exist for as long as the socket does.
+        # str(): server_address carries bytes on some families, and the
+        # registry key is a str address.
+        self._address = (str(self.host), self.port)
+        with _LIVE_SERVERS_LOCK:
+            _LIVE_SERVERS[self._address] = tuple(sorted(gateway._allowed or ()))
+
+    def __enter__(self) -> Self:
+        """The server itself, so `with serve(m) as server:` names it."""
+        return self
+
+    def __exit__(self, *_exception: object) -> None:
+        """Close on the way out, on the exception path too."""
+        self.close()
 
     def close(self, timeout: float = _SERVER_TIMEOUT) -> None:
         """Stop accepting, detach the engine worker, join both threads, and
@@ -1264,6 +1351,8 @@ class Server:
         with self._close_lock:
             if self._closed:
                 return
+            with _LIVE_SERVERS_LOCK:
+                _LIVE_SERVERS.pop(self._address, None)
             if self._thread is threading.current_thread():
                 msg = "the remote HTTP server cannot close itself"
                 raise MettaError(msg)

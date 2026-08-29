@@ -290,7 +290,7 @@ def test_declarations_use_their_atom_heads_on_the_receiver() -> None:
     assert str(target.context("closed-world")) == (
         "(context &libfix-declarations closed-world)"
     )
-    assert str(target.writes("atomic-single")) == (
+    assert str(target.atomicity("atomic-single")) == (
         "(writes &libfix-declarations atomic-single)"
     )
     assert str(target.emits("depth")) == "(emits &libfix-declarations depth)"

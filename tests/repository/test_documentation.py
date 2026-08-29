@@ -269,14 +269,19 @@ def test_every_extension_has_a_site_area():
         for control in (_REPO / "extensions").glob("*/extension.pl")
     )
     assert seats, "no extension.pl found at all, so this check proves nothing"
+    # An area is a page OR a folder with an index, because a seat that has more
+    # to say than one page should be able to say it: a host seat carries its
+    # own tutorial beside its index, and a backend does not.
     missing = [
         seat
         for seat in seats
         if not (_SITE / "extensions" / f"{seat}.md").is_file()
+        and not (_SITE / "extensions" / seat / "index.md").is_file()
     ]
     assert not missing, (
         f"these seats ship without a site area: {missing}. Add "
-        f"website/extensions/<seat>.md and a navigation entry for it"
+        f"website/extensions/<seat>.md or website/extensions/<seat>/index.md, "
+        f"and a navigation entry for it"
     )
 
 

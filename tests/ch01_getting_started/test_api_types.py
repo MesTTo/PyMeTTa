@@ -46,7 +46,7 @@ def test_a_name_parameter_takes_a_plain_string():
     literals to. The typing reference's own example constructs at the
     boundary, get_user_name(UserId(42351)), and the ergonomic spelling was
     an error in five separate example programs before this: register_space
-    (name="&cetta"), unregister_space("&crm"), MeTTa(space="&bounds-demo"),
+    (name="&cmetta"), unregister_space("&crm"), MeTTa(space="&bounds-demo"),
     register_op(name="fuzmatch") and is_function("<lambda>")
     [measured 2026-08-17].
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose

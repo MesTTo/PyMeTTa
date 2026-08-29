@@ -72,7 +72,7 @@ def test_the_tree_partitions_by_seam():
 # run.sh, test.sh, bench.sh. A component is a directory carrying at least one of
 # them, which is the same rule check.sh's discovery loop, build.sh's and the CLI's
 # components() all apply.
-COMPONENTS = ("engine", *(f"extensions/{seat}" for seat in ("python", "node", "cetta", "mork")))
+COMPONENTS = ("engine", *(f"extensions/{seat}" for seat in ("python", "node", "cmetta", "mork")))
 
 
 def _components() -> list[Path]:

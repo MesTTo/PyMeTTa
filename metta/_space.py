@@ -3025,6 +3025,63 @@ class Space(Handle):
 
         return apply(fn) if fn is not None else apply
 
+    # The effect classes as four decorators, so the classification is a name
+    # rather than a string argument. `op` is the longhand and every one of
+    # these is that call with `effect` filled in, so there is one mechanism
+    # wearing four faces and `transport=` composes with each.
+    #
+    # Four rather than five: nondeterministicReadOnly is not here because a
+    # generator IS nondeterministic and the registration already decides that
+    # from the function itself, lifting a read-only class to it. Declaring it
+    # by hand would be restating what the library worked out.
+
+    def _classified(
+        self, fn: Callable | None, effect: EffectClass, options: dict[str, Any]
+    ) -> Any:
+        """`op` with the effect filled in.
+
+        Used bare or called. The branch is here rather than at each of the four: `op` is overloaded
+        on whether the callable is present, so handing it an optional one
+        satisfies neither overload.
+        """
+        if fn is None:
+            return self.op(effect=effect, **options)
+        return self.op(fn, effect=effect, **options)
+
+    def pure(self, fn: Callable | None = None, /, **options: Any) -> Any:
+        """An operation whose answer depends only on its arguments.
+
+            @m.pure
+            def double(x: int) -> int:
+                return 2 * x
+
+        The cache-safe class, and the only one memoization and tabling admit
+        without an explicit policy.
+        """
+        return self._classified(fn, EffectClass.pureStructural, options)
+
+    def reads(self, fn: Callable | None = None, /, **options: Any) -> Any:
+        """An operation that reads stable state without changing it."""
+        return self._classified(fn, EffectClass.readOnlyLookup, options)
+
+    def writes(self, fn: Callable | None = None, /, **options: Any) -> Any:
+        """An operation that changes engine or host state."""
+        return self._classified(fn, EffectClass.writesState, options)
+
+    def io(self, fn: Callable | None = None, /, **options: Any) -> Any:
+        """An operation that observes an external oracle.
+
+        A clock, randomness, a network, a file, another runtime.
+
+            @m.io
+            def now() -> float:
+                return time.time()
+
+        The fail-closed top of the lattice. Declare it when what the operation
+        reaches is decided at run time or by a library the engine cannot bound.
+        """
+        return self._classified(fn, EffectClass.oracleIO, options)
+
     def unregister_op(self, name: str) -> None:
         """Remove a registered operation, every arity of it.
 
@@ -4439,11 +4496,16 @@ class Space(Handle):
         )
         return atom
 
-    def writes(
+    def atomicity(
         self,
         atomicity: Atomicity,
     ) -> Atom:
         """Declare what a space's writes promise inside a transaction.
+
+        Named for what it declares rather than for the atom it stores, which
+        stays `(writes <ctx> ...)`: `writes` on a Space is the effect
+        decorator for an OPERATION, and one object cannot spell two concepts
+        one way.
 
         transactional providers implement metta.foreign.Transactional and
         are committed or rolled back WITH the engine's transaction;
@@ -4695,7 +4757,7 @@ class MeTTa:
                     # An owned journal stages user-transaction writes and
                     # journals only the committed delta. The declaration is
                     # what makes the existing coordinator enlist that protocol.
-                    handle.writes(Atomicity.transactional)
+                    handle.atomicity(Atomicity.transactional)
                 except BaseException:
                     handle.drop()
                     raise

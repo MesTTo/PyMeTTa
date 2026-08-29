@@ -262,6 +262,72 @@ def booted() -> bool:
     return _SHIM_LOADED.is_set()
 
 
+#: How each platform's package manager installs SWI-Prolog, so the refusal
+#: below can name a command rather than a requirement. Keyed by sys.platform.
+_SWI_INSTALL = {
+    "linux": "sudo apt install swi-prolog   (or your distribution's equivalent)",
+    "darwin": "brew install swi-prolog",
+    "win32": "winget install SWI-Prolog.SWI-Prolog",
+}
+
+
+def _no_engine(exc: ImportError) -> NoReturn:
+    """Say what is missing and the command that fixes it.
+
+    MeTTa runs on SWI-Prolog, which is a program rather than a Python package,
+    so pip cannot install it and the failure lands here as janus failing to
+    load its extension. What a user saw was the linker's own words --
+    `ImportError: libswipl.so.9: cannot open shared object file` -- which name
+    neither SWI-Prolog nor anything to do about it.
+
+    The two cases need different answers and the difference is observable:
+    with no `swipl` on PATH the engine is absent, and with one there it is
+    present and janus was built against a DIFFERENT one. That second case is
+    reachable by upgrading SWI after installing, because pip caches the wheel
+    it built for you and reuses it [measured 2026-08-29: a clean venv on a box
+    carrying SWI 10 installed a cached janus built against SWI 9 and failed on
+    libswipl.so.9].
+    """
+    import shutil  # noqa: PLC0415  -- the failure path pays this, not the import
+
+    swipl = shutil.which("swipl")
+    install = _SWI_INSTALL.get(sys.platform, "install SWI-Prolog 9.3 or later")
+    absent = isinstance(exc, ModuleNotFoundError) and exc.name == "janus_swi"
+    if absent and swipl is None:
+        # Nothing is in place: name both steps, in the order they must happen,
+        # because the second cannot build without the first.
+        msg = (
+            f"MeTTa runs on SWI-Prolog, which is a program rather than a "
+            f"Python package, so pip cannot install it and there is no "
+            f"`swipl` on your PATH. Two steps, in this order:\n\n"
+            f"    {install}\n"
+            f"    pip install 'pymetta[engine]'\n"
+        )
+    elif absent:
+        # The engine is here and only the bridge is missing, which is what a
+        # plain `pip install pymetta` leaves on a machine that has SWI.
+        msg = (
+            f"SWI-Prolog is installed at {swipl}, and the Python bridge to it "
+            f"is not. It is an extra, so that installing this package cannot "
+            f"fail inside its build:\n\n"
+            f"    pip install 'pymetta[engine]'\n"
+        )
+    else:
+        # janus is installed and cannot load: it was built against a different
+        # SWI than the one on this machine.
+        msg = (
+            f"SWI-Prolog is installed at {swipl or 'an unknown location'}, but "
+            f"the janus_swi bridge was built against a different one and "
+            f"cannot load. pip caches the copy it builds for you, so this is "
+            f"what upgrading SWI after installing looks like. Rebuild the "
+            f"bridge against the SWI you have:\n\n"
+            f"    pip install --no-cache-dir --force-reinstall --no-binary "
+            f"janus_swi janus_swi\n\n"
+            f"The loader's own words were: {exc}"
+        )
+    raise EngineError(msg) from exc
+
+
 def bridge() -> JanusBridge:
     """Import and return janus without starting the MeTTa runtime."""
     janus = _STATE.janus
@@ -269,7 +335,10 @@ def bridge() -> JanusBridge:
         return janus
     with _LOCK:
         if _STATE.janus is None:
-            _STATE.janus = cast(JanusBridge, importlib.import_module("janus_swi"))
+            try:
+                _STATE.janus = cast(JanusBridge, importlib.import_module("janus_swi"))
+            except ImportError as exc:
+                _no_engine(exc)
         return _STATE.janus
 
 
@@ -459,7 +528,10 @@ class Runtime:
         """
         logger.debug("consulting the MeTTa engine from %s", metta_path)
         root = Path(metta_path)
-        janus = cast(JanusBridge, importlib.import_module("janus_swi"))
+        # Through bridge(), so a missing or unloadable janus is refused with
+        # the same words here as anywhere else: this is the FIRST crossing a
+        # fresh install reaches, so it is the one a user meets.
+        janus = bridge()
         janus.query_once(f"set_prolog_flag(stack_limit, {stack_limit})")
         janus.query_once("set_prolog_flag(argv, ['extensions'])")
         main_file = root / "engine" / "main.pl"

@@ -95,7 +95,7 @@ HOST_SERVICES = {
     # The one row here that makes the floor SHRINK by being added. The engine
     # decides silent/1 from argv at load time, an embedded host has no argv,
     # and two seats had each written the same retract-then-assert privately
-    # (metta_py_set_silent/1 here, metta_c_set_silent/1 in extensions/cetta),
+    # (metta_py_set_silent/1 here, metta_c_set_silent/1 in extensions/cmetta),
     # with engine/filereader.pl's own export comment naming the first. One
     # engine-side door replaces both copies and the engine stops depending on
     # a binding's internals.

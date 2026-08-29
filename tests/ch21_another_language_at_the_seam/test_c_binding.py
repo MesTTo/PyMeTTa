@@ -5,7 +5,7 @@ rather than against a written-down expectation.
 The C seat has no wire codec, so `tests/codec/corpus.json` cannot be pointed at
 it the way it is pointed at Node: being in the engine's own process, it reads
 `term_t` directly and never builds a tagged array (C6 in
-ai-cetta-c-constraints.md). What replaces that check is this one, and it is the
+ai-cmetta-c-constraints.md). What replaces that check is this one, and it is the
 stronger half of what the Node lane does anyway: two LIVE hosts, the same
 programs, the same moment.
 
@@ -50,7 +50,7 @@ import pytest
 
 import metta
 
-_BINDING = Path(__file__).resolve().parents[4] / "extensions" / "cetta"
+_BINDING = Path(__file__).resolve().parents[4] / "extensions" / "cmetta"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
 
 # The C seat splits what the Python seat keeps whole, because C has the types
@@ -113,7 +113,7 @@ pytestmark = pytest.mark.skipif(
 def built() -> Path:
     """Build the binding once, and fail loudly rather than skipping on error."""
     done = subprocess.run(
-        ["make", "--quiet", "kit", "tests/test_cetta"],
+        ["make", "--quiet", "kit", "tests/test_cmetta"],
         cwd=_BINDING, capture_output=True, text=True, check=False,
     )
     if done.returncode != 0:
@@ -140,13 +140,13 @@ def test_the_c_binding_suite_passes(built: Path) -> None:
     assertEqual, and the engine used to print "Assertion failed: ..." to
     current_output before raising, which for a host that embeds SWI in its own
     process is the HOST's stdout with no way to suppress it (C12 in
-    ai-cetta-c-constraints.md, filed from here). The process has exited by the
+    ai-cmetta-c-constraints.md, filed from here). The process has exited by the
     time these strings are read, so every stream is flushed: what is absent
     from stdout was never written to it, and the summary line below is the
     proof that stdout is being read at all.
     """
     done = subprocess.run(
-        [str(built / "tests" / "test_cetta")],
+        [str(built / "tests" / "test_cmetta")],
         capture_output=True, text=True, check=False,
     )
     assert done.returncode == 0, f"{done.stdout}\n{done.stderr}"

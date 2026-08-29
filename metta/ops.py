@@ -732,20 +732,32 @@ def _with_engine(runtime: Any, fn: Callable, positions: list[int]) -> Callable:
     return woven
 
 
-def _async_effective_declarations(
+def _effective_declarations(
     metta_name: str,
     catalog: tuple[Expression, ...],
     operation_effect: EffectClass,
+    floor: EffectClass,
 ) -> tuple[tuple[Expression, ...], EffectClass]:
-    """Join writesState into a coroutine operation's declared effect.
+    """Raise a declared effect to a floor the registration itself derived.
 
-    A pure coroutine body still allocates and settles a distinct public
-    FutureSpace. Reflect that observable write so caches cannot merge two
-    cancellation handles [tested:
-    test_async_calls_are_effective_writes_with_independent_handles;
-    commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+    The raised class is carried into the reflected `(effect ...)` row.
+
+    Two registrations derive a floor from the function rather than from what
+    the author said, and both must reflect what they derived or a cache reads
+    the author's weaker claim:
+
+    - a coroutine body still allocates and settles a distinct public
+      FutureSpace, so `writesState` is its floor. Reflect that observable
+      write and caches cannot merge two cancellation handles [tested:
+      test_async_calls_are_effective_writes_with_independent_handles;
+      commit=39092863ae34184a9f955f185ff57c1ff177ec40].
+    - a generator IS nondeterministic, so `nondeterministicReadOnly` is its
+      floor.
+
+    The join only ever RAISES the rank, so this widens a claim and never
+    weakens one.
     """
-    effective = operation_effect.join(EffectClass.writesState)
+    effective = operation_effect.join(floor)
     if effective is operation_effect:
         return catalog, operation_effect
     declared_effect = _expr(S.effect, S[metta_name], S[operation_effect.value])
@@ -811,8 +823,24 @@ def register[**P, R](
         metta_name, declarations, effect
     )
     if kind == "async":
-        catalog, operation_effect = _async_effective_declarations(
-            metta_name, catalog, operation_effect
+        catalog, operation_effect = _effective_declarations(
+            metta_name, catalog, operation_effect, EffectClass.writesState
+        )
+    inverse_kind = _operation_kind(inverse, "encoded") if inverse is not None else "det"
+    if kind.endswith("many") or inverse_kind.endswith("many"):
+        # A generator IS nondeterministic, and `kind` above is how that was
+        # decided from the function itself, so the declaration is LIFTED
+        # rather than refused: asking an author to restate what the
+        # registration just worked out teaches nothing. The lift only ever
+        # RAISES the rank, from a read-only class to the read-only
+        # nondeterministic one, so it widens the answer-count claim and never
+        # weakens an effect claim. It happens here, before the catalog is
+        # built, so the reflected (effect name class) row carries the lifted
+        # class; lifting after it would leave a generator reflected as pure
+        # and therefore cacheable.
+        catalog, operation_effect = _effective_declarations(
+            metta_name, catalog, operation_effect,
+            EffectClass.nondeterministicReadOnly,
         )
     explicit_arities = arities
     arities, params, variadic = _arities(fn, arities)
@@ -845,16 +873,6 @@ def register[**P, R](
         msg = (
             f"{metta_name} cannot declare atom arguments with raw transport: "
             "raw calls do not cross the atom codec"
-        )
-        raise ValueError(msg)
-    inverse_kind = _operation_kind(inverse, "encoded") if inverse is not None else "det"
-    if (kind.endswith("many") or inverse_kind.endswith("many")) and (
-        operation_effect < EffectClass.nondeterministicReadOnly
-    ):
-        msg = (
-            f"{metta_name} is nondeterministic and cannot declare "
-            f"{operation_effect.value}; use effect="
-            "EffectClass.nondeterministicReadOnly or a stronger class"
         )
         raise ValueError(msg)
     declarations = _operation_declarations(

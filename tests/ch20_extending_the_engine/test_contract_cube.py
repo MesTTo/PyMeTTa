@@ -171,15 +171,22 @@ def test_the_lane_can_fail(cube):  # noqa: D103  -- pytest discovers or injects 
     (EffectClass.pureStructural, EffectClass.readOnlyLookup),
 )
 @pytest.mark.parametrize("transport", ("encoded", "raw"))
-def test_generator_effects_below_nondeterministic_rank_are_refused(
-    cube, effect, transport
-):
-    """A generator refuses either effect below its minimum valid rank."""
+def test_a_generator_is_lifted_to_the_nondeterministic_rank(cube, effect, transport):
+    """A generator declared below its minimum rank is LIFTED, not refused.
+
+    The registration decides nondeterminism from the function itself, so
+    refusing asked the author to restate what it had already worked out. The
+    lift only raises the rank, and what it raises to has to reach the
+    reflected row: a generator left reflected as pureStructural would be
+    cacheable, which is the wrong answer rather than a wordier one.
+    """
     name = f"cube-under-ranked-{transport}-{effect.value}"
-    with pytest.raises(
-        ValueError, match="nondeterministicReadOnly or a stronger class"
-    ):
-        cube.op(_gen, name=name, transport=transport, effect=effect)
+    cube.op(_gen, name=name, transport=transport, effect=effect)
+    try:
+        (reflected,) = cube.run(f"!(match &metta (effect {name} $e) $e)")
+        assert [str(a) for a in reflected] == ["nondeterministicReadOnly"]
+    finally:
+        cube.unregister_op(name)
 
 
 def test_raw_transport_with_atom_arguments_is_refused(cube):

@@ -45,7 +45,7 @@ cells = space.define(matrix_cells)
 doctest("tensor shape doctest", cells)
 
 
-@space.op(effect="pureStructural")
+@space.pure
 def gallery_gemm(left, right):
     """Multiply two structural Matrix atoms through exactly one NumPy GEMM."""
     left_rows = _matrix_rows(left)

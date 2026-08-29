@@ -1212,11 +1212,11 @@ class AsyncMeTTa:
     ) -> Atom:
         return await self.call(lambda m: m.source(kind))
 
-    async def writes(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
+    async def atomicity(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         self,
         atomicity: Atomicity,
     ) -> Atom:
-        return await self.call(lambda m: m.writes(atomicity))
+        return await self.call(lambda m: m.atomicity(atomicity))
 
     async def op(
         self,
@@ -1243,6 +1243,25 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.op(fn, **options)
         )
+
+    # The four effect faces of `op`, mirroring Space so the async surface is
+    # the same surface. Each awaits the registration on the engine thread.
+
+    async def pure(self, fn: Callable, /, **options: Any) -> Callable:
+        """An operation whose answer depends only on its arguments."""
+        return await self.call(lambda m: m.pure(fn, **options))
+
+    async def reads(self, fn: Callable, /, **options: Any) -> Callable:
+        """An operation that reads stable state without changing it."""
+        return await self.call(lambda m: m.reads(fn, **options))
+
+    async def writes(self, fn: Callable, /, **options: Any) -> Callable:
+        """An operation that changes engine or host state."""
+        return await self.call(lambda m: m.writes(fn, **options))
+
+    async def io(self, fn: Callable, /, **options: Any) -> Callable:
+        """An operation that observes an external oracle."""
+        return await self.call(lambda m: m.io(fn, **options))
 
     async def define(
         self,

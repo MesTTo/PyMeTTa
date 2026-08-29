@@ -54,7 +54,7 @@ def twin(m):
 
     fired = []
 
-    @m.op(effect="writesState")
+    @m.writes
     def dc_stamp(x: int) -> int:
         fired.append(x)
         return x * 10
@@ -99,7 +99,7 @@ def twin(m):
 
     # ---- inside an OP body (host) ----
 
-    @m.op(effect="readOnlyLookup")
+    @m.reads
     def dc_reenter(x: int) -> int:
         # a define inside an op RE-ENTERS the engine, a full driving-lane
         # call from within a callback
@@ -108,7 +108,7 @@ def twin(m):
 
     assert m.eval(S.dc_reenter(21)) == [42]
 
-    @m.op(effect="writesState")
+    @m.writes
     def dc_hostside(x: int) -> int:
         # an op inside an op stays in host: plain Python, zero crossings
         return dc_stamp(x) + 1

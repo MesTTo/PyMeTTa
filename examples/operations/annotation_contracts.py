@@ -27,11 +27,11 @@ import metta
 m = metta.MeTTa().space()
 
 
-@m.op(effect="pureStructural")
+@m.pure
 def anyatom(term: metta.Atom) -> metta.Atom:
     return term
 
-@m.op(effect="pureStructural")
+@m.pure
 def anyval(term):
     return term
 

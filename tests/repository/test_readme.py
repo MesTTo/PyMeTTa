@@ -1,7 +1,8 @@
 """Purpose: the README's python blocks, executed: documentation that cannot
-quietly stop being true, the Rust-doctest rule. Blocks run in order in one
-namespace, since later ones build on earlier ones; a block needing an
-optional dependency (torch) skips exactly when the dependency is absent.
+quietly stop being true, the Rust-doctest rule. Each block runs in a namespace
+of its own, so a reader can copy ANY block and have it work rather than
+discovering it needed one further up; a block needing an optional dependency
+(torch) skips exactly when the dependency is absent.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -20,8 +21,6 @@ README = Path(__file__).resolve().parents[4] / "README.md"
 _BLOCKS = re.findall(r"```python\n(.*?)```", README.read_text(), re.DOTALL)
 assert _BLOCKS, "the README lost its python blocks"
 
-_NAMESPACE: dict = {}
-
 
 @pytest.mark.parametrize("index", range(len(_BLOCKS)), ids=lambda i: f"block-{i + 1}")
 def test_readme_block_executes(index, metta, tmp_path):  # noqa: ARG001, D103  -- pytest injects this fixture to establish engine state for the scenario; pytest discovers or injects this callable; its descriptive name states the contract
@@ -37,7 +36,8 @@ def test_readme_block_executes(index, metta, tmp_path):  # noqa: ARG001, D103  -
     path.write_text(source)
     settings = metta_module.config.as_dict()
     try:
-        exec(compile(source, str(path), "exec"), _NAMESPACE)
+        # A namespace per block: every example stands alone.
+        exec(compile(source, str(path), "exec"), {"__name__": "__main__"})
     finally:
         metta_module.config.configure(
             declaration_limit=settings["declaration_limit"],

@@ -148,7 +148,7 @@ class _Ledger(SpaceProvider):
 def _ledger_space(metta, ledger: _Ledger):
     """Register one ledger as a transactional receipt space."""
     receipts = metta.metta.space(backing=ledger)
-    receipts.writes(Atomicity.transactional)
+    receipts.atomicity(Atomicity.transactional)
     return receipts
 
 

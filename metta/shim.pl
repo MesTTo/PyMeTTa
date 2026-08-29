@@ -1099,8 +1099,31 @@ metta_py_handle_release(Id) :-
 %unbounded, which is what makes wide integers exact in both directions
 %without any guard.
 
-:- use_module('../../../engine/json_codec',
-              [ json_codec_read/3, json_codec_write/3 ]).
+%Found from THIS file's own directory rather than by counting levels, because
+%the two ship at different depths: the shim is extensions/python/metta/shim.pl
+%three levels under the engine in a checkout, and metta/shim.pl one level OVER
+%it, at metta/_runtime/engine/, in an installed wheel. The old directive spelled
+%the checkout's depth, and a use_module that resolves to nothing only WARNS, so
+%the wheel loaded, booted, answered arithmetic, and failed every metta._json
+%call with Unknown procedure: json_codec_write/3 [measured 2026-08-29 against a
+%wheel installed into a fresh venv outside the checkout].
+%
+%Resolved here rather than through an alias the ENGINE publishes, because this
+%file loads engine-free by contract: tests/prolog/suites/host/shim.plt consults
+%it and nothing else, so an alias registered by engine/metta.pl does not exist
+%in that session and the directive raised
+%`source_sink metta_engine(json_codec) does not exist`
+%[tested: test_the_shim_reaches_the_engine_by_alias_rather_than_by_depth].
+:- prolog_load_context(directory, Here),
+   % policy-inventory-exempt: mechanism-internal; reason=the two entries are the only layouts this package ships in, a checkout and an installed wheel, rather than a choice an operator makes; evidence=extensions/python/tests/ch01_getting_started/test_packaging.py:test_the_shim_reaches_the_engine_by_alias_rather_than_by_depth
+   (   member(Relative, ['../../../engine/json_codec.pl',
+                         '_runtime/engine/json_codec.pl']),
+       absolute_file_name(Relative, Codec,
+                          [relative_to(Here), access(read), file_errors(fail)])
+   ->  use_module(Codec, [ json_codec_read/3, json_codec_write/3 ])
+   ;   throw(error(existence_error(source_sink, json_codec),
+                   context(shim, 'no engine/json_codec.pl beside this shim')))
+   ).
 
 metta_py_json_options([shape(dicts), true(@(true)), false(@(false)),
                        null(@(none))]).

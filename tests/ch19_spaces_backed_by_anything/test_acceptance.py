@@ -82,7 +82,7 @@ def sql(metta, request):  # noqa: D103  -- pytest discovers or injects this call
     metta.annotations(name, "bag")
     metta._at(name).handles("(edge $x $y)", "Exact")
     metta._at(name).handles("(edge $x $x)", "Sound")
-    metta._at(name).writes("transactional")
+    metta._at(name).atomicity("transactional")
     yield name, provider
     metta._unregister_space(name)
 

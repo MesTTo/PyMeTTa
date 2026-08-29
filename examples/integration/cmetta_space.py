@@ -13,7 +13,7 @@ Guarantees:
   - removal takes every stored occurrence CeTTa matches for the pattern,
     decided in ONE subprocess run by tagging each stored atom with its
     index and matching (probe $i <pattern>) [tested
-    test_cetta_space.py::test_removal_is_by_unification]
+    test_cmetta_space.py::test_removal_is_by_unification]
   - an atom whose text spans lines is refused at add, because the
     subprocess crossing is line-shaped
 Open Obligations:
@@ -34,14 +34,14 @@ from _common import check, done, skip
 
 from metta.foreign import SpaceProvider
 
-_PROBE = "metta-cetta-probe"
+_PROBE = "metta-cmetta-probe"
 
 
-class CettaSpace(SpaceProvider):
+class CMettaSpace(SpaceProvider):
     """Atoms stored beside their text, pattern queries answered by CeTTa."""
 
-    def __init__(self, cetta: str | None = None, timeout: float = 30.0):
-        self._cetta = cetta or os.environ.get("METTA_CETTA", "cetta")
+    def __init__(self, cmetta: str | None = None, timeout: float = 30.0):
+        self._cmetta = cmetta or os.environ.get("METTA_CMETTA", "cmetta")
         self._timeout = timeout
         self._atoms: list[Any] = []
 
@@ -88,7 +88,7 @@ class CettaSpace(SpaceProvider):
             "-e",
             " ".join(f"({_PROBE} {i} {atom})" for i, atom in enumerate(self._atoms)),
             "-e",
-            f"!(match &self ({_PROBE} $metta-cetta-i {pattern}) $metta-cetta-i)",
+            f"!(match &self ({_PROBE} $metta-cmetta-i {pattern}) $metta-cmetta-i)",
         ]
         answer, errors = self._run(program)
         if not answer:
@@ -100,7 +100,7 @@ class CettaSpace(SpaceProvider):
 
     def _run(self, arguments: list[str]) -> tuple[str, str]:
         completed = subprocess.run(  # noqa: S603 - the binary is the caller's own configuration
-            [self._cetta, "--quiet", *arguments],
+            [self._cmetta, "--quiet", *arguments],
             capture_output=True,
             text=True,
             timeout=self._timeout,
@@ -108,13 +108,13 @@ class CettaSpace(SpaceProvider):
         )
         if completed.returncode != 0:
             raise RuntimeError(
-                f"cetta exited {completed.returncode}: "
+                f"cmetta exited {completed.returncode}: "
                 f"{completed.stderr.strip() or completed.stdout.strip()}"
             )
         return completed.stdout.strip(), completed.stderr.strip()
 
 
-class CettaMatch:
+class CMettaMatch:
     """A grounded value whose matching IS CeTTa evaluation.
 
     Held in a MeTTa expression and unified against an operand, it yields
@@ -125,17 +125,17 @@ class CettaMatch:
     own logic is the authority and nothing re-derives its claims; a
     space is exactly such a value whose matcher is query.
 
-        matcher = CettaMatch("(sol 2) (sol -2)",
+        matcher = CMettaMatch("(sol 2) (sol -2)",
                              "!(match &self (sol $s) (sol $s))", m.parse)
         !(unify <matcher> (sol $x) $x none)   ; answers 2 and -2
     """
 
-    def __init__(self, program: str, query: str, parse, cetta: str | None = None,
+    def __init__(self, program: str, query: str, parse, cmetta: str | None = None,
                  timeout: float = 30.0):
         self._program = program
         self._query = query
         self._parse = parse
-        self._space = CettaSpace(cetta=cetta, timeout=timeout)
+        self._space = CMettaSpace(cmetta=cmetta, timeout=timeout)
 
     def match_(self, other):
         answer, _errors = self._space._run(["-e", self._program, "-e", self._query])
@@ -151,7 +151,7 @@ def _bracket_items(answer: str, errors: str = "") -> list[str]:
     line = answer.splitlines()[-1].strip() if answer else ""
     if not (line.startswith("[") and line.endswith("]")):
         raise RuntimeError(
-            f"cetta answered an unexpected shape: stdout {answer!r}, "
+            f"cmetta answered an unexpected shape: stdout {answer!r}, "
             f"stderr {errors[-500:]!r}"
         )
     inner = line[1:-1].strip()
@@ -173,32 +173,32 @@ def _bracket_items(answer: str, errors: str = "") -> list[str]:
 def demo() -> None:
     """The worked run: this engine's queries answered over atoms CeTTa
     matches, and CeTTa evaluation results binding variables inside it."""
-    cetta = os.environ.get("METTA_CETTA") or shutil.which("cetta")
-    if cetta is None:
-        skip("cetta is not on PATH and METTA_CETTA does not name it")
+    cmetta = os.environ.get("METTA_CMETTA") or shutil.which("cmetta")
+    if cmetta is None:
+        skip("cmetta is not on PATH and METTA_CMETTA does not name it")
     import metta
     from metta import S, V, Expression
     from metta.atoms import Grounded
 
     m = metta.MeTTa().space()
-    space = CettaSpace(cetta=cetta)
-    m._register_space(space, "&cetta")
-    m.run("!(add-atom &cetta (edge a b))")
-    m.run("!(add-atom &cetta (edge a c))")
-    (group,) = m.run("!(collapse (match &cetta (edge a $x) $x))")
+    space = CMettaSpace(cmetta=cmetta)
+    m._register_space(space, "&cmetta")
+    m.run("!(add-atom &cmetta (edge a b))")
+    m.run("!(add-atom &cmetta (edge a c))")
+    (group,) = m.run("!(collapse (match &cmetta (edge a $x) $x))")
     check("CeTTa matches, this engine binds", sorted(str(a) for a in group[0]),
           ["b", "c"])
 
-    matcher = CettaMatch(
+    matcher = CMettaMatch(
         "(sol 2) (sol -2)",
         "!(match &self (sol $s) (sol $s))",
         m.parse,
-        cetta=cetta,
+        cmetta=cmetta,
     )
     rows = m.eval(Expression(S.unify, Grounded(matcher), Expression(S.sol, V.x), V.x, S.none))
     check("CeTTa answers bind inside unify", sorted(str(a) for a in rows),
           ["-2", "2"])
-    done("cetta_space")
+    done("cmetta_space")
 
 
 if __name__ == "__main__":

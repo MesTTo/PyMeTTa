@@ -170,7 +170,13 @@ def test_the_minimal_version_matrix_installs_every_required_dependency():
         line for line in matrix.splitlines() if "janus_swi" in line and "pytest" in line
     )
     installed = set(install.split())
-    for requirement in _manifest()["project"]["dependencies"]:
+    manifest = _manifest()["project"]
+    # The `engine` extra is checked beside the required list, not instead of
+    # it: janus-swi moved there so a plain install cannot fail inside its
+    # build, and a suite that runs the engine still needs it. Reading only
+    # `dependencies` would have stopped noticing the day it moved.
+    required = [*manifest["dependencies"], *manifest["optional-dependencies"]["engine"]]
+    for requirement in required:
         name = re.split(r"[<>=!\[]", requirement)[0]
         # janus-swi is spelled with the underscore its distribution uses,
         # because --no-binary names the same package again.
@@ -414,3 +420,35 @@ def test_every_module_invocation_in_the_gate_reaches_an_entry_point():
         assert target.split(".")[0] not in {"metta", "benchmarks", "pytest"}, (
             f"{target} is a first-party target and must resolve"
         )
+
+
+def test_the_shim_reaches_the_engine_by_alias_rather_than_by_depth():
+    """A relative path from the shim to the engine is right in exactly one
+    layout, and this package ships two.
+
+    In a checkout the shim is `extensions/python/metta/shim.pl` and the engine
+    is three levels up; in a wheel the shim is `metta/shim.pl` and the engine
+    is one level DOWN, at `metta/_runtime/engine/`. The directive used to spell
+    the checkout's depth, so the installed copy resolved it to nothing --- and
+    a `use_module` that resolves to nothing only WARNS, so the wheel loaded,
+    booted, answered arithmetic, and failed every metta._json call with
+    `Unknown procedure: json_codec_write/3` [measured 2026-08-29 against a
+    wheel installed into a fresh venv outside the checkout].
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    shim = (ROOT / "extensions" / "python" / "metta" / "shim.pl").read_text(
+        encoding="utf-8"
+    )
+    # Both layouts are named, and the search runs from the shim's own directory
+    # rather than from one hard-coded depth.
+    assert "prolog_load_context(directory, Here)" in shim, (
+        "the shim no longer resolves the codec from its own directory"
+    )
+    for layout in ("'../../../engine/json_codec.pl'", "'_runtime/engine/json_codec.pl'"):
+        assert layout in shim, f"the shim stopped looking for the codec at {layout}"
+
+    from metta import _json
+
+    # Calling it is the proof the alias resolved: json_codec_write/3 reaches
+    # this side only through that import, and it is the half that was broken
+    # in the wheel while arithmetic went on answering.
+    assert _json.loads(_json.dumps({"a": [1, 2]})) == {"a": [1, 2]}

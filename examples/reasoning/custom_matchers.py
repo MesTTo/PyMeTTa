@@ -72,7 +72,8 @@ def fuzzy(query, candidate=None):
         degree = difflib.SequenceMatcher(None, str(query), word).ratio()
         yield Answer(value=word, k=round(degree, 6))
 
-m.op(fuzzy, name="fuzmatch", effect="nondeterministicReadOnly")
+# reads the lexicon and never writes; the generator lifts the class itself
+m.reads(fuzzy, name="fuzmatch")
 m.annotations("fuzmatch", "ranked")
 (best,) = m.run('!(collapse (top 1 (fuzmatch "clase" $w)))')[0]
 check("fuzzy best is difflib's own ranking", str(best.children[0]), '"clause"')

@@ -117,7 +117,7 @@ def test_verbosity_is_a_published_engine_door(metta, capfd, _verbosity_restored)
 def test_no_binding_carries_its_own_verbosity_setter(metta, repo_root):
     """One writer for the flag, and it is the engine's.
 
-    extensions/python and extensions/cetta each carried the identical
+    extensions/python and extensions/cmetta each carried the identical
     retract-then-assert under a private name, and engine/filereader.pl's own
     export comment named the first of them, so the engine depended on a
     binding's internals. The scoreboard in test_shim_surface.py pins that the

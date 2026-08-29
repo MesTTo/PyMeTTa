@@ -103,7 +103,7 @@ def attach_sqlite(
     target.handles("(edge $x $y)", "Exact")
     target.handles("(edge $x $x)", "Exact")
     target.handles("(document $id $blob)", "Exact")
-    target.writes("transactional")
+    target.atomicity("transactional")
     return provider
 
 

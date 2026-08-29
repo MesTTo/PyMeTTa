@@ -400,6 +400,26 @@ def op(*args: _Any, **kwargs: _Any):
     return engine().self.op(*args, **kwargs)
 
 
+def pure(*args: _Any, **kwargs: _Any):
+    """Register a pure host operation in the default self space."""
+    return engine().self.pure(*args, **kwargs)
+
+
+def reads(*args: _Any, **kwargs: _Any):
+    """Register a state-reading host operation in the default self space."""
+    return engine().self.reads(*args, **kwargs)
+
+
+def writes(*args: _Any, **kwargs: _Any):
+    """Register a state-changing host operation in the default self space."""
+    return engine().self.writes(*args, **kwargs)
+
+
+def io(*args: _Any, **kwargs: _Any):
+    """Register an oracle-observing host operation in the default self space."""
+    return engine().self.io(*args, **kwargs)
+
+
 def stats():
     """Measure engine counters across a default-context block."""
     return engine().self.stats()
@@ -511,6 +531,7 @@ __all__ = [
     "if_",
     "in_",
     "integrate",
+    "io",
     "lib",
     "limits",
     "lint",
@@ -525,9 +546,11 @@ __all__ = [
     "paths",
     "prob",
     "prov",
+    "pure",
     "py",
     "race",
     "ranked",
+    "reads",
     "reflection",
     "refuse",
     "remote",
@@ -556,6 +579,7 @@ __all__ = [
     "view",
     "vocabularies",
     "wire",
+    "writes",
 ]
 
 # Importing a submodule writes it onto its parent package. These concrete

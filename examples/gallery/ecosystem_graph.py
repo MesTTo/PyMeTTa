@@ -58,7 +58,7 @@ claim(
 # => ()
 
 
-@space.op(effect="readOnlyLookup")
+@space.reads
 def ecosystem_shortest_path(source, target):
     """Project edge atoms, run NetworkX, and return one structural path."""
     graph = to_graph(space, S.edge(V.start, V.end))

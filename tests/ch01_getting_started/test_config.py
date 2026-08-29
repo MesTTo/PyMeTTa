@@ -112,6 +112,12 @@ def test_backend_startup_does_not_change_process_working_directory(monkeypatch, 
 
     bridge = Bridge()
     monkeypatch.setattr(_engine.importlib, "import_module", lambda _name: bridge)
+    # _consult_engine reaches janus through bridge(), which CACHES what it
+    # imports in the process-wide _STATE so a missing engine is refused with
+    # one diagnostic wherever it is first noticed. That cache would outlive
+    # this test and hand every later one this stub, whose query_once takes no
+    # inputs: setting it through monkeypatch is what puts it back.
+    monkeypatch.setattr(_engine._STATE, "janus", None)
 
     def refuse_chdir(path):
         msg = f"engine startup changed directory to {path}"
