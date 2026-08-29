@@ -120,3 +120,24 @@ def test_a_component_that_owns_tests_ships_the_script_that_runs_them():
         f"these components own a test directory and no test.sh to run it: "
         f"{unrunnable}. The gate and the developer should run one file"
     )
+
+
+def test_every_seat_ships_a_cheat_sheet_for_using_it():
+    """A seat a consumer can reach is a seat a consumer can be told how to use.
+
+    llms.txt is the consumer's file: what this thing is, how to install it, and
+    what to type. It is not the contributor's -- gates, test counts and build
+    protocol belong in the seat's README and in DEVELOPING.md -- and it is not
+    an inventory, which is why the root file stopped pinning how many lines the
+    engine is.
+    """
+    seats = sorted(
+        control.parent
+        for control in (REPO / "extensions").glob("*/extension.pl")
+    )
+    assert seats, "no extension.pl found at all, so this check proves nothing"
+    missing = [seat.name for seat in seats if not (seat / "llms.txt").is_file()]
+    assert not missing, (
+        f"these seats ship with no llms.txt telling a consumer how to use them: "
+        f"{missing}"
+    )

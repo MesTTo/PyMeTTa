@@ -1,0 +1,81 @@
+# MeTTa in Python
+
+> Write Python, get MeTTa. Atoms are Python values, spaces are queryable
+> stores, equations rewrite, and a Python function can be a MeTTa function.
+> This file is how to USE the seat; the repository root's llms.txt covers the
+> language and every other surface.
+
+## Install
+
+```sh
+pip install .            # from the repository root; the runtime is bundled
+```
+
+Or point `METTA_PATH` at a clone and import from there. You need Python 3.12+,
+SWI-Prolog 9.3+, and a `janus_swi` linked against that SWI.
+
+## First call
+
+```python
+from metta import MeTTa, S, V, G, ground, Expression, equation, rules, parse
+
+m = MeTTa()                              # binds &self
+m.self.run("(= (f) 1) !(f) !(+ 1 2)")    # [[Grounded(1)], [Grounded(3)]]
+```
+
+## Building terms without strings
+
+A string is text. A symbol comes from its factory, a variable from `V`, a
+Python value from `G`:
+
+```python
+S.parent(S.alice, S.bob)     # (parent alice bob)
+V.x                          # $x
+G(3.5)                       # a Python float, crossed as itself
+parse("(parent $x bob)")     # the string door, for whole programs
+```
+
+## Asking
+
+```python
+m.query(S.parent(V.x, S.bob))    # rows, one per solution
+m.eval(S.add(1, 2))              # evaluate one term
+m.run(source)                    # run program text, one answer group per !
+```
+
+An answer set is iterable, and a generator registered as an operation is
+nondeterminism, so `yield` and `for` mean what they mean in Python.
+
+## Python functions as MeTTa functions
+
+```python
+@m.define
+def double(x: int) -> int:
+    return x * 2
+```
+
+`@m.define` compiles the body into equations. `m.op` registers the callable
+itself when you want the call to cross into Python at run time.
+
+## Spaces
+
+```python
+kb = m.space(S.kb)          # a handle; naming one does not create it
+kb += S.parent(S.alice, S.bob)
+kb.query(S.parent(V.x, S.bob))
+```
+
+## Measuring your own program
+
+```python
+with m.stats() as s:
+    rows = m.query(pattern)
+print(s.inferences)          # deterministic; wall time is not
+```
+
+## Where to read next
+
+- `website/tutorials/` teaches the language from Python, one idea at a time.
+- `website/guide/` is task-oriented: queries, definitions, spaces, threads.
+- `website/reference/` reproduces every public module's exact signatures.
+- `extensions/python/examples/` are runnable programs that print checked claims.

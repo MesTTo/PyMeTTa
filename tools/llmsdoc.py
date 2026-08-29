@@ -124,7 +124,6 @@ def engine_vocabulary() -> tuple[set[str], set[str], set[str]]:
 
 def counts() -> list[tuple[str, int]]:
     """Each dated count in llms.txt, with what the tree says it is now."""
-    src_lines = sum(len(path.read_text().splitlines()) for path in engine_sources())
     main = (ROOT / "extensions" / "python" / "metta" / "__main__.py").read_text()
     # The example count comes from the runners' own definition rather than a
     # glob. A bare examples/**/*.metta counts the fixtures, which are inputs
@@ -146,7 +145,12 @@ def counts() -> list[tuple[str, int]]:
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
         (r"(\d+) runnable Python programs", len(list(ROOT.glob("extensions/python/examples/*/*.py")))),
-        (r"([\d,]+) lines: `engine/metta.pl`", src_lines),
+        # No engine line count. This file is a cheat sheet for USING the
+        # repository, and a reader gets nothing from how many lines the engine
+        # is; the number churned on every engine edit and was hand-re-pinned
+        # twice in one day for changes that taught nobody anything. What the
+        # row above it says -- which unit consults which -- is the part that
+        # helps, and it does not move with a line.
         (r"(\d+) MeTTa libraries loaded", len(list(ROOT.glob("lib/lib_*/lib_*.metta")))),
         (r"(\d+) libraries load with", len(list(ROOT.glob("lib/lib_*/lib_*.metta")))),
         (r"(\d+) builtins are registered", -1),
