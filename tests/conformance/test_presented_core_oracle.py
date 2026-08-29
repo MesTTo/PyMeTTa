@@ -64,6 +64,27 @@ CORPUS = [
     "!(chain (function (return 7)) $y (cons-atom $y (8)))",
     "!(superpose-bind ((42 ()) (43 ())))",
     "!(superpose-bind ((a ())))",
+    # The CARRIER, both ways. A two-element row is a collapse-bind pair and its
+    # second element has to decode as a binding carrier; every other row shape
+    # passes through. These pin the difference, because the engine used to
+    # answer the value for all of them and agreed with the oracle only on the
+    # well-formed one.
+    "!(superpose-bind ((42 (bindings)) (43 (bindings))))",
+    "!(superpose-bind ((42 (bindings (<- $x 1)))))",
+    # The sequence-variable entry shapes the decoder also takes. This engine
+    # produces neither, and accepts both, because refusing what the oracle
+    # accepts is as much a divergence as accepting what it refuses. Only the
+    # cases whose ANSWER carries no variable are here: a refusal echoes the
+    # source, and the two evaluators name a variable differently.
+    "!(superpose-bind ((42 (bindings (seq $n)))))",
+    "!(superpose-bind ((42 (bindings (<- (:seg $n) (a b))))))",
+    "!(superpose-bind ((42 (bindings junk))))",
+    "!(superpose-bind ((42 (bindings (<- 1 2)))))",
+    "!(superpose-bind ((42 bindings)))",
+    "!(superpose-bind ((42 nonsense)))",
+    "!(superpose-bind (42))",
+    "!(superpose-bind ((a b c)))",
+    "!(superpose-bind ())",
     "!(unify (a $x) (a b) $x nope)",
     "!(unify 1 2 yes nope)",
     # THE EVALUATION MASK, on the same fragment. Every row here carries a

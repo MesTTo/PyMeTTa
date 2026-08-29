@@ -463,4 +463,16 @@ def twin(m):
 #: command=python -m pytest "tests/repository/test_twin_coverage.py::test_a_shipped_twin_agrees_with_its_example_end_to_end[ch05-equations-and-evaluation/05-01-an-equation-is-a-rewrite/01-identity.metta]";
 #: fixture=this worktree with engine/reader.so, engine/writer.so and the MORK
 #: backend loaded; commit=a9663314a626d6227ef948658b5de769992c0afa]. metta=2800, unchanged.
-BUDGET = 2821
+#: RE-PINNED 2026-08-29, 2821 to 2831 (+10), a reaction row now installs the
+#: engine's write hook itself, from metta_check_catalog_semantics/3 where the
+#: head is dispatched on an atom, so the cost is two inferences per (on ...)
+#: DECLARATION and nothing per ordinary write. It was the one declaration whose
+#: side effect stayed on the host: every binding had to call
+#: metta_install_bridges/0 after writing the row, the Python seat does it
+#: inside a goal string, and a binding whose Prolog is statically checked could
+#: not do it at all. The complexity class is unchanged and now proportional to
+#: reactions declared rather than to writes, and 2821 to 2831 is the harness's
+#: own five reaction declarations paying it [measured 2026-08-29: min-of-3
+#: serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 2831
