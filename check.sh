@@ -186,7 +186,13 @@ run REPORT determinism check_determinism_coverage
 
 # Two residuals remain: the CLI executes a fixed argv without a shell, and
 # upstream's import-overhaul fixture owns its import grouping.
-run GATE   ruff        in_py "$PY" -m ruff check metta tests bench.py
+# The language-feature corpus is named because it moved into `examples` out of
+# `tests`, and 219 files that were linted as part of `tests` would otherwise
+# have gone quiet without one lane turning red. It is named PRECISELY rather
+# than as `examples`, which would newly lint the topical examples beside it:
+# those carry 184 findings of their own that predate this and belong to their
+# own burn-down, not to a folder move.
+run GATE   ruff        in_py "$PY" -m ruff check metta tests examples/language-feature-examples bench.py
 # ledger C2: 65 errors in 13 files
 run GATE   mypy        in_py "$PY" -m mypy
 # ledger C2: 67 diagnostics, independent engine

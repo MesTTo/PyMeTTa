@@ -17,8 +17,18 @@ from pathlib import Path
 import pytest
 
 EXAMPLES_ROOT = Path(__file__).resolve().parents[2] / "examples"
+
+# The language-feature examples are the SAME corpus in a different key: one
+# Python file per shipped MeTTa example, each defining twin(m) rather than
+# running itself, and each carrying a pinned inference BUDGET. They are driven
+# by tools/twin_coverage.py, which passes the handle and reads the budget, and
+# running one as a program here would execute a module that defines a function
+# and verifies nothing. This glob is recursive, so the folder has to be named.
+LANGUAGE_FEATURES = EXAMPLES_ROOT / "language-feature-examples"
 EXAMPLES = sorted(
-    path for path in EXAMPLES_ROOT.rglob("*.py") if path.name != "_common.py"
+    path
+    for path in EXAMPLES_ROOT.rglob("*.py")
+    if path.name != "_common.py" and LANGUAGE_FEATURES not in path.parents
 )
 
 

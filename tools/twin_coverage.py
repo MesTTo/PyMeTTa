@@ -1,6 +1,6 @@
 """Purpose: turn "how much of MeTTa can be written in pure Python today" into a
 measured number with a derived backlog. Each example under `examples/` may gain
-a Python TWIN under `extensions/python/tests/twins/`, mirroring its path; this
+a Python TWIN under `extensions/python/examples/language-feature-examples/`, mirroring its path; this
 lane runs the example and its twin, requires the twin to prove every claim the
 example makes, to make the example's definitions matchable, to use no MeTTa
 source text, and to spell in Python what Python already spells. Whatever a twin
@@ -91,11 +91,14 @@ Guarantees:
     [tested: test_an_empirical_envelope_cannot_license_another_protocol;
     commit=b1599bdc8201a04a3689c1a88707b6f4b53b4d22]
 Decides:
-  - twins live under `extensions/python/tests/twins/<folder>/<name>.py`, the
+  - twins live under `extensions/python/examples/language-feature-examples/<folder>/<name>.py`, the
     example's own relative path with a Python suffix. The mapping is a pure
-    path transform over the corpus, which is why there is no second walker;
-    and `tests/**` is already inside ruff's and codespell's reach, so the
-    twins are linted and spell-checked without a runner learning about them
+    path transform over the corpus, which is why there is no second walker.
+    The corpus used to be linted for free, because it sat inside `tests/**`
+    and ruff's and codespell's reach already covered that; since the move it
+    is NAMED, by check.sh's ruff lane and by pyproject's per-file ignores,
+    because coverage that depends on where a file sits rather than on what a
+    lane says goes quiet the moment the file moves and no lane turns red
   - process isolation per twin, matching example_parity's own reading: it is
     affordable and it cannot leak a definition from one twin into the next
   - the budget lives in the twin as BUDGET, not in a side table, so a twin
@@ -167,7 +170,7 @@ from metta.atoms import Atom, _alpha_eq, _encode
 import example_parity as parity
 
 REPO = parity.REPO
-TWINS = REPO / "extensions" / "python" / "tests" / "twins"
+TWINS = REPO / "extensions" / "python" / "examples" / "language-feature-examples"
 RESIDUE = TWINS / "residue.json"
 
 
@@ -447,7 +450,7 @@ RETIRED_ROOT = {
     # keyed beside it because that is how the name survived a mechanical sweep:
     # two twins reach past the root for the private atom rather than write the
     # receiver [measured 2026-08-24: `from metta.atoms import _HERE as HERE` in
-    # tests/twins/reasoning/peano.py and tests/twins/reasoning/scallop_readme.py,
+    # examples/language-feature-examples/reasoning/peano.py and examples/language-feature-examples/reasoning/scallop_readme.py,
     # and nowhere else in the corpus; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     "HERE": "the space handle itself; match(...) reads the ambient space",
     "_HERE": "the space handle itself; match(...) reads the ambient space",
@@ -1172,7 +1175,7 @@ def idiom(twin: Path) -> list[str]:
             reached = _factory(node)
             # A MINTING factory only: the engine's own catalog holds function
             # names such as `&&&` and `&^&`, so `fn["&&&"]` names a combinator
-            # and not a space [source: extensions/python/tests/twins/libraries/
+            # and not a space [source: extensions/python/examples/language-feature-examples/libraries/
             # roman_test.py; tested: test_an_engine_function_may_be_named_with_
             # an_ampersand; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
             if (
@@ -1337,7 +1340,7 @@ def retired(twin: Path) -> list[str]:
     variable `$query` and `fn.first` is the engine's own `first`, so the tables
     are read at doors and not at names [measured 2026-08-24: reading them at
     every attribute reported both, `V.query` twice in
-    tests/twins/reasoning/nilbc.py and `fn.first` wherever the catalog's own
+    examples/language-feature-examples/reasoning/nilbc.py and `fn.first` wherever the catalog's own
     `first` is mentioned; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
     """
     tree = _parse(twin)

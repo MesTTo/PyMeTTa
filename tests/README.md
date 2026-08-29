@@ -23,9 +23,15 @@ Two packages are not chapters, because their subject is not the language:
   in tracked files.
 
 `fixtures/` holds inputs rather than tests: two MeTTa files a fixture loads and
-the remote server one test starts as a subprocess. `twins/` is the Python twin
-corpus, one file per example, addressed by transforming the example's own path,
-which is why its directories keep the examples' hyphenated spelling.
+the remote server one test starts as a subprocess.
+
+The Python corpus of the shipped MeTTa examples is not under this directory. It
+lives beside the other examples, at
+`extensions/python/examples/language-feature-examples/`, one file per example,
+addressed by transforming the example's own path, which is why its directories
+keep the examples' hyphenated spelling. It is a corpus of programs rather than
+of test modules: each file defines `twin(m)` and carries a pinned inference
+budget, and `tools/twin_coverage.py` is what runs them.
 
 Chapters 2 and 22 have no package. They are the book's project chapters, and
 what they teach is a whole program, which `examples/ch02-programming-a-family-tree/`

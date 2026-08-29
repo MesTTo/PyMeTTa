@@ -30,6 +30,17 @@ Guarantees:
     generic operation and engine classifiers [tested:
     test_a_restricted_space_cannot_reach_what_its_base_does_not_publish;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a call whose inputs the engine cannot accept fails on its OWN call, by
+    kind and naming where in the input the offending text sits, and the next
+    call is unaffected on every door [tested:
+    test_text_with_no_utf8_encoding_is_refused_by_kind,
+    test_a_refused_crossing_does_not_fail_the_next_call,
+    test_no_door_leaves_the_next_call_carrying_the_refusal; commit=WORKTREE]
+  - a Python exception raised inside the engine classifies the same through
+    the goal-string door and the predicate door [tested:
+    test_an_enumeration_refuses_answers,
+    test_an_enumeration_refuses_answers_through_the_term_door_too;
+    commit=WORKTREE]
 Guarded by:
   - _LOCK serializes runtime creation and every call made on the HOME engine.
     A thread holding its own attached engine takes no process lock: it shares
@@ -52,7 +63,7 @@ import os
 import sys
 import threading
 from collections.abc import Iterator, Mapping
-from contextlib import AbstractContextManager, contextmanager, nullcontext
+from contextlib import AbstractContextManager, contextmanager, nullcontext, suppress
 from importlib import resources
 from pathlib import Path
 from typing import Any, NoReturn, Protocol, cast
@@ -71,6 +82,51 @@ from .errors import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _unencodable(inputs: Any) -> str | None:
+    """Where a janus input holds text with no UTF-8 encoding, described.
+
+    Python allows an unpaired surrogate in a str, and every surrogateescape
+    decode makes them: os.listdir over a filename whose bytes are not UTF-8
+    hands back exactly this. UTF-8 has no encoding for one, so the conversion
+    into a Prolog term fails inside janus's C.
+
+    Walked only after a crossing has already failed, with an explicit stack
+    rather than recursion because the input is the caller's structure and may
+    nest arbitrarily. That structure may also be CYCLIC -- a list holding
+    itself is a thing a caller can build and hand over -- and this runs while
+    reporting an error, which is the worst place to spin, so containers are
+    visited once by identity. Nothing on the succeeding path pays for this.
+    """
+    pending: list[tuple[str, Any]] = [("", inputs)]
+    seen: set[int] = set()
+    while pending:
+        where, value = pending.pop()
+        if isinstance(value, (Mapping, list, tuple)):
+            if id(value) in seen:
+                continue
+            seen.add(id(value))
+        if isinstance(value, str):
+            if value.isascii():
+                continue
+            try:
+                value.encode("utf-8")
+            except UnicodeEncodeError as exc:
+                return (
+                    f"{where or 'the input'} contains an unpaired surrogate at "
+                    f"position {exc.start}, which has no UTF-8 encoding"
+                )
+        elif isinstance(value, Mapping):
+            pending.extend((f"{where}[{key!r}]" if where else str(key), item)
+                           for key, item in value.items())
+        elif isinstance(value, (list, tuple)):
+            # The predicate doors pass their arguments as the root tuple, so
+            # the top level reads "argument 2" rather than a bare "[2]".
+            pending.extend((f"{where}[{index}]" if where else f"argument {index}", item)
+                           for index, item in enumerate(value))
+    return None
+
 
 _LOCK = threading.RLock()
 # Reusable, so the call path picks a shared object instead of building a
@@ -464,6 +520,8 @@ class Runtime:
                 row = self._janus.query_once(goal, inputs)
             except self._janus.PrologError as exc:
                 self._raise(exc)
+            except SystemError as exc:
+                self._lost_crossing(exc, inputs)
             if row is None or row.get("truth") is False:
                 return {}
             return row
@@ -549,7 +607,10 @@ class Runtime:
             try:
                 value = self._janus.apply_once("user", predicate, *inputs, fail=_FAILED)
             except self._janus.PrologError as exc:
+                self._resynchronise()
                 self._raise(exc)
+            except SystemError as exc:
+                self._lost_crossing(exc, inputs)
         return None if value is _FAILED else value
 
     def apply_must(self, predicate: str, *inputs: Any) -> Any:
@@ -584,7 +645,10 @@ class Runtime:
             try:
                 truth = self._janus.cmd("user", predicate, *inputs)
             except self._janus.PrologError as exc:
+                self._resynchronise()
                 self._raise(exc)
+            except SystemError as exc:
+                self._lost_crossing(exc, inputs)
         return truth is True
 
     def do_must(self, predicate: str, *inputs: Any) -> None:
@@ -622,7 +686,61 @@ class Runtime:
                 rows = list(self._janus.query(goal, inputs))
             except self._janus.PrologError as exc:
                 self._raise(exc)
+            except SystemError as exc:
+                self._lost_crossing(exc, inputs)
         return iter(rows)
+
+    def _resynchronise(self) -> None:
+        """Absorb an error a failed crossing left pending in the engine.
+
+        The predicate doors (apply_once, cmd) leave a Python exception raised
+        inside the engine PENDING, where the goal-string door clears it. The
+        next janus call is the one that reports it, and on the failure path
+        that next call is janus's own PrologError.__str__, which runs
+        message_to_string/2 to render the very error being classified: the
+        classification then died on the pending error and the caller received
+        a raw janus PrologError instead of its own exception [measured
+        2026-08-29 at HEAD, ai-tmp/perf-eval/probe_apply_door_error.py:
+        space.eval leaked janus_swi.janus.PrologError where space.run raised
+        MettaError].
+
+        One sacrificial goal takes the pending error so whatever follows sees
+        a clean engine. Only ever run once a call has already failed, so the
+        succeeding path pays nothing.
+        """
+        with suppress(Exception):
+            self._janus.query_once("true")
+
+    def _lost_crossing(self, exc: SystemError, inputs: Any) -> NoReturn:
+        """Recover from an input conversion that failed inside janus's C.
+
+        janus reports such a failure as a bare ``SystemError`` naming nothing,
+        and the Python exception it set stays pending in the engine: measured
+        2026-08-29, the NEXT call, however unrelated, is the one that raises
+        it, and the call after that is clean again. On a server that made one
+        peer's malformed payload fail a different peer's request.
+
+        So the failure is made local here, the way a database client discards
+        a connection's pending results after a framing error rather than
+        letting the next statement read them: one sacrificial goal absorbs the
+        pending error, and this call raises for its own input. Nothing is
+        spent on the succeeding path, because the recovery runs only once a
+        crossing has already been lost.
+
+        The refusal matches _atoms_core._encodable, which already gives this
+        wording where an ATOM carries the same text; this is the raw goal door
+        it never covered.
+        """
+        self._resynchronise()
+        reason = _unencodable(inputs)
+        if reason is None:
+            msg = f"the engine could not accept this call's inputs: {exc}"
+            raise EngineError(msg) from exc
+        msg = (
+            f"this call cannot cross to the engine: {reason}. Repair the "
+            f"text, or carry it whole with metta.ground(text)."
+        )
+        raise ValueError(msg) from None
 
     def _raise(self, exc: BaseException) -> NoReturn:
         message = _clean_message(exc)

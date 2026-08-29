@@ -139,9 +139,14 @@ def counts() -> list[tuple[str, int]]:
     return [
         (r"(\d+) executable programs", len(corpus())),
         (r"(\d+) pages reproducing source", len(list(ROOT.glob("website/reference/metta-*.md")))),
-        (r"(\d+) plunit suites", len(list(ROOT.glob("tests/prolog/suites/*/*.plt")))),
-        (r"(\d+) files, blackbox", len(list(ROOT.glob("extensions/python/tests/*/test_*.py")))),
-        (r"(\d+) Python twins", len(list(ROOT.glob("extensions/python/tests/twins/**/*.py")))),
+        # No test-corpus counts, for the reason the engine line count is
+        # absent below: this file is a cheat sheet for USING the repository,
+        # and how many plunit suites, blackbox test files or Python twins the
+        # tree carries tells a consumer nothing it can act on. They also churn
+        # on every test added -- adding one seam regression turned the `llms`
+        # lane red for a number no reader had ever wanted. The rows themselves
+        # stay, because WHERE the tests live and what shape they take is the
+        # part that helps, and that does not move with a file.
         (r"(\d+) pages of prose", len(list(ROOT.glob("website/guide/*.md")))),
         (r"(\d+) numbered lessons", len(list(ROOT.glob("website/tutorials/[0-9]*.md")))),
         (r"(\d+) runnable Python programs", len(list(ROOT.glob("extensions/python/examples/*/*.py")))),

@@ -161,6 +161,25 @@ def test_an_enumeration_refuses_answers(metta):  # noqa: D103  -- pytest discove
         metta.run("!(collapse (get-atoms &ap-enum))")
 
 
+def test_an_enumeration_refuses_answers_through_the_term_door_too(metta):
+    """The same refusal, reached by eval() rather than run().
+
+    The two doors cross janus by different entry points, and only the goal
+    string one clears a Python exception raised inside the engine. eval() left
+    it pending, so the next call -- janus's own PrologError.__str__, rendering
+    the error being classified -- died on it and the caller received a raw
+    janus_swi.janus.PrologError instead of this MettaError [measured
+    2026-08-29]. Nothing caught it because the sibling above drives run().
+    """
+    class _Wrong(SpaceProvider):
+        def atoms(self):
+            yield Bindings({"x": 1})
+
+    metta._register_space(_Wrong(), "&ap-enum-term")
+    with pytest.raises(MettaError, match="enumeration has no query"):
+        metta.eval(S["collapse"](S["get-atoms"](S["&ap-enum-term"])))
+
+
 def test_a_generator_op_answers_bindings(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     def relate(x):
         yield Bindings({x: 1})

@@ -16,14 +16,11 @@ import pytest
 
 from metta import MeTTa
 
-# The twins are programs the coverage lane runs, not test modules; five of
-# them carry example-derived names pytest would otherwise import at
-# collection (a shape the corpus carried before the fourteen example
-# renames). Ignoring the
-# directory here is the one general fix a per-file rename cannot be: the
-# lane derives each twin's path from its example's, so a twin renamed alone
-# becomes an orphan the corpus check rejects.
-collect_ignore = ["twins"]
+# The twins moved to extensions/python/examples/language-feature-examples/,
+# out of this directory, so pytest no longer reaches them from here and the
+# ignore that used to sit at this line is gone with them. What replaced it is
+# an exclusion in repository/test_examples.py, which is the runner that now
+# globs the folder they landed in.
 
 try:
     from hypothesis import settings

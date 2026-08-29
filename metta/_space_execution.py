@@ -170,15 +170,17 @@ def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[
     return "metta_py_run_using", [source, space, pairs]
 
 
-def _direct_run(
-    rt: Runtime,
-    predicate: str,
-    inputs: list[Any],
-    using: dict[str, Any] | None,
-) -> Any:
-    names = ["Src", "Space", "Pairs"] if using else ["Src", "Space"]
-    goal = f"{predicate}({', '.join(names)}, Groups)"
-    return rt.must(goal, **dict(zip(names, inputs, strict=True))).get("Groups", [])
+def _direct_run(rt: Runtime, predicate: str, inputs: list[Any]) -> Any:
+    """Run source through the predicate door, as evaluate() above does.
+
+    Both shim entries are already shaped for janus's functional convention --
+    ground inputs then one output -- so the goal string this used to build was
+    re-parsed by janus on every call for no gain. A census of ordinary work
+    (200 adds, 200 evals, 100 matches, 50 runs) found 900 of its 950 engine
+    calls already on this door and all 50 stragglers here [measured
+    2026-08-29, ai-tmp/perf-eval/door_census.py].
+    """
+    return rt.apply_must(predicate, *inputs)
 
 
 def _controlled_run(
@@ -227,7 +229,7 @@ def run_source(
     predicate, inputs = _run_target(space, source, using)
     limits = _limits(timeout, inferences)
     if limits is None and not (capture or atomic or speculative):
-        output = _direct_run(rt, predicate, inputs, using)
+        output = _direct_run(rt, predicate, inputs)
     else:
         output = _controlled_run(
             rt,

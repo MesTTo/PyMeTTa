@@ -1,8 +1,9 @@
 # Examples by topic
 
 Every example asserts its own outputs. `extensions/python/tests/repository/test_examples.py`
-discovers them recursively and excludes only the shared `_common.py`, so a
-stopped example fails the build. Run any example from the repository root:
+discovers them recursively and excludes the shared `_common.py` and the
+language-feature corpus below, so a stopped example fails the build. Run any
+example from the repository root:
 
     PYTHONPATH=extensions/python/examples python extensions/python/examples/basics/first_steps.py
 
@@ -13,6 +14,22 @@ folder depth.
 
 Examples with optional dependencies such as DuckDB, NumPy, and PyTorch skip
 with a message when the dependency is absent.
+
+## Language features
+
+`language-feature-examples/` is the other half of this folder and the larger
+one: the whole shipped MeTTa corpus written again in Python, one file per
+example, its directories mirroring `examples/` so a file is addressed by
+transforming the path of the program it answers. Read it for how a given MeTTa
+construct is spelled in Python.
+
+These are the same kind of thing as the topical examples above and a different
+shape. Each defines `twin(m)` rather than running itself, because the corpus is
+driven by `extensions/python/tools/twin_coverage.py`, which passes the handle,
+compares the answers against the original's alpha-equal multiset, and holds
+each file to the inference budget pinned at its foot. That is why the runner
+above skips this directory: a file here verifies nothing when executed on its
+own.
 
 ## Basics
 

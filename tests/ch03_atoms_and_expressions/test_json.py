@@ -106,3 +106,52 @@ def test_json_codec_round_trips_the_hazard_corpus(text):  # noqa: D103  -- pytes
 def test_json_codec_refuses_a_lone_surrogate(text):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with pytest.raises((ValueError, TypeError)):
         _json.loads(text)
+
+
+def test_json_codec_refuses_a_value_that_contains_itself():
+    """A cycle is refused, where it used to take the process down.
+
+    Every other door hands a container over boxed, by reference; this one
+    passes it transparently, so janus converts it by recursing and a container
+    holding itself takes the C stack with it. Measured 2026-08-29 before the
+    guard: SIGSEGV, core dumped, exit 139 -- not an exception, so nothing
+    downstream could have caught it.
+    """
+    payload = {"a": 1}
+    payload["self"] = payload
+    with pytest.raises(ValueError, match="contains itself"):
+        _json.dumps(payload)
+
+
+def test_json_codec_refuses_a_value_nested_too_deeply():
+    """The same crash without a cycle: depth alone overruns the stack."""
+    deep: list = []
+    cursor = deep
+    for _ in range(20_000):
+        nested: list = []
+        cursor.append(nested)
+        cursor = nested
+    with pytest.raises(ValueError, match="nested too deeply"):
+        _json.dumps(deep)
+
+
+def test_json_codec_encodes_a_shared_value_reached_twice():
+    """Sharing is not a cycle, and a guard that says otherwise is worse.
+
+    A visited-set reading of the same question rejects this ordinary payload;
+    only a current-path reading gets it right, which is what bridge.pl's
+    metta_py_cycle_check/3 carries as its `Seen` ancestor list.
+    """
+    shared = [1, 2]
+    assert _json.loads(_json.dumps({"a": shared, "b": shared})) == {
+        "a": [1, 2],
+        "b": [1, 2],
+    }
+
+
+def test_a_refused_value_leaves_the_codec_usable():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    payload = {"a": 1}
+    payload["self"] = payload
+    with pytest.raises(ValueError):
+        _json.dumps(payload)
+    assert _json.loads(_json.dumps({"ok": 1})) == {"ok": 1}

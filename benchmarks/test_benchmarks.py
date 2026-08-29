@@ -167,11 +167,18 @@ _ROWS = 2_000
 #: 144938/1091182/8660937..39/34614276, min taken; command=python -c "from
 #: benchmarks.test_benchmarks import _automatic_tabling_observations;
 #: print(_automatic_tabling_observations())"; commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0].
+# RE-PINNED 2026-08-29 by run() crossing on the predicate door: _direct_run no
+# longer builds "metta_py_run(Src, Space, Groups)" for janus to re-parse, which
+# is worth 5.00 inferences on the one run() call inside each sample's stats
+# window. The moves are -7, -5, -5, -7, -5, -3, -5, -3 in the order below; the
+# 5 is measured directly (436.0 to 431.0 on one !(+ 1 2) directive) and the
+# remaining +-2 per case is NOT separately attributed. Every value here is
+# deterministic: two full runs gave identical figures on all eight.
 _AUTOMATIC_TABLING_PINS = {
-    12: {"plain": 144_938, "automatic": 28_472},
-    15: {"plain": 1_091_182, "automatic": 29_620},
-    18: {"plain": 8_660_937, "automatic": 30_776},
-    20: {"plain": 34_614_276, "automatic": 31_558},
+    12: {"plain": 144_931, "automatic": 28_467},
+    15: {"plain": 1_091_177, "automatic": 29_613},
+    18: {"plain": 8_660_932, "automatic": 30_773},
+    20: {"plain": 34_614_271, "automatic": 31_555},
 }
 
 
