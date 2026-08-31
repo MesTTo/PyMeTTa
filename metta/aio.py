@@ -1404,6 +1404,25 @@ class AsyncMeTTa:
         """An operation that observes an external oracle."""
         return await self.call(lambda m: m.io(fn, **options))
 
+    async def rules(self, fn: Callable) -> Any:
+        """Collect and land a non-exclusive equation bundle on the worker.
+
+        An awaitable CALL rather than a decorator, which is the same answer
+        define() gives to the same problem: decoration cannot await, so the
+        door stops being a decorator instead of stopping existing. It was
+        excluded from the async surface for the first reading of that, which
+        left an async caller unable to land a bundle at all
+        [measured 2026-08-31].
+        """
+        return await self.call(lambda space: space.rules(fn))
+
+    async def pre_add(self, fn: Callable) -> Any:
+        """Compile or accept one unary judge and claim this space's write door.
+
+        Excluded for the same reading as rules(), and restored the same way.
+        """
+        return await self.call(lambda space: space.pre_add(fn))
+
     async def define(
         self,
         fn: Callable | None = None,

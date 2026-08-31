@@ -395,12 +395,6 @@ def test_aio_covers_the_whole_synchronous_surface():
         # Answers is a synchronous replayable iterator. AsyncMeTTa's stream
         # is the awaitable pull protocol rather than a cross-thread iterator.
         "answers",
-            # A decorator cannot await the worker-side landing; async callers add
-            # a bare rules bundle through the existing await m.add(*bundle) door.
-            "rules",
-            # Like rules, the pre-add door is a decorator over a synchronous
-            # compiled definition and cannot await between decorator layers.
-            "pre_add",
         # These are Space's Atom/Handle operand protocol, not engine calls.
         "metatype",
         "to_wire",
@@ -1196,3 +1190,45 @@ def test_aio_a_worker_whose_loop_closed_stops_itself(m, monkeypatch):
         time.sleep(0.05)
     assert not _live_workers() - before, "the worker did not stop itself"
     assert not raised, f"the worker raised out of its thread: {raised}"
+
+
+def test_async_rules_and_pre_add_land_as_awaitable_calls(m):
+    """Both doors were excluded because "a decorator cannot await".
+
+    True, and not the obstacle: define(), cache(), pure() and op() have the
+    same decorator shape and crossed by becoming awaitable CALLS instead of
+    decorators. These two were the only ones the reading kept out, which left
+    an async caller unable to land an equation bundle or claim a write door at
+    all [measured 2026-08-31].
+    """
+    from metta import accept, equation, refuse
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            def bundle():
+                yield equation(S["aio-cell"](1)).to(S.low)
+                yield equation(S["aio-cell"](2)).to(S.high)
+
+            landed = await am.rules(bundle)
+            low = await am.eval(S["aio-cell"](1))
+            high = await am.eval(S["aio-cell"](2))
+
+            guarded = await am.space()
+            def judge(atom):
+                match atom:
+                    case (S.secret, _):
+                        return refuse("no secrets here")
+                    case _:
+                        return accept()
+
+            await guarded.pre_add(judge)
+            await guarded.add(S.plain(1))
+            kept = await guarded.match(S.plain(V.x))
+            with pytest.raises(MettaError, match="no secrets here"):
+                await guarded.add(S.secret(1))
+            return len(landed), low, high, [row.x for row in kept]
+
+    landed, low, high, kept = asyncio.run(go())
+    assert landed == 2
+    assert low == [S.low] and high == [S.high]
+    assert kept == [1]
