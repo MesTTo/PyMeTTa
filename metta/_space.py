@@ -574,7 +574,7 @@ def _substituted(target: Any, using: dict[str, Any]) -> Atom:
     hold the substituted term rather than hand the pairs to the engine needs
     exactly that, so it is written once.
     """
-    atom = parse(target) if isinstance(target, str) else _to_atom(target)
+    atom = _to_atom(target)
     return atom.map(
         lambda item: (
             _to_atom(using[item.name])
@@ -2723,7 +2723,7 @@ class Space(Handle):
         tagged_target = (
             _substituted(target, using)
             if using
-            else (parse(target) if isinstance(target, str) else _to_atom(target))
+            else _to_atom(target)
         )
         if declaration.name == "counting":
             def counted() -> Iterator[int]:
@@ -2825,7 +2825,7 @@ class Space(Handle):
             keyed = {key: value for key, value in using.items() if isinstance(key, Atom)}
             if keyed:
                 target = (
-                    parse(target) if isinstance(target, str) else _to_atom(target)
+                    _to_atom(target)
                 ).subs(keyed)
                 using = {
                     key: value
@@ -2854,7 +2854,7 @@ class Space(Handle):
         The return metatype is the other half: `%Undefined%` there so the
         interpreter's own answer reduces, `Atom` so it does not.
         """
-        interpreted = parse(target) if isinstance(target, str) else _to_atom(target)
+        interpreted = _to_atom(target)
         return Expression(
             [_to_atom(interpreter), interpreted, Symbol("%Undefined%"), space]
         )
@@ -4332,7 +4332,7 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
+        shape = _to_atom(pattern)
         children = [Symbol("handles"), Symbol(str(self.name)), shape, Symbol(fidelity)]
         if det is not None:
             children.append(Symbol(det))
@@ -4673,7 +4673,7 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
+        shape = _to_atom(pattern)
         atom = Expression([Symbol("on-error"), Symbol(str(name)), shape, Symbol(chosen)])
         self._rt.must(
             "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
@@ -4701,7 +4701,7 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
+        shape = _to_atom(pattern)
         atom = Expression([Symbol("merge"), shape, Symbol(policy)])
         self._rt.must(
             "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
@@ -4789,8 +4789,8 @@ class Space(Handle):
         with add and remove, an unregistered or remote target included.
         Same multi-context-systems idea, two delivery tiers.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        shape = parse(pattern) if isinstance(pattern, str) else _to_atom(pattern)
-        op = parse(operation) if isinstance(operation, str) else _to_atom(operation)
+        shape = _to_atom(pattern)
+        op = _to_atom(operation)
         parts = [Symbol("on"), Symbol(str(self.name)), shape, op]
         if priority is not None:
             if not isinstance(priority, int) or isinstance(priority, bool):
