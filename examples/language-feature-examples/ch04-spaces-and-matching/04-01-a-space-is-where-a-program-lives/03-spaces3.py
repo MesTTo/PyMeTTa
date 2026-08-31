@@ -83,5 +83,5 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: retires about three inferences per answer where the per-answer crossing
 #: retired its own wrapper; drains halve, a tiny stream pays a few inferences
 #: more [measured 2026-08-31: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=505aec3433047045a96abdf00cecf4477b9a702b].
 BUDGET = 252
