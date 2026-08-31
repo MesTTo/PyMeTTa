@@ -203,7 +203,7 @@ def guard_atom(where: Any | None) -> Atom | None:
         return guard
     msg = (
         f"a where= guard is a term the engine evaluates per row, as in "
-        f"(V.age >= 18); {where!r} can never answer true"
+        f"S['>='](V.age, 18); {where!r} can never answer true"
     )
     raise TypeError(
         msg

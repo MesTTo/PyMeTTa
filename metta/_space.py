@@ -1861,7 +1861,7 @@ class Space(Handle):
         evaluated per join and required true, so restrictions a pattern
         cannot spell (an inequality) compose onto the match:
 
-            m.match(S.person(V.name, V.age), where=V.age >= 18)
+            m.match(S.person(V.name, V.age), where=S[">="](V.age, 18))
 
         `limit` bounds the answers, the engine stopping at the count
         rather than trimming afterwards. `timeout` (seconds) and
