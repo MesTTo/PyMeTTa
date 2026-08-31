@@ -22,15 +22,15 @@ Guarantees:
   - `-=` classifies its operand exactly as `+=` does, so the fact stream
     one door stores the other drains, each element totally, in one
     crossing [tested: test_isub_reads_the_same_stream_shapes_iadd_writes;
-    commit=WORKTREE]
+    commit=9ee2057351b951fe99cbfb6cbd43d8b137b05002]
   - the MeTTa context mirrors its space's container and write protocols
     through the generated dunder tier, the in-place trio answers the
     context itself, and repr names the home space with the closed state
     [tested: test_the_context_speaks_its_spaces_protocols;
-    commit=WORKTREE]
+    commit=9ee2057351b951fe99cbfb6cbd43d8b137b05002]
   - alpha stays binary because the engine declares =alpha's input arity;
     the wider spelling is connective composition [tested:
-    test_alpha_stays_binary_on_the_engines_own_ground; commit=WORKTREE]
+    test_alpha_stays_binary_on_the_engines_own_ground; commit=9ee2057351b951fe99cbfb6cbd43d8b137b05002]
 Open Obligations:
   To Do: None
   Hacks: None
