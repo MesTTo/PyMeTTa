@@ -6,7 +6,7 @@ Guarantees:
     method, so a door cannot carry one name and two shapes: checking names
     alone let watch(), stream() and define() each diverge until they were
     found by hand [tested: test_aio_covers_the_whole_synchronous_surface;
-    commit=WORKTREE]
+    commit=891d413a32b3e6f132998e3613618ff029dfda0d]
   - async solve, Linda verbs, watch, class/type dispatch, and both transaction
     laws execute on the owning worker [tested:
     test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]

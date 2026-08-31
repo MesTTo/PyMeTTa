@@ -544,7 +544,7 @@ def twin(m):
 #: this twin is the whole corpus's smallest, so it is the one whose fixed
 #: overhead clears the +-4 allowance while larger twins absorb the same move
 #: [measured 2026-08-31: 2411 on six consecutive runs, 0.0000% spread;
-#: command=pytest test_twin_coverage.py -k 01-identity; commit=WORKTREE]
+#: command=pytest test_twin_coverage.py -k 01-identity; commit=891d413a32b3e6f132998e3613618ff029dfda0d]
 #: [assumed 2026-08-31: the attribution to c530ccb8's translator change;
-#: commit=WORKTREE].
+#: commit=891d413a32b3e6f132998e3613618ff029dfda0d].
 BUDGET = 2411
