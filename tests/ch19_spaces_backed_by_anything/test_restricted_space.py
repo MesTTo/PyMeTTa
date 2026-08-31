@@ -11,7 +11,7 @@ Guarantees:
     synchronous and the async door, because the engine's declarations take any
     valid space name [tested:
     test_a_named_space_takes_every_model_an_anonymous_one_takes,
-    test_an_async_named_space_takes_a_model; commit=WORKTREE]
+    test_an_async_named_space_takes_a_model; commit=41e2cb9862e757dbe066516dab13ae55491f64d3]
 Open Obligations:
   To Do: None
   Hacks: None
