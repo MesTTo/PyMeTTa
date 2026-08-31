@@ -211,6 +211,18 @@ class ReifiedWorld:
             if not transferred:
                 scratch.drop()
 
+    def __len__(self) -> int:
+        """A world is a frozen space-state, so it counts like one."""
+        return len(self.atoms)
+
+    def __iter__(self):
+        """Iterate the frozen multiset, assembly order, like a space."""
+        return iter(self.atoms)
+
+    def __contains__(self, atom: object) -> bool:
+        """Multiset membership over the frozen state, like a space."""
+        return atom in self.atoms
+
     def diff(self, other: ReifiedWorld) -> tuple[list[Atom], list[Atom]]:
         """Return this world's and the other world's ordered multiset extras."""
         if not isinstance(other, ReifiedWorld):

@@ -55,7 +55,7 @@ from .atoms import (
     substitute,
 )
 from .errors import MettaError
-from .foreign import Matcher, Snapshotter, SpaceProvider
+from .foreign import Matcher, Snapshotter, SpaceProvider, _require_provider
 from .structures import _canonical
 
 __all__ = [
@@ -332,14 +332,33 @@ class _Member:
         if self._is_space:
             self.target.add(*atoms)
             return
+        self._require("add", "add")
         for atom in atoms:
             self.target.add(atom)
 
     def remove(self, pattern: Atom) -> bool:
+        self._require("remove", "remove")
         return bool(self.target.remove(pattern))
 
     def clear(self) -> None:
+        self._require("clear", "clear")
         self.target.clear()
+
+    def _require(self, capability: str, operation: str) -> None:
+        """The framework's refusal, not a bare AttributeError.
+
+        The engine's own path through a provider asks can_run and answers
+        with the sentence that distinguishes "does not implement" from
+        "declines this request"; a combinator member reached the method
+        directly, so a ReadOnly provider under overlay().clear() died with
+        AttributeError instead [measured 2026-09-01]. A Space handle always
+        carries the doors, so only the provider case asks.
+        """
+        if self._is_space or not isinstance(self.target, SpaceProvider):
+            return
+        _require_provider(
+            self.target, self.describe(), capability, operation
+        )
 
     def snapshot(self) -> tuple[Atom, ...]:
         """Capture this member once, never via a live enumeration fallback."""

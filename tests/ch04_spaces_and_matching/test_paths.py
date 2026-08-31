@@ -9,6 +9,8 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import pytest
+
 from metta import S, V, ground
 from metta.paths import Key, path
 
@@ -51,3 +53,20 @@ def test_a_path_reaches_into_a_handle_without_converting_it(metta):
             {"score": 7}
         ]
         assert not space.match(S.manager(S.ada, path("loop", "age", to=V.age)))
+
+
+def test_a_segment_outside_the_contract_refuses_and_names_the_opt_in():
+    """A bare float, bool or object refuses; Key() is the explicit door.
+
+    _normalize_segment silently wrapped ANY object as Key, so the documented
+    contract (str | int | Attr | Key) and the accepted inputs disagreed. A
+    refusal must name the remedy, and the remedy is the spelling the
+    docstring already teaches.
+    """
+    for bad in (1.5, True, object(), None):
+        with pytest.raises(TypeError, match="wrap another key type in Key"):
+            path(bad, to=V.x)
+    # The documented directs still work, and Key() opts anything in.
+    assert "(key 1.5)" in str(path(Key(1.5), to=V.x))
+    assert "(key 3)" in str(path(3, to=V.x))
+    assert '(attr "name")' in str(path("name", to=V.x))

@@ -578,21 +578,22 @@ class EventStream:
         fold starts and what `take()` resets it to; the step's answer is the
         next state. Leave `state` alone and the fold accumulates nothing,
         which is what a consumer that only reacts wants and what costs it no
-        serialisation. Steps run synchronously, inside the write that caused
-        them, so a step may write back and an infinite add-triggers-add loop
-        is the author's own.
+        serialisation.
 
         `into=State(...)` hands that same cell to every step. The cell's
         engine store is process-shared; each individual dynamic-store read
         and mutex-guarded write is thread-safe, but a compound
         read-modify-write such as ``cell.value += 1`` is not atomic. The fold
         serializes its own deliveries, while other writers must use their own
-        coordination. State has no events, history, or transactions.
+        coordination. State has no events, history, or transactions. And
+        `take()` answers the same cell and resets nothing, because the cell's
+        lifecycle is the caller's: the fold only writes into it.
 
         With `under=algebra`, omit `step`: the algebra's merge and zero are the
         complete fold, and an ordinary event contributes one. A normative
         ``(fact tag proposition)`` event contributes its tag.
-        serialisation. An unscoped write runs steps synchronously before it
+
+        An unscoped write runs steps synchronously before it
         returns. A transactional write runs them synchronously after the
         complete commit, so every step reads committed state; rollback,
         speculation, and world evaluation run none. A step may write back and

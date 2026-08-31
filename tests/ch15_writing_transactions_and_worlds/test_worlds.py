@@ -809,3 +809,20 @@ def test_a_journaled_world_commit_replays_its_ordinary_diff(metta, tmp_path):
         assert reopened.atoms() == [S.edge(S.new, 2)]
     finally:
         reopened.drop()
+
+
+def test_a_world_speaks_the_container_protocols_a_space_does(metta):
+    """len, iter and `in` reach the frozen state directly; .atoms stays.
+
+    A world is a space-state frozen at reify time, and a space counts,
+    iterates and answers membership; the snapshot lost all three behind one
+    attribute hop. `.atoms` remains the longhand the sugar documents.
+    """
+    with metta._new_space() as m:
+        m.add(S.w_edge(1, 2), S.w_edge(2, 3))
+        m.covers("writesState")
+        world = m.reify()
+        assert len(world) == 2 == len(world.atoms)
+        assert sorted(str(a) for a in world) == ["(w-edge 1 2)", "(w-edge 2 3)"]
+        assert S.w_edge(1, 2) in world
+        assert S.w_edge(9, 9) not in world

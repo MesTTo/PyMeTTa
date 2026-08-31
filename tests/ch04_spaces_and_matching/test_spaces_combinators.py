@@ -294,3 +294,31 @@ def test_diff_takes_a_provider_side(metta):  # noqa: D103  -- pytest discovers o
         only_a, only_b = spaces.diff(a, Bag())
         assert [str(x) for x in only_a] == ["(dprov extra)"]
         assert only_b == []
+
+
+def test_a_member_without_the_method_refuses_with_the_framework_sentence(metta):
+    """A combinator member speaks the capability refusal, not AttributeError.
+
+    overlay(ReadOnly(), back).clear() died with AttributeError before, which
+    names Python's lookup rather than the capability model; the engine's own
+    path through a provider answers with the sentence that distinguishes
+    "does not implement" from "declines this request", and the combinator
+    seam speaks it now [measured 2026-09-01].
+    """
+    from metta.foreign import SpaceProvider
+
+    class ReadOnly(SpaceProvider):
+        def atoms(self):
+            yield S.frozen(1)
+
+    with metta._new_space() as back:
+        combined = spaces.overlay(ReadOnly(), back)
+        for operation, call in (
+            ("clear", combined.clear),
+            ("remove", lambda: combined.remove(S.frozen(1))),
+            ("add", lambda: combined.add(S.fresh(1))),
+        ):
+            with pytest.raises(MettaError, match=f"does not implement {operation}"):
+                call()
+        # Reading still works: the provider implements exactly that.
+        assert [str(a) for a in combined.atoms()] == ["(frozen 1)"]

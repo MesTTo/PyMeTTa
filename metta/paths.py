@@ -78,7 +78,16 @@ def _normalize_segment(segment: str | int | Attr | Key) -> Attr | Key:
         return segment
     if isinstance(segment, str):
         return Attr(segment)
-    return Key(segment)
+    # A bool is an int, and True as a silent subscription key is the kind of
+    # accident the explicit spelling exists to prevent.
+    if isinstance(segment, int) and not isinstance(segment, bool):
+        return Key(segment)
+    msg = (
+        f"a path segment is a string attribute, an integer key, or an "
+        f"explicit Attr/Key, not {segment!r}; wrap another key type in "
+        f"Key() to opt in"
+    )
+    raise TypeError(msg)
 
 
 def _segment_atom(segment: Attr | Key) -> Expression:
