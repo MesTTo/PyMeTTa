@@ -5,14 +5,12 @@ conjunction joins a parent fact to a child fact, because each conjunct is
 matched through the whole read chain; same-shaped facts come back child first;
 and neither write reached the parent.
 
-The original names the child `&family-child` so its later forms can address it.
-Nothing here needs the name: `metta.space(inherits=parent)` answers the HANDLE,
-and every door the example uses hangs off that handle, so the anonymous space
-is not a compromise but the point (the named form has no Python door, residue
-P14.10). PERFECT: `metta.space(S.family_child, inherits=parent)`, the creation
-options applying to a named space as well as an anonymous one
-[measured 2026-08-24: the pair still refuses, "inherits, restricted, and grants
-apply only to anonymous space()"; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5].
+The original names the child `&family-child` so its later forms can address it,
+and this writes the same thing: `metta.space(S.family_child, inherits=parent)`.
+A name and a MODEL are independent, because the engine's declarations always
+took any valid space name and only this door required anonymity. The twin used
+to mint an anonymous child and carry the pair as a gap; both are available now,
+and the named form is the one the original writes.
 
 One claim keeps the engine's own function. `len(space)` and iterating it both
 answer the whole READ CHAIN, six atoms here, where `(space-atom-count ...)`
@@ -36,7 +34,7 @@ def twin(m):
     parent += S.parent_only(S.kept)
     parent += S.layer(S.parent)
 
-    child = metta.space(inherits=parent)
+    child = metta.space(S.family_child, inherits=parent)
     child += S.edge(S.b, S.c)
     child += S.child_only(S.local)
     child += S.layer(S.child)
@@ -118,4 +116,12 @@ def twin(m):
 #: and the scheduler, context-callback and exact-memo lifecycle clauses
 #: move compiled-image layout by tens, the class this file's chain
 #: documents [measured: min-of-3 serial fresh processes; command=python extensions/python/tools/twin_coverage.py --measure --rounds 3; fixture=merged p14-audit-async composed tree with engine/reader.so; commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
-BUDGET = 1162
+#: RE-PINNED 2026-08-31, 1162 to 1193 (+31), the twin now names its spaces,
+#: metta.space(S.locked, restricted=True) and metta.space(S.family_child,
+#: inherits=parent), which is what the MeTTa original writes; a named space
+#: declares its model on a name the caller chose rather than on a pooled
+#: anonymous one, and carries its own storage module for the life of the
+#: process [measured 2026-08-31: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 1193

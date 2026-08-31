@@ -605,10 +605,21 @@ def test_casting_protocol():  # noqa: D103  -- pytest discovers or injects this 
         int(S.three)
 
 
-def test_variables_and_groundness():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert Expression(S.f, V.x, Expression(V.y, V.x)).vars == ("x", "y")
+def test_variables_and_groundness():
+    """`vars` answers the VARIABLES, which is what subs and unify accept.
+
+    Names were what it answered once, and a name cannot say whether it means a
+    variable or a symbol on a surface that has both. Answering atoms is what
+    makes the round trip compose without a conversion in the middle.
+    """
+    assert Expression(S.f, V.x, Expression(V.y, V.x)).vars == (V.x, V.y)
     assert not Expression(S.a, 1).vars
     assert V.x.vars
+
+    pattern = S.job(V.who, V.rank)
+    assert S.hired(V.who, V.rank).subs(dict(zip(pattern.vars, (S.ada, 9), strict=True))) == S.hired(
+        S.ada, 9
+    )
 
 
 def test_alpha_eq():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -624,9 +635,63 @@ def test_alpha_eq():  # noqa: D103  -- pytest discovers or injects this callable
 def test_unify():
     """The basic matcher answers substitutions and rejects contradictions."""
     got = unify(S.Parent(V.x, S.Bob), S.Parent(S.Tom, S.Bob))
-    assert got == {"x": S.Tom}
+    assert got == {V.x: S.Tom}
     assert unify(S.Parent(V.x, V.x), S.Parent(S.a, S.b)) is None
-    assert unify(V.x, Expression(S.a)) == {"x": Expression(S.a)}
+    assert unify(V.x, Expression(S.a)) == {V.x: Expression(S.a)}
+
+
+def test_a_substitution_can_be_applied_by_both_of_its_producers():
+    """Unify and a match Row both name holes; subs is what accepts either.
+
+    The library could PRODUCE a substitution two ways and APPLY one no way,
+    so `unify` answered in a currency nothing took and two tests had written
+    the recursive walk by hand (test_properties and test_foreign, both now
+    calling this).
+    """
+    import metta
+
+    pattern = S.job(V.who, V.rank)
+    template = S.hired(V.who, V.rank)
+
+    assert template.subs(pattern.unify(S.job(S.ada, 9))) == S.hired(S.ada, 9)
+
+    space = metta.space("&subsround")
+    space += S.job(S.ada, 9)
+    assert template.subs(space.match(pattern)[0]) == S.hired(S.ada, 9)
+
+    # The KEY carries the kind, so a variable hole and a placeholder symbol
+    # are different substitutions rather than one name meaning either.
+    assert S.pair(V.x, S.x).subs({V.x: 1}) == S.pair(1, S.x)
+    assert S.pair(V.x, S.x).subs({S.x: 2}) == S.pair(V.x, 2)
+
+    # Sugar over map, which stays reachable and does the same thing.
+    assert S.f(V.x).subs({V.x: S.z}) == S.f(V.x).map(
+        lambda item: S.z if item == V.x else item
+    )
+    assert S.f(V.x).subs({}) == S.f(V.x)
+
+
+def test_using_reaches_a_variable_hole_through_an_atom_key(metta):
+    """The engine's substitution matches an atom by NAME, so it can reach a
+    symbol and cannot reach a variable at all: neither `using={"x": 5}` nor
+    `using={"$x": 5}` fills the hole in `(dbl $x)`, because a variable crosses
+    the wire as ['v', 'x'] where a symbol crosses as ['s', 'x']. A variable
+    hole is exactly what unify reports, so the one substitution the library
+    could produce was the one no evaluation door could apply. An atom key says
+    which atom it means and is applied in the host.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    import metta as metta_module
+
+    space = metta._new_space()
+    space.add(metta_module.equation(S.subsdbl(V.x)).to(S["*"](V.x, 2)))
+
+    assert space.eval(S.subsdbl(S.n), using={"n": 5}) == [10]
+    assert space.eval(S.subsdbl(S.n), using={S.n: 5}) == [10]
+    assert space.eval(S.subsdbl(V.x), using={V.x: 5}) == [10]
+    assert space.eval_status(S.subsdbl(V.x), using={V.x: 5}) == [("value", 10)]
+    assert list(space.answers(S.subsdbl(V.x), using={V.x: 5})) == [10]
+    # Mixed keys reach their own substitutions.
+    assert space.eval(S["*"](V.x, S.n), using={V.x: 3, "n": 4}) == [12]
 
 
 def test_unify_binds_a_ground_term_and_pattern_in_both_orders():
@@ -634,15 +699,15 @@ def test_unify_binds_a_ground_term_and_pattern_in_both_orders():
     pattern = S.Parent(V.child, S.Bob)
     ground = S.Parent(S.Tom, S.Bob)
 
-    assert unify(pattern, ground) == {"child": S.Tom}
-    assert unify(ground, pattern) == {"child": S.Tom}
+    assert unify(pattern, ground) == {V.child: S.Tom}
+    assert unify(ground, pattern) == {V.child: S.Tom}
 
 
 def test_unify_binds_variables_from_both_operands():
     """One substitution carries bindings contributed by both term trees."""
     assert unify(S.f(V.x, S.b), S.f(S.a, V.y)) == {
-        "y": S.b,
-        "x": S.a,
+        V.y: S.b,
+        V.x: S.a,
     }
     assert unify(S.pair(V.x, V.x), S.pair(S.a, S.b)) is None
 
@@ -655,7 +720,7 @@ def test_unify_treats_nesting_depth_as_data_during_normalization():
 
     bindings = unify(V.x, deep)
     assert bindings is not None
-    assert bindings["x"] is deep
+    assert bindings[V.x] is deep
 
 
 def test_unify_path_compresses_long_alias_chains():
@@ -787,7 +852,7 @@ def test_fresh_variables_keep_library_patterns_hygienic():
     assert private != fresh()
     pattern = S.pair(private, V.x)
     bindings = unify(pattern, S.pair(S.first, S.second))
-    assert bindings == {private.name: S.first, "x": S.second}
+    assert bindings == {private: S.first, V.x: S.second}
 
 
 # The explicit key and Atom.__lt__ expose the same engine order. Keep this

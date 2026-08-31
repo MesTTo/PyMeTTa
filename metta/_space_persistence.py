@@ -142,7 +142,9 @@ def raise_unsafe_text_atom(value: Atom, operation: str) -> None:
     raise ValueError(msg)
 
 
-def _validate_atoms(rt: Runtime, space: str, atoms: list[Atom]) -> None:
+def _validate_atoms(
+    rt: Runtime, space: str, atoms: list[Atom], bounds: tuple[float, int, int]
+) -> None:
     for atom in atoms:
         if not serializable(atom):
             msg = (
@@ -157,13 +159,21 @@ def _validate_atoms(rt: Runtime, space: str, atoms: list[Atom]) -> None:
     # a fourth class that is not a name, a number whose printed form is not
     # read back as that number. The engine enumerates, so no atom crosses the
     # wire for the question.
-    row = rt.once("metta_py_unwritable_atom(Space, Bad)", Space=space)
+    seconds, steps, _stack = bounds
+    row = rt.once(
+        "metta_py_guarded(T, I, metta_py_unwritable_atom(Space, Bad))",
+        T=seconds,
+        I=steps,
+        Space=space,
+    )
     if row:
         raise_unsafe_text_atom(_atom_from_wire(row["Bad"]), "save")
 
 
-def _write_fast(rt: Runtime, space: str, temporary: Path) -> int:
-    result = rt.apply_must("metta_py_fast_save", str(temporary), space)
+def _write_fast(
+    rt: Runtime, space: str, temporary: Path, bounds: tuple[float, int, int]
+) -> int:
+    result = _apply_limited(rt, bounds, "metta_py_fast_save", [str(temporary), space])
     if not isinstance(result, list) or len(result) != 2:
         msg = f"metta_py_fast_save returned an invalid result: {result!r}"
         raise EngineError(msg)
@@ -193,20 +203,31 @@ def _write_text(temporary: Path, atoms: list[Atom]) -> int:
 def save_space(
     rt: Runtime,
     space: str,
-    atoms: list[Atom],
     path: str | os.PathLike[str],
     save_format: SaveFormat,
+    *,
+    timeout: float | None = None,
+    inferences: int | None = None,
 ) -> int:
-    """Validate and atomically persist one enumerated space."""
+    """Validate and atomically persist one space, bounding its engine work.
+
+    The enumeration, the unwritable-atom scan and the fast writer are all
+    linear in the space and all run under the caller's bounds, which is why the
+    enumeration happens HERE rather than at the call site: an unbounded
+    enumeration handed in as an argument is the largest of the three and the
+    one a guard could not reach.
+    """
     if save_format not in SaveFormat:
         msg = f"save format must be 'metta' or 'fast', got {save_format!r}"
         raise ValueError(msg)
-    _validate_atoms(rt, space, atoms)
+    bounds = _limits(timeout, inferences) or (-1.0, -1, -1)
+    atoms = _enumerate(rt, space, bounds)
+    _validate_atoms(rt, space, atoms, bounds)
     target = Path(path)
     temporary = _temporary_sibling(target)
     try:
         count = (
-            _write_fast(rt, space, temporary)
+            _write_fast(rt, space, temporary, bounds)
             if save_format == "fast"
             else _write_text(temporary, atoms)
         )
@@ -214,6 +235,12 @@ def save_space(
         return count
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _enumerate(rt: Runtime, space: str, bounds: tuple[float, int, int]) -> list[Atom]:
+    """Every stored atom of one space, under the caller's bounds."""
+    wires = _apply_limited(rt, bounds, "metta_py_atoms", [space])
+    return [_atom_from_wire(wire) for wire in wires]
 
 
 def _fast_header(path: str) -> list[bytes]:

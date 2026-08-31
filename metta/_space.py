@@ -183,6 +183,7 @@ from pathlib import Path
 from typing import (
     Any,
     Literal,
+    NamedTuple,
     ParamSpec,
     Self,
     TypeVar,
@@ -256,7 +257,6 @@ from .atoms import (
     _decode,
     _to_atom,
     parse,
-    substitute,
     unify,
 )
 from .define import Defined, PrologBacked
@@ -566,6 +566,56 @@ def _require_name(name: Any, called: str) -> None:
         raise TypeError(msg)
 
 
+def _substituted(target: Any, using: dict[str, Any]) -> Atom:
+    """Apply ``using=`` to a target in the host, as the engine applies it.
+
+    ``metta_host_substitute/3`` replaces an ATOM whose name is a binding key,
+    recursively [source: engine/filereader.pl:579-584]. Any door that has to
+    hold the substituted term rather than hand the pairs to the engine needs
+    exactly that, so it is written once.
+    """
+    atom = parse(target) if isinstance(target, str) else _to_atom(target)
+    return atom.map(
+        lambda item: (
+            _to_atom(using[item.name])
+            if isinstance(item, Symbol) and item.name in using
+            else item
+        )
+    )
+
+
+class _SpaceModel(NamedTuple):
+    """Which engine declaration a space request needs, and its one argument.
+
+    The mint and the declaration used to be one predicate per model, which is
+    why a NAME and a model were exclusive: there was nowhere to put the name.
+    Splitting them leaves exactly this to decide, once, for both doors --
+    anonymous space() mints a name and declares, named space() declares on the
+    name it was given -- and the model crosses as the atom the engine door
+    already dispatches on rather than as part of a predicate name.
+    """
+
+    model: str
+    argument: Any
+
+
+def _space_model(
+    inherits: Space | None,
+    *,
+    restricted: bool,
+    grants: tuple[str, ...],
+    equation_home: Space | None,
+) -> _SpaceModel | None:
+    """The declaration a request needs, or None for a plain space."""
+    if restricted:
+        return _SpaceModel("restricted", list(grants))
+    if equation_home is not None:
+        return _SpaceModel("scoped", equation_home._space)
+    if inherits is not None:
+        return _SpaceModel("inherits", inherits._space)
+    return None
+
+
 def _checked_new_space_request(
     inherits: Space | None,
     *,
@@ -808,7 +858,7 @@ class Space(Handle):
             if name.vars:
                 msg = (
                     f"a parametric space name must be ground; {name!s} leaves "
-                    f"free variable(s) {list(name.vars)!r} open"
+                    f"free variable(s) {[str(v) for v in name.vars]} open"
                 )
                 raise ValueError(msg)
             if not name.children:
@@ -880,6 +930,42 @@ class Space(Handle):
         """Return another handle in this runtime for internal composition."""
         return Space(name, _runtime=self._rt)
 
+    def _open(
+        self,
+        name: Any,
+        *,
+        inherits: Space | None = None,
+        restricted: bool = False,
+        grants: _abc.Iterable[str] = (),
+    ) -> Space:
+        """Open a NAMED space, declaring its model on the name given.
+
+        A name and a model are independent: the engine's declarations validate
+        with metta_require_space_name/2 and take any space name, and the mint
+        below is this door with a fresh name in front of it. Both the
+        synchronous space() and the async one come through here, so the two
+        cannot drift on which models a named space accepts.
+        """
+        model = _space_model(
+            inherits,
+            restricted=restricted,
+            grants=_checked_new_space_request(
+                inherits, restricted=restricted, grants=grants
+            ),
+            equation_home=None,
+        )
+        handle = Space(name, _runtime=self._rt)
+        if model is not None:
+            # On the handle's own normalized name, so space(S.locked) and
+            # space("&locked") declare the same space the same way.
+            self._rt.must(
+                "metta_py_declare_space(Model, Space, Argument)",
+                Model=model.model,
+                Space=handle._space,
+                Argument=model.argument,
+            )
+        return handle
+
     def space_names(self) -> list[str]:
         """Every space name this engine registers, sorted: '&self' and
         '&metta' from boot, every native space something created or wrote to,
@@ -918,22 +1004,17 @@ class Space(Handle):
         requested_grants = _checked_new_space_request(
             inherits, restricted=restricted, grants=grants
         )
-
-        if restricted:
-            row = self._rt.must(
-                "metta_py_new_restricted_space(Grants, Name)",
-                Grants=list(requested_grants),
-            )
-        elif _equation_home is not None:
-            row = self._rt.must(
-                "metta_py_new_scoped_space(Home, Name)",
-                Home=_equation_home._space,
-            )
-        elif inherits is None:
+        model = _space_model(
+            inherits, restricted=restricted, grants=requested_grants,
+            equation_home=_equation_home,
+        )
+        if model is None:
             row = self._rt.must("metta_py_new_space(Name)")
         else:
             row = self._rt.must(
-                "metta_py_new_space(Parent, Name)", Parent=inherits._space
+                "metta_py_new_modelled_space(Model, Argument, Name)",
+                Model=model.model,
+                Argument=model.argument,
             )
         fresh = Space(
             str(row["Name"]),
@@ -1246,7 +1327,10 @@ class Space(Handle):
     def save(
         self,
         path: str | os.PathLike[str],
+        *,
         format: SaveFormat = SaveFormat.metta,  # noqa: A002  -- format is the documented public save keyword
+        timeout: float | None = None,
+        inferences: int | None = None,
     ) -> int:
         """Write every stored atom of this space, equations included, as
         MeTTa source by default, or as a version-pinned trusted cache with
@@ -1256,8 +1340,26 @@ class Space(Handle):
         atomically replaces the target, so a failed save leaves the old file
         intact. Atoms carrying live host objects cannot survive either file
         and are refused.
+
+        `timeout` (seconds) and `inferences` (engine steps) bound the save with
+        the engine's own guards, exactly as they bound load(). Every part of a
+        save is linear in the space -- the enumeration, the unwritable-atom
+        scan and the fast writer -- so this is the unbounded engine work those
+        guards exist to bound, and the atomic replace above already makes a
+        stopped save safe: the sibling is never moved into place.
+
+        There is no `format` on load(), and that is not an omission. When you
+        save, the file does not exist and something has to say which of the two
+        to write; when you load, load() reads which it is, `.gz` included.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return save_space(self._rt, self._space, self.atoms(), path, format)
+        return save_space(
+            self._rt,
+            self._space,
+            path,
+            format,
+            timeout=timeout,
+            inferences=inferences,
+        )
 
     def load(
         self,
@@ -1996,13 +2098,16 @@ class Space(Handle):
                 algebra=declaration.name,
             )
             row_cls = _row_class(columns)
+            # Built ONCE: the guard term does not depend on the answer, only
+            # its substitution does.
+            guard_template = None if where is None else guard_atom(where)
             yielded = 0
             for answer in evaluation.answers:
                 bindings = unify(atoms[0], answer.value)
                 if bindings is None:
                     continue
-                if where is not None:
-                    guard = substitute(guard_atom(where), bindings)
+                if guard_template is not None:
+                    guard = guard_template.subs(bindings)
                     guard_answers = self.eval(
                         guard,
                         timeout=timeout,
@@ -2015,7 +2120,7 @@ class Space(Handle):
                         continue
                 if limit is not None and yielded >= limit:
                     return
-                row = row_cls(bindings[name] for name in columns)
+                row = row_cls(bindings[Variable(name)] for name in columns)
                 yielded += 1
                 yield _AnswerItem(answer, row)
 
@@ -2478,11 +2583,20 @@ class Space(Handle):
         value; evaluate through eval() when it matters.
 
         `using` binds named host values into the term before it evaluates,
-        exactly as it does for run(): `m.eval("(decide $x)", using={"x":
+        exactly as it does for run(): `m.eval("(decide x)", using={"x":
         tensor})` hands the tensor itself to the rule, by identity, rather
-        than a printed form of it. The evaluation doors take the same
+        than a printed form of it. The name is the SYMBOL x and not the
+        variable $x, on this door and the source door alike; the example here
+        wrote `$x` and did not work [measured 2026-08-31]. The evaluation doors take the same
         vocabulary the source door takes, so reaching for a term instead
         of source text costs no change of spelling.
+
+        A key may be a NAME or an ATOM. A name means the symbol of that name,
+        which is what the engine's own substitution matches and what run()
+        takes. An atom means exactly that atom, so `using={V.x: 5}` fills a
+        VARIABLE hole -- the one substitution `unify` reports and the one no
+        door could apply, because a variable crosses the wire as ['v', 'x']
+        where a symbol crosses as ['s', 'x'] and the engine matches names.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
         raising TimeLimitError or InferenceLimitError when hit. A surrounding
@@ -2495,6 +2609,9 @@ class Space(Handle):
         eval() ignored it in silence.
         """
         _record_sync_engine_call(self, "eval", sys._getframe(1))
+        # Atom-keyed bindings are applied here whichever branch runs below, so
+        # the eager path and the delegating one agree on what `using=` accepts.
+        target, using = self._prepared_ask(target, using, door="eval")
         # The two doors are NOT one mechanism, which was measured rather than
         # assumed: eval() is one eager engine call (metta_py_eval_all) and
         # answers() opens a cursor, and routing eval() through the cursor
@@ -2564,22 +2681,9 @@ class Space(Handle):
         evaluation relation the answer cursor runs.
         """
         _record_sync_engine_call(self, "answers", sys._getframe(1))
-        if theory is not None and interpreter is not None:
-            msg = (
-                "theory= and interpreter= each select the evaluation relation; "
-                "pass one of them per answers() ask"
-            )
-            raise TypeError(msg)
-        if interpreter is not None:
-            interpreted_target = parse(target) if isinstance(target, str) else _to_atom(target)
-            target = Expression(
-                [
-                    _to_atom(interpreter),
-                    interpreted_target,
-                    Symbol("%Undefined%"),
-                    self,
-                ]
-            )
+        target, using = self._prepared_ask(
+            target, using, theory, interpreter, "answers"
+        )
         carrier = _selected_under(under)
         if theory is not None:
             return self._answers_with_theory(
@@ -2601,15 +2705,11 @@ class Space(Handle):
             )
         algebra_api = _satellite("algebra")
         declaration = algebra_api.resolve(self, carrier)
-        tagged_target = parse(target) if isinstance(target, str) else _to_atom(target)
-        if using:
-            tagged_target = tagged_target.map(
-                lambda atom: (
-                    _to_atom(using[atom.name])
-                    if isinstance(atom, Symbol) and atom.name in using
-                    else atom
-                )
-            )
+        tagged_target = (
+            _substituted(target, using)
+            if using
+            else (parse(target) if isinstance(target, str) else _to_atom(target))
+        )
         if declaration.name == "counting":
             def counted() -> Iterator[int]:
                 if algebra_api.has_tagged_program(self, tagged_target):
@@ -2654,7 +2754,7 @@ class Space(Handle):
                     bindings = unify(tagged_target, answer.value)
                     if bindings is None:
                         continue
-                    row = row_cls(bindings[name] for name in columns)
+                    row = row_cls(bindings[Variable(name)] for name in columns)
                     yield _AnswerItem(answer, row)
                 return
             ordinary = evaluate_answers(
@@ -2675,6 +2775,74 @@ class Space(Handle):
             space=self._space,
             target=target,
         )
+
+    def _prepared_ask(
+        self,
+        target: Any,
+        using: dict[Any, Any] | None,
+        theory: Any = None,
+        interpreter: Any = None,
+        door: str = "answers",
+    ) -> tuple[Any, dict[str, Any] | None]:
+        """Everything a term ask does to its target before the engine sees it.
+
+        Two things, both of which every door taking a target owes its caller.
+
+        ``interpreter=`` is a TERM rewrite and nothing more, so it costs the
+        same three lines wherever it is offered; ``theory=`` needs a scratch
+        space and stays with the door that owns its lifetime, and the two
+        refuse together because each answers "what reduces this?".
+
+        And an ATOM-keyed ``using=`` binding is applied here rather than sent
+        on. The engine's metta_host_substitute/3 matches an atom by NAME
+        [source: engine/filereader.pl:579-584], so it can reach a symbol and
+        cannot reach a variable at all -- measured 2026-08-31, neither
+        ``using={"x": 5}`` nor ``using={"$x": 5}`` fills the hole in
+        ``(dbl $x)``. A variable hole is exactly what ``unify`` reports, so
+        the one substitution the library could produce was the one no door
+        could apply. An atom key says which atom it means, so it is applied by
+        ``Atom.subs`` here and a name key keeps meaning the symbol it always
+        meant, to the same engine predicate as before.
+        """
+        if theory is not None and interpreter is not None:
+            msg = (
+                f"theory= and interpreter= each select the evaluation relation; "
+                f"pass one of them per {door}() ask"
+            )
+            raise TypeError(msg)
+        if using:
+            keyed = {key: value for key, value in using.items() if isinstance(key, Atom)}
+            if keyed:
+                target = (
+                    parse(target) if isinstance(target, str) else _to_atom(target)
+                ).subs(keyed)
+                using = {
+                    key: value
+                    for key, value in using.items()
+                    if not isinstance(key, Atom)
+                } or None
+        if interpreter is not None:
+            interpreted = parse(target) if isinstance(target, str) else _to_atom(target)
+            target = Expression(
+                [_to_atom(interpreter), interpreted, Symbol("%Undefined%"), self]
+            )
+        return target, using
+
+    def _in_theory(self, theory: Any) -> _abc.Iterator[Space]:
+        """A scratch space holding one theory, dropped when the block ends.
+
+        The receiver is unchanged; names the theory defines shadow inherited
+        ones, and engine builtins and &self stay in scope as they do for every
+        space.
+        """
+        scratch = self._new_space()
+        try:
+            atoms = self._theory_atoms(theory)
+            if atoms:
+                scratch.add(*atoms)
+            yield scratch
+        finally:
+            scratch.drop()
 
     def _answers_with_theory(
         self,
@@ -2859,6 +3027,8 @@ class Space(Handle):
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        theory: Any | None = None,
+        interpreter: Any | None = None,
     ) -> list[tuple[str, Atom | Undefined | None]]:
         """Evaluate a term, pairing each answer with how it was produced.
 
@@ -2878,11 +3048,30 @@ class Space(Handle):
         `using` binds host values into the term exactly as it does for
         eval(), and it has to: the substitution lands BEFORE the
         reducibility question, so the status of an evaluation that binds
-        anything was unaskable without it.
+        anything was unaskable without it. Name keys mean symbols and atom
+        keys mean themselves, so `using={V.x: 5}` fills a variable hole.
+
+        `theory` and `interpreter` are eval()'s own, and mean the same here.
+        This is the door that says which evaluation path produced an answer, so
+        being unable to point it at an alternative evaluation relation was the
+        sharpest form of the gap: `m.eval_status(target, interpreter=my_eval)`
+        is how you see whether an explicit interpreter reduced a term or handed
+        it back. `under=` is deliberately NOT here: a carrier annotates every
+        answer with an algebra value, so it would make a status row a triple
+        rather than the pair it is, which is a question about what a status IS.
         """
-        return evaluate_status(
-            self._rt, self._space, target, timeout, inferences, using=using
+        target, using = self._prepared_ask(
+            target, using, theory, interpreter, "eval_status"
         )
+        if theory is None:
+            return evaluate_status(
+                self._rt, self._space, target, timeout, inferences, using=using
+            )
+        for scratch in self._in_theory(theory):
+            return scratch.eval_status(
+                target, using=using, timeout=timeout, inferences=inferences
+            )
+        raise AssertionError  # pragma: no cover -- _in_theory always yields once
 
     def run_status(
         self,
@@ -3226,15 +3415,32 @@ class Space(Handle):
         cache-safe, which is the whole reason it is lifted out of this class
         [tested: test_a_generator_is_lifted_to_the_nondeterministic_rank;
         commit=7e5091540a8dc0903bcee24f3e5b8b85a19f805f].
+
+        Every ``op`` keyword applies: ``name``, ``arities``,
+        ``declarations``, ``inverse`` and ``transport``. They arrive as
+        ``**options`` and forward unchanged, so the signature above shows
+        the mechanism and this line shows the surface.
         """
         return self._classified(fn, EffectClass.pureStructural, options)
 
     def reads(self, fn: Callable | None = None, /, **options: Any) -> Any:
-        """An operation that reads stable state without changing it."""
+        """An operation that reads stable state without changing it.
+
+        Every ``op`` keyword applies: ``name``, ``arities``,
+        ``declarations``, ``inverse`` and ``transport``. They arrive as
+        ``**options`` and forward unchanged, so the signature above shows
+        the mechanism and this line shows the surface.
+        """
         return self._classified(fn, EffectClass.readOnlyLookup, options)
 
     def writes(self, fn: Callable | None = None, /, **options: Any) -> Any:
-        """An operation that changes engine or host state."""
+        """An operation that changes engine or host state.
+
+        Every ``op`` keyword applies: ``name``, ``arities``,
+        ``declarations``, ``inverse`` and ``transport``. They arrive as
+        ``**options`` and forward unchanged, so the signature above shows
+        the mechanism and this line shows the surface.
+        """
         return self._classified(fn, EffectClass.writesState, options)
 
     def io(self, fn: Callable | None = None, /, **options: Any) -> Any:
@@ -3248,6 +3454,11 @@ class Space(Handle):
 
         The fail-closed top of the lattice. Declare it when what the operation
         reaches is decided at run time or by a library the engine cannot bound.
+
+        Every ``op`` keyword applies: ``name``, ``arities``,
+        ``declarations``, ``inverse`` and ``transport``. They arrive as
+        ``**options`` and forward unchanged, so the signature above shows
+        the mechanism and this line shows the surface.
         """
         return self._classified(fn, EffectClass.oracleIO, options)
 
@@ -3788,6 +3999,7 @@ class Space(Handle):
         target: Any,
         depth: int | None = None,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> list[Any]:
@@ -3801,12 +4013,21 @@ class Space(Handle):
         Truncated nodes when its budget ends, so an empty list means no proof.
         `timeout` and `inferences` guard the whole search. An evaluation error
         inside a proof surfaces as itself rather than as an empty proof list.
+
+        `using` binds host values into the term, for the reason eval_status
+        needs it: the substitution lands BEFORE the search, so the proof of an
+        evaluation that binds anything was unaskable. Name keys mean symbols
+        and atom keys mean themselves, so `using={V.x: 5}` fills a variable
+        hole. It takes no `theory` or
+        `interpreter`, because a meta-interpreted diagnostic does not select an
+        evaluation relation.
         """
+        target, using = self._prepared_ask(target, using, door="derivation")
         diagnostics = _importlib.import_module(f"{__package__}._space_diagnostics")
         return diagnostics.derivations(
             self._rt,
             self._space,
-            target,
+            _substituted(target, using) if using else target,
             depth,
             timeout=timeout,
             inferences=inferences,
@@ -4935,6 +5156,13 @@ class MeTTa:
         ``journal=`` constructs ``PersistentFactSpace`` from ``schema=`` or
         a schema mapping supplied as the backing. ``sync`` paces the
         journal and means nothing without one, so it refuses alone.
+
+        ``inherits``, ``restricted`` and ``grants`` choose the space MODEL and
+        are independent of whether the space is named. MeTTa's own
+        ``!(new-space &locked (restricted))`` names a restricted space, and
+        ``metta.space(S.locked, restricted=True)`` is that call. Declaring a
+        model on a name that already carries the same one is a no-op; a
+        different one raises, because a space cannot have two models.
         """
         if sync != "none" and journal is None:
             msg = "space(sync=...) paces a journal; pass journal= as well"
@@ -4994,10 +5222,9 @@ class MeTTa:
                 _equation_home=equation_home,
             )
         else:
-            if inherits is not None or restricted or grants:
-                msg = "inherits, restricted, and grants apply only to anonymous space()"
-                raise TypeError(msg)
-            handle = Space(name, _runtime=self._rt)
+            handle = self._self._open(
+                name, inherits=inherits, restricted=restricted, grants=grants
+            )
 
         # Everything below can refuse, and a refusal must not leak what was
         # just acquired: the anonymous mint unwinds by dropping (it is

@@ -445,18 +445,21 @@ def test_aio_covers_the_whole_synchronous_surface():
     assert not divergent, (
         f"these doors carry one name and two surfaces: {sorted(divergent)}"
     )
-    signature = inspect.signature(aio.AsyncMeTTa.save)
-    assert list(signature.parameters) == ["self", "path", "format"]
-    assert signature.parameters["format"].default == "metta"
+    # The set comparison above already proves the two surfaces carry the same
+    # parameter NAMES. What is left to pin is what a name alone does not say:
+    # the defaults, and which parameters are positional. Pinning the exact list
+    # instead made every legitimate widening of a door look like a defect --
+    # `save` gaining the limit guards its siblings carry went red here while
+    # the parity it exists to check was intact.
+    save = inspect.signature(aio.AsyncMeTTa.save)
+    assert save.parameters["format"].default == "metta"
+    assert save.parameters["format"].kind is inspect.Parameter.KEYWORD_ONLY
     derivation = inspect.signature(aio.AsyncMeTTa.derivation)
-    assert list(derivation.parameters) == [
-        "self",
-        "target",
-        "depth",
-        "timeout",
-        "inferences",
-    ]
     assert derivation.parameters["depth"].default is None
+    assert (
+        derivation.parameters["depth"].kind
+        is inspect.Parameter.POSITIONAL_OR_KEYWORD
+    )
     assert list(inspect.signature(aio.AsyncMeTTa.run).parameters) == [
         "self",
         "source",

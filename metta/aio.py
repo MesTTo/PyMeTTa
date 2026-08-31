@@ -824,9 +824,20 @@ class AsyncMeTTa:
             lambda m: m.load(path, timeout=timeout, inferences=inferences)
         )
 
-    async def save(self, path: str, format: SaveFormat = SaveFormat.metta) -> int:  # noqa: A002  -- format is the documented public save keyword and must remain compatible
+    async def save(
+        self,
+        path: str,
+        *,
+        format: SaveFormat = SaveFormat.metta,  # noqa: A002  -- format is the documented public save keyword
+        timeout: float | None = None,
+        inferences: int | None = None,
+    ) -> int:
         """Save this space and return the number of stored atoms."""
-        return await self.call(lambda m: m.save(path, format=format))
+        return await self.call(
+            lambda m: m.save(
+                path, format=format, timeout=timeout, inferences=inferences
+            )
+        )
 
     async def add(self, *atoms: Any) -> None:
         """Add atoms to this space on the worker."""
@@ -1070,6 +1081,7 @@ class AsyncMeTTa:
         target: Any,
         depth: int | None = None,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
@@ -1077,7 +1089,8 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.derivation(
                 target,
-                depth=depth,
+                depth,
+                using=using,
                 timeout=timeout,
                 inferences=inferences,
             )
@@ -1102,20 +1115,18 @@ class AsyncMeTTa:
     ) -> AsyncMeTTa:
         """Create or open one space through this connection's worker.
 
-        An omitted name creates an anonymous space. A provider supplied as
-        ``backing`` is attached to the resulting handle. The connection owns
-        the worker; returned spaces borrow it, so closing one does not stop
-        the connection.
+        An omitted name creates an anonymous space. ``inherits``, ``restricted``
+        and ``grants`` choose the space MODEL and apply to a named space as
+        well as an anonymous one. A provider supplied as ``backing`` is
+        attached to the resulting handle. The connection owns the worker;
+        returned spaces borrow it, so closing one does not stop the connection.
         """
         if inherits is not None and inherits._worker is not self._worker:
             msg = "an inherited async space must share this engine worker"
             raise ValueError(msg)
-        if name is not None and (inherits is not None or restricted or grants):
-            msg = "inherits, restricted, and grants apply only to anonymous space()"
-            raise TypeError(msg)
+        parent = None if inherits is None else inherits._m
+        requested_grants = tuple(grants)
         if name is None:
-            parent = None if inherits is None else inherits._m
-            requested_grants = tuple(grants)
             created_at = _creation_site()
             handle = await self.call(
                 lambda m: m._new_space(
@@ -1126,7 +1137,17 @@ class AsyncMeTTa:
                 )
             )
         else:
-            handle = await self.call(lambda m: m._at(name))
+            # A name and a model are independent here for the same reason they
+            # are on the synchronous door: the engine's declarations take any
+            # valid space name.
+            handle = await self.call(
+                lambda m: m._open(
+                    name,
+                    inherits=parent,
+                    restricted=restricted,
+                    grants=requested_grants,
+                )
+            )
         if backing is not None:
             await self.call(lambda m: m._register_space(backing, str(handle.name)))
             handle._backing = backing
@@ -1196,11 +1217,18 @@ class AsyncMeTTa:
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        theory: Any | None = None,
+        interpreter: Any | None = None,
     ) -> list:
         """Evaluate and report each answer's outcome kind."""
         return await self.call(
             lambda m: m.eval_status(
-                target, using=using, timeout=timeout, inferences=inferences
+                target,
+                using=using,
+                timeout=timeout,
+                inferences=inferences,
+                theory=theory,
+                interpreter=interpreter,
             )
         )
 

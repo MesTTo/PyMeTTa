@@ -4,14 +4,14 @@ A restricted space keeps ordinary computation and its own equations, refuses
 anything its base does not publish, and gains a capability only when the
 capability is granted at creation.
 
-`metta.space(restricted=True)` and `metta.space(restricted=True, grants=...)`
-are those two spaces, and neither has a name: the creation options apply only
-to an anonymous space, and every door the example uses hangs off the handle
-they answer.
+`metta.space(S.locked, restricted=True)` and
+`metta.space(S.reader, restricted=True, grants=[SpaceCapability.file])` are
+those two spaces, named exactly as `!(new-space &locked (restricted))` and
+`!(new-space &reader (restricted (grants file)))` name them. A name and a MODEL
+are independent.
 
 A path crosses as the `pathlib.Path` it is and a capability as the vocabulary
-value it is, so neither is quoted into text. One gap remains, commented where
-it bites: the named restricted space the original writes has no Python door.
+value it is, so neither is quoted into text.
 """
 
 from pathlib import Path
@@ -27,13 +27,12 @@ SOURCE = Path("examples/ch19-spaces-backed-by-anything/19-01-spaces-of-your-own/
 
 def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handle stays untouched
     """Lock a space, watch it refuse a file read, then grant the capability."""
-    # GAP: the original NAMES its spaces, `!(new-space &locked (restricted))`,
-    # and the answer of that form IS the name it created. metta.space refuses
-    # the pair: "inherits, restricted, and grants apply only to anonymous
-    # space()" [measured 2026-08-24, unchanged; commit=8a8b75a1f4052c00c70c29e25e95e4d5a1812cd5]. PERFECT:
-    # `locked = metta.space(S.locked, restricted=True)`. Residue P14.10;
-    # until it lands the handle carries every door instead.
-    locked = metta.space(restricted=True)
+    # The original NAMES its spaces, `!(new-space &locked (restricted))`, and
+    # the answer of that form IS the name it created. This is that call: a name
+    # and a MODEL are independent, because metta_declare_restricted_space/2
+    # always took any valid space name and only the Python door required
+    # anonymity.
+    locked = metta.space(S.locked, restricted=True)
 
     @locked.define
     def double(x):
@@ -56,7 +55,7 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 
     # A capability is granted explicitly when the space is created, as the
     # vocabulary's own value rather than as the word for it.
-    reader = metta.space(restricted=True, grants=[SpaceCapability.file])
+    reader = metta.space(S.reader, restricted=True, grants=[SpaceCapability.file])
     assert reader.eval(asked) == [True]
 
 
@@ -126,4 +125,12 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: extensions/python/tools/twin_coverage.py --measure --rounds 3;
 #: fixture=tabling-seam merged tree with engine/reader.so;
 #: commit=694c12f70da25a28ffe22f9209f1d75d56921f93].
-BUDGET = 56798
+#: RE-PINNED 2026-08-31, 56798 to 61560 (+4762), the twin now names its spaces,
+#: metta.space(S.locked, restricted=True) and metta.space(S.family_child,
+#: inherits=parent), which is what the MeTTa original writes; a named space
+#: declares its model on a name the caller chose rather than on a pooled
+#: anonymous one, and carries its own storage module for the life of the
+#: process [measured 2026-08-31: min-of-3 serial fresh processes;
+#: command=python extensions/python/tools/twin_coverage.py --repin;
+#: commit=WORKTREE].
+BUDGET = 61560

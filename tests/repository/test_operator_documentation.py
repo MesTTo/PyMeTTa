@@ -65,10 +65,6 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
         method = getattr(type(S.x), dunder, None)
         if method is None or getattr(object, dunder, None) is method:
             continue
-        if entries[dunder].kind == "absent":
-            with pytest.raises(TypeError, match="has no MeTTa lowering"):
-                method(S.x, V.y)
-            continue
         if entries[dunder].kind == "taken":
             continue
         term = method(S.x, V.y)
@@ -103,6 +99,17 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
     # And == really is the non-operator: it answers a bool, not a term.
     assert (S.x == S.x) is True and (S.x == S.y) is False
 
+    # A refusal names the NEAREST rung. The four ordering methods landed after
+    # this message was written, and it went on pointing at the bracket door
+    # below them, which is the ladder rule read backwards: every convenience
+    # names its longhand, so the message shows both and leads with the method.
+    for symbol, method in (("<", "lt"), ("<=", "le"), (">", "gt"), (">=", "ge")):
+        with pytest.raises(TypeError) as refused:
+            getattr(type(S.x), f"__{method}__")(S.x, 1)
+        message = str(refused.value)
+        assert f"left.{method}(right)" in message, message
+        assert f"S[{symbol!r}](left, right)" in message, message
+
 
 def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     """Prove the immutable 26-entry table is the single source from which every operator method is generated."""
@@ -116,8 +123,13 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     }
     assert len(OPERATOR_LOWERINGS) == 26
     assert {entry.dunder for entry in OPERATOR_LOWERINGS} == expected
+    # Four kinds, not five. "absent" was the vocabulary for an operator with
+    # no MeTTa lowering, and `<<` and `>>` were its only two rows; giving MeTTa
+    # bit-shift-left and bit-shift-right left it with none, so the kind, its
+    # `reason` field and the branch that raised from it are gone. Every Python
+    # binary operator lowers now.
     assert {entry.kind for entry in OPERATOR_LOWERINGS} == {
-        "absent", "provided", "symbol", "taken", "template"
+        "provided", "symbol", "taken", "template"
     }
     with pytest.raises(TypeError):
         operator.setitem(OPERATOR_LOWERINGS, 0, OPERATOR_LOWERINGS[0])
@@ -136,10 +148,8 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     assert str(S.x // 2) == "(floor-math (/ x 2))"
     assert str(-S.x) == "(- 0 x)"
     assert str(abs(S.x)) == "(abs-math x)"
-    with pytest.raises(TypeError, match="MeTTa has no integer-left-shift operation"):
-        S.x << 2
-    with pytest.raises(TypeError, match="MeTTa has no integer-right-shift operation"):
-        S.x >> 2
+    assert str(S.x << 2) == "(bit-shift-left x 2)"
+    assert str(S.x >> 2) == "(bit-shift-right x 2)"
 
     metta = MeTTa().space()
     assert metta.eval(Atom.__floordiv__(Grounded(7), 2)) == [3]
@@ -153,9 +163,13 @@ def test_the_operator_table_is_generated_from_one_source_with_no_holes():
     assert Grounded(7) // 2 == S["floor-math"](S["/"](7, 2))
     assert -Grounded(7) == S["-"](0, 7)
     assert abs(Grounded(-7)) == S["abs-math"](-7)
-    with pytest.raises(TypeError, match="MeTTa has no integer-left-shift operation"):
-        Grounded(3) << 2
-    with pytest.raises(TypeError, match="MeTTa has no integer-right-shift operation"):
-        Grounded(12) >> 2
+    assert Grounded(3) << 2 == S["bit-shift-left"](3, 2)
+    assert Grounded(12) >> 2 == S["bit-shift-right"](12, 2)
+    assert metta.eval(Grounded(3) << 2) == [12]
+    assert metta.eval(Grounded(12) >> 2) == [3]
+    # Non-negative counts only: SWI answers 0 for `1 << -1`, silently reading
+    # a left shift as a right one, and the engine refuses instead.
+    refused = metta.eval(Grounded(1) << -1)
+    assert "must not be negative" in str(refused[0])
     assert (S.x == S.x) is True
     assert str(S.x.eq(S.y)) == "(== x y)"

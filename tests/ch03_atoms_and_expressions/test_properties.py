@@ -186,12 +186,6 @@ def test_expression_tuple_equality_is_symmetric_and_hash_coherent(atom):
     assert hash(atom) == hash(transparent)
 
 
-def _substitute(pattern, bindings):
-    if isinstance(pattern, Variable):
-        return bindings.get(pattern.name, pattern)
-    if isinstance(pattern, Expression):
-        return Expression([_substitute(c, bindings) for c in pattern])
-    return pattern
 
 
 @given(_atoms())
@@ -206,7 +200,7 @@ def test_unify_is_sound(atom):
         pattern = Expression([Variable("hole"), *atom.children[1:]])
         bound = unify(pattern, atom)
         assert bound is not None
-        assert _substitute(pattern, bound) == atom
+        assert pattern.subs(bound) == atom
 
 
 @pytest.fixture(scope="module")

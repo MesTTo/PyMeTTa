@@ -22,8 +22,8 @@ from __future__ import annotations
 
 from typing import Any, Literal, NamedTuple
 
-# policy-inventory-exempt: mechanism-internal; reason=these five names are the lowering table's own entry kinds, read only by the apply and method doors that walk the table; evidence=extensions/python/metta/_operator_lowerings.py:OperatorLowering
-LoweringKind = Literal["symbol", "template", "absent", "taken", "provided"]
+# policy-inventory-exempt: mechanism-internal; reason=these four names are the lowering table's own entry kinds, read only by the apply and method doors that walk the table; evidence=extensions/python/metta/_operator_lowerings.py:OperatorLowering
+LoweringKind = Literal["symbol", "template", "taken", "provided"]
 LoweringForm = str | int | tuple[Any, ...]
 
 
@@ -36,7 +36,6 @@ class OperatorLowering(NamedTuple):
     kind: LoweringKind
     form: LoweringForm | None
     method: str | None = None
-    reason: str | None = None
     # policy-inventory-exempt: mechanism-internal; reason=Python's operator protocol has only unary and binary dunders, so this is the table entry's own arity field; evidence=extensions/python/metta/_operator_lowerings.py:OperatorLowering
     arity: Literal[1, 2] = 2
 
@@ -58,21 +57,16 @@ OPERATOR_LOWERINGS: tuple[OperatorLowering, ...] = (
     OperatorLowering(
         "__matmul__", "__rmatmul__", "x @ y", "provided", "matmul"
     ),
+    # `bit-shift-left` rather than a `-math` name: that suffix marks this
+    # engine's C math.h family over binary64, and shift is exact and
+    # integer-only. The `bit-` prefix is Clojure's spelling and is load-bearing
+    # HERE, because `and`, `or` and `xor` below are BOOLEAN in MeTTa, so
+    # without it nothing tells a reader which family a bitwise operation joined.
     OperatorLowering(
-        "__lshift__",
-        "__rlshift__",
-        "x << y",
-        "absent",
-        None,
-        reason="MeTTa has no integer-left-shift operation",
+        "__lshift__", "__rlshift__", "x << y", "symbol", "bit-shift-left"
     ),
     OperatorLowering(
-        "__rshift__",
-        "__rrshift__",
-        "x >> y",
-        "absent",
-        None,
-        reason="MeTTa has no integer-right-shift operation",
+        "__rshift__", "__rrshift__", "x >> y", "symbol", "bit-shift-right"
     ),
     OperatorLowering("__and__", "__rand__", "x & y", "symbol", "and"),
     OperatorLowering("__or__", "__ror__", "x | y", "symbol", "or"),
@@ -109,9 +103,7 @@ def _validate_operator_lowerings() -> None:
         msg = "the operator lowering table contains a duplicate dunder"
         raise RuntimeError(msg)
     for entry in OPERATOR_LOWERINGS:
-        if entry.kind == "absent":
-            complete = entry.form is None and entry.reason is not None
-        elif entry.kind == "taken":
+        if entry.kind == "taken":
             complete = entry.form is not None and entry.method is not None
         else:
             complete = entry.form is not None and entry.method is None

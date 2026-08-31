@@ -7,6 +7,11 @@ Guarantees:
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - dropping an anonymous restricted space removes its policy before the name
     is reused [tested test_a_recycled_name_retains_no_restriction]
+  - a NAMED space takes every model an anonymous one takes, on both the
+    synchronous and the async door, because the engine's declarations take any
+    valid space name [tested:
+    test_a_named_space_takes_every_model_an_anonymous_one_takes,
+    test_an_async_named_space_takes_a_model; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -17,8 +22,8 @@ import asyncio
 
 import pytest
 
-from metta import S, aio
-from metta.errors import SpaceCapabilityError
+from metta import MeTTa, S, V, aio
+from metta.errors import MettaError, SpaceCapabilityError
 
 
 def test_a_restricted_space_cannot_reach_what_its_base_does_not_publish(
@@ -129,5 +134,66 @@ def test_async_space_forwards_restriction_and_grants(metta, tmp_path):
                 assert await reader.run(f'!(exists_file "{path}")') == [[True]]
             finally:
                 await reader.drop()
+
+    asyncio.run(exercise())
+
+
+def test_a_named_space_takes_every_model_an_anonymous_one_takes():
+    """`!(new-space &locked (restricted))` has a Python spelling.
+
+    A name and a MODEL are independent. The mint and the declaration used to be
+    one engine predicate per model, so there was nowhere to put a caller's name
+    and the door refused the pair; the engine itself never required anonymity,
+    since metta_declare_restricted_space/2 and metta_declare_space_parent/2
+    validate with metta_require_space_name/2 and accept any space name.
+    """
+    world = MeTTa()
+    locked = world.space(S.namedlocked, restricted=True)
+    assert str(locked.name) == "&namedlocked"
+
+    @locked.define
+    def namedlocked_double(x):
+        return x * 2
+
+    # A restricted space keeps ordinary computation and its own equations.
+    assert locked.eval(S.namedlocked_double(21)) == [42]
+    with pytest.raises(SpaceCapabilityError):
+        locked.eval(S["exists_file"]("/etc/hostname"))
+
+    # A grant reaches the named space exactly as it reaches an anonymous one.
+    reader = world.space(S.namedreader, restricted=True, grants=("file",))
+    # S["exists_file"] and not S.exists_file: the attribute door applies the
+    # underscore-to-hyphen map, and this operation's name really does carry an
+    # underscore, so the bracket door is the exact-spelling rung.
+    assert reader.eval(S["exists_file"]("/etc/hostname")) == [True]
+
+    # An inheriting child reads through its parent and writes only into itself.
+    parent = world.space(S.namedparent)
+    parent += S.rung(S.parent)
+    child = world.space(S.namedchild, inherits=parent)
+    child += S.rung(S.child)
+    assert [row.x for row in child[S.rung(V.x)]] == [S.child, S.parent]
+    assert [row.x for row in parent[S.rung(V.x)]] == [S.parent]
+
+
+def test_redeclaring_a_named_model_agrees_or_says_so():
+    """A space has ONE model, so a second declaration must agree."""
+    world = MeTTa()
+    first = world.space(S.twicelocked, restricted=True)
+    again = world.space(S.twicelocked, restricted=True)
+    assert str(first.name) == str(again.name)
+    with pytest.raises(MettaError, match="already restricted"):
+        world.space(S.twicelocked, restricted=True, grants=("file",))
+
+
+def test_an_async_named_space_takes_a_model(metta):
+    """The async door drops the same refusal, through the same declaration."""
+
+    async def exercise():
+        async with aio.AsyncMeTTa(metta=metta) as runtime:
+            locked = await runtime.space("&asyncnamedlocked", restricted=True)
+            assert str(locked.name) == "&asyncnamedlocked"
+            with pytest.raises(SpaceCapabilityError):
+                await locked.eval(S["exists_file"]("/etc/hostname"))
 
     asyncio.run(exercise())

@@ -24,7 +24,7 @@ import sys
 
 import pytest
 
-from metta import S, equation
+from metta import S, V, equation
 
 _TYPED_SHADOWING_PROBE = r"""
 from metta import MeTTa, S, equation, lib
@@ -99,6 +99,62 @@ def test_answers_selects_a_theory_or_interpreter_per_ask(metta):
 
     with pytest.raises(TypeError, match="pass one of them per answers"):
         space.answers(target, theory=laws, interpreter=interpreter)
+
+
+def test_eval_status_selects_the_same_relations_answers_does(metta):
+    """The door that REPORTS the evaluation path can select one.
+
+    eval_status took using=, timeout= and inferences= while eval() and
+    answers() took those plus under=, theory= and interpreter=. Being unable
+    to point the status door at an alternative evaluation relation was the
+    sharpest form of that gap: an explicit interpreter is exactly when
+    "did anything reduce this, or is it its own answer" is worth asking.
+    """
+    space = metta._new_space()
+    space.add(equation(S.choice()).to(S.base))
+    laws = (
+        equation(S.choice()).to(S.left),
+        equation(S.choice()).to(S.right),
+    )
+
+    assert space.eval_status(S.choice()) == [("value", S.base)]
+    assert space.eval_status(S.choice(), theory=laws) == [
+        ("value", S.left),
+        ("value", S.right),
+    ]
+    # The receiver is unchanged by the ask.
+    assert space.eval_status(S.choice()) == [("value", S.base)]
+
+    interpreter = space.define(_ask_interpreter, name="status-interpreter")
+    target = S.Payload(S.value)
+    # Without one the term is its own answer; with one the application reduces.
+    assert space.eval_status(target) == [("not-reducible", target)]
+    assert space.eval_status(target, interpreter=interpreter) == [
+        ("value", S.Interpreted(target, S["%Undefined%"], space))
+    ]
+
+    with pytest.raises(TypeError, match="pass one of them per eval_status"):
+        space.eval_status(target, theory=laws, interpreter=interpreter)
+
+
+def test_derivation_binds_host_values_like_the_doors_beside_it(metta):
+    """`using=` lands BEFORE the search, so a bound proof was unaskable."""
+    space = metta._new_space()
+    space.add(equation(S["p14-proof-double"](V.x)).to(S["*"](V.x, 2)))
+
+    direct = space.derivation(S["p14-proof-double"](5))
+    bound = space.derivation(S["p14-proof-double"](S.n), using={"n": 5})
+    # Same call and same answer. Not the whole tree: the engine names an
+    # unresolved variable freshly per search, so the equations inside read
+    # `$_1` and `$_2` for the same equation.
+    assert [(proof.call, proof.answer) for proof in bound] == [
+        (proof.call, proof.answer) for proof in direct
+    ]
+    assert bound
+
+    # Without it the symbol is just a symbol, so nothing reduces and no
+    # proof exists, which is the state that made the question unaskable.
+    assert space.derivation(S["p14-proof-double"](S.n)) != bound
 
 
 def test_an_inherited_arrow_does_not_veto_a_local_definition():

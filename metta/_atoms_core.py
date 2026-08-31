@@ -536,11 +536,19 @@ class Atom:
         return self._build("<=", other)
 
     @property
-    def vars(self) -> tuple[str, ...]:
-        """Variable names in first-appearance order; no names means ground."""
+    def vars(self) -> tuple[Variable, ...]:
+        """The variables in first-appearance order; none means ground.
+
+        The variables THEMSELVES, not their names, so what this answers is
+        what :meth:`subs` and :meth:`unify` accept and a round trip composes:
+        ``template.subs(dict(zip(pattern.vars, values)))``. Names were what it
+        answered once, and a name cannot say whether it means a variable or a
+        symbol on a surface that has both. ``not atom.vars`` still reads
+        "ground", because an empty tuple is still empty.
+        """
         from .atoms import _variables  # noqa: PLC0415  -- atoms owns tree traversal
 
-        return tuple(_variables(self))
+        return tuple(Variable(name) for name in _variables(self))
 
     def map(self, transform: Callable[[Atom], Atom]) -> Atom:
         """Transform every node, children before parents, without recursion."""
@@ -554,11 +562,56 @@ class Atom:
 
         return _alpha_eq(self, other)
 
-    def unify(self, other: Atom) -> Mapping[str, Atom] | None:
-        """Unify with another atom, returning bindings or ``None``."""
+    def unify(self, other: Atom) -> Mapping[Atom, Atom] | None:
+        """Unify with another atom, returning bindings or ``None``.
+
+        The keys are the VARIABLES themselves, which is the currency
+        :meth:`subs` accepts, so ``template.subs(pattern.unify(fact))``
+        is the round trip. They were plain names once, and a name cannot say
+        whether it means a variable or a symbol in a language that has both.
+        """
         from .atoms import unify  # noqa: PLC0415  -- atoms owns unification
 
         return unify(self, other)
+
+    def subs(self, bindings: Mapping[Atom, Any] | Any) -> Atom:
+        """Replace each atom the bindings name, everywhere it occurs.
+
+            pattern = S.job(V.who, V.rank)
+            pattern.subs(pattern.unify(S.job(S.ada, 9)))   # (job ada 9)
+            S.hired(V.who).subs(space.match(pattern)[0])   # (hired ada)
+            S.greet(S.name).subs({S.name: "ada"})          # (greet "ada")
+
+        The KEY says what is being replaced, so a variable hole and a
+        placeholder symbol are different substitutions rather than one string
+        meaning whichever the door happens to have chosen. ``unify`` produces
+        variable keys; ``using=`` at the evaluation doors accepts either.
+
+        An answer ``Row`` is accepted directly, because its columns ARE the
+        query's variable names. It is the library's other producer of
+        bindings, and it could not be fed back either.
+
+        Sugar over :meth:`map`, which is the rung below and stays reachable:
+        this is ``atom.map(lambda item: bindings.get(item, item))`` with the
+        keys and values encoded. Nothing consumed a substitution before this,
+        so both producers answered in a currency the library did not accept,
+        and two tests had written the recursive walk by hand.
+        """
+        from .atoms import _to_atom  # noqa: PLC0415  -- atoms owns encoding
+        from .results import Row  # noqa: PLC0415  -- results owns the answer row
+
+        if isinstance(bindings, Row):
+            bindings = {
+                Variable(column): bindings[index]
+                for index, column in enumerate(type(bindings)._columns)  # Row's own contract; no public name can hold the columns, because
+                # every attribute name on a Row is reserved for a column.
+            }
+        if not bindings:
+            return self
+        replacements = {
+            _to_atom(key): _to_atom(value) for key, value in bindings.items()
+        }
+        return self.map(lambda item: replacements.get(item, item))
 
     @overload
     def cast[CastT](self, type_: type[CastT], /) -> CastT: ...
@@ -1337,12 +1390,6 @@ def _apply_operator_lowering(
     flipped: bool = False,
 ) -> Expression:
     """Apply one table entry; ``taken`` entries never reach this door."""
-    if entry.kind == "absent":
-        msg = (
-            f"{entry.syntax} has no MeTTa lowering: {entry.reason}. "
-            "Operate on grounded Python values or define a named MeTTa function instead."
-        )
-        raise TypeError(msg)
     if entry.form is None:
         msg = f"operator lowering {entry.dunder} has no form"
         raise RuntimeError(msg)
@@ -1433,14 +1480,23 @@ def _install_operator_lowerings() -> None:
 _install_operator_lowerings()
 
 
+#: The term-building method for each comparison operator, so a refusal names
+#: the nearest rung rather than the furthest one. The bracket door still works
+#: and is still shown, because it is the rung below and the ladder never
+#: shrinks; naming only it sent a caller past the method that exists.
+_ORDER_METHOD = {"<": "lt", "<=": "le", ">": "gt", ">=": "ge"}
+
+
 def _atom_plain_order_error(atom: Atom, other: Any, operator: str) -> TypeError:
     """Ground a refused atom/plain comparison in Python's data model."""
+    method = _ORDER_METHOD[operator]
     message = (
         f"{operator} is not defined between {type(atom).__name__} and "
         f"{type(other).__name__}. Python Language Reference section 3.3.1 "
         "delegates unsupported rich comparisons. Compare two atoms for engine "
-        "order, unwrap a grounded primitive with .value, or build the MeTTa "
-        f"relation explicitly with S[{operator!r}](left, right)."
+        f"order, unwrap a grounded primitive with .value, or build the MeTTa "
+        f"relation with left.{method}(right), whose longhand is "
+        f"S[{operator!r}](left, right)."
     )
     return _grounded_type_error(
         message,

@@ -53,6 +53,8 @@ class _FunctionNamespace:
     atomically: Symbol
     bind: Symbol
     "bind!: (-> Symbol %Undefined% (->))\n\nA Python name binding. `space = metta.space(...)` is exactly what a token binding was for, and Python's own scoping rules then apply."
+    bit_shift_left: Symbol
+    bit_shift_right: Symbol
     call: Symbol
     car_atom: Symbol
     "car-atom: (-> Expression %Undefined%)\n\nIndexing. An expression is a sequence in Python, so its head is `e[0]`."

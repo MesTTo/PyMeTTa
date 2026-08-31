@@ -37,7 +37,6 @@ from metta import (
     MettaError,
     S,
     V,
-    Variable,
     parse,
     unify,
 )
@@ -733,20 +732,12 @@ class JoiningSpace(SpaceProvider):
                 found.append(chosen)
                 return
             for stored in self.rows:
-                more = unify(_substitute(patterns[index], bindings), stored)
+                more = unify(patterns[index].subs(bindings), stored)
                 if more is not None:
                     solve(index + 1, {**bindings, **more}, [*chosen, stored])
 
         solve(0, {}, [])
         return list(patterns), [], iter(found)
-
-
-def _substitute(atom: Atom, bindings: dict) -> Atom:
-    if isinstance(atom, Variable):
-        return bindings.get(atom.name, atom)
-    if isinstance(atom, Expression):
-        return Expression([_substitute(child, bindings) for child in atom.children])
-    return atom
 
 
 class DecliningPlanner(JoiningSpace):  # noqa: D101  -- the local test double is documented by the scenario that constructs it

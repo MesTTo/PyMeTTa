@@ -286,18 +286,20 @@ def from_pattern(pattern, max_leaves: int = 8):
     st = _st()
     term = _encode(pattern)
     values = ground_atoms(max_leaves)
-    variable_names = tuple(name for name in term.vars if name != "_")
+    variables = tuple(item for item in term.vars if item.name != "_")
 
     @st.composite
     def instances(draw):
-        bindings = {name: draw(values) for name in variable_names}
+        bindings = {item: draw(values) for item in variables}
 
         def instantiate(atom):
             if not isinstance(atom, Variable):
                 return atom
+            # Anonymous holes are independent draws, so they cannot come from
+            # the shared mapping.
             if atom.name == "_":
                 return draw(values)
-            return bindings[atom.name]
+            return bindings[atom]
 
         return term.map(instantiate)
 

@@ -97,8 +97,8 @@
 %     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - Engine atom hooks exist only while a Python space subscription exists
 %     [tested test_subscription_hooks_follow_the_active_space_set]
-%   - metta_py_new_space/2 and metta_py_release_space/1 keep inherited-space
-%     declarations aligned with anonymous-name reuse [tested:
+%   - metta_py_new_modelled_space/3 and metta_py_release_space/1 keep
+%     inherited-space declarations aligned with anonymous-name reuse [tested:
 %     test_a_recycled_child_name_may_choose_a_different_parent;
 %     commit=755330de329ece49eddcfb7d6db3061c3350a0ca]
 %   - metta_py_new_space/1 answers a space that EXISTS with nothing written to
@@ -116,9 +116,14 @@
 %   - metta_py_open_atom_space/2 decodes and declares a ground expression
 %     identity once for Python space handles [tested:
 %     test_python_space_factory_accepts_atom_valued_names; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-%   - metta_py_new_restricted_space/2 rolls a failed declaration back to the
+%   - metta_py_new_modelled_space/3 rolls a failed declaration back to the
 %     anonymous-name pool [tested: test_restricted_constructor_validation_is_eager;
 %     commit=6a08901f4125c2536f5b4032daac9937f793870f]
+%   - metta_py_declare_space/3 declares a model on a name the CALLER chose, so
+%     a named space can inherit, be restricted, or carry grants exactly as an
+%     anonymous one can; metta_py_new_modelled_space/3 is that door with a
+%     fresh name in front of it [tested:
+%     test_a_named_space_takes_every_model_an_anonymous_one_takes]
 %   - proof leaves recover a parametric space from its canonical storage
 %     module and reserved functor [tested:
 %     test_two_instances_of_a_parametric_space_answer_independently;
@@ -955,6 +960,12 @@ metta_py_wrappable(metta_py_eval_count_retaining).
 metta_py_wrappable(metta_py_derivation).
 metta_py_wrappable(metta_py_load).
 metta_py_wrappable(metta_py_fast_load_unit).
+%A save is linear in the space in all three of its parts, so all three are
+%bounded: the enumeration, the unwritable-atom scan the validator runs, and
+%the fast writer. Loading was already bounded and saving was not, which left
+%the one door on this surface that does unbounded engine work with no guard.
+metta_py_wrappable(metta_py_atoms).
+metta_py_wrappable(metta_py_fast_save).
 metta_py_wrappable(metta_py_world_eval).
 
 metta_py_fast_load_unit(File, Space, []) :-
@@ -1898,34 +1909,53 @@ metta_py_fresh_space_name(Name) :-
     ->  Name = Candidate
     ;   metta_py_next_space(Name) ).
 
-%The two model declarations create the storage THEMSELVES and refuse a child
+%The three model declarations create the storage THEMSELVES and refuse a child
 %that has been used already (space_parent_child_used/1 reads exactly the
 %storage cache ensure_native_storage_module/2 writes), so these take the name
 %and let the declaration create it.
-metta_py_new_space(Parent0, Name) :-
-    ( atom(Parent0) -> Parent = Parent0 ; atom_string(Parent, Parent0) ),
-    metta_py_fresh_space_name(Name),
-    catch(metta_declare_space_parent(Name, Parent), Error,
-          ( metta_py_pool_space(Name), throw(Error) )).
-
+%
+%Each is written ONCE, taking the name, and the anonymous door below is "mint a
+%fresh name, then declare". The engine never required the name to be anonymous:
+%metta_declare_restricted_space/2 and metta_declare_space_parent/2 validate
+%with metta_require_space_name/2 and accept any space name. Only the Python
+%door required it, and only because the mint and the declaration were written
+%as one predicate per model with no way to supply the name
+%[engine/spaces/lifecycle.pl:764,870].
+%ONE declaration door, with the model as its first argument, because the three
+%models differ only in which engine declaration they reach: the name check, the
+%argument decoding and the failure handling are identical for all of them.
+%Three mint predicates and three declare predicates for that is five copies of
+%one shape.
+metta_py_declare_space(inherits, Name0, Parent0) :-
+    metta_py_space_atom(Name0, Name),
+    metta_py_space_atom(Parent0, Parent),
+    metta_declare_space_parent(Name, Parent).
 %A context's sibling space: the home supplies its EQUATION tier only, the
 %narrow relation engine/spaces/lifecycle.pl documents, so the space's atoms
 %stay its own and conjunctive matching keeps the direct native path.
-metta_py_new_scoped_space(Home0, Name) :-
-    ( atom(Home0) -> Home = Home0 ; atom_string(Home, Home0) ),
+metta_py_declare_space(scoped, Name0, Home0) :-
+    metta_py_space_atom(Name0, Name),
+    metta_py_space_atom(Home0, Home),
+    metta_declare_space_equation_home(Name, Home).
+metta_py_declare_space(restricted, Name0, Grants0) :-
+    metta_py_space_atom(Name0, Name),
+    maplist(metta_py_space_capability, Grants0, Grants),
+    metta_declare_restricted_space(Name, Grants).
+
+metta_py_space_atom(Space0, Space) :-
+    ( atom(Space0) -> Space = Space0 ; atom_string(Space, Space0) ).
+
+%The anonymous door is that door with a fresh name in front of it. A refusal
+%returns the name to the anonymous pool, so a rejected request leaks no
+%allocation [tested: test_restricted_constructor_validation_is_eager].
+metta_py_new_modelled_space(Model, Argument, Name) :-
     metta_py_fresh_space_name(Name),
-    catch(metta_declare_space_equation_home(Name, Home), Error,
+    catch(metta_py_declare_space(Model, Name, Argument), Error,
           ( metta_py_pool_space(Name), throw(Error) )).
 
 metta_py_open_atom_space(NameWire, Space) :-
     metta_py_decode_shared(NameWire, Space, _),
     metta_declare_parametric_space(Space).
-
-metta_py_new_restricted_space(Grants0, Name) :-
-    maplist(metta_py_space_capability, Grants0, Grants),
-    metta_py_fresh_space_name(Name),
-    catch(metta_declare_restricted_space(Name, Grants), Error,
-          ( metta_py_pool_space(Name), throw(Error) )).
 
 metta_py_space_capability(Capability, Capability) :- atom(Capability), !.
 metta_py_space_capability(Capability0, Capability) :-
