@@ -106,7 +106,7 @@ run GATE packaged sh -c "cd '$HERE' && sh tests/shell/test_packaged_cli.sh"
 # tree; 199 of the 200 by both ANSWERING and examples/ch20-extending-the-engine/20-02-metta-written-in-metta/04-minimal_metta.metta
 # by both failing until its two library files were committed].
 #
-# It reads the engine through tests/conformance/leatta_run.pl, which already
+# It reads the engine through tests/conformance/answer_groups.pl, which already
 # existed to print one answer GROUP per runnable form, and compares the groups
 # as VALUES rather than as text. Both matter and both were got wrong first:
 # comparing flat lines could not tell !(superpose (1 2 3)) then !(+ 1 1) from

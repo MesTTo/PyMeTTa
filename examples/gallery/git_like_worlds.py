@@ -35,7 +35,7 @@ doctest("revision doctest", revision)
 
 claim("create base revision", S.add_atom(parent, S.Base(1)), parent.eval)
 # -> (add-atom &gallery-worlds (Base 1))
-# => ()
+# => True
 # A reified world admits only the effect rank its origin declares it handles.
 # Branching writes into each successor's own scratch state, so this repository
 # covers writesState; anything stronger, an import or a clock read, still
@@ -73,14 +73,14 @@ claim(
     branch("launch"),
 )
 # -> (add-atom &self (Decision launch))
-# => ()
+# => True
 claim(
     "abort branch",
     S.add_atom(S["&self"], S.Decision(S.abort)),
     branch("abort"),
 )
 # -> (add-atom &self (Decision abort))
-# => ()
+# => True
 claim(
     "base remains untouched",
     S.match(parent, V.atom, V.atom),

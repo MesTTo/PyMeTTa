@@ -15,7 +15,7 @@ import metta
 from metta import remote
 
 m = metta.MeTTa()
-remote.attach(m, "&ts", "http://127.0.0.1:8700")
+metta.attach("&ts", "http://127.0.0.1:8700")
 m.run("!(add-atom &ts (edge a b))")
 m.run("!(match &ts (edge $x $y) ($x $y))")
 ```

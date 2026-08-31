@@ -1,9 +1,12 @@
 """Purpose: expose an engine state cell as one typed Python handle.
 
 Assumes:
-  - ``new-state``, ``get-state``, and ``change-state!`` preserve the cell
-    symbol and its declared ``StateMonad`` parameter [source:
-    lib/lib_builtin_types/lib_builtin_types.metta:315; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+  - ``new-state`` answers the cell symbol and ``get-state`` reads it, both
+    keeping the declared ``StateMonad`` parameter; ``change-state!`` runs for
+    its EFFECT and answers ``true``, the answer every operation of that family
+    gives, so a write is not a way to obtain the cell [source:
+    lib/lib_builtin_types/lib_builtin_types.metta, and PeTTa@ae66fa8
+    src/metta.pl:265, `'change-state!'(Var, Value, true)`]
 Guarantees:
   - ``State.value`` reads and writes the same engine cell, and ``__metta__``
     lets every ordinary atom boundary carry that cell [tested:
@@ -61,8 +64,12 @@ class State[T]:
     @value.setter
     def value(self, replacement: T) -> None:
         answers = self._space.eval(Symbol("change-state!")(self._cell, replacement))
-        if answers != [self._cell]:
-            msg = f"change-state! returned {answers!r}, not {self._cell}"
+        #The write answers `true`, not the cell. It answered the cell until
+        #2026-08-30, which let `(get-state (change-state! ...))` compose; the
+        #arbiter's write is an effect and says only that it happened.
+        if len(answers) != 1 or _decode(answers[0]) is not True:
+            msg = (f"change-state! returned {answers!r}, not the effect "
+                   f"answer true, writing {self._cell}")
             raise EngineError(msg)
 
     def __repr__(self) -> str:

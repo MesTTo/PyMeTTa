@@ -224,7 +224,7 @@ class DuckDBSpace(SpaceProvider):
         return table, values
 
 
-def attach(m, name: str, database: Any = ":memory:", tables: list[str] | None = None) -> DuckDBSpace:
+def attach_database(m, name: str, database: Any = ":memory:", tables: list[str] | None = None) -> DuckDBSpace:
     """Register a DuckDB database as a space on this engine. database is a
     connection, a path, or :memory:. A path or :memory: opens a connection
     the space owns and close() closes; a passed connection stays the
@@ -251,7 +251,7 @@ def demo() -> None:
     conn.execute("insert into users values (1, 'Ada'), (2, 'Bob'), (3, 'Cy')")
     conn.execute("create table vips (id integer)")
     conn.execute("insert into vips values (1), (3)")
-    provider = attach(m, "&crm", conn)
+    provider = attach_database(m, "&crm", conn)
 
     check("enumerate", m.run("!(collapse (match &crm (users $id $n) $n))"),
           [[Expression("Ada", "Bob", "Cy")]])

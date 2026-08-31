@@ -37,7 +37,7 @@ try:
         mailbox.eval,
     )
     # -> (add-atom &gallery-linda (Job 7))
-    # => ()
+    # => True
 
     def watch_event(term):
         """Read the committed add event from the already-open watch."""

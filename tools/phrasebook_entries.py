@@ -17,7 +17,7 @@ Assumes:
 Guarantees:
   - the `types` of every row equal LeaTTa's declaration for that name, which
     `phrasebook.py --gate` re-checks against the manifest whenever LeaTTa is
-    checked out [tested: test_the_phrasebook_covers_every_leatta_name]
+    checked out [tested: test_the_phrasebook_carries_one_row_per_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the matching, nondeterminism, fold, and state rows execute every public
@@ -608,7 +608,7 @@ ENTRIES: list[Entry] = [
         differs="this engine answers one unit per element where LeaTTa answers one",
     ),
     Entry(
-        "atom-subst", ("(-> Atom Variable Atom Atom)",), "Symbol", "atoms", "method",
+        "atom-subst", ("(-> Atom (:Atom Variable) Atom Atom)",), "Symbol", "atoms", "method",
         "Applying a substitution to a template, which `Atom.map` does over "
         "the whole term. Section 9e wants the bindings object to carry it, "
         "`b.apply(template)`; `metta.Bindings` has no such method yet, so the "
@@ -797,7 +797,11 @@ ENTRIES: list[Entry] = [
         "There is nothing to quote: building a term at the `S.` door never "
         "evaluates it, so the quoting question does not arise. `S.quote(x)` builds "
         "the term itself where a program needs the constructor.",
-        metta="!(quote (+ 1 2))", python="S.quote(S['+'](1, 2))",
+        metta="!(quote (+ 1 2))", python="S['+'](1, 2)",
+        differs="LeaTTa answers (quote (+ 1 2)) and keeps the wrapper; this "
+                "engine and Python answer (+ 1 2), which is upstream's own "
+                "lowering, `Out = Expr` [source: PeTTa@ae66fa8 "
+                "src/translator.pl:320-322]",
     ),
     Entry(
         "noeval", ("(-> Atom Atom)",), "Symbol", "control", "dissolves",
@@ -921,9 +925,13 @@ ENTRIES: list[Entry] = [
         ),
     ),
     Entry(
-        "remove-atom", ("(-> SpaceType Atom (->))",), "Grounded", "spaces", "dissolves",
-        "`space -= atom` removes THAT atom and never pattern-matches; `del "
-        "space[pattern]` is the pattern form, and the pair is taught together.",
+        "remove-atom", ("(-> SpaceType Atom Bool)",), "Grounded", "spaces", "dissolves",
+        "Drains every atom that unifies and answers True either way. `space "
+        "-= atom` is this door, because `-=` is Python's in-place difference "
+        "and set difference is total; `space.remove(atom)` is the "
+        "one-occurrence grain, Python's own `list.remove`, and reports whether "
+        "it found one; `del space[pattern]` raises when the pattern matches "
+        "nothing, as Python's `del` does.",
         metta="!(bind! &pb (new-space))\n!(add-atom &pb (f 1))\n!(remove-atom &pb (f 1))\n"
               "!(get-atoms &pb)",
         python="space += S.f(1)\nspace -= S.f(1)\nspace.atoms()",
@@ -1151,11 +1159,15 @@ ENTRIES: list[Entry] = [
         python="state = metta.State[int](5, space=m)\nstate.value",
     ),
     Entry(
-        "change-state!", ("(-> (StateMonad $tcso) $tcso (StateMonad $tcso))",), "Grounded",
+        "change-state!", ("(-> (StateMonad $tcso) $tcso Bool)",), "Grounded",
         "state", "method",
         "Assigning `state.value` writes the same typed engine cell and reading it "
-        "back returns the replacement.",
-        metta="!(let $c (new-state 1) (get-state (change-state! $c 2)))",
+        "back returns the replacement. The WRITE answers True rather than the "
+        "cell, which is upstream's own answer -- "
+        "`'change-state!'(Var, Value, true)` [source: PeTTa@ae66fa8 "
+        "src/metta.pl:265] -- so the read is a separate step here as it is in "
+        "Python.",
+        metta="!(let $c (new-state 1) (let $_ (change-state! $c 2) (get-state $c)))",
         python=(
             "state = metta.State[int](1, space=m)\n"
             "state.value = 2\n"
@@ -1168,9 +1180,14 @@ ENTRIES: list[Entry] = [
     ),
     # ----------------------------------------------------------------- text
     Entry(
-        "println!", ("(-> %Undefined% (->))",), "Grounded", "text", "dissolves",
-        "Python's `print`.",
-        metta="!(println! hello)", python="print('hello')\nmetta.Expression()",
+        "println!", ("(-> %Undefined% Bool)",), "Grounded", "text", "dissolves",
+        "Python's `print`. It answers True rather than unit, which is upstream's "
+        "own answer: `'println!'(Arg, true)` [source: PeTTa@ae66fa8 "
+        "src/metta.pl:212].",
+        metta="!(println! hello)", python="print('hello')\nmetta.TRUE",
+        differs="LeaTTa answers (); this engine and Python answer True, which "
+                "is upstream's own `'println!'(Arg, true)` [source: "
+                "PeTTa@ae66fa8 src/metta.pl:212]",
     ),
     Entry(
         "trace!", ("(-> %Undefined% Atom %Undefined%)",), "Grounded", "text", "dissolves",

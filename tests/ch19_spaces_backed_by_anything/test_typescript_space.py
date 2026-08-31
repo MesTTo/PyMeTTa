@@ -83,7 +83,7 @@ def mettascript_server():  # noqa: D103  -- pytest discovers or injects this cal
 def test_metta_reaches_atoms_held_by_typescript(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.MeTTa().space()
     try:
-        remote.attach(m, "&ts-basics", ts_server)
+        metta.attach("&ts-basics", ts_server)
         m.run("!(add-atom &ts-basics (edge a b))")
         m.run("!(add-atom &ts-basics (edge a c))")
         (group,) = m.run("!(collapse (match &ts-basics (edge a $x) $x))")
@@ -108,7 +108,7 @@ def test_the_conformance_kit_certifies_the_typescript_provider(ts_server):  # no
 def test_threaded_clients_interleave_whole_operations(ts_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.MeTTa().space()
     try:
-        remote.attach(m, "&ts-threads", ts_server)
+        metta.attach("&ts-threads", ts_server)
 
         def add(index: int) -> None:
             m.run(f"!(add-atom &ts-threads (row {index}))")
@@ -130,7 +130,7 @@ def test_async_clients_reach_the_typescript_space(ts_server):  # noqa: D103  -- 
     async def drive() -> list:
         m = metta.MeTTa().space()
         try:
-            remote.attach(m, "&async-ts", ts_server)
+            metta.attach("&async-ts", ts_server)
             async with await aio.connect(metta=m) as engine:
                 await engine.run("!(add-atom &async-ts (fact 1))")
                 await engine.run("!(add-atom &async-ts (fact 2))")
@@ -166,7 +166,7 @@ def test_the_wire_round_trip_is_fast_enough_to_matter(ts_server):  # noqa: D103 
 def test_mettascript_holds_the_atoms_when_named(mettascript_server):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m = metta.MeTTa().space()
     try:
-        remote.attach(m, "&ms", mettascript_server)
+        metta.attach("&ms", mettascript_server)
         m.run("!(add-atom &ms (edge a b))")
         m.run("!(add-atom &ms (edge a c))")
         (group,) = m.run("!(collapse (match &ms (edge a $x) $x))")
@@ -192,7 +192,7 @@ def test_a_batch_crosses_in_one_request(ts_server):  # noqa: D103  -- pytest dis
 
     m = metta.MeTTa().space()
     try:
-        remote.attach(m, "&ts-batch", counting)
+        metta.attach("&ts-batch", RemoteSpace(counting))
         m._at("&ts-batch").add(S.row(1), S.row(2), S.row(3))
         assert operations.count("add_many") == 1
         assert operations.count("add") == 0

@@ -55,7 +55,7 @@ claim(
     space.eval,
 )
 # -> (progn (add-atom &gallery-ecosystem (edge a b)) (add-atom &gallery-ecosystem (edge b c)) (add-atom &gallery-ecosystem (edge c d)) (add-atom &gallery-ecosystem (edge a e)) (add-atom &gallery-ecosystem (edge e f)) (add-atom &gallery-ecosystem (edge f g)) (add-atom &gallery-ecosystem (edge g d)))
-# => ()
+# => True
 
 
 @space.reads
@@ -74,7 +74,7 @@ path = claim(
 # => (Path a b c d)
 claim("write result back", S.add_atom(space, path), space.eval)
 # -> (add-atom &gallery-ecosystem (Path a b c d))
-# => ()
+# => True
 claim(
     "result is queryable knowledge",
     S.match(
