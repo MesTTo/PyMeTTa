@@ -74,9 +74,10 @@ Open Obligations:
   Hacks: None
   Future Enhancements: None
 """
-# pylint: disable=redefined-outer-name  -- the generated module doors carry
-# Space's own parameter names, and two of them (fn, under) are also module
-# objects; inside a door the parameter is the meaning, which is the point.
+# The generated module doors carry Space's own parameter names, and two of
+# them (fn, under) are also module objects; inside a door the parameter is
+# the meaning, which is the point.
+# pylint: disable=redefined-outer-name
 
 
 from __future__ import annotations
