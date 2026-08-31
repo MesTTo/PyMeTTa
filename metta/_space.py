@@ -3150,7 +3150,7 @@ class Space(Handle):
         never weakens the effect claim -- but it does mean a generator is not
         cache-safe, which is the whole reason it is lifted out of this class
         [tested: test_a_generator_is_lifted_to_the_nondeterministic_rank;
-        commit=WORKTREE].
+        commit=7e5091540a8dc0903bcee24f3e5b8b85a19f805f].
         """
         return self._classified(fn, EffectClass.pureStructural, options)
 
