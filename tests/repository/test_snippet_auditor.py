@@ -48,7 +48,13 @@ def test_the_snippet_auditor_runs_from_the_gate(repo_root):  # noqa: D103  -- py
     log = run.stdout + run.stderr
     assert run.returncode == 0, log
     assert "=== snippets [REPORT] ===" in log
-    assert "snippet provenance backlog: 28 of 72 remain" in log
+    # 27, down from the inventoried 28: adding add-many to the advertised
+    # capabilities changed the protocol page's health fence, so its baseline
+    # row is stale and the auditor reports it RESOLVED SINCE INVENTORY, the
+    # same designed state the other superseded rows are in. The baseline is
+    # append-only, so the row keeps its inventoried digest and the count
+    # moves here instead.
+    assert "snippet provenance backlog: 27 of 72 remain" in log
     assert "tracked in website/scripts/snippet_backlog.tsv" in log
     assert "guide/contract.md fence 1:" in log
     assert "REPORT snippets     findings" in log

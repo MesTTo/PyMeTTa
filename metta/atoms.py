@@ -452,7 +452,7 @@ def substitute(atom: Any, bindings: Mapping[str, Atom]) -> Atom:
     ``Atom.subs`` is the public door and the one implementation. It is keyed by
     ATOM because a bare name cannot say which kind it means on a surface that
     has both: this function reads ``{"x": ...}`` as the VARIABLE $x while
-    ``using=`` at the evaluation doors reads the same mapping as the SYMBOL x
+    a ``bind()`` scope at the evaluation doors reads the same mapping as the SYMBOL x
     [measured 2026-08-31, on the source door and the term door alike]. Two
     meanings for one spelling is fine inside the library, where each caller
     knows which it holds, and is not something to publish.
@@ -474,7 +474,7 @@ def unify(left: Any, right: Any) -> Mapping[Atom, Atom] | None:
     Keyed by the VARIABLES themselves, which is what ``Atom.subs`` accepts, so
     a substitution this produces is one the library can apply. A bare name
     cannot say whether it means a variable or a symbol, and this language has
-    both: ``using={"x": 5}`` at the evaluation doors means the SYMBOL x.
+    both: ``bind({"x": 5})`` at the evaluation doors means the SYMBOL x.
     """
     bindings: dict[str, Atom] = {}
     if not _unify_symmetric(_encode(left), _encode(right), bindings):

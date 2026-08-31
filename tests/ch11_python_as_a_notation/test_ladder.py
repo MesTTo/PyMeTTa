@@ -98,9 +98,14 @@ def test_module_tier_op_forwards_identity_to_the_default_receiver(monkeypatch) -
         return value
 
     assert metta.op(host, name="root-op-forwarding", effect="pureStructural") is sentinel
-    assert calls == [
-        ((host,), {"name": "root-op-forwarding", "effect": "pureStructural"})
-    ]
+    # The generated module door carries Space.op's own signature, so it
+    # forwards every keyword with Space's own default where the caller was
+    # silent. What identity means is therefore: one call, the callable
+    # positional, and every value the caller DID pass arriving unchanged.
+    [(args, kwargs)] = calls
+    assert args == (host,)
+    assert kwargs["name"] == "root-op-forwarding"
+    assert kwargs["effect"] == "pureStructural"
 
 
 def test_module_tier_op_registration_precedes_definition_compilation() -> None:

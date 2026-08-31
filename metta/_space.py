@@ -568,7 +568,7 @@ def _require_name(name: Any, called: str) -> None:
 
 
 def _substituted(target: Any, using: dict[str, Any]) -> Atom:
-    """Apply ``using=`` to a target in the host, as the engine applies it.
+    """Apply a bindings mapping to a target in the host, as the engine does.
 
     ``metta_host_substitute/3`` replaces an ATOM whose name is a binding key,
     recursively [source: engine/filereader.pl:579-584]. Any door that has to
@@ -2617,7 +2617,7 @@ class Space(Handle):
         """
         _record_sync_engine_call(self, "eval", sys._getframe(1))
         # Atom-keyed bindings are applied here whichever branch runs below, so
-        # the eager path and the delegating one agree on what `using=` accepts.
+        # the eager path and the delegating one agree on what a binding means.
         target, using = self._prepared_ask(target, None)
         # The two doors are NOT one mechanism, which was measured rather than
         # assumed: eval() is one eager engine call (metta_py_eval_all) and
@@ -2810,11 +2810,11 @@ class Space(Handle):
         has to name the SCRATCH as its space, and the scratch does not exist
         yet.
 
-        And an ATOM-keyed ``using=`` binding is applied here rather than sent
-        on. The engine's metta_host_substitute/3 matches an atom by NAME
-        [source: engine/filereader.pl:579-584], so it can reach a symbol and
-        cannot reach a variable at all -- measured 2026-08-31, neither
-        ``using={"x": 5}`` nor ``using={"$x": 5}`` fills the hole in
+        And an ATOM-keyed binding from the ``bind()`` scope is applied here
+        rather than sent on. The engine's metta_host_substitute/3 matches an
+        atom by NAME [source: engine/filereader.pl:579-584], so it can reach a
+        symbol and cannot reach a variable at all -- measured 2026-08-31,
+        neither ``{"x": 5}`` nor ``{"$x": 5}`` fills the hole in
         ``(dbl $x)``. A variable hole is exactly what ``unify`` reports, so
         the one substitution the library could produce was the one no door
         could apply. An atom key says which atom it means, so it is applied by
@@ -3072,11 +3072,11 @@ class Space(Handle):
         alike from the answers alone. An error is not a status here,
         because it arrives as an exception.
 
-        `using` binds host values into the term exactly as it does for
-        eval(), and it has to: the substitution lands BEFORE the
+        A `bind()` scope binds host values into the term exactly as it
+        does for eval(), and it has to: the substitution lands BEFORE the
         reducibility question, so the status of an evaluation that binds
         anything was unaskable without it. Name keys mean symbols and atom
-        keys mean themselves, so `using={V.x: 5}` fills a variable hole.
+        keys mean themselves, so `bind({V.x: 5})` fills a variable hole.
 
         `theory` and `interpreter` are eval()'s own, and mean the same here.
         This is the door that says which evaluation path produced an answer, so
@@ -4042,11 +4042,11 @@ class Space(Handle):
         `timeout` and `inferences` guard the whole search. An evaluation error
         inside a proof surfaces as itself rather than as an empty proof list.
 
-        `using` binds host values into the term, for the reason eval_status
-        needs it: the substitution lands BEFORE the search, so the proof of an
-        evaluation that binds anything was unaskable. Name keys mean symbols
-        and atom keys mean themselves, so `using={V.x: 5}` fills a variable
-        hole. It takes no `theory` or
+        A `bind()` scope binds host values into the term, for the reason
+        eval_status needs it: the substitution lands BEFORE the search, so the
+        proof of an evaluation that binds anything was unaskable. Name keys
+        mean symbols and atom keys mean themselves, so `bind({V.x: 5})` fills
+        a variable hole. It takes no `theory` or
         `interpreter`, because a meta-interpreted diagnostic does not select an
         evaluation relation.
         """
@@ -4096,7 +4096,15 @@ class Space(Handle):
     ) -> _builtins.type: ...
 
     @overload
-    def define(self, fn: Callable[_P, _R], /) -> Defined[_P, _R]: ...
+    def define(
+        self,
+        fn: Callable[_P, _R],
+        /,
+        *,
+        name: str | None = ...,
+        accessors: bool = ...,
+        methods: bool = ...,
+    ) -> Defined[_P, _R]: ...
 
     @overload
     def define(

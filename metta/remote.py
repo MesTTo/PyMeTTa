@@ -1346,7 +1346,9 @@ class Gateway:
             "protocol": 3,
             # The reflection the in-process seam has: what this server
             # admits, so a client can ask before writing.
-            "capabilities": ["match", "enumerate", "add", "remove", "stream"],
+            # add-many is the registry's own hyphenated spelling
+            # (foreign.CAPABILITIES); the WIRE verb stays /add_many.
+            "capabilities": ["match", "enumerate", "add", "add-many", "remove", "stream"],
             # /match and /ask honor the optional bound field exactly.
             "bound": True,
         }

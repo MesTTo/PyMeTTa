@@ -63,3 +63,30 @@ DIVERGENT: dict[str, tuple[str, str]] = dict.fromkeys(
 #: Doors reached through a private Space method: the public name is the async
 #: one, and the sync surface spells its own door differently.
 PRIVATE_TARGET: dict[str, str] = {"one": "_one", "first": "_first"}
+
+#: The module tier: metta.run(...) and its siblings, each one delegation to
+#: the same door on the default context's self space. Membership here is a
+#: DESIGN decision rather than a derivation, because the module level carries
+#: only the everyday verbs; the pair maps the module name to the Space door
+#: it reaches, and only `speculate` differs, Space's noun being
+#: `speculative()`.
+MODULE_DOORS: tuple[tuple[str, str], ...] = (
+    ("run", "run"),
+    ("match", "match"),
+    ("add", "add"),
+    ("remove", "remove"),
+    ("eval", "eval"),
+    ("solve", "solve"),
+    ("doc", "doc"),
+    ("define", "define"),
+    ("op", "op"),
+    ("pure", "pure"),
+    ("reads", "reads"),
+    ("writes", "writes"),
+    ("io", "io"),
+    ("stats", "stats"),
+    ("limits", "limits"),
+    ("speculate", "speculative"),
+    ("trace", "trace"),
+)
+

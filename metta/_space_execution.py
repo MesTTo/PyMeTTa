@@ -36,7 +36,8 @@ Guarantees:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - status evaluation accepts the eager eval door's named host substitutions
     and capture scope without evaluating the target twice [tested:
-    test_strict_eval_refuses_only_not_reducible; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+    test_eval_status_reports_the_four_outcomes,
+    test_run_using_carries_identity; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - lazy evaluation uses a second engine for cardinality only when the
     translated goal is effect-safe [tested:
     test_effectful_relational_candidates_run_once_per_yield_on_fresh_list;

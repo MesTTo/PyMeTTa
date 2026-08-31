@@ -37,7 +37,12 @@ REPO = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 
 import aiogen  # noqa: E402
-from aio_divergences import DIVERGENT, EXCLUDED, PRIVATE_TARGET  # noqa: E402
+from aio_divergences import (  # noqa: E402
+    DIVERGENT,
+    EXCLUDED,
+    MODULE_DOORS,
+    PRIVATE_TARGET,
+)
 
 
 def _generated() -> tuple[dict[str, ast.AST], dict[str, ast.AST], list[str], list[str]]:
@@ -109,3 +114,48 @@ def test_every_exclusion_names_a_live_door_and_a_reason():
         assert name in sync, f"{name} diverges but Space no longer has it"
         assert signature.startswith("self"), f"{name}: a method signature starts with self"
         assert len(reason.split()) >= 8, f"{name}: too short to be a reason"
+
+
+def test_the_module_tier_is_generated_from_the_sync_surface():
+    """Each module door carries Space's signature, aliased, tier note appended.
+
+    The tier had drifted the same three ways the async mirror had: nine doors
+    erased their signatures into *args/**kwargs, and trace() bounded at
+    10,000 events with the parameter keyword-only where Space bounds at
+    1,000,000 positional-or-keyword [measured 2026-08-31]. Generation makes
+    the drift unrepresentable; this checks the generated block really is the
+    generator's output door by door, on top of the byte-equality the gate
+    already enforces.
+    """
+    space, space_lines = aiogen._class(aiogen.SPACE, "Space")
+    init_lines = aiogen.INIT.read_text(encoding="utf-8").splitlines()
+    first = init_lines.index(aiogen.MODULE_START)
+    last = init_lines.index(aiogen.MODULE_END)
+    block = ast.parse("\n".join(init_lines[first + 6 : last]))
+    doors = {n.name: n for n in block.body if isinstance(n, ast.FunctionDef)}
+    assert set(doors) == {name for name, _ in MODULE_DOORS}
+
+    sync = {
+        node.name: node
+        for node in space.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and not any("overload" in ast.unparse(d) for d in node.decorator_list)
+    }
+    for name, target in MODULE_DOORS:
+        door, original = doors[name], sync[target]
+        rendered = ", ".join(
+            aiogen.spaced_default(aiogen._aliased(part))
+            for part in aiogen.split_top_level(ast.unparse(original.args))
+            if part != "self"
+        )
+        assert ast.unparse(door.args) == rendered.replace(" = ", "="), (
+            f"metta.{name}'s parameters are not Space.{target}'s"
+        )
+        doc = ast.get_docstring(door)
+        assert doc is not None and doc.endswith(aiogen.TIER_NOTE), (
+            f"metta.{name} lost the tier note"
+        )
+        assert (ast.get_docstring(original) or "").splitlines()[0] in doc, (
+            f"metta.{name}'s docstring is not Space.{target}'s"
+        )
+

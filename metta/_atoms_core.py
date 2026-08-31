@@ -585,7 +585,7 @@ class Atom:
         The KEY says what is being replaced, so a variable hole and a
         placeholder symbol are different substitutions rather than one string
         meaning whichever the door happens to have chosen. ``unify`` produces
-        variable keys; ``using=`` at the evaluation doors accepts either.
+        variable keys; a ``bind()`` scope at the evaluation doors accepts either.
 
         An answer ``Row`` is accepted directly, because its columns ARE the
         query's variable names. It is the library's other producer of
