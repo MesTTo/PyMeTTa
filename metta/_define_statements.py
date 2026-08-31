@@ -456,7 +456,19 @@ class StatementCompilerMixin(CompilerContext):
     def _space_augmented_removal(
         self, head: ast.AugAssign, continuation: Atom
     ) -> Expression | None:
-        """Remove one from a known space and propagate its missing Error."""
+        """Drain an atom from a known space, propagating a bad-space Error.
+
+        `-=` is Python's in-place DIFFERENCE, and set difference is total: it
+        takes every copy and says nothing about absence. That is exactly what
+        `remove-atom` does since 2026-08-30, when it took upstream's law
+        [source: engine/spaces/foreign.pl, remove_matching_atoms/2]. The
+        one-occurrence grain is `space.remove(atom)`, which is Python's
+        `list.remove` and reports whether it found one; the raising grain is
+        `del space[pattern]`, which is Python's own `del`.
+
+        The if-error still stands because a bad first argument is still an
+        error: `remove-atom` refuses a non-space.
+        """
         if not (
             isinstance(head.target, ast.Name)
             and head.target.id in self.space_locals

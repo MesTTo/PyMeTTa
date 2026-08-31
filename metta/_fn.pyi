@@ -49,7 +49,7 @@ class _FunctionNamespace:
     atan_math: Symbol
     "atan-math: (-> Number Number)\n\n`math.atan`."
     atom_subst: Symbol
-    "atom-subst: (-> Atom Variable Atom Atom)\n\nApplying a substitution to a template, which `Atom.map` does over the whole term. Section 9e wants the bindings object to carry it, `b.apply(template)`; `metta.Bindings` has no such method yet, so the walker is the spelling."
+    "atom-subst: (-> Atom (:Atom Variable) Atom Atom)\n\nApplying a substitution to a template, which `Atom.map` does over the whole term. Section 9e wants the bindings object to carry it, `b.apply(template)`; `metta.Bindings` has no such method yet, so the walker is the spelling."
     atomically: Symbol
     bind: Symbol
     "bind!: (-> Symbol %Undefined% (->))\n\nA Python name binding. `space = metta.space(...)` is exactly what a token binding was for, and Python's own scoping rules then apply."
@@ -66,7 +66,7 @@ class _FunctionNamespace:
     chain: Symbol
     "chain: (-> Atom Variable Atom %Undefined%)\n\nPython assignment. Chain executes one instruction, binds, substitutes and continues, which is exactly `x = m.eval(t)[0]` followed by use of `x`."
     change_state: Symbol
-    "change-state!: (-> (StateMonad $tcso) $tcso (StateMonad $tcso))\n\nAssigning `state.value` writes the same typed engine cell and reading it back returns the replacement."
+    "change-state!: (-> (StateMonad $tcso) $tcso Bool)\n\nAssigning `state.value` writes the same typed engine cell and reading it back returns the replacement. The WRITE answers True rather than the cell, which is upstream's own answer -- `'change-state!'(Var, Value, true)` [source: PeTTa@ae66fa8 src/metta.pl:265] -- so the read is a separate step here as it is in Python."
     collapse: Symbol
     "collapse: (-> Atom Atom)\n\n`list()` is the everyday spelling, materialising the answers; `tuple()` is the same act when you want MeTTa's own `( )` atom back, which is what collapse answers."
     collapse_bind: Symbol
@@ -230,7 +230,7 @@ class _FunctionNamespace:
     pragma: Symbol
     pretty_atom: Symbol
     println: Symbol
-    "println!: (-> %Undefined% (->))\n\nPython's `print`."
+    "println!: (-> %Undefined% Bool)\n\nPython's `print`. It answers True rather than unit, which is upstream's own answer: `'println!'(Arg, true)` [source: PeTTa@ae66fa8 src/metta.pl:212]."
     prog1: Symbol
     progn: Symbol
     py_at: Symbol
@@ -261,7 +261,7 @@ class _FunctionNamespace:
     reduce: Symbol
     register_token: Symbol
     remove_atom: Symbol
-    "remove-atom: (-> SpaceType Atom (->))\n\n`space -= atom` removes THAT atom and never pattern-matches; `del space[pattern]` is the pattern form, and the pair is taught together."
+    "remove-atom: (-> SpaceType Atom Bool)\n\nDrains every atom that unifies and answers True either way. `space -= atom` is this door, because `-=` is Python's in-place difference and set difference is total; `space.remove(atom)` is the one-occurrence grain, Python's own `list.remove`, and reports whether it found one; `del space[pattern]` raises when the pattern matches nothing, as Python's `del` does."
     remove_translator_rule: Symbol
     remove_typing_rule: Symbol
     repr: Symbol

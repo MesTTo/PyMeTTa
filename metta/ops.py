@@ -721,7 +721,7 @@ def _with_engine(runtime: Any, fn: Callable, positions: list[int]) -> Callable:
         # test_async_engine_injection_uses_the_registration_runtime;
         # commit=39092863ae34184a9f955f185ff57c1ff177ec40].
         engine = space_api.MeTTa(
-            _self_name=space_api.current_space(),
+            space_api.current_space(),
             _runtime=runtime,
         )
         threaded = list(args)

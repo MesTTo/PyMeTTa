@@ -80,7 +80,7 @@ from typing import Any
 
 from ._api_types import _SpaceId
 from ._optional import require_module
-from ._space import MeTTa
+from ._space import MeTTa, Space
 from .atoms import Expression, Symbol, Variable, _expr
 from .errors import MettaError
 from .foreign import Enumerable
@@ -267,7 +267,7 @@ class SpaceComplianceSuite:
     def space(self, provider, exercised):
         """The provider registered on a fresh engine, under its own name."""
         del exercised
-        engine = MeTTa().space()
+        engine = MeTTa(Space()).space()
         name = _SpaceId(f"&compliance{next(_NAMES)}")
         engine._register_space(provider, name)
         try:

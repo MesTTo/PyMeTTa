@@ -172,43 +172,27 @@ def _is_primitive(value: Any) -> bool:
     return type(value) in (str, int, float, bool)
 
 
-def _ground_equal(mine: Any, theirs: Any) -> bool:
-    """Comparison exactly as the engine's == OPERATOR reads a crossed value,
-    so a comparison made in Python and one made in an equation never
-    disagree: booleans are not numbers, integer and float values share the
-    numeric tower, floats use arithmetic equality (-0.0 equals 0.0, NaN is
-    unequal to itself), and an opaque object is itself alone. NaN is the one
-    value the engine's own doors split on: == over crossed values answers
-    False as IEEE does, while the text reader's `!(== NaN NaN)` answers True
-    through term identity [measured 2026-08-21, recorded in the ledger as an
-    engine seam]; this relation follows the crossed-value door, which is the
-    door a Grounded travels. Two atoms compare by _ground_identical, the engine's
-    unification, which splits the tower and matches NaN atoms.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    mine = _normalize_grounded(mine)
-    theirs = _normalize_grounded(theirs)
-    if isinstance(mine, bool) or isinstance(theirs, bool):
-        return type(mine) is type(theirs) is bool and mine == theirs
-    if isinstance(mine, (int, float, Fraction)) and isinstance(
-        theirs, (int, float, Fraction)
-    ):
-        return mine == theirs
-    if type(mine) is not type(theirs):
-        return False
-    if _is_primitive(mine):
-        return mine == theirs
-    return mine is theirs
-
-
 def _ground_identical(mine: Any, theirs: Any) -> bool:
-    """Identity exactly as the engine UNIFIES two crossed values, which is a
-    different relation from its == operator on three measured edges: an
-    integer atom never matches a float atom where (== 0 0.0) answers True,
-    0.0 and -0.0 are two float values where == answers one, and one NaN
-    matches another where == answers False [measured 2026-08-21: space.query
-    over the live engine for each pair; commit=f88aa8be03cb64cb59d3307515ded8701f418321]. Matching,
-    membership, removal and every dict of atoms follow this relation, so a
-    Counter of atoms counts what the space stores.
+    """Identity exactly as the engine reads two crossed values, through EITHER
+    of its doors: what unification matches and what the == operator answers are
+    now one relation.
+
+    They were two. Until 2026-08-30 == was a numeric tower over crossed values
+    -- an integer equal to a float, signed zeros equal, NaN unequal to itself
+    -- and this file carried a second helper for it. The tower was ours:
+    upstream declares == over two INDEPENDENT type variables and compares
+    exactly, so aligning the declaration collapsed the split. Every edge that
+    used to separate them now agrees on both sides
+    [measured 2026-08-30, ours and PeTTa@ae66fa8 alike, through the text door
+    and through Grounded values: `(== 0 0.0)`, `(== 0.0 -0.0)`, `(== True 1)`
+    and `(== 1 "a")` are all False, `(== NaN NaN)` is True].
+
+    Booleans are not numbers, an integer never equals a float, 0.0 and -0.0
+    are two values, one NaN matches another, and an opaque object is itself
+    alone -- a Fraction included, which is why
+    `(== (Fraction 1 2) (Fraction 1 2))` over two distinct objects answers
+    False. Matching, membership, removal and every dict of atoms follow this,
+    so a Counter of atoms counts what the space stores.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     mine = _normalize_grounded(mine)
     theirs = _normalize_grounded(theirs)
@@ -735,9 +719,10 @@ class Grounded(Atom):
 
     Equality carries the engine's own two relations, one per operand kind.
     Against a RAW Python value it is the engine's == operator, ergonomic on
-    purpose: a grounded primitive compares equal to its raw value, so
-    run("!(+ 1 2)") answers compare with == 3 and Grounded(3.0) == 3 the way
-    (== 3.0 3) answers True. Against ANOTHER ATOM it is the engine's
+    purpose: a grounded primitive compares equal to its raw value of the
+    same term, so run("!(+ 1 2)") answers compare with == 3, while
+    Grounded(3.0) == 3 is False exactly as (== 3.0 3) is False, an integer
+    and a float being different terms. Against ANOTHER ATOM it is the engine's
     unification: an integer atom never equals a float atom, 0.0 and -0.0 are
     two atoms, one NaN atom equals another, so membership, removal and a
     Counter of atoms agree with what a space actually stores and matches.
@@ -789,9 +774,11 @@ class Grounded(Atom):
         # Expression and an unequal Grounded atom, violating transitivity.
         if isinstance(other, tuple):
             return False
-        # Raw Python value on the other side, the ergonomic comparison:
-        # the engine's == operator, numeric tower included.
-        return _ground_equal(self.value, other)
+        # Raw Python value on the other side, and the SAME relation: the
+        # engine's == over crossed values is its unification now, so a
+        # comparison made in Python and one made in an equation cannot
+        # disagree.
+        return _ground_identical(self.value, other)
 
     def __hash__(self) -> int:
         # Hash agrees with equality: a primitive hashes as its value, so

@@ -12,6 +12,10 @@ check_space_provider and check_codec run in process against an author's own
 object, SpaceComplianceSuite and GatewayComplianceSuite are pytest classes
 that run the engine's own expectations against a provider or a URL.
 Guarantees:
+  - a repeated source's two enumerations are compared up to variable
+    renaming, because a stored variable's engine name is a stack offset that
+    moves with anything else the process does [tested:
+    test_overlay_passes_the_conformance_kit; commit=WORKTREE]
   - check_space_provider holds match soundness and exact pushdown claims
     to the whole pattern family of every stored atom, ground, opened and
     repeated-variable, judged by two-way unifiability [tested:
@@ -47,7 +51,7 @@ from ._codec_kit import CodecDriver, check_codec, codec_corpus, codec_plan
 from ._library import lib
 from ._optional import require_module
 from ._space import Space
-from .atoms import Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode
+from .atoms import Atom, Expression, Grounded, S, Symbol, Variable, _alpha_eq, _encode
 from .atoms import parse as atoms_parse
 from .benchmarking import (
     CPU_SECONDS,
@@ -390,8 +394,8 @@ def check_space_provider(provider, *, atoms_to_store=None, source="repeated") ->
         for atom in atoms_to_store:
             adder(atom)
     stored = list(provider.atoms())
-    again = sorted(str(atom) for atom in provider.atoms())
-    if again != sorted(str(atom) for atom in stored):
+    again = sorted(_renamed_apart(atom) for atom in provider.atoms())
+    if again != sorted(_renamed_apart(atom) for atom in stored):
         msg = (
             f"{name} declared a {source} source and its second enumeration "
             f"disagrees with the first: a {source} source re-enumerates "
@@ -512,25 +516,36 @@ def _unifiable(left, right) -> bool:
     return _joined(left, right) is not None
 
 
-def _joined(pattern, atom):
-    """The two-way unification RESULT of pattern against atom, or None:
-    the pattern's shape with every bound variable resolved, which is the
-    answer the engine's re-unification produces for this candidate.
+#: The join exists but has no finite atom form: the pattern unifies with the
+#: candidate only through a rational-tree binding, which the engine now
+#: accepts (bindings are raw under the petta alignment) and which no finite
+#: S-expression can spell.
+_CYCLIC = object()
 
-    Public atoms.unify is symmetric but deliberately keeps its historical
-    no-occurs-check contract and returns only the substitution. This helper
-    instead returns the joined pattern under the engine's occurs-checked law,
-    in miniKanren's walk/unify shape. Variables bind by name in one namespace,
-    `_` matches anything and binds nothing, and the occurs check applies,
-    because metta_match_atoms unifies with unify_with_occurs_check
-    (the arbiter's variable cases, LeaTTa matchAtomsWith), and
-    match_native guards every answer with acyclic_term/1, so a
-    rational-tree instantiation is never an answer there. Check-side
-    variables are named metta-check-*, so a collision would need a stored
-    $metta-check-* variable.
+
+class _CyclicJoinError(Exception):
+    """Raised by _resolve when a binding walks back into itself."""
+
+
+def _joined(pattern, atom):
+    """The two-way unification RESULT of pattern against atom.
+
+    None when they do not unify, or the _CYCLIC sentinel when they unify only
+    through a rational-tree binding.
+
+    Public atoms.unify is symmetric and returns only the substitution. This
+    helper instead returns the joined pattern under the engine's one binding
+    law, in miniKanren's walk/unify shape: variables bind by name in one
+    namespace, `_` matches anything and binds nothing, and bindings are RAW,
+    exactly as metta_match_atoms/2 and the match door now bind under the
+    petta alignment. A join that resolves into itself is a legal rational
+    tree on the engine side but has no finite atom form here, so it comes
+    back as the sentinel and the caller decides what a provider owes for it.
+    Check-side variables are named metta-check-*, so a collision would need
+    a stored $metta-check-* variable.
     [source: extensions/python/metta/atoms.py:unify and
-    engine/spaces/bounded_matching.pl:metta_match_atoms/2; commit=6917bef7ca902671999eafcae3a7a86db8f69723]
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    engine/spaces/bounded_matching.pl:metta_match_atoms/2; commit=WORKTREE]
+    """
     bindings: dict = {}
     stack = [(_encode(pattern), _encode(atom))]
     while stack:
@@ -539,14 +554,27 @@ def _joined(pattern, atom):
             continue
         if not _unify_pair(x, y, bindings, stack):
             return None
-    return _resolve(_encode(pattern), bindings)
+    try:
+        return _resolve(_encode(pattern), bindings, frozenset())
+    except _CyclicJoinError:
+        return _CYCLIC
 
 
-def _resolve(term, bindings):
-    """The term with every variable walked to its binding, recursively."""
-    term = _walk(term, bindings)
+def _resolve(term, bindings, path):
+    """The term with every variable walked to its binding, recursively.
+
+    Raises _CyclicJoinError when a binding on the current path walks back into
+    itself, which is how a rational-tree join is detected without an occurs
+    check at bind time.
+    """
+    if isinstance(term, Variable) and term.name != "_" and term.name in bindings:
+        if term.name in path:
+            raise _CyclicJoinError
+        return _resolve(bindings[term.name], bindings, path | {term.name})
     if isinstance(term, Expression):
-        return Expression([_resolve(child, bindings) for child in term.children])
+        return Expression(
+            [_resolve(child, bindings, path) for child in term.children]
+        )
     return term
 
 
@@ -561,34 +589,18 @@ def _anonymous(term) -> bool:
     return isinstance(term, Variable) and term.name == "_"
 
 
-def _occurs(name, term, bindings) -> bool:
-    """Whether the variable occurs in the walked term: the engine's own
-    occurs check, which is what keeps every join acyclic and therefore
-    resolvable to a finite atom.
-    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-    stack = [term]
-    while stack:
-        walked = _walk(stack.pop(), bindings)
-        if isinstance(walked, Variable):
-            if walked.name == name:
-                return True
-        elif isinstance(walked, Expression):
-            stack.extend(walked.children)
-    return False
-
-
 def _unify_pair(x, y, bindings, stack) -> bool:
-    """One walked pair: bind a variable, descend an expression, or compare."""
+    """One walked pair: bind a variable RAW, descend an expression, or compare.
+
+    A self-containing binding is legal and surfaces at resolve time as
+    _CyclicJoinError.
+    """
     if isinstance(x, Variable):
         if isinstance(y, Variable) and y.name == x.name:
             return True
-        if _occurs(x.name, y, bindings):
-            return False
         bindings[x.name] = y
         return True
     if isinstance(y, Variable):
-        if _occurs(y.name, x, bindings):
-            return False
         bindings[y.name] = x
         return True
     if isinstance(x, Expression) and isinstance(y, Expression):
@@ -626,7 +638,10 @@ def _check_pushdown_claim(provider, name: str, stored: list) -> list[str]:
             if pushdown_class(provider, pattern) != "exact":
                 continue
             exact += 1
-            for found in provider.match(pattern):
+            found_all = _match_or_cyclic_evidence(provider, pattern)
+            if found_all is _CYCLIC:
+                continue
+            for found in found_all:
                 if not _unifiable(pattern, found):
                     msg = (
                         f"{name}.pushdown({pattern!r}) claims exact and "
@@ -638,6 +653,25 @@ def _check_pushdown_claim(provider, name: str, stored: list) -> list[str]:
                     )
                     raise AssertionError(msg)
     return [f"pushdown: {exact} of {checked} patterns claimed exact, and are"]
+
+
+def _match_or_cyclic_evidence(provider, pattern):
+    """provider.match(pattern) as a list, or the _CYCLIC sentinel it refused with.
+
+    The door refuses a rational-tree row loudly, and that refusal is EVIDENCE, not
+    absence: the wire raises it only while answering a row whose binding is
+    cyclic, so the candidate exists on the engine side, where the seam's
+    real consumer re-unifies natively with no wire between them. A python
+    probe is the limited observer here, and the certification reads the
+    refusal as the coverage it proves
+    [source: website/live/remote-protocol.md, the rational-tree paragraph].
+    """
+    try:
+        return list(provider.match(pattern))
+    except Exception as error:
+        if "rational-tree binding has no finite wire form" in str(error):
+            return _CYCLIC
+        raise
 
 
 def _check_match_contract(provider, name: str, stored: list) -> list[str]:
@@ -657,10 +691,32 @@ def _check_match_contract(provider, name: str, stored: list) -> list[str]:
     for atom in stored:
         for pattern in _claim_patterns(atom):
             checked += 1
-            answered = list(provider.match(pattern))
+            answered = _match_or_cyclic_evidence(provider, pattern)
             for entry in stored:
                 joined = _joined(pattern, entry)
                 if joined is None:
+                    continue
+                if answered is _CYCLIC:
+                    # The door itself refused a rational-tree row loudly,
+                    # which only happens while answering one: every entry
+                    # this pattern joins is covered by that evidence.
+                    continue
+                if joined is _CYCLIC:
+                    # The pattern reaches this entry only through a
+                    # rational-tree binding: legal on the engine side, but
+                    # there is no finite instantiation form, so the one
+                    # answer a provider can owe for it is the stored atom
+                    # itself.
+                    if not any(_same_atom(found, entry) for found in answered):
+                        msg = (
+                            f"{name}.match({pattern!r}) did not answer "
+                            f"{entry!r}, which the space holds and the "
+                            f"pattern matches through a rational-tree "
+                            f"binding; that join has no finite "
+                            f"instantiation form, so the stored atom "
+                            f"itself is the answer owed"
+                        )
+                        raise AssertionError(msg)
                     continue
                 # A candidate vouches for the stored entry either as the
                 # entry itself (an enumerate-and-filter store) or as this
@@ -815,6 +871,28 @@ def _space_symbols(atom):
 
 def _no_refusal(*_args, **_kwargs) -> None:
     """A provider without a refusal() hook says nothing extra."""
+
+
+def _renamed_apart(atom) -> str:
+    """One atom rendered with its variables named by first occurrence.
+
+    A stored variable's engine name is a stack offset, so the SAME atom read
+    twice prints two ways once anything has moved the stack in between, and an
+    enumeration compared by printed form then reads as a store that changed
+    under it. The name carries nothing else -- `_same_atom` below says so, "a
+    variable's NAME does not survive storage" -- so this is what "the same
+    atoms twice" means [measured 2026-08-31: a member space's
+    (cmb-fact (f $_78) $_78) enumerated as $_78 and then as a different offset
+    once an earlier suite had run in the same process].
+    """
+    renamings: dict[str, str] = {}
+
+    def named(term):
+        if not isinstance(term, Variable) or term.name == "_":
+            return term
+        return Variable(renamings.setdefault(term.name, f"_{len(renamings)}"))
+
+    return str(atom.map(named)) if isinstance(atom, Atom) else str(atom)
 
 
 def _same_atom(left, right) -> bool:

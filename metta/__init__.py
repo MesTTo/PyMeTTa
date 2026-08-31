@@ -254,24 +254,41 @@ def __dir__() -> list[str]:
 
 @_functools.cache
 def engine():
-    """Return the process-default runtime context, creating it on first use."""
-    return __getattr__("MeTTa")()
+    """Return the process-default runtime context, creating it on first use.
+
+    This is the one context whose home is the engine's own ``&self``; a bare
+    ``MeTTa()`` is a fresh isolated context instead.
+    """
+    return __getattr__("MeTTa")(__getattr__("Space")())
 
 
 def space(
     name: str | Atom | None = None,
     backing: _Any = None,
     *,
+    inherits: _Any = None,
+    restricted: bool = False,
+    grants: _Any = (),
     journal: str | None = None,
-    **options: _Any,
+    schema: _Any = None,
+    sync: str = "none",
 ):
-    """Create or open a space; the backing value selects its implementation."""
-    return engine().space(name, backing, journal=journal, **options)
+    """Create or open a space; the backing value derives its implementation."""
+    return engine().space(
+        name,
+        backing,
+        inherits=inherits,
+        restricted=restricted,
+        grants=grants,
+        journal=journal,
+        schema=schema,
+        sync=sync,
+    )
 
 
-def attach(name: str | Symbol, backing: _Any, **options: _Any):
+def attach(name: str | Symbol, backing: _Any):
     """Attach a provider or remote URL through the unified creation door."""
-    return space(name, backing=backing, **options)
+    return space(name, backing=backing)
 
 
 def current_space():

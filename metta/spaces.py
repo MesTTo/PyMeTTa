@@ -181,9 +181,9 @@ def view(obj: Any):
     if not supported:
         msg = "view expects a dict, set, or non-string sequence"
         raise TypeError(msg)
-    from ._space import MeTTa  # noqa: PLC0415 -- the satellite stays lazy at root import
+    from ._space import MeTTa, Space  # noqa: PLC0415 -- the satellite stays lazy at root import
 
-    return MeTTa().space(backing=_LiveDataView(obj))
+    return MeTTa(Space()).space(backing=_LiveDataView(obj))
 
 
 class ObjectView(SpaceProvider):
@@ -441,6 +441,21 @@ def readonly(inner: Any) -> _ReadOnly:
     return _ReadOnly(_Member(inner))
 
 
+def _repeats_a_variable(atom: Atom) -> bool:
+    """Whether any named variable occurs more than once in the pattern."""
+    seen: set[str] = set()
+    stack: list[Atom] = [atom]
+    while stack:
+        term = stack.pop()
+        if isinstance(term, Variable):
+            if term.name != "_" and term.name in seen:
+                return True
+            seen.add(term.name)
+        elif isinstance(term, Expression):
+            stack.extend(term.children)
+    return False
+
+
 class _Mapped(SpaceProvider):
     """A view of the inner space through one (bridge outer inner) pair:
     metta.tables' derivation with unification where tables emits WHERE.
@@ -473,21 +488,25 @@ class _Mapped(SpaceProvider):
                 yield outward
 
     def match(self, pattern: Atom) -> Iterator[Atom]:
+        # _match is one-way (shape side binds), so a translated pattern is
+        # exact only when one-way and two-way agree: for a GROUND pattern,
+        # and for a linear one, where no binding can constrain another. A
+        # repeated variable makes the one-way walk over-commit, so
+        # ($x (f $y) $x) translated narrowly and the view under-answered
+        # its own store; that class takes the enumeration side, and the
+        # engine's re-unification keeps the answers right
+        # [tested: test_mapped_passes_the_conformance_kit].
         inner_pattern = self._inward(pattern)
-        if inner_pattern is None:
-            # _match is one-way (shape side binds), so its failure proves
-            # absence only for a GROUND pattern, where one-way and two-way
-            # agree. A pattern with variables can still touch instances a
-            # one-way walk refuses, (edge $x $x) against a shape carrying
-            # literals for instance, so the sound side is enumeration and
-            # the engine's own re-unification keeps the answers right.
-            if not _is_ground(pattern):
-                yield from self.atoms()
+        if inner_pattern is not None and (
+            _is_ground(pattern) or not _repeats_a_variable(pattern)
+        ):
+            for candidate in self._member.match(inner_pattern):
+                outward = self._outward(candidate)
+                if outward is not None:
+                    yield outward
             return
-        for candidate in self._member.match(inner_pattern):
-            outward = self._outward(candidate)
-            if outward is not None:
-                yield outward
+        if not _is_ground(pattern):
+            yield from self.atoms()
 
     def snapshot(self) -> tuple[Atom, ...]:
         """Map one immutable inner capture into this view's outward shape."""

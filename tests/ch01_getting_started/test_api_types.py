@@ -58,7 +58,13 @@ def test_a_name_parameter_takes_a_plain_string():
     assert get_type_hints(Space.op)["name"] == str | None
     assert get_type_hints(Space.is_function)["name"] is str
     assert get_type_hints(Space._register_space)["name"] is str
-    assert get_type_hints(aio.AsyncMeTTa.__init__)["space"] is str
+    # The async doors forward straight into Space(space), so their parameter
+    # IS the constructor's name domain; equality keeps the three doors from
+    # drifting, and membership keeps the literal-fits law pinned.
+    async_space = get_type_hints(aio.AsyncMeTTa.__init__)["space"]
+    assert async_space == get_type_hints(Space.__init__)["name"]
+    assert async_space == get_type_hints(aio.connect)["space"]
+    assert str in get_args(async_space)
     assert get_type_hints(current_space)["default"] is str
 
 

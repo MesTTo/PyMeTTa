@@ -1,10 +1,10 @@
 """Purpose: engine-backed tests for the MeTTa runtime surface: run, load,
 space edits, queries, eval, parse, and the semantics matching the CLI's own.
 Guarantees:
-  - a guarded defined head with no matching clause is an unreduced value, not
-    an empty answer [tested:
-    test_eval_status_reports_the_four_outcomes;
-    commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+  - a guarded defined head with no matching clause answers NOTHING, which is
+    upstream's own answer for it [measured 2026-08-30 against PeTTa@ae66fa8:
+    `(= (only-zero 0) yes)` then `(collapse (only-zero 7))` is `()` there and
+    here] [tested: test_eval_status_reports_the_four_outcomes]
   - run(), run_status() and load() register a source's whole signature set
     before processing any of its forms, as the engine's file reader does, so a
     metadata operation may name a function the same source defines lower down
@@ -65,9 +65,11 @@ from metta import (
     MeTTa,
     MettaError,
     S,
+    Space,
     V,
     _engine,
     current_space,
+    engine,
     ground,
     parse,
     tables,
@@ -117,21 +119,23 @@ def test_run_syntax_error_is_loud(metta):  # noqa: D103  -- pytest discovers or 
     assert "metta_control_signal" not in str(failure.value)
 
 
-def test_an_undefined_head_inside_arithmetic_is_left_as_written(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_an_undefined_head_inside_arithmetic_refuses_by_name(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     # An undefined head reduces to itself, so the arithmetic around it has an
-    # argument whose type decides nothing and the whole call stays as written.
-    # It used to be a hard engine error that took the rest of the file with it
-    # [source: LeaTTa tests/semantics/grounded/07-partial-core.metta].
+    # operand it cannot use, and every numeric operation says so by name. It
+    # used to be a hard engine error that took the rest of the file with it;
+    # the refusal is an ANSWER, so the form after it still runs
+    # [measured 2026-08-30 against PeTTa@ae66fa8, which reaches is/2 and
+    # raises `type_error(evaluable, no-such-function-anywhere/0)`].
     assert metta.run("!(+ 1 (no-such-function-anywhere 2))") == [
-        [parse("(+ 1 (no-such-function-anywhere 2))")]
+        [parse('(Error (+ 1 (no-such-function-anywhere 2)) "+ expects two numbers")')]
     ]
 
 
 @pytest.mark.parametrize(
     ("source", "answer"),
     [
-        ("!(+ 1 a)", "(+ 1 a)"),
-        ("!(< 1 a)", "(< 1 a)"),
+        ("!(+ 1 a)", '(Error (+ 1 a) "+ expects two numbers")'),
+        ("!(< 1 a)", '(Error (< 1 a) "< expects two numbers")'),
         ("!(min-atom (a b))",
          '(Error (min-atom (a b)) "Only numbers are allowed in expression: (a b)")'),
         ("!(and True 5)", "(Error (and True 5) (BadArgType 2 Bool Number))"),
@@ -205,7 +209,7 @@ def test_reserved_kinds_win_over_operation_classification(metta):  # noqa: D103 
         ("", "(Point 1 2)", "not-reducible"),
         ("", "(fct 5)", "not-reducible"),
         ("", "(empty)", "empty"),
-        ("(= (only-zero 0) yes)", "(only-zero 7)", "not-reducible"),
+        ("(= (only-zero 0) yes)", "(only-zero 7)", "empty"),
     ],
 )
 def test_eval_status_reports_the_four_outcomes(m, setup, source, status):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -548,14 +552,166 @@ def test_fact_isolation_between_spaces(metta):  # noqa: D103  -- pytest discover
     assert len(b.match(S.fact(V.x))) == 0
 
 
-def test_default_metta_handles_share_the_self_space():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    first, second = MeTTa().self, MeTTa().self
+def test_metta_contexts_are_isolated():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    with MeTTa() as first, MeTTa() as second:
+        marker = S["isolated-context-atom"](S.value)
+        first.self.add(marker)
+        assert marker in first.self
+        assert marker not in second.self
+        assert marker not in Space()
+
+
+def test_the_default_home_is_shared_by_spelling_it():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    first, second = Space(), Space()
     shared = S["shared-default-handle"](S.value)
     first.add(shared)
     try:
         assert shared in second
     finally:
         first.remove(shared)
+
+
+def test_a_context_owns_and_releases_its_minted_home():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    context = MeTTa()
+    assert not context.closed
+    context.close()
+    assert context.closed
+    context.close()
+
+
+def test_a_borrowed_home_survives_close():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    keeper = engine().space()
+    borrower = MeTTa(keeper)
+    assert not borrower.closed
+    borrower.close()
+    assert not borrower.closed
+    keeper.add(S.still(S.alive))
+    assert len(keeper) == 1
+    keeper.drop()
+
+
+def test_a_space_handles_context_borrows_it():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    handle = engine().space()
+    context = handle.metta
+    assert context.self == handle
+    assert context == handle.metta
+    handle.drop()
+
+
+def test_dropping_a_space_reclaims_its_atoms():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    import gc
+
+    # A dropped space must leave its atoms collectable. The store therefore
+    # clears in its own engine query, ahead of the release: a query cannot
+    # reclaim the clauses it erased while it still runs, so clearing inside
+    # the release left 10,000 atoms in the table where 6 belong.
+    root = MeTTa().self
+    root.runtime.must("garbage_collect_atoms")
+    before = root.runtime.once("statistics(atoms, N)")["N"]
+    scratch = root._new_space()
+    scratch.add(*[S.reclaim_probe(S[f"r{index:06x}"]) for index in range(4000)])
+    scratch.drop()
+    gc.collect()
+    for goal in ("garbage_collect", "garbage_collect_clauses", "garbage_collect_atoms"):
+        root.runtime.must(goal)
+    after = root.runtime.once("statistics(atoms, N)")["N"]
+    assert after - before < 1000, f"{after - before} atoms survived a dropped space"
+
+
+def test_a_home_handle_outliving_its_context_keeps_the_world():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    import gc
+
+    # A chained spelling leaves the context unreferenced while its home
+    # handle is very much in use. A backstop watching the CONTEXT released
+    # that home into the free-name pool, and the next mint drew the same
+    # name and tried to make it inherit from itself; the backstop watches
+    # the handle, so a reference handed out keeps the world alive.
+    home = MeTTa().self
+    gc.collect()
+    minted = home.metta.space()
+    assert minted.name != home.name
+    home.add(S.kept(1))
+    assert len(home.match(S.kept(V.n))) == 1
+
+
+def test_an_abandoned_context_releases_its_world():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    import gc
+
+    context = MeTTa()
+    home = context.self.name
+    context.self.add(S.row(1))
+    rt = context.self.runtime
+    del context
+    gc.collect()
+    # close() is the contract; the finalize backstop covers abandonment,
+    # so a collected context cannot strand its world engine-side.
+    left = rt.once(
+        "findall(_C, spaces:space_equation_home(_C, '&self'), _L), "
+        "term_to_atom(_L, Worlds)"
+    )["Worlds"]
+    assert home not in left
+
+
+def test_a_failed_space_construction_leaks_nothing():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    context = MeTTa()
+    try:
+        names_before = set(context.self.space_names())
+        # Validation refuses BEFORE anything is acquired: no anonymous
+        # space is minted for a request that cannot be built.
+        with pytest.raises(TypeError, match="schema"):
+            context.space(journal="never-written.jnl")
+        with pytest.raises(TypeError, match="transport callable"):
+            context.space(backing=lambda _operation, _payload: None)
+        assert set(context.self.space_names()) == names_before
+    finally:
+        context.close()
+
+
+def test_a_borrowing_context_still_honors_its_options():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # Options on a borrow are statements, not decoration: a conflicting
+    # engine path refuses through the one-engine contract, instead of the
+    # silent acceptance the review measured.
+    with pytest.raises(ValueError, match="one engine per process"):
+        MeTTa(Space(), metta_path="/nonexistent/other-tree")
+
+
+def test_close_takes_the_contexts_world_with_it():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    context = MeTTa()
+    child = context.space()
+    child.add(S.row(1))
+    # The context owns its world: close releases every space minted inside
+    # it, the program's own new-space mints included, and then the home.
+    context.close()
+    assert context.closed
+    assert child.dropped
+
+
+def test_close_still_refuses_for_a_declared_heir():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    context = MeTTa()
+    parent = context.space()
+    heir = context.space(inherits=parent)
+    # An (inherits ...) relationship is the program's own declaration, so
+    # the world teardown refuses rather than sweeping the heir away.
+    with pytest.raises(MettaError, match="inherits from it; drop the child"):
+        context.close()
+    assert not context.closed
+    heir.drop()
+    context.close()
+    assert context.closed
+
+
+def test_a_contexts_spaces_resolve_through_its_home():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    with MeTTa() as context:
+        context.self.run("(= (ctx-home-fact) 41)")
+        context.self.add(S["ctx-home-atom"](S.value))
+        sibling = context.space()
+        try:
+            # Equations flow from the home, exactly as every space reads
+            # &self's; atoms never do, exactly as spaces stay disjoint.
+            assert sibling.eval(S["ctx-home-fact"]()) == [41]
+            assert S["ctx-home-atom"](S.value) not in sibling
+        finally:
+            sibling.drop()
 
 
 def test_space_name_validation():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -1000,23 +1156,21 @@ def test_a_wrong_argument_type_names_the_argument(m, call, match):  # noqa: D103
         call(m)
 
 
-def test_a_rational_tree_join_fails_the_row_instead_of_the_process(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # The engine's matching is occurs-checked on purpose (the arbiter's
-    # variable cases), and match_native guards its OUT template with
-    # acyclic_term. The query lanes keep bindings outside that template,
-    # and a cyclic join once sailed through to the row encoder and died
-    # at a 53-million-frame walk. Now the cyclic candidate fails its row,
-    # exactly as the same pattern behaves through match.
+def test_a_rational_tree_binding_refuses_its_row_loudly(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # Bindings are raw under the petta alignment, so the cyclic join IS an
+    # answer the engine owes: len counts it engine-side. The tagged-array
+    # wire has no finite form for a rational tree (the encoder measured 6.7
+    # million frames to the stack limit before the guard), so READING the
+    # row refuses loudly with the remedy named instead of silently dropping
+    # the answer, which is what it did before and what made len lie.
     m.add(parse("(rt-fact (f $x) $x)"))
-    assert len(m.match(parse("(rt-fact $y $y)"))) == 0
-    assert m.run("!(collapse (match (context-space) (rt-fact $y $y) hit))") == [
-        [Expression()]
-    ]
-    # The acyclic twin still answers through both doors.
-    m.add(parse("(rt-fact ok ok)"))
-    assert len(m.match(parse("(rt-fact $y $y)"))) == 1
-
-
+    rows = m.match(parse("(rt-fact $y $y)"))
+    assert len(rows) == 1
+    with pytest.raises(MettaError, match="rational-tree binding has no finite wire"):
+        rows[0]
+    # The remedy the message names works: the stored atom itself answers.
+    stored = m.match(parse("(rt-fact (f $x) $x)"))
+    assert len(stored) == 1
 def test_copy_clones_through_the_bulk_door(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta._new_space() as original:
         original.run("(= (cp-double $x) (* $x 2))")
@@ -1322,11 +1476,12 @@ def test_a_variable_headed_pattern_answers_through_every_door(metta):
 def test_an_integer_pattern_never_matches_a_stored_float_atom(metta):
     """The space state machine's Hypothesis counterexample, pinned: after
     adding (0.0), the pattern (0) matches nothing through any door, because
-    the engine unifies by value AND type while its == compares
-    arithmetically. Every library door agrees with storage: unify refuses,
-    atom equality refuses, membership and removal refuse, one NaN atom still
-    matches another, and the raw-value comparison keeps the == operator's
-    numeric tower so answers still compare with == 3.
+    the engine unifies by value AND type -- and so does its ==, which stopped
+    coercing on 2026-08-30 when it picked up upstream's declaration over two
+    independent type variables. Every library door agrees with storage and
+    with the operator: unify refuses, atom equality refuses, membership and
+    removal refuse, a raw 0.0 is refused too, and one NaN atom still matches
+    another.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     stored = Expression([Grounded(0.0)])
     pattern = Expression([Grounded(0)])
@@ -1341,6 +1496,10 @@ def test_an_integer_pattern_never_matches_a_stored_float_atom(metta):
     assert Grounded(0) != Grounded(0.0)
     assert Grounded(0.0) != Grounded(-0.0)
     assert unify(Grounded(float("nan")), Grounded(float("nan"))) is not None
-    # The raw-value arm keeps the engine's == tower untouched.
-    assert Grounded(0) == 0.0
-    assert Grounded(3.0) == 3
+    # The raw-value arm answers the same relation, so it refuses too
+    # [measured 2026-08-30 against PeTTa@ae66fa8: `(== 0 0.0)` is False on
+    # both engines]. It read `== 0.0` while == was a numeric tower.
+    assert Grounded(0) != 0.0
+    assert Grounded(0) == 0
+    assert Grounded(3.0) != 3
+    assert Grounded(3.0) == 3.0

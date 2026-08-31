@@ -19,18 +19,18 @@ from __future__ import annotations
 
 import pytest
 
-from ._space import Space as MeTTa
+from ._space import Space
 
 
 @pytest.fixture(scope="session")
-def metta() -> MeTTa:
-    """The engine, one per session, because there is one per process."""
-    return MeTTa()
+def metta() -> Space:
+    """The process home space, one per session, because there is one per process."""
+    return Space()
 
 
 @pytest.fixture()
 # The parameter NAME is pytest's own fixture-injection mechanism.
-def scratch_space(metta: MeTTa):  # pylint: disable=redefined-outer-name
+def scratch_space(metta: Space):  # pylint: disable=redefined-outer-name
     """A fresh anonymous space per test, dropped afterwards: stored
     state is isolated; registrations stay process-wide, exactly as
     the anonymous space factory documents.

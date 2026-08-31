@@ -139,6 +139,17 @@ def clear_definitions(space: Any) -> None:
     """Clear one space and the process state describing its definitions."""
     with _DEFINE_LOCK:
         space.runtime.must("metta_py_clear(Space)", Space=space.name)
+    release_definitions(space)
+
+
+def release_definitions(space: Any) -> None:
+    """Drop the process state describing a space's definitions, the
+    reflection rows included, WITHOUT clearing the space's own store: the
+    half a dying space needs, since the engine's release clears the store
+    itself under its muting flag and the funnel must not run twice
+    [tested: test_reflection_facts_follow_a_dropped_space].
+    """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+    with _DEFINE_LOCK:
         for key in [key for key in _DEFINE_REFLECTION if key[0] == space.name]:
             for fact in _DEFINE_REFLECTION.pop(key):
                 _release_definition_fact(space, fact)

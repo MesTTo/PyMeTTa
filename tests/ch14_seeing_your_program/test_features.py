@@ -41,6 +41,7 @@ from pathlib import Path
 import pytest
 
 from metta import (
+    TRUE,
     Bindings,
     Expression,
     MettaError,
@@ -619,7 +620,9 @@ def test_remote_spaces_serve_attach_and_join(metta, tmp_path):  # noqa: ARG001  
         line = child.stdout.readline()
         assert line, child.stderr.read()
         info = json.loads(line)
-        remote.attach(local, "&hq", info["url"], remote_space=info["space"])
+        local._register_space(
+            remote.RemoteSpace(remote.connect(info["url"]), info["space"]), "&hq"
+        )
         # A match crosses the wire, filtered by the remote engine's own match.
         assert local.run("!(match &hq (users 2 $n) $n)") == [["Bob"]]
         # And joins with local facts in ONE match, the multi-context point.
@@ -932,7 +935,7 @@ def test_eval_capture(m):  # noqa: D103  -- pytest discovers or injects this cal
     assert "from-eval" in output.text
     # println! answers the UNIT value, `()`, which is what the specification
     # types it with: "(-> %Undefined% (->))". It used to answer True.
-    assert answers == [Expression()]
+    assert answers == [TRUE]
 
 
 def test_stats_block_counts_the_work(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

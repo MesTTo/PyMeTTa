@@ -1,6 +1,6 @@
 """Purpose: spaces across processes, the multi-context reading: each engine
 is a context, serve() exposes its spaces over HTTP speaking the same tagged
-wire the local boundary speaks, connect() answers a transport, and attach()
+wire the local boundary speaks, connect() answers a transport, and RemoteSpace over it is the backing metta.attach() registers
 registers a remote engine's space here as a foreign space, so
 (match &remote (users $id $n) ...) crosses the network exactly as it
 crosses into DuckDB. The shape is SingularityNET's DAS gateway (a single
@@ -24,6 +24,29 @@ Guarantees:
     test_a_gateway_refuses_more_cursors_than_it_holds]
   - close() releases every cursor a client left open [tested
     test_closing_the_server_releases_open_cursors]
+  - a candidate whose instantiation is a rational tree crosses as the stored
+    atom, the finite form the protocol names for it, instead of being dropped
+    from the reply [tested: test_a_rational_tree_candidate_crosses_as_the_stored_atom,
+    test_the_kit_certifies_the_attached_space; commit=WORKTREE]
+  - one stored atom reads back as one atom, however much matching the server
+    did in between [tested:
+    test_two_reads_of_one_stored_atom_answer_the_same_atom; commit=WORKTREE]
+  - a close releases what it can and stays retryable: a failed /stop keeps its
+    token, close_all closes every cursor before it raises, and a server whose
+    worker did not stop leaves its cursors to the next close rather than
+    closing one under a live request [tested:
+    test_a_failed_stop_leaves_the_remote_cursor_retryable,
+    test_closing_every_cursor_survives_one_failure,
+    test_a_close_that_cannot_stop_the_worker_keeps_the_cursors;
+    commit=WORKTREE]
+  - GET /health answers an authorization hook's own failure as JSON instead of
+    dropping the connection [tested:
+    test_a_failing_authorize_hook_answers_json_on_health; commit=WORKTREE]
+  - the same-process guard covers the addresses a wildcard bind serves and the
+    addresses its caller is about to serve [tested:
+    test_attaching_a_wildcard_served_space_through_loopback_is_refused,
+    test_a_manifest_that_attaches_before_it_serves_is_refused;
+    commit=WORKTREE]
   - the authorize hook judges /next and /stop against the space the
     cursor's answers come from, not the request's absent space field
     [tested test_authorize_sees_the_cursors_own_space]
@@ -69,14 +92,16 @@ import logging
 import math
 import queue
 import secrets
+import socket
 import threading
 import time
 import warnings
 from collections import deque
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from http.client import HTTPException
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from itertools import islice
 from typing import Any, Self
 from urllib.parse import urlsplit
 
@@ -86,7 +111,7 @@ from ._engine import bridge
 from ._network import HTTPEndpoint, validated_timeout
 from ._space import Space as MeTTa
 from ._space_objects import Cursor
-from .atoms import Atom, Expression, Variable, substitute
+from .atoms import Atom, Expression, Variable, substitute, unify
 from .errors import MettaError
 from .foreign import SpaceProvider
 
@@ -99,8 +124,7 @@ __all__ = [
     "RemoteSpace",
     "Request",
     "Server",
-    "attach",
-    "connect",
+        "connect",
     "serve",
 ]
 
@@ -323,14 +347,21 @@ class RemoteCursor:
     def close(self) -> None:
         """Release the server's cursor; idempotent, and distinct from
         exhaustion, which released it already.
+
+        The token survives a failed /stop and the cursor stays open, because
+        a close that discarded it first could never release the server's
+        cursor afterwards: every later close returned at the flag while the
+        server held the engine to its idle deadline [tested
+        test_a_failed_stop_leaves_the_remote_cursor_retryable].
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if self._closed:
             return
-        self._closed = True
-        self._buffer.clear()
-        token, self._token = self._token, None
+        token = self._token
         if token is not None:
             self._transport("stop", {"cursor": token})
+            self._token = None
+        self._closed = True
+        self._buffer.clear()
 
     def __enter__(self) -> Self:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return self
@@ -547,7 +578,7 @@ class RemoteSpace(SpaceProvider):
 
 
 #: Every live server in THIS process, keyed by the address it accepts on.
-#: attach() reads it to refuse a configuration that cannot work; Server
+#: the space() URL door reads it to refuse a configuration that cannot work; Server
 #: registers on construction and releases on close.
 _LIVE_SERVERS: dict[tuple[str, int], tuple[str, ...]] = {}
 _LIVE_SERVERS_LOCK = threading.Lock()
@@ -555,8 +586,48 @@ _LIVE_SERVERS_LOCK = threading.Lock()
 #: recognised through `localhost` too.
 _LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
 
+#: Bind addresses that mean "every address this host has", and the families
+#: each answers on. A server bound to one of them serves every spelling of
+#: every interface, so its registry entry cannot list them and the guard asks
+#: the operating system instead. "::" is dual-stack wherever this runs, so it
+#: carries IPv4 too.
+_WILDCARD_FAMILIES: dict[str, frozenset[int]] = {
+    "0.0.0.0": frozenset({socket.AF_INET}),  # noqa: S104  # nosec B104 -- recognising a wildcard bind, not making one
+    "": frozenset({socket.AF_INET}),
+    "::": frozenset({socket.AF_INET, socket.AF_INET6}),
+}
 
-def _refuse_this_process(url: object, name: str) -> None:
+
+def _local_families(hostname: str) -> frozenset[int]:
+    """The address families in which `hostname` names an address of THIS host.
+
+    Binding is the exact test, and the portable one: Python enumerates no
+    interfaces, while the operating system already knows which addresses are
+    its own and refuses to bind any other. A host with net.ipv4.ip_nonlocal_bind
+    set answers yes for an address it does not hold, which costs one refusal
+    message on a configuration that would have worked, against a deadlock that
+    names nothing.
+    """
+    try:
+        candidates = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+    except OSError:
+        return frozenset()  # a name this host cannot resolve is not this host
+    families: set[int] = set()
+    for family, _type, _protocol, _canonical, sockaddr in candidates:
+        if family in families:
+            continue
+        with socket.socket(family, socket.SOCK_STREAM) as probe:
+            try:
+                probe.bind((sockaddr[0], 0, *sockaddr[2:]))
+            except OSError:
+                continue
+        families.add(family)
+    return frozenset(families)
+
+
+def _refuse_this_process(
+    url: object, name: str, pending: Iterable[tuple[str, int]] = ()
+) -> None:
     """Refuse attaching a space served by THIS process over HTTP.
 
     Janus holds the GIL across a Prolog call, so while one thread is inside an
@@ -566,9 +637,17 @@ def _refuse_this_process(url: object, name: str) -> None:
     transport's whole timeout and the serving side then fails on a broken
     pipe, and neither message names the cause.
 
+    `pending` names addresses the caller is ABOUT to serve and has not bound
+    yet. The live registry cannot know about a server that starts one line
+    later, so an assembler performing an attach form before its own serve
+    form walked straight past this guard and deadlocked when the server
+    arrived: the same two forms were refused in one order and accepted in the
+    other [tested test_a_manifest_that_attaches_before_it_serves_is_refused].
+    The configuration is what is wrong, not the ordering.
+
     A plain HTTP call to the same server from outside an evaluation works and
-    is not refused here; the guard is on attach, which is the door that can
-    only be used from inside one.
+    is not refused here; the guard is on the space() URL door, whose spaces
+    are only ever matched from inside one.
     """
     if not isinstance(url, str):
         return
@@ -578,13 +657,32 @@ def _refuse_this_process(url: object, name: str) -> None:
     hosts = _LOOPBACK if parsed.hostname in _LOOPBACK else {parsed.hostname}
     endpoint_port = parsed.port
     with _LIVE_SERVERS_LOCK:
+        servers = dict(_LIVE_SERVERS)
+    for host, port in pending:
+        # A server that has not started serves no space yet, so the remedy
+        # below names the default rather than one of its own.
+        servers.setdefault((str(host), int(port)), ())
+    served = next(
+        (
+            spaces
+            for host in hosts
+            if (spaces := servers.get((host, endpoint_port))) is not None
+        ),
+        None,
+    )
+    wildcards = [
+        (spaces, families)
+        for host, families in _WILDCARD_FAMILIES.items()
+        if (spaces := servers.get((host, endpoint_port))) is not None
+    ]
+    if served is None and wildcards:
+        # A wildcard bind answers on every address this host has, so the
+        # registry entry names none of them and 127.0.0.1 or localhost walked
+        # straight past this guard into the deadlock [tested
+        # test_attaching_a_wildcard_served_space_through_loopback_is_refused].
+        local = _local_families(parsed.hostname)
         served = next(
-            (
-                spaces
-                for host in hosts
-                if (spaces := _LIVE_SERVERS.get((host, endpoint_port))) is not None
-            ),
-            None,
+            (spaces for spaces, families in wildcards if families & local), None
         )
     if served is None:
         return
@@ -597,7 +695,7 @@ def _refuse_this_process(url: object, name: str) -> None:
         f"the connection.\n\n"
         f"In one process, use the transport that runs on the calling thread:\n\n"
         f"    gateway = metta.remote.Gateway(server_space)\n"
-        f"    metta.remote.attach(m, {name!r}, gateway, {remote_space!r})\n\n"
+        f"    metta.attach({name!r}, metta.remote.RemoteSpace(gateway, {remote_space!r}))\n\n"
         f"A URL is for reaching an engine in ANOTHER process."
     )
     raise MettaError(msg)
@@ -708,38 +806,104 @@ def connect(
                 msg
             ) from exc
         if status >= 400 or not isinstance(answer, dict):
-            msg = f"the remote engine refused health: {status} {reason}"
+            # The body's own sentence when there is one, the same detail POST
+            # surfaces: a policy hook that refused, or failed, says why here.
+            detail = answer.get("error") if isinstance(answer, dict) else None
+            msg = (
+                f"the remote engine refused health: {status} {reason}"
+                if detail is None
+                else f"the remote engine refused health: {detail}"
+            )
             raise MettaError(msg)
         return answer
 
     return _HTTPTransport(transport, health)
 
 
-def attach(
-    m,
-    name: str,
-    url_or_transport: Any,
-    remote_space: str = "&self",
-    *,
-    batch: int | None = None,
-) -> RemoteSpace:
-    """Register a remote engine's space here under a local name.
+#: The engine's own wording when a binding has no finite wire form, which is
+#: how the eager door learns a candidate is a rational tree
+#: [source: extensions/python/metta/shim.pl, metta_py_wire_refuse/0].
+_RATIONAL_TREE = "rational-tree binding has no finite wire form"
 
-    metta.remote.attach(m, "&hq", "http://127.0.0.1:8700")
-    m.run('!(match &hq (users $id $n) $n)')
 
-    `batch` puts the attached space's matching on the lazy door, so a
-    MeTTa query that stops early stops the serving engine with it:
+def _linear(pattern: Atom) -> Atom | None:
+    """The pattern with every repeated variable occurrence made distinct.
 
-        metta.remote.attach(m, "&hq", url, batch=1)
-        m.run('!(once (match &hq (users $id $n) $n))')  # one answer computed
+    None when no variable repeats at all.
+
+    A repeated variable is the only way a match can bind a variable to a term
+    that contains it: the stored atoms come out of the database with their own
+    fresh variables, so nothing else can close the loop. The linearised
+    pattern cannot, because every occurrence is its own variable and each
+    binds to a subterm of the stored atom, which is why the relaxed match
+    answers a finite atom for a candidate whose real instantiation is a
+    rational tree. The relaxed match over-answers, and the caller filters it
+    back with the engine's own unification.
     """
-    if not callable(url_or_transport):
-        _refuse_this_process(url_or_transport, name)
-    transport = url_or_transport if callable(url_or_transport) else connect(url_or_transport)
-    provider = RemoteSpace(transport, remote_space, batch=batch)
-    m._register_space(provider, name)
-    return provider
+    counts: dict[str, int] = {}
+
+    def distinct(term: Atom) -> Atom:
+        if not isinstance(term, Variable) or term.name == "_":
+            return term
+        seen = counts.get(term.name, 0)
+        counts[term.name] = seen + 1
+        # The suffix keeps the reading of the name it came from; a pattern
+        # carrying both `$x` twice and a literal `$x-relaxed-1` would collide,
+        # and no caller writes that.
+        return term if seen == 0 else Variable(f"{term.name}-relaxed-{seen}")
+
+    relaxed = pattern.map(distinct)
+    return relaxed if any(count > 1 for count in counts.values()) else None
+
+
+def _read_out(atom: Atom) -> Atom:
+    """A stored atom with its variables named by the walk that reads it.
+
+    The names come out the same every time the atom is read.
+
+    A stored variable's engine name is a stack offset that moves with every
+    match the server runs, so two reads of ONE atom crossed as two atoms that
+    printed differently and a client comparing printed forms saw a space
+    changing under it, against the `repeated` source this server declares
+    [measured 2026-08-30: (gc-fact (f $_78) $_78) read back as $_2184, then
+    $_3998, then $_5764, after one match each; tested
+    test_two_reads_of_one_stored_atom_answer_the_same_atom]. The engine that
+    re-unifies a candidate renames its variables apart regardless, so the
+    name carries nothing but this identity [measured 2026-08-30: a
+    candidate's $a does not collide with a pattern's own $a].
+    """
+    names: dict[str, str] = {}
+
+    def named(term: Atom) -> Atom:
+        if not isinstance(term, Variable) or term.name == "_":
+            return term
+        return Variable(names.setdefault(term.name, f"_{len(names)}"))
+
+    return atom.map(named)
+
+
+def _wire(atoms: list[Atom]) -> list:
+    """The wire forms of the atoms a reply answers, each named by _read_out.
+
+    Every door names them the same way, so the eager reply and the chunks of
+    the lazy one are the same atoms rather than the same atoms under two
+    spellings, and one stored atom read twice is one atom.
+    """
+    return [_read_out(atom).to_wire() for atom in atoms]
+
+
+def _apart(atom: Atom) -> Atom:
+    """The atom with its variables renamed away from a client's pattern.
+
+    This is the renaming the engine's own re-unification does before it
+    matches. `_` stays anonymous, because naming it would force two of its
+    occurrences to be equal.
+    """
+    return atom.map(
+        lambda term: Variable(f"remote-candidate-{term.name}")
+        if isinstance(term, Variable) and term.name != "_"
+        else term
+    )
 
 
 def _batch_of(payload: dict) -> int:
@@ -799,8 +963,10 @@ def _bound_of(payload: dict) -> int | None:
 class _OpenCursor:
     """One answer stream a gateway holds open between requests."""
 
+    #: The engine resource, closed on release; `answers` is what it answers,
+    #: already instantiated and, for a linearised match, already filtered.
     cursor: Cursor
-    pattern: Atom
+    answers: Iterator[Atom]
     space: str
     remaining: int | None
     deadline: float = 0.0
@@ -837,9 +1003,13 @@ class _Cursors:
         with self._lock:
             expired = [token for token, e in self._open.items() if e.deadline <= now]
             gone = [self._open.pop(token) for token in expired]
-        for entry in gone:
-            logger.debug("releasing a remote cursor idle past %g seconds", self._idle)
-            entry.cursor.close()
+        if gone:
+            logger.debug(
+                "releasing %d remote cursor(s) idle past %g seconds",
+                len(gone),
+                self._idle,
+            )
+        _close_every(gone)
 
     def open(self, entry: _OpenCursor) -> str:
         self._sweep()
@@ -907,8 +1077,24 @@ class _Cursors:
         with self._lock:
             entries = list(self._open.values())
             self._open.clear()
-        for entry in entries:
+        _close_every(entries)
+
+
+def _close_every(entries: list[_OpenCursor]) -> None:
+    """Close every cursor, then raise whatever the closes raised.
+
+    The table has already let go of all of them, so stopping at the first
+    failure abandons the engines behind the rest with nothing left holding
+    their tokens [tested test_closing_every_cursor_survives_one_failure].
+    """
+    failures: list[BaseException] = []
+    for entry in entries:
+        try:
             entry.cursor.close()
+        except BaseException as exc:  # noqa: BLE001  -- every cursor closes before any failure leaves
+            failures.append(exc)
+    if failures:
+        _raise_failures("releasing remote answer cursors failed", failures)
 
 
 class Gateway:
@@ -954,7 +1140,7 @@ class Gateway:
         if operation == "stop":
             return self._stop(payload)
         if operation == "atoms":
-            return {"atoms": [a.to_wire() for a in self._space(payload).atoms()]}
+            return {"atoms": _wire(self._space(payload).atoms())}
         if operation == "add":
             self._space(payload).add(_atom_of(payload, "atom"))
             return {"added": True}
@@ -1005,22 +1191,41 @@ class Gateway:
 
         match()'s reading on the wire, and it costs what match() costs, the
         join computed to the end before anything crosses. /ask is the other
-        door.
+        door, and both take their candidates from _candidates, so the two
+        answer the same set for every pattern.
         """
         space = self._space(payload)
         pattern = _atom_of(payload, "pattern")
         bound = _bound_of(payload)
+        if bound == 0:
+            # Zero answers wanted: the engine's query refuses a zero
+            # limit, and no work is the exact honoring.
+            return {"atoms": []}
+        if _linear(pattern) is not None:
+            # A repeated variable can make an instantiation infinite, so this
+            # pattern's candidates come through the linearised cursor whether
+            # the caller asked for all of them or a bounded page.
+            cursor, answers = self._candidates(space, pattern)
+            try:
+                atoms = list(answers if bound is None else islice(answers, bound))
+            finally:
+                cursor.close()
+            return {"atoms": _wire(atoms)}
         if bound is not None:
-            if bound == 0:
-                # Zero answers wanted: the engine's query refuses a zero
-                # limit, and no work is the exact honoring.
-                return {"atoms": []}
             rows = space.match(pattern, limit=bound)
             atoms = [
                 substitute(pattern, dict(zip(rows.columns, row, strict=True)))
                 for row in rows
             ]
-            return {"atoms": [a.to_wire() for a in atoms]}
+            return {"atoms": _wire(atoms)}
+        return {"atoms": _wire(self._collapsed(space, pattern))}
+
+    def _collapsed(self, space: MeTTa, pattern: Atom) -> list[Atom]:
+        """One engine-side match, collapsed to the instantiations it answers.
+
+        The whole answer set in ONE crossing, which is what makes the eager
+        door eager; the lazy door pays a crossing per chunk instead.
+        """
         with space.bind(pat=pattern):
             groups = space.run("!(collapse (match (context-space) pat pat))")
         if len(groups) != 1 or len(groups[0]) != 1:
@@ -1030,7 +1235,36 @@ class Gateway:
         if not isinstance(group, Expression):
             msg = f"remote match returned a non-expression collapse: {group!r}"
             raise MettaError(msg)
-        return {"atoms": [a.to_wire() for a in group]}
+        return list(group)
+
+    def _candidates(self, space: MeTTa, pattern: Atom) -> tuple[Cursor, Iterator[Atom]]:
+        """The engine cursor a pattern's candidates come from.
+
+        The second answer is the atoms that cursor makes.
+
+        Candidates cross as the pattern instantiated by each match. Matching
+        binds raw, so a repeated pattern variable can bind to a term that
+        contains it: that candidate IS an answer this server owes and no
+        finite tagged form spells its instantiation. Such a pattern is
+        therefore matched LINEARISED, which answers the stored atom rather
+        than an instantiation of it, the other form the protocol allows, and
+        the engine's own re-unification filters the relaxed answer back to the
+        candidates this pattern really joins, so the reply stays exact
+        [source: website/live/remote-protocol.md, the rational-tree paragraph;
+        tested test_a_rational_tree_candidate_crosses_as_the_stored_atom].
+        """
+        linear = _linear(pattern)
+        template = pattern if linear is None else linear
+        cursor = space._stream(template)
+        answers = (
+            substitute(template, dict(zip(cursor.columns, row, strict=True)))
+            for row in cursor
+        )
+        if linear is None:
+            return cursor, answers
+        return cursor, (
+            atom for atom in answers if unify(pattern, _apart(atom)) is not None
+        )
 
     def _pull(self, entry: _OpenCursor, batch: int) -> tuple[list[Atom], bool]:
         """Take at most `batch` answers, and not one more.
@@ -1042,20 +1276,13 @@ class Gateway:
         [tested test_two_answers_cross_the_wire_without_the_third_being_computed].
         """
         want = batch if entry.remaining is None else min(batch, entry.remaining)
-        atoms: list[Atom] = []
-        columns = entry.cursor.columns
-        for _ in range(want):
-            try:
-                row = next(entry.cursor)
-            except StopIteration:
-                break
-            atoms.append(substitute(entry.pattern, dict(zip(columns, row, strict=True))))
+        atoms = list(islice(entry.answers, want))
         if entry.remaining is not None:
             entry.remaining -= len(atoms)
         return atoms, len(atoms) < want or entry.remaining == 0
 
     def _reply(self, atoms: list[Atom], token: str | None) -> dict:
-        return {"atoms": [a.to_wire() for a in atoms], "cursor": token}
+        return {"atoms": _wire(atoms), "cursor": token}
 
     def _ask(self, payload: dict) -> dict:
         """The lazy door: open a cursor and answer its first chunk.
@@ -1071,7 +1298,7 @@ class Gateway:
         bound = _bound_of(payload)
         if bound == 0:
             return self._reply([], None)
-        entry = _OpenCursor(space._stream(pattern), pattern, space.name, bound)
+        entry = _OpenCursor(*self._candidates(space, pattern), space.name, bound)
         try:
             atoms, done = self._pull(entry, batch)
             token = None if done else self._cursors.open(entry)
@@ -1351,17 +1578,39 @@ class Server:
         with self._close_lock:
             if self._closed:
                 return
-            with _LIVE_SERVERS_LOCK:
-                _LIVE_SERVERS.pop(self._address, None)
             if self._thread is threading.current_thread():
                 msg = "the remote HTTP server cannot close itself"
                 raise MettaError(msg)
-            failures = [*self._stop_http(timeout), *self._stop_worker(timeout)]
-            try:
-                self._gateway.close()
-            except BaseException as exc:  # noqa: BLE001
-                failures.append(exc)
+            failures = self._stop_http(timeout)
+            stopped_serving = not failures
+            failures.extend(self._stop_worker(timeout))
+            if self._worker.thread.is_alive():
+                # Each cursor holds an engine the worker may be inside right
+                # now, so releasing them here would close one out from under a
+                # running request. They keep their idle deadline instead, and
+                # a later close() releases them once the worker is gone
+                # [tested test_a_close_that_cannot_stop_the_worker_keeps_the_cursors].
+                failures.append(
+                    MettaError(
+                        "the remote engine worker did not stop, so the answer "
+                        "cursors it may still be reading were left open rather "
+                        "than closed under it; close() again once the worker "
+                        "has stopped"
+                    )
+                )
+            else:
+                try:
+                    self._gateway.close()
+                except BaseException as exc:  # noqa: BLE001
+                    failures.append(exc)
             self._closed = not self._thread.is_alive() and not self._worker.thread.is_alive()
+            if stopped_serving or self._closed:
+                # The socket is gone, so nothing reaches this server through
+                # it any more. Until it is, the entry stays: the deadlock
+                # guard reads it to refuse an attach that would hang, and a
+                # close that failed leaves a server that may still answer.
+                with _LIVE_SERVERS_LOCK:
+                    _LIVE_SERVERS.pop(self._address, None)
             if failures:
                 _raise_failures("remote server close failed", failures)
             logger.debug("stopped remote engine server on %s:%d", self.host, self.port)
@@ -1502,19 +1751,30 @@ def serve(  # noqa: C901  -- serve keeps the HTTP negotiation and resource lifec
             if not _has_credential(headers, token):
                 self._refuse_unauthorized(operation)
                 return
-            request = Request(operation, m.name, headers)
-            if authorize is not None and not authorize(request):
-                self._refuse_unauthorized(operation)
-                return
-            if operation == "health":
-                try:
+            # The policy hook runs INSIDE the boundary: an authorize that
+            # raises used to leave do_GET through socketserver, which drops
+            # the connection and answers the client nothing
+            # [tested test_a_failing_authorize_hook_answers_json_on_health].
+            try:
+                request = Request(operation, m.name, headers)
+                if authorize is not None and not authorize(request):
+                    self._refuse_unauthorized(operation)
+                    return
+                if operation == "health":
                     kind, value = worker.call("health", {}, timeout=600.0)
                     answer = value if kind == "ok" else {"error": value}
                     status = 200 if kind == "ok" else 400
-                except Exception as exc:  # noqa: BLE001  the wire answers errors as JSON
-                    answer, status = {"error": str(exc)}, 400
-            else:
-                answer, status = {"error": f"unknown operation {operation!r}"}, 400
+                else:
+                    answer, status = {"error": f"unknown operation {operation!r}"}, 400
+            except _HTTPProblem as exc:
+                answer, status = {"error": str(exc)}, exc.status
+            except Exception as exc:  # the wire answers errors as JSON
+                logger.warning(
+                    "remote engine HTTP handler rejected operation %s",
+                    operation,
+                    exc_info=True,
+                )
+                answer, status = {"error": str(exc)}, 400
             body = _json.dumps(answer)
             self.send_response(status)
             self.send_header("content-type", "application/json")

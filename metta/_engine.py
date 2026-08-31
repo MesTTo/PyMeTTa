@@ -435,18 +435,22 @@ def engine_thread() -> Iterator[None]:
             raise EngineError(msg) from exc
 
 
-def runtime(metta_path: str | None = None, verbose: bool = False) -> Runtime:  # noqa: FBT001, FBT002  -- the boolean is established API data and positional compatibility is part of the call shape
+def runtime(metta_path: str | None = None, verbose: bool | None = None) -> Runtime:  # noqa: FBT001  -- the boolean is established API data and positional compatibility is part of the call shape
     """The process's runtime, started on first use.
 
     There is exactly one engine per process, so a later caller cannot have
     a different tree: an explicit metta_path that disagrees with the one
     already consulted raises rather than being silently ignored. Verbosity
-    is per-call state and simply applies.
+    applies when a caller SAYS something (verbose=True or verbose=False);
+    the default None leaves the session as it is, so a constructor that
+    merely reaches the runtime cannot silence a verbose session the way the
+    old always-applied False default did (minting a context home did exactly
+    that, and the published verbosity door went quiet).
     """
     with _LOCK:
         if _STATE.runtime is None:
             logger.debug("starting the shared MeTTa runtime")
-            _STATE.runtime = Runtime(metta_path=metta_path, verbose=verbose)
+            _STATE.runtime = Runtime(metta_path=metta_path, verbose=bool(verbose))
         else:
             active = _STATE.runtime.metta_path
             if (
@@ -463,7 +467,11 @@ def runtime(metta_path: str | None = None, verbose: bool = False) -> Runtime:  #
                 raise ValueError(
                     msg
                 )
-            if verbose != _STATE.runtime.verbose:
+            if verbose is not None:
+                # Always write on an explicit ask: the engine flag is also
+                # mutated directly by tests and helper doors, so a cached
+                # mirror comparison here would skip a needed update against
+                # stale shadow state. The write is idempotent and cheap.
                 _STATE.runtime.verbose = verbose
                 _STATE.runtime.once(
                     "metta_host_set_silent(S)", S="false" if verbose else "true"

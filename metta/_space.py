@@ -171,6 +171,7 @@ Open Obligations:
 from __future__ import annotations
 
 import builtins as _builtins
+import contextlib
 import functools
 import hashlib
 import importlib as _importlib
@@ -206,6 +207,7 @@ from ._space_definitions import (
     install_define,
     install_prolog_define,
     install_type,
+    release_definitions,
 )
 from ._space_execution import (
     CapturedOutput,
@@ -500,15 +502,29 @@ class _BoundValues:
         _RUN_BINDINGS.reset(self._token)
 
 
-class _WatchIterator:
-    """Own one eager subscription and cancel it whenever the iterator closes."""
+def _cancel_abandoned_subscription(subscription: Any) -> None:
+    """The finalize backstop: best-effort, late-shutdown-safe."""
+    with contextlib.suppress(Exception):
+        subscription.cancel()
 
-    __slots__ = ("_deadline", "_events", "_subscription")
+
+class _WatchIterator:
+    """Own one eager subscription and cancel it whenever the iterator closes.
+
+    close() is the contract; the weakref.finalize backstop only covers an
+    ABANDONED iterator, so a dropped handle cannot keep a live subscription
+    delivering into nothing [tested: test_an_abandoned_watch_cancels_itself].
+    """
+
+    __slots__ = ("__weakref__", "_deadline", "_events", "_finalizer", "_subscription")
 
     def __init__(self, subscription: Any, deadline: float | None = None) -> None:
         self._subscription = subscription
         self._deadline = deadline
         self._events: Iterator[Any] = subscription.events(deadline)
+        self._finalizer = weakref.finalize(
+            self, _cancel_abandoned_subscription, subscription
+        )
 
     def __iter__(self) -> Self:
         return self
@@ -525,6 +541,7 @@ class _WatchIterator:
 
     def close(self) -> None:
         """Close the event generator and cancel the eager subscription once."""
+        self._finalizer.detach()
         subscription = self._subscription
         if subscription is None:
             return
@@ -727,10 +744,11 @@ class Space(Handle):
     """A space bound to the engine: the way in from Python.
 
     MeTTa keeps one engine per process; every context shares it. The
-    default space is &self, the space the CLI itself uses, so source pasted
-    from a .metta file behaves identically here. Two ``MeTTa().self`` handles
-    therefore see the same &self state. Use ``MeTTa().space()`` when
-    independent stored state is required.
+    process-default home is &self, the space the CLI itself uses, so source
+    pasted from a .metta file behaves identically through ``metta.engine()``.
+    ``MeTTa()`` itself is a fresh context over its own anonymous home, so two
+    contexts never share stored state; ``Space()`` is still the process
+    home, and ``metta.engine()`` the context that borrows it.
 
     A named space isolates both its atoms and its EQUATIONS, and the rule for
     equations has a third part this docstring used to get wrong by calling
@@ -768,7 +786,7 @@ class Space(Handle):
         self,
         name: str | Symbol | Expression | Space = _DEFAULT_SPACE,
         *,
-        verbose: bool = False,
+        verbose: bool | None = None,
         metta_path: str | None = None,
         _runtime: Runtime | None = None,
         _created_at: tuple[str, int] | None = None,
@@ -829,6 +847,7 @@ class Space(Handle):
         self._name = cast(_SpaceId, engine_name)
         self._dropped = False
         self._ephemeral = False
+        self._autodrop = False
         self._backing: Any = None
         self._owns_backing = False
         self._created_at = _created_at
@@ -883,6 +902,7 @@ class Space(Handle):
         inherits: Space | None = None,
         restricted: bool = False,
         grants: _abc.Iterable[str] = (),
+        _equation_home: Space | None = None,
         _created_at: tuple[str, int] | None = None,
     ) -> Space:
         """An anonymous space with a name nothing else is using.
@@ -909,6 +929,11 @@ class Space(Handle):
                 "metta_py_new_restricted_space(Grants, Name)",
                 Grants=list(requested_grants),
             )
+        elif _equation_home is not None:
+            row = self._rt.must(
+                "metta_py_new_scoped_space(Home, Name)",
+                Home=_equation_home._space,
+            )
         elif inherits is None:
             row = self._rt.must("metta_py_new_space(Name)")
         else:
@@ -917,9 +942,11 @@ class Space(Handle):
             )
         fresh = Space(
             str(row["Name"]),
+            _runtime=self._rt,
             _created_at=_creation_site() if _created_at is None else _created_at,
         )
         fresh._ephemeral = True
+        fresh._autodrop = True
         return fresh
 
     def drop(self) -> None:
@@ -951,8 +978,24 @@ class Space(Handle):
                 close = getattr(self._backing, "close", None)
                 if callable(close):
                     close()
-        self.clear()
-        if self._space != "&self":
+        if self._space == "&self":
+            self.clear()
+        else:
+            # The engine's release clears the store itself, under its
+            # releasing flag so the removal funnel does not recompile super
+            # users of a dying world; only the python-side satellites need
+            # clearing here.
+            _satellite("_lint_events").clear(self)
+            _invalidate_builtins_cache(self._rt)
+            release_definitions(self)
+            # The store clears in its OWN engine query, before the release:
+            # a query cannot reclaim the clauses it erased while it still
+            # runs, so clearing inside the release left this space's atoms
+            # in the table. The door mutes the removal funnel's super
+            # recompilation exactly as the release does, since a dying
+            # world's own users die with it
+            # [tested: test_dropping_a_space_reclaims_its_atoms].
+            self._rt.must("metta_py_clear_for_release(Space)", Space=self._space)
             predicate = (
                 "metta_py_release_space" if self._ephemeral else "metta_py_drop_space"
             )
@@ -960,13 +1003,22 @@ class Space(Handle):
         integrate._forget_space(self._space)
         self._dropped = True
 
+    @property
+    def dropped(self) -> bool:
+        """Whether :meth:`drop` has released this handle's space."""
+        return self._dropped
+
     def __enter__(self) -> Self:
         self._context_tokens.append(_ACTIVE_SPACE.set(self._space))
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
         _ACTIVE_SPACE.reset(self._context_tokens.pop())
-        if self._ephemeral and not self._context_tokens:
+        # _autodrop, not _ephemeral: an anonymous name is always pooled at
+        # drop (_ephemeral), but only a scratch space whose lifetime IS the
+        # with-block dies on exit. A context home minted by MeTTa() is
+        # ephemeral yet owned by its context, which drops it at close().
+        if self._autodrop and not self._context_tokens:
             self.drop()
 
     def __repr__(self) -> str:
@@ -1356,14 +1408,21 @@ class Space(Handle):
         _invalidate_builtins_cache(self._rt)
 
     def remove(self, atom: Any) -> bool:
-        """Remove an atom, engine semantics: multiset subtraction, so ONE
-        unifying occurrence leaves and the answer says whether one did.
-        This is the same law `remove-atom` obeys, so both doors say the
-        same thing about the same operation; `del m[pattern]` is the
-        bulk spelling that drains every occurrence. A bare variable is
-        the remove-everything reading a multiset space gives it, each
-        atom leaving through its own proper path, equations and their
-        compiled clauses included.
+        """Remove ONE unifying occurrence and say whether one was there,
+        which is Python's own `list.remove` grain.
+
+        The MeTTa door is coarser and deliberately so: `remove-atom`, and
+        therefore `space -= atom`, drains EVERY unifying occurrence and
+        answers True either way, because that is upstream's law
+        [source: engine/spaces/foreign.pl, remove_matching_atoms/2] and
+        because `-=` is Python's in-place difference, which is total.
+        `del m[pattern]` drains too and raises when nothing matched, as
+        Python's `del` does. This method is the one door that reports
+        absence, so the distinction the MeTTa door gave up is still here.
+
+        A bare variable is the remove-everything reading a multiset space
+        gives it, each atom leaving through its own proper path, equations
+        and their compiled clauses included.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _refuse_in_batch(self._space, "remove")
         pattern = _to_atom(atom)
@@ -1510,7 +1569,9 @@ class Space(Handle):
         meaning to promise.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         _satellite("foreign").require_capability(self._space, "enumerate", "copy")
-        clone = self._new_space()
+        # Enumerate the SOURCE before minting: a provider whose enumeration
+        # fails then costs nothing, where minting first leaked an anonymous
+        # clone on every such failure.
         atoms = list(self.atoms())
         # Specializer-generated equations add LAST, stably. Re-adding a base
         # equation invalidates the clone's specializations of that name, so
@@ -1518,8 +1579,13 @@ class Space(Handle):
         # clauses dropped the earlier one; with every base in first, each
         # generated equation compiles once and is adopted by the engine.
         atoms.sort(key=_copies_after_its_base)
+        clone = self._new_space()
         if atoms:
-            clone.add(*atoms)
+            try:
+                clone.add(*atoms)
+            except BaseException:
+                clone.drop()
+                raise
         return clone
 
     __copy__ = copy
@@ -2135,8 +2201,25 @@ class Space(Handle):
         """
         if not callable(target):
             return self.eval(Expression([Symbol("transaction"), _to_atom(target)]))
+        #The callback's answer is CAPTURED here rather than carried back
+        #through janus. janus converts whatever a callback returns and has no
+        #conversion for an atom that is not a sequence: a body ending in
+        #`add-atom` used to answer the unit expression, which converted as an
+        #empty sequence, and answering `true` raised "Grounded(True) is a leaf
+        #atom and has no length" from inside the transaction [measured
+        #2026-08-30, examples/gallery/journaled_observed_store.py].
+        #
+        #Boxing rather than discarding, because the answer IS the result of
+        #this call: _replace_catalog_declaration/4 returns the atom it stored
+        #through here, so a transaction that answered None stopped every
+        #catalog declaration silently, `compensates` included.
+        answer: list[Any] = []
+
+        def _capture() -> None:
+            answer.append(target())
+
         try:
-            row = self._rt.once("metta_py_transaction(F, R)", F=target)
+            row = self._rt.once("metta_py_transaction(F, R)", F=_capture)
         except MettaError as error:
             term = getattr(error.__cause__, "term", None)
             original = (
@@ -2155,7 +2238,7 @@ class Space(Handle):
             raise EngineError(
                 msg
             )
-        return cast("_R", row["R"])
+        return cast("_R", answer[0] if answer else None)
 
     def saga(self, receipts: Space):
         """Open a committed-receipt saga over this execution space.
@@ -2171,8 +2254,10 @@ class Space(Handle):
 
         Operations ranked writesState or oracleIO leave receipts. Declare a
         handler with ``compensates`` before recovery. Handlers receive the
-        quoted complete receipt and must be idempotent, because a failed
-        compensation remains queryable and is retried by ``rollback()``.
+        complete receipt, written at the call site as ``(quote <receipt>)`` so
+        it is not evaluated on the way in, and must be idempotent, because a
+        failed compensation remains queryable and is retried by
+        ``rollback()``.
         """
         from ._saga import Saga  # noqa: PLC0415 -- avoids the Space type cycle
 
@@ -4141,7 +4226,10 @@ class Space(Handle):
         source operation must already be registered at writesState or
         oracleIO, because weaker operations leave no saga receipt. The
         recovery name must already be a host operation or compiled MeTTa
-        function. It receives the quoted complete ``(did ...)`` receipt.
+        function. It receives the complete ``(did ...)`` receipt. The runner writes
+        the call as ``(quote <receipt>)`` so the receipt is not evaluated
+        on the way in; the quote is a barrier and does not survive, so the
+        handler is handed the receipt itself.
         Redeclaring replaces the old row atomically.
         """
         operation_name = str(operation)
@@ -4623,36 +4711,142 @@ class Space(Handle):
         """The owning evaluation context, so a handle can reach every
         context-level door: ``m.metta.space(S.kb)`` creates a sibling space
         in THIS handle's own context rather than the process default, which
-        is the creation door the twins' known-issue asked for. The wrapper
-        is two slots over the same runtime, so answering it costs nothing
-        and two answers compare equal through the runtime they share.
+        is the creation door the twins' known-issue asked for. The context
+        BORROWS this handle's space as its home, so answering it mints
+        nothing, and two answers compare equal because they share the
+        runtime and the home.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return MeTTa(_runtime=self._rt)
+        return MeTTa(self)
+
+
+def _release_abandoned_world(rt: Runtime, home: str) -> None:
+    """The finalize backstop: best-effort, late-shutdown-safe."""
+    with contextlib.suppress(Exception):
+        rt.must("metta_py_release_space(Space)", Space=home)
 
 
 class MeTTa:
-    """One MeTTa evaluation context; context-relative operations use Space."""
+    """One MeTTa evaluation context; context-relative operations use Space.
 
-    __slots__ = ("_rt", "_self")
+    ``MeTTa()`` is a fresh context, the way ``dict()`` is a fresh dict: it
+    mints an anonymous space of its own as its home, so two contexts never
+    see each other's atoms or equations, and it owns that space, releasing
+    it on :meth:`close` or when a ``with`` block leaves. Passing a space
+    (a ``Space``, an ``&name`` string, a ``Symbol``, or a parametric ground
+    ``Expression``) makes the context a BORROWER of that space instead:
+    ``MeTTa(Space())`` is the process-default context ``metta.engine()``
+    answers, and closing a borrower never drops what the caller supplied,
+    the way a file object built on someone else's descriptor leaves it open.
+    ``&self`` is just the default home's name; within any context its own
+    home plays that role.
+    """
+
+    __slots__ = ("__weakref__", "_finalizer", "_minted", "_owns_self", "_rt", "_self")
 
     def __init__(
         self,
+        space: Space | Symbol | Expression | str | None = None,
         *,
-        verbose: bool = False,
+        verbose: bool | None = None,
         metta_path: str | None = None,
-        _self_name: str = _DEFAULT_SPACE,
         _runtime: Runtime | None = None,
     ) -> None:
+        self._minted: list = []
+        self._finalizer = None
+        if isinstance(space, Space):
+            # A borrowed home carries its runtime, and explicit options
+            # still mean what they say: routing them through runtime()
+            # applies verbose and raises on a conflicting metta_path,
+            # exactly the one-engine contract that door documents. Silently
+            # ignoring them was measured as accepting a conflicting engine
+            # path and a dead verbose=True
+            # [tested: test_a_borrowing_context_still_honors_its_options].
+            if metta_path is not None or verbose is not None:
+                runtime(metta_path=metta_path, verbose=verbose)
+            self._rt = space.runtime
+            self._self = space
+            self._owns_self = False
+            return
         self._rt = (
             runtime(metta_path=metta_path, verbose=verbose)
             if _runtime is None
             else _runtime
         )
-        self._self = Space(_self_name, _runtime=self._rt)
+        if space is None:
+            home = Space(_DEFAULT_SPACE, _runtime=self._rt)
+            # Minted as a WORLD: the home declares itself onto &self, so
+            # spaces the program mints inside it (new-space included) read
+            # its equations the way every default-world space reads &self's,
+            # and close() can tear the whole world down as one unit.
+            self._self = home._new_space(_equation_home=home)
+            # Ownership transfer: the home's lifetime is this context's
+            # close(), not any with-block entered on the space itself.
+            self._self._autodrop = False
+            self._owns_self = True
+            # close() is the contract; the finalize backstop only covers an
+            # ABANDONED context. It watches the HOME HANDLE, not this
+            # context object, because the handle is what a caller keeps:
+            # `MeTTa().self` leaves the context unreferenced while its home
+            # is very much in use, and a backstop on the context released
+            # that home into the free-name pool, where the next mint drew
+            # the same name and tried to make it inherit from itself. A
+            # resource may not die while a reference handed out of it lives
+            # [tested: test_a_home_handle_outliving_its_context_keeps_the_world].
+            self._finalizer = weakref.finalize(
+                self._self, _release_abandoned_world, self._rt, self._self._space
+            )
+        else:
+            self._self = Space(space, _runtime=self._rt)
+            self._owns_self = False
+
+    def close(self) -> None:
+        """Release the context's own home space; closing twice is a no-op.
+
+        A borrowed home, the process default included, is the caller's
+        and survives; only a home this context minted is dropped, and the
+        drop takes the whole world with it: every space minted inside the
+        context, by this object or by the program's own new-space, is
+        released first, since it read the home's equations and cannot
+        outlive it. A space the program declared with (inherits ...) still
+        refuses, naming the heir, because that relationship is the
+        program's own.
+        """
+        if self._owns_self:
+            if self._finalizer is not None:
+                self._finalizer.detach()
+            # Handles this context minted tear down python-side first, so
+            # their subscriptions and provider state cannot follow a pooled
+            # name into another life; the engine's own cascade then covers
+            # the program's handle-less mints.
+            for ref in self._minted:
+                handle = ref()
+                if handle is not None and not handle.dropped:
+                    handle.drop()
+            self._self.drop()
+
+    @property
+    def closed(self) -> bool:
+        """Whether :meth:`close` has released this context's own home."""
+        return self._owns_self and self._self._dropped
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+        self.close()
+
+    def __eq__(self, other: object) -> bool:
+        """Two contexts are equal when they share a runtime and a home."""
+        if not isinstance(other, MeTTa):
+            return NotImplemented
+        return self._rt is other._rt and self._self == other._self
+
+    def __hash__(self) -> int:
+        return hash((id(self._rt), self._self))
 
     @property
     def self(self) -> Space:
-        """The context's ``&self`` space handle."""
+        """The context's home space handle, its own ``&self``."""
         return self._self
 
     @property
@@ -4681,32 +4875,87 @@ class MeTTa:
             "metta_path": self._rt.metta_path,
         }
 
-    def space(
+    def space(  # noqa: C901  -- one door, read top to bottom: validations, then acquisitions under one unwind
         self,
         name: str | Symbol | Expression | Space | None = None,
         backing: Any = None,
         *,
+        inherits: Space | None = None,
+        restricted: bool = False,
+        grants: _abc.Iterable[str] = (),
         journal: str | os.PathLike[str] | None = None,
-        **options: Any,
+        schema: _abc.Mapping[str, Any] | None = None,
+        sync: str = "none",
     ) -> Space:
         """Create one native, provider-backed, remote, or journaled space.
 
-        With no name, the engine mints an anonymous handle and creates the
-        space, so ``(get-type ...)`` on it is ``SpaceType`` before anything is
-        written. A ``Space`` reopens that same space, which is what an engine
-        answer naming one arrives as. A ``SpaceProvider`` backing is attached
-        directly, an HTTP(S) URL becomes a remote provider, and ``journal=``
-        constructs ``PersistentFactSpace`` from ``schema=`` or a schema mapping
-        supplied as ``backing``.
+        The BACKING value derives the implementation, so the common calls
+        carry no options at all: with no name the engine mints an anonymous
+        handle; a ``Space`` reopens that same space, which is what an engine
+        answer naming one arrives as; a ``SpaceProvider`` backing is
+        attached directly; an HTTP(S) URL becomes a remote provider (build
+        the transport with ``metta.remote.connect`` when it needs a token,
+        headers, or its own timeout, and hand THAT in as the backing); and
+        ``journal=`` constructs ``PersistentFactSpace`` from ``schema=`` or
+        a schema mapping supplied as the backing. ``sync`` paces the
+        journal and means nothing without one, so it refuses alone.
         """
-        inherits = options.pop("inherits", None)
-        restricted = options.pop("restricted", False)
-        grants = options.pop("grants", ())
+        if sync != "none" and journal is None:
+            msg = "space(sync=...) paces a journal; pass journal= as well"
+            raise TypeError(msg)
+        # VALIDATE first, so a refusal costs nothing: no space is minted
+        # for a request that cannot be built
+        # [tested: test_a_failed_space_construction_leaks_nothing].
+        if journal is not None:
+            if schema is None and isinstance(backing, _abc.Mapping):
+                schema = backing
+            if schema is None:
+                msg = "space(journal=...) needs schema= or a schema mapping as backing"
+                raise TypeError(msg)
+            if backing is not None and not isinstance(backing, _abc.Mapping):
+                msg = "journaled space backing is its schema mapping"
+                raise TypeError(msg)
+        elif isinstance(backing, str):
+            #A bare URL takes the transport's own defaults; a transport that
+            #needs a token, headers, an ssl context, a timeout, another
+            #remote space, or batching is BUILT with metta.remote and handed
+            #in as a RemoteSpace backing, so those knobs live where the
+            #protocol does.
+            _satellite("remote")._refuse_this_process(
+                backing, "&anonymous" if name is None else str(name)
+            )
+        elif callable(backing) and not isinstance(
+            backing, _satellite("foreign").SpaceProvider
+        ):
+            #A bare transport callable is a PROTOCOL, not a space. Refusing
+            #with the composition beats the provider checker's can_run
+            #message, which would send its author down the wrong path.
+            msg = (
+                "a transport callable is not a space; wrap it as the space "
+                "it serves: metta.remote.RemoteSpace(transport)"
+            )
+            raise TypeError(msg)
         if name is None:
+            # The context's home plays the &self role for the context's own
+            # spaces: an anonymous space minted here resolves EQUATIONS
+            # through the home, by the narrow equation-home relation, so its
+            # atoms stay its own and conjunctive matching keeps the direct
+            # native path (a space_parent row would also union reads and
+            # route joins per conjunct, both measured as defects). When the
+            # home IS &self that resolution already holds, so the default
+            # world needs no row at all.
+            equation_home = (
+                self._self
+                if inherits is None
+                and not restricted
+                and self._self._space != _DEFAULT_SPACE
+                else None
+            )
             handle = self._self._new_space(
                 inherits=inherits,
                 restricted=restricted,
                 grants=grants,
+                _equation_home=equation_home,
             )
         else:
             if inherits is not None or restricted or grants:
@@ -4714,53 +4963,56 @@ class MeTTa:
                 raise TypeError(msg)
             handle = Space(name, _runtime=self._rt)
 
+        # Everything below can refuse, and a refusal must not leak what was
+        # just acquired: the anonymous mint unwinds by dropping (it is
+        # fresh by construction), while a NAMED open never drops on unwind,
+        # because the name may be a pre-existing space whose destruction
+        # would be data loss, and an auto-created empty name is the benign
+        # residue. An owned provider constructed before the failure closes
+        # first, so a journal cannot stay attached past its failed space
+        # [tested: test_a_failed_space_construction_leaks_nothing].
+        # ACQUIRE under one unwind. The anonymous mint unwinds by dropping
+        # (fresh by construction); a NAMED open never drops on unwind,
+        # because the name may be a pre-existing space whose destruction
+        # would be data loss. An owned provider constructed before the
+        # failure closes first, so a journal cannot stay attached past its
+        # failed space [tested: test_a_failed_space_construction_leaks_nothing].
+        minted_fresh = name is None
         owns_backing = False
         provider = backing
-        if journal is not None:
-            schema = options.pop("schema", backing if isinstance(backing, _abc.Mapping) else None)
-            if schema is None:
-                msg = "space(journal=...) needs schema= or a schema mapping as backing"
-                raise TypeError(msg)
-            if backing is not None and not isinstance(backing, _abc.Mapping):
-                msg = "journaled space backing is its schema mapping"
-                raise TypeError(msg)
-            provider = _satellite("_persistent").PersistentFactSpace(
-                journal,
-                schema,
-                sync=options.pop("sync", "none"),
-            )
-            owns_backing = True
-        elif isinstance(backing, str):
-            remote = _satellite("remote")
-            transport = remote.connect(
-                backing,
-                timeout=options.pop("timeout", 30.0),
-                token=options.pop("token", None),
-                headers=options.pop("headers", None),
-                ssl_context=options.pop("ssl_context", None),
-            )
-            provider = remote.RemoteSpace(
-                transport,
-                options.pop("remote_space", "&self"),
-                batch=options.pop("batch", None),
-            )
-            owns_backing = True
-        if options:
-            msg = f"unknown space options: {sorted(options)!r}"
-            raise TypeError(msg)
-        if provider is not None:
-            _satellite("foreign").register_provider(self._rt, handle._space, provider)
-            handle._backing = provider
-            handle._owns_backing = owns_backing
+        try:
             if journal is not None:
-                try:
+                provider = _satellite("_persistent").PersistentFactSpace(
+                    journal,
+                    schema,
+                    sync=sync,
+                )
+                owns_backing = True
+            elif isinstance(backing, str):
+                remote = _satellite("remote")
+                provider = remote.RemoteSpace(remote.connect(backing))
+                owns_backing = True
+            if provider is not None:
+                _satellite("foreign").register_provider(
+                    self._rt, handle._space, provider
+                )
+                handle._backing = provider
+                handle._owns_backing = owns_backing
+                if journal is not None:
                     # An owned journal stages user-transaction writes and
                     # journals only the committed delta. The declaration is
-                    # what makes the existing coordinator enlist that protocol.
+                    # what makes the existing coordinator enlist that
+                    # protocol; the enclosing unwind owns the failure path.
                     handle.atomicity(Atomicity.transactional)
-                except BaseException:
-                    handle.drop()
-                    raise
+        except BaseException:
+            if owns_backing and provider is not backing:
+                close = getattr(provider, "close", None)
+                if callable(close):
+                    close()
+            if minted_fresh:
+                handle.drop()
+            raise
+        self._minted.append(weakref.ref(handle))
         return handle
 
     def define(self, *args: Any, **kwargs: Any) -> Any:
