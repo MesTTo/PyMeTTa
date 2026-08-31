@@ -21,6 +21,18 @@ Guarantees:
     test_a_provider_receipt_space_commits_the_receipt_before_recovery_reads_it,
     test_a_refused_provider_commit_recovers_the_step_it_could_not_journal;
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
+  - an effect whose recovery receipt could not be made durable is retained
+    as an obligation carrying no receipt, compensated at once and still
+    retryable with rollback() after the scope closed. A failed durable write
+    never costs the obligation it was recording [tested:
+    test_a_refused_recovery_receipt_still_compensates_the_effect_it_could_not_record,
+    test_an_unjournalled_obligation_survives_scope_close_and_a_later_rollback;
+    commit=WORKTREE]
+  - a step whose enlisted providers did not all commit is retained and
+    refused by name rather than compensated on a guess, because the receipt
+    records the operation and not the participant that carried it [tested:
+    test_a_lost_participant_leaves_the_saga_in_doubt_rather_than_compensating;
+    commit=WORKTREE]
 Owns resources:
   - the receipt-space subscription opened on context entry and cancelled on
     every exit, including rollback and cancellation failures.
@@ -30,6 +42,7 @@ from __future__ import annotations
 
 import threading
 from collections import Counter
+from dataclasses import dataclass
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Self
 
@@ -69,6 +82,24 @@ def _unenlisted(pending: list[_CapturedReceipt]) -> list[Expression]:
     return [captured.atom for captured in pending if not captured.enlisted]
 
 
+@dataclass(frozen=True)
+class _Obligation:
+    """One effect this runner owes a compensation for, and its journal state.
+
+    ``journalled`` says a receipt for this effect is durable in the receipt
+    space, which is the ordinary case and the one the reverse pass preflights
+    against. It is False for an effect whose receipt write did NOT become
+    durable, or whose durable outcome the receipt space cannot answer, and
+    such an obligation is still owed: the effect happened. Rollback therefore
+    compensates it without demanding a stored receipt, because demanding one
+    is what left a surviving external effect with an obligation that could
+    never be discharged.
+    """
+
+    atom: Expression
+    journalled: bool
+
+
 class _EmptySagaStepError(Exception):
     """Make a no-answer target trigger the callable transaction rollback."""
 
@@ -85,8 +116,11 @@ class Saga:
     queryable receipt atoms. An exceptional exit invokes :meth:`rollback`.
 
     Compensation is semantic reversal, not restoration of an old snapshot.
-    Each compensating operation receives the quoted complete ``(did ...)``
-    record and must be idempotent because a failed recovery can be retried.
+    Each compensating operation receives the complete ``(did ...)`` record
+    and must be idempotent because a failed recovery can be retried. The
+    runner writes the call as ``(quote <record>)`` so the record is not
+    evaluated on the way in; a quote is a barrier and does not survive, so the
+    handler is handed the record itself.
     """
 
     __slots__ = (
@@ -171,7 +205,7 @@ class Saga:
             )
         self._space = space
         self._receipts = receipts
-        self._committed: list[Expression] = []
+        self._committed: list[_Obligation] = []
         self._foreign: list[Expression] = []
         self._awaiting: list[Expression] = []
         self._subscription: Subscription | None = None
@@ -312,7 +346,7 @@ class Saga:
         exception can cost the obligation it was protecting, so the foreign
         atom is recorded and the next boundary refuses.
         """
-        if event.atom in self._committed:
+        if any(event.atom == obligation.atom for obligation in self._committed):
             return
         self._foreign.append(event.atom)
 
@@ -390,7 +424,10 @@ class Saga:
                     self._receipts.add(*receipt_atoms)
 
             def committed() -> None:
-                self._committed.extend(captured.atom for captured in pending)
+                self._committed.extend(
+                    _Obligation(captured.atom, journalled=True)
+                    for captured in pending
+                )
                 self._awaiting.clear()
 
             def rolled_back() -> None:
@@ -454,15 +491,22 @@ class Saga:
         and nothing to compensate from. Both are the same shape, and both take
         the immediate persist-then-compensate recovery below. Returning
         normally means the step's obligation stands and the caller re-raises.
+
+        Before either, the step's OTHER participants are asked whether they
+        made their writes durable, because the local database's outcome does
+        not answer for them and this runner used to read it as though it did.
         """
         try:
+            lost = self._lost_participants()
+            if lost:
+                self._retain_in_doubt(committed_start, pending, lost)
             if len(self._committed) == committed_start:
                 survivors = _unenlisted(pending)
             else:
                 positions = self._undurable(committed_start)
                 if not positions:
                     return
-                survivors = [self._committed[index] for index in positions]
+                survivors = [self._committed[index].atom for index in positions]
                 for index in reversed(positions):
                     del self._committed[index]
             self._recover_survivors(survivors)
@@ -472,6 +516,81 @@ class Saga:
                 msg,
                 [step_error, recovery_error],
             ) from None
+
+    def _lost_participants(self) -> list[str]:
+        """Providers, other than this journal, whose writes did not commit.
+
+        Commit is single-coordinator and two-phase commit is out of scope, so
+        a step's participants can end split between durable and rolled back.
+        Only the coordinator knows which, and the answer arrives here rather
+        than through the transaction's notifications, whose two callbacks
+        carry no arguments [source: engine/metta/space_hooks.pl
+        metta_foreign_writes_lost/2].
+        """
+        row = self._space._rt.once(
+            "metta_foreign_writes_lost(Journal, Lost)",
+            Journal=self._receipts._space,
+        )
+        return [str(space) for space in row["Lost"]] if row else []
+
+    def _retain_in_doubt(
+        self,
+        committed_start: int,
+        pending: list[_CapturedReceipt],
+        lost: list[str],
+    ) -> None:
+        """Keep a partly applied step's obligations and refuse to guess.
+
+        This is a MIXED OUTCOME in the sense the X/Open XA specification gives
+        the word, "committed some work and rolled back other work", which a
+        transaction manager reports rather than resolves: JTA raises
+        HeuristicMixedException, "a heuristic decision was made and ... some
+        relevant updates have been committed while others have been rolled
+        back", and leaves the decision to the application [source:
+        docs.oracle.com/cd/E17802_01/products/products/jta/jta-1_0_1B-doc/
+        javax/transaction/HeuristicMixedException.html].
+
+        The reason it cannot be resolved here is a granularity mismatch, not
+        a missing channel: a receipt records the OPERATION, durability is a
+        fact about a PARTICIPANT, and one operation can write to several.
+        Compensating anyway can reverse an effect that never landed, and
+        dropping the obligations can forget one that did. So the obligations
+        are retained unjournalled, nothing is lost while the caller decides,
+        and rollback() stays available as that decision.
+
+        The remedy the refusal names is the transactional outbox: store the
+        record in the same database, in the same transaction, as the entities
+        it describes, and it exists if and only if they do [source:
+        microservices.io/patterns/data/transactional-outbox.html, whose first
+        force is "2PC is not an option"] - here, a receipt space backed by the
+        store the effects go to.
+        """
+        del self._committed[committed_start:]
+        self._committed.extend(
+            _Obligation(captured.atom, journalled=False) for captured in pending
+        )
+        self._recovery_failed = True
+        names = ", ".join(lost)
+        receipts = ", ".join(str(captured.atom) for captured in pending[:3])
+        msg = (
+            f"this saga step ended with a mixed outcome: it committed in some "
+            f"participants and not in {names}, which threw its writes away. "
+            f"The step's receipt(s) ({receipts}) name the operations, not the "
+            f"participant that carried each one, so compensating them now "
+            f"could reverse an effect that never landed. They are kept as "
+            f"obligations: decide against {names} and this receipt space, "
+            f"then call rollback() to compensate all of them, or reverse the "
+            f"durable half by hand. To stop the split happening, put the "
+            f"receipts in the store the effects go to, so one commit covers "
+            f"both (the transactional-outbox shape), or declare (writes "
+            f"<space> best-effort) to accept partial application deliberately"
+        )
+        raise MettaError(
+            msg,
+            operation="run",
+            space=str(self._receipts),
+            capability="atomic-step",
+        )
 
     def _undurable(self, start: int) -> list[int]:
         """Positions from ``start`` whose receipt the receipt space lacks.
@@ -486,12 +605,12 @@ class Saga:
             if isinstance(atom, Expression)
         )
         for earlier in self._committed[:start]:
-            key = _canonical(earlier)
+            key = _canonical(earlier.atom)
             if available[key]:
                 available[key] -= 1
         missing = []
         for index in range(start, len(self._committed)):
-            key = _canonical(self._committed[index])
+            key = _canonical(self._committed[index].atom)
             if available[key]:
                 available[key] -= 1
             else:
@@ -499,7 +618,19 @@ class Saga:
         return missing
 
     def _recover_survivors(self, survivors: list[Expression]) -> None:
-        """Persist and reverse effects a failed step cannot undo itself."""
+        """Persist and reverse effects a failed step cannot undo itself.
+
+        The effects already happened, so the obligation to reverse them is
+        owed whatever the journal does. A recovery receipt that raises leaves
+        its durable fate unknown either way, the local write may have landed
+        and its provider commit refused, so the obligation is retained
+        UNJOURNALLED and the reverse pass below matches it against a stored
+        receipt if one turns up and compensates it without one otherwise.
+        Raising here instead, which is what this did, dropped the obligation
+        entirely and left the surviving external effect with nothing that
+        could ever discharge it [tested:
+        test_a_refused_recovery_receipt_still_compensates_the_effect_it_could_not_record].
+        """
         if not survivors:
             return
         start = len(self._committed)
@@ -509,7 +640,15 @@ class Saga:
             self._receipts.add(*survivors)
 
         def committed() -> None:
-            self._committed.extend(survivors)
+            # Recorded from inside the notification, not after the call
+            # returns, because the receipt space's own post-commit event
+            # arrives BEFORE the call returns and _observe_receipt reads this
+            # list to tell this runner's receipts from a stranger's. Recording
+            # afterwards made the runner refuse its own recovery receipt as
+            # one "this runner did not write".
+            self._committed.extend(
+                _Obligation(atom, journalled=True) for atom in survivors
+            )
             self._awaiting.clear()
 
         def rolled_back() -> None:
@@ -518,14 +657,12 @@ class Saga:
         persistence_error: BaseException | None = None
         try:
             self._transaction(persist, committed, rolled_back)
-        except BaseException as error:  # a local commit may precede publication
+        except BaseException as error:  # noqa: BLE001  -- a failed durable write, cancellation included, must leave the obligation retained and retryable
             persistence_error = error
-            if len(self._committed) == start:
-                msg = (
-                    "a saga effect survived a failed step, but its recovery "
-                    "receipt could not be committed"
-                )
-                raise EngineError(msg, space=str(self._receipts)) from error
+            del self._committed[start:]
+            self._committed.extend(
+                _Obligation(atom, journalled=False) for atom in survivors
+            )
         try:
             self._rollback_committed(start)
         except BaseException:
@@ -541,10 +678,22 @@ class Saga:
         rolled_back: Any,
     ) -> Any:
         """Run a callback with explicit durable-outcome notifications."""
+        #The callback's answer is CAPTURED here rather than carried back
+        #through janus, which converts whatever a callback returns and has no
+        #conversion for an atom that is not a sequence: a body ending in
+        #`add-atom` answers `true`, and janus raised "Grounded(True) is a leaf
+        #atom and has no length" for the sibling metta_py_transaction/2 before
+        #it stopped returning one [measured 2026-08-30]. Boxing keeps the value
+        #AND keeps it off the boundary.
+        answer: list[Any] = []
+
+        def _capture() -> None:
+            answer.append(target())
+
         try:
             row = self._space._rt.once(
                 "metta_py_saga_transaction(F, C, B, R)",
-                F=target,
+                F=_capture,
                 C=committed,
                 B=rolled_back,
             )
@@ -561,7 +710,7 @@ class Saga:
         if not row:
             msg = "the notified saga transaction failed without an outcome"
             raise EngineError(msg, space=str(self._space))
-        return row["R"]
+        return answer[0] if answer else None
 
     def _compensation_for(self, receipt: Expression) -> str:
         operation = str(receipt.children[1])
@@ -652,60 +801,83 @@ class Saga:
             finally:
                 self._recovering = False
 
-    def _rollback_committed(self, start: int = 0) -> None:
-        """Run one preflighted reverse plan while the runner lock is held."""
+    def _rollback_committed(self, start: int = 0) -> None:  # noqa: C901  -- recovery reads as one ordered ledger walk
+        """Run one preflighted reverse plan while the runner lock is held.
+
+        Journalled obligations claim their stored occurrences first. An
+        unjournalled one takes what is left, so it can never remove the very
+        receipt another obligation was preflighted against, and when nothing
+        is left it compensates with no receipt to retire: the effect happened
+        and the missing journal entry is the reason this obligation exists.
+        """
         available: dict[Atom, list[Expression]] = {}
         for atom in self._receipts.atoms():
             if isinstance(atom, Expression):
                 available.setdefault(_canonical(atom), []).append(atom)
-        matched: list[tuple[Expression, Expression]] = []
+        obligations = self._committed[start:]
+        stored: list[Expression | None] = [None] * len(obligations)
         missing: Counter[Atom] = Counter()
         missing_examples: dict[Atom, Expression] = {}
-        for obligation in self._committed[start:]:
-            key = _canonical(obligation)
+        for position, obligation in enumerate(obligations):
+            if not obligation.journalled:
+                continue
+            key = _canonical(obligation.atom)
             candidates = available.get(key)
             if candidates:
-                matched.append((obligation, candidates.pop()))
+                stored[position] = candidates.pop()
             else:
                 missing[key] += 1
-                missing_examples.setdefault(key, obligation)
+                missing_examples.setdefault(key, obligation.atom)
         if missing:
             key, count = next(iter(missing.items()))
-            receipt = missing_examples[key]
+            missing_receipt = missing_examples[key]
             msg = (
                 f"saga recovery is missing {count} committed occurrence(s) "
-                f"of receipt {receipt}; restore every receipt before any "
+                f"of receipt {missing_receipt}; restore every receipt before any "
                 "compensation runs"
             )
             raise MettaError(
                 msg,
-                atom=receipt,
+                atom=missing_receipt,
                 operation="rollback",
                 space=str(self._receipts),
                 capability="receipt-multiplicity",
             )
-        plan = [
-            (snapshot, stored, self._compensation_for(stored))
-            for snapshot, stored in reversed(matched)
-        ]
-        for snapshot, receipt, compensation in plan:
+        for position, obligation in enumerate(obligations):
+            if obligation.journalled:
+                continue
+            candidates = available.get(_canonical(obligation.atom))
+            if candidates:
+                stored[position] = candidates.pop()
+        plan: list[tuple[Expression, Expression | None, Expression, str]] = []
+        for obligation, receipt in reversed(
+            list(zip(obligations, stored, strict=True))
+        ):
+            record = obligation.atom if receipt is None else receipt
+            plan.append(
+                (obligation.atom, receipt, record,
+                 self._compensation_for(record))
+            )
+        for snapshot, receipt, record, compensation in plan:
             target = Expression(
                 [
                     Symbol("once"),
                     Expression(
                         [
                             Symbol(compensation),
-                            Expression([Symbol("quote"), receipt]),
+                            Expression([Symbol("quote"), record]),
                         ]
                     ),
                 ]
             )
 
             def recover(
-                current_receipt: Expression = receipt,
+                current_receipt: Expression | None = receipt,
                 current_target: Expression = target,
             ) -> None:
-                if not self._receipts.remove(current_receipt):
+                if current_receipt is not None and not self._receipts.remove(
+                    current_receipt
+                ):
                     msg = (
                         f"committed receipt {current_receipt} disappeared before "
                         "its compensation began"
@@ -739,13 +911,13 @@ class Saga:
                 except _CompensationFailedError:
                     msg = (
                         f"compensation {compensation} failed for receipt "
-                        f"{receipt}; the receipt remains pending and the "
+                        f"{record}; the receipt remains pending and the "
                         "idempotent handler may be retried with "
                         "Saga.rollback()"
                     )
                     raise MettaError(
                         msg,
-                        atom=receipt,
+                        atom=record,
                         operation=compensation,
                         capability="compensation",
                     ) from None
@@ -756,7 +928,7 @@ class Saga:
         """Retire the one LIFO obligation whose transaction committed."""
         if (
             not self._committed
-            or _canonical(self._committed[-1]) != _canonical(receipt)
+            or _canonical(self._committed[-1].atom) != _canonical(receipt)
         ):
             msg = "the saga receipt order changed while rollback was running"
             raise EngineError(msg, atom=receipt, space=str(self._receipts))

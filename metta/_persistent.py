@@ -15,11 +15,18 @@ Guarantees:
   - removal subtracts ONE stored fact and journals one `retract(Fact)` for
     it, the same multiset law a native space obeys, so a provider swap does
     not change what `remove-atom` means
-    [tested: test_a_persistent_space_subtracts_one_fact_like_a_native_one;
+    [tested: test_a_persistent_space_drains_like_a_native_one;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - constructor failure releases its path claim and any unattached reusable
     module [tested: test_constructor_failure_releases_path_and_unattached_module;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - one exclusive interprocess claim on the journal PATHNAME spans tail
+    repair, replay migration, attachment and the provider's whole life, so a
+    migration cannot replace a journal another process is attached to and
+    lose the writes that process acknowledges [tested:
+    test_a_journal_migration_cannot_replace_a_journal_another_process_holds,
+    test_a_second_provider_in_this_process_is_refused_before_it_touches_the_file;
+    commit=WORKTREE]
   - terminal-tail recovery syncs the backup file and its directory before
     truncating the journal
     [tested: test_tail_backup_is_durable_before_truncation; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -46,6 +53,12 @@ Owns resources:
     and one journal attachment until close or constructor rollback
     [tested: test_detached_modules_are_reused_without_weakening_path_claims;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - and one flock(2) descriptor on ``<journal>.lock``, released by close()
+    and by every constructor rollback path; the lock file itself is left in
+    place, since unlinking it would let a waiter holding the removed inode
+    take a claim nobody else can see
+    [tested: test_a_second_provider_in_this_process_is_refused_before_it_touches_the_file;
+    commit=WORKTREE]
 Guarded by:
   - _STATE_LOCK protects active paths and the module pool; each provider's
     _call_lock serializes journal operations
@@ -60,6 +73,7 @@ Open Obligations:
 from __future__ import annotations
 
 import hashlib
+import importlib
 import itertools
 import logging
 import os
@@ -87,6 +101,11 @@ _MODULE_IDS = itertools.count()
 _STATE_LOCK = threading.Lock()
 _ACTIVE_PATHS: set[Path] = set()
 _MODULE_POOL: dict[tuple[tuple[str, int], ...], list[str]] = {}
+
+#: flock(2), where the journal's interprocess claim lives. Imported this way
+#: because it does not exist off POSIX, where _claim_journal_lock refuses by
+#: name rather than letting an import error stand in for the explanation.
+_FCNTL = importlib.import_module("fcntl") if os.name == "posix" else None
 
 _PERSISTENCY_API = {
     ("persistent", 1),
@@ -246,6 +265,93 @@ def _sync_directory(path: Path) -> None:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
+
+
+def _lock_path(journal: Path) -> Path:
+    """The sidecar whose lock claims one journal PATHNAME."""
+    return journal.with_name(f"{journal.name}.lock")
+
+
+def _lock_holder(descriptor: int) -> str:
+    """Whatever the standing claim recorded about itself, for the refusal."""
+    try:
+        recorded = os.pread(descriptor, 64, 0).decode("utf-8", "replace").strip()
+    except OSError:
+        return "another process"
+    return f"process {recorded}" if recorded.isdigit() else "another process"
+
+
+def _claim_journal_lock(journal: Path) -> int:
+    """Take the exclusive interprocess claim on one journal, or refuse.
+
+    library(persistency) already locks, but it locks the wrong thing for this
+    provider's purposes: db_open_file/3 opens the append stream with
+    lock(write), which is a POSIX record lock on the journal's INODE, and it
+    is taken lazily at the first write rather than at attach
+    [source: /usr/lib/swi-prolog/library/persistency.pl db_open_file/3;
+    measured 2026-08-31: /proc/locks showed `POSIX ADVISORY WRITE <pid>
+    103:02:53770050 0 EOF` after one write and no row before it]. An inode
+    lock cannot see a PATHNAME being replaced, which is exactly what a
+    rename= migration does with tempfile+replace, so a second process
+    migrated the journal out from under an attached one and the writes that
+    process went on to acknowledge went into the unlinked inode.
+
+    So the claim that spans tail repair, migration, attachment and the whole
+    life of the provider is taken here, on a sidecar file that is never
+    replaced. flock(2) rather than a POSIX record lock for two reasons the
+    kernel documents: a POSIX lock is released when the process closes ANY
+    descriptor for that file, and this module opens the journal itself to
+    read and to truncate it, while flock treats separate descriptors
+    independently and so also refuses a second provider inside this process
+    [source: man 2 F_SETLK, Linux man-pages 6.17, "If a process closes any
+    file descriptor referring to a file, then all of the process's locks on
+    that file are released"; man 2 flock, "these file descriptors are treated
+    independently by flock()"]. The kernel drops a flock when the holder
+    dies, which is what the SIGKILL survival lane needs: a lock file left
+    behind by a killed writer claims nothing.
+
+    The lock file is not removed on release. Unlinking it would let a waiter
+    that already holds a descriptor on the removed inode take a lock nobody
+    else can see; leaving it costs one empty file beside the journal.
+    """
+    if _FCNTL is None:
+        msg = (
+            f"cannot claim persistent journal {journal} exclusively: this "
+            f"platform has no flock(2), so nothing stops a second process "
+            f"attaching or migrating the same journal and losing writes this "
+            f"one acknowledges"
+        )
+        raise MettaError(msg)
+    lock = _lock_path(journal)
+    try:
+        descriptor = os.open(lock, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)
+    except OSError as exc:
+        msg = f"cannot open the claim file {lock} for persistent journal {journal}: {exc}"
+        raise MettaError(msg) from exc
+    try:
+        _FCNTL.flock(descriptor, _FCNTL.LOCK_EX | _FCNTL.LOCK_NB)
+    except OSError as busy:
+        holder = _lock_holder(descriptor)
+        os.close(descriptor)
+        msg = (
+            f"persistent journal {journal} is claimed by {holder} through "
+            f"{lock}. One attachment owns a journal at a time: a second one "
+            f"would replay and append to the same file, and a migration here "
+            f"would replace the file the other attachment is still writing "
+            f"to. Close the other provider, or point this one at its own path"
+        )
+        raise MettaError(msg) from busy
+    except BaseException:
+        os.close(descriptor)
+        raise
+    try:
+        os.ftruncate(descriptor, 0)
+        os.write(descriptor, f"{os.getpid()}\n".encode())
+    except OSError:
+        # The claim is the flock, not the text; a pid that could not be
+        # recorded costs the next refusal its name and nothing else.
+        logger.debug("could not record this process in %s", lock, exc_info=True)
+    return descriptor
 
 
 def _quoted_atom(engine: Runtime, value: str) -> str:
@@ -788,6 +894,7 @@ class PersistentFactSpace(SpaceProvider):
         self._transaction_local = threading.local()
         self._closed = True
         self._claimed = False
+        self._lock_fd: int | None = None
         self._write_failure: str | None = None
 
         with _STATE_LOCK:
@@ -799,6 +906,11 @@ class PersistentFactSpace(SpaceProvider):
 
         with ExitStack() as rollback:
             rollback.callback(self._release_path)
+            # Before tail repair, before migration, before attach: each of
+            # those rewrites or replaces the journal, and the claim has to be
+            # older than the first of them.
+            self._lock_fd = _claim_journal_lock(self._path)
+            rollback.callback(self._release_lock)
             self._module, self._module_key, is_new = _acquire_module(self._path, self._schema)
             self._mutex = f"{self._module}_mutex"
             self._helpers = _helper_names(self._module, self._schema)
@@ -947,6 +1059,7 @@ class PersistentFactSpace(SpaceProvider):
             self._closed = True
             self._release_path()
             self._release_module()
+            self._release_lock()
             logger.debug("closed persistent journal %s", self._path)
 
     def _validate_journal(self) -> None:
@@ -1409,6 +1522,13 @@ class PersistentFactSpace(SpaceProvider):
         with _STATE_LOCK:
             _ACTIVE_PATHS.discard(self._path)
         self._claimed = False
+
+    def _release_lock(self) -> None:
+        """Drop this provider's interprocess claim on the journal pathname."""
+        descriptor, self._lock_fd = self._lock_fd, None
+        if descriptor is None:
+            return
+        os.close(descriptor)
 
     def _rollback_attachment(self) -> None:
         self._call("close", require_open=False)

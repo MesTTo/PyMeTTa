@@ -13,6 +13,12 @@ Guarantees:
     residue after close and reopen [tested:
     test_a_live_state_cell_never_enters_the_persistent_journal;
     commit=3ded7552797b66d78e666141eb51f3bc14686bd2]
+  - the journal PATHNAME is claimed across processes, so a migration cannot
+    replace a journal another process is attached to, and the claim dies with
+    the provider that took it [tested:
+    test_a_journal_migration_cannot_replace_a_journal_another_process_holds,
+    test_a_second_provider_in_this_process_is_refused_before_it_touches_the_file;
+    commit=WORKTREE]
   - journaled spaces stage transaction/speculation writes, publish only a
     committed event segment, and replay no rolled-back fact [tested:
     test_a_journal_transaction_publishes_only_its_committed_delta,
@@ -38,7 +44,7 @@ from pathlib import Path
 import pytest
 
 from metta import (
-    Expression,
+    Grounded,
     MettaError,
     S,
     State,
@@ -67,11 +73,14 @@ def test_registered_space_writes_queries_and_persists_remove(metta, tmp_path):  
             S.edge(S.b, S.c),
             S.edge(S.c, S.d),
         ]
-        # Unit, not True: remove-atom is typed (-> spaceType Atom (->)), so a
-        # removal that happened answers the unit value. Absence answers an
-        # error instead, and this atom is there, so unit is the answer here
+        # True, which is what upstream answers for a removal that happened
+        # [measured 2026-08-30 against PeTTa@ae66fa8]. Absence answers an
+        # error here instead of upstream's silent True, and this atom is
+        # there, so True is the answer either way
         # [tested test_removing_an_absent_atom_is_an_error_not_a_silent_unit].
-        assert metta.run(f"!(remove-atom {name} (edge a b))") == [[Expression()]]
+        assert metta.run(f"!(remove-atom {name} (edge a b))") == [
+            [Grounded(True)]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
+        ]
         # The provider's own bool is the other half of the same fact: the
         # removal above took the edge, so the second one finds nothing.
         assert not provider.remove(S.edge(S.a, S.b))
@@ -463,6 +472,100 @@ def test_facts_survive_a_killed_process(tmp_path):
         assert list(replayed.atoms()) == [S.survivor(1), S.survivor(2)]
     finally:
         replayed.close()
+
+
+def test_a_journal_migration_cannot_replace_a_journal_another_process_holds(
+    tmp_path,
+):
+    """A migration must respect a claim on the PATHNAME, not on the inode.
+
+    library(persistency) locks the journal's inode when it opens the append
+    stream, so it cannot see rename= replacing the pathname underneath it.
+    A second process migrated the journal out from under an attached one and
+    the write that one then acknowledged went into the unlinked inode: the
+    holder's add() returned, its flush() returned, and the surviving journal
+    did not have the fact.
+    """
+    journal = tmp_path / "held-across-processes.db"
+    program = textwrap.dedent(
+        f"""
+        import sys
+        from metta import S
+        from metta._persistent import PersistentFactSpace
+
+        space = PersistentFactSpace({str(journal)!r}, {{"old": 1}}, sync="flush")
+        space.add(S.old(S.first))
+        print("READY", flush=True)
+        sys.stdin.readline()
+        space.add(S.old(S.second))
+        space.flush()
+        print("ACKED", flush=True)
+        space.close()
+        """
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(sys.path)
+    holder = subprocess.Popen(
+        [sys.executable, "-c", program],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+    to_holder, from_holder = holder.stdin, holder.stdout
+    assert to_holder is not None
+    assert from_holder is not None
+    try:
+        assert from_holder.readline().strip() == "READY"
+        with pytest.raises(MettaError, match=r"is claimed by process \d+ through"):
+            PersistentFactSpace(
+                journal,
+                {"new": 1},
+                sync="close",
+                rename={"old": "new"},
+            )
+        to_holder.write("go\n")
+        to_holder.flush()
+        assert from_holder.readline().strip() == "ACKED"
+    finally:
+        to_holder.close()
+        holder.wait(timeout=120)
+
+    # The write the holder acknowledged is in the journal it was attached to.
+    assert "assert(old(second))." in journal.read_text(encoding="utf-8")
+    # The claim died with the process that held it, so the migration the
+    # refusal deferred now runs, over both facts.
+    migrated = PersistentFactSpace(
+        journal,
+        {"new": 1},
+        sync="close",
+        rename={"old": "new"},
+    )
+    try:
+        assert list(migrated.atoms()) == [S.new(S.first), S.new(S.second)]
+    finally:
+        migrated.close()
+
+
+def test_a_second_provider_in_this_process_is_refused_before_it_touches_the_file(
+    tmp_path,
+):
+    """The in-process claim still answers first, with the closer message."""
+    journal = tmp_path / "same-process.db"
+    first = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        first.add(S.edge(S.a, S.b))
+        with pytest.raises(MettaError, match="already attached in this process"):
+            PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    finally:
+        first.close()
+    # And the claim file it left behind claims nothing once released.
+    reopened = PersistentFactSpace(journal, {"edge": 2}, sync="close")
+    try:
+        assert list(reopened.atoms()) == [S.edge(S.a, S.b)]
+    finally:
+        reopened.close()
 
 
 def test_clear_journal_reopens_after_variable_retractall(tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

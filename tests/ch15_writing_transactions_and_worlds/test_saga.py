@@ -29,6 +29,16 @@ Guarantees:
     test_a_provider_receipt_space_commits_the_receipt_before_recovery_reads_it,
     test_a_refused_provider_commit_recovers_the_step_it_could_not_journal;
     commit=173eeed021beb360b5e5f9f8461889e27190affc]
+  - a recovery receipt that cannot be made durable still leaves a compensable
+    obligation, reachable from rollback() after the scope closed [tested:
+    test_a_refused_recovery_receipt_still_compensates_the_effect_it_could_not_record,
+    test_an_unjournalled_obligation_survives_scope_close_and_a_later_rollback;
+    commit=WORKTREE]
+  - a step whose participants did not all commit is retained and refused by
+    name instead of compensated, since the receipt cannot say which half of
+    the step survived [tested:
+    test_a_lost_participant_leaves_the_saga_in_doubt_rather_than_compensating;
+    commit=WORKTREE]
   - receipt instrumentation installs and retires as one set, so no step can
     leave a wrapper or a receipt sink behind [tested:
     test_a_refused_wrapper_installation_leaves_no_saga_instrumentation,
@@ -43,7 +53,7 @@ from collections import Counter
 
 import pytest
 
-from metta import Atom, Expression, S, Symbol, V, ground
+from metta import Atom, Expression, Grounded, S, Symbol, V, ground
 from metta.errors import MettaError
 from metta.foreign import SpaceProvider
 from metta.vocabularies import Atomicity
@@ -54,15 +64,18 @@ def _unique(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:8]}"
 
 
-def _quoted_receipt(value: Atom) -> Expression:
-    """Extract the receipt from the runner's explicit quote boundary."""
+def _held_receipt(value: Atom) -> Expression:
+    """Check the receipt a compensation is handed.
+
+    The runner still writes `(quote <receipt>)` at the call site, and that
+    quote still does its job: it keeps the receipt from being evaluated as a
+    call. What it no longer does is SURVIVE as a wrapper, because a quote is
+    an evaluation barrier rather than a value, so the handler receives the
+    receipt itself [source: PeTTa@ae66fa8 src/translator.pl:320].
+    """
     assert isinstance(value, Expression)
-    assert len(value.children) == 2
-    assert value.children[0] == Symbol("quote")
-    receipt = value.children[1]
-    assert isinstance(receipt, Expression)
-    assert receipt.children[0] == Symbol("did")
-    return receipt
+    assert value.children[0] == Symbol("did")
+    return value
 
 
 def _remove_declaration(space, declaration: Atom | None) -> None:
@@ -160,7 +173,7 @@ def test_committed_effects_leave_queryable_receipts_and_failed_steps_leave_none(
     receipts = metta._new_space()
     try:
         with space.saga(receipts) as saga:
-            assert saga.run("(add-atom &self (kept yes))") == [Expression()]
+            assert saga.run("(add-atom &self (kept yes))") == [Grounded(True)]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
             committed = receipts.atoms()
             assert len(committed) == 1
             assert committed[0].children[0:2] == (
@@ -193,7 +206,7 @@ def test_saga_compensates_in_reverse_commit_order(metta):
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        receipt = _quoted_receipt(quoted)
+        receipt = _held_receipt(quoted)
         order.append(receipt.children[2].children[0])
         return S.done
 
@@ -223,7 +236,7 @@ def test_a_discarded_step_runs_no_compensation(metta):
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        calls.append(_quoted_receipt(quoted))
+        calls.append(_held_receipt(quoted))
         return S.done
 
     space = metta._new_space()
@@ -264,7 +277,7 @@ def test_saga_preflights_missing_compensations_before_undo(metta):
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        calls.append(_quoted_receipt(quoted))
+        calls.append(_held_receipt(quoted))
         return S.done
 
     space = metta._new_space()
@@ -305,7 +318,7 @@ def test_a_failed_compensation_can_be_retried_without_losing_its_receipt(
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        attempts.append(_quoted_receipt(quoted))
+        attempts.append(_held_receipt(quoted))
         if len(attempts) == 1:
             _raise_test_error(RuntimeError("transient compensation failure"))
         return S.done
@@ -373,7 +386,7 @@ def test_duplicate_receipts_remain_distinct_recovery_obligations(metta):
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        calls.append(_quoted_receipt(quoted))
+        calls.append(_held_receipt(quoted))
         return S.done
 
     space = metta._new_space()
@@ -410,7 +423,7 @@ def test_missing_receipt_multiplicity_refuses_before_any_compensation(metta):
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        calls.append(_quoted_receipt(quoted))
+        calls.append(_held_receipt(quoted))
         return S.done
 
     space = metta._new_space()
@@ -449,7 +462,7 @@ def test_a_nondeterministic_compensation_runs_once_per_receipt(metta):
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        calls.append(_quoted_receipt(quoted))
+        calls.append(_held_receipt(quoted))
         yield S.done
         yield S.duplicate
 
@@ -483,7 +496,7 @@ def test_postcommit_control_signal_still_recovers_the_committed_receipt(metta):
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        calls.append(_quoted_receipt(quoted))
+        calls.append(_held_receipt(quoted))
         return S.done
 
     def interrupt(_event):
@@ -522,7 +535,7 @@ def test_postcommit_removal_failure_does_not_repeat_compensation(metta):
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        calls.append(_quoted_receipt(quoted))
+        calls.append(_held_receipt(quoted))
         return S.done
 
     def interrupt(_event):
@@ -717,7 +730,7 @@ def test_a_provider_receipt_space_commits_the_receipt_before_recovery_reads_it(
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        order.append(_quoted_receipt(quoted))
+        order.append(_held_receipt(quoted))
         return S.done
 
     ledger = _Ledger()
@@ -763,7 +776,7 @@ def test_a_refused_provider_commit_recovers_the_step_it_could_not_journal(metta)
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        order.append(_quoted_receipt(quoted))
+        order.append(_held_receipt(quoted))
         return S.done
 
     ledger = _Ledger(refusals=1)
@@ -784,6 +797,182 @@ def test_a_refused_provider_commit_recovers_the_step_it_could_not_journal(metta)
         _remove_declaration(space, declaration)
         _unregister(metta, operation, compensation)
         receipts.drop()
+        space.drop()
+
+
+def test_a_refused_recovery_receipt_still_compensates_the_effect_it_could_not_record(
+    metta,
+):
+    """A failed durable write cannot cost the obligation it was recording.
+
+    The step's receipt commit refuses, so the effect is recovered at once,
+    and the recovery receipt's own commit refuses too. The effect happened
+    either way, so the obligation is retained with no receipt behind it and
+    compensated from there. It used to be dropped along with the write that
+    could not record it, which left the surviving external effect with no
+    durable receipt and no obligation any rollback could reach.
+    """
+    operation = _unique("saga-lost-journal-forward")
+    compensation = _unique("saga-lost-journal-reverse")
+    performed = []
+    order = []
+
+    @metta.op(name=operation, effect="writesState")
+    def forward(value: int) -> int:
+        performed.append(value)
+        return value
+
+    @metta.op(name=compensation, effect="writesState")
+    def reverse(quoted):
+        order.append(_held_receipt(quoted))
+        performed.clear()
+        return S.done
+
+    ledger = _Ledger(refusals=2)
+    receipts = _ledger_space(metta, ledger)
+    space = metta._new_space()
+    declaration = None
+    saga = space.saga(receipts)
+    try:
+        declaration = space.compensates(operation, compensation)
+        with pytest.raises(BaseExceptionGroup) as raised:
+            with saga:
+                saga.run(f"({operation} 5)")
+        assert [str(member) for member in raised.value.exceptions] == [
+            "ledger commit refused",
+            "ledger commit refused",
+        ]
+        # The step's effect is reversed, and no receipt of it was ever durable.
+        assert len(order) == 1
+        assert performed == []
+        assert ledger.rows == []
+        # Nothing is left owed, which is what makes the scope refusal honest.
+        with pytest.raises(MettaError, match="requires an active"):
+            saga.rollback()
+    finally:
+        saga.close()
+        _remove_declaration(space, declaration)
+        _unregister(metta, operation, compensation)
+        receipts.drop()
+        space.drop()
+
+
+def test_an_unjournalled_obligation_survives_scope_close_and_a_later_rollback(
+    metta,
+):
+    """An obligation with no receipt is still retryable after the scope ends."""
+    operation = _unique("saga-retained-forward")
+    compensation = _unique("saga-retained-reverse")
+    performed = []
+    attempts = []
+
+    @metta.op(name=operation, effect="writesState")
+    def forward(value: int) -> int:
+        performed.append(value)
+        return value
+
+    @metta.op(name=compensation, effect="writesState")
+    def reverse(quoted):
+        attempts.append(_held_receipt(quoted))
+        if len(attempts) == 1:
+            _raise_test_error(RuntimeError("transient compensation failure"))
+        performed.clear()
+        return S.done
+
+    ledger = _Ledger(refusals=2)
+    receipts = _ledger_space(metta, ledger)
+    space = metta._new_space()
+    declaration = None
+    saga = space.saga(receipts)
+    try:
+        declaration = space.compensates(operation, compensation)
+        with pytest.raises(BaseExceptionGroup):
+            with saga:
+                saga.run(f"({operation} 5)")
+        # The immediate recovery could neither journal nor compensate, and
+        # the effect it owes is still there.
+        assert len(attempts) == 1
+        assert performed == [5]
+        assert ledger.rows == []
+
+        saga.rollback()
+        assert len(attempts) == 2
+        assert performed == []
+    finally:
+        saga.close()
+        _remove_declaration(space, declaration)
+        _unregister(metta, operation, compensation)
+        receipts.drop()
+        space.drop()
+
+
+def test_a_lost_participant_leaves_the_saga_in_doubt_rather_than_compensating(
+    metta,
+):
+    """A step split across two stores is not compensated on a guess.
+
+    The receipt provider commits and the effect provider then refuses,
+    throwing its rows away, so the durable receipt records an operation whose
+    effect is not there. The receipt names the operation and not the
+    participant that carried it, so compensating would reverse an effect that
+    never landed; the obligations are kept and the refusal names the store to
+    decide against. rollback() is the caller's own decision afterwards.
+    """
+    operation = _unique("saga-split-forward")
+    compensation = _unique("saga-split-reverse")
+    reversals = []
+
+    effect_ledger = _Ledger(refusals=1)
+    effects = _ledger_space(metta, effect_ledger)
+    receipt_ledger = _Ledger()
+    receipts = _ledger_space(metta, receipt_ledger)
+
+    @metta.op(name=operation, effect="writesState")
+    def charge(value: int) -> int:
+        effects.add(S.charged(Grounded(value)))
+        return value
+
+    @metta.op(name=compensation, effect="writesState")
+    def refund(quoted):
+        _held_receipt(quoted)
+        reversals.append(effects.remove(S.charged(Grounded(5))))
+        return S.done
+
+    space = metta._new_space()
+    declaration = None
+    saga = space.saga(receipts)
+    try:
+        declaration = space.compensates(operation, compensation)
+        with pytest.raises(BaseExceptionGroup) as raised:
+            with saga:
+                saga.run(f"({operation} 5)")
+        refusal = [
+            member
+            for member in raised.value.exceptions
+            if isinstance(member, MettaError)
+        ]
+        assert len(refusal) == 1, raised.value.exceptions
+        assert "committed in some participants and not in" in str(refusal[0])
+        assert str(effects) in str(refusal[0])
+        # The effect provider threw its rows away and nothing reversed it.
+        assert effect_ledger.rows == []
+        assert reversals == []
+        # The receipt is durable and the obligation is kept, so the decision
+        # the refusal asks for still has both halves in front of it.
+        assert [str(row) for row in receipt_ledger.rows] == [
+            f"(did {operation} (5) 5)"
+        ]
+
+        # The remedy the refusal names, taken deliberately.
+        saga.rollback()
+        assert reversals == [False]
+        assert receipt_ledger.rows == []
+    finally:
+        saga.close()
+        _remove_declaration(space, declaration)
+        _unregister(metta, operation, compensation)
+        receipts.drop()
+        effects.drop()
         space.drop()
 
 
@@ -861,7 +1050,7 @@ def test_a_receipt_this_saga_never_wrote_refuses_before_it_is_compensated(metta)
 
     @metta.op(name=compensation, effect="writesState")
     def reverse(quoted):
-        calls.append(_quoted_receipt(quoted))
+        calls.append(_held_receipt(quoted))
         return S.done
 
     space = metta._new_space()
