@@ -193,7 +193,18 @@ def _controlled(operation) -> int:
 # what a workload MEANS when its second run differs from its first, and
 # source-load's does: run twice, it measures redefining a thousand equations
 # rather than defining them.
-_WARM_UP = frozenset({"alpha-unique"})
+# subscription-dispatch joined 2026-09-01 with the same signature: two modes
+# 8.5M instructions (16.6%) apart selected by the process image (adding the
+# context's generated dunder tier moved it, an inert re-measure moved it
+# back), the inference row exact throughout, python call counts identical
+# per first run under sys.settrace on both arms, and the whole-process
+# totals EQUAL across arms, so the cold window was catching a one-time
+# cost that merely moved across the enable boundary. Its second run keeps
+# the workload's meaning: delivery dispatch reads the subscription index,
+# not the store, so the writes meet the same standing queries either way
+# (the counts are subscription.py's own SUBSCRIPTIONS and WRITES
+# constants, not restated here to drift).
+_WARM_UP = frozenset({"alpha-unique", "subscription-dispatch"})
 
 
 def main(argv: Sequence[str] | None = None) -> int:

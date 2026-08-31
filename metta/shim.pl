@@ -1864,6 +1864,21 @@ metta_py_drain(Space, Wire) :-
     metta_py_decode_shared(Wire, Term, _),
     'remove-atom'(Space, Term, _).
 
+%One crossing drains a BATCH, the same fact-stream shape the += door
+%writes: each wire's every unifying occurrence goes. A drain is total per
+%element, so there is nothing to count, but the batch shares the family's
+%transaction anyway: a throw mid-batch (an undecodable wire, a refusing
+%hook) rolls the earlier drains back instead of leaving a half-applied
+%difference, the same all-or-nothing transfer and remove_many keep.
+metta_py_drain_many(Space, Wires) :-
+    metta_transaction(metta_py_drain_each(Wires, Space)).
+
+metta_py_drain_each([], _).
+metta_py_drain_each([Wire|Wires], Space) :-
+    metta_py_decode_shared(Wire, Term, _),
+    'remove-atom'(Space, Term, _),
+    metta_py_drain_each(Wires, Space).
+
 metta_py_atoms(Space, Encoded) :-
     findall(E, ('get-atoms'(Space, P), metta_py_encode(P, E)), Encoded).
 

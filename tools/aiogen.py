@@ -46,7 +46,14 @@ TOOLS = Path(__file__).resolve().parent
 REPO = TOOLS.parents[2]
 sys.path.insert(0, str(TOOLS))
 
-from aio_divergences import DIVERGENT, EXCLUDED, MODULE_DOORS, PRIVATE_TARGET  # noqa: E402
+from aio_divergences import (  # noqa: E402
+    CONTEXT_DUNDERS,
+    DIVERGENT,
+    EXCLUDED,
+    INPLACE_DUNDERS,
+    MODULE_DOORS,
+    PRIVATE_TARGET,
+)
 from reference import spaced_default, split_top_level  # noqa: E402
 
 SPACE = REPO / "extensions" / "python" / "metta" / "_space.py"
@@ -420,6 +427,35 @@ def _metta_door(
     return out
 
 
+def _metta_dunder(fn: ast.FunctionDef, lines: list[str], name: str) -> list[str]:
+    """One protocol face, delegated: Space's own signature, the context's return.
+
+    The in-place operators rebind their left operand to the return value, so
+    their bodies delegate and then `return self`; the read faces return the
+    delegation directly. The signature and docstring come verbatim from
+    Space, the same rule the named doors follow.
+    """
+    # The signature alone: a dunder without a docstring opens with comment
+    # lines, and slicing to the first statement would copy that Space-side
+    # narration into the context. Space's `type: ignore[override]` answers
+    # ITS base-class variance and the context subclasses nothing, so copied
+    # ignores are stripped rather than inherited as unused-ignore errors.
+    signature: list[str] = []
+    for line in lines[fn.lineno - 1 :]:
+        signature.append(re.sub(r"\s*# type: ignore\[[^]]*\]", "", line))
+        if line.split("#", 1)[0].rstrip().endswith(":"):
+            break
+    out = signature
+    out.extend(_metta_docstring(fn, lines))
+    arguments = forwarded(fn)
+    if name in INPLACE_DUNDERS:
+        out.append(f"        self._self.{name}({arguments})")
+        out.append("        return self")
+    else:
+        out.append(f"        return self._self.{name}({arguments})")
+    return out
+
+
 def metta_block(
     space: ast.ClassDef,
     space_lines: list[str],
@@ -456,6 +492,16 @@ def metta_block(
         out.extend(
             _metta_door(fn, space_lines, name, target, overloaded=bool(stubs))
         )
+        out.append("")
+    for name in CONTEXT_DUNDERS:
+        if name in handwritten:
+            continue
+        nodes = space_methods.get(name)
+        if not nodes:
+            msg = f"CONTEXT_DUNDERS names {name}, which Space no longer defines"
+            raise SystemExit(msg)
+        fn = next(n for n in nodes if "overload" not in _decorators(n))
+        out.extend(_metta_dunder(fn, space_lines, name))
         out.append("")
     out.append(METTA_END)
     return out

@@ -1515,6 +1515,9 @@ class Space(Handle):
         answers True either way, because that is upstream's law
         [source: engine/spaces/foreign.pl, remove_matching_atoms/2] and
         because `-=` is Python's in-place difference, which is total.
+        `-=` classifies its operand exactly as `+=` does, so the fact
+        stream one door stores the other drains, element by element in
+        one transactional crossing.
         `del m[pattern]` drains too and raises when nothing matched, as
         Python's `del` does. This method is the one door that reports
         absence, so the distinction the MeTTa door gave up is still here.
@@ -1868,10 +1871,18 @@ class Space(Handle):
     def __isub__(self, atom: Any) -> Self:  # type: ignore[override]
         # -= is in-place DIFFERENCE and set difference is total: the engine's
         # remove-atom drains EVERY unifying occurrence, upstream's law, where
-        # remove() stays the one-occurrence door that reports absence.
+        # remove() stays the one-occurrence door that reports absence. The
+        # operand reads by the SAME classification += writes by, so the fact
+        # stream one door stores the other drains: before this, a tuple of
+        # rows quietly became one never-matching pattern and -= "succeeded"
+        # over an unchanged space.
         _refuse_in_batch(self._space, "remove")
-        pattern = _to_atom(atom)
-        self._rt.do_must("metta_py_drain", self._space, pattern.to_wire())
+        stream = _fact_stream(atom)
+        if stream is None:
+            self._rt.do_must("metta_py_drain", self._space, _to_atom(atom).to_wire())
+        else:
+            wires = [_to_atom(row).to_wire() for row in stream]
+            self._rt.do_must("metta_py_drain_many", self._space, wires)
         _invalidate_builtins_cache(self._rt)
         return self
 
@@ -5120,6 +5131,13 @@ class MeTTa:
     def __hash__(self) -> int:
         return hash((id(self._rt), self._self))
 
+    def __repr__(self) -> str:
+        # The identity face beside __eq__: the home space names the context,
+        # the way Space's own repr names the handle, and a closed context
+        # says so instead of hiding behind the object default.
+        state = ", closed" if self.closed else ""
+        return f"MeTTa(self={str(self._self)!r}{state})"
+
     @property
     def self(self) -> Space:
         """The context's home space handle, its own ``&self``."""
@@ -5512,6 +5530,9 @@ class MeTTa:
         answers True either way, because that is upstream's law
         [source: engine/spaces/foreign.pl, remove_matching_atoms/2] and
         because `-=` is Python's in-place difference, which is total.
+        `-=` classifies its operand exactly as `+=` does, so the fact
+        stream one door stores the other drains, element by element in
+        one transactional crossing.
         `del m[pattern]` drains too and raises when nothing matched, as
         Python's `del` does. This method is the one door that reports
         absence, so the distinction the MeTTa door gave up is still here.
@@ -6044,6 +6065,116 @@ class MeTTa:
         Runs against this context's self space.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return self._self.trace(source, max_events)
+
+    def __bool__(self) -> bool:
+        """Always true: a space is a handle to a store, not a value that
+        dwindles. Without this, bool() falls through to __len__ and an
+        empty space is falsy, so `if space:` skips a perfectly good empty
+        space, the bug class that made datetime stop treating midnight as
+        false in 3.5. Existence is an ask: use
+        ``bool(space.match(V.x))`` rather than ``bool(space)``.
+        Runs against this context's self space.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        return self._self.__bool__()
+
+    def __iadd__(self, atom: Any) -> Self:
+        """add()'s operator spelling for one atom or one fact stream.
+
+        ``m += (S.Edge, a, b)`` adds one fact. ``m += [(S.Edge, a, b),
+        (S.Edge, b, c)]`` and a generator yielding those rows add two. A built
+        Expression is always one atom even though it implements Sequence.
+        Dataframes use ``iter_rows`` or ``itertuples(index=False)``. The
+        explicit ``add(list_value)`` door remains available when a list itself
+        is intended as one transparent expression.
+
+        Relative ``S.admits(Type)`` and ``S.capacity(n)`` values are declared
+        data: they install the same contract as the receiver methods and are
+        not stored in this space. Explicit ``add(...)`` remains the raw storage
+        door for those shapes.
+        Runs against this context's self space.
+        """
+        self._self.__iadd__(atom)
+        return self
+
+    def __isub__(self, atom: Any) -> Self:
+        """Runs against this context's self space."""
+        self._self.__isub__(atom)
+        return self
+
+    def __ior__(self, other: Any) -> Self:
+        """Merge into this space in one bulk crossing: every atom of
+        another space, of a registered space name, or of an iterable.
+
+            m |= other_space     # every atom, equations included
+            m |= "&kb"           # the space registered under this name
+            m |= [a, b, c]       # each element becomes one atom
+
+        Equations in the merge compile on arrival, the same rule add()
+        enforces. A space is a multiset, so merging a space into itself
+        doubles every atom. A Mapping is refused because add(d) reads the
+        same dict as ONE grounded atom and its values would silently
+        vanish here; spell the reading you mean. Strings name spaces, so
+        an unregistered name is a KeyError rather than a parse.
+        Runs against this context's self space.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        self._self.__ior__(other)
+        return self
+
+    def __contains__(self, atom: Any) -> bool:
+        """Runs against this context's self space."""
+        return self._self.__contains__(atom)
+
+    def __iter__(self):
+        """Iterate one assembly-order snapshot of the stored atoms.
+
+        A native or inherited-native space materializes its readable chain
+        when ``iter(space)`` is called, so later additions and removals do not
+        alter that iterator. A Python-backed space likewise materializes its
+        provider's ``atoms()`` result before returning the iterator; the
+        provider owns and must document how concurrent mutation behaves while
+        that one enumeration itself is being produced.
+        Runs against this context's self space.
+        """
+        return self._self.__iter__()
+
+    def __len__(self) -> int:
+        """Runs against this context's self space."""
+        return self._self.__len__()
+
+    def __getitem__(self, i: Any) -> Rows:
+        """Subscription is query. A tuple headed by an atom is one built
+        expression pattern; a tuple of complete expression patterns is a join:
+
+            m[(S.Parent, V.x, S.Bob)]
+            m[S.edge(V.a, V.b), S.edge(V.b, V.c)]
+
+        Python hands both spellings to ``__getitem__`` as a tuple, so shape is
+        the visible classifier. A mixed tuple beginning with a complete
+        pattern and followed by a bare atom can only be the tuple mistake; it
+        raises and names the one-pattern and join spellings instead of
+        silently asking an impossible bare-atom conjunct.
+
+        A str key parses first, matching match()'s tolerance. A slice is
+        refused: a slice of a space has no one meaning, and the bounded
+        readings have their own doors, match(limit=) for a bounded answer
+        set and stream() for rows pulled until you have seen enough.
+        Runs against this context's self space.
+        """  # noqa: D205, D415  -- the API contract is one continuous invariant, not summary-and-body prose; the first line deliberately introduces the indented example that follows
+        return self._self.__getitem__(i)
+
+    def __delitem__(self, pattern: Any) -> None:
+        """Del m[pattern] removes every unifying occurrence, the bulk
+        spelling of remove()'s multiset subtraction: m[pattern] is a
+        query answering many rows, so deleting it deletes them all, the
+        way DELETE WHERE does. Nothing unifying raises KeyError, as
+        del d[k] does on a missing key; remove() is the door that
+        reports absence as False instead.
+
+        It drains by repeating remove(), so it costs one engine crossing
+        per removed atom rather than one for the whole pattern.
+        Runs against this context's self space.
+        """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        return self._self.__delitem__(pattern)
 
     # ------------------------------------------ end of generated context tier
 

@@ -19,6 +19,18 @@ Guarantees:
     test_unify_is_simultaneous_when_variadic; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - an abandoned FutureSpace warns and a settled one stays silent [tested:
     test_an_abandoned_future_warns; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
+  - `-=` classifies its operand exactly as `+=` does, so the fact stream
+    one door stores the other drains, each element totally, in one
+    crossing [tested: test_isub_reads_the_same_stream_shapes_iadd_writes;
+    commit=WORKTREE]
+  - the MeTTa context mirrors its space's container and write protocols
+    through the generated dunder tier, the in-place trio answers the
+    context itself, and repr names the home space with the closed state
+    [tested: test_the_context_speaks_its_spaces_protocols;
+    commit=WORKTREE]
+  - alpha stays binary because the engine declares =alpha's input arity;
+    the wider spelling is connective composition [tested:
+    test_alpha_stays_binary_on_the_engines_own_ground; commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -100,6 +112,62 @@ def test_unify_is_simultaneous_when_variadic():
     assert agreed[V.p] == S.a
     assert agreed[V.q] == S.b
     assert S.f(V.x).unify(S.f(S.a), S.f(S.b)) is None
+
+
+def test_isub_reads_the_same_stream_shapes_iadd_writes(context):
+    """Isub reads the same stream shapes iadd writes.
+
+    Before the symmetric classification, a tuple of rows quietly became one
+    never-matching pattern and -= "succeeded" over an unchanged space.
+    """
+    space = context.space("&stream-symmetry")
+    rows = ((S.edge, 1, 2), (S.edge, 2, 3))
+    space += rows
+    space += rows
+    assert len(space) == 4
+    space -= rows
+    assert sorted(str(atom) for atom in space) == []
+
+    space += [S.d(1), S.d(1), S.e(2)]
+    space -= [S.d(1)]
+    assert sorted(str(atom) for atom in space) == ["(e 2)"]
+
+
+def test_the_context_speaks_its_spaces_protocols(context):
+    """The context speaks its space's protocols.
+
+    The generated dunder tier delegates the container and write faces to
+    the process home, and the in-place trio answers the CONTEXT so the
+    operator protocol cannot rebind a MeTTa to its Space.
+    """
+    m = context
+    assert len(m) == 0
+    assert bool(m) is True
+    m += S.top(1)
+    m += [(S.edge, 1, 2), (S.edge, 2, 3)]
+    assert len(m) == 3
+    assert S.top(1) in m
+    assert [str(row.x) for row in m[S.edge(1, V.x)]] == ["2"]
+    m -= (S.edge(1, 2), S.edge(2, 3))
+    assert sorted(str(atom) for atom in m) == ["(top 1)"]
+    m |= [S.k(9)]
+    del m[S.k(V.n)]
+    assert sorted(str(atom) for atom in m) == ["(top 1)"]
+    before = m
+    m += S.more(2)
+    assert m is before
+    assert repr(m) == f"MeTTa(self={str(m.self)!r})"
+
+
+def test_alpha_stays_binary_on_the_engines_own_ground(context):
+    """Alpha stays binary on the engine's own ground.
+
+    An n-ary alpha was reviewed and declined: the door builds THE =alpha
+    term and the engine declares its input arity, so the wider spelling is
+    the connective composition, fn.and_ over the pairs.
+    """
+    with pytest.raises(Exception, match="function_input_arities"):
+        context.self.eval("(=alpha 1 1 1)")
 
 
 def test_an_abandoned_future_warns(context):

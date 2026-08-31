@@ -1439,6 +1439,9 @@ class AsyncMeTTa:
         answers True either way, because that is upstream's law
         [source: engine/spaces/foreign.pl, remove_matching_atoms/2] and
         because `-=` is Python's in-place difference, which is total.
+        `-=` classifies its operand exactly as `+=` does, so the fact
+        stream one door stores the other drains, element by element in
+        one transactional crossing.
         `del m[pattern]` drains too and raises when nothing matched, as
         Python's `del` does. This method is the one door that reports
         absence, so the distinction the MeTTa door gave up is still here.

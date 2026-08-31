@@ -132,7 +132,11 @@ RUFF_FAMILY_BURN_DOWN = {
     # 2179 -> 2191 with the generated context tier: MeTTa's doors carry
     # Space's docstrings verbatim, D205 trailers included, once per door.
     # 2191 -> 2192 with the walrus twin's continuous-invariant header.
-    "D": 2192,
+    # 2192 -> 2197 on 2026-09-01: the generated context tier mirrors five
+    # Space docstrings verbatim (the dunder faces, __bool__ included),
+    # each carrying its own D205 with its reason, and a mirror cannot
+    # reshape its source.
+    "D": 2197,
     # 145, from 139 before the idiomatic twin corpus. Every one of the six new
     # sites is a `twin(m)` whose example needs no engine, because the form it
     # demonstrates is native Python (destructuring, `len`, `max`), or a
