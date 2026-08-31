@@ -382,3 +382,20 @@ def test_a_fold_binds_its_own_pattern_and_never_a_stored_event_variable(metta):
     assert len(seen) == 1, (
         f"a stored variable was filled from the watching pattern: {seen}"
     )
+
+def test_an_abandoned_watch_cancels_itself(scratch_space):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    import gc
+
+    from metta import S, V
+    from metta import subscribe as _subscribe
+
+    space = scratch_space
+    before = len(_subscribe._subscriptions_for(space._space))
+    iterator = space.watch(S.tick(V.n))
+    assert len(_subscribe._subscriptions_for(space._space)) == before + 1
+    del iterator
+    gc.collect()
+    # close() is the contract; the finalize backstop covers abandonment,
+    # so a dropped iterator cannot keep a live subscription delivering
+    # into nothing.
+    assert len(_subscribe._subscriptions_for(space._space)) == before

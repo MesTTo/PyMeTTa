@@ -10,12 +10,14 @@ Open Obligations:
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
-from metta import S, V
+from metta import S, V, aio
 from metta._atom_namespace import NAMESPACE_CACHE_MAX
 from metta.errors import InferenceLimitError, SubscriberError, TimeLimitError
-from metta.subscribe import SUBSCRIPTION_QUEUE_MAX
+from metta.subscribe import SUBSCRIPTION_QUEUE_MAX, Subscription
 
 
 def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_path):
@@ -113,3 +115,74 @@ def test_the_subscription_queue_is_bounded_and_load_takes_a_budget(metta, tmp_pa
     )
     assert metta.load(package / "main.metta")[-1] == [S.yes]
     assert metta.load(package / "main.metta", inferences=10_000_000)[-1] == [S.yes]
+
+
+def test_a_queue_bound_that_cannot_fill_is_refused(metta):
+    """A bound no comparison can be true against is not a bound at all.
+
+    Measured 2026-08-30: `queue_max=float("nan")` passed the old
+    `queue_max < 1` check, because every comparison against NaN is false, and
+    the step's own `len(held) >= self.queue_max` was false for exactly the
+    same reason, so a subscription nobody drained held 25 of 25 events after
+    25 adds and the bound above was gone. `float("inf")` did the same. The
+    fix is the check the library's other counts already take, `batch`,
+    `limit` and the config integers among them: the type first, so a value no
+    comparison decides is refused before any comparison is made.
+    """
+    space = metta._new_space()
+    try:
+        for bound in (float("nan"), float("inf"), 3.0, "3", True):
+            with pytest.raises(TypeError, match=r"queue_max must be a positive integer"):
+                space.subscribe(S.ev(V.n), queue_max=bound)
+        for bound in (0, -1):
+            with pytest.raises(ValueError, match=r"queue_max must be positive"):
+                space.subscribe(S.ev(V.n), queue_max=bound)
+        # The object holds the invariant, so the class door refuses it too.
+        with pytest.raises(TypeError, match=r"queue_max must be a positive integer"):
+            Subscription(space.name, S.ev(V.n), None, "add", float("nan"))
+        # A refused bound publishes nothing, which is only worth asserting
+        # against a query that finds a real subscription on the same space.
+        reflection = metta._at("&metta")
+        descriptor = S.subscription(S[space.name], V.pattern, V.on)
+        published = space.subscribe(S.ev(V.n), queue_max=3)
+        try:
+            assert len(reflection.match(descriptor)) == 1
+        finally:
+            published.cancel()
+        with pytest.raises(TypeError):
+            space.subscribe(S.ev(V.n), queue_max=float("nan"))
+        assert not reflection.match(descriptor)
+    finally:
+        space.drop()
+
+
+def test_the_async_queue_bound_is_refused_the_same_way(metta):
+    """The async stream's queue takes the same bound, at the same door.
+
+    asyncio.Queue(maxsize=float("nan")) never reports itself full, for the
+    same reason the synchronous step's own comparison never fired: every
+    comparison against NaN is false. The refusal belongs where the number
+    arrives, which is where the stream is built rather than where it is
+    first awaited.
+    """
+    space = metta._new_space()
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=space) as am:
+            for bound in (float("nan"), float("inf"), 3.0, "3", True):
+                with pytest.raises(TypeError, match=r"queue_max must be a positive integer"):
+                    am.watch(S.ev(V.n), queue_max=bound)
+            for bound in (0, -1):
+                with pytest.raises(ValueError, match=r"queue_max must be positive"):
+                    am.watch(S.ev(V.n), queue_max=bound)
+            # A refused bound publishes nothing, and a real one does.
+            reflection = metta._at("&metta")
+            descriptor = S.subscription(S[space.name], V.pattern, V.on)
+            async with am.watch(S.ev(V.n), queue_max=3):
+                assert len(reflection.match(descriptor)) == 1
+            assert not reflection.match(descriptor)
+
+    try:
+        asyncio.run(go())
+    finally:
+        space.drop()

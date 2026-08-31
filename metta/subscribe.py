@@ -26,6 +26,12 @@ Guarantees:
     test_a_watcher_failure_is_distinguishable_from_a_failed_write]
   - a queue nobody drains refuses rather than dropping the oldest event
     [tested test_the_subscription_queue_is_bounded_and_load_takes_a_budget]
+  - the bound is a count of events, checked by type before value, so a
+    queue_max no comparison can be true against is refused instead of
+    silently removing the bound [measured 2026-08-30: queue_max=float("nan")
+    passed the old `queue_max < 1` check and then held 25 of 25 events after
+    25 adds, float("inf") the same] [tested:
+    test_a_queue_bound_that_cannot_fill_is_refused; commit=WORKTREE]
 Guarded by:
   - metta.events' fold registry lock protects queue state and the engine
     subscription snapshot [tested test_subscription_cancel_is_thread_safe]
@@ -59,6 +65,27 @@ __all__ = ["Event", "Subscription", "bridge", "subscribe"]
 SUBSCRIPTION_QUEUE_MAX: Final[int] = 10_000
 
 
+def _capacity(queue_max: Any) -> int:
+    """The queue bound, refused unless it is a count of events.
+
+    The type comes first because a refusal written as a comparison lets
+    through whatever the comparison is false about, and every comparison
+    against NaN is false: `queue_max < 1` passed float("nan") and the step's
+    own `len(held) >= self.queue_max` then never fired, which is the
+    unbounded queue this bound exists to replace. This is the same check the
+    library's other counts take, `metta._config._positive_integer` and
+    `metta.remote._Cursors.__init__` among them, in the same order and with
+    the same two exception types.
+    """
+    if isinstance(queue_max, bool) or not isinstance(queue_max, int):
+        msg = f"queue_max must be a positive integer, got {queue_max!r}"
+        raise TypeError(msg)
+    if queue_max < 1:
+        msg = f"queue_max must be positive, got {queue_max!r}"
+        raise ValueError(msg)
+    return queue_max
+
+
 class Subscription(Fold):
     """One standing query; cancel() ends it.
 
@@ -83,7 +110,7 @@ class Subscription(Fold):
             state=STATELESS if callback is not None else [],
         )
         self.callback = callback
-        self.queue_max = queue_max
+        self.queue_max = _capacity(queue_max)
         self._fact: Expression | None = None  # the reflection atom in &metta, if any
 
     def _step_over(self, held: list[Event], event: Event) -> list[Event]:
@@ -221,9 +248,6 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
         raise ValueError(
             msg
         )
-    if queue_max < 1:
-        msg = f"queue_max must be at least 1, not {queue_max!r}"
-        raise ValueError(msg)
     require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)
     subscription = Subscription(space, pattern, callback, on, queue_max)
     # The standing query reflects into the library's own space, removed on
@@ -280,7 +304,7 @@ def bridge(source, pattern, target, template=None, on: str = "add") -> Subscript
     the same event stream the delivering one folds: subscribe's step calls
     your callback, this one's writes, and composing the two is all a bridge
     is. Delivery is inside the write that triggered it; target needs only
-    add and remove, so a remote.attach()ed space bridges across engines
+    add and remove, so an attach()ed remote space bridges across engines
     identically.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
     shape = _to_atom(pattern)

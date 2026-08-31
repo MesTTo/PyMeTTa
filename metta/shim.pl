@@ -27,9 +27,16 @@
 %     test_atomic_scope_commits_or_discards_one_event_segment,
 %     test_speculative_execution_discards_its_event_segment,
 %     test_world_eval_fences_state_and_emits_nothing; commit=3ded7552797b66d78e666141eb51f3bc14686bd2].
-%   - an empty direct eval preserves a guarded head with no matching clause
-%     as a not-reducible answer while a matched empty body stays empty [tested:
-%     test_eval_keeps_unreduced_guarded_head_and_status; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
+%   - an empty direct eval answers NOTHING both for a guarded head with no
+%     matching clause and for a matched empty body, which is one answer where
+%     this door used to draw two: the guarded head was a not-reducible answer
+%     until the NoMatchEnum default became NoMatchFail on 2026-08-30, and that
+%     is upstream's own answer -- it has no policy layer, just
+%     `Goal =.. [Fun|CallArgs]` and a call
+%     [source: PeTTa@ae66fa8 src/translator.pl:363-370;
+%     tested: test_the_no_match_policy_decides_between_empty_and_the_written_call,
+%     which also pins NoMatchOriginal as the policy that asks for the written
+%     call back]
 %   - metta_py_world_effect_plan/4 translates and walks a target without
 %     executing it, returning the engine's named effect plan and the world's
 %     declared coverage before world scratch state exists; semantic special
@@ -745,10 +752,41 @@ metta_py_run(Source, Space, Groups) :-
 metta_py_encode_group(Terms, Encoded) :-
     maplist(metta_py_encode_answer, Terms, Encoded).
 
+%A binding may be a rational tree under the petta alignment, since
+%unification binds raw, and the tagged-array wire has no finite form for
+%one: the encoder's recursion would diverge (measured: 6.7 million frames
+%to the stack limit). The ANSWER and ROW sites are the only places a
+%cyclic term can reach the wire, so they test first and refuse loudly
+%with the remedy named; stored atoms, events and parses are finite by
+%construction and pay nothing
+%[tested: test_a_rational_tree_binding_refuses_its_row_loudly].
+%Inlined at the row clauses as ( acyclic_term(B) -> true ; refuse ), the
+%exact shape and price the silent gate had (+2 inferences per row through
+%a helper call measured on foreign-match and run-source); the cold branch
+%alone is a predicate.
+metta_py_wire_refuse :-
+    throw(error(metta_rational_tree_wire,
+                context(metta_py_encode/2,
+                        'a rational-tree binding has no finite wire \c
+                         form; match with the stored atom as the \c
+                         template to read the atoms themselves'))).
+
+metta_py_wire_acyclic(Term) :-
+    (   acyclic_term(Term)
+    ->  true
+    ;   metta_py_wire_refuse
+    ).
+
+prolog:error_message(metta_rational_tree_wire) -->
+    [ 'a rational-tree binding has no finite wire form; match with the \c
+       stored atom as the template to read the atoms themselves' ].
+
 metta_py_encode_answer('$metta_answer'(Term, NameState), Encoded) :- !,
+    metta_py_wire_acyclic(Term),
     metta_name_pairs(NameState, Names),
     metta_py_encode_named(Term, Names, Encoded).
 metta_py_encode_answer(Term, Encoded) :-
+    metta_py_wire_acyclic(Term),
     metta_py_encode(Term, Encoded).
 
 %Run with named host values: each Name-Value pair substitutes the bare
@@ -1709,6 +1747,13 @@ metta_py_contains(Space, Tagged) :-
 %refuses, loudly, when it cannot); everything else, Prolog providers and
 %native spaces with their announce-when-watched and tabling-death rules,
 %is the engine's metta_host_clear_space/1.
+metta_py_clear_for_release(Space) :-
+    (   metta_py_foreign(Space)
+    ->  atom_string(Space, SpaceStr),
+        py_call(metta_ops:foreign_clear(SpaceStr), _)
+    ;   metta_clear_space_for_release(Space)
+    ).
+
 metta_py_clear(Space) :-
     metta_py_foreign(Space), !,
     atom_string(Space, SpaceStr),
@@ -1753,10 +1798,16 @@ metta_py_new_space(Name) :-
     metta_py_fresh_space_name(Name),
     ensure_native_storage_module(Name, _).
 
+%A pooled name is a name that WAS free, not one that still is: a handle that
+%outlives its context writes to the released name again and revives it, so the
+%pool is scanned rather than trusted and a revived entry is dropped from it.
+%The owner that revived it pools it again when it releases it
+%[tested test_a_second_context_does_not_reuse_a_revived_space_name].
 metta_py_fresh_space_name(Name) :-
-    ( retract(metta_py_free_space(Name))
-      -> true
-    ; metta_py_next_space(Name) ).
+    (   retract(metta_py_free_space(Candidate)),
+        metta_py_space_untouched(Candidate)
+    ->  Name = Candidate
+    ;   metta_py_next_space(Name) ).
 
 %The two model declarations create the storage THEMSELVES and refuse a child
 %that has been used already (space_parent_child_used/1 reads exactly the
@@ -1766,6 +1817,15 @@ metta_py_new_space(Parent0, Name) :-
     ( atom(Parent0) -> Parent = Parent0 ; atom_string(Parent, Parent0) ),
     metta_py_fresh_space_name(Name),
     catch(metta_declare_space_parent(Name, Parent), Error,
+          ( metta_py_pool_space(Name), throw(Error) )).
+
+%A context's sibling space: the home supplies its EQUATION tier only, the
+%narrow relation engine/spaces/lifecycle.pl documents, so the space's atoms
+%stay its own and conjunctive matching keeps the direct native path.
+metta_py_new_scoped_space(Home0, Name) :-
+    ( atom(Home0) -> Home = Home0 ; atom_string(Home, Home0) ),
+    metta_py_fresh_space_name(Name),
+    catch(metta_declare_space_equation_home(Name, Home), Error,
           ( metta_py_pool_space(Name), throw(Error) )).
 
 metta_py_open_atom_space(NameWire, Space) :-
@@ -1791,9 +1851,16 @@ metta_py_next_space(Name) :-
       -> Name = Candidate
     ; metta_py_next_space(Name) ).
 
+%The same question engine/spaces/lifecycle.pl asks before it declares a
+%parent or a restriction, asked of the one authority rather than restated:
+%a space with an execution module and no atom is used, and handing out its
+%name raises metta_space_parent_after_use at the declaration instead
+%[tested test_a_second_context_does_not_reuse_a_revived_space_name,
+%test_a_recycled_space_name_inherits_no_clauses_from_its_past_life].
 metta_py_space_untouched(Name) :-
     \+ metta_py_foreign(Name),
-    \+ metta_host_stored(Name, _).
+    \+ metta_host_stored(Name, _),
+    \+ spaces:space_parent_child_used(Name).
 
 metta_py_pool_space(Name) :-
     ( metta_py_free_space(Name) -> true ; assertz(metta_py_free_space(Name)) ).
@@ -2163,11 +2230,13 @@ metta_py_bounded_match(Space, PatternTagged, Limit, Bindings) :-
 %stack overflow. Same semantics as match/4: the cyclic candidate FAILS
 %this row and enumeration continues. Guarded once per row, not per
 %column.
+%Loud, not a silent row drop: this gate used to FAIL a cyclic row, which
+%made the engine-side len disagree with the rows a caller could read.
 metta_py_row(Names, indexed(Bindings, Index), Row) :- !,
-    acyclic_term(Bindings),
+    ( acyclic_term(Bindings) -> true ; metta_py_wire_refuse ),
     metta_py_row_indexed(Names, Index, Row).
 metta_py_row(Names, Bindings, Row) :-
-    acyclic_term(Bindings),
+    ( acyclic_term(Bindings) -> true ; metta_py_wire_refuse ),
     metta_py_row_columns(Names, Bindings, Row).
 
 metta_py_row_columns([], _, []).
@@ -2250,6 +2319,7 @@ metta_py_eval(Space, Tagged, Encoded) :-
     metta_py_encode_truth(Out, Delays, Encoded).
 
 metta_py_encode_truth(Out, Delays, Encoded) :-
+    metta_py_wire_acyclic(Out),
     ( Delays == true
       -> metta_py_encode(Out, Encoded)
     ; metta_py_encode(Out, Inner),

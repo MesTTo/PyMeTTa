@@ -14,7 +14,7 @@ from pathlib import Path
 import janus_swi
 import pytest
 
-from metta import MeTTa
+from metta import Space
 
 # The twins moved to extensions/python/examples/language-feature-examples/,
 # out of this directory, so pytest no longer reaches them from here and the
@@ -47,14 +47,37 @@ def _pragmas_are_not_left_set():
     decides which one, so it moves between runs and reproduces in neither
     isolation nor a rerun. `with-pragma!` is the scoped form and restores on
     every exit path, including an exception.
+
+    Read BEFORE and after, and blame only what this test added. Reading only
+    afterwards blamed whichever test ran next after the real leaker, which is
+    the very mis-attribution the paragraph above describes: it sent two
+    separate readers to test_bounds.py, whose three tests use the scoped form
+    and pass in isolation.
     """
+
+    def bounds_in_force():
+        # A pragma set to 0 bounds nothing: the engine documents zero as
+        # "selects the default" for max-stack-depth, and
+        # examples/ch14-seeing-your-program/01-time_and_pragmas.metta ends
+        # by teaching exactly that. Reporting it would blame a chapter for
+        # demonstrating the engine-wide form it exists to explain.
+        try:
+            return {
+                row["Key"]: row["Value"]
+                for row in janus_swi.query("metta_pragma(Key, Value)")
+                if row["Value"] != 0
+            }
+        except janus_swi.PrologError:  # the engine was never started by this test
+            return None
+
+    before = bounds_in_force()
     yield
-    try:
-        left = sorted({row["Key"] for row in janus_swi.query("metta_pragma(Key, _)")})
-    except janus_swi.PrologError:  # the engine was never started by this test
+    after = bounds_in_force()
+    if after is None:
         return
-    assert not left, (
-        f"this test left {left} set engine-wide; use "
+    added = sorted(key for key, value in after.items() if before.get(key) != value)
+    assert not added, (
+        f"this test left {added} set engine-wide; use "
         "(with-pragma! ((<key> <value>)) <expr>) instead of a bare pragma!"
     )
 
@@ -81,6 +104,12 @@ def dummy_metta_path(repo_root):  # noqa: D103  -- pytest discovers or injects t
 
 @pytest.fixture(scope="session")
 def metta(metta_path):
-    """Return the default rich space on the repository runtime."""
+    """Return the process home space on the repository runtime.
+
+    The suite drives the engine's own ``&self`` deliberately: scratch spaces
+    minted from it fall back to ``&self`` for equations, and many tests
+    define there and evaluate in a child. Context isolation has its own
+    pins (test_metta_contexts_are_isolated and the ownership group).
+    """
     os.environ.setdefault("METTA_PATH", metta_path)
-    return MeTTa(metta_path=metta_path).self
+    return Space(metta_path=metta_path)
