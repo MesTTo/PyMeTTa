@@ -24,14 +24,14 @@ Guarantees:
     line [tested test_example_parity_reports_a_planted_difference]
   - answers are compared as VALUES, not as text, so a difference in
     source SPELLING is not a difference in answer: `true` and `True` both
-    parse to Grounded(True), while both shipped writers emit canonical `True`
+    parse to Grounded(True), while both shipped writers emit canonical `true`
     [tested: test_spelling_is_not_a_difference,
-    test_swrite_writes_mettas_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_swrite_writes_the_engines_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Decides:
   - process isolation per example, matching how the engine lane already
     works, rather than one engine over many spaces: it is affordable at the
     measured cost and it cannot leak state between examples
-  - the engine is read through tests/conformance/leatta_run.pl, which
+  - the engine is read through tests/conformance/answer_groups.pl, which
     already exists to print one answer GROUP per runnable form on a marker
     line "so a comparator can read them without having to tell an answer
     apart from the loader's own echo". The first version of this module
@@ -102,8 +102,8 @@ def corpus(root: Path = REPO) -> list[Path]:
     return found
 
 
-MARKER = "LEATTA-ANSWER "
-FAILED = "LEATTA-ERROR "
+MARKER = "ANSWER-GROUP "
+FAILED = "ANSWER-ERROR "
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,7 +159,7 @@ def run_engine(path: Path, root: Path = REPO) -> Outcome:
         [
             "swipl", "--stack_limit=8g", "-q",
             "-g", 'consult("engine/metta.pl")',
-            "-s", "tests/conformance/leatta_run.pl",
+            "-s", "tests/conformance/answer_groups.pl",
             "--", "--file", str(path.relative_to(root)), "extensions",
         ],
         root,

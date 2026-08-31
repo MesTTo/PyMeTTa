@@ -8,11 +8,14 @@ rather than as a mood. `--markdown` regenerates
 `website/reference/stdlib-phrasebook.md` from the same rows, so the page
 cannot drift from what ran.
 
-THREE COLUMNS, because two would hide the interesting half. A row's MeTTa form
-is measured on LeaTTa, the conformance oracle, AND on this engine, and its
-Python spelling is measured here; the lane compares all three. So a row says
-what the law answers, whether this engine agrees, and whether Python says the same
-thing, and every disagreement is named rather than averaged away.
+THREE COLUMNS, because two would hide the interesting half. A row's MeTTa
+form carries the recorded arbiter capture (frozen into
+phrasebook_answers.json while the LeaTTa lane still ran; the semantics
+reference is the vendored upstream PeTTa corpus now) AND this engine's
+answer, and its Python spelling is measured here; the lane compares all
+three. So a row says what the recorded capture answered, whether this
+engine agrees, and whether Python says the same thing, and every
+disagreement is named rather than averaged away.
 
 Why both sides run at all: a phrasebook that only shows Python proves nothing
 about the translation, and one nobody runs rots within a week. Running the
@@ -44,10 +47,11 @@ Assumes:
     377 processes [measured 2026-08-22: a definition made in `m._new_space()`
     is invisible to `&self` and to a sibling space, and fifty fresh spaces
     with a definition and a call cost 0.007s; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - a second `MeTTa()` in one process is the SAME engine, which is why
-    isolation is per space and never per engine [measured 2026-08-22: a
-    definition made through a second `MeTTa()` is visible to the first;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - a second `MeTTa()` in one process is the SAME engine with its OWN home
+    space, so stored state is isolated per context while registrations stay
+    process-wide; sharing the process home is spelled `metta.engine()`
+    [tested: extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_metta_contexts_are_isolated;
+    commit=WORKTREE]
   - `&pb` in a row's MeTTa form is that row's own space. On this engine the
     name is made unique per row before the form runs, because `bind!` here
     keeps the old contents when a bound name is re-bound; on LeaTTa each row
@@ -58,11 +62,13 @@ Assumes:
   - LeaTTa lives outside this repository and CI never clones it, so its column
     is frozen into `phrasebook_answers.json` and re-measured only under
     `--learn`, exactly as the upstream parity baseline freezes its numbers
-    [source: tests/checks/check_upstream_parity.py; tests/conformance/leatta.py, its
-    Assumes block; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    [source: tests/checks/check_upstream_parity.py, its Assumes block;
+    the leatta runner the capture was frozen through left the tree with the
+    petta alignment and exists at the pinned commit;
+    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
 Guarantees:
   - every LeaTTa stdlib name has exactly one row, so the coverage denominator
-    cannot quietly shrink [tested: test_the_phrasebook_covers_every_leatta_name]
+    cannot quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name]
   - a row whose Python spelling stops answering what it claims is a finding,
     which is what stops a phrasebook rotting [tested:
     test_a_broken_python_spelling_is_a_finding]
@@ -507,7 +513,24 @@ def drift(entries: list[Entry]) -> tuple[str, list[str]]:
 def _row_differences(
     declared: dict[str, list[str]], ours: dict[str, list[str]], manifest: Any
 ) -> list[str]:
-    """Every way the rows and one manifest revision disagree."""
+    """Every way the rows and one manifest revision disagree about WHICH NAMES exist.
+
+    The types are no longer compared.
+
+    The type half retired with the arbiter on 2026-08-30. PeTTa is what this
+    engine follows, and where the two differ the row records upstream's
+    declaration: `println!` and `change-state!` answer a Bool where LeaTTa
+    answers unit or the cell, `remove-atom` answers True whether or not the
+    space held the atom, and `atom-subst` declares its second operand
+    `(:Atom Variable)`, a modifier LeaTTa's plain `Variable` has no spelling
+    for. Reporting those as drift asked the wrong oracle
+    The same retirement is recorded in
+    [tested: test_the_phrasebook_carries_one_row_per_name].
+
+    The COMPLETENESS half never depended on which oracle is the arbiter: a
+    name one side has and the other does not is worth knowing whoever is
+    right about its type, and this is the only place that asks.
+    """
     findings = [
         f"LeaTTa declares {name!r} and the phrasebook has no row for it"
         for name in sorted(set(declared) - set(ours))
@@ -515,11 +538,6 @@ def _row_differences(
     findings += [
         f"the phrasebook has a row for {name!r} which LeaTTa no longer declares"
         for name in sorted(set(ours) - set(declared))
-    ]
-    findings += [
-        f"{name}: LeaTTa now types it {declared[name]}, the row records {ours[name]}"
-        for name in sorted(set(ours) & set(declared))
-        if ours[name] != declared[name]
     ]
     if manifest["operationCount"] != LEATTA_ENTRY_COUNT:
         findings.append(
@@ -623,15 +641,15 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         "",
         "Every operation MeTTa's standard library declares, and what you write in Python",
         f"instead. {spoken} of the {surface} operations a program can call have a Python",
-        "spelling, and every runnable row below was measured on this engine, on LeaTTa,",
-        "the conformance oracle, and through the Python spelling here. A row names the",
-        "equivalent oracle form when this engine's reified strategy application has another arity.",
+        "spelling, and every runnable row below was measured on this engine and",
+        "through the Python spelling here. A row names the equivalent oracle form",
+        "when this engine's reified strategy application has another arity.",
         "",
-        "The names and their types are LeaTTa's, measured against its built binary rather",
-        f"than transcribed: manifest {LEATTA_VERSION} at commit `{LEATTA_COMMIT}`, "
-        f"{LEATTA_ENTRY_COUNT} declarations",
-        f"over {len(entries)} distinct names. `extensions/python/tools/phrasebook.py` runs the",
-        "rows and fails when a spelling stops answering what it says it answers.",
+        f"The rows carry this engine's own names and types, {len(entries)} distinct names,",
+        "and `extensions/python/tools/phrasebook.py` runs them and fails when a",
+        "spelling stops answering what it says it answers. The oracle column",
+        "measured against a second engine until 2026-08-30; PeTTa is the arbiter",
+        "now and `tests/conformance/petta.py` is the lane that gates on it.",
         "",
         "## How to read a row",
         "",
