@@ -1441,23 +1441,40 @@ class Space(Handle):
         wires = self._rt.apply_must("metta_py_atoms", self._space)
         return [_atom_from_wire(w) for w in wires]
 
-    def peek(self, pattern: Any, *, deadline: float | None = None) -> Atom:
+    def peek(
+        self, pattern: Any, *, where: Any | None = None, deadline: float | None = None
+    ) -> Atom:
         """Wait for one matching atom and leave it in this space.
 
         A finite deadline raises ``Timeout`` when no match arrives.
-        """
-        return self._wait_for_atom("peek-atom", pattern, deadline)
 
-    def take(self, pattern: Any, *, deadline: float | None = None) -> Atom:
+        `where` is match()'s guard on a blocking wait: a term over the
+        pattern's variables, evaluated once a candidate binds them and
+        required true, so "wait for a job whose priority is above five" is one
+        call. Without it the guard had to live in the caller, as a wait and a
+        re-wait around every candidate the guard rejected, and the deadline
+        restarted each time round [measured 2026-08-31].
+        """
+        return self._wait_for_atom("peek-atom", pattern, where, deadline)
+
+    def take(
+        self, pattern: Any, *, where: Any | None = None, deadline: float | None = None
+    ) -> Atom:
         """Wait for and remove exactly one matching atom from this space.
 
         Competing takers cannot receive the same occurrence. A finite
-        deadline raises ``TimeoutError`` when no match arrives.
+        deadline raises ``TimeoutError`` when no match arrives. `where` is
+        peek()'s guard, and it is checked BEFORE the removal, so an atom the
+        guard rejects stays where it is for whoever does want it.
         """
-        return self._wait_for_atom("take-atom", pattern, deadline)
+        return self._wait_for_atom("take-atom", pattern, where, deadline)
 
     def _wait_for_atom(
-        self, operation: str, pattern: Any, deadline: float | None
+        self,
+        operation: str,
+        pattern: Any,
+        where: Any | None,
+        deadline: float | None,
     ) -> Atom:
         require_deadline(deadline)
         caller = (
@@ -1475,6 +1492,20 @@ class Space(Handle):
             )
         )
         arguments: list[Atom] = [self, _to_atom(pattern)]
+        # The guarded pair carries its own NAME rather than another arity: a
+        # guard and a timeout would both sit third, and nothing could tell
+        # (peek-atom &s (job $x) 5) apart from a guard spelled 5.
+        if where is None:
+            operation = f"{operation.split('-', maxsplit=1)[0]}-atom"
+        else:
+            guard = guard_atom(where)
+            if guard is None:
+                msg = f"where= is a term the engine evaluates per candidate, got {where!r}"
+                raise TypeError(msg)
+            arguments.append(guard)
+            operation = (
+                "space_await_where" if operation == "peek-atom" else "space_take_where"
+            )
         if deadline is not None:
             arguments.append(Grounded(deadline))
         target = Expression([Symbol(operation), *arguments])

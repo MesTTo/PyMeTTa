@@ -60,7 +60,6 @@ from collections import Counter
 import pytest
 
 import metta as metta_module
-
 from metta import (
     TRUE,
     MeTTa,

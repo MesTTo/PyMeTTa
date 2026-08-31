@@ -848,13 +848,21 @@ class AsyncMeTTa:
         """Return a snapshot of every atom in this space."""
         return await self.call(lambda m: m.atoms())
 
-    async def peek(self, pattern: Any, *, deadline: float | None = None) -> Atom:
+    async def peek(
+        self, pattern: Any, *, where: Any | None = None, deadline: float | None = None
+    ) -> Atom:
         """Wait for one matching atom without blocking the event loop."""
-        return await self.call(lambda m: m.peek(pattern, deadline=deadline))
+        return await self.call(
+            lambda m: m.peek(pattern, where=where, deadline=deadline)
+        )
 
-    async def take(self, pattern: Any, *, deadline: float | None = None) -> Atom:
+    async def take(
+        self, pattern: Any, *, where: Any | None = None, deadline: float | None = None
+    ) -> Atom:
         """Wait for and remove one matching atom without blocking the loop."""
-        return await self.call(lambda m: m.take(pattern, deadline=deadline))
+        return await self.call(
+            lambda m: m.take(pattern, where=where, deadline=deadline)
+        )
 
     async def match(
         self,

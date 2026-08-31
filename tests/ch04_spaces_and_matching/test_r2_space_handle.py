@@ -84,6 +84,28 @@ def test_space_handle_peek_and_take_are_linda_verbs(spaces):  # noqa: D103  -- p
         target.take(S.job(V.state), deadline=0.001)
 
 
+def test_the_linda_verbs_take_matchs_guard(spaces):
+    """match() has guarded since it existed; the blocking pair could not.
+
+    Waiting for "a job whose priority is above five" had to be written as a
+    wait plus a re-wait around every candidate the caller rejected, and the
+    deadline restarted each time round. The guard is checked BEFORE the
+    removal, so a candidate it rejects stays for whoever does want it
+    [measured 2026-08-31].
+    """
+    _context, _host, target = spaces
+    target.add(S.job(1, 2))
+    target.add(S.job(2, 9))
+
+    assert target.peek(S.job(V.id, V.pri)) == S.job(1, 2)
+    assert target.peek(S.job(V.id, V.pri), where=V.pri.ge(5)) == S.job(2, 9)
+    assert target.take(S.job(V.id, V.pri), where=V.pri.ge(5)) == S.job(2, 9)
+    # The rejected atom was never a candidate for removal.
+    assert S.job(1, 2) in target
+    with pytest.raises(TimeoutError, match="no atom matching"):
+        target.peek(S.job(V.id, V.pri), where=V.pri.ge(100), deadline=0.05)
+
+
 def test_add_atom_accepts_a_space_handle_inside_a_built_term(spaces):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     _context, host, target = spaces
     fact = S.direct(S.ok)
