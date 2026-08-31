@@ -134,8 +134,7 @@
 %     metta_py_run_status/3 report which of
 %     MeTTa's evaluation paths produced each answer, leaving the ordinary
 %     entry points' output unchanged [tested:
-%     test_eval_status_reports_the_four_outcomes,
-%     test_strict_eval_refuses_only_not_reducible; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
+%     test_eval_status_reports_the_four_outcomes; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
 %   - the held evaluation cursor is present at bridge boot, so the first lazy
 %     answer pull performs no late consult [tested:
 %     test_first_answer_pull_has_no_late_consult_floor; commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
@@ -2468,14 +2467,23 @@ metta_py_cast(Space, ValueW, TypeW, Out) :-
 %the trivial-eval crossing: five to ten percent (interleaved A/B against
 %a plain twin, 222-236k against 248-249k calls per second); real
 %evaluations amortize it below that.
+%One module wrap for resolution AND execution. Resolution went through
+%metta_py_direct_goal/4, whose own metta_py_in_module made this door pay the
+%context switch twice per eval; the compiled call sites resolve_dispatch
+%serves pay it zero times, because they are already in their module. Folding
+%resolution inside the execution wrap keeps the seam offer and the module
+%context identical and returns ~10 of the +18 inferences the seam routing
+%added [measured 2026-09-01: eval-arith 292,604 -> see baseline comment].
 metta_py_eval(Space, Tagged, Encoded) :-
     metta_py_target_term(Space, Tagged, Term),
     metta_py_module(Space, Module),
-    ( metta_py_direct_goal(Module, Term, Goal, Produced)
-      -> metta_py_in_module(Module, call_delays(call(Module:Goal), Delays))
-    ; metta_py_in_module(Module, ( translate_cached_expr(Term, Goals, Produced),
-                                   call_delays(metta_py_call_goals(Module, Goals),
-                                               Delays) )) ),
+    metta_py_in_module(Module,
+        (   metta_py_direct_goal(Module, Term, F, Args, Produced)
+        ->  translator:resolve_dispatch(F, Args, Produced, Goal),
+            call_delays(call(Module:Goal), Delays)
+        ;   translate_cached_expr(Term, Goals, Produced),
+            call_delays(metta_py_call_goals(Module, Goals), Delays)
+        )),
     translator:metta_boundary_result(Term, Produced, Out),
     metta_py_encode_truth(Out, Delays, Encoded).
 
@@ -2614,7 +2622,7 @@ metta_py_fuel_encoded(Overflow, Encoded) :- metta_py_encode(Overflow, Encoded).
 %target before it evaluates, so a tensor or any other object reaches a
 %rule by name and by IDENTITY rather than through a printed form. The
 %target is read first, because substitution is over the term
-%[tested test_eval_using_carries_identity].
+%[tested test_run_using_carries_identity].
 metta_py_eval_using_all(Space, Target, Pairs, Encoded) :-
     metta_py_target_term(Space, Target, Term0),
     maplist(metta_py_using_pair, Pairs, Bindings),
