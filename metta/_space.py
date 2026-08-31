@@ -1476,7 +1476,30 @@ class Space(Handle):
             return
         pending = _ACTIVE_BATCHES.get().get(self._space)
         if pending is not None:
+            # A Rules bundle rides the batch WHOLE, so the flush's re-entry
+            # into this door sees its identity and publishes its evidence
+            # only when the equations actually land; a discarded batch
+            # therefore publishes nothing, which the eager spelling used to
+            # get wrong.
             pending.extend(atoms)
+            return
+        if any(isinstance(atom, _Rules) for atom in atoms):
+            # A bundle handed WHOLE keeps its identity: its equations stream
+            # in place among the other atoms, and its construction evidence
+            # publishes once they land, exactly as `m += bundle` publishes.
+            # A SPLATTED bundle (`add(*bundle)`) was erased by the caller
+            # before this door ran, which is the one spelling that cannot
+            # carry the evidence.
+            flattened: list[Any] = []
+            for item in atoms:
+                if isinstance(item, _Rules):
+                    flattened.extend(item)
+                else:
+                    flattened.append(item)
+            self.add(*flattened)
+            for bundle in atoms:
+                if isinstance(bundle, _Rules):
+                    _satellite("_lint_events").register_rule_events(self, bundle)
             return
         wires = [_to_atom(atom).to_wire() for atom in atoms]
         if not wires:
@@ -1783,16 +1806,16 @@ class Space(Handle):
         """
         if self._install_relative_write_declaration(atom):
             return self
+        if isinstance(atom, _Rules):
+            # add() owns the bundle law now: equations land, then evidence
+            # publishes, and a batch defers both together.
+            self.add(atom)
+            return self
         stream = _fact_stream(atom)
         if stream is None:
             self.add(atom)
         else:
             self.add(*stream)
-            if isinstance(atom, _Rules):
-                # Construction evidence is published only once the equations
-                # land, so the lint reader never sees a bundle this space
-                # does not hold.
-                _satellite("_lint_events").register_rule_events(self, atom)
         return self
 
     def _install_relative_write_declaration(self, atom: Any) -> bool:

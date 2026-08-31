@@ -38,7 +38,7 @@ def arithmetic(value):
     yield equation(S.via_rule(value)).to(twice(value))
 
 
-m.add(*arithmetic)
+m.add(arithmetic)
 check("rules are ordinary atoms", m.eval(S.via_rule(6)), [12])
 
 

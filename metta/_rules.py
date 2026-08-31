@@ -150,10 +150,10 @@ class Rules(tuple[Expression, ...]):
                 raise TypeError(msg)
             if lhs.head not in heads:
                 heads.append(lhs.head)
-        space.add(*self)
-        from ._lint_events import register_rule_events  # noqa: PLC0415 -- lint is a satellite
-
-        register_rule_events(space, self)
+        # The bundle lands WHOLE, so add() applies the one bundle law:
+        # equations stream in place, construction evidence publishes once
+        # they land, and a batch defers both together.
+        space.add(self)
         declarations = [
             Expression(
                 [

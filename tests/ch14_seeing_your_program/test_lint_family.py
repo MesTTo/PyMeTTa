@@ -432,3 +432,51 @@ def test_a_retired_operation_is_not_named_by_the_wrapper_it_left_behind(m):
     # answer, not the attribute's presence.
     assert hasattr(lint_retired_crossing, OPERATION_REGISTRATION)
     assert live_registration(lint_retired_crossing) is None
+
+
+def test_a_bundle_lands_with_its_evidence_through_every_door(m):
+    """One bundle law: each door publishes, and a batch defers whole.
+
+    The doors had diverged: `+=` published a bundle's construction evidence
+    while `add(*bundle)` silently skipped it, because the splat erases the
+    bundle before the door runs, and the eager spelling published under an
+    active batch for equations a discard would never land [measured
+    2026-09-01, +185 inferences of reflection writes on one spelling only].
+    The bundle rides whole through add(), which owns the law; evidence keys
+    by its owning bundle, so each leg here carries its own op and bundle.
+    """
+    from metta import equation, rules
+
+    def built(tag: str):
+        @m.op(name=f"lint-parity-{tag}", effect="writesState")
+        def write(value: int) -> int:
+            return value
+
+        @rules
+        def parity_bundle():
+            yield equation(S[f"lint-parity-{tag}"]()).to(write(9))
+
+        return parity_bundle
+
+    def subjects():
+        found = _kind(m, "effectful-operation-at-construction")
+        return {finding.subject for finding in found}
+
+    # The whole-bundle add publishes exactly as += does.
+    m.add(built("adds"))
+    assert "lint-parity-adds" in subjects()
+
+    # A discarded batch lands neither the equations nor the evidence.
+    with pytest.raises(RuntimeError, match="planted"):
+        with m.batch():
+            m.add(built("discarded"))
+            msg = "planted"
+            raise RuntimeError(msg)
+    assert "lint-parity-discarded" not in subjects()
+    assert not m.match(S["lint-parity-discarded"]())
+
+    # A committed batch lands both, deferred together to the flush.
+    with m.batch():
+        m.add(built("committed"))
+        assert "lint-parity-committed" not in subjects()
+    assert "lint-parity-committed" in subjects()
