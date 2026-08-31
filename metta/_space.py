@@ -3142,6 +3142,15 @@ class Space(Handle):
 
         The cache-safe class, and the only one memoization and tabling admit
         without an explicit policy.
+
+        A GENERATOR written this way is lifted to `nondeterministicReadOnly`,
+        because a generator is nondeterministic whatever it declares, and the
+        registration reads that off the function rather than asking. The lift
+        only ever raises the rank, so it widens the answer-count claim and
+        never weakens the effect claim -- but it does mean a generator is not
+        cache-safe, which is the whole reason it is lifted out of this class
+        [tested: test_a_generator_is_lifted_to_the_nondeterministic_rank;
+        commit=WORKTREE].
         """
         return self._classified(fn, EffectClass.pureStructural, options)
 
