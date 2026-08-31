@@ -1650,7 +1650,12 @@ class AsyncMeTTa:
         )
 
     def subscribe(
-        self, pattern: Any, *, on: str = "add", queue_max: int = SUBSCRIPTION_QUEUE_MAX
+        self,
+        pattern: Any,
+        *,
+        on: str = "add",
+        where: Any | None = None,
+        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
     ) -> _AsyncSubscription:
         """A standing query as an async event stream: every matching
         write becomes an Event on an asyncio queue, consumed with
@@ -1661,13 +1666,14 @@ class AsyncMeTTa:
                 async for event in events:
                     ...
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return _AsyncSubscription(self, pattern, on, queue_max)
+        return _AsyncSubscription(self, pattern, on, queue_max, where=where)
 
     def watch(
         self,
         pattern: Any,
         *,
         on: str = "add",
+        where: Any | None = None,
         deadline: float | None = None,
         queue_max: int = SUBSCRIPTION_QUEUE_MAX,
     ) -> _AsyncSubscription:
@@ -1680,7 +1686,9 @@ class AsyncMeTTa:
         [measured 2026-08-31].
         """
         require_deadline(deadline)
-        return _AsyncSubscription(self, pattern, on, queue_max, deadline=deadline)
+        return _AsyncSubscription(
+            self, pattern, on, queue_max, deadline=deadline, where=where
+        )
 
     @property
     def fn(self) -> _AsyncFunctionNamespace:
@@ -2084,11 +2092,13 @@ class _AsyncSubscription:
         queue_max: int = SUBSCRIPTION_QUEUE_MAX,
         *,
         deadline: float | None = None,
+        where: Any | None = None,
     ) -> None:
         self._am = am
         self._pattern = pattern
         self._on = on
         self._deadline = deadline
+        self._where = where
         # The same bound the synchronous subscription takes, refused here at
         # construction: a bound no comparison decides is not a bound, and
         # asyncio.Queue(maxsize=nan) is a queue that never reports itself full
@@ -2147,8 +2157,11 @@ class _AsyncSubscription:
                     loop.call_soon_threadsafe(self._offer, events, event)
 
                 pattern, on, am = self._pattern, self._on, self._am
+                where = self._where
                 self._subscription = await _acquire(
-                    am.call(lambda m: m.subscribe(pattern, deliver, on=on)),
+                    am.call(
+                        lambda m: m.subscribe(pattern, deliver, on=on, where=where)
+                    ),
                     lambda subscription: am.call(lambda _m: subscription.cancel()),
                 )
                 # A queue reachable before its registration succeeded is one a

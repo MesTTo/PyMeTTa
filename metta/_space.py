@@ -2363,6 +2363,7 @@ class Space(Handle):
         pattern: Any,
         *,
         on: str = "add",
+        where: Any | None = None,
         deadline: float | None = None,
         queue_max: int | None = None,
     ):
@@ -2374,7 +2375,8 @@ class Space(Handle):
         """
         require_deadline(deadline)
         return _WatchIterator(
-            self.subscribe(pattern, on=on, queue_max=queue_max), deadline
+            self.subscribe(pattern, on=on, where=where, queue_max=queue_max),
+            deadline,
         )
 
     def limits(
@@ -3733,6 +3735,7 @@ class Space(Handle):
         callback: Callable | None = None,
         *,
         on: str = "add",
+        where: Any | None = None,
         queue_max: int | None = None,
     ):
         """A standing query on this space: every added (or removed, or
@@ -3762,6 +3765,10 @@ class Space(Handle):
         `metta.structures.LiveView` is the worked instance.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         subscriptions = _satellite("subscribe")
+        guard = None if where is None else guard_atom(where)
+        if where is not None and guard is None:
+            msg = f"where= is a term the engine evaluates per event, got {where!r}"
+            raise TypeError(msg)
         return subscriptions.subscribe(
             self._rt,
             self._space,
@@ -3773,6 +3780,10 @@ class Space(Handle):
                 if queue_max is None
                 else queue_max
             ),
+            guard=guard,
+            # The judge is this space's own evaluation door, so a guard means
+            # on an event exactly what it means on a match.
+            judge=lambda term: self.eval(term) == [True],
         )
 
     def _event_stream(self) -> Any:

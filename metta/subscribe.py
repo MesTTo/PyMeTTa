@@ -93,7 +93,7 @@ class Subscription(Fold):
     fold's own state, which is the queue drain() empties.
     """
 
-    __slots__ = ("_fact", "callback", "queue_max")
+    __slots__ = ("_fact", "_guard", "_judge", "callback", "queue_max")
 
     def __init__(
         self,
@@ -102,6 +102,9 @@ class Subscription(Fold):
         callback: Callable[[Event], None] | None,
         on: str,
         queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+        *,
+        guard: Atom | None = None,
+        judge: Callable[[Atom], bool] | None = None,
     ) -> None:
         """Build the standing query; subscribe() publishes it."""
         super().__init__(
@@ -110,6 +113,10 @@ class Subscription(Fold):
             state=STATELESS if callback is not None else [],
         )
         self.callback = callback
+        self._guard = guard
+        # The judge is handed in rather than built here: evaluating a term
+        # needs the Space door and this module is below it.
+        self._judge = judge
         self.queue_max = _capacity(queue_max)
         self._fact: Expression | None = None  # the reflection atom in &metta, if any
 
@@ -117,6 +124,14 @@ class Subscription(Fold):
         """Deliver, or queue. The two shipped delivery disciplines, as one
         step over the fold's state.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
+        # ONE place, because both delivery disciplines pass through it: a
+        # guard the engine evaluates per event, so a subscription can say
+        # what match() has always been able to say, instead of the filtering
+        # living in every callback [measured 2026-08-31].
+        if self._guard is not None and not self._judge(
+            _instantiate(self._guard, event.bindings)
+        ):
+            return held
         if self.callback is not None:
             self.callback(event)
             return held
@@ -242,6 +257,8 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
     on: str = "add",
     *,
     queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+    guard: Atom | None = None,
+    judge: Callable[[Atom], bool] | None = None,
 ) -> Subscription:
     if on not in SubscriptionEdge:
         msg = f"on must be one of {', '.join(SubscriptionEdge)}, not {on!r}"
@@ -249,7 +266,9 @@ def subscribe(  # noqa: D103  -- the package reference and enclosing module docu
             msg
         )
     require_capability(space, "subscribe", "subscribe", pattern=pattern, on=on)
-    subscription = Subscription(space, pattern, callback, on, queue_max)
+    subscription = Subscription(
+        space, pattern, callback, on, queue_max, guard=guard, judge=judge
+    )
     # The standing query reflects into the library's own space, removed on
     # cancel, so MeTTa programs see what Python is watching. The fact goes
     # in before the subscription activates: a watcher of &metta sees other

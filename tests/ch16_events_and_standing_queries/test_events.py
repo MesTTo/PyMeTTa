@@ -399,3 +399,37 @@ def test_an_abandoned_watch_cancels_itself(scratch_space):  # noqa: D103  -- pyt
     # so a dropped iterator cannot keep a live subscription delivering
     # into nothing.
     assert len(_subscribe._subscriptions_for(space._space)) == before
+
+
+def test_a_standing_query_takes_matchs_guard(metta):
+    """match() has guarded since it existed; a subscription could not.
+
+    The filtering had to live in every callback, which means every matching
+    write crossed into Python to be dropped there, and a queue-mode
+    subscription filled with events its consumer did not want. One guard sits
+    at the single delivery point both disciplines pass through
+    [measured 2026-08-31].
+    """
+    m = metta._at("&self")
+    seen = []
+    sub = m.subscribe(
+        S.order(V.id, V.total), lambda e: seen.append(e.atom), where=V.total.ge(100)
+    )
+    try:
+        for pair in ((1, 20), (2, 500), (3, 90), (4, 250)):
+            m.add(S.order(*pair))
+    finally:
+        sub.cancel()
+    assert [str(atom) for atom in seen] == ["(order 2 500)", "(order 4 250)"]
+
+    # Queue mode passes the same point, so it drops the same events.
+    queued = m.subscribe(S.ticket(V.n), where=V.n.ge(3))
+    try:
+        for n in (1, 5, 2, 7):
+            m.add(S.ticket(n))
+        assert [str(event.atom) for event in queued.drain()] == [
+            "(ticket 5)",
+            "(ticket 7)",
+        ]
+    finally:
+        queued.cancel()
