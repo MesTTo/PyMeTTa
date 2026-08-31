@@ -253,15 +253,6 @@
     },
     {
       "kind": "friction",
-      "example": "examples/ch07-control-flow/07-03-let-and-sequencing/08-sealed.metta",
-      "form": null,
-      "missing": "answers that carry different variables arriving in Python under different names",
-      "row": "P14.4",
-      "section": "\u00a74 surface gaps",
-      "detail": "Each answer atom is decoded with its own variable numbering, so two answers that carry DIFFERENT variables arrive under one name and the difference is unobservable from Python. Measured 2026-08-22: the match over two separately sealed rules answers `[($_716 ok), ($_716 ok)]` through `m.eval` and `m.query` alike, while collapsing it first answers `(($_1732 ok) ($_1714 ok))`. The twin therefore collapses in the engine, which works, but the general shape, an Answers view whose variable identities are consistent across the set, is what the surface owes. Sibling of the dissolution-table entry on this file."
-    },
-    {
-      "kind": "friction",
       "example": "examples/ch06-many-answers/04-supercollapse.metta",
       "form": null,
       "missing": "`superpose(*xs)`, the star form that fans a BOUND expression in expression position",
@@ -5368,6 +5359,16 @@
       "section": "\u00a79b the space handle carries every context-relative door",
       "detail": "Measured 2026-08-23. A twin is handed a `Space`, and `m.space(name)` is deleted, so creating a second named space goes through the root factory `metta.space(name)`, which rides `metta.engine()`: a DIFFERENT `MeTTa` object from the one holding `m` (`metta.engine() is a` answers False for the twin's own context). The two reach the same store only because the SWI runtime is process-wide (`a.runtime is b.runtime` answers True for two `MeTTa()` objects), so the coupling is an accident of the substrate rather than a stated law. Also used by integration/c_space/c_space.py. A creation door reachable from a handle would close it. RESOLVED 2026-08-30: Space.metta now BORROWS the handle's space as a context home (two accesses compare equal), so m.space(...) via handle.metta.space(...) creates in the handle's own context, and MeTTa() contexts are isolated with the home supplying only the equation tier.",
       "retired": "2026-08-25: Space.metta answers the owning evaluation context, so m.metta.space(name) is the ruled creation door on the handle's own context and the twin creates both spaces through it (commit 33456a98)."
+    },
+    {
+      "kind": "friction",
+      "example": "examples/ch07-control-flow/07-03-let-and-sequencing/08-sealed.metta",
+      "form": null,
+      "missing": "answers that carry different variables arriving in Python under different names",
+      "row": "P14.4",
+      "section": "\u00a74 surface gaps",
+      "detail": "Each answer atom is decoded with its own variable numbering, so two answers that carry DIFFERENT variables arrive under one name and the difference is unobservable from Python. Measured 2026-08-22: the match over two separately sealed rules answers `[($_716 ok), ($_716 ok)]` through `m.eval` and `m.query` alike, while collapsing it first answers `(($_1732 ok) ($_1714 ok))`. The twin therefore collapses in the engine, which works, but the general shape, an Answers view whose variable identities are consistent across the set, is what the surface owes. Sibling of the dissolution-table entry on this file.",
+      "retired": "2026-08-31: the Python binding's wire names are no longer the cell's stack offset. A fresh name comes from a session counter and is recorded in the map the crossing is encoded under, so two answers that carry different variables arrive under different names through m.eval and the row door alike. The measurement in `detail` reproduces on the previous binding and not on this one: `($_56584 ok)` twice before, `($_1 ok)` and `($_2 ok)` after [tested: test_two_answers_carrying_different_variables_arrive_under_different_names, test_two_rows_carrying_different_variables_stay_different]."
     }
   ]
 }

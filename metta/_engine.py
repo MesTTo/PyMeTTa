@@ -760,6 +760,17 @@ class Runtime:
         threads. MeTTa.stream() is that door in-process and
         RemoteSpace.stream() is the same lifecycle over the wire. A
         shim-side findall would only move the drain, not remove it.
+
+        JANUS CARRIES EVERY NAMED VARIABLE OF `goal` BOTH WAYS, taking it from
+        `inputs` and converting it back on the way out, so one still unbound
+        when the goal succeeds raises `Arguments are not sufficiently
+        instantiated` from that conversion rather than from the goal. The
+        message names neither, so it reads as a Prolog instantiation error
+        somewhere inside the goal. A variable used only inside a findall
+        counts: it is still a goal variable and the findall leaves it unbound.
+        Give a leading underscore to anything not wanted back
+        [measured 2026-08-31: `X = 1, freeze(Y, true)` raises, while
+        `X = 1, freeze(_Y, true)` answers `{X, truth}`].
         """
         with self._thread_lock() or _LOCK:
             try:

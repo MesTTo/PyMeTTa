@@ -896,13 +896,18 @@ def _renamed_apart(atom) -> str:
 
 
 def _same_atom(left, right) -> bool:
-    """Atom equality as the engine sees it, by printed form.
+    """Atom equality as the engine sees it, by printed form RENAMED APART.
 
     A variable's NAME does not survive storage, so comparing atoms that carry
     variables by identity fails for the wrong reason. The printed form is what
-    a provider author can reason about.
+    a provider author can reason about, and `_renamed_apart` above is what
+    makes that form answerable: the same stored atom crossing twice is named
+    twice, so the raw spelling differed for a variable that never changed and
+    a sound provider read as an unsound one. Renaming by first occurrence is
+    the same normalisation the enumeration check already applies; for a ground
+    atom it changes nothing.
     """
-    return str(left) == str(right)
+    return _renamed_apart(left) == _renamed_apart(right)
 
 
 def _comparable(value):

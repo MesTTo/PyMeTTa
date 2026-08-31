@@ -938,6 +938,59 @@ def test_a_bare_runnable_atom_answers_a_group(m):
     assert isinstance(variable_groups[0][0], Variable)
 
 
+def test_two_answers_carrying_different_variables_arrive_under_different_names(metta):
+    """Two sealed rules are two identities, and Python has to be able to see it.
+
+    Each answer crosses on its own, and a wire name used to be the cell's
+    stack offset, so two answers built in two frames at one offset arrived
+    under one name and the difference was unobservable from Python: the
+    residue ledger recorded `[($_716 ok), ($_716 ok)]` for exactly this match
+    (P14.4, measured 2026-08-22), while collapsing it first, which gathers in
+    the engine and crosses once, answered two names. A fresh name now comes
+    from a session counter, so the two doors agree
+    [measured 2026-08-31: `($_56584 ok)` twice before, `($_1 ok)` and
+    `($_2 ok)` after].
+    """
+    metta.run("!(let $r (sealed () (sealed-pair $v ok)) (add-atom &self $r))")
+    metta.run("!(let $r (sealed () (sealed-pair $v ok)) (add-atom &self $r))")
+
+    answers = list(
+        metta.eval(metta.parse("(match &self (sealed-pair $x $y) ($x $y))"))
+    )
+    assert len(answers) == 2
+    left, right = (answer.children[0] for answer in answers)
+    assert isinstance(left, Variable)
+    assert isinstance(right, Variable)
+    assert left != right
+
+    # Collapsing gathers in the engine and crosses once, which always kept
+    # them apart; the two doors now agree rather than disagreeing.
+    (collapsed,) = metta.eval(
+        metta.parse("(collapse (match &self (sealed-pair $x $y) ($x $y)))")
+    )
+    gathered = [pair.children[0] for pair in collapsed.children]
+    assert gathered[0] != gathered[1]
+
+
+def test_two_rows_carrying_different_variables_stay_different(metta):
+    """The row door owes the same distinctness the answer door does.
+
+    A row's columns share one map, so a variable in two columns is one
+    variable; the map is not seeded with the QUERY's variable names, because
+    those say which column rather than which cell and are the same in every
+    row, which would make two rows' distinct variables one
+    [measured 2026-08-31: seeded, two separately sealed rules both answered
+    `$x`].
+    """
+    metta.run("!(let $r (sealed () (row-pair $v ok)) (add-atom &self $r))")
+    metta.run("!(let $r (sealed () (row-pair $v ok)) (add-atom &self $r))")
+
+    rows = list(metta.match(S["row-pair"](V.x, V.y)))
+    assert len(rows) == 2
+    assert all(isinstance(row.x, Variable) for row in rows)
+    assert rows[0].x != rows[1].x
+
+
 def test_variable_names_survive_to_the_printer(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     free, repeated, first_epoch, second_epoch = m.run(
         "! $free\n"

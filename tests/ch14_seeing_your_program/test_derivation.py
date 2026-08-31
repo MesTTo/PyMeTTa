@@ -7,8 +7,8 @@ Open Obligations:
 
 import pytest
 
-from metta import Expression, S, V
-from metta.derivation import Builtin, Derivation, Fact, Truncated
+from metta import Expression, S, V, Variable
+from metta.derivation import Builtin, Derivation, Fact, Step, Truncated
 from metta.errors import InferenceLimitError
 
 
@@ -249,6 +249,39 @@ def test_a_recursive_proof_omits_the_engine_stack_charge(metta):
         S["par-c"](S.Tom, S.Bob),
         S["par-c"](S.Bob, S.Ann),
     }
+
+
+def test_a_recursive_proofs_equation_keeps_one_variable_per_source_variable(metta):
+    """One $n in the source is one variable in every instance that fired.
+
+    The tree crosses as wire terms, and the sharing decoder rebuilds one
+    variable per NAME, so an equation whose occurrences crossed under two
+    names comes back holding two. Its consumer then binds the call through
+    one of them and the other stays free: (fact-r 3) read
+    (= (fact-r $_17642) (if (> $_17642 0) (* $_17642 (fact-r (- $_2528 1))) 1))
+    and substituting 3 left (- $_2528 1), which is not a term the engine can
+    evaluate. metta_py_encode_tree/4 names the tree's variables once, from
+    term_variables/2, so an occurrence cannot pick up a second name.
+    """
+    metta.run("(= (fact-r $n) (if (> $n 0) (* $n (fact-r (- $n 1))) 1))")
+    (proof,) = metta.derivation(S["fact-r"](3))
+
+    steps = [node for node in _walk_nodes(proof.children) if isinstance(node, Step)]
+    assert len(steps) >= 4
+    for step in steps:
+        assert len(_variable_names(step.equation)) == 1
+
+
+def _variable_names(atom):
+    names = set()
+
+    def visit(item):
+        if isinstance(item, Variable):
+            names.add(item.name)
+        return item
+
+    atom.map(visit)
+    return names
 
 
 def _walk_nodes(nodes):

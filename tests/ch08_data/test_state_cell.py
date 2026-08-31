@@ -103,8 +103,8 @@ def test_a_state_cell_is_a_value_typed_by_what_it_holds() -> None:
     metta.run("!(change-state! statecell-named 9)")
     assert _answers(metta, "!(get-state statecell-named)") == ["9"]
 
-    # And a bare symbol still names a cell nothing allocated, which is what
-    # lib/lib_llm/lib_llm.metta writes.
+    # And a bare symbol still names a cell nothing allocated, which is the
+    # older spelling a library may write without allocating first.
     metta.run("!(change-state! &statecell-plain 3)")
     assert _answers(metta, "!(get-state &statecell-plain)") == ["3"]
 

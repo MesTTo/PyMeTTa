@@ -143,6 +143,26 @@
 %     sharing an anonymous one, and a malformed wire term fails rather than
 %     decoding to something [tested 2026-08-16: shim_wire_decoding,
 %     shim_wire_variable_sharing in tests/prolog/suites/host/shim.plt]
+%   - A wire name is FIRST-OCCURRENCE POSITIONAL over the term being encoded,
+%     so one cell spends one name however many times it occurs and two cells
+%     never share one. It used to be the cell's printed form, which SWI
+%     derives from a stack offset that moves under a collection and is reused
+%     after one, so a term and a copy of it that differed only in where its
+%     cells live crossed differently [tested 2026-08-31:
+%     shim_wire_variable_sharing:a_variable_shared_by_a_parent_equation_and_a_child_goal_spends_one_name,
+%     shim_wire_variable_sharing:one_variable_in_two_columns_crosses_under_one_name,
+%     shim_wire_variable_sharing:two_crossings_do_not_share_a_name_between_distinct_variables]
+%     Each of those goes red when the name minter is replaced by the printed
+%     form this paragraph describes, and ten of that file's forty-nine tests
+%     do; measured by planting it on 2026-08-31.
+%   - A reply is decoded against the map its crossing was ENCODED under, never
+%     against one rebuilt afterwards, so a returned variable is the caller's
+%     variable whatever the stack did in between. One call's arguments encode
+%     under one map, and an inverse's answered tuple decodes under one table
+%     [tested 2026-08-31:
+%     shim_answer_form:two_arguments_do_not_share_a_name_between_distinct_variables,
+%     shim_answer_form:one_variable_in_two_arguments_crosses_under_one_name,
+%     test_an_inverse_answers_one_variable_in_two_positions]
 %   - A payload outside the class its tag names fails as a malformed shape
 %     does, so a tag is a claim about its payload rather than a label
 %     [tested 2026-08-20:
@@ -302,10 +322,30 @@
 %NOT reach here. Sending it was measured breaking round-trip identity
 %(a variable through a registered op stopped unifying home) and aliasing
 %distinct answer variables that shared a spelling.
-metta_py_encode(T, ["v", Name]) :- var(T), !, term_to_atom(T, A), atom_string(A, Name).
-metta_py_encode(T, ["n", T])    :- number(T), !.
-metta_py_encode(T, ["g", T])    :- string(T), !.
-metta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
+%A wire name is FIRST-OCCURRENCE POSITIONAL, the numbering engine/writer.c
+%and numbervars/3 already give a term's variables. It used to be the printed
+%form, and SWI prints an unbound variable as its STACK OFFSET:
+%  if (p > (Word) lBase) iref = ((Word)p - (Word)lBase)*2+1;
+%  else                  iref = ((Word)p - (Word)gBase)*2;
+%  Ssprintf(name, "_%lld", (int64_t)iref);
+%[source: swipl-9.3.33/src/pl-write.c:127-140, var_name_ptr()]. An offset
+%moves when the cell moves and is handed to whatever lands there next, so the
+%spelling broke this contract in both directions: one cell answered _9162
+%before a collection and _32 after [measured 2026-08-31], which crossed one
+%variable under two names, and a reused offset gives two variables one name.
+%A five-deep (fact 5) proof crossed as
+%  (= (fact $_17642) (if (> $_17642 0) (* $_17642 (fact (- $_2528 1))) 1))
+%whose free $_2528 is not the variable the head binds.
+%
+%The map is THREADED rather than pre-built, so a term holding no variable
+%pays only for passing it and a name is minted the first time its cell is
+%met. metta_py_encode/2 remains the door every caller uses.
+metta_py_encode(Term, Wire) :- metta_py_encode(Term, [], _, Wire).
+
+metta_py_encode(T, N0, N, ["v", Name]) :- var(T), !, metta_py_wire_name(T, N0, N, Name).
+metta_py_encode(T, N, N, ["n", T])    :- number(T), !.
+metta_py_encode(T, N, N, ["g", T])    :- string(T), !.
+metta_py_encode(T, N, N, ["b", T])    :- ( T == true ; T == false ), !.
 %WHICH QUESTION THE `p` TAG ASKS, asked of the engine rather than answered
 %here. `p` is a SPECIES tag: what it decodes into is a Space where `s` decodes
 %into a Symbol, so the question is the one the engine's own species classifier
@@ -338,20 +378,20 @@ metta_py_encode(T, ["b", T])    :- ( T == true ; T == false ), !.
 %test costs 6 inferences on an ordinary symbol and 5 on '&self'
 %[measured 2026-08-27, 100,000 iterations against a bare loop of 100,002:
 %700,002 for a non-space atom, 600,002 for '&self'].
-metta_py_encode(T, ["p", S]) :- atom(T), metta_space_operand(T), !, atom_string(T, S).
-metta_py_encode(T, ["s", S])    :- atom(T), !, atom_string(T, S).
-metta_py_encode(T, ["o", T])    :- py_is_object(T), !.
-metta_py_encode(T, ["e", Es])   :- is_list(T), !, maplist(metta_py_encode, T, Es).
-metta_py_encode([H|T], ["e", [["s", "cons"], EH, ET]]) :- !,
-    metta_py_encode(H, EH),
-    metta_py_encode(T, ET).
+metta_py_encode(T, N, N, ["p", S]) :- atom(T), metta_space_operand(T), !, atom_string(T, S).
+metta_py_encode(T, N, N, ["s", S])    :- atom(T), !, atom_string(T, S).
+metta_py_encode(T, N, N, ["o", T])    :- py_is_object(T), !.
+metta_py_encode(T, N0, N, ["e", Es])  :- is_list(T), !, metta_py_encode_each(T, N0, N, Es).
+metta_py_encode([H|T], N0, N, ["e", [["s", "cons"], EH, ET]]) :- !,
+    metta_py_encode(H, N0, N1, EH),
+    metta_py_encode(T, N1, N, ET).
 %Janus's default tuple translation is -/N. It is the carrier for a structural
 %MeTTa expression here, not a callable named `-`; a Grounded tuple never
 %reaches this clause because its Python reference is claimed above.
-metta_py_encode(T, ["e", Es]) :-
+metta_py_encode(T, N0, N, ["e", Es]) :-
     metta_py_tuple_arguments(T, Raw), !,
     maplist(metta_py_result, Raw, Elements),
-    maplist(metta_py_encode, Elements, Es).
+    metta_py_encode_each(Elements, N0, N, Es).
 %A non-list compound encodes as (f a b). compound_name_arguments/3 rather
 %than =../2, because =.. RAISES on a ZERO-ARITY compound and janus hands us
 %one for every empty Python tuple: py_call(builtins:tuple(), X) binds X to
@@ -361,12 +401,12 @@ metta_py_encode(T, ["e", Es]) :-
 %and only through the LIBRARY: the engine has its own writer and never ran
 %this clause, so no lane saw it [source: ai-audit-md-review.md section 4].
 %
-metta_py_encode(T, ["e", [["s", FS] | Es]]) :-
+metta_py_encode(T, N0, N, ["e", [["s", FS] | Es]]) :-
     compound(T),
     compound_name_arguments(T, F, Args),
     atom(F), !,
     atom_string(F, FS),
-    maplist(metta_py_encode, Args, Es).
+    metta_py_encode_each(Args, N0, N, Es).
 %Anything else (a blob, a dict) is carried as text, the printer's last resort:
 %A native handle (a C blob) crosses as a registry reference plus its own
 %printed text, so Python holds it opaquely and can hand back the very
@@ -380,25 +420,63 @@ metta_py_encode(T, ["e", [["s", FS] | Es]]) :-
 %a handle, caught by the wire round-trip property over Expr('()'). A
 %blob is atomic, so nothing above claims one: atom/1 is false for
 %non-text blobs, and the compound clause needs compound/1.
-metta_py_encode(T, ["h", Id, S]) :- blob(T, Type), Type \== text, T \== [], !,
+metta_py_encode(T, N, N, ["h", Id, S]) :- blob(T, Type), Type \== text, T \== [], !,
     metta_py_handle_keep(T, Id),
     term_string(T, S).
-metta_py_encode(T, ["g", S]) :- term_string(T, S).
+metta_py_encode(T, N, N, ["g", S]) :- term_string(T, S).
 
-%Encode with an explicit Name-Var list, so parsed variables keep their names:
-metta_py_encode_named(T, Pairs, ["v", Name]) :-
-    var(T), !,
-    ( metta_py_var_name(Pairs, T, N) -> atom_string(N, Name)
-    ; term_to_atom(T, A), atom_string(A, Name) ).
-metta_py_encode_named(T, Pairs, ["e", Es]) :-
-    is_list(T), !,
-    metta_py_encode_named_list(T, Pairs, Es).
-metta_py_encode_named(T, _, W) :- metta_py_encode(T, W).
+metta_py_encode_each([], N, N, []).
+metta_py_encode_each([T|Ts], N0, N, [E|Es]) :-
+    metta_py_encode(T, N0, N1, E),
+    metta_py_encode_each(Ts, N1, N, Es).
 
-metta_py_encode_named_list([], _, []).
-metta_py_encode_named_list([T|Ts], Pairs, [E|Es]) :-
-    metta_py_encode_named(T, Pairs, E),
-    metta_py_encode_named_list(Ts, Pairs, Es).
+%The name this cell already has, or a fresh one. Compared by ==, because
+%identity of a Prolog variable is only answerable by comparison
+%[source: engine/writer.c, METTA_WRITER_VARS], which is why this scan and
+%writer.c's are both linear in the count of DISTINCT variables a term holds.
+metta_py_wire_name(Variable, Names0, Names, Name) :-
+    (   metta_py_var_name(Names0, Variable, Found)
+    ->  Names = Names0,
+        atom_string(Found, Name)
+    ;   metta_py_fresh_name(Names0, Fresh),
+        Names = [Fresh-Variable|Names0],
+        atom_string(Fresh, Name)
+    ).
+
+%A fresh name comes from a SESSION counter, not from this term's own count.
+%Both halves of the contract have to hold at once and they pull apart:
+%  - within a crossing, one cell is one name, which is what the MAP gives and
+%    what the printed form could not, because a collection moves the offset it
+%    is made of;
+%  - across crossings, two cells are never one name, which is what the COUNTER
+%    gives. A host atom compares by spelling, so two variables answered by two
+%    separate matches and then put in one expression would be one variable if
+%    each crossing had started its own numbering at _0 [measured 2026-08-31:
+%    `(p (f $x))` and `(p (g $y))` answered `(f $_0)` and `(g $_0)`].
+%Numbering per term satisfies the first and breaks the second; the address did
+%the reverse. gensym/2 is the counter the cut barriers below already use.
+%
+%The seeded names are stepped over: a caller may seed the map with the
+%reader's own spellings, and $_3 is one a program is allowed to write.
+metta_py_fresh_name(Names, Name) :-
+    gensym('_', Candidate),
+    (   memberchk(Candidate-_, Names)
+    ->  metta_py_fresh_name(Names, Name)
+    ;   Name = Candidate
+    ).
+
+%Encode with an explicit Name-Var list, so parsed variables keep their names.
+%The list SEEDS the same map every encode threads, so a variable the seed
+%does not name is minted beside the named ones rather than through a second
+%naming rule that could disagree with them.
+metta_py_encode_named(T, Pairs, W) :- metta_py_encode(T, Pairs, _, W).
+
+%Every argument of one call under ONE map, and the map itself, because the
+%reply is decoded against it. Encoding argument by argument would restart the
+%numbering at each one, so two DISTINCT variables in two arguments would both
+%be named _0 and the decoder would share them into one.
+metta_py_encode_arguments(Arguments, Encoded, Names) :-
+    metta_py_encode_each(Arguments, [], Names, Encoded).
 
 metta_py_var_name([N-V|_], T, N) :- V == T, !.
 metta_py_var_name([_|Pairs], T, N) :- metta_py_var_name(Pairs, T, N).
@@ -517,8 +595,7 @@ metta_py_decode_shared_tagged(v, [Name0], Var,
     ( Name == '_' -> Var = _, B = B0
     ; ht_get(Index, Name, Shared) -> Var = Shared, B = B0
     ; ht_put(Index, Name, Var), B = [Name-Var|B0] ).
-metta_py_decode_shared_tagged(v, [Name0], Var, B0, B) :- !,
-    metta_py_shared_table(B0, Table),
+metta_py_decode_shared_tagged(v, [Name0], Var, Table, B) :- !,
     %The atom branch carries the payload check with it: a name arriving as
     %anything but text has no identity to share by, and testing it here
     %rather than ahead of the table keeps the check on a branch that was
@@ -540,18 +617,17 @@ foldl_decode([E|Es], [T|Ts], B0, B) :-
     metta_py_decode_shared_(E, T, B0, B1),
     foldl_decode(Es, Ts, B1, B).
 
-%A seed table is built on FIRST USE, and only this clause ever uses one. An
-%operation dispatch seeds the decode with variables_of(Args) so a returned
-%variable resolves to the argument variable it came from, and nearly every
-%call has ground arguments and a result with no variable in it. Building the
-%table eagerly put a ground/1 walk on all of them, one inference on a
-%thirteen-inference call, for a table nothing was going to read
-%[measured 2026-08-17: the encoded operation went 13.01 to 14.01 eager, and
-%back to 13.01 this way]. A result with no variable never reaches here.
-metta_py_shared_table(variables_of(Args), Table) :- !,
-    term_variables(Args, Variables),
-    maplist(metta_py_named_variable, Variables, Table).
-metta_py_shared_table(Table, Table).
+%THE SEED TABLE IS GONE, and with it the reason a decode had to be handed
+%something to expand. It rebuilt the argument variables' names AFTER the
+%crossing, while the names Python was given had been written BEFORE it, and a
+%name was the cell's stack offset: a collection anywhere in encode-call-decode
+%renamed the very variables the table existed to find, so a returned variable
+%stopped resolving to the caller's. metta_py_encode_arguments/3 hands back the
+%map it wrote and the decode is given that map, so the two sides cannot name
+%one cell differently and nothing is built a second time. The laziness this
+%replaces was worth one inference on a thirteen-inference call
+%[measured 2026-08-17]; threading costs a call with no variable nothing at
+%all, because the map stays [] and no name is ever minted.
 
 % A wide query retains first-appearance pairs for acyclicity and answer
 % semantics while using a backtrackable hash table for variable identity and
@@ -633,9 +709,10 @@ metta_py_answer_bounded(Residue, _, Pattern) :-
 %reference the query's variables and each other while unknown names stay
 %fresh, and unify. A failing unification drops the ANSWER, exactly as a
 %candidate that does not unify is dropped, and is equally sound.
-metta_py_answer_theta(Pairs, Seed, Table) :-
-    term_variables(Seed, Variables),
-    maplist(metta_py_named_variable, Variables, Table0),
+%Table0 is the map the encoder wrote for the term this answer replies to,
+%so theta's bindings extend the caller's own variables rather than a second
+%naming of them.
+metta_py_answer_theta(Pairs, Table0, Table) :-
     foldl(metta_py_answer_binding, Pairs, Table0, Table).
 
 metta_py_answer_binding([NameW, ValueW], Table0, Table) :-
@@ -649,36 +726,47 @@ metta_py_answer_binding([NameW, ValueW], Table0, Table) :-
 %explicit form applies theta to the pattern's variables; its value, when
 %present, is the candidate-with-bindings reading and unifies under them,
 %and its residue closes through the engine, one answer per closure.
-metta_py_answer_match(Item, Pattern, Ctx) :-
-    metta_py_answer_match(Item, Pattern, '@'(none), Ctx).
-metta_py_answer_match(Item, Pattern, Limit, Ctx) :-
+metta_py_answer_match(Item, Pattern, Table0, Ctx) :-
+    metta_py_answer_match(Item, Pattern, '@'(none), Table0, Ctx).
+metta_py_answer_match(Item, Pattern, Limit, Table0, Ctx) :-
     (   metta_py_answer_form(Item, Theta, Residue, K, ValueW)
     ->  metta_py_answer_kappa(K, Ctx),
         metta_py_answer_bounded(Residue, Limit, Pattern),
-        metta_py_answer_theta(Theta, Pattern, Table),
+        metta_py_answer_theta(Theta, Table0, Table),
         (   ValueW = value(VW)
         ->  metta_py_decode_shared_(VW, Value, Table, _),
             Pattern = Value
         ;   true
         ),
         metta_py_answer_close(Residue, Table)
-    ;   metta_py_decode_shared(Item, Candidate, _),
+    ;   %The crossing's own map, so a reply's names mean one thing on both
+        %branches rather than the map here and a fresh table there. It changes
+        %no answer, and that is a measurement rather than an expectation: a
+        %candidate that repeats the crossing's own name, one that invents a
+        %name, a ground one and one that echoes the variable it was handed all
+        %answer identically either way [measured 2026-08-31, four providers
+        %against (match &probe (edge a $y) $y)]. The unification below is why:
+        %a plain candidate is unified with the pattern immediately, which
+        %aliases exactly what resolving the names would have. Unlike the theta
+        %branch, where the value is returned rather than unified and the map is
+        %the only link, this branch cannot go wrong either way.
+        metta_py_decode_shared_(Item, Candidate, Table0, _),
         Pattern = Candidate
     ).
 
 %One result of an operation dispatch: the explicit form binds the CALL's
 %variables and reduces to its value, () when none, the relational
 %reading; a plain wire is the value itself, decoded with the lazy seed.
-metta_py_answer_result(Item, Name, Args, Result) :-
+metta_py_answer_result(Item, Name, Table0, Result) :-
     (   metta_py_answer_form(Item, Theta, Residue, K, ValueW)
     ->  metta_py_answer_kappa(K, Name),
-        metta_py_answer_theta(Theta, Args, Table),
+        metta_py_answer_theta(Theta, Table0, Table),
         (   ValueW = value(VW)
         ->  metta_py_decode_shared_(VW, Result, Table, _)
         ;   Result = []
         ),
         metta_py_answer_close(Residue, Table)
-    ;   metta_py_decode_shared_(Item, Result, variables_of(Args), _)
+    ;   metta_py_decode_shared_(Item, Result, Table0, _)
     ).
 
 :- multifile prolog:error_message//1.
@@ -2239,19 +2327,41 @@ metta_py_row(Names, Bindings, Row) :-
     ( acyclic_term(Bindings) -> true ; metta_py_wire_refuse ),
     metta_py_row_columns(Names, Bindings, Row).
 
-metta_py_row_columns([], _, []).
-metta_py_row_columns([Name0|Names], Bindings, [Value|Values]) :-
-    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    ( memberchk(Name-V, Bindings) -> metta_py_encode(V, Value)
-    ; Value = ["v", Name0] ),
-    metta_py_row_columns(Names, Bindings, Values).
+%A ROW IS ONE CROSSING, so its columns share one name map: a variable in two
+%columns has to come back as one variable, and two variables must never come
+%back as one. Encoding column by column restarted the numbering at each, which
+%named the first variable of every column alike; (= $head $body) then answered
+%a head and a body whose distinct variables had collided, and the equation read
+%back with its head variable merged into a let* binder
+%[tested: test_a_twin_stores_the_equations_its_comments_claim].
+%
+%The map is NOT seeded with the query's variable names. Seeding it reads
+%well and is wrong: a column bound to a VARIABLE would then cross under the
+%caller's spelling, which is the same spelling in every row, so two rows'
+%distinct variables would arrive as one [measured 2026-08-31: two separately
+%sealed rules both answered $x]. A caller's name says which column, not which
+%cell. Only a column the match did not bind at all keeps it, below, and that
+%names no cell to collide with.
+metta_py_row_columns(Names, Bindings, Row) :-
+    metta_py_row_columns(Names, Bindings, [], Row).
 
-metta_py_row_indexed([], _, []).
-metta_py_row_indexed([Name0|Names], Index, [Value|Values]) :-
+metta_py_row_columns([], _, _, []).
+metta_py_row_columns([Name0|Names], Bindings, N0, [Value|Values]) :-
     ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
-    ( ht_get(Index, Name, V) -> metta_py_encode(V, Value)
-    ; Value = ["v", Name0] ),
-    metta_py_row_indexed(Names, Index, Values).
+    ( memberchk(Name-V, Bindings) -> metta_py_encode(V, N0, N1, Value)
+    ; Value = ["v", Name0], N1 = N0 ),
+    metta_py_row_columns(Names, Bindings, N1, Values).
+
+metta_py_row_indexed(Names, Index, Row) :-
+    metta_py_row_indexed(Names, Index, [], Row).
+
+metta_py_row_indexed([], _, _, []).
+metta_py_row_indexed([Name0|Names], Index, N0, [Value|Values]) :-
+    ( atom(Name0) -> Name = Name0 ; atom_string(Name, Name0) ),
+    ( ht_get(Index, Name, V) -> metta_py_encode(V, N0, N1, Value)
+    ; Value = ["v", Name0], N1 = N0 ),
+    metta_py_row_indexed(Names, Index, N1, Values).
+
 
 %%%%%%%%%% Space modules %%%%%%%%%%
 %
@@ -2754,8 +2864,11 @@ metta_py_declined(TR) :- TR = [T, D], metta_py_tag(T, x), metta_py_tag(D, declin
 %The decoder already shares by name WITHIN one term, which is what makes an
 %answer mentioning $x twice mention one variable. It just started from an
 %empty table. Seeding it with the arguments is the whole fix, and the seed is
-%expanded on first use by metta_py_shared_table/2, so a call whose result
-%holds no variable pays nothing at all for it.
+%now the very map metta_py_encode_arguments/3 wrote for those arguments
+%rather than one rebuilt from them afterwards: rebuilding read the cells'
+%addresses a whole Python crossing later, by which time a collection could
+%have moved them. A call whose arguments hold no variable seeds an empty map
+%and mints nothing, so it still pays nothing at all for this.
 %metta_py_failure/2 is extensions/python/bridge.pl's, and a registered operation was the one
 %Python caller not reaching it. That is not a cosmetic gap: without it janus's
 %own error term reaches MeTTa carrying the live exception OBJECT and a live
@@ -2803,7 +2916,7 @@ metta_py_dispatch_truthy(Value, Result) :-
     metta_py_dispatch_det('py-truthy', [Value], Result).
 
 metta_py_dispatch_det(Name, Args, Result) :-
-    maplist(metta_py_encode, Args, TA),
+    metta_py_encode_arguments(Args, TA, Table),
     catch(metta_py_host_call(Name, metta_py_call_det(Name, TA, TR)),
           Error, TR = '$metta_op_error'(Error)),
     (   TR = '$metta_op_error'(DetError)
@@ -2817,8 +2930,8 @@ metta_py_dispatch_det(Name, Args, Result) :-
         %baseline through a metta_py_dispatch_det_result/4 helper, and
         %54248 written out].
         (   TR = [_, _, _, _|_]
-        ->  metta_py_answer_result(TR, Name, Args, Result)
-        ;   metta_py_decode_shared_(TR, Result, variables_of(Args), _)
+        ->  metta_py_answer_result(TR, Name, Table, Result)
+        ;   metta_py_decode_shared_(TR, Result, Table, _)
         )
     ).
 
@@ -2935,7 +3048,7 @@ metta_py_dirty_many_event(throw(Error), _, _) :-
 %therefore rides the transaction's ordinary buffered event segment, while the
 %landing atom below is a later write from the event-loop thread.
 metta_py_dispatch_async(Name, Args, Space) :-
-    maplist(metta_py_encode, Args, Tagged),
+    metta_py_encode_arguments(Args, Tagged, _),
     metta_async_future_new(Space, Done),
     (   catch(metta_py_async_prepare(Name, Tagged, Space, Done, Token),
               Error,
@@ -3127,7 +3240,7 @@ metta_py_native_truth_class(expression, Value, Result) :-
 %on the third [measured 2026-08-17: catch/3 over member/2 gives all three
 %solutions, and a throw on the last one is caught].
 metta_py_dispatch_many(Name, Args, Result) :-
-    maplist(metta_py_encode, Args, TA),
+    metta_py_encode_arguments(Args, TA, Table),
     (   metta_on_error_mode(Name, [Name|Args], DeclaredMode),
         DeclaredMode \== abort
     ->  Mode = DeclaredMode
@@ -3142,10 +3255,10 @@ metta_py_dispatch_many(Name, Args, Result) :-
     ;   metta_py_stream_error(TR, StreamError)
     ->  metta_py_failure([Name|Args], StreamError)
     ;   metta_py_relation_form(TR, Fields)
-    ->  metta_py_relation_result(Fields, Args, Result)
+    ->  metta_py_relation_result(Fields, Args, Table, Result)
     ;   TR = [_, _, _, _|_]
-    ->  metta_py_answer_result(TR, Name, Args, Result)
-    ;   metta_py_decode_shared_(TR, Result, variables_of(Args), _)
+    ->  metta_py_answer_result(TR, Name, Table, Result)
+    ;   metta_py_decode_shared_(TR, Result, Table, _)
     ).
 
 %Python cannot raise from inside py_iter/2 without Janus replacing the real
@@ -3169,8 +3282,8 @@ metta_py_stream_error([Tag, Raise, Class0, Exception],
 metta_py_relation_form([Tag, Fields], Fields) :-
     metta_py_tag(Tag, r).
 
-metta_py_relation_result(Fields, Args, []) :-
-    metta_py_relation_fields(Fields, Args, variables_of(Args), _).
+metta_py_relation_result(Fields, Args, Table, []) :-
+    metta_py_relation_fields(Fields, Args, Table, _).
 
 metta_py_relation_fields(Fields, Args, Table0, Table) :-
     metta_py_relation_fields(Fields, Args, 0, Table0, Table).
@@ -3210,10 +3323,6 @@ metta_py_op_erring(Name, Args, Error, Result) :-
         )
     ;   metta_py_failure([Name|Args], Error)
     ).
-
-%The name metta_py_encode/2 wrote for a variable, so a returned ["v", Name]
-%finds the variable it came from.
-metta_py_named_variable(Variable, Name-Variable) :- term_to_atom(Variable, Name).
 
 %Raw results skip the wire encoding, so a Python boolean arrives as janus's
 %@(true)/@(false); normalize to the language booleans exactly as 'py-call'
@@ -3456,13 +3565,13 @@ metta_py_raw_kind(raw_many).
 %author's own Python and a tuple of the wrong width would otherwise unify
 %against nothing and read as "no solution" rather than as the mistake it is.
 metta_py_dispatch_inverse(Name, Result, Args) :-
-    metta_py_encode(Result, TR),
+    metta_py_encode(Result, [], Table, TR),
     catch(metta_py_host_call(
               Name,
               metta_py_call_inverse(Name, TR, TArgs)),
           Error, metta_py_failure([Name, Result], Error)),
     metta_py_inverse_width(Name, Args, TArgs),
-    maplist(metta_py_decode_one, TArgs, Args).
+    metta_py_decode_arguments(TArgs, Table, Args).
 
 metta_py_dispatch_inverse_raw(Name, Result, Args) :-
     catch(metta_py_host_call(
@@ -3492,7 +3601,17 @@ metta_py_inverse_width(Name, Args, Answered) :-
     ;   metta_py_inverse_arity_error(Name, Arity, Answered)
     ).
 
-metta_py_decode_one(Tagged, Term) :- metta_py_decode_shared(Tagged, Term, _).
+%ONE table across the answered tuple, seeded with the map the result was
+%encoded under. Decoding argument by argument started an empty table at each
+%one, so a variable an inverse put in two positions came back as two
+%variables, and a variable it took from the RESULT came back as neither the
+%result's nor its own. Nothing unifies these afterwards the way a match
+%candidate is unified with its pattern: Args is bound from the decode and
+%that is the answer.
+metta_py_decode_arguments([], _, []).
+metta_py_decode_arguments([Tagged|Rest], Table0, [Term|Terms]) :-
+    metta_py_decode_shared_(Tagged, Term, Table0, Table),
+    metta_py_decode_arguments(Rest, Table, Terms).
 
 metta_py_inverse_arity_error(Name, Arity, TArgs) :-
     ( is_list(TArgs) -> length(TArgs, Got) ; Got = 1 ),
@@ -3984,23 +4103,92 @@ metta_py_leaf(_, Goal, [builtin(Goal)]).
 %  (derivation Conclusion Steps...) with each step
 %  (step Conclusion (= Head Body) Substeps...), (fact Atom), (builtin Text),
 %  or (truncated Goal).
+%NAMED, because metta_py_encode/2 spells a variable with term_to_atom/2 and
+%SWI derives that spelling from the cell's global-stack offset, which a
+%garbage collection moves. One variable therefore crossed under two names
+%when a collection landed between two of its occurrences, and the sharing
+%decoder, which aliases by name, read two variables. A five-deep (fact 5)
+%proof crossed as
+%  (= (fact $_17642) (if (> $_17642 0) (* $_17642 (fact (- $_2528 1))) 1))
+%whose free $_2528 made the body non-ground, so the consumer's substitution
+%left (- $_2528 1) and evaluating it raised the CLP(FD) refusal rather than
+%answering [measured 2026-08-31 against a proof tree of six steps].
+%
+%A whole tree is one term, so its variables are named ONCE from
+%term_variables/2's order, which is a property of the term and not of the
+%stack. That is engine/tracer.pl's metta_trace_variable_names/3 exactly: _0,
+%_1 and so on by first occurrence, carried beside the term as Name-Var pairs
+%and resolved by metta_py_var_name/3's identity lookup
+%[source: engine/tracer.pl, metta_trace_variable_names/3].
 metta_py_encode_tree(Steps, Root, Out, ["e", [["s", "derivation"], RootE | StepEs]]) :-
-    metta_py_encode([Root, '=', Out], ["e", [R, _, O]]),
+    metta_py_encode([Root, '=', Out], [], Names0, ["e", [R, _, O]]),
     RootE = ["e", [["s", "answer"], R, O]],
-    maplist(metta_py_encode_step, Steps, StepEs).
+    metta_py_encode_steps(Steps, Names0, _, StepEs).
 
-metta_py_encode_step(step(Goal, Source, Sub), ["e", [["s", "step"], GoalE, SourceE | SubEs]]) :-
-    metta_py_encode(Goal, GoalE0),
+metta_py_encode_steps([], N, N, []).
+metta_py_encode_steps([Step|Steps], N0, N, [E|Es]) :-
+    metta_py_encode_step(Step, N0, N1, E),
+    metta_py_encode_steps(Steps, N1, N, Es).
+
+metta_py_encode_step(step(Goal, Source, Sub), N0, N,
+                     ["e", [["s", "step"], GoalE, SourceE | SubEs]]) :-
+    metta_py_encode_goal(Goal, N0, N1, GoalE0),
     metta_py_goal_term(GoalE0, GoalE),
-    metta_py_encode(Source, SourceE),
-    maplist(metta_py_encode_step, Sub, SubEs).
-metta_py_encode_step(fact(Space, Fact), ["e", [["s", "fact"], SpaceE, FactE]]) :-
-    metta_py_encode(Space, SpaceE),
-    metta_py_encode(Fact, FactE).
-metta_py_encode_step(builtin(Goal), ["e", [["s", "builtin"], ["g", Text]]]) :-
-    term_string(Goal, Text).
-metta_py_encode_step(truncated(Goal), ["e", [["s", "truncated"], ["g", Text]]]) :-
-    term_string(Goal, Text).
+    metta_py_encode(Source, N1, N2, SourceE),
+    metta_py_encode_steps(Sub, N2, N, SubEs).
+%A leaf's space is the NAME of the space the fact came from, an atom, so the
+%map reaches it and comes back unchanged. Threaded rather than asserted
+%unchanged, because pinning it would turn a space that is somehow not an atom
+%into a silent failure instead of an encoding.
+metta_py_encode_step(fact(Space, Fact), N0, N,
+                     ["e", [["s", "fact"], SpaceE, FactE]]) :-
+    metta_py_encode(Space, N0, N1, SpaceE),
+    metta_py_encode(Fact, N1, N, FactE).
+metta_py_encode_step(builtin(Goal), N0, N,
+                     ["e", [["s", "builtin"], ["g", Text]]]) :-
+    metta_py_written_goal(Goal, N0, N, Text).
+metta_py_encode_step(truncated(Goal), N0, N,
+                     ["e", [["s", "truncated"], ["g", Text]]]) :-
+    metta_py_written_goal(Goal, N0, N, Text).
+
+%A leaf that crosses as TEXT rather than as structure still holds the tree's
+%variables: the solver records goals such as builtin(\+ A) whose A an
+%equation beside it also holds. term_string/2 wrote the cell's address there
+%while the equation carried the tree's name for the same variable, so a
+%reader could not see that the two are one. write_term/2's variable_names
+%option takes the same map spelled Name=Var.
+metta_py_written_goal(Goal, Names0, Names, Text) :-
+    term_variables(Goal, Variables),
+    metta_py_wire_names(Variables, Names0, Names),
+    metta_py_name_assignments(Names, Assignments),
+    term_string(Goal, Text, [variable_names(Assignments)]).
+
+%A written leaf mints its variables' names the way an encoded one does, so
+%the two spell one cell the same. Only the map moves; nothing is encoded.
+metta_py_wire_names([], N, N).
+metta_py_wire_names([Variable|Rest], N0, N) :-
+    metta_py_wire_name(Variable, N0, N1, _),
+    metta_py_wire_names(Rest, N1, N).
+
+metta_py_name_assignments([], []).
+metta_py_name_assignments([Name-Variable|Pairs], [Name=Variable|Assignments]) :-
+    metta_py_name_assignments(Pairs, Assignments).
+
+%metta_py_encode_named/3 carries its pairs through variables and lists and
+%hands every other compound to the unscoped encoder, and a step's goal is a
+%compiled call f(A1..An, Out), which is one. Encoding it unscoped inside a
+%tree that is otherwise named is worse than naming nothing: a variable a
+%parent's equation and a child's goal share would cross under two names and
+%stop being one variable. Goal is a clause head, so it is an atom or a
+%compound with an atom functor, and the list [f, A1..An, Out] encodes to the
+%same ["e", [["s", f] | Es]] the compound clause writes.
+metta_py_encode_goal(Goal, N0, N, Encoded) :-
+    compound(Goal),
+    compound_name_arguments(Goal, Functor, Arguments),
+    atom(Functor), !,
+    metta_py_encode([Functor|Arguments], N0, N, Encoded).
+metta_py_encode_goal(Goal, N0, N, Encoded) :-
+    metta_py_encode(Goal, N0, N, Encoded).
 
 %A compiled goal f(A1..An,Out) renders as the call (f A1..An) with its answer:
 metta_py_goal_term(["e", [F | ArgsAndOut]], ["e", [["s", "call"], ["e", [F|Args]], Out]]) :-
@@ -4075,21 +4263,21 @@ seam:foreign_refuse(Space, Capability) :-
 seam:foreign_erring(Space, Pattern, Licensed, Mode, Item) :-
     metta_py_foreign(Space),
     ( memberchk(limit(Limit), Licensed) -> true ; Limit = @(none) ),
-    metta_py_encode(Pattern, W),
+    metta_py_encode(Pattern, [], Table, W),
     atom_string(Space, SpaceStr),
     atom_string(Mode, ModeStr),
     py_iter(metta_ops:foreign_match(SpaceStr, W, Limit, ModeStr), CW),
-    metta_py_erring_item(CW, Pattern, Limit, Space, Item).
+    metta_py_erring_item(CW, Pattern, Limit, Table, Space, Item).
 
-metta_py_erring_item([XTag, End], _, _, _, end) :-
+metta_py_erring_item([XTag, End], _, _, _, _, end) :-
     ( XTag == "x" ; XTag == x ),
     ( End == "end" ; End == end ), !.
-metta_py_erring_item([XTag, Err, ErrorW], _, _, _, kept(Kept)) :-
+metta_py_erring_item([XTag, Err, ErrorW], _, _, _, _, kept(Kept)) :-
     ( XTag == "x" ; XTag == x ),
     ( Err == "error" ; Err == error ), !,
     metta_py_decode_shared(ErrorW, Kept, _).
-metta_py_erring_item(CW, Pattern, Limit, Space, answer) :-
-    metta_py_answer_match(CW, Pattern, Limit, Space).
+metta_py_erring_item(CW, Pattern, Limit, Table, Space, answer) :-
+    metta_py_answer_match(CW, Pattern, Limit, Table, Space).
 
 %Custom matching for Python grounded values, Hyperon's CustomMatch: a
 %value whose class defines match_/1 owns its matching logic inside
@@ -4106,9 +4294,9 @@ seam:matchable_value(Blob) :-
     py_call(metta_ops:is_matchable(Blob), R),
     R == @(true).
 seam:custom_match(Blob, Other) :-
-    metta_py_encode(Other, W),
+    metta_py_encode(Other, [], Table, W),
     py_iter(metta_ops:match_object(Blob, W), CW),
-    metta_py_answer_match(CW, Other, '$metta-matchable').
+    metta_py_answer_match(CW, Other, Table, '$metta-matchable').
 
 %Transactional participation for Python providers, driven by (writes Ctx
 %transactional): the provider's own begin/commit/rollback methods.
@@ -4131,10 +4319,10 @@ seam:foreign_rollback(Space) :-
 seam:foreign_match(Space, Pattern, Options) :-
     metta_py_foreign(Space),
     ( memberchk(limit(Limit), Options) -> true ; Limit = @(none) ),
-    metta_py_encode(Pattern, W),
+    metta_py_encode(Pattern, [], Table, W),
     atom_string(Space, SpaceStr),
     py_iter(metta_ops:foreign_match(SpaceStr, W, Limit), CW),
-    metta_py_answer_match(CW, Pattern, Limit, Space).
+    metta_py_answer_match(CW, Pattern, Limit, Table, Space).
 
 %What the provider claims about its own filtering for this pattern, asked
 %only when there is a bound to act on, so an unbounded match does not pay for
@@ -4168,10 +4356,11 @@ seam:foreign_add(Space, Term) :-
 %would buy nothing and would hold a Python generator open across engine
 %backtracking, which is the shape that makes a provider's state hard to reason
 %about.
-seam:foreign_plan(Space, Patterns, Claimed, Rest, metta_py_plan_rows(Claimed, Rows)) :-
+seam:foreign_plan(Space, Patterns, Claimed, Rest,
+                  metta_py_plan_rows(Claimed, Rows, Table)) :-
     metta_py_foreign(Space),
     metta_py_capability(Space, plan),
-    maplist(metta_py_encode, Patterns, PatternWs),
+    metta_py_encode_arguments(Patterns, PatternWs, Table),
     atom_string(Space, SpaceStr),
     py_call(metta_ops:foreign_plan(SpaceStr, PatternWs), Answer),
     Answer \== @(none),
@@ -4244,10 +4433,10 @@ metta_py_decode_plan_row(_, RowW, Row) :- metta_py_decode_row(RowW, Row).
 %re-unification a theta row deletes: bindings for the patterns' own
 %variables apply directly, one row per answer, residue closing as
 %everywhere else.
-metta_py_plan_rows(Claimed, Rows) :-
+metta_py_plan_rows(Claimed, Rows, Table) :-
     member(Row, Rows),
     (   Row = metta_answer(Space, Wire)
-    ->  metta_py_answer_match(Wire, Claimed, Space)
+    ->  metta_py_answer_match(Wire, Claimed, Table, Space)
     ;   Claimed = Row
     ).
 

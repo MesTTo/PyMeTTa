@@ -1432,9 +1432,16 @@ def layout(twin: Path) -> list[str]:
 #: reach while the twin it writes carries a complete tag [source:
 #: tests/checks/check_evidence_tags.py SOURCES and measured_problems;
 #: commit=845d851b7241ccea3b6a13f532172945bf6d8d9e].
+#: The in-progress commit spelling a fresh re-pin carries, which the
+#: provenance pass resolves to the object ID of the tree that measured it.
+#: tests/checks/check_evidence_tags.py:PLACEHOLDER is the authority for the
+#: word, and test_the_repin_tag_uses_the_gates_own_placeholder holds the two
+#: equal, because a tool writing a spelling the gate does not recognise
+#: writes a pin that no release check can find.
+_PLACEHOLDER = "WORKTREE"
 _REPIN_TAG = (
     "[{kind} {date}: min-of-{rounds} serial fresh processes; "
-    "command={command}; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]"
+    f"command={{command}}; commit={_PLACEHOLDER}]"
 )
 _REPIN_COMMAND = "python extensions/python/tools/twin_coverage.py --repin"
 
@@ -1452,7 +1459,7 @@ def repinned(
     envelope, and refuses a silent move, since a re-pin without its mechanism
     is the thing the whole chain exists to prevent.
 
-    The evidence tag it writes carries `commit=57f21ba9edf94bcf28cde11f938bce2c241a3709`, the lawful
+    The evidence tag it writes carries the in-progress spelling, the lawful
     in-progress spelling, so `RELEASE=1 tests/checks/check_evidence_tags.py` refuses
     a tree that ships one before the provenance pin.
     """

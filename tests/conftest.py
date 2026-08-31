@@ -76,9 +76,17 @@ def _pragmas_are_not_left_set():
     if after is None:
         return
     added = sorted(key for key, value in after.items() if before.get(key) != value)
+    # Both readings, not only the key names. A scoped `with-pragma!` restores
+    # by writing the PREVIOUS value back, so "appeared where there was nothing"
+    # and "changed from one value to another" have different causes, and the
+    # names alone cannot tell them apart. This fired once inside a full xdist
+    # run on 2026-08-31 for max-stack-depth and has not reproduced since, so
+    # the next occurrence carries its own evidence rather than another guess.
     assert not added, (
         f"this test left {added} set engine-wide; use "
-        "(with-pragma! ((<key> <value>)) <expr>) instead of a bare pragma!"
+        "(with-pragma! ((<key> <value>)) <expr>) instead of a bare pragma!. "
+        f"before={ {key: before.get(key) for key in added} } "
+        f"after={ {key: after[key] for key in added} }"
     )
 
 

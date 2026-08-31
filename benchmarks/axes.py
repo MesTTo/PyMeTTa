@@ -35,8 +35,10 @@ Open Obligations:
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
+from pathlib import Path
 from collections.abc import Callable
 
 from metta import MeTTa, S, Space
@@ -178,6 +180,14 @@ def _measure(name: str) -> tuple[int, int]:
     return min(measure_instructions(command, rounds=ROUNDS)), inferences_of(name)
 
 
+#: The directory holding the `benchmarks` package, so the child process finds
+#: it wherever the parent was started from. `-m benchmarks.axes` used to be
+#: spawned with no cwd and no PYTHONPATH, so it resolved only while pytest
+#: happened to run from here: from the repository root the three cases below
+#: failed with a ModuleNotFoundError that read as a benchmark regression.
+_BINDING_ROOT = Path(__file__).resolve().parent.parent
+
+
 def inferences_of(name: str) -> int:
     """Engine inferences for one case, from a process that drove only it.
 
@@ -189,6 +199,8 @@ def inferences_of(name: str) -> int:
     """
     printed = subprocess.run(  # noqa: S603 - this module's own path and case names
         [sys.executable, "-m", "benchmarks.axes", "--case", name],
+        cwd=_BINDING_ROOT,
+        env=os.environ | {"PYTHONPATH": str(_BINDING_ROOT)},
         capture_output=True,
         text=True,
         check=True,

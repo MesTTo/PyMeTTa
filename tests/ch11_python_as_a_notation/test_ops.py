@@ -49,6 +49,7 @@ from metta import (
     S,
     Symbol,
     V,
+    Variable,
     aio,
     ground,
     reflection,
@@ -606,6 +607,31 @@ def test_a_variable_crossing_python_comes_back_the_same_variable(metta):
     assert metta.run(f"!{bind_the_answer.format(op)}") == [[9]]
     # And a ground call is untouched by any of it.
     assert metta.run(f"!({op} 1 (2 3))") == [[Expression(1, 2, 3)]]
+
+
+def test_an_inverse_answers_one_variable_in_two_positions(metta):
+    """A variable an inverse puts twice is ONE variable in the answer.
+
+    The answered tuple used to be decoded argument by argument, each starting
+    an empty sharing table, so the two positions came back as two variables
+    and binding one left the other free. Nothing unifies these afterwards the
+    way a match candidate is unified with its pattern, so the table was the
+    only thing carrying the aliasing.
+    """
+    twin = unique("twin")
+
+    def both(_whole):
+        shared = Variable("s")
+        yield (shared, shared)
+
+    metta.op(
+        lambda left, right: (left, right),
+        name=twin,
+        effect="pureStructural",
+        inverse=both,
+    )
+    answer = metta.run(f"!(let ({twin} $a $b) (1 2) (let $a bound ($a $b)))")
+    assert answer == [[Expression(S.bound, S.bound)]]
 
 
 def test_a_registered_operation_runs_backwards(metta):

@@ -29,7 +29,7 @@ python extensions/python/tools/twin_coverage.py --repin \
 It measures min-of-three in fresh processes, writes the paragraph under the
 existing chain, rewrites the number, and refuses a twin whose declarations are
 still above its code, an empirical envelope, or a move with no stated
-mechanism. The evidence tag it writes carries `commit=57f21ba9edf94bcf28cde11f938bce2c241a3709`, so
+mechanism. The evidence tag it writes carries `commit=WORKTREE`, so
 `RELEASE=1 python tests/checks/check_evidence_tags.py` refuses a tree that ships one
 before the provenance pin.
 
