@@ -36,7 +36,7 @@ import tempfile
 from collections.abc import Callable
 from typing import Any, Literal, TypeAlias
 
-from metta import Expression, MeTTa, S, Space, V
+from metta import Expression, MeTTa, S, Space, V, engine
 
 ALPHA_TERMS = 50_000
 DIGEST_ATOMS = 20_000
@@ -67,7 +67,10 @@ EngineCase: TypeAlias = tuple[Space, Callable[[], int]]
 
 
 def _space() -> Space:
-    return MeTTa().space()
+    #The process context, deliberately: these pins price the engine's default
+    #compile tier, and an isolated MeTTa() context's spaces carry the
+    #context-scoped declaration tier as their own priced feature.
+    return engine().space()
 
 
 def close_engine_case(state: EngineCase) -> None:

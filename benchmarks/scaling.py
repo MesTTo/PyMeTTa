@@ -107,7 +107,7 @@ from typing import Any
 
 from benchmarks import atomic_json, curves
 from benchmarks.configuration import counter_configuration
-from metta import MeTTa, S, Space, V
+from metta import S, Space, V, engine
 
 # The direct home rather than the `metta.testing` re-export memory_scale uses:
 # `benchmarks.pure` imports this module to reach WORKLOADS and runs under perf,
@@ -203,7 +203,7 @@ def _storage_route(space: Space) -> Callable[[], str]:
 
 def write_door(size: int, *, passes: int = 1) -> Workload:
     """`size` separate writes into one space, the shape `add-single` pins at a point."""
-    space = MeTTa().space()
+    space = engine().space()
     atoms = _atoms("scaling-row", size)
 
     def operation() -> int:
@@ -236,7 +236,7 @@ def scan_per_write(size: int) -> Workload:
     whose own assertions were on charged steps. Declared linear in the policy,
     so the exponent gate has to catch it.
     """
-    space = MeTTa().space()
+    space = engine().space()
     atoms = _atoms("scaling-scan", size)
     pattern = S["scaling-scan"](V.any)
 
@@ -260,7 +260,7 @@ def scan_per_write(size: int) -> Workload:
 def parse_forms(size: int) -> Workload:
     """The reader over one program text holding `size` forms.
 
-    A CHILD space, never `MeTTa().self`. Every caller drops `Workload.space`
+    A CHILD space, never the process home. Every caller drops `Workload.space`
     when it is done, and dropping the ROOT tears down the execution module the
     engine's own compiled machinery lives in. That is invisible in this lane,
     where each measurement is a throwaway process, and destructive in pytest,
@@ -271,7 +271,7 @@ def parse_forms(size: int) -> Workload:
     [tested: test_the_families_keep_their_engine_invariants_in_their_own_process;
     commit=cbabce0e0871a2d5bbf53b8c0e520b50aeb1a984].
     """
-    space = MeTTa().space()
+    space = engine().space()
     text = " ".join(f"(scaling-form {index} (nested {index}))" for index in range(size))
     parsed: list[Any] = []
 
@@ -298,7 +298,7 @@ def chain_join(size: int) -> Workload:
     the ANSWER count linear, so the class is the finding rather than the output
     size: an unindexed join is quadratic here and an indexed one is linear.
     """
-    space = MeTTa().space()
+    space = engine().space()
     space.add(*(S["scaling-edge"](index, index + 1) for index in range(size)))
     rows: list[Any] = []
 
@@ -323,7 +323,7 @@ def selective_query(size: int) -> Workload:
     and the exponent gate says so, while a point pin at one size would only see
     a bigger number and call it a constant-factor regression.
     """
-    space = MeTTa().space()
+    space = engine().space()
     space.add(*(S["scaling-fact"](index, S.payload) for index in range(size)))
     rows: list[Any] = []
 
@@ -345,7 +345,7 @@ def segment_split(size: int) -> Workload:
     and two gaps around a separator is the shape a backtracking matcher pays
     quadratically for, so this is where one would hide.
     """
-    space = MeTTa().space()
+    space = engine().space()
     space.add(S["scaling-split"](*(S[f"e{index}"] for index in range(size)), S.SEP))
     pattern = space.parse("(scaling-split (:seg $pre) SEP (:seg $post))")
     rows: list[Any] = []
@@ -363,7 +363,7 @@ def segment_split(size: int) -> Workload:
 
 def mork_write(size: int) -> Workload:
     """`size` writes into a MORK-backed space, refused if the backend is absent."""
-    space = MeTTa().space("&mork:scaling-write")
+    space = engine().space("&mork:scaling-write")
     atoms = _atoms("scaling-mork-row", size)
 
     def operation() -> int:
@@ -678,8 +678,8 @@ def stamp_worker(connection: Any) -> None:
     filesystem, because the hazard is the fallback, not the missing file.
     """
     try:
-        engine = MeTTa()
-        probe = engine.space("&mork:scaling-stamp")
+        context = engine()
+        probe = context.space("&mork:scaling-stamp")
         try:
             connection.send(
                 {
@@ -688,7 +688,7 @@ def stamp_worker(connection: Any) -> None:
                     | {
                         "mork_backend": str(_storage_route(probe)()),
                         "swipl_version": str(
-                            engine.self.runtime.once(
+                            context.self.runtime.once(
                                 "current_prolog_flag(version_data, swi(Major,Minor,Patch,_)),"
                                 " format(atom(Version), '~w.~w.~w', [Major,Minor,Patch])"
                             )["Version"]

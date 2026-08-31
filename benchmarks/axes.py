@@ -151,11 +151,11 @@ def run_case(name: str) -> int:
     That counter is the one blind across the boundary, and it is reported so a
     reader can see the blindness rather than infer it.
 
-    ONE case per process, and the second is refused rather than measured. Two
-    `MeTTa()` handles share one engine and one `&self`, so a second case
-    installs its driver's head a second time; the recursion then leaves a
-    choice point per level and a deep drive runs out of stack instead of
-    measuring anything. Driving four cases in one process is what that looks
+    ONE case per process, and the second is refused rather than measured.
+    Every `MeTTa()` context shares one engine and registrations are
+    process-wide, so a second case installs its driver's head a second time;
+    the recursion then leaves a choice point per level and a deep drive runs
+    out of stack instead of measuring anything. Driving four cases in one process is what that looks
     like from outside: a run that never finishes.
     """
     if _DRIVEN:

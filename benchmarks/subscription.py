@@ -16,7 +16,7 @@ Open Obligations:
   Future Enhancements: None
 """
 
-from metta import MeTTa, S, V, ground
+from metta import S, V, engine, ground
 
 SUBSCRIPTIONS = 1_000
 WRITES = 200
@@ -29,7 +29,7 @@ def subscription_dispatch_case(subscriptions: int = SUBSCRIPTIONS, writes: int =
     is the shape a dispatch strategy is judged on: the scan pays for every
     non-match, the tree does not.
     """
-    space = MeTTa().space()
+    space = engine().space()
     delivered = [0]
 
     def count(_event) -> None:

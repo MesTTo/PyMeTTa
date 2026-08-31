@@ -48,7 +48,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from benchmarks.configuration import counter_configuration
-from metta import MeTTa, Space
+from metta import Space
 from metta.testing import BenchmarkBaseline
 
 CALLS = 3_000
@@ -133,7 +133,7 @@ def _install_drivers(space: Space, prefix: str, bodies: dict[str, str]) -> None:
 
 def rows(calls: int = CALLS, rounds: int = ROUNDS) -> list[Row]:
     """Every tier, measured in one process."""
-    space = MeTTa().self
+    space = Space()
 
     space.run("(= (ec-metta $x) (+ $x 1))")
     space.run(
@@ -245,7 +245,7 @@ def space_door_rows(calls: int = SPACE_CALLS, rounds: int = ROUNDS) -> list[Row]
     the pool already holds; the drives run in a fixed order over fixed
     counts, so the committed samples stay deterministic run to run.
     """
-    space = MeTTa().self
+    space = Space()
 
     space.run("(= (hk-accept-all $incoming) (accept))")
     space.run("!(declare-pre-add! &hk-guard hk-accept-all)")
@@ -328,7 +328,7 @@ def encoding_rows(calls: int = ENCODING_CALLS, rounds: int = ROUNDS) -> list[tup
     the engine out of stack. Inferences are exact rather than sampled, so 200
     calls settle these rows as firmly as 3000 would.
     """
-    space = MeTTa().self
+    space = Space()
 
     @space.op(name="ec-size-encoded", effect="pureStructural")
     def _encoded(x):
