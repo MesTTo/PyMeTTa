@@ -139,6 +139,7 @@ from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space import Space, _creation_site
 from ._space_objects import require_deadline
 from ._under import _UNSET
+from ._under import selected as _selected_under
 from .atoms import Atom, Expression, Symbol
 from .errors import Interrupted, MettaError, Timeout
 from .results import Rows
@@ -894,14 +895,29 @@ class AsyncMeTTa:
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        under: Any = _UNSET,
+        theory: Any | None = None,
+        interpreter: Any | None = None,
     ) -> list[Atom]:
-        """Evaluate a term and return every answer."""
+        """Evaluate a term and return every answer.
+
+        `under`, `theory` and `interpreter` are the synchronous eval()'s, and
+        they matter more here: answers() is excluded from this surface because
+        a replayable cross-thread iterator is not what an await gives you, so
+        without them there was no way to annotate an EVALUATION asynchronously
+        at all -- match(under=) covered patterns and nothing covered calls
+        [measured 2026-08-31].
+        """
+        carrier = _selected_under(under)
         return await self.call(
             lambda m: m.eval(
                 target,
                 using=using,
                 timeout=timeout,
                 inferences=inferences,
+                under=_UNSET if carrier is None else carrier,
+                theory=theory,
+                interpreter=interpreter,
             )
         )
 

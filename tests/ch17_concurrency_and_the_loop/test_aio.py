@@ -59,6 +59,8 @@ from collections import Counter
 
 import pytest
 
+import metta as metta_module
+
 from metta import (
     TRUE,
     MeTTa,
@@ -472,12 +474,18 @@ def test_aio_covers_the_whole_synchronous_surface():
         "under",
         "into",
     ]
+    # The residuals parameter this pin exists for is still absent; under,
+    # theory and interpreter are answers()' three, and eval() carries them on
+    # BOTH surfaces because answers() itself is excluded here.
     assert list(inspect.signature(aio.AsyncMeTTa.eval).parameters) == [
         "self",
         "target",
         "using",
         "timeout",
         "inferences",
+        "under",
+        "theory",
+        "interpreter",
     ]
     assert list(inspect.signature(aio.AsyncMeTTa.one).parameters) == [
         "self",
@@ -1232,3 +1240,29 @@ def test_async_rules_and_pre_add_land_as_awaitable_calls(m):
     assert landed == 2
     assert low == [S.low] and high == [S.high]
     assert kept == [1]
+
+
+def test_an_async_evaluation_can_be_annotated(m):
+    """answers() is excluded here, so eval() had to carry the carrier.
+
+    An await hands back the whole result, so the replayable cross-thread
+    iterator that keeps answers() off this surface is not what an async
+    caller wants anyway. Without the carrier on eval(), match(under=) covered
+    patterns and NOTHING covered calls: an evaluation could not be annotated
+    asynchronously at all [measured 2026-08-31].
+    """
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            await am.run("(= (aio-path a) b) (= (aio-path a) c)")
+            plain = await am.eval(S["aio-path"](S.a))
+            counted = await am.eval(S["aio-path"](S.a), under="counting")
+            tagged = await am.eval(S["aio-path"](S.a), under="ranked")
+            with metta_module.under("counting"):
+                scoped = await am.eval(S["aio-path"](S.a))
+            return plain, counted, tagged, scoped
+
+    plain, counted, tagged, scoped = asyncio.run(go())
+    assert plain == [S.b, S.c]
+    assert counted == [2]
+    assert [type(one).__name__ for one in tagged] == ["TaggedAnswer", "TaggedAnswer"]
+    assert scoped == [2]

@@ -2461,6 +2461,9 @@ class Space(Handle):
         using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        under: Any = _UNSET,
+        theory: Any | None = None,
+        interpreter: Any | None = None,
     ) -> list[Atom | Undefined]:
         """Evaluate a term, returning every answer.
 
@@ -2489,8 +2492,24 @@ class Space(Handle):
         `capture()` scope collects printed text without changing the list.
         In a `strict()` scope an unreduced term raises StrictError while a
         genuinely empty branch still returns no answers.
+
+        `under`, `theory` and `interpreter` are answers()' three, and mean
+        exactly what they mean there; this door is that one materialised. A
+        surrounding `with metta.under(carrier)` reaches here too, which it did
+        not before: match() and answers() both honoured such a scope while
+        eval() ignored it in silence.
         """
         _record_sync_engine_call(self, "eval", sys._getframe(1))
+        if theory is not None or interpreter is not None or _selected_under(under) is not None:
+            return self._rich_eval(
+                target,
+                using=using,
+                timeout=timeout,
+                inferences=inferences,
+                under=under,
+                theory=theory,
+                interpreter=interpreter,
+            )
         if strict_enabled():
             statuses = evaluate_status(
                 self._rt,
@@ -2513,6 +2532,38 @@ class Space(Handle):
             timeout,
             inferences,
             using=using,
+        )
+
+    def _rich_eval(
+        self,
+        target: Any,
+        *,
+        using: dict[str, Any] | None,
+        timeout: float | None,
+        inferences: int | None,
+        under: Any,
+        theory: Any | None,
+        interpreter: Any | None,
+    ) -> list[Atom | Undefined]:
+        """eval()'s answer when a carrier, theory or interpreter is asked for.
+
+        answers() is the door that carries all three, and eval() is answers()
+        materialised, which the two doors already agree on for every ordinary
+        term. What eval() did NOT do was read a surrounding
+        ``with metta.under(carrier)``: match() and answers() both honoured it
+        and eval() silently did not, so a scope set over a block quietly meant
+        nothing for one of the three doors inside it [measured 2026-08-31].
+        """
+        return list(
+            self.answers(
+                target,
+                using=using,
+                timeout=timeout,
+                inferences=inferences,
+                under=under,
+                theory=theory,
+                interpreter=interpreter,
+            )
         )
 
     def answers(

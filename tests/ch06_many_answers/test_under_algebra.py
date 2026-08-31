@@ -362,3 +362,23 @@ def test_a_streamed_algebra_answers_what_a_matched_one_answers(metta):
     assert list(space.match(S.streamed(V.x, V.n), under="counting")) == [2]
     with pytest.raises(TypeError, match="nothing to stream"):
         space.stream(S.streamed(V.x, V.n), under="counting")
+
+
+def test_a_scoped_carrier_reaches_every_evaluating_door(metta):
+    """A scope that reaches two doors of three is a scope that lies.
+
+    match() and answers() both honoured a surrounding metta.under(carrier);
+    eval() ignored it in silence, so a block written under a carrier quietly
+    meant nothing for one of the three doors inside it, and there was no
+    signal at all [measured 2026-08-31]. eval() carries answers()' three
+    parameters now, being that door materialised.
+    """
+    space = metta._at("&self")
+    space.run("(= (scoped-path a) b) (= (scoped-path a) c)")
+    assert space.eval(S["scoped-path"](S.a)) == [S.b, S.c]
+    assert space.eval(S["scoped-path"](S.a), under="counting") == [2]
+    with metta_module.under("counting"):
+        assert space.eval(S["scoped-path"](S.a)) == [2]
+        assert list(space.answers(S["scoped-path"](S.a))) == [2]
+    # And the scope ends where the block ends.
+    assert space.eval(S["scoped-path"](S.a)) == [S.b, S.c]

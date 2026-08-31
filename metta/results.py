@@ -471,19 +471,6 @@ class Rows(UserList[Row]):
     @overload
     def build[BuildT](self, column: str, cls: type[BuildT]) -> list[BuildT]: ...
 
-    def into(self, cls: type) -> list:
-        """Each row as one ``cls``, matched by field name.
-
-        ``match(..., into=cls)`` is sugar for this and says so: the
-        conversion was only ever reachable through that keyword, so a
-        prepared query's solve(), or any other Rows, could not ask for it
-        even though rows_into() never cared where the rows came from
-        [measured 2026-08-31]. build(cls) is the neighbouring door and a
-        different question: it rebuilds ONE column of complete constructor
-        expressions, where this maps every column onto a field.
-        """
-        return rows_into(self, cls)
-
     def build(self, column: str | type, cls: type | None = None) -> list:
         """Rebuild constructor atoms through the two-way translator.
 
@@ -508,6 +495,19 @@ class Rows(UserList[Row]):
             raise TypeError(msg)
         convert = _importlib.import_module(f"{__package__}.convert")
         return [convert.build(value, cls) for value in self._column(column)]
+
+    def into(self, cls: type) -> list:
+        """Each row as one ``cls``, matched by field name.
+
+        ``match(..., into=cls)`` is sugar for this and says so: the
+        conversion was only ever reachable through that keyword, so a
+        prepared query's solve(), or any other Rows, could not ask for it
+        even though rows_into() never cared where the rows came from
+        [measured 2026-08-31]. build(cls) is the neighbouring door and a
+        different question: it rebuilds ONE column of complete constructor
+        expressions, where this maps every column onto a field.
+        """
+        return rows_into(self, cls)
 
     def to_dicts(self) -> list[dict[str, Any]]:
         """Return one Python-native column-to-value mapping per row."""
