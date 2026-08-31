@@ -4444,24 +4444,51 @@ class Space(Handle):
     def _replace_catalog_declaration(
         self,
         head: str,
-        subject: Atom,
+        subject: Atom | tuple[Atom, ...],
         atom: Expression,
+        *,
+        arities: tuple[int, ...] = (1,),
     ) -> Atom:
-        """Replace one subject-keyed catalog row atomically."""
-        previous = Expression(
-            [Symbol(head), subject, Variable("previous")]
-        )
+        """Replace every catalog row this declaration supersedes, atomically.
+
+        Both halves are load-bearing and both were got wrong by the doors that
+        wrote this longhand instead of calling here. The removal LOOPS, because
+        `metta_py_remove` takes one occurrence and a catalog that somehow holds
+        two rows for one subject would keep the stale one: measured 2026-08-31,
+        a second `(emits &s fair)` row survived a redeclaration and left the
+        engine reading two policies for one space. And it runs in a
+        TRANSACTION, because a failure between the remove and the add leaves
+        the declaration missing rather than unchanged.
+
+        ``arities`` is how many trailing slots a superseded row may have, for a
+        declaration whose own shape grew: `agenda` supersedes both the
+        three-element form and the four-element one that names a function.
+        """
+        # The key is FLAT, however many atoms it takes: a row is
+        # `(image <space> <type> <setting>)`, not `(image (<space> <type>)
+        # <setting>)`, so a tuple splats rather than nesting. Nesting it built
+        # a retract pattern that matched nothing and left every previous row
+        # standing, which the sqlite suite caught at once.
+        keys = subject if isinstance(subject, tuple) else (subject,)
+        shapes = [
+            Expression(
+                [Symbol(head), *keys,
+                 *(Variable(f"previous{slot}") for slot in range(count))]
+            )
+            for count in arities
+        ]
 
         def replace() -> Atom:
-            while True:
-                removed = self._rt.apply_must(
-                    "metta_py_remove",
-                    "&metta",
-                    previous.to_wire(),
-                )
-                result = _atom_from_wire(removed)
-                if not bool(getattr(result, "value", True)):
-                    break
+            for previous in shapes:
+                while True:
+                    removed = self._rt.apply_must(
+                        "metta_py_remove",
+                        "&metta",
+                        previous.to_wire(),
+                    )
+                    result = _atom_from_wire(removed)
+                    if not bool(getattr(result, "value", True)):
+                        break
             self._rt.must(
                 "metta_py_add(Space, W)",
                 Space="&metta",
@@ -4562,21 +4589,16 @@ class Space(Handle):
                 f"not {setting!r}"
             )
             raise ValueError(msg)
-        previous = Expression(
-            [Symbol("image"), Symbol(str(self.name)), Symbol(type_name), Variable("old")]
+        # Keyed on the TYPE as well as the space: one space declares an image
+        # per type, so the subject here is the pair.
+        return self._replace_catalog_declaration(
+            "image",
+            (Symbol(str(self.name)), Symbol(type_name)),
+            Expression(
+                [Symbol("image"), Symbol(str(self.name)), Symbol(type_name),
+                 Symbol(setting)]
+            ),
         )
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous.to_wire(),
-        )
-        atom = Expression(
-            [Symbol("image"), Symbol(str(self.name)), Symbol(type_name), Symbol(setting)]
-        )
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
-        )
-        return atom
 
     def sample(
         self,
@@ -4621,17 +4643,9 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        previous = Expression([Symbol("source"), Symbol(str(self.name)), Variable("old")])
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous.to_wire(),
+        return self._replace_catalog_declaration(
+            "source", Symbol(str(self.name)), Expression([Symbol("source"), Symbol(str(self.name)), Symbol(kind)])
         )
-        atom = Expression([Symbol("source"), Symbol(str(self.name)), Symbol(kind)])
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
-        )
-        return atom
 
     def on_error(
         self,
@@ -4712,17 +4726,9 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        previous = Expression([Symbol("context"), Symbol(str(self.name)), Variable("old")])
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous.to_wire(),
+        return self._replace_catalog_declaration(
+            "context", Symbol(str(self.name)), Expression([Symbol("context"), Symbol(str(self.name)), Symbol(world)])
         )
-        atom = Expression([Symbol("context"), Symbol(str(self.name)), Symbol(world)])
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
-        )
-        return atom
 
     def agenda(
         self,
@@ -4753,26 +4759,12 @@ class Space(Handle):
                 "reaction, and no other policy takes one"
             )
             raise ValueError(msg)
-        previous = Expression([Symbol("agenda"), Symbol(str(self.name)), Variable("old")])
-        self._rt.once(
-            "metta_py_remove(Space, W, _)", Space="&metta", W=previous.to_wire()
-        )
-        previous_named = Expression(
-            [Symbol("agenda"), Symbol(str(self.name)), Variable("old"), Variable("fn")]
-        )
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous_named.to_wire(),
-        )
         parts = [Symbol("agenda"), Symbol(str(self.name)), Symbol(policy)]
         if function is not None:
             parts.append(Symbol(str(function)))
-        atom = Expression(parts)
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+        return self._replace_catalog_declaration(
+            "agenda", Symbol(str(self.name)), Expression(parts), arities=(1, 2)
         )
-        return atom
 
     def reacts(
         self,
@@ -4820,15 +4812,8 @@ class Space(Handle):
         declarations make membership a type judgement the ontology
         already knows how to make.
         """
-        previous = Expression([Symbol("admits"), Symbol(str(self.name)), Variable("old")])
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous.to_wire(),
-        )
-        atom = Expression([Symbol("admits"), Symbol(str(self.name)), Symbol(type_name)])
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+        atom = self._replace_catalog_declaration(
+            "admits", Symbol(str(self.name)), Expression([Symbol("admits"), Symbol(str(self.name)), Symbol(type_name)])
         )
         self._rt.must(
             "metta_admission_claim(Pool, Declarer)",
@@ -4842,15 +4827,8 @@ class Space(Handle):
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
             msg = f"capacity is a positive integer, not {limit!r}"
             raise ValueError(msg)
-        previous = Expression([Symbol("capacity"), Symbol(str(self.name)), Variable("old")])
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous.to_wire(),
-        )
-        atom = Expression([Symbol("capacity"), Symbol(str(self.name)), Grounded(limit)])
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
+        atom = self._replace_catalog_declaration(
+            "capacity", Symbol(str(self.name)), Expression([Symbol("capacity"), Symbol(str(self.name)), Grounded(limit)])
         )
         self._rt.must(
             "metta_admission_claim(Pool, Declarer)",
@@ -4887,17 +4865,9 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        previous = Expression([Symbol("writes"), Symbol(str(self.name)), Variable("old")])
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous.to_wire(),
+        return self._replace_catalog_declaration(
+            "writes", Symbol(str(self.name)), Expression([Symbol("writes"), Symbol(str(self.name)), Symbol(atomicity)])
         )
-        atom = Expression([Symbol("writes"), Symbol(str(self.name)), Symbol(atomicity)])
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
-        )
-        return atom
 
     def emits(
         self,
@@ -4916,17 +4886,9 @@ class Space(Handle):
             raise ValueError(
                 msg
             )
-        previous = Expression([Symbol("emits"), Symbol(str(self.name)), Variable("old")])
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous.to_wire(),
+        return self._replace_catalog_declaration(
+            "emits", Symbol(str(self.name)), Expression([Symbol("emits"), Symbol(str(self.name)), Symbol(policy)])
         )
-        atom = Expression([Symbol("emits"), Symbol(str(self.name)), Symbol(policy)])
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
-        )
-        return atom
 
     def events(
         self,
@@ -4960,19 +4922,15 @@ class Space(Handle):
         if order not in event_orders:
             msg = f"order is one of {', '.join(event_orders)}, not {order!r}"
             raise ValueError(msg)
-        previous = Expression(
-            [Symbol("events"), Symbol(str(self.name)), Variable("delivery"), Variable("order")]
+        return self._replace_catalog_declaration(
+            "events",
+            Symbol(str(self.name)),
+            Expression(
+                [Symbol("events"), Symbol(str(self.name)), Symbol(delivery),
+                 Symbol(order)]
+            ),
+            arities=(2,),
         )
-        self._rt.once(
-            "metta_py_remove(Space, W, _)",
-            Space="&metta",
-            W=previous.to_wire(),
-        )
-        atom = Expression([Symbol("events"), Symbol(str(self.name)), Symbol(delivery), Symbol(order)])
-        self._rt.must(
-            "metta_py_add(Space, W)", Space="&metta", W=atom.to_wire()
-        )
-        return atom
 
     # ------------------------------------------------------------ interop
 

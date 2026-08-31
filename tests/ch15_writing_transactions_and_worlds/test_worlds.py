@@ -37,7 +37,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from metta import S, State, V, spaces
+from metta import Expression, S, State, V, spaces
 from metta.errors import MettaError
 
 
@@ -131,6 +131,65 @@ def test_world_coverage_admits_the_joined_plan(metta):
     finally:
         world.close()
         parent.drop()
+
+
+def test_every_declaration_door_removes_every_stale_duplicate(metta):
+    """What `covers` promised, the other declaration doors now keep too.
+
+    `_replace_catalog_declaration` removes in a LOOP and inside a
+    TRANSACTION, and only two doors called it; ten more wrote the shape
+    longhand with a single `once` removal and no transaction. Both halves
+    were wrong. A second row survived a redeclaration, so the engine read two
+    policies for one space [measured 2026-08-31: planting a second
+    `(emits &s fair)` left `['fair', 'best-first']`], and a failure between
+    the remove and the add left the declaration missing rather than unchanged.
+    """
+    catalog = metta._at("&metta")
+
+    def rows(head, space):
+        return [
+            str(row.rest)
+            for row in catalog.match(Expression([S[head], S[str(space.name)], V.rest]))
+        ]
+
+    # (door head, first declaration, a VALID second row, the redeclaration).
+    # The planted row has to be valid: the catalog checks a declaration
+    # against its declared kind, so a bogus value is refused before it can
+    # become the duplicate this is about.
+    cases = [
+        ("emits", "emits", lambda s: s.emits("depth"), S.fair,
+         lambda s: s.emits("best-first")),
+        ("source", "source", lambda s: s.source("linear"), S.repeated,
+         lambda s: s.source("peek")),
+        ("context", "context", lambda s: s.context("closed-world"), S["open-world"],
+         lambda s: s.context("closed-world")),
+        ("atomicity", "writes", lambda s: s.atomicity("atomic-single"),
+         S["best-effort"], lambda s: s.atomicity("transactional")),
+        ("agenda", "agenda", lambda s: s.agenda("recency"), S.specificity,
+         lambda s: s.agenda("declaration")),
+    ]
+    for door, head, first, planted, again in cases:
+        space = metta._new_space()
+        first(space)
+        catalog.add(Expression([S[head], S[str(space.name)], planted]))
+        assert len(rows(head, space)) == 2, door
+        again(space)
+        assert len(rows(head, space)) == 1, f"{door} left a stale row"
+
+    # `image` keys on the TYPE as well as the space, so its row is
+    # `(image <space> <type> <setting>)` and the key is two atoms FLAT. Passing
+    # them as one nested pair built a retract pattern matching nothing and left
+    # every previous row standing, which the sqlite suite caught at once.
+    space = metta._new_space()
+    space.image("Blob", "opaque")
+    catalog.add(S.image(S[str(space.name)], S.Blob, S.transparent))
+    settings = lambda: [  # noqa: E731 -- a local read, not a definition
+        str(row.setting)
+        for row in catalog.match(S.image(S[str(space.name)], S.Blob, V.setting))
+    ]
+    assert len(settings()) == 2
+    space.image("Blob", "auto")
+    assert settings() == ["auto"]
 
 
 def test_redeclaring_coverage_removes_every_stale_duplicate(metta):
