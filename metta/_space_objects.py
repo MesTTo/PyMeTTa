@@ -88,6 +88,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _require_vocabulary(
+    value: Any, vocabulary: Any, called: str, *, because: str = ""
+) -> Any:
+    """One of a closed vocabulary's members, or a refusal naming them all.
+
+    Thirteen declaration doors wrote this check longhand, each rebuilding the
+    same sentence. Naming the whole vocabulary is the part that matters and the
+    part a hand-written check drops first: a caller who wrote the wrong word
+    needs to see the right ones, not that theirs is unknown.
+
+    ``because`` is the clause a door adds when the refusal needs its ground --
+    `handles` says the fidelity is the claim the router acts on, so an unknown
+    word would declare nothing silently.
+    """
+    if value not in vocabulary:
+        msg = f"{called} is one of {', '.join(vocabulary)}, not {value!r}"
+        if because:
+            msg = f"{msg}: {because}"
+        raise ValueError(msg)
+    return value
+
+
 def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str) -> None:
     """Check one per-call bound, type before magnitude.
 

@@ -232,6 +232,7 @@ from ._space_objects import (
     _column_names,
     _FunctionNamespace,
     _refuse_in_batch,
+    _require_vocabulary,
     _StatsBlock,
     guard_atom,
     require_deadline,
@@ -2723,7 +2724,7 @@ class Space(Handle):
         tagged_target = (
             _substituted(target, using)
             if using
-            else _to_atom(target)
+            else (_to_atom(target))
         )
         if declaration.name == "counting":
             def counted() -> Iterator[int]:
@@ -4311,26 +4312,15 @@ class Space(Handle):
         that falls into their overlap. The atom is returned; removing it
         from &metta withdraws the declaration.
         """
-        fidelity_values = Fidelity
-        if fidelity not in fidelity_values:
-            msg = (
-                f"fidelity is one of {', '.join(fidelity_values)}, "
-                f"not {fidelity!r}: it is the declared claim the router "
-                f"acts on, so an unknown word would silently declare "
-                f"nothing"
-            )
-            raise ValueError(
-                msg
-            )
-        determinism_values = Determinism
-        if det is not None and det not in determinism_values:
-            msg = (
-                f"det is one of {', '.join(determinism_values)}, not {det!r}: the "
-                f"same vocabulary declare_function_determinism uses "
-                f"everywhere else"
-            )
-            raise ValueError(
-                msg
+        _require_vocabulary(
+            fidelity, Fidelity, "fidelity",
+            because="it is the declared claim the router acts on, so an "
+            "unknown word would silently declare nothing",
+        )
+        if det is not None:
+            _require_vocabulary(
+                det, Determinism, "det",
+                because="the same vocabulary declare_function_determinism uses everywhere else",
             )
         shape = _to_atom(pattern)
         children = [Symbol("handles"), Symbol(str(self.name)), shape, Symbol(fidelity)]
@@ -4444,38 +4434,45 @@ class Space(Handle):
     def _replace_catalog_declaration(
         self,
         head: str,
-        subject: Atom | tuple[Atom, ...],
-        atom: Expression,
+        keys: tuple[Atom, ...],
+        values: tuple[Atom, ...],
         *,
-        arities: tuple[int, ...] = (1,),
+        supersedes: tuple[int, ...] = (),
     ) -> Atom:
         """Replace every catalog row this declaration supersedes, atomically.
 
-        Both halves are load-bearing and both were got wrong by the doors that
-        wrote this longhand instead of calling here. The removal LOOPS, because
-        `metta_py_remove` takes one occurrence and a catalog that somehow holds
-        two rows for one subject would keep the stale one: measured 2026-08-31,
-        a second `(emits &s fair)` row survived a redeclaration and left the
-        engine reading two policies for one space. And it runs in a
-        TRANSACTION, because a failure between the remove and the add leaves
-        the declaration missing rather than unchanged.
+        A row is `(<head> <key>... <value>...)`. The keys say WHICH row this
+        is and the values say what it declares, both are passed, and the
+        stored atom is built HERE, so the retract pattern and the atom that
+        replaces it cannot disagree about the head or the key. They could
+        before: a caller passed the head, the key and the whole atom
+        separately and nothing checked the first two occurred in the third.
+        `image` did disagree, passing its two key atoms as one nested pair,
+        which built `(image (<space> <type>) $previous)` against a flat row,
+        matched nothing, and left every previous row standing.
 
-        ``arities`` is how many trailing slots a superseded row may have, for a
-        declaration whose own shape grew: `agenda` supersedes both the
-        three-element form and the four-element one that names a function.
+        Both halves of the replacement are load-bearing and both were got
+        wrong by the doors that wrote this longhand instead of calling here.
+        The removal LOOPS, because `metta_py_remove` takes one occurrence and
+        a catalog that somehow holds two rows for one subject would keep the
+        stale one: measured 2026-08-31, a second `(emits &s fair)` row
+        survived a redeclaration and left the engine reading two policies for
+        one space. And it runs in a TRANSACTION, because a failure between the
+        remove and the add leaves the declaration missing rather than
+        unchanged.
+
+        How many trailing slots a superseded row has is `len(values)`, so no
+        caller states it. ``supersedes`` names EXTRA counts, for a declaration
+        whose own shape grew: `agenda` supersedes both the three-element form
+        and the four-element one that names a function, whichever it writes.
         """
-        # The key is FLAT, however many atoms it takes: a row is
-        # `(image <space> <type> <setting>)`, not `(image (<space> <type>)
-        # <setting>)`, so a tuple splats rather than nesting. Nesting it built
-        # a retract pattern that matched nothing and left every previous row
-        # standing, which the sqlite suite caught at once.
-        keys = subject if isinstance(subject, tuple) else (subject,)
+        atom = Expression([Symbol(head), *keys, *values])
         shapes = [
             Expression(
                 [Symbol(head), *keys,
                  *(Variable(f"previous{slot}") for slot in range(count))]
             )
-            for count in arities
+            for count in {len(values), *supersedes}
         ]
 
         def replace() -> Atom:
@@ -4509,25 +4506,14 @@ class Space(Handle):
             orders.covers("writesState")
             world = orders.reify()
         """
-        try:
-            declared = EffectClass(effect)
-        except (TypeError, ValueError):
-            msg = (
-                f"effect is one of {', '.join(EffectClass)}, not {effect!r}"
-            )
-            raise ValueError(msg) from None
+        declared = EffectClass(_require_vocabulary(effect, EffectClass, "effect"))
         subject = (
             self._name_atom
             if self._name_atom is not None
             else Symbol(str(self._space))
         )
-        atom = Expression(
-            [Symbol("covers"), subject, Symbol(str(declared))]
-        )
         return self._replace_catalog_declaration(
-            "covers",
-            subject,
-            atom,
+            "covers", (subject,), (Symbol(str(declared)),)
         )
 
     def compensates(self, operation: str, compensation: str) -> Atom:
@@ -4545,17 +4531,8 @@ class Space(Handle):
         """
         operation_name = str(operation)
         compensation_name = str(compensation)
-        atom = Expression(
-            [
-                Symbol("compensates"),
-                Symbol(operation_name),
-                Symbol(compensation_name),
-            ]
-        )
         return self._replace_catalog_declaration(
-            "compensates",
-            Symbol(operation_name),
-            atom,
+            "compensates", (Symbol(operation_name),), (Symbol(compensation_name),)
         )
 
     def add_tagged_fact(self, tag: Any, proposition: Any) -> Atom:
@@ -4583,21 +4560,12 @@ class Space(Handle):
         replaces the earlier one, so an attached provider reads one policy.
         Use ``_`` as the type name for a context-wide fallback.
         """
-        if setting not in ImageMode:
-            msg = (
-                f"image setting is one of {', '.join(ImageMode)}, "
-                f"not {setting!r}"
-            )
-            raise ValueError(msg)
+        _require_vocabulary(setting, ImageMode, "image setting")
         # Keyed on the TYPE as well as the space: one space declares an image
-        # per type, so the subject here is the pair.
+        # per type, so there are two key atoms.
         return self._replace_catalog_declaration(
-            "image",
-            (Symbol(str(self.name)), Symbol(type_name)),
-            Expression(
-                [Symbol("image"), Symbol(str(self.name)), Symbol(type_name),
-                 Symbol(setting)]
-            ),
+            "image", (Symbol(str(self.name)), Symbol(type_name)),
+            (Symbol(setting),)
         )
 
     def sample(
@@ -4637,14 +4605,9 @@ class Space(Handle):
         source. peek promises reads do not consume, which the conformance
         kit checks by enumerating twice.
         """
-        source_kinds = SourceKind
-        if kind not in source_kinds:
-            msg = f"kind is one of {', '.join(source_kinds)}, not {kind!r}"
-            raise ValueError(
-                msg
-            )
+        _require_vocabulary(kind, SourceKind, "kind")
         return self._replace_catalog_declaration(
-            "source", Symbol(str(self.name)), Expression([Symbol("source"), Symbol(str(self.name)), Symbol(kind)])
+            "source", (Symbol(str(self.name)),), (Symbol(kind),)
         )
 
     def on_error(
@@ -4668,11 +4631,7 @@ class Space(Handle):
         name = self.name if mode is None else subject_or_pattern
         pattern = subject_or_pattern if mode is None else pattern_or_mode
         chosen = str(pattern_or_mode) if mode is None else str(mode)
-        if chosen not in OnError:
-            msg = f"mode is one of {', '.join(OnError)}, not {chosen!r}"
-            raise ValueError(
-                msg
-            )
+        _require_vocabulary(chosen, OnError, "mode")
         shape = _to_atom(pattern)
         atom = Expression([Symbol("on-error"), Symbol(str(name)), shape, Symbol(chosen)])
         self._rt.must(
@@ -4695,12 +4654,7 @@ class Space(Handle):
         context declares (emits <ctx> best-first), and loudly refused
         without. Shapes route most-specific-first as everywhere.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        policies = AnswerPolicy
-        if policy not in policies:
-            msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
-            raise ValueError(
-                msg
-            )
+        _require_vocabulary(policy, AnswerPolicy, "policy")
         shape = _to_atom(pattern)
         atom = Expression([Symbol("merge"), shape, Symbol(policy)])
         self._rt.must(
@@ -4720,14 +4674,9 @@ class Space(Handle):
         an undeclared one refuses under negation loudly. Native spaces
         are the engine's own database and closed by construction.
         """
-        worlds = World
-        if world not in worlds:
-            msg = f"world is one of {', '.join(worlds)}, not {world!r}"
-            raise ValueError(
-                msg
-            )
+        _require_vocabulary(world, World, "world")
         return self._replace_catalog_declaration(
-            "context", Symbol(str(self.name)), Expression([Symbol("context"), Symbol(str(self.name)), Symbol(world)])
+            "context", (Symbol(str(self.name)),), (Symbol(world),)
         )
 
     def agenda(
@@ -4749,21 +4698,18 @@ class Space(Handle):
             alarms.reacts("(alert fire)", "(insert &log (fire))", priority=9)
             alarms.agenda("priority")
         """
-        policies = AgendaPolicy
-        if policy not in policies:
-            msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
-            raise ValueError(msg)
+        _require_vocabulary(policy, AgendaPolicy, "policy")
         if (policy == "user") != (function is not None):
             msg = (
                 "the user policy names the MeTTa function that scores a "
                 "reaction, and no other policy takes one"
             )
             raise ValueError(msg)
-        parts = [Symbol("agenda"), Symbol(str(self.name)), Symbol(policy)]
+        values = [Symbol(policy)]
         if function is not None:
-            parts.append(Symbol(str(function)))
+            values.append(Symbol(str(function)))
         return self._replace_catalog_declaration(
-            "agenda", Symbol(str(self.name)), Expression(parts), arities=(1, 2)
+            "agenda", (Symbol(str(self.name)),), tuple(values), supersedes=(1, 2)
         )
 
     def reacts(
@@ -4813,7 +4759,7 @@ class Space(Handle):
         already knows how to make.
         """
         atom = self._replace_catalog_declaration(
-            "admits", Symbol(str(self.name)), Expression([Symbol("admits"), Symbol(str(self.name)), Symbol(type_name)])
+            "admits", (Symbol(str(self.name)),), (Symbol(type_name),)
         )
         self._rt.must(
             "metta_admission_claim(Pool, Declarer)",
@@ -4828,7 +4774,7 @@ class Space(Handle):
             msg = f"capacity is a positive integer, not {limit!r}"
             raise ValueError(msg)
         atom = self._replace_catalog_declaration(
-            "capacity", Symbol(str(self.name)), Expression([Symbol("capacity"), Symbol(str(self.name)), Grounded(limit)])
+            "capacity", (Symbol(str(self.name)),), (Grounded(limit),)
         )
         self._rt.must(
             "metta_admission_claim(Pool, Declarer)",
@@ -4856,17 +4802,9 @@ class Space(Handle):
         silently surviving a rolled-back transaction is the wrong answer
         the declaration exists to replace.
         """
-        atomicities = Atomicity
-        if atomicity not in atomicities:
-            msg = (
-                f"atomicity is one of {', '.join(atomicities)}, "
-                f"not {atomicity!r}"
-            )
-            raise ValueError(
-                msg
-            )
+        _require_vocabulary(atomicity, Atomicity, "atomicity")
         return self._replace_catalog_declaration(
-            "writes", Symbol(str(self.name)), Expression([Symbol("writes"), Symbol(str(self.name)), Symbol(atomicity)])
+            "writes", (Symbol(str(self.name)),), (Symbol(atomicity),)
         )
 
     def emits(
@@ -4880,14 +4818,9 @@ class Space(Handle):
         k best. Distinct from the (merge <pattern> <policy>) strategy,
         which is how the ENGINE merges answers across several contexts.
         """
-        policies = AnswerPolicy
-        if policy not in policies:
-            msg = f"policy is one of {', '.join(policies)}, not {policy!r}"
-            raise ValueError(
-                msg
-            )
+        _require_vocabulary(policy, AnswerPolicy, "policy")
         return self._replace_catalog_declaration(
-            "emits", Symbol(str(self.name)), Expression([Symbol("emits"), Symbol(str(self.name)), Symbol(policy)])
+            "emits", (Symbol(str(self.name)),), (Symbol(policy),)
         )
 
     def events(
@@ -4914,22 +4847,10 @@ class Space(Handle):
         """
         if delivery is None:
             return self._event_stream()
-        deliveries = Delivery
-        event_orders = EventOrder
-        if delivery not in deliveries:
-            msg = f"delivery is one of {', '.join(deliveries)}, not {delivery!r}"
-            raise ValueError(msg)
-        if order not in event_orders:
-            msg = f"order is one of {', '.join(event_orders)}, not {order!r}"
-            raise ValueError(msg)
+        _require_vocabulary(delivery, Delivery, "delivery")
+        _require_vocabulary(order, EventOrder, "order")
         return self._replace_catalog_declaration(
-            "events",
-            Symbol(str(self.name)),
-            Expression(
-                [Symbol("events"), Symbol(str(self.name)), Symbol(delivery),
-                 Symbol(order)]
-            ),
-            arities=(2,),
+            "events", (Symbol(str(self.name)),), (Symbol(delivery), Symbol(order))
         )
 
     # ------------------------------------------------------------ interop
