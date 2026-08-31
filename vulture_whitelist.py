@@ -20,10 +20,6 @@ Open Obligations:
 # expression references. Ruff must leave those references intact for Vulture.
 # ruff: noqa: B018, F821
 
-# functools.lru_cache's own names on a cached definition, reached by whoever
-# writes @m.cache rather than from inside the package.
-_.cache_clear
-_.cache_info
 
 # Public compatibility and plugin entry points.
 _.load_metta_file

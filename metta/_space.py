@@ -104,11 +104,6 @@ Guarantees:
   - ``Space.op`` and ``Space.unregister_op`` are the sole public operation
     lifecycle pair [tested: test_operation_registration_names_are_symmetric;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - ``Space.cache`` stores complete answer bags independently of manual memo
-    policy and refuses an operation wrapper before definition registration
-    [tested: test_a_cached_definition_preserves_duplicate_answers,
-    test_cache_over_an_operation_refuses_before_definition_registration;
-    commit=8d6131a9d9902c67ce8cac71e96e8362a8713561]
   - encoded generator tuple and sparse-dict yields are relational candidate
     bindings in every call direction [tested:
     test_relational_tuple_candidates_unify_in_all_directions_without_changing_multiplicity,
@@ -2504,7 +2499,7 @@ class Space(Handle):
         # assumed: eval() is one eager engine call (metta_py_eval_all) and
         # answers() opens a cursor, and routing eval() through the cursor
         # unconditionally left a memoized definition's call keys unrecorded
-        # where the eager door records them [measured 2026-08-31: a @m.cache
+        # where the eager door records them [measured 2026-08-31: a memoized
         # fib(12) reached through the handle then run() stored 13 entries on
         # the eager path and 0 through the cursor]. So the delegation is for
         # what answers() uniquely OWNS -- the carrier, the theory and the
@@ -3976,81 +3971,6 @@ class Space(Handle):
             )
         )
         return handler
-
-    @overload
-    def cache(self, fn: Callable[_P, _R], /) -> Defined[_P, _R]: ...
-
-    @overload
-    def cache(
-        self, *, name: str | None = None, unchecked: bool = False
-    ) -> Callable[[Callable[_P, _R]], Defined[_P, _R]]: ...
-
-    def cache(
-        self,
-        fn: Callable[..., Any] | None = None,
-        *,
-        name: str | None = None,
-        unchecked: bool = False,
-    ) -> Any:
-        """Define a function and memoize its complete answer bag.
-
-        The decorator is notation over the engine's ``lib_memo`` substrate.
-        Each call key stores every answer occurrence, so caching changes when
-        work happens without changing result multiplicity.
-
-            @m.cache
-            def fib(n):
-                return n if n < 2 else fib(n - 1) + fib(n - 2)
-
-            fib(25)               # [75025], linear rather than exponential
-            fib.cache_info()      # {'entries': 26, 'answers': 26}
-            fib.cache_clear()
-
-        `unchecked=True` is the declaration that ACCEPTS STALENESS: the
-        purity walk is skipped, which is the only way to memoize a body whose
-        reads the engine cannot prove stable. It is the
-        engine's `(cache <name> unchecked)`, not a size, and there is no
-        maxsize argument here because engine memo policy owns its limits.
-
-        `cache_info()` reports this function's live call-key entries and the
-        number of answer occurrences stored across them.
-
-        Result order is unspecified but result multiplicity is observable.
-        ``a, a, b`` therefore remains ``a, a, b`` after caching [tested:
-        test_a_cached_definition_preserves_duplicate_answers; commit=8d6131a9d9902c67ce8cac71e96e8362a8713561].
-        """
-        if fn is None:
-            return lambda function: self._cache_define(function, name, unchecked=unchecked)
-        return self._cache_define(fn, name, unchecked=unchecked)
-
-    def _cache_define(
-        self, fn: Callable[..., Any], name: str | None, *, unchecked: bool
-    ) -> Any:
-        """Define, then install the multiplicity-preserving memo declaration."""
-        operation = _ops_module._registered_operation(fn)
-        if operation is not None:
-            msg = (
-                f"@metta.cache cannot wrap @metta.op {operation.name!r}; "
-                "memoize a host callable with functools.cache or "
-                "functools.lru_cache instead"
-            )
-            raise TypeError(msg)
-        defined = install_define(self, fn, name)
-        # The declaration lives in lib_memo, which is an ordinary library
-        # import rather than a load: import! skips a file already in the space,
-        # so a second @m.cache in the same space costs one lookup.
-        self.eval(Expression([Symbol("import!"), self,
-                        Expression([Symbol("library"), Symbol("lib_memo")])]))
-        if unchecked:
-            self.add(Expression([Symbol("cache"), Symbol(defined.name), Symbol("unchecked")]))
-        self.runtime.must(
-            "metta_py_module(Space, Module), "
-            "metta_py_in_module(Module, lib_memo:memoize_exact(Fun))",
-            Space=self.name,
-            Fun=defined.name,
-        )
-        defined._memoized = True
-        return defined
 
     def type(self, atom: Any) -> Atom:
         """Return this space's first ``get-type`` answer, including undefined."""

@@ -1,9 +1,9 @@
 """examples/ch18-performance/18-02-memoisation-and-tabling/09-tabling_fib.metta in Python: tabled recursion, declared once.
 
 The source example asks for SWI set tabling explicitly, so the twin does too.
-`@m.cache` instead promises an exact answer bag and uses the engine memo store;
-the two mechanisms agree on this exclusive Fibonacci definition but have
-different multiplicity laws.
+`lib_memo`'s `memoize-exact` instead promises an exact answer bag and uses the
+engine memo store; the two mechanisms agree on this exclusive Fibonacci
+definition but have different multiplicity laws.
 """
 
 from metta import S, V, lib
@@ -66,8 +66,9 @@ def twin(m):
 #: min-of-3 after a canonical single-boot QLF regeneration].
 #: RE-PINNED 2026-08-26, 91134 to 90639, because this twin now
 #: declares the example's SWI set table through `m += lib.tabling`
-#: and `(tabled (fib $n))`; `@m.cache` moved to the distinct exact-
-#: bag memo substrate and is no longer an equivalent spelling.
+#: and `(tabled (fib $n))`; the exact-bag memo (then spelled with a
+#: `@m.cache` decorator, now `memoize-exact`) is a distinct substrate
+#: and was never an equivalent spelling.
 #: Measured through tools/twin_coverage.py --measure --rounds 3 on
 #: this reader.so-bearing tree under the suite's two-sided +-4
 #: allowance.

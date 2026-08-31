@@ -68,17 +68,12 @@ def test_module_tier_exposes_the_mode_and_definition_family() -> None:
     def module_tier_increment(n):
         return n + 1
 
-    @metta.cache
-    def module_tier_square(n):
-        return n * n
-
     assert module_tier_increment(4) == [5]
-    assert module_tier_square(3) == [9]
     with metta.stats() as measured:
         assert metta.eval(S.module_tier_increment(8)) == [9]
     assert measured.inferences > 0
     with metta.limits(inferences=100_000):
-        assert metta.eval(S.module_tier_square(4)) == [16]
+        assert metta.eval(S.module_tier_increment(15)) == [16]
     events = metta.trace("!(module-tier-increment 1)")
     assert events
     assert callable(metta.trace)
@@ -156,7 +151,7 @@ def test_module_tier_verbs_are_inert_until_called() -> None:
         "import metta\n"
         "assert not _engine.started()\n"
         "assert all(callable(getattr(metta, name)) for name in "
-        "('define', 'cache', 'op', 'stats', 'limits', 'speculate', 'trace'))\n"
+        "('define', 'op', 'stats', 'limits', 'speculate', 'trace'))\n"
         "assert not _engine.started()\n"
     )
     subprocess.run(

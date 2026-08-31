@@ -12,11 +12,11 @@ like any other definition. Calling it evaluates, which is why the claims read
 `energy(2.0, 0)` and not a rebuilt term.
 
 The three directives stay terms: each names an engine service rather than a
-computation, none of them is banged, and lib_memo has no Python face.
-`@m.cache` is the Python-native memo door and it is a DIFFERENT mechanism,
-engine tabling rather than this library's policy cache, so using it here would
-twin something the example does not do. The import takes the space HANDLE,
-because a space crosses a term position as itself.
+computation, none of them is banged, and lib_memo has no Python face and needs
+none. There was once a `@m.cache` decorator here, a host door for ONE library
+that reached the exact-bag variant no other seat could spell; it is gone, and
+`memoize-exact` is an ordinary library form every seat reaches. The import takes
+the space HANDLE, because a space crosses a term position as itself.
 
 The definition is written FIRST, where the example writes it fourth. A file
 loader registers a file's function names before it runs the file's `!` forms,

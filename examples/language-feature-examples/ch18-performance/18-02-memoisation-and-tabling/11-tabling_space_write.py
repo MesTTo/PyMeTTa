@@ -10,8 +10,8 @@ expression-position `match(space, pattern, template)` is read as syntax and
 emits the instruction, so `match(m, S.edge(x, y), y)` stores exactly the
 example's `(match &self (edge $x $y) $y)`, and `match(m, p, p)` passes its
 pattern straight through as a PARAMETER. SWI tabling stays an explicit
-`lib.tabling` declaration because `@m.cache` has the distinct exact-bag memo
-law.
+`lib.tabling` declaration because `lib_memo`'s `memoize-exact` has the distinct
+exact-bag memo law.
 
 `twohop` stays at the container door, which is the residue entry this file
 carries. A conjunction pattern `(, p q)` has no compiled spelling: the receiver

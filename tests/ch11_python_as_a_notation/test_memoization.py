@@ -1,43 +1,101 @@
-"""Purpose: pin the cache decorator as notation over the engine's memo store.
-Assumes: lib_memo is importable from the space, which the decorator does
-  itself; nothing here declares a table by hand.
+"""Purpose: pin lib_memo's exact answer-bag memo as reached from Python.
+Assumes: lib_memo is imported into the space under test; nothing here declares
+  a table by hand.
 Guarantees:
-  - a cached definition answers from the engine memo, so an exponential
-    recursion becomes linear, and its counters and clear are reachable under
-    functools.lru_cache's own names; the uncached control declares the
-    automatic memo policy's explicit refusal.
+  - a memoized definition answers from the engine memo, so an exponential
+    recursion becomes linear, and its counters and its invalidation are
+    lib_memo's own forms rather than a host door; the unmemoized control
+    declares the automatic memo policy's explicit refusal.
   [tested: test_a_cached_definition_memoizes_its_complete_answer_bag;
-   commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - cached answer replay preserves duplicate occurrences because multiplicity
-    is part of the result law, even after the owning space shadows the replay
-    loop's host spelling.
+   commit=WORKTREE]
+  - memo replay preserves duplicate occurrences because multiplicity is part
+    of the result law, even after the owning space shadows the replay loop's
+    host spelling.
   [tested: test_a_cached_definition_preserves_duplicate_answers,
-   test_exact_cache_replay_ignores_a_space_local_between_shadow; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - cached and uncached answer bags agree for ground recursion, open calls and
-    a dependency whose definition changes between calls, including when an
+   test_exact_cache_replay_ignores_a_space_local_between_shadow; commit=WORKTREE]
+  - memoized and unmemoized answer bags agree for ground recursion, open calls
+    and a dependency whose definition changes between calls, including when an
     already-live pool engine populated the old private answer table.
   [tested: test_exact_cache_matches_uncached_answer_bags,
-   test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - stacking cache over op refuses before definition registration and sends
-    host-only memoization to functools.
-  [tested: test_cache_over_an_operation_refuses_before_definition_registration;
-   commit=39092863ae34184a9f955f185ff57c1ff177ec40]
+   test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=WORKTREE]
+  - memoizing a registered operation is refused by the LIBRARY on its declared
+    effect class, for every seat, and `unchecked` does not open it.
+  [tested: test_memoizing_an_effectful_operation_is_refused_by_the_library;
+   commit=WORKTREE]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
-  that were made and has no maxsize; `unchecked=True` is the staleness the
-  engine's own `(cache <name> unchecked)` accepts, not a size.
+  that were made and has no maxsize; the engine's own `(cache <name> unchecked)`
+  is the staleness it accepts, not a size.
+  Also when a counter is read after a LAZY call. The exact store is an SWI
+  table and a private table belongs to the table space that fills it, so an
+  answer cursor's engine keeps its own copy; `_answers` below is why every
+  counter assertion evaluates eagerly.
 Open Obligations:
   To Do: None
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the contract is one continuous invariant, not summary-and-body prose
 
-import functools
 from collections import Counter
 
 import pytest
 
 from metta import MeTTa, S, V
 from metta.parallel import EnginePool
+
+
+def _memoized(space, *, name=None, unchecked=False):
+    """Define, then memoize through lib_memo's own forms.
+
+    There is no host door for this. A hardcoded Python verb for ONE library is
+    the special-case surface the universal seam exists to avoid, and every
+    capability the removed decorator had is a library form reachable from every
+    seat: `memoize-exact` declares it, `get-memoize-stats` reports it,
+    `invalidate-memoize` clears it, and `(cache <name> unchecked)` is the
+    staleness opt-in. This is the test's own convenience over that route.
+    """
+
+    def install(fn):
+        defined = space.define(fn, name=name) if name else space.define(fn)
+        # Into THIS space, and S["lib_memo"] rather than S.lib_memo, whose
+        # attribute door would apply the underscore-to-hyphen map to a
+        # LIBRARY name that really does carry an underscore.
+        space.eval(S["import!"](space, S.library(S["lib_memo"])))
+        if unchecked:
+            space.add(S.cache(S[defined.name], S.unchecked))
+        space.eval(S.memoize_exact(S[defined.name]))
+        return defined
+
+    return install
+
+
+def _answers(defined, *args):
+    """Call in the caller's own table space, which is where the counters live.
+
+    lib_memo's exact store is an SWI table, and a private table belongs to the
+    table space that fills it: `enable_exact_memoization`'s own note says so and
+    makes the memo generation an ordinary first argument for exactly that
+    reason. A lazy answer cursor runs its goal in an engine created by
+    `engine_create/3`, which is its own table space, so a call consumed one
+    answer at a time memoizes correctly and at the same cost but leaves nothing
+    the counters here can read [measured 2026-08-31: fib(25) flat in n through
+    both doors; entries 26 eager, 0 through the cursor]. Every assertion below
+    that reads a counter therefore calls eagerly.
+    """
+    return defined.space.eval(S[defined.name](*args))
+
+
+def _memo_stats(defined) -> dict[str, int]:
+    """lib_memo's own counters, which the removed cache_info() wrapped."""
+    answers = defined.space.eval(S.get_memoize_stats(S[defined.name]))
+    if not answers:
+        return {}
+    return {str(row[0]): int(row[1]) for row in answers[0] if len(row) == 2}
+
+
+def _memo_clear(defined) -> None:
+    """lib_memo's own invalidation, which the removed cache_clear() wrapped."""
+    defined.space.eval(S.invalidate_memoize(S[defined.name]))
+
 
 #: Big enough that the uncached twin cannot finish inside the default
 #: evaluation fuel, which is the point being made, and small enough that the
@@ -67,7 +125,7 @@ def _assert_alpha_bags_equal(memoized, plain) -> None:
 
 
 def _install_recursive_bag_pair(memo, plain):
-    @memo.cache(name="p14-diff-recursive")
+    @_memoized(memo, name="p14-diff-recursive")
     def memo_recursive(n):
         yield n
         yield n
@@ -88,19 +146,19 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
     """The decorator is notation; the answers come from the engine memo."""
     metta = MeTTa().space("&cachedecorator")
 
-    @metta.cache
+    @_memoized(metta)
     def cachedec_fib(n):
         return n if n < 2 else cachedec_fib(n - 1) + cachedec_fib(n - 2)
 
     with metta.stats() as cached:
-        assert cachedec_fib(_N) == [75025]
+        assert _answers(cachedec_fib, _N) == [75025]
 
     # Counts describe this definition's call-key entries and answer bag.
-    info = cachedec_fib.cache_info()
+    info = _memo_stats(cachedec_fib)
     assert info["entries"] == _N + 1
     assert info["answers"] == _N + 1
-    cachedec_fib.cache_clear()
-    assert cachedec_fib.cache_info() == {"entries": 0, "answers": 0}
+    _memo_clear(cachedec_fib)
+    assert _memo_stats(cachedec_fib) == {"entries": 0, "answers": 0}
 
     # The same definition without the memo is exponential. It ANSWERS, since
     # the evaluation fuel is opt-in and upstream has none, and the cost is the
@@ -108,8 +166,8 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
     # accelerate this shape, so the control uses its public refuse
     # declaration.
     plain = MeTTa().space("&cachedecorator-plain")
-    refusal = "(cache cachedec-plain refuse)"
-    plain.run(f"!(add-atom &metta {refusal})")
+    refusal = S.cache(S["cachedec-plain"], S.refuse)
+    plain.eval(S.add_atom(S["&metta"], refusal))
     try:
 
         @plain.define
@@ -127,19 +185,19 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
         # ratio so another move away from direct answer-trie dispatch is red.
         assert untabled.inferences > 320 * cached.inferences
     finally:
-        plain.run(f"!(remove-atom &metta {refusal})")
+        plain.eval(S.remove_atom(S["&metta"], refusal))
 
     # The Python twin is untouched: a cached definition is still a definition.
     assert cachedec_fib.py(10) == 55
 
     # unchecked=True is the engine's own staleness-accepting declaration, and
     # name= is define's own.
-    @metta.cache(name="cachedec-named", unchecked=True)
+    @_memoized(metta, name="cachedec-named", unchecked=True)
     def cachedec_named(n):
         return n if n < 2 else cachedec_named(n - 1) + cachedec_named(n - 2)
 
-    assert cachedec_named(20) == [6765]
-    assert cachedec_named.cache_info() == {"entries": 21, "answers": 21}
+    assert _answers(cachedec_named, 20) == [6765]
+    assert _memo_stats(cachedec_named) == {"entries": 21, "answers": 21}
 
 
 def test_a_cached_definition_preserves_duplicate_answers() -> None:
@@ -153,30 +211,30 @@ def test_a_cached_definition_preserves_duplicate_answers() -> None:
     """
     metta = MeTTa().space("&cachedup")
 
-    @metta.cache
+    @_memoized(metta)
     def cachedup():
         yield "a"
         yield "a"
         yield "b"
 
-    metta.run("!(config-memoize (answer-limit 2) (aggregate count) (float 0))")
+    metta.eval(S.config_memoize(S.answer_limit(2), S.aggregate(S.count), S.float(0)))
     try:
-        metta.run("!(clear-memoize-stats)")
-        assert sorted(str(atom) for atom in cachedup()) == ['"a"', '"a"', '"b"']
-        assert sorted(str(atom) for atom in cachedup()) == [
+        metta.eval(S.clear_memoize_stats())
+        assert sorted(str(atom) for atom in _answers(cachedup)) == ['"a"', '"a"', '"b"']
+        assert sorted(str(atom) for atom in _answers(cachedup)) == [
             '"a"',
             '"a"',
             '"b"',
         ]
-        assert cachedup.cache_info() == {"entries": 1, "answers": 3}
+        assert _memo_stats(cachedup) == {"entries": 1, "answers": 3}
         stats = {
             str(pair[0]): int(pair[1])
-            for pair in metta.run("!(get-memoize-stats)")[0][0]
+            for pair in metta.eval(S.get_memoize_stats())[0]
         }
         assert stats == {"cache_hit": 1, "cache_miss": 1}
     finally:
-        metta.run(
-            "!(config-memoize (answer-limit 2048) (aggregate none) (float 12))"
+        metta.eval(
+            S.config_memoize(S.answer_limit(2048), S.aggregate(S.none), S.float(12))
         )
 
 
@@ -184,12 +242,12 @@ def test_exact_cache_matches_uncached_answer_bags() -> None:
     """Match an uncached oracle across duplicate, open, recursive, and changed calls."""
     memo = MeTTa().space("&p14-differential-memo")
     plain = MeTTa().space("&p14-differential-plain")
-    refusal = "(cache p14-diff-recursive-plain refuse)"
-    plain.run(f"!(add-atom &metta {refusal})")
+    refusal = S.cache(S["p14-diff-recursive-plain"], S.refuse)
+    plain.eval(S.add_atom(S["&metta"], refusal))
 
     memo_recursive, plain_recursive = _install_recursive_bag_pair(memo, plain)
 
-    @memo.cache(name="p14-diff-open")
+    @_memoized(memo, name="p14-diff-open")
     def memo_open(value):
         yield value
         yield value
@@ -220,7 +278,7 @@ def test_exact_cache_matches_uncached_answer_bags() -> None:
     memo_source = install_memo_source_before()
     plain_source = install_plain_source_before()
 
-    @memo.cache(name="p14-diff-state")
+    @_memoized(memo, name="p14-diff-state")
     def memo_state(value):
         yield memo_source(value)
 
@@ -232,10 +290,10 @@ def test_exact_cache_matches_uncached_answer_bags() -> None:
         _assert_ground_bags_equal(memo_recursive, plain_recursive, (0, 1, 3))
         _assert_alpha_bags_equal(memo_open(V.x), plain_open(V.x))
 
-        assert Counter(map(str, memo_state(S.seed))) == Counter(
+        assert Counter(map(str, _answers(memo_state, S.seed))) == Counter(
             map(str, plain_state(S.seed))
         )
-        assert memo_state.cache_info() == {"entries": 1, "answers": 2}
+        assert _memo_stats(memo_state) == {"entries": 1, "answers": 2}
 
         def install_memo_source_after():
             @memo.define(name="p14-diff-state-source")
@@ -258,13 +316,13 @@ def test_exact_cache_matches_uncached_answer_bags() -> None:
         install_memo_source_after()
         install_plain_source_after()
 
-        assert memo_state.cache_info() == {"entries": 0, "answers": 0}
-        assert Counter(map(str, memo_state(S.seed))) == Counter(
+        assert _memo_stats(memo_state) == {"entries": 0, "answers": 0}
+        assert Counter(map(str, _answers(memo_state, S.seed))) == Counter(
             map(str, plain_state(S.seed))
         )
-        assert memo_state.cache_info() == {"entries": 1, "answers": 3}
+        assert _memo_stats(memo_state) == {"entries": 1, "answers": 3}
     finally:
-        plain.run(f"!(remove-atom &metta {refusal})")
+        plain.eval(S.remove_atom(S["&metta"], refusal))
 
 
 def test_exact_memo_wrappers_keep_named_space_owners_separate() -> None:
@@ -272,25 +330,25 @@ def test_exact_memo_wrappers_keep_named_space_owners_separate() -> None:
     left = MeTTa().space("&cache-owner-left")
     right = MeTTa().space("&cache-owner-right")
 
-    @left.cache(name="cache-owner-shared")
+    @_memoized(left, name="cache-owner-shared")
     def left_shared():
         yield "left"
         yield "left"
 
-    @right.cache(name="cache-owner-shared")
+    @_memoized(right, name="cache-owner-shared")
     def right_shared():
         yield "right"
         yield "right"
         yield "right"
 
-    assert [str(atom) for atom in left_shared()] == ['"left"', '"left"']
-    assert [str(atom) for atom in right_shared()] == [
+    assert [str(atom) for atom in _answers(left_shared)] == ['"left"', '"left"']
+    assert [str(atom) for atom in _answers(right_shared)] == [
         '"right"',
         '"right"',
         '"right"',
     ]
-    assert left_shared.cache_info() == {"entries": 1, "answers": 2}
-    assert right_shared.cache_info() == {"entries": 1, "answers": 3}
+    assert _memo_stats(left_shared) == {"entries": 1, "answers": 2}
+    assert _memo_stats(right_shared) == {"entries": 1, "answers": 3}
 
 
 def test_exact_cache_replay_ignores_a_space_local_between_shadow() -> None:
@@ -304,7 +362,7 @@ def test_exact_cache_replay_ignores_a_space_local_between_shadow() -> None:
     )
     metta.unregister_op("between")
 
-    @metta.cache(name="cache-between-replay")
+    @_memoized(metta, name="cache-between-replay")
     def replayed(left, right):
         yield S.Pair(left, right)
         yield S.Pair(left, right)
@@ -326,7 +384,7 @@ def test_exact_cache_invalidation_crosses_a_live_pool_engine() -> None:
 
     source = install_before()
 
-    @metta.cache(name="cache-live-derived")
+    @_memoized(metta, name="cache-live-derived")
     def derived(value):
         yield source(value)
 
@@ -353,30 +411,44 @@ def test_exact_cache_invalidation_crosses_a_live_pool_engine() -> None:
         assert second == Counter({"(After seed)": 2, "(Extra seed)": 1})
 
 
-def test_cache_over_an_operation_refuses_before_definition_registration() -> None:
-    """An operation is one definition door; host memoization names functools."""
+def test_memoizing_an_effectful_operation_is_refused_by_the_library() -> None:
+    """The effect class decides, and the library decides it for every seat.
+
+    The removed decorator refused to wrap ANY registered operation, from one
+    host, with a message naming functools. That ban was both too wide and too
+    narrow: too wide because a pureStructural operation is exactly as cacheable
+    as a compiled definition, and too narrow because the same call written in
+    MeTTa, Node or C met no ban at all. The rule now sits in lib_memo, reads the
+    declared effect, and holds wherever `memoize-exact` is spelled.
+    """
     metta = MeTTa().space("&cache-over-op")
+    metta.eval(S["import!"](metta, S.library(S["lib_memo"])))
 
     @metta.op(effect="pureStructural")
-    def cache_op_value(value):
+    def cache_pure_op(value):
         return value
 
-    @functools.wraps(cache_op_value)
-    def outer_wrapper(value):
-        return cache_op_value(value)
+    @metta.op(effect="oracleIO")
+    def cache_io_op(value):
+        return value
 
-    for candidate in (cache_op_value, cache_op_value.__wrapped__, outer_wrapper):
-        with pytest.raises(TypeError) as raised:
-            metta.cache(candidate)
+    # An operation whose author declared it above pureStructural cannot be
+    # cached: memoization invalidates on an equation change and on nothing
+    # else, so a reading it cannot see change goes stale in silence.
+    with pytest.raises(Exception) as raised:
+        metta.eval(S.memoize_exact(S["cache-io-op"]))
+    assert "cache-io-op" in str(raised.value)
 
-        message = str(raised.value)
-        assert "@metta.cache" in message
-        assert "@metta.op" in message
-        assert "functools.cache" in message
-        assert "functools.lru_cache" in message
-    assert metta.run("!(match &metta (defined &cache-over-op cache-op-value) yes)") == [[]]
-    assert cache_op_value(3) == 3
+    # And the declaration is the AUTHOR's answer, so the caller's `unchecked`
+    # does not open it, matching the volatility gate beside it.
+    metta.add(S.cache(S["cache-io-op"], S.unchecked))
+    with pytest.raises(Exception) as still:
+        metta.eval(S.memoize_exact(S["cache-io-op"]))
+    assert "cache-io-op" in str(still.value)
 
-    metta.unregister_op("cache-op-value")
-    cached = metta.cache(cache_op_value, name="cache-after-op")
-    assert cached(3) == [3]
+    # The pureStructural twin is ordinary and caches.
+    assert metta.eval(S.memoize_exact(S["cache-pure-op"])) == [True]
+    assert cache_pure_op(3) == 3
+
+    metta.unregister_op("cache-pure-op")
+    metta.unregister_op("cache-io-op")

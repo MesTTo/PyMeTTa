@@ -88,7 +88,12 @@ FINAL_METTA_METHODS = 21
 # count and not the surface's MEANING: each is ``op`` with one argument filled
 # in, which is why there is no fifth for ``nondeterministicReadOnly`` (a
 # generator is nondeterministic and the registration lifts the class itself).
-FINAL_METTA_EXPORTS = 107
+# -1 for ``cache``, removed 2026-08-31: it was a host door for ONE library,
+# reaching lib_memo's exact-bag variant from Python and from nowhere else, and
+# every capability it had is a library form (``memoize-exact``,
+# ``get-memoize-stats``, ``invalidate-memoize``, ``(cache <name> unchecked)``)
+# that every seat already reaches.
+FINAL_METTA_EXPORTS = 106
 
 SATELLITES = {
     "aio",
@@ -192,6 +197,7 @@ REMOVED_FROM_METTA = {
 
 REMOVED_FROM_ROOT = {
     "HERE",
+    "cache",
     "DECLINE",
     "Decline",
     "Expr",

@@ -432,11 +432,6 @@ def io(*args: _Any, **kwargs: _Any):
     return engine().self.io(*args, **kwargs)
 
 
-def cache(*args: _Any, **kwargs: _Any):
-    """Define and memoize a function in the default self space."""
-    return engine().self.cache(*args, **kwargs)
-
-
 def stats():
     """Measure engine counters across a default-context block."""
     return engine().self.stats()
@@ -518,7 +513,6 @@ __all__ = [
     "arrow",
     "attach",
     "boot",
-    "cache",
     "casting",
     "catalog",
     "channel",

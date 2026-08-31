@@ -119,9 +119,10 @@ _ROWS = 2_000
 #: automatic +22,306/+22,324/+22,356/+22,386 across n=12..20, while both
 #: growth classes stay exactly what the lane exists to pin: plain
 #: exponential, automatic linear in n.
-#: RE-PINNED 2026-08-26 on the exact-bag `@metta.cache` landing. The shared
-#: memo dispatch now distinguishes the decorator's exact policy from manual
-#: and automatic policies. The automatic arm pays that indexed policy choice
+#: RE-PINNED 2026-08-26 on the exact-bag memo landing (reached then by a
+#: `@metta.cache` decorator, since removed in favour of lib_memo's own
+#: `memoize-exact`; the substrate is the same one). The shared memo dispatch
+#: now distinguishes that exact policy from manual and automatic policies. The automatic arm pays that indexed policy choice
 #: on each linear-state memo call (+477/+497/+513/+525), while the refused
 #: plain arm moves by a fixed -48/-48/-46/-48 from the same lib_memo clause
 #: layout. Minima across three fresh-process min-of-three rounds on the

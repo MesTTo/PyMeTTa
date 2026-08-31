@@ -57,7 +57,7 @@ Guarantees:
     the answer view with its defaulted cells, the keyword builders, the
     coordination verbs, the class door, the verdict builders under
     `@space.pre_add`, the head-named declaration methods, package `match`
-    and `superpose`, `view()`, `@space.cache`, `limits(stack=)` and the
+    and `superpose`, `view()`, `limits(stack=)` and the
     standard-module mentions inside a compiled body
     [tested: test_the_landed_doors_read_clean; commit=0cfc68a483d8d64fb499e53bbe9a3cc63f68990f]
   - a bare vocabulary word at a head-named declaration door is a finding that
@@ -702,15 +702,14 @@ def _factory(node: ast.expr) -> tuple[str, str] | None:
 #: landed the bundle door [source: ai-report-p14-r3.md, rules and per-yield
 #: equation emission; commit=8c057bb8055459cc13127d89b418deb634b90ae4].
 #:
-#: A cached body still names the space its match reads, because the ambient
+#: A memoized body still names the space its match reads, because the ambient
 #: one-pattern form lowers to `(context-space)` and caching refuses that as
 #: impure; the space is named by HANDLE, so the refusal costs no string
-#: [measured 2026-08-24: `match(kb, S.entry(k, V.v), V.v)` under
-#: `@space.cache` stores `(match &self (entry $k $v) $v)` where the
-#: one-pattern form raises "caching refuses context-space/1: nothing declares
-#: it pure"; found 2026-08-22 by the libraries agent, which lost the @m.cache
-#: spelling and fn.cache_info() to this; commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
-COMPILING_DECORATORS = frozenset({"define", "cache", "pre_add", "rules"})
+#: [measured 2026-08-24: `match(kb, S.entry(k, V.v), V.v)` memoized stores
+#: `(match &self (entry $k $v) $v)` where the one-pattern form raises
+#: "caching refuses context-space/1: nothing declares it pure";
+#: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
+COMPILING_DECORATORS = frozenset({"define", "pre_add", "rules"})
 
 #: The subset whose body is LOWERED from Python syntax, where `a + b` emits
 #: `(+ $a $b)`. A `@rules` body is EXECUTED instead, so its `a == b` is

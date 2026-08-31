@@ -25,9 +25,14 @@ its own performs no engine work and the counters below it would all read zero
 for that reason too. The example's own `(collapse (reach a $y))` is what forces
 it, and `list(...)` is that collapse.
 
-`reach` is written by `@m.define` and tabled through `lib.tabling`. `@m.cache`
-uses the distinct exact-bag memo substrate, whose `cache_info()` reports memo
-entries and answer occurrences rather than SWI table counters.
+`reach` is written by `@m.define` and tabled through `lib.tabling`.
+`lib_memo`'s `memoize-exact` uses the distinct exact-bag memo substrate, whose
+`get-memoize-stats` reports memo entries and answer occurrences rather than SWI
+table counters. That substrate is mode-directed tabling, which cannot be
+declared `as shared` the way lib_tabling's tables above are: SWI then returns a
+clause reference where `get_calls/3` expects a trie. So the two libraries differ
+here on purpose, and the exact memo a lazy cursor fills stays that cursor's own
+[measured 2026-08-31].
 """
 
 from metta import S, V, lib, match

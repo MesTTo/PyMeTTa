@@ -504,7 +504,7 @@ LANDED_DOORS = (
     "                return S.Free\n"
     "            case _:\n"
     "                return x % 2 == 0\n"
-    "    @m.cache\n"
+    "    @m.define\n"
     "    def looked_up(key):\n"
     "        return match(kb, S.entry(key, V.value), V.value)\n"
     "    @kb.pre_add\n"

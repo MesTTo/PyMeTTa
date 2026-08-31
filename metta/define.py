@@ -55,7 +55,7 @@ Guarantees:
     lint event [tested: test_a_module_level_defined_call_is_linted_not_refused;
     commit=acb40f1912f131ae088083d1af29b4b283019bea]
   - cached definitions enter the compiled-call dispatch seam and expose their
-    bag-preserving memo store through cache_clear/cache_info
+    bag-preserving memo store, reached through lib_memo's own forms
     [tested: test_a_cached_definition_preserves_duplicate_answers;
     commit=8d6131a9d9902c67ce8cac71e96e8362a8713561]
   - exact ``py(expr)`` marker bindings become application-time host islands
@@ -131,20 +131,6 @@ def _never(_name: str) -> bool:
 
 def _unknown_effect(_name: str) -> EffectClass:
     return EffectClass.oracleIO
-
-
-def _deferred_memoized_answers(
-    space: Any,
-    name: str,
-    args: tuple[Any, ...],
-):
-    """Enter the source runner whose compiled calls own memo dispatch."""
-    binding_names = [f"__metta_cache_arg_{index}" for index in range(len(args))]
-    term = Expression([Symbol(name), *(Symbol(item) for item in binding_names)])
-    with space.bind(dict(zip(binding_names, args, strict=True))):
-        groups = space.run(f"!{term}")
-    if groups:
-        yield from groups[0]
 
 
 def _builtins_namespace() -> dict[str, Any]:
@@ -313,7 +299,6 @@ class Defined[**P, R]:
     __slots__ = (
         "__name__",
         "__wrapped__",
-        "_memoized",
         "_py",
         "bodies",
         "body",
@@ -357,7 +342,6 @@ class Defined[**P, R]:
         self.patterns = dict(patterns or {})
         self.body = body
         self.bodies = () if body is None else (bodies or (body,))
-        self._memoized = False
         self._py = py
         self.space = space
         self.doc = inspect.getdoc(py)
@@ -409,12 +393,6 @@ class Defined[**P, R]:
                 return _encode(folded[0])
             return term
         self.space._warn_deprecated(self.name, stacklevel=3)
-        if self._memoized:
-            return Answers(
-                _deferred_memoized_answers(self.space, self.name, args),
-                space=self.space.name,
-                target=term,
-            )
         return self.space.answers(term)
 
     @property
@@ -456,25 +434,6 @@ class Defined[**P, R]:
     def source(self) -> str:
         """Every equation in this clause unit as MeTTa source."""
         return "\n".join(f"(= {self.head} {body})" for body in self.bodies)
-
-    def cache_clear(self) -> None:
-        """Drop this definition's memo entries without disabling it."""
-        self.space.eval(
-            Expression([Symbol("invalidate-memoize"), Symbol(self.name)])
-        )
-
-    def cache_info(self) -> dict[str, int]:
-        """Count this definition's live memo entries and cached answers."""
-        answers = self.space.eval(
-            Expression([Symbol("get-memoize-stats"), Symbol(self.name)])
-        )
-        if not answers:
-            return {}
-        return {
-            str(row[0]): int(row[1])
-            for row in answers[0]
-            if isinstance(row, Expression) and len(row) == 2
-        }
 
     def __repr__(self) -> str:  # noqa: D105  -- the Python data-model hook is defined by its name and enclosing type contract
         return f"<defined {self.name}({', '.join(self.params)}) = {self.body}>"

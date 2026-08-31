@@ -1168,11 +1168,14 @@ def test_a_generated_memo_clause_does_not_consume_a_registrable_name(metta):
     test_a_cached_definition_memoizes_its_complete_answer_bag
     [measured 2026-08-26]. The generated body now says system:between.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    @metta.cache(name="opsleak-fib", unchecked=True)
+    @metta.define(name="opsleak-fib")
     def opsleak_fib(n):
         return n if n < 2 else opsleak_fib(n - 1) + opsleak_fib(n - 2)
 
-    assert opsleak_fib(10) == [55]
+    metta.eval(S["import!"](metta, S.library(S["lib_memo"])))
+    metta.add(S.cache(S["opsleak-fib"], S.unchecked))
+    metta.eval(S.memoize_exact(S["opsleak-fib"]))
+    assert metta.eval(S["opsleak-fib"](10)) == [55]
 
     metta.op(lambda *_a: 1, name="between", effect="pureStructural", arities=[2])
     try:
