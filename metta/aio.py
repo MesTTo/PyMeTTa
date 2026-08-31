@@ -1083,9 +1083,13 @@ class AsyncMeTTa:
             )
         )
 
-    async def why(self, pattern: Any) -> str:
+    async def reducible(self, target: Any) -> bool:
+        """Whether a head reduces here, asked without evaluating anything."""
+        return await self.call(lambda m: m.reducible(target))
+
+    async def why(self, pattern: Any, *, where: Any | None = None) -> str:
         """Explain why a pattern is not currently reducible."""
-        return await self.call(lambda m: m.why(pattern))
+        return await self.call(lambda m: m.why(pattern, where=where))
 
     async def space(
         self,
@@ -1189,12 +1193,15 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> list:
         """Evaluate and report each answer's outcome kind."""
         return await self.call(
-            lambda m: m.eval_status(target, timeout=timeout, inferences=inferences)
+            lambda m: m.eval_status(
+                target, using=using, timeout=timeout, inferences=inferences
+            )
         )
 
     async def run_status(
@@ -1428,6 +1435,28 @@ class AsyncMeTTa:
         """An operation that observes an external oracle."""
         return await self.call(lambda m: m.io(fn, **options))
 
+    async def cache(
+        self,
+        fn: Callable | None = None,
+        /,
+        *,
+        name: str | None = None,
+        unchecked: bool = False,
+    ) -> Any:
+        """Define and memoize on the worker, the sync door's cache decorator.
+
+        The memo stores every answer occurrence, and the returned handle
+        carries cache_clear() and cache_info() as synchronous doors the way
+        define's handle carries its own.
+        """
+        if fn is None:
+            msg = "cache takes a function"
+            raise TypeError(msg)
+        function = fn
+        return await self.call(
+            lambda m: m.cache(name=name, unchecked=unchecked)(function)
+        )
+
     async def rules(self, fn: Callable) -> Any:
         """Collect and land a non-exclusive equation bundle on the worker.
 
@@ -1479,28 +1508,6 @@ class AsyncMeTTa:
             raise TypeError(msg)
         source = prolog
         return await self.call(lambda m: m.define(prolog=source))
-
-    async def cache(
-        self,
-        fn: Callable | None = None,
-        /,
-        *,
-        name: str | None = None,
-        unchecked: bool = False,
-    ) -> Any:
-        """Define and memoize on the worker, the sync door's cache decorator.
-
-        The memo stores every answer occurrence, and the returned handle
-        carries cache_clear() and cache_info() as synchronous doors the way
-        define's handle carries its own.
-        """
-        if fn is None:
-            msg = "cache takes a function"
-            raise TypeError(msg)
-        function = fn
-        return await self.call(
-            lambda m: m.cache(name=name, unchecked=unchecked)(function)
-        )
 
     async def type(self, atom: Any, /) -> Atom:
         """Return this space's first get-type answer on the worker."""
@@ -1566,10 +1573,6 @@ class AsyncMeTTa:
     def speculative(self):
         """Answer awaited runs while discarding their engine writes."""
         return self._m.speculative()
-
-    def strict(self):
-        """Refuse unreduced directives in awaited runs within the block."""
-        return self._m.strict()
 
     def batch(self) -> _AsyncBatch:
         """Collect this space's add() calls and cross once at exit,

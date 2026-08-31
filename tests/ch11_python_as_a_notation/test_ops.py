@@ -55,7 +55,7 @@ from metta import (
     reflection,
 )
 from metta._space import Space
-from metta.errors import EngineError, StrictError
+from metta.errors import EngineError
 
 
 def unique(prefix: str) -> str:  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
@@ -156,9 +156,10 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
             metta.run("(p5-atomic fact) !(+ $left $right)")
     assert len(metta.match(Expression(S["p5-atomic"], V.x))) == 0
 
-    with pytest.raises(StrictError):
-        with metta.strict():
-            metta.run("!(p5-does-not-reduce 1)")
+    # A directive nothing reduces answers itself, which is ordinary.
+    assert metta.run("!(p5-does-not-reduce 1)") == [
+        [Expression(S["p5-does-not-reduce"], 1)]
+    ]
 
     prelude_names = {S[name] for name in PRELUDE_NAMES}
     assert not any(

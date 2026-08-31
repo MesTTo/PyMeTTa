@@ -547,4 +547,14 @@ def twin(m):
 #: command=pytest test_twin_coverage.py -k 01-identity; commit=891d413a32b3e6f132998e3613618ff029dfda0d]
 #: [assumed 2026-08-31: the attribution to c530ccb8's translator change;
 #: commit=891d413a32b3e6f132998e3613618ff029dfda0d].
-BUDGET = 2411
+#: RE-PINNED 2026-08-31, 2411 to 2429 (+18), by the Python shim's fast path
+#: going through the engine's own translator:resolve_dispatch instead of a
+#: second copy of its else-branch. That is the seam a compiled call site
+#: consults, seam:dispatch_call/4, and skipping it meant a memoized function
+#: evaluated from Python recomputed where the same call written as a directive
+#: hit the memo. +18 is the consultation, paid per direct-goal call, and it
+#: buys the seam being reachable from this door at all; every other twin in
+#: the corpus absorbed the same move inside its allowance
+#: [measured 2026-08-31: 2429 on three consecutive runs, 0.0000% spread;
+#: command=pytest test_twin_coverage.py -k 01-identity; commit=WORKTREE].
+BUDGET = 2429

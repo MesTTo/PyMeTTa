@@ -53,7 +53,6 @@ __all__ = [
     "ResourceLimitError",
     "SourceNotFound",
     "SpaceCapabilityError",
-    "StrictError",
     "SubscriberError",
     "TimeLimitError",
     "Timeout",
@@ -348,23 +347,6 @@ class Interrupted(EngineError):  # noqa: N818  -- the exception name is a domain
     The sqlite3 and DuckDB reading of interrupt: whatever the goal
     completed before the stop, writes included, stands.
     """
-
-
-class StrictError(MettaError):
-    """An opt-in strict run or eval refused an answer nothing reduced.
-
-    Strict means every directive must reduce. `term` is the answer the
-    engine handed back unevaluated, and `directive` is its 1-based position
-    in the source. An empty answer is NOT a violation: a pruned branch is
-    what (empty) and a match with no candidates produce, and refusing it
-    would refuse ordinary MeTTa.
-    """
-
-    def __init__(self, message: str, *, term: object = None, directive: int | None = None):  # noqa: D107  -- the enclosing class documents construction and the object invariants
-        where = f"directive {directive}: " if directive is not None else ""
-        super().__init__(f"{where}{message}")
-        self.term = term
-        self.directive = directive
 
 
 class CompileError(MettaError):

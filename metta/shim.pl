@@ -939,6 +939,7 @@ metta_py_wrappable(metta_py_query_count).
 metta_py_wrappable(metta_py_eval_all).
 metta_py_wrappable(metta_py_eval_using_all).
 metta_py_wrappable(metta_py_eval_status_all).
+metta_py_wrappable(metta_py_reducible).
 metta_py_wrappable(metta_py_eval_status_using_all).
 metta_py_wrappable(metta_py_run_status).
 metta_py_wrappable(metta_py_captured).
@@ -1521,7 +1522,7 @@ metta_py_saga_prepare_target(Space, Tagged,
               Rank >= Threshold ),
             HostNames),
     sort(HostNames, HostOperations),
-    (   metta_py_direct_goal(Module, Term, _, _)
+    (   metta_py_direct_goal(Module, Term, _, _, _)
     ->  true
     ;   metta_py_in_module(Module,
                            translate_cached_expr(Term, _, _))
@@ -2466,7 +2467,17 @@ metta_py_special(unique).         metta_py_special('alpha-unique').
 metta_py_special(union).          metta_py_special(intersection).
 metta_py_special(subtraction).
 
-metta_py_direct_goal(Module, [F|Args], Goal, Out) :-
+%The resolved goal, for every caller that wants one. Resolution goes through
+%the engine's OWN resolve_dispatch so a compiled call site and this one make
+%the same decision: seam:dispatch_call/4 is offered the call first, which is
+%where lib_memo binds a cache lookup. Building the goal here instead was a
+%second copy of resolve_dispatch's else-branch and skipped the seam entirely.
+metta_py_direct_goal(Module, Term, Goal, Out) :-
+    metta_py_direct_goal(Module, Term, F, Args, Out),
+    metta_py_in_module(Module, translator:resolve_dispatch(F, Args, Out, Goal)).
+
+%Whether the fast path applies at all, and the parts a resolution needs.
+metta_py_direct_goal(Module, [F|Args], F, Args, _Out) :-
     atom(F),
     fun(F),
     \+ metta_py_special(F),
@@ -2493,9 +2504,7 @@ metta_py_direct_goal(Module, [F|Args], Goal, Out) :-
     %to the slow path until something else forced it.
     spaces:metta_ensure_compiled(F),
     arity(F, Arity),
-    current_predicate(Module:F/Arity),
-    append(Args, [Out], Full),
-    Goal =.. [F|Full].
+    current_predicate(Module:F/Arity).
 
 metta_py_plain_args([]).
 metta_py_plain_args([A|As]) :-
@@ -2805,6 +2814,24 @@ metta_py_eval_term(Space, Term, Encoded) :-
 %translator uses when it chooses between emitting a call and building data,
 %so this reports the branch the engine actually took rather than guessing
 %from the answer [tested test_eval_status_reports_the_four_outcomes].
+%The reducibility question ASKED rather than answered by evaluating. It is
+%the same head test eval_status uses, published on its own because a caller
+%who wants to decide about an unreduced term should not have to run the term
+%to find out. The Node seat has had m.reducible since it existed and this
+%seat had only eval_status, which evaluates to tell you
+%[measured 2026-08-31].
+metta_py_reducible(Space, Tagged, Reducible) :-
+    metta_py_target_term(Space, Tagged, Term),
+    metta_py_module(Space, Module),
+    %Status is asked UNBOUND, the way eval_status asks it: binding it to
+    %`value` first skips the clause that reports a function whose heads do
+    %not match, and every such term came back reducible.
+    metta_py_eval_status(Module, Term, Status),
+    (   Status == value
+    ->  Reducible = true
+    ;   Reducible = false
+    ).
+
 metta_py_eval_status_all(Space, Tagged, Results) :-
     metta_py_target_term(Space, Tagged, Term),
     metta_py_eval_status_term(Space, Term, Results).

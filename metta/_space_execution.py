@@ -3,7 +3,7 @@ Guarantees:
   - named host values retain object identity through source execution
     [tested test_run_using_carries_identity]
   - capture never changes an answer shape, and atomic, speculative, and
-    strict execution policy scopes compose without per-call flags [tested:
+    execution policy scopes compose without per-call flags [tested:
     test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - eager eval follows the same atomic and speculative policy wrapper as run,
@@ -106,7 +106,7 @@ class ScopedExecution:
     """One execution policy applied to calls inside a with-block."""
 
     def __init__(self, mode: str) -> None:
-        if mode not in ("atomic", "speculative", "strict"):
+        if mode not in ("atomic", "speculative"):
             msg = f"unknown execution mode {mode!r}"
             raise ValueError(msg)
         self.mode = mode
@@ -161,10 +161,6 @@ def execution_scope(mode: str) -> ScopedExecution:
 
 def capture_output() -> CapturedOutput:
     return CapturedOutput()
-
-
-def strict_enabled() -> bool:
-    return "strict" in _SCOPED_EXECUTION.get()
 
 
 def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[str, list[Any]]:

@@ -222,7 +222,6 @@ from ._space_execution import (
     profile_source,
     run_source,
     run_status,
-    strict_enabled,
     value_one,
 )
 from ._space_objects import (
@@ -266,7 +265,7 @@ from .atoms import (
     unify,
 )
 from .define import Defined, PrologBacked
-from .errors import EngineError, MettaError, SourceNotFound, StrictError, Timeout
+from .errors import EngineError, MettaError, SourceNotFound, Timeout
 from .results import (
     Answers,
     Rows,
@@ -1123,27 +1122,21 @@ class Space(Handle):
         source completed before the stop, writes included, stands.
 
         `with m.capture() as output` collects printed text in `output.text`
-        without changing this method's return shape. `with m.atomic()`,
-        `with m.speculative()`, and `with m.strict()` scope execution policy
-        without boolean combinations on each call. Atomic commits or rolls
+        without changing this method's return shape. `with m.atomic()`
+        and `with m.speculative()` scope execution policy without boolean
+        combinations on each call. Atomic commits or rolls
         back each complete source; speculative answers and discards its
         writes. Both cover engine state; Python side effects and subscription
         callbacks already fired stay where they happened.
 
-        A strict scope requires every directive to reduce, raising
-        StrictError on one the engine hands back unevaluated. It is opt-in,
-        because an unreduced term is an ordinary MeTTa value: a bare data
-        constructor is refused under strict for the same reason a bare
-        typo is, since neither reduces. An empty answer is allowed, being
-        the pruned branch that (empty) and an unmatched match produce.
-        eval_status() reports the same paths without refusing anything.
+        A term the engine hands back unevaluated is an ordinary MeTTa value,
+        not a failure: `!(hello world)` answers `(hello world)` and that is
+        the whole of hello world in this language. eval_status() reports
+        which answers reduced and which did not, as data, for a caller who
+        wants to decide about it.
         """
         _require_source(source, "run")
         _record_sync_engine_call(self, "run", sys._getframe(1))
-        if strict_enabled():
-            self._refuse_unreduced(
-                run_status(self._rt, self._space, source, timeout, inferences)
-            )
         try:
             return run_source(
                 self._rt,
@@ -1155,26 +1148,6 @@ class Space(Handle):
             )
         finally:
             _invalidate_builtins_cache(self._rt)
-
-    def _refuse_unreduced(
-        self,
-        groups: list[list[tuple[str, Any]]],
-        *,
-        grouped: bool = True,
-    ) -> None:
-        """Refuse any directive the engine handed back unevaluated."""
-        for position, group in enumerate(groups, start=1):
-            for status, answer in group:
-                if status == "not-reducible":
-                    msg = (
-                        f"{answer} is not reducible: no equation, builtin or "
-                        f"special form applies to it"
-                    )
-                    raise StrictError(
-                        msg,
-                        term=answer,
-                        directive=position if grouped else None,
-                    )
 
     def profile(
         self,
@@ -2423,10 +2396,6 @@ class Space(Handle):
         """Run each source against a snapshot and discard its writes."""
         return execution_scope("speculative")
 
-    def strict(self) -> ScopedExecution:
-        """Refuse any run directive the engine returns unreduced."""
-        return execution_scope("strict")
-
     def batch(self) -> _Batch:
         """Collect this space's add() calls and cross once at exit:
 
@@ -2523,8 +2492,6 @@ class Space(Handle):
         `timeout` (seconds) and `inferences` (engine steps) bound the call,
         raising TimeLimitError or InferenceLimitError when hit. A surrounding
         `capture()` scope collects printed text without changing the list.
-        In a `strict()` scope an unreduced term raises StrictError while a
-        genuinely empty branch still returns no answers.
 
         `under`, `theory` and `interpreter` are answers()' three, and mean
         exactly what they mean there; this door is that one materialised. A
@@ -2533,70 +2500,29 @@ class Space(Handle):
         eval() ignored it in silence.
         """
         _record_sync_engine_call(self, "eval", sys._getframe(1))
+        # The two doors are NOT one mechanism, which was measured rather than
+        # assumed: eval() is one eager engine call (metta_py_eval_all) and
+        # answers() opens a cursor, and routing eval() through the cursor
+        # unconditionally left a memoized definition's call keys unrecorded
+        # where the eager door records them [measured 2026-08-31: a @m.cache
+        # fib(12) reached through the handle then run() stored 13 entries on
+        # the eager path and 0 through the cursor]. So the delegation is for
+        # what answers() uniquely OWNS -- the carrier, the theory and the
+        # interpreter -- and the eager path stays the eager path.
         if theory is not None or interpreter is not None or _selected_under(under) is not None:
-            return self._rich_eval(
-                target,
-                using=using,
-                timeout=timeout,
-                inferences=inferences,
-                under=under,
-                theory=theory,
-                interpreter=interpreter,
+            return list(
+                self.answers(
+                    target,
+                    using=using,
+                    timeout=timeout,
+                    inferences=inferences,
+                    under=under,
+                    theory=theory,
+                    interpreter=interpreter,
+                )
             )
-        if strict_enabled():
-            statuses = evaluate_status(
-                self._rt,
-                self._space,
-                target,
-                timeout,
-                inferences,
-                using=using,
-            )
-            self._refuse_unreduced([statuses], grouped=False)
-            return [
-                answer
-                for status, answer in statuses
-                if status != "empty" and answer is not None
-            ]
         return evaluate(
-            self._rt,
-            self._space,
-            target,
-            timeout,
-            inferences,
-            using=using,
-        )
-
-    def _rich_eval(
-        self,
-        target: Any,
-        *,
-        using: dict[str, Any] | None,
-        timeout: float | None,
-        inferences: int | None,
-        under: Any,
-        theory: Any | None,
-        interpreter: Any | None,
-    ) -> list[Atom | Undefined]:
-        """eval()'s answer when a carrier, theory or interpreter is asked for.
-
-        answers() is the door that carries all three, and eval() is answers()
-        materialised, which the two doors already agree on for every ordinary
-        term. What eval() did NOT do was read a surrounding
-        ``with metta.under(carrier)``: match() and answers() both honoured it
-        and eval() silently did not, so a scope set over a block quietly meant
-        nothing for one of the three doors inside it [measured 2026-08-31].
-        """
-        return list(
-            self.answers(
-                target,
-                using=using,
-                timeout=timeout,
-                inferences=inferences,
-                under=under,
-                theory=theory,
-                interpreter=interpreter,
-            )
+            self._rt, self._space, target, timeout, inferences, using=using
         )
 
     def answers(
@@ -2906,10 +2832,36 @@ class Space(Handle):
         """
         return _satellite("parallel").EnginePool(workers)
 
+    def reducible(self, target: Any) -> bool:
+        """Whether a head reduces here, asked without evaluating anything.
+
+            m.reducible(S.double(4))     # True
+            m.reducible(S.Point(1, 2))   # False, nothing applies to that head
+
+        The same head test eval_status() uses, published on its own because a
+        caller who wants to DECIDE about an unreduced term should not have to
+        run the term to find out. That decision is the caller's: a term
+        nothing applies to is its own answer, which is ordinary MeTTa and how
+        `!(hello world)` works, so there is no scope here that refuses one.
+
+        The Node seat has had m.reducible() since it existed; this seat had
+        only eval_status(), which evaluates to tell you [measured 2026-08-31].
+        """
+        # The seam answers the ATOM true or false, which crosses as the string
+        # of that name; bool("false") is True, so the comparison is explicit,
+        # the same way algebra.py reads its own boolean seam.
+        return (
+            self._rt.apply_must(
+                "metta_py_reducible", self._space, _to_atom(target).to_wire()
+            )
+            == "true"
+        )
+
     def eval_status(
         self,
         target: Any,
         *,
+        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> list[tuple[str, Atom | Undefined | None]]:
@@ -2927,8 +2879,15 @@ class Space(Handle):
         exists to prevent: an unevaluated term and a pruned branch look
         alike from the answers alone. An error is not a status here,
         because it arrives as an exception.
+
+        `using` binds host values into the term exactly as it does for
+        eval(), and it has to: the substitution lands BEFORE the
+        reducibility question, so the status of an evaluation that binds
+        anything was unaskable without it.
         """
-        return evaluate_status(self._rt, self._space, target, timeout, inferences)
+        return evaluate_status(
+            self._rt, self._space, target, timeout, inferences, using=using
+        )
 
     def run_status(
         self,
@@ -3780,10 +3739,15 @@ class Space(Handle):
                 if queue_max is None
                 else queue_max
             ),
-            guard=guard,
-            # The judge is this space's own evaluation door, so a guard means
-            # on an event exactly what it means on a match.
-            judge=lambda term: self.eval(term) == [True],
+            # The guard becomes ONE admission test over the event, built by
+            # the module that owns the instantiation and given this space's
+            # own evaluation door, so a guard means on an event exactly what
+            # it means on a match.
+            admits=(
+                None
+                if guard is None
+                else subscriptions.guard_admits(guard, self.eval)
+            ),
         )
 
     def _event_stream(self) -> Any:
@@ -3853,14 +3817,27 @@ class Space(Handle):
             inferences=inferences,
         )
 
-    def why(self, pattern: Any) -> str:
+    def why(self, pattern: Any, *, where: Any | None = None) -> str:
         """Why a pattern matches nothing here, in words.
 
         Checks the cheap explanations in order: unknown function, wrong
-        arity, no stored atoms with that head. Honest when it cannot tell.
+        arity, no stored atoms with that head. Honest when it cannot tell,
+        and honest about the PREMISE too: a pattern that does match is a
+        question with a false premise, and this refuses it the way
+        Answers.why() always did rather than answering it. Asking why
+        `(job $id $pri)` matched nothing, when it matches two atoms, used to
+        answer "2 job atom(s) exist here but none unifies with it"
+        [measured 2026-08-31].
+
+        `where` is match()'s guard, and asking with one is where the answer
+        gets interesting: a query can be empty because the pattern found
+        nothing OR because the guard rejected everything it found, and only
+        the guarded question can tell you which.
+
+        One implementation, because there were two and they agreed word for
+        word on every genuine miss while disagreeing about the premise.
         """
-        diagnostics = _importlib.import_module(f"{__package__}._space_diagnostics")
-        return diagnostics.explain_no_match(self, pattern)
+        return self.match(pattern, where=where).why()
 
     # ------------------------------------------------------------ definitions
 
@@ -5181,10 +5158,6 @@ class MeTTa:
     def speculative(self) -> ScopedExecution:
         """Scope source execution to discarded snapshots."""
         return self._self.speculative()
-
-    def strict(self) -> ScopedExecution:
-        """Scope source execution to reject unreduced directives."""
-        return self._self.strict()
 
     @overload
     def transaction(self, target: Callable[[], _R], /) -> _R: ...

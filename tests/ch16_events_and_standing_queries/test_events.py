@@ -433,3 +433,23 @@ def test_a_standing_query_takes_matchs_guard(metta):
         ]
     finally:
         queued.cancel()
+
+
+def test_why_refuses_the_question_whose_premise_is_false(metta):
+    """A diagnostic that answers a false premise is worse than one that refuses.
+
+    Space.why() and Answers.why() were two implementations of one question.
+    They agreed word for word on every genuine miss and disagreed about the
+    premise: asked why (job $id $pri) matched nothing, when it matches two
+    atoms, one refused and the other answered "2 job atom(s) exist here but
+    none unifies with it" [measured 2026-08-31]. One implementation now, so
+    the guarded question is askable too, and that is the one worth asking: an
+    empty query is either a pattern that found nothing or a guard that
+    rejected what it found.
+    """
+    m = metta._at("&self")
+    m.add(S.why_job(1, 2), S.why_job(2, 3))
+    assert "headed by why-absent" in m.why(S.why_absent(V.x))
+    with pytest.raises(ValueError, match="explains an empty query"):
+        m.why(S.why_job(V.id, V.pri))
+    assert "guard" in m.why(S.why_job(V.id, V.pri), where=V.pri.ge(100))

@@ -30,8 +30,9 @@ Guarantees:
   - eval returns a non-reducible term directly and exposes no residual flag
     [tested: test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - strict and raw execution choices use scopes and named transport rather
-    than boolean pairs [tested: test_strict_refuses_only_what_did_not_reduce,
+  - an unreduced directive is its own answer, and raw execution choices use
+    named transport rather than boolean pairs [tested:
+    test_an_unreduced_directive_is_its_own_answer,
     test_eval_using_carries_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``Expression(space)`` snapshots the space's assembly-order listing
     [tested: test_expression_of_a_space_is_an_assembly_order_snapshot;
@@ -81,7 +82,6 @@ from metta.errors import (
     EngineError,
     MettaOperationError,
     MettaSyntaxError,
-    StrictError,
     TimeLimitError,
 )
 from metta.foreign import SpaceProvider, register_provider, unregister_provider
@@ -235,14 +235,20 @@ def test_run_status_reports_each_directive(m):  # noqa: D103  -- pytest discover
     ]
 
 
-def test_strict_refuses_only_what_did_not_reduce(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_an_unreduced_directive_is_its_own_answer(m):
+    """The language's ordinary outcome, not a lesser one.
+
+    A term no equation, builtin or special form applies to answers ITSELF:
+    `!(hello world)` answering `(hello world)` is how hello world is written
+    here, so a scope that refused it was refusing the language. There was
+    one, m.strict(), and it is gone (user, 2026-08-31). eval_status() reports
+    which answers reduced and which did not, as data, for a caller who wants
+    to decide about it.
+    """
     m.run("(= (d $x) (* $x 2))")
-    with pytest.raises(StrictError) as failure:
-        with m.strict():
-            m.run("!(d 4)\n!(fct 5)")
-    assert failure.value.directive == 2
-    assert str(failure.value.term) == "(fct 5)"
-    assert "not reducible" in str(failure.value)
+    assert m.run("!(d 4)\n!(fct 5)") == [[8], [parse("(fct 5)")]]
+    assert m.eval_status(parse("(fct 5)")) == [("not-reducible", parse("(fct 5)"))]
+    assert m.eval_status(parse("(d 4)")) == [("value", 8)]
 
 
 @pytest.mark.parametrize(
@@ -254,15 +260,12 @@ def test_strict_refuses_only_what_did_not_reduce(m):  # noqa: D103  -- pytest di
         "!(superpose ((Node 1) (Node 2)))",
     ],
 )
-def test_strict_accepts_a_pruned_branch_and_every_reduction(m, source):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # Each of these once raised, because an empty answer and an unevaluated
-    # term were read as the same thing.
-    with m.strict():
-        m.run(source)
-
-
-def test_strict_is_opt_in(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert m.run("!(fct 5)") == [[parse("(fct 5)")]]
+def test_a_pruned_branch_and_a_reduction_are_both_ordinary(m, source):
+    """A pruned branch and an unevaluated term were once read as the same
+    thing, which is what the removed scope kept getting wrong. They are
+    still different, and neither is a failure.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    m.run(source)
 
 
 def test_add_query_atoms(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

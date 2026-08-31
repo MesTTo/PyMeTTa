@@ -41,7 +41,7 @@ Guarantees:
   - coordination functions are lazy satellite exports and Timeout remains
     catchable as builtin TimeoutError [tested:
     test_the_coordination_family_is_python_shaped; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
-  - module define/cache/stats/limits/strict/trace verbs defer engine creation
+  - module define/stats/limits/trace verbs defer engine creation
     until called and target the default self space [tested:
     test_module_tier_exposes_the_mode_and_definition_family; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - ``op`` forwards unchanged to the lazy default receiver and therefore keeps
@@ -407,11 +407,6 @@ def define(*args: _Any, **kwargs: _Any):
     return engine().self.define(*args, **kwargs)
 
 
-def cache(*args: _Any, **kwargs: _Any):
-    """Define and memoize a function in the default self space."""
-    return engine().self.cache(*args, **kwargs)
-
-
 def op(*args: _Any, **kwargs: _Any):
     """Register a host operation in the default self space."""
     return engine().self.op(*args, **kwargs)
@@ -435,6 +430,11 @@ def writes(*args: _Any, **kwargs: _Any):
 def io(*args: _Any, **kwargs: _Any):
     """Register an oracle-observing host operation in the default self space."""
     return engine().self.io(*args, **kwargs)
+
+
+def cache(*args: _Any, **kwargs: _Any):
+    """Define and memoize a function in the default self space."""
+    return engine().self.cache(*args, **kwargs)
 
 
 def stats():
@@ -464,11 +464,6 @@ def under(algebra: _Any):
     """
     scoped = _importlib.import_module(f"{__name__}._under")
     return scoped.ScopedUnder(algebra)
-
-
-def strict():
-    """Refuse unreduced default-context directives within the block."""
-    return engine().self.strict()
 
 
 def speculate():
@@ -582,7 +577,6 @@ __all__ = [
     "speculate",
     "stats",
     "strategies",
-    "strict",
     "structures",
     "subscribe",
     "superpose",

@@ -3,7 +3,7 @@ default engine (M1), scoped limits (M3), into= row shaping (M4), the batch
 block (M5), the shipped pytest fixtures (M6), and the exported strategies
 (L4). Every rung is tested as sugar for the rung below.
 Guarantees:
-  - module define/cache/op/stats/limits/strict/trace verbs defer to one lazy
+  - module define/cache/op/stats/limits/trace verbs defer to one lazy
     default engine, and op forwards its receiver result without another
     wrapper [tested: test_module_tier_exposes_the_mode_and_definition_family,
     test_module_tier_op_forwards_identity_to_the_default_receiver;
@@ -77,7 +77,7 @@ def test_module_tier_exposes_the_mode_and_definition_family() -> None:
     with metta.stats() as measured:
         assert metta.eval(S.module_tier_increment(8)) == [9]
     assert measured.inferences > 0
-    with metta.limits(inferences=100_000), metta.strict():
+    with metta.limits(inferences=100_000):
         assert metta.eval(S.module_tier_square(4)) == [16]
     events = metta.trace("!(module-tier-increment 1)")
     assert events
@@ -156,7 +156,7 @@ def test_module_tier_verbs_are_inert_until_called() -> None:
         "import metta\n"
         "assert not _engine.started()\n"
         "assert all(callable(getattr(metta, name)) for name in "
-        "('define', 'cache', 'op', 'stats', 'limits', 'strict', 'speculate', 'trace'))\n"
+        "('define', 'cache', 'op', 'stats', 'limits', 'speculate', 'trace'))\n"
         "assert not _engine.started()\n"
     )
     subprocess.run(
