@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from metta import (
-    Expression,
+    TRUE,
     S,
     V,
     engine,
@@ -281,7 +281,7 @@ def test_gz_round_trips_both_formats_and_import(metta, tmp_path):  # noqa: D103 
             ]
             assert target.run("!(gz-next 41)") == [[42]]
         # import! answers the unit value, the way add-atom and pragma! do.
-        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [[Expression()]]
+        assert imported.run(f'!(import! (context-space) "{text_gz}")') == [[TRUE]]
         assert [row.x for row in imported.match(S["gz-fact"](V.x))] == [
             S.one,
             S.two,

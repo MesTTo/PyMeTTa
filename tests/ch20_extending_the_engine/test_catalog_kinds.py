@@ -218,7 +218,8 @@ def test_the_image_declaration_is_catalog_validated():
     m = MeTTa().self
     by_member = m.image("VgBlob", ImageMode.transparent)
     by_word = m.image("VgBlob", "transparent")
-    assert str(by_member) == str(by_word) == "(image &self VgBlob transparent)"
+    # The declaration names the context's own home, whatever it is called.
+    assert str(by_member) == str(by_word) == f"(image {m.name} VgBlob transparent)"
     with pytest.raises(ValueError, match="opaque, transparent, auto"):
         m.image("VgBlob", "sideways")  # type: ignore[arg-type]
     with pytest.raises(EngineError, match=r"one-of image-mode"):

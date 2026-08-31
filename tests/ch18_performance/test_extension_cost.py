@@ -59,13 +59,13 @@ def test_extension_cost_rows_are_marginal(measured):  # noqa: D103  -- pytest di
     # The tolerance is per-call, and the residual is a fixed per-DRIVE cost
     # divided by the call count: 0.06 at 500 calls, 0.01 at the 3000 the
     # published table uses.
-    # Under deferred translation the define tier's drive site carries one
-    # more inference per call than the source tier's: the bodies disassemble
-    # identically, so the goal sits at the driver's call site. Known port
-    # obligation: name the emitted-goal difference and remove it or fold it
-    # into both tiers.
+    # The define tier costs exactly the source tier now. It carried one more
+    # inference per call under deferred translation, from a goal sitting at
+    # the driver's call site rather than in the body; that difference is gone
+    # and this asserts its absence rather than its size
+    # [measured 2026-08-30: both tiers at the same per-call figure].
     assert measured["@m.define, no annotations"].inferences == pytest.approx(
-        baseline + 1.0, abs=0.1
+        baseline, abs=0.1
     )
 
     # Annotations generate a type declaration, and a declared call emits a
@@ -84,9 +84,13 @@ def test_extension_cost_rows_are_marginal(measured):  # noqa: D103  -- pytest di
     # remains is gated where it is visible: the typed-call case in
     # benchmarks/baseline.json holds an instructions:u ceiling that reverting
     # the specialisation overshoots by 44%.
-    # The same per-call site inference as the no-annotations tier above.
+    # The same per-call site inference as the no-annotations tier above, and
+    # as the ordinary MeTTa function: annotating costs nothing this column can
+    # see. The RESULT check goes through the same specialisation the argument
+    # checks do; emitted unspecialised it cost 35 per call against 3
+    # [measured 2026-08-30].
     assert measured["@m.define, annotated"].inferences == pytest.approx(
-        baseline + 1.0, abs=0.1
+        baseline, abs=0.1
     )
 
     assert measured["Python operation, encoded"].inferences > baseline

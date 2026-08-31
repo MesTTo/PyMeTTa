@@ -102,10 +102,11 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
     cachedec_fib.cache_clear()
     assert cachedec_fib.cache_info() == {"entries": 0, "answers": 0}
 
-    # The same definition without the memo is exponential, and on this input
-    # it does not finish inside the default evaluation fuel at all. Automatic
-    # bag-preserving memoization would deliberately accelerate this shape, so
-    # the control uses its public refuse declaration.
+    # The same definition without the memo is exponential. It ANSWERS, since
+    # the evaluation fuel is opt-in and upstream has none, and the cost is the
+    # point. Automatic bag-preserving memoization would deliberately
+    # accelerate this shape, so the control uses its public refuse
+    # declaration.
     plain = MeTTa().space("&cachedecorator-plain")
     refusal = "(cache cachedec-plain refuse)"
     plain.run(f"!(add-atom &metta {refusal})")
@@ -118,7 +119,7 @@ def test_a_cached_definition_memoizes_its_complete_answer_bag() -> None:
         with plain.stats() as untabled:
             overrun = list(cachedec_plain(_N))
 
-        assert [str(atom) for atom in overrun] == ["(Error 1 StackOverflow)"]
+        assert [str(atom) for atom in overrun] == ["75025"]
         # Measured 2026-08-26: 830,770 inferences uncached against 2,548
         # cached, a ratio of 326.0. The bag-counting trie costs 1.57x the old
         # 1,622-inference set table and recovers 4.49x from the 11,433-

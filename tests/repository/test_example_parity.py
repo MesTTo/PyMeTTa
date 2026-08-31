@@ -35,8 +35,8 @@ def test_the_llms_module_scanner_ignores_engine_paths():
     """The import-module rename must not reinterpret a repository filename."""
     from llmsdoc import METTA_ATTR
 
-    claims = "`engine/metta.pl` implements the engine; `metta.remote.attach` is Python"
-    assert METTA_ATTR.findall(claims) == [("remote", "attach")]
+    claims = "`engine/metta.pl` implements the engine; `metta.remote.connect` is Python"
+    assert METTA_ATTR.findall(claims) == [("remote", "connect")]
 
 
 def test_the_corpus_is_one_definition():
@@ -183,13 +183,13 @@ def test_an_empty_group_is_an_observation():
     """A form answering nothing prints `()` rather than nothing, because
     dropping it would misalign every group after it.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    outcome = parity._read("LEATTA-ANSWER ()\nLEATTA-ANSWER (2)\n")
+    outcome = parity._read("ANSWER-GROUP ()\nANSWER-GROUP (2)\n")
     assert outcome.groups == ["()", "(2)"]
     assert outcome.error is None
 
 
 def test_an_error_line_is_not_an_empty_run():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    outcome = parity._read("LEATTA-ERROR something broke\n")
+    outcome = parity._read("ANSWER-ERROR something broke\n")
     assert outcome.error == "something broke"
     assert outcome.groups == []
 
@@ -201,7 +201,7 @@ def test_a_runner_returns_its_raw_text_beside_the_outcome():
     copy of the subprocess handling, timeout and error tail included.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     outcome, text = parity._run(
-        [sys.executable, "-c", "print('LEATTA-ANSWER (1)'); print('OTHER 7')"],
+        [sys.executable, "-c", "print('ANSWER-GROUP (1)'); print('OTHER 7')"],
         REPO,
     )
     assert outcome.groups == ["(1)"]

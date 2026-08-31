@@ -2,8 +2,9 @@
 
 Calling a function with FEWER arguments than it takes answers a partial
 application, which prints as `(partial f (1))` and can be called again later.
-Calling one with too many is an error, and the error is an ANSWER: nothing
-catches it and the form after it still runs.
+Calling one with too many RAISES, and the raise carries both the arities the
+function has and the one the call asked for, so `catch` is what turns it back
+into a value to compare.
 
 Four of the five definitions are ordinary Python functions. `h` names the
 engine's `append` through the static function namespace, `fn.append`, and
@@ -81,15 +82,18 @@ def twin(m):
     add_one = S.add(1)
     assert m.eval(tuple((add_one, x) for x in (1, 2, 3))) == [Expression((2, 3, 4))]
 
-    # Too many arguments are an error, both for compiled and for
-    # runtime-dispatched calls, and the error is an ANSWER: no catch stands
-    # between the call and it. A head nothing TYPES is left as written
+    # Too many arguments raise, both for compiled and for runtime-dispatched
+    # calls, and the raise names the arities the function HAS beside the one
+    # the call asked for. A head that names nothing is left as written
     # instead, because there is no arity to be wrong about.
     too_many = S.add(1, 2, 3)
-    wrong_count = S.Error(too_many, S.IncorrectNumberOfArguments)
-    assert m.eval(too_many) == [wrong_count]
-    assert m.eval(S.reduce(too_many)) == [wrong_count]
-    assert m.eval(S.empty(1, 2)) == [S.empty(1, 2)]
+    wrong_count = "(Error (domain_error (function_input_arities + (2)) 3) none)"
+    assert m.fn.repr(S.catch(too_many)) == [wrong_count]
+    assert m.fn.repr(S.catch(S.reduce(too_many))) == [wrong_count]
+    assert m.fn.repr(S.catch(S.empty(1, 2))) == [
+        "(Error (domain_error (function_input_arities empty (0)) 2) none)"
+    ]
+    assert m.eval(S.nosuchfn(1, 2, 3)) == [S.nosuchfn(1, 2, 3)]
 
     # A gap between overloaded arities is still a valid partial application.
     # (= (overloaded-curry $a) $a)

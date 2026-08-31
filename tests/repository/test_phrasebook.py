@@ -50,39 +50,26 @@ def _entry(**overrides) -> Entry:
     return Entry(**fields)
 
 
-def test_the_phrasebook_covers_every_leatta_name():
-    """One row per declared name, with LeaTTa's own types, and no drift.
+def test_the_phrasebook_carries_one_row_per_name():
+    """One row per name, no duplicates, and the declared count.
 
-    Asked of the VENDORED manifest, so this holds on any machine and in every
-    state of the sibling checkout. It used to be asked of that checkout, which
-    made it vacuous where LeaTTa is absent (an absent oracle yields no
-    findings, so the assertion checked nothing) and wrong where LeaTTa had
-    moved: on 2026-08-26 it reported five missing rows while nothing here had
-    changed and the sibling was mid-edit. Whether the oracle has moved past
-    what we vendor is a separate question, and `drift`'s note answers it on
-    every run.
+    The row's TYPE used to be checked against a vendored LeaTTa manifest, and
+    that check retired with the arbiter on 2026-08-30: PeTTa is what this
+    engine follows now, and its types are this engine's own. What survives is
+    the completeness half, which never depended on the other oracle -- a name
+    with two rows or a missing row is a defect whatever the arbiter is
+    [tested by this file's own planted-duplicate case below].
     """
     names = [entry.name for entry in ENTRIES]
     assert len(names) == len(set(names)), "a name carries more than one row"
     assert len(names) == 380, f"380 distinct names were declared, the rows carry {len(names)}"
-    note, findings = book.drift(list(ENTRIES))
-    assert findings == [], f"{note}: {findings}"
 
 
-def test_the_drift_check_reads_an_oracle_this_repository_owns():
-    """The vendored manifest is the pin, and a row that departs from it fails.
-
-    Two-sided, because a drift check that cannot fail is what the sibling-
-    checkout version degraded into wherever LeaTTa was absent.
-    """
-    assert book.VENDORED_MANIFEST.is_file(), "the oracle revision is not vendored"
-    vendored = json.loads(book.VENDORED_MANIFEST.read_text(encoding="utf-8"))
-    assert vendored["operationCount"] == book.LEATTA_ENTRY_COUNT
-    assert book.drift(list(ENTRIES))[1] == []
-
-    planted = [*ENTRIES, _entry(name="pb-not-in-the-oracle")]
-    _, findings = book.drift(planted)
-    assert any("no longer declares" in finding for finding in findings), findings
+def test_a_duplicate_row_is_caught():
+    """The completeness check has to be able to fail, so this plants one."""
+    planted = [*ENTRIES, ENTRIES[0]]
+    names = [entry.name for entry in planted]
+    assert len(names) != len(set(names))
 
 
 def test_every_row_states_its_bucket_honestly():

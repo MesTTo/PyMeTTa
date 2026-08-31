@@ -1,15 +1,16 @@
-"""Purpose: what `remove-atom` does, on the two questions the engine used to
-answer wrongly: how many occurrences one removal takes, and what a removal
-that finds nothing answers.
+"""Purpose: what `remove-atom` does, on the two questions it answers
+differently from the Python doors beside it: how many occurrences one removal
+takes, and what a removal that finds nothing answers.
 Guarantees:
-  - removing an atom a space does not hold answers an error naming the
-    operation, the space and the atom, while removing one it holds stays unit
-    [tested test_removing_an_absent_atom_is_an_error_not_a_silent_unit]
-  - one removal takes one occurrence, on a native space, a Python provider
-    and a journal-backed one alike [tested
-    test_remove_atom_removes_one_occurrence_not_all,
-    test_a_native_space_subtracts_one, test_a_python_provider_subtracts_one,
-    test_a_persistent_space_subtracts_one_fact_like_a_native_one]
+  - a removal answers True whether or not the space held the atom, which is
+    upstream's answer [tested test_removing_an_absent_atom_answers_true]
+  - one removal drains EVERY unifying occurrence, on a native space, a Python
+    provider and a journal-backed one alike [tested
+    test_remove_atom_drains_every_occurrence, test_a_native_space_drains,
+    test_a_python_provider_drains, test_a_persistent_space_drains_like_a_native_one]
+  - the Python doors keep the finer grain the MeTTa door gave up:
+    `space.remove(atom)` still subtracts ONE copy and reports whether it found
+    one [tested test_the_python_remove_door_subtracts_one_copy]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -18,7 +19,7 @@ Open Obligations:
 
 import pytest
 
-from metta import Expression, S, V
+from metta import TRUE, Expression, S, V
 from metta.foreign import SpaceProvider
 
 
@@ -27,143 +28,134 @@ def m(metta):  # noqa: D103  -- pytest discovers or injects this callable; its d
     return metta._new_space()
 
 
-def error_text(answer):
-    """The `(Error subject reason)` atom as source text."""
-    return str(answer)
-
-
-# The arbiter rules absence an error and success unit. LeaTTa's Hacks-Register
-# row 15 answers Hyperon's own `stdlib/space.rs:219` TODO, "Is it necessary to
-# distinguish whether the atom was removed or not?", with "Implement. Keep the
-# distinction. The documentation independently complains about silent absence",
-# and records it SATISFIED: `Metta.Minimal.removeAtomStep` answers
+# TRUE EITHER WAY, which is upstream's answer and now this engine's
+# [measured 2026-08-30 against PeTTa@ae66fa8: `!(remove-atom &self (never
+# there))` answers `true` there]. It answered
 # `(Error (remove-atom <space> <atom>) "remove-atom: atom is not in the
-# space")` for absence and unit only after membership succeeds. Hyperon as
-# shipped answers unit for both, which is what this engine used to do.
-def test_removing_an_absent_atom_is_an_error_not_a_silent_unit(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+# space")` here until then, on LeaTTa's Hacks-Register row 15, which answered
+# Hyperon's own `stdlib/space.rs:219` TODO -- "Is it necessary to distinguish
+# whether the atom was removed or not?" -- with "Implement. Keep the
+# distinction". PeTTa is the arbiter now, and a different ANSWER to the same
+# call is the one thing the superset rule does not allow. The distinction is
+# not lost: `space.remove(atom)` below still reports it.
+def test_removing_an_absent_atom_answers_true(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (present 1))")
     present, absent = m.run(
         "!(remove-atom &self (present 1))\n!(remove-atom &self (never there))"
     )
-    assert present == [Expression()]
-    assert "remove-atom: atom is not in the space" in error_text(absent[0])
-    assert error_text(absent[0]).startswith("(Error (remove-atom ")
-    assert "(never there)" in error_text(absent[0])
+    assert present == [TRUE]
+    assert absent == [TRUE]
 
 
-# Removing the same atom twice is the same distinction seen over time: the
-# first removal empties the space and the second one has nothing to take.
-def test_removing_the_same_atom_twice_errors_on_the_second(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+# Twice over is the same answer seen over time: the first removal empties the
+# space and the second one has nothing to take and says so no differently.
+def test_removing_the_same_atom_twice_answers_true_both_times(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (once only))")
     first, second = m.run(
         "!(remove-atom &self (once only))\n!(remove-atom &self (once only))"
     )
-    assert first == [Expression()]
-    assert "remove-atom: atom is not in the space" in error_text(second[0])
+    assert first == [TRUE]
+    assert second == [TRUE]
 
 
-# The absence error is a value, so a program can branch on it rather than
-# losing the directive to a throw.
-def test_the_absence_error_is_data_a_collapse_can_hold(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+# One answer, so a collapse holds exactly one: a removal is not a generator
+# and absence does not make it one.
+def test_a_removal_answers_once_and_a_collapse_holds_it(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     (collapsed,) = m.run("!(collapse (remove-atom &self (nothing here)))")
-    assert len(collapsed[0]) == 1
-    assert "remove-atom: atom is not in the space" in error_text(collapsed[0][0])
+    assert collapsed == [Expression(TRUE)]
 
 
 # A scalar atom lives in its own storage predicate, so it is a separate path
 # to the same answer.
-def test_a_scalar_removal_reports_absence_too(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_scalar_removal_answers_true_too(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self lonely)")
     present, absent = m.run("!(remove-atom &self lonely)\n!(remove-atom &self nobody)")
-    assert present == [Expression()]
-    assert "remove-atom: atom is not in the space" in error_text(absent[0])
+    assert present == [TRUE]
+    assert absent == [TRUE]
 
 
 # An equation removes through its own path, which un-compiles the clause as
 # well as dropping the atom, and it owes the same answer.
-def test_an_absent_equation_removal_reports_absence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_an_absent_equation_removal_answers_true(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (kept-here $x) $x)")
     present, absent = m.run(
         "!(remove-atom &self (= (kept-here $x) $x))\n"
         "!(remove-atom &self (= (never-defined $x) $x))"
     )
-    assert present == [Expression()]
-    assert "remove-atom: atom is not in the space" in error_text(absent[0])
+    assert present == [TRUE]
+    assert absent == [TRUE]
 
 
-# The Python surface removes through the same door, so it inherits the ruling
-# rather than carrying a second opinion about absence.
-def test_the_python_remove_surface_reports_absence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    m.run("!(add-atom &self (kept 1))")
-    with pytest.raises(Exception) as failure:
-        m._one("(remove-atom &self (gone 1))")
-    assert "not in the space" in str(failure.value)
+# WHERE THE DISTINCTION WENT. The MeTTa door gave up reporting absence to
+# match upstream; the Python door keeps it, because Python's own idiom for a
+# removal that finds nothing is to say so.
+def test_the_python_remove_door_still_reports_absence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    m.add(S.kept(1))
+    assert m.remove(S.kept(1)) is True
+    assert m.remove(S.gone(1)) is False
 
 
-# A space is a multiset on ADD and used to be a set on REMOVE: three adds of
-# `(dup 1)` gave count 3 and ONE removal gave count 0. The premise the engine
-# wrote down for that, "a MeTTa space is a multiset unless something forbids
-# it, so removal takes EVERY occurrence", argues for the opposite conclusion,
-# since multiset subtraction takes one occurrence. The arbiter settles it
-# against the old reading: MettaHyperonFullTests/Properties.lean requires
-# `remove-atom` to behave as MULTISET SUBTRACTION on the reader-visible view
-# of `&self`, and LeaTTa's own u-space model removes the first exact
-# occurrence through `subtraction-atom`.
-def test_remove_atom_removes_one_occurrence_not_all(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+# ONE REMOVAL DRAINS THE ATOM. Upstream's is `retractall/1` under a comment
+# reading "Remove all same atoms", so three adds of `(dup 1)` and one removal
+# leave none [source: PeTTa@ae66fa8 src/spaces.pl:5-7 and :43-44; measured
+# 2026-08-30, where this engine left two]. It took ONE occurrence here until
+# then, as multiset subtraction, on LeaTTa's Properties.lean. Multiset
+# subtraction did not go anywhere: it is `space.remove(atom)` below, which is
+# also the door the engine's own machinery uses.
+def test_remove_atom_drains_every_occurrence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (dup 1))\n!(add-atom &self (dup 1))\n!(add-atom &self (dup 1))")
     (before,) = m.run("!(collapse (match &self (dup $x) $x))")
     assert len(before[0]) == 3
     m.run("!(remove-atom &self (dup 1))")
     (after,) = m.run("!(collapse (match &self (dup $x) $x))")
-    assert len(after[0]) == 2
+    assert after == [Expression()]
 
 
-# Subtraction is repeatable, and the count walks down one at a time until the
-# space no longer holds the atom, at which point P1.17's absence error takes
-# over. The two rulings compose rather than colliding.
-def test_repeated_subtraction_walks_the_count_down_to_absence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+# Draining is idempotent, which is the whole content of answering True either
+# way: the first removal empties the atom and every later one is a no-op that
+# answers the same thing.
+def test_repeated_removal_is_idempotent(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (dup 2))\n!(add-atom &self (dup 2))")
     first, second, third = m.run(
         "!(remove-atom &self (dup 2))\n"
         "!(remove-atom &self (dup 2))\n"
         "!(remove-atom &self (dup 2))"
     )
-    assert first == [Expression()]
-    assert second == [Expression()]
-    assert "remove-atom: atom is not in the space" in error_text(third[0])
+    assert first == second == third == [TRUE]
+    (left,) = m.run("!(collapse (match &self (dup $x) $x))")
+    assert left == [Expression()]
 
 
 # Scalars live in their own storage predicate, so they are a separate path to
 # the same law.
-def test_a_scalar_removal_takes_one_copy(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+def test_a_scalar_removal_drains_its_copies(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self lone)\n!(add-atom &self lone)\n!(remove-atom &self lone)")
     (left,) = m.run("!(collapse (get-atoms &self))")
-    assert len(left[0]) == 1
+    assert left == [Expression()]
 
 
 # An equation removes through its own path, which un-compiles the clause as
 # well as dropping the atom, and it obeys the same law: two copies of a rule
-# answer twice, and taking one away leaves the function answering once.
-def test_removing_one_of_two_identical_equations_leaves_the_function_defined(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+# answer twice, and removing the equation takes both, leaving the call
+# unreduced. Upstream leaves `((twice))` for exactly this program
+# [measured 2026-08-30 against PeTTa@ae66fa8].
+def test_removing_a_duplicated_equation_undefines_the_function(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("(= (twice-defined) 1)\n(= (twice-defined) 1)")
     (both,) = m.run("!(collapse (twice-defined))")
     assert both == [Expression(1, 1)]
     m.run("!(remove-atom &self (= (twice-defined) 1))")
-    # The value, not the unreduced call: taking one equation away used to take
-    # both, after which the collapse held `((twice-defined))`, which is also
-    # one element and would pass a length check for the wrong reason.
-    (one,) = m.run("!(collapse (twice-defined))")
-    assert one == [Expression(1)]
+    (none,) = m.run("!(collapse (twice-defined))")
+    assert none == [Expression(S["twice-defined"]())]
 
 
-# A pattern with a variable removes ONE unifying occurrence, not every one.
-# Which occurrence is not reported: the operation answers unit, and the
-# pattern's variables come back as they went in.
-def test_a_pattern_removal_takes_one_unifying_occurrence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+# A pattern with a variable drains every unifying occurrence, and the
+# pattern's variables come back as they went in, which is what lets the same
+# call be written twice.
+def test_a_pattern_removal_drains_every_unifying_occurrence(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (pair 1))\n!(add-atom &self (pair 2))")
     m.run("!(remove-atom &self (pair $x))")
     (left,) = m.run("!(collapse (match &self (pair $y) $y))")
-    assert len(left[0]) == 1
+    assert left == [Expression()]
 
 
 # The Python door says the same thing about the same operation: remove() is
@@ -185,17 +177,18 @@ def test_delitem_drains_every_unifying_occurrence(m):  # noqa: D103  -- pytest d
 
 # ----------------------------------------------------- one law, every space
 #
-# The law is the same whoever holds the atoms. It was not: the seam has
-# always declared `seam:foreign_remove/3` as "remove one" (EXTENDING.md),
-# while the native store took every occurrence, so `(remove-atom $s $a)`
-# meant different things depending on how `$s` was implemented and nothing
-# in the text said which. These run the same three-add-one-remove-count-two
-# script against each kind of space there is.
+# The law is the same whoever holds the atoms, and it is the MeTTa door's
+# law: one removal drains the atom. The seam below it still declares
+# `seam:foreign_remove/3` as "remove one" (EXTENDING.md) and still means it;
+# what changed is that the door above calls it once per stored copy instead
+# of once. These run the same three-add-one-remove-count-none script against
+# each kind of space there is, so a provider cannot quietly implement a
+# different law.
 
 
-def subtracts_one(space_name, m):
-    """Three copies in, one removal, two left. The multiset law, asked of
-    whichever space `space_name` refers to.
+def drains(space_name, m):
+    """Three copies in, one removal, none left, asked of whichever space
+    `space_name` refers to.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     for _ in range(3):
         m.run(f"!(add-atom {space_name} (law 1))")
@@ -205,11 +198,11 @@ def subtracts_one(space_name, m):
     return len(before), len(after)
 
 
-def test_a_native_space_subtracts_one(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    assert subtracts_one("&self", m) == (3, 2)
+def test_a_native_space_drains(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    assert drains("&self", m) == (3, 0)
 
 
-def test_a_python_provider_subtracts_one(metta):
+def test_a_python_provider_drains(metta):
     """A registered Python provider, the seam's Python door."""
 
     class ListSpace(SpaceProvider):
@@ -236,15 +229,16 @@ def test_a_python_provider_subtracts_one(metta):
     name = f"&lawlist{id(provider) % 100000}"
     metta._register_space(provider, name)
     try:
-        assert subtracts_one(name, metta) == (3, 2)
-        assert len(provider.stored) == 2
+        assert drains(name, metta) == (3, 0)
+        assert provider.stored == []
     finally:
         metta._unregister_space(name)
 
 
-def test_a_persistent_space_subtracts_one_fact_like_a_native_one(metta, tmp_path):
-    """The journal-backed provider, which used to retractall and now
-    retracts, so its journal records one removal rather than a sweep.
+def test_a_persistent_space_drains_like_a_native_one(metta, tmp_path):
+    """The journal-backed provider, which records one journal entry per copy
+    removed rather than a single sweep, so a replay reconstructs the same
+    counts.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from metta._persistent import PersistentFactSpace
 
@@ -252,7 +246,11 @@ def test_a_persistent_space_subtracts_one_fact_like_a_native_one(metta, tmp_path
     name = f"&lawstore{id(provider) % 100000}"
     metta._register_space(provider, name)
     try:
-        assert subtracts_one(name, metta) == (3, 2)
+        assert drains(name, metta) == (3, 0)
+        # The provider's OWN door is still one-at-a-time, which is what the
+        # door above it calls once per copy.
+        for _ in range(2):
+            metta.run(f"!(add-atom {name} (law 1))")
         assert provider.remove(S.law(1)) is True
         assert provider.remove(S.law(1)) is True
         assert provider.remove(S.law(1)) is False

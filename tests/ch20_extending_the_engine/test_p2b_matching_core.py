@@ -30,6 +30,8 @@ Open Obligations:
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from metta import MeTTa
@@ -48,6 +50,28 @@ QUOTED_PAYLOADS = [
 ]
 
 
+#: A payload's variables print under the engine's allocation names, `$_18268`,
+#: which differ between runs and from the source spelling. Only the shape is
+#: the claim in the rows below, so every variable becomes `$v` first.
+#:
+#: This COLLAPSES distinct variables onto one name, which would weaken the
+#: comparison for a payload holding two of them; every payload above holds at
+#: most one, and the rows assert that before relying on it. Use
+#: Atom.alpha_eq or tools/alpha.canonical for a payload that needs a real
+#: bijection.
+_ANY_VARIABLE = re.compile(r"\$[A-Za-z_][A-Za-z0-9_]*|\$_\d+")
+
+
+def _normalise(text: str) -> str:
+    """One term with every variable name replaced by `$v`."""
+    return _ANY_VARIABLE.sub("$v", text)
+
+
+def _normalised(answers: list[str]) -> list[str]:
+    """Answers with every variable name replaced by `$v`."""
+    return [_normalise(answer) for answer in answers]
+
+
 def _answers(metta: MeTTa, source: str) -> list[str]:
     """Return one query group's atoms in their stable textual form."""
     groups = metta.run(source)
@@ -59,21 +83,42 @@ def _answers(metta: MeTTa, source: str) -> list[str]:
     "index, payload", list(enumerate(QUOTED_PAYLOADS)), ids=QUOTED_PAYLOADS
 )
 def test_quote_is_a_scope_in_head_position_too(index, payload):
-    """A quoted pattern matches the value a quoted body produces.
+    """A quoted pattern holds its payload INTACT, and a quoted body answers it.
 
-    The body's own output is fed straight into the head's own pattern, so the
-    two positions are compared against each other rather than against a
-    transcription of what either was expected to compile to. Measured on the
-    tip before the pattern walk stopped descending into a quote: with the
-    payload ``(cons 1 2)`` the body compiled the value ``[quote, [cons, 1, 2]]``
-    and the head compiled the pattern ``[quote, [1|2]]``, so this call had no
-    answer at all.
+    The two positions do different things and that is the law: a body's quote
+    is an evaluation barrier, so it answers the payload with no wrapper left,
+    while a head's quote is literal structure, because a pattern is matched
+    rather than evaluated [source: PeTTa@ae66fa8 src/translator.pl:320 for the
+    body, and its constrain_args/3 head walk, which gives quote no special
+    meaning]. They meet when the parameter is declared ``Atom`` and the
+    argument is WRITTEN as a quote, which is the shape the shipped ``unquote``
+    uses and the only one upstream gets right.
+
+    What both halves share is that the payload is not mangled on the way in.
+    Measured on the tip before the pattern walk stopped descending into a
+    quote: with the payload ``(cons 1 2)`` the head compiled the pattern
+    ``[quote, [1|2]]``, an improper list, so the call had no answer at all.
+    Upstream still compiles exactly that ``qh([quote, [1|2]], matched).``
+    [measured 2026-08-30, ai-tmp/qs3.metta], which is why this row is a
+    superset rather than a parity claim.
     """
     metta = MeTTa(verbose=False).self
+    #The normaliser below maps every variable to one name, so it only stands
+    #in for alpha-equivalence while a payload holds at most one.
+    assert len(set(_ANY_VARIABLE.findall(payload))) <= 1
     body, head = f"qs-body-{index}", f"qs-head-{index}"
+
+    # The BODY: the barrier answers the payload itself, with no wrapper. A
+    # variable in the payload comes back under the engine's own allocation
+    # name, so only the SHAPE is the claim and every name is normalised away.
     metta.run(f"(= ({body}) (quote {payload}))")
+    assert _normalised(_answers(metta, f"!({body})")) == [_normalise(payload)]
+
+    # The HEAD: an Atom parameter holds the written argument, so the quoted
+    # pattern is reached and the payload inside it survived the walk.
+    metta.run(f"(: {head} (-> Atom %Undefined%))")
     metta.run(f"(= ({head} (quote {payload})) matched)")
-    assert _answers(metta, f"!({head} ({body}))") == ["matched"]
+    assert _answers(metta, f"!({head} (quote {payload}))") == ["matched"]
 
 
 def test_a_quoted_annotation_pattern_matches_the_annotation_and_not_its_subject():
@@ -86,10 +131,17 @@ def test_a_quoted_annotation_pattern_matches_the_annotation_and_not_its_subject(
     ``(quote (: foo Number))``, which is exactly what it says.
     """
     metta = MeTTa(verbose=False).self
+    # An Atom parameter holds the written argument, so the quoted pattern is
+    # what the call meets; without it the argument's own quote is a barrier
+    # and strips before the head sees it.
+    metta.run("(: h3 (-> Atom %Undefined%))")
     metta.run("(= (h3 (quote (: $x Number))) matched)")
     assert _answers(metta, "!(h3 (quote (: foo Number)))") == ["matched"]
     assert _answers(metta, "!(h3 (quote (: 7 Number)))") == ["matched"]
-    assert _answers(metta, "!(h3 (quote 5))") == ["(h3 (quote 5))"]
+    # No clause matches, and the default no-match policy is NoMatchFail, so
+    # the call answers NOTHING -- upstream's own answer for a guarded head
+    # with no matching clause [measured 2026-08-30 against PeTTa@ae66fa8].
+    assert _answers(metta, "!(h3 (quote 5))") == []
 
 
 def test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match():
@@ -127,7 +179,7 @@ def test_a_guard_that_binds_a_pattern_variable_cannot_create_a_match():
     assert _answers(metta, "!(add-translator-rule! p216-gp)") == ["True"]
     metta.run("(= (p216-uses-gp $z) (p216-gp $z))")
 
-    assert _answers(metta, "!(p216-uses-gp 5)") == ["(p216-gp 5)"]
+    assert _answers(metta, "!(p216-uses-gp 5)") == []
     assert _answers(metta, "!(p216-uses-gp (pair 1 2))") == ["(got 1 2)"]
     assert _answers(metta, "!(p216-gp (pair 3 4))") == ["(got 3 4)"]
 
@@ -146,20 +198,21 @@ def test_the_compiler_names_a_pattern_position_it_turned_into_a_goal(capfd):
     metta.run("(= (p22-g $x) (inner $x))")
     capfd.readouterr()
 
+    # A colon head is ordinary structure since 2026-08-30, so there is no
+    # decision to report and this says NOTHING. It named an in-place type
+    # annotation until then.
     metta.run("(= (p22-goal (: $x Number)) $x)")
-    annotation = capfd.readouterr().err
-    assert "(= (p22-goal ...) ...)" in annotation
-    assert "head argument 1" in annotation
-    assert "annotation on :" in annotation
-    assert "GOAL" in annotation
+    assert capfd.readouterr().err == ""
 
     metta.run("(= (p22-label (deeper (p22-g $x))) $x)")
     label = capfd.readouterr().err
     assert "(= (p22-label ...) ...)" in label
     assert "head argument 1, subterm 1" in label
-    assert "against (p22-g ...)" in label
-    assert "p22-g has equations here" in label
-    assert "matched STRUCTURALLY" in label
+    # A nested position holding a call to something runnable compiles to a
+    # GOAL, so the message names the call and says what the caller's argument
+    # is matched against.
+    assert "holds the call (p22-g ...)" in label
+    assert "compiled to a GOAL" in label
 
     # The other route to a head meaning, which asking fun/1 alone would miss.
     metta.run("(= (p22-special (if True 1 2)) hit)")
@@ -173,7 +226,8 @@ def test_the_compiler_names_a_pattern_position_it_turned_into_a_goal(capfd):
     metta.run("(= (p22-lazy (p22-g $x)) $x)")
     assert capfd.readouterr().err == ""
 
-    # The decision the note describes is real, not a style opinion.
-    assert _answers(metta, "!(p22-label (deeper (p22-g 3)))") == [
-        "(p22-label (deeper (inner 3)))"
-    ]
+    # The decision the note describes is real, not a style opinion: the head
+    # position RUNS (p22-g $x) and matches the caller's argument against what
+    # it answers, so the call whose argument evaluated to (deeper (inner 3))
+    # is exactly the one that matches.
+    assert _answers(metta, "!(p22-label (deeper (p22-g 3)))") == ["3"]

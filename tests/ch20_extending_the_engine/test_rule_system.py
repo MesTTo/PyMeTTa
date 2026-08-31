@@ -189,7 +189,7 @@ def test_a_translator_rule_declares_its_direction_and_a_bidirectional_rule_is_on
     # call by the cost, so the same rule rewrites the small term forwards and
     # the large one backwards, and neither direction ever runs away.
     registration, forward, forward_normal, backward_normal, backward = answers[:5]
-    assert registration == "True"
+    assert registration == "true"
     assert forward == "(twin 1 1)"
     assert forward_normal == "(twin 1 1)"
     assert backward_normal == "(unpack (wrap (box (a b c))))"
@@ -248,7 +248,7 @@ def test_a_translator_rule_can_decline_with_its_own_words(repo_root, tmp_path): 
     assert finished.returncode == 0, finished.stderr
     registration, honoured, declined, recorded = _answers(finished)
 
-    assert registration == "True"
+    assert registration == "true"
     # The match the rule can honour is rewritten.
     assert honoured == "(mg 250)"
     # The one it declines is NOT rewritten by that equation, and the call
@@ -345,7 +345,7 @@ def test_a_translator_rule_carries_a_cost_and_a_conjunctive_left_side(  # noqa: 
     joined = _answers(_run_metta(repo_root, conjunctive))
     registration, mass, length, missing, body_head = joined
 
-    assert registration == "True"
+    assert registration == "true"
     assert mass == "(in kilogram)"
     assert length == "(in metre)"
     # Conjuncts that do not match are a rule miss like any other: no answer.

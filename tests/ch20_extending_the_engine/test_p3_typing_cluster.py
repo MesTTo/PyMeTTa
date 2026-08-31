@@ -26,6 +26,7 @@ Open Obligations:
 import pytest
 
 from metta import MeTTa
+from metta.errors import EngineError
 
 
 def _answers(metta: MeTTa, source: str) -> list[str]:
@@ -41,7 +42,7 @@ def _set_dispatch_policy(
     assert _answers(
         metta,
         f"!(add-atom &metta (dispatch-policy {function} {axis} {value}))",
-    ) == ["()"]
+    ) == ["True"]
 
 
 def _remove_dispatch_policy(
@@ -50,14 +51,21 @@ def _remove_dispatch_policy(
     assert _answers(
         metta,
         f"!(remove-atom &metta (dispatch-policy {function} {axis} {value}))",
-    ) == ["()"]
+    ) == ["True"]
 
 
 def test_every_dispatch_axis_is_readable_settable_and_defaulted():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta = MeTTa(verbose=False).self
+    # NoMatchFail, not NoMatchOriginal: a call whose heads all miss simply
+    # fails, which is upstream's own answer for it -- it has no policy layer
+    # at all, just `Goal =.. [Fun|CallArgs]` and a call
+    # [source: PeTTa@ae66fa8 src/translator.pl:363-370]. The default moved
+    # with the alignment, and it is what lets a covered call compile to the
+    # direct Prolog goal instead of re-deciding clause selection above SWI's
+    # own first-argument indexing.
     expected = {
         "(MismatchEnum MismatchOriginal)",
-        "(NoMatchEnum NoMatchOriginal)",
+        "(NoMatchEnum NoMatchFail)",
         "(EvaluationOrderEnum OrderClause)",
         "(FunctionResultEnum Nondeterministic)",
         "(ClauseFailedEnum ClauseFailNonDet)",
@@ -72,7 +80,7 @@ def test_every_dispatch_axis_is_readable_settable_and_defaulted():  # noqa: D103
 
     alternates = {
         "MismatchEnum": "MismatchFail",
-        "NoMatchEnum": "NoMatchFail",
+        "NoMatchEnum": "NoMatchOriginal",
         "EvaluationOrderEnum": "OrderFittest",
         "FunctionResultEnum": "Deterministic",
         "ClauseFailedEnum": "ClauseFailDet",
@@ -87,11 +95,19 @@ def test_every_dispatch_axis_is_readable_settable_and_defaulted():  # noqa: D103
         ) == [value]
         _remove_dispatch_policy(metta, "p31-readable", axis, value)
 
+    # The default direction, and the override, both round trips. A missed head
+    # fails by default, which is what upstream answers for the same program
+    # [measured 2026-08-30 against PeTTa@ae66fa8: `(= (only-a A) hit)` then
+    # `!(only-a B)` prints a failed goal on both engines and
+    # `!(collapse (only-a B))` answers `()` on both].
     metta.run("(= (p31-only-a A) hit)")
-    assert _answers(metta, "!(p31-only-a B)") == ["(p31-only-a B)"]
-    _set_dispatch_policy(metta, "p31-only-a", "NoMatchEnum", "NoMatchFail")
     assert _answers(metta, "!(p31-only-a B)") == []
-    _remove_dispatch_policy(metta, "p31-only-a", "NoMatchEnum", "NoMatchFail")
+    _set_dispatch_policy(metta, "p31-only-a", "NoMatchEnum", "NoMatchOriginal")
+    assert _answers(metta, "!(p31-only-a B)") == ["(p31-only-a B)"]
+    _remove_dispatch_policy(
+        metta, "p31-only-a", "NoMatchEnum", "NoMatchOriginal"
+    )
+    assert _answers(metta, "!(p31-only-a B)") == []
 
     metta.run("(= (p31-multi $x) first)")
     metta.run("(= (p31-multi $x) second)")
@@ -175,8 +191,11 @@ def test_an_argument_type_fault_is_a_value_a_program_can_catch():  # noqa: D103 
     assert _answers(metta, '!(p32-f "wrong")') == [
         '(Error (p32-f "wrong") (BadArgType 1 Number String))'
     ]
-    assert _answers(metta, "!(p32-f 1 2)") == [
-        "(Error (p32-f 1 2) IncorrectNumberOfArguments)"
+    # Too many arguments RAISE rather than answering, and the raise names the
+    # arities p32-f has beside the one this call asked for
+    # [measured 2026-08-30 against PeTTa@ae66fa8].
+    assert _answers(metta, "!(repr (catch (p32-f 1 2)))") == [
+        '"(Error (domain_error (function_input_arities p32-f (1)) 2) none)"'
     ]
     assert _answers(metta, '!(type-cast "wrong" Number &self)') == [
         '(Error "wrong" BadType)'
@@ -185,9 +204,13 @@ def test_an_argument_type_fault_is_a_value_a_program_can_catch():  # noqa: D103 
     assert _answers(metta, '!(if-error (p32-f "wrong") caught missed)') == [
         "caught"
     ]
-    assert _answers(metta, "!(if-error (p32-f 1 2) caught missed)") == [
-        "caught"
-    ]
+    # An arity fault is NOT one of those values: it raises, so if-error never
+    # sees an Error to test and the ball travels past it, which is what
+    # upstream does with the same three forms
+    # [measured 2026-08-30 against PeTTa@ae66fa8]. `catch` is the form that
+    # turns it into a value, as the repr assertion above shows.
+    with pytest.raises(EngineError, match="function_input_arities"):
+        _answers(metta, "!(if-error (p32-f 1 2) caught missed)")
     assert _answers(
         metta, '!(if-error (type-cast "wrong" Number &self) caught missed)'
     ) == ["caught"]
@@ -224,7 +247,7 @@ def test_a_user_declared_lazy_type_receives_its_argument_unevaluated():  # noqa:
     assert _answers(metta, "!(inspect-late (+ 1 2))") == ["Expression"]
     assert _answers(
         metta, "!(remove-atom &self (: LatePayload DontEvalType))"
-    ) == ["()"]
+    ) == ["True"]
     assert "BadArgType" in _answers(metta, "!(late-inspection)")[0]
     assert "BadArgType" in _answers(metta, "!(inspect-late (+ 1 2))")[0]
 
@@ -340,7 +363,7 @@ def test_the_empty_expressions_type_follows_the_arbiters_ruling():  # noqa: D103
     # These are the ruling case's five controls, in its recorded order.
     assert _answers(metta, "!(get-metatype ())") == ["Expression"]
     assert _answers(metta, "!(get-type (nop))") == ["(->)"]
-    assert _answers(metta, "!(get-type assert)") == ["(-> Atom (->))"]
+    assert _answers(metta, "!(get-type assert)") == ["(-> %Undefined% (->))"]
     assert _answers(metta, "!(is-function (->))") == ["True"]
     assert _answers(metta, "!(get-type (h ()))") == ["Atom"]
 

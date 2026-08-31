@@ -65,7 +65,10 @@ def test_an_assertion_failure_carries_its_parts():
         m.run("!(assert (== 1 2))")
     assert caught.value.operation == "assert"
 
+    # `(empty)` evaluates to the empty expression, which is a VALUE and is
+    # what the failure carries; upstream prints the same `is (), should 3`
+    # [measured 2026-08-30 against PeTTa@ae66fa8].
     with pytest.raises(AssertionFailure) as caught:
         m.run("!(test (empty) 3)")
     assert caught.value.operation == "test"
-    assert caught.value.actual is None
+    assert caught.value.actual == []

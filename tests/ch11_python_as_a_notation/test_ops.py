@@ -39,6 +39,7 @@ from collections import Counter
 import pytest
 
 from metta import (
+    TRUE,
     UNIT,
     Answer,
     Atom,
@@ -131,7 +132,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
     with metta.capture() as output:
         groups = metta.run("!(println! p5-captured) !(+ 1 2)")
         answers = metta.eval("(+ 2 3)")
-    assert groups == [[Expression()], [3]]
+    assert groups == [[TRUE], [3]]
     assert answers == [5]
     assert output.text == "p5-captured\n"
 
@@ -141,7 +142,7 @@ def test_no_decorator_flag_changes_the_return_shape_and_declarations_are_atoms(
                 async_groups = await asynchronous.run("!(println! p5-async)")
             return async_groups, async_output.text
 
-    assert asyncio.run(async_capture()) == ([[Expression()]], "p5-async\n")
+    assert asyncio.run(async_capture()) == ([[TRUE]], "p5-async\n")
 
     with metta.speculative():
         assert metta.run("(p5-speculative fact) !(+ 2 2)") == [[4]]
@@ -1125,7 +1126,7 @@ def test_a_name_prolog_owns_registers_and_leaves_prolog_alone(metta):
     # compiled-goal dump on.
     with metta.capture() as output:
         groups = metta.run("!(println! (still here))")
-    assert groups == [[Expression()]]
+    assert groups == [[TRUE]]
     assert "(still here)\n" in output.text
 
 

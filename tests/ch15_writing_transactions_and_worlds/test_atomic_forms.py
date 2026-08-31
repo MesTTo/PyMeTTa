@@ -79,7 +79,7 @@ def test_a_transaction_rolls_back_every_answers_writes_together(three):
         three,
         "!(collapse (transaction (superpose ((add-atom (context-space) (kept 1)) "
         "(add-atom (context-space) (kept 2))))))",
-    ) == ["()", "()"]
+    ) == ["True", "True"]
     assert _answers(three, "!(collapse (match (context-space) (kept $x) $x))") == [
         "1",
         "2",
@@ -140,7 +140,7 @@ def test_atomically_answers_in_full_and_commits_or_rolls_back_whole(three):
         three,
         "!(collapse (atomically (superpose ((add-atom (context-space) (a-kept 1)) "
         "(add-atom (context-space) (a-kept 2))))))",
-    ) == ["()", "()"]
+    ) == ["True", "True"]
     assert _answers(three, "!(collapse (match (context-space) (a-kept $x) $x))") == [
         "1",
         "2",

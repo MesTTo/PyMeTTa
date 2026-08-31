@@ -89,15 +89,16 @@ def test_the_read_refusal_is_data_a_collapse_can_hold(m):  # noqa: D103  -- pyte
 # `(is-space not-a-space)` answered False in the same program
 # [source: LeaTTa tests/semantics/spaces/add_atom.metta, get_atoms.metta and
 # match.metta, all STATUS conforms].
-def test_a_symbol_that_is_not_a_space_name_is_refused(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    add, atoms, matched = m.run(
+def test_any_symbol_names_a_space_the_moment_it_is_written_to(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # The ampersand is a CONVENTION, not the rule: a bare symbol names a space
+    # too, and writing to one creates it. Upstream answers exactly this
+    # [measured 2026-08-30 against PeTTa@ae66fa8: True, then ((bad add))].
+    add, atoms = m.run(
         "!(add-atom not-a-space (bad add))\n"
-        "!(get-atoms not-a-space)\n"
-        "!(match not-a-space (foo $x) $x)"
+        "!(get-atoms not-a-space)"
     )
-    assert "add-atom expects a space as the first argument" in error_text(add[0])
-    assert "get-atoms expects a space as its argument" in error_text(atoms[0])
-    assert "match expects a space as the first argument" in error_text(matched[0])
+    assert str(add[0]) == "True"
+    assert [str(a) for a in atoms] == ["(bad add)"]
 
 
 # The prefix is the whole of the rule, so a name nothing has bound yet is a
@@ -108,7 +109,7 @@ def test_a_fresh_ampersand_name_is_created_by_writing_to_it(m):  # noqa: D103  -
         "!(add-atom &fresh-on-write (canary 1))\n"
         "!(match &fresh-on-write (canary $x) $x)"
     )
-    assert str(written[0]) == "()"
+    assert str(written[0]) == "True"
     assert str(found[0]) == "1"
 
 

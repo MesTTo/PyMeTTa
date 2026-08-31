@@ -26,14 +26,16 @@ from pathlib import Path
 import metta
 from metta import G, S, V, lib
 
-#: Written, appended to, read back four ways, then removed.
-SCRATCH = Path("/tmp/metta-text-twin.txt")
-
 
 def twin(m):
     """Walk lib_string's measuring, slicing, testing and padding, then lib_file."""
     m += lib.string
     m += lib.file
+
+    # temp-path! mints a unique fresh path in the system temporary
+    # directory, exclusively created, so concurrent twins cannot collide;
+    # the twin owns the file, and delete_file at the end is its removal.
+    scratch = Path(str(m.fn.temp_path(G("metta-text-twin")).one()))
 
     # Measuring and slicing. string-slice is half-open, From included, To not.
     string_length = m.fn.string_length
@@ -100,19 +102,19 @@ def twin(m):
     assert string_upper(S.hello) == [G("HELLO")]
 
     # Files.
-    assert m.fn.write_file(SCRATCH, G("one\ntwo\nthree\n")) == [True]
-    assert m.fn.read_file(SCRATCH) == [G("one\ntwo\nthree\n")]
+    assert m.fn.write_file(scratch, G("one\ntwo\nthree\n")) == [True]
+    assert m.fn.read_file(scratch) == [G("one\ntwo\nthree\n")]
     # file-lines! drops the trailing empty line a final newline would produce.
     file_lines = m.fn.file_lines
-    [lines] = file_lines(SCRATCH)
+    [lines] = file_lines(scratch)
     assert list(lines) == [G("one"), G("two"), G("three")]
-    assert m.fn.append_file(SCRATCH, G("four\n")) == [True]
-    [lines] = file_lines(SCRATCH)
+    assert m.fn.append_file(scratch, G("four\n")) == [True]
+    [lines] = file_lines(scratch)
     assert list(lines) == [G("one"), G("two"), G("three"), G("four")]
 
     # The handle surface is MeTTa HE's exactly: r read, w write, c create,
     # a append, t truncate. The example's `let` chain is three statements.
-    handle = m.fn.file_open(SCRATCH, G("r")).one()
+    handle = m.fn.file_open(scratch, G("r")).one()
     head = m.fn.file_read_exact(handle, 3).one()
     m.fn.file_close(handle).one()
     assert head == G("one")
@@ -121,14 +123,14 @@ def twin(m):
     # (line Number Text) atoms in a space, so the file is QUERYABLE rather than
     # one long string you then have to take apart. The line number is kept
     # because a space is unordered.
-    log = metta.space(m.fn.file_space(SCRATCH).one())
+    log = metta.space(m.fn.file_space(scratch).one())
     assert [(row.n, row.t) for row in log[S.line(V.n, V.t)]] == [
         (1, G("one")), (2, G("two")), (3, G("three")), (4, G("four")),
     ]
     # Asking for one line is a match, not a scan.
     assert [row.t for row in log[S.line(2, V.t)]] == [G("two")]
 
-    assert m.fn.delete_file(SCRATCH) == [True]
+    assert m.fn.delete_file(scratch) == [True]
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and

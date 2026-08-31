@@ -142,6 +142,78 @@ def test_a_user_typing_rule_participates_like_a_shipped_one(repo_root, tmp_path)
     assert "unconditional critical-pair checker" in report
 
 
+#: The type vocabulary the differential below draws its pairs from: the two
+#: wildcards, the widening pair, and three ordinary names that are none of
+#: those. Every shipped ordinary and widening rule is exercised by some pair.
+_TYPE_VOCABULARY = ["%Undefined%", "Atom", "Number", "String", "BigInt", "Bool"]
+
+
+def _match_differential(metta, family="ordinary"):
+    """Rows where the shipped fast path and the registry disagree.
+
+    Asked of the engine directly, because the two relations being compared are
+    engine-internal and the whole claim is that they agree. Every internal name
+    carries a leading underscore: janus manages a named variable in a goal
+    string as an INPUT, so `Rows` would arrive unbound and the goal would raise
+    "Arguments are not sufficiently instantiated" before running.
+    """
+    goal = (
+        f"space_module('{metta.name}', _Mod), "
+        f"_Ts = {_TYPE_VOCABULARY!r}, ".replace("'", "'") +
+        "findall(_L-_R2-_F-_G, "
+        "  ( member(_L, _Ts), member(_R2, _Ts), "
+        "    ( user:metta_shipped_types_match(_L, _R2) -> _F = yes ; _F = no ), "
+        f"    ( type_rules:typing_rule_accepts(_Mod, {family}, _L, _R2) "
+        "      -> _G = yes ; _G = no ) ), "
+        "  _Rows), "
+        "findall(_A-_B, ( member(_A-_B-_F2-_G2, _Rows), _F2 \\== _G2 ), _Bad), "
+        "length(_Rows, _N), term_string(_N-_Bad, R)"
+    )
+    return metta.runtime.once(goal)["R"]
+
+
+def test_the_shipped_fast_path_answers_what_the_registry_answers():
+    """The shipped fast path answers what the registry answers.
+
+    metta_types_match_in/3 reads the shipped rules inline rather than searching
+    for them, and the two must agree. This is the engine's hottest type predicate: every typed argument of every
+    typed call asks it. Reading it off the registry means backtracking over the
+    family's entries and running the pattern machinery per entry, where the
+    shipped answer is six inline comparisons. So the fast path exists, guarded
+    on no user rule being able to override it, and this is the obligation that
+    buys it: the same question put to both relations over every pair drawn from
+    the vocabulary, and then again with a user rule registered, where the fast
+    path must stand aside rather than answer.
+
+    The cost it removes is not small. Replacing those comparisons with the
+    registry search took a dependent-type backward chainer from 44,327,926
+    inferences to 236,070,644 in one commit
+    [measured 2026-08-30 at ecb213fc and its parent, on
+    examples/ch22-a-reasoner-you-can-serve/22-01-logic-programs/04-nilbc.metta].
+    """
+    metta = MeTTa().self
+    assert _match_differential(metta) == f"{len(_TYPE_VOCABULARY) ** 2}-[]"
+
+    # A user rule that REFUSES a pair the shipped rules accept. The fast path
+    # must stop answering, or the refusal would be inert.
+    metta.run(
+        "!(add-typing-rule! p38-refuses-number ordinary Number Number "
+        "(refuse \"p38 refuses Number against Number\"))"
+    )
+    try:
+        disagreements = _match_differential(metta)
+        assert disagreements != f"{len(_TYPE_VOCABULARY) ** 2}-[]", (
+            "with a user rule registered the fast path still answered, so the "
+            "rule cannot change what a typed call accepts"
+        )
+        assert "'Number'-'Number'" in disagreements, disagreements
+    finally:
+        metta.run("!(remove-typing-rule! p38-refuses-number)")
+
+    # Removal restores agreement, so the guard is a door rather than a latch.
+    assert _match_differential(metta) == f"{len(_TYPE_VOCABULARY) ** 2}-[]"
+
+
 def test_shipped_reporting_rules_do_not_treat_atom_as_a_wildcard():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta = MeTTa().self
     metta.run("(: p37-r Type)")

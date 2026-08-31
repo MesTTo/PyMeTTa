@@ -203,15 +203,27 @@ def test_the_c_binding_and_the_python_host_answer_the_same_programs(
                 ), (source, [str(atom) for atom in group])
             else:
                 # Order within a group is unspecified; multiplicity is not.
+                #
+                # Both sides are compared through ONE notation. The seat
+                # answers MeTTa text and `str(atom)` is the Python surface's
+                # own spelling, and the two are not the same alphabet: a
+                # boolean is `true` there and `True` here. Reading the seat's
+                # text back into an atom compares the VALUES, which is what
+                # the row is about, and is the same rule
+                # extensions/python/tools/example_parity.py states.
                 mine = collections.Counter(str(atom) for atom in group)
-                assert mine == collections.Counter(texts), f"{source}, group {index}"
+                theirs = collections.Counter(str(metta.parse(text)) for text in texts)
+                assert mine == theirs, f"{source}, group {index}"
 
             if allocated:
                 pairs = list(zip(sorted(kinds), sorted(group, key=str), strict=True))
             else:
+                # Keyed through the same one notation as the counts above:
+                # the seat's text is read back into an atom so its key is the
+                # Python spelling this side already uses.
                 by_text: dict[str, list[str]] = {}
                 for text, kind in zip(texts, kinds, strict=True):
-                    by_text.setdefault(text, []).append(kind)
+                    by_text.setdefault(str(metta.parse(text)), []).append(kind)
                 pairs = [(by_text[str(atom)].pop(), atom) for atom in group]
             for kind, atom in pairs:
                 if _KIND_TO_METATYPE[kind] != atom.metatype:

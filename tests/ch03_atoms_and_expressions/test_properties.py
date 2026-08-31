@@ -9,7 +9,7 @@ Guarantees:
     test_every_generated_atom_survives_the_write_parse_round_trip;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - booleans use MeTTa's canonical True and False text [tested:
-    test_swrite_writes_mettas_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_swrite_writes_the_engines_own_boolean_literal; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - every generated Expression has symmetric, hash-coherent equality with its
     recursively transparent tuple value [tested:
     test_expression_tuple_equality_is_symmetric_and_hash_coherent;
@@ -133,13 +133,19 @@ def test_every_generated_atom_survives_the_write_parse_round_trip(
     assert wire.from_wire(reread).alpha_eq(atom)
 
 
-def test_swrite_writes_mettas_own_boolean_literal(metta_session):
-    """The engine emits the language's canonical boolean spellings."""
+def test_swrite_writes_the_engines_own_boolean_literal(metta_session):
+    """The engine emits `true` and `false`, and reads both spellings back."""
     rt = metta_session.runtime
-    true_atom = metta_session.parse("True")
-    false_atom = metta_session.parse("False")
-    assert rt.once("metta_py_swrite(W, Str)", W=true_atom.to_wire())["Str"] == "True"
-    assert rt.once("metta_py_swrite(W, Str)", W=false_atom.to_wire())["Str"] == "False"
+    #Either spelling READS to the same boolean, and the engine WRITES the
+    #lowercase one, which is upstream PeTTa's
+    #[source: PeTTa@ae66fa8 src/parser.pl:76-78 maps the capitalised pair on
+    #read and carries no write-side inverse].
+    for spelling in ("True", "true"):
+        atom = metta_session.parse(spelling)
+        assert rt.once("metta_py_swrite(W, Str)", W=atom.to_wire())["Str"] == "true"
+    for spelling in ("False", "false"):
+        atom = metta_session.parse(spelling)
+        assert rt.once("metta_py_swrite(W, Str)", W=atom.to_wire())["Str"] == "false"
 
 
 @given(_atoms(), _atoms())
@@ -222,17 +228,6 @@ def test_the_boolean_atoms_are_one_term_with_their_symbols(metta_session):
     assert parse("true") == Grounded(True)  # noqa: FBT003  -- the boolean literal is atom or wire data at this site, not a behavior switch
 
 
-def _kind(value):
-    """The MeTTa type a Python value crosses as. bool first, because it is a
-    subclass of int in Python and is Bool rather than Number in MeTTa.
-    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    if isinstance(value, bool):
-        return "Bool"
-    if isinstance(value, (int, float)):
-        return "Number"
-    return "String"
-
-
 @settings(max_examples=80, deadline=None)
 @given(
     a=st.one_of(st.integers(-99, 99), st.floats(allow_nan=True, allow_infinity=False, width=32), st.booleans(), st.text("ab", max_size=3)),
@@ -243,25 +238,28 @@ def test_python_equality_is_engine_equality(metta, a, b):
     for two values of the same MeTTa type, NaN, negative zero and mixed
     numeric types included.
 
-    Across two DIFFERENT types the engine answers its refusal rather than a
-    verdict, since `==` is declared `(-> $a $a Bool)` and the question has
-    none: the answer is `(Error <call> (BadArgType ...))`. Python still answers
-    False there, and has to: `__eq__` may not raise, or a Grounded could not sit in
-    a dict beside a value of another kind. So the law is "same kind, same
-    verdict; different kind, the engine says so", which is the strongest form
-    both sides can hold at once. The raw operand carries the == operator's
-    relation; two ATOMS carry unification instead, the next law down.
+    `==` is declared `(-> $a $b Bool)`, two INDEPENDENT type variables, so it
+    constrains nothing and every pair gets a verdict rather than a refusal:
+    `(== 1 "a")` is False, not an error. The engine's == is EXACT where
+    Python's coerces, and upstream agrees with the engine on all of them
+    [measured 2026-08-30 against PeTTa@ae66fa8: `(== 0 0)` and `(== 0.0 0.0)`
+    are True, `(== 1 1.0)`, `(== True 1)` and `(== 1 "a")` are False, and
+    `(== 0.0 -0.0)` is False through both doors].
+
+    So `Grounded.__eq__` is the engine's relation rather than Python's: where
+    the two operands are the same Python type the verdicts agree exactly, and
+    where they are not the engine answers False. What this pins is that the
+    Python implementation of the relation and the Prolog one do not drift,
+    which is why it compares the engine's own answer with the Python operator
+    rather than asserting either alone. `__eq__` may not raise, or a Grounded
+    could not sit in a dict beside a value of another kind.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    if _kind(a) != _kind(b):
-        refused = metta.eval(Expression(S["=="], Grounded(a), Grounded(b)))
-        assert len(refused) == 1
-        assert str(refused[0]).startswith("(Error (==")
-        assert "BadArgType" in str(refused[0])
-        assert (Grounded(a) == b) is False
-        return
     engine = metta.eval(Expression(S["=="], Grounded(a), Grounded(b)))
     assert len(engine) == 1
-    assert engine[0].value is (Grounded(a) == b)
+    if type(a) is type(b):
+        assert engine[0].value is (Grounded(a) == b)
+    else:
+        assert engine[0].value is False
 
 
 @settings(max_examples=80, deadline=None)

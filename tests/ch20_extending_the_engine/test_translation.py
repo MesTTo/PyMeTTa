@@ -78,13 +78,18 @@ def test_an_equation_head_is_matched_not_called(m):
     ]
     assert stored == ["(1 5 matched)"]
 
-    # A nullary call in a head is a pattern too. The arbiter's own case:
-    # the argument evaluates to `pa3`, so only the equation written against
-    # `pa3` fires, where the call-shaped head used to fire as well.
+    # A nullary call in a head is a pattern that RUNS: it answers `pa3`, so
+    # both equations fire and the call has two answers. Upstream answers the
+    # same pair for the same three forms
+    # [measured 2026-08-30 against PeTTa@ae66fa8: `(evaluated held)` there and
+    # here, for both `(nested-atom (produce-pa3))` and `(nested-atom pa3)`].
     m.run("(= (produce-pa3) pa3)")
     m.run("(= (nested-atom pa3) evaluated)")
     m.run("(= (nested-atom (produce-pa3)) held)")
-    assert [str(a) for a in m.eval("(nested-atom (produce-pa3))")] == ["evaluated"]
+    assert sorted(str(a) for a in m.eval("(nested-atom (produce-pa3))")) == [
+        "evaluated",
+        "held",
+    ]
 
 
 # The derived forms the engine's prelude ships as translator rules, each with

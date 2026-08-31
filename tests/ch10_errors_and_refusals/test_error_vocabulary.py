@@ -33,7 +33,10 @@ from metta import MeTTa
 #                                        a produced error emerges unchanged
 #                                        through a call; a written one is data
 #   tests/semantics/grounded/09-arity.metta
-#                                        IncorrectNumberOfArguments
+#                                        an arity error; PeTTa raises
+#                                        domain_error(function_input_arities
+#                                        (Fun, Known), Asked) and that is what
+#                                        this engine answers
 #   wiki/Hyperon-Divergences.md:44       (Error <culprit> StackOverflow)
 #   wiki/Hyperon-Hacks-Register.md:51    Empty is removal, NotReducible is
 #                                        "return the atom as is"; they differ
@@ -86,12 +89,14 @@ def test_the_error_vocabulary_answers_what_the_arbiter_answers() -> None:
         '(Error "wrong" BadType)'
     ]
 
-    # IncorrectNumberOfArguments is a bare symbol.
-    assert _answers(metta, "!(+ 1 2 3 4)") == [
-        "(Error (+ 1 2 3 4) IncorrectNumberOfArguments)"
+    # Too many arguments RAISE, and the raise names the arities the operator
+    # has beside the one the call asked for, so `catch` is what turns it into
+    # a value [measured 2026-08-30 against PeTTa@ae66fa8].
+    assert _answers(metta, "!(repr (catch (+ 1 2 3 4)))") == [
+        '"(Error (domain_error (function_input_arities + (2)) 4) none)"'
     ]
-    assert _answers(metta, "!(and True True True)") == [
-        "(Error (and True True True) IncorrectNumberOfArguments)"
+    assert _answers(metta, "!(repr (catch (and True True True)))") == [
+        '"(Error (domain_error (function_input_arities and (2)) 3) none)"'
     ]
 
     # StackOverflow reports the branch that ran out of fuel and keeps the

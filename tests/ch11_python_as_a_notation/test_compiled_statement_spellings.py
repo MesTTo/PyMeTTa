@@ -74,21 +74,18 @@ def test_compiled_removal_statements_preserve_one_many_missing_and_target_scope(
     assert remove_one.facts.effect is EffectClass.writesState
     assert remove_many.facts.effect is EffectClass.writesState
 
+    # `-=` is Python's in-place DIFFERENCE and set difference is total: every
+    # copy goes and absence is not an error. `del` is Python's own `del` and
+    # still raises on a pattern that matches nothing.
     target.add(S.item(1), S.item(1), S.item(2), S.keep())
     assert remove_one(target, S.item(1)) == [S.done]
-    assert target.atoms().count(S.item(1)) == 1
+    assert target.atoms().count(S.item(1)) == 0
     assert program.atoms() != target.atoms()
 
     assert remove_many(target, S.item(V.which)) == [S.done]
     assert target.atoms() == [S.keep()]
 
-    missing_one = remove_one(target, S.absent)
-    assert missing_one == [
-        S.Error(
-            S["remove-atom"](target, S.absent),
-            "remove-atom: atom is not in the space",
-        )
-    ]
+    assert remove_one(target, S.absent) == [S.done]
     (missing_many,) = remove_many(target, S.missing(V.which))
     expected = S.Error(
         S["remove-atom"](target, S.missing(V.which)),

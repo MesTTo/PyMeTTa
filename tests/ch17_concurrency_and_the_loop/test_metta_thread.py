@@ -34,7 +34,7 @@ def test_metta_thread_evaluates_only_eager_arguments_to_a_fixpoint() -> None:
         "c2-py-thread-choice-door",
         "(metta-thread (c2-py-thread-choice (if-equal Number Atom True "
         "(if-equal Number Grounded True False)) (+ 1 2)) %Undefined% &self)",
-        ["(quote (+ 1 2))"],
+        ["3"],
     )
 
 

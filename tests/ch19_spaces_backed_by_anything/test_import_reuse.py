@@ -8,7 +8,7 @@ Open Obligations:
 
 import pytest
 
-from metta import Expression, S
+from metta import Expression, Grounded, S
 from metta.errors import EngineError
 
 DATETIME_IMPORT = "!(import! (context-space) (library lib_datetime))"
@@ -37,7 +37,7 @@ def test_reused_pooled_space_reimports_complete_library(metta):  # noqa: D103  -
         for _ in range(2):
             with metta._new_space() as scratch:
                 names.append(scratch.name)
-                assert scratch.run(DATETIME_IMPORT) == [[Expression()]]
+                assert scratch.run(DATETIME_IMPORT) == [[Grounded(True)]]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
                 assert _format_date_clause_count(scratch) == 1
                 assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
 
@@ -49,11 +49,11 @@ def test_reused_pooled_space_reimports_complete_library(metta):  # noqa: D103  -
 
 def test_same_life_double_import_is_a_no_op(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     with metta._new_space() as scratch:
-        assert scratch.run(DATETIME_IMPORT) == [[Expression()]]
+        assert scratch.run(DATETIME_IMPORT) == [[Grounded(True)]]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
         clauses_before = _format_date_clause_count(scratch)
         atoms_before = len(scratch)
 
-        assert scratch.run(DATETIME_IMPORT) == [[Expression()]]
+        assert scratch.run(DATETIME_IMPORT) == [[Grounded(True)]]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
         assert _format_date_clause_count(scratch) == clauses_before == 1
         assert len(scratch) == atoms_before
         assert scratch.run(FORMAT_DATE_CALL) == [[S.January]]
@@ -104,8 +104,9 @@ def test_imported_source_error_names_the_file(metta, tmp_path):  # noqa: D103  -
         assert clauses == 0
 
         broken.write_text("(= (recovered-import) recovered)\n")
-        # import! answers the unit value, the way add-atom and pragma! do.
-        assert scratch.run(f'!(import! (context-space) "{broken}")') == [[Expression()]]
+        # import! answers `true`, the way add-atom and the rest of the
+        # effect family do.
+        assert scratch.run(f'!(import! (context-space) "{broken}")') == [[Grounded(True)]]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
         assert scratch.run("!(recovered-import)") == [[S.recovered]]
 
 
@@ -135,7 +136,7 @@ def test_an_import_into_a_named_space_registers_its_equations_there(
     module.write_text("(= (scoped-swap (Pair $a $b)) (Pair $b $a))\n")
     with metta._new_space() as importer:
         assert importer.run(f'!(import! (context-space) "{module}")') == [
-            [Expression()]
+            [Grounded(True)]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
         ]
         assert importer.run("!(scoped-swap (Pair a b))") == [
             [Expression(S.Pair, S.b, S.a)]
@@ -147,8 +148,8 @@ def test_an_import_into_a_named_space_registers_its_equations_there(
 
     # The arbiter's own spelling, a built-in module under an alias.
     bound = metta.run("!(bind! &scoped-skel (new-space))")
-    assert bound == [[Expression()]]
-    assert metta.run("!(import! &scoped-skel skel)") == [[Expression()]]
+    assert bound == [[Grounded(True)]]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
+    assert metta.run("!(import! &scoped-skel skel)") == [[Grounded(True)]]  # noqa: FBT003  -- True is the ATOM the engine answers, not a flag
     alias_probe = metta.run("!(skel-swap-pair (Pair a b))")
     assert alias_probe == [
         [Expression(S["skel-swap-pair"], Expression(S.Pair, S.a, S.b))]

@@ -1,17 +1,17 @@
-"""Purpose: `==` compares two things of one type, and says so when it is
-handed two of different types instead of answering a Bool that reads as a
-verdict.
+"""Purpose: `==` is TERM equality and answers a Bool for any two operands.
 Guarantees:
-  - a comparison across two KNOWN and different types ANSWERS its refusal,
-    `(Error <call> (BadArgType <position> <expected> <actual>))`, while one
-    whose either side has no declared type answers False [tested
-    test_cross_kind_equality_answers_what_the_arbiter_answers]
-  - `=alpha` stays the comparison that accepts anything, so the refusal has
-    an escape hatch that is already in the language [tested
+  - a comparison across two different kinds answers False rather than
+    refusing, and it never consults a type declaration [tested
+    test_cross_kind_equality_answers_false]
+  - `=alpha` remains the structural comparison beside it [tested
     test_alpha_equality_still_compares_across_kinds]
-  - integer and float operands compare by numeric value, matching the
-    arbiter's Ground.equiv promotion rule [tested
-    test_mixed_numeric_equality_answers_what_the_arbiter_answers]
+  - the integer 1 and the float 1.0 are NOT equal, because the comparison is
+    on terms and not on numeric value [tested
+    test_mixed_numeric_equality_is_term_equality]
+  - an operand that is an Error atom is handed on rather than compared, which
+    is a superset over upstream: there the inner call either fails its
+    declared check or raises uncaught, so no comparison answers at all
+    [tested test_an_error_operand_is_handed_on]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -38,34 +38,23 @@ def _answer(m, query):
     return [str(a) for g in m.run("!" + query) for a in g]
 
 
-def test_cross_kind_equality_answers_what_the_arbiter_answers(declared):
-    """Reproduced 2026-08-19: `!(== 1 "S")` answered `False`, which is also
-    the answer for two Numbers that differ, so a conditional took the else
-    branch and nothing said the question was meaningless.
+def test_cross_kind_equality_answers_false(declared):
+    """Two operands of different kinds compare False; `==` asks no type
+    question at all.
 
-    `==` is declared `(-> $a $a Bool)`, one type variable, so the two operands
-    must have a consistent type. Measured 2026-08-19 on hyperon 0.2.10 and on
-    the LeaTTa mechanised interpreter, byte-identical across both.
+    Upstream's whole definition is `'=='(A,B,R) :- (A==B -> R=true ;
+    R=false)` (PeTTa@ae66fa8 src/metta.pl:40-41), and its
+    `(: == (-> $a $b Bool))` uses TWO independent type variables, so nothing
+    constrains the pair. This engine refused these until 2026-08-30, through a
+    comparable_operands/2 guard written for LeaTTa's one-variable declaration.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    # Both sides KNOWN and different: refused, and the refusal is an ANSWER
-    # naming the position, the type the first operand fixed and the type the
-    # second carries. The form after it still runs, which a raise took away.
-    for query, expected, actual in (
-        ('(== 1 "S")', "Number", "String"),
-        ("(== True 1)", "Bool", "Number"),
-        ("(== xnum ystr)", "Number", "String"),
-        ('(== xnum "s")', "Number", "String"),
-        ("(== xnum zbool)", "Number", "Bool"),
-        ('(== "s" 1)', "String", "Number"),
-    ):
-        answers = _answer(declared, query)
-        assert len(answers) == 1, query
-        assert answers[0].startswith("(Error (=="), query
-        assert f"(BadArgType 2 {expected} {actual})" in answers[0], query
-
-    # One side with no declared type: nothing is contradicted, so the
-    # comparison happens and answers False.
     for query in (
+        '(== 1 "S")',
+        "(== True 1)",
+        "(== xnum ystr)",
+        '(== xnum "s")',
+        "(== xnum zbool)",
+        '(== "s" 1)',
         "(== 1 a)",
         '(== a "a")',
         "(== xnum undeclared)",
@@ -73,30 +62,40 @@ def test_cross_kind_equality_answers_what_the_arbiter_answers(declared):
     ):
         assert _answer(declared, query) == ["False"], query
 
-    # Same type, and the ordinary answers are untouched.
     assert _answer(declared, "(== xnum 1)") == ["False"]
     assert _answer(declared, "(== 1 1)") == ["True"]
     assert _answer(declared, '(== "S" "S")') == ["True"]
     assert _answer(declared, "(== true false)") == ["False"]
 
     # != is the same operator negated and carries the same rule.
-    assert _answer(declared, '(!= 1 "S")') == [
-        '(Error (!= 1 "S") (BadArgType 2 Number String))'
-    ]
+    assert _answer(declared, '(!= 1 "S")') == ["True"]
     assert _answer(declared, "(!= 1 2)") == ["True"]
+    assert _answer(declared, "(!= 1 1)") == ["False"]
 
 
-def test_mixed_numeric_equality_answers_what_the_arbiter_answers(declared):
-    """Mixed numeric equality answers what the arbiter answers.
+def test_an_error_operand_is_handed_on(declared):
+    """An Error atom is an evaluation that finished in error, not a value to
+    compare, so it is handed on. The test runs only after `A == B` has missed,
+    so two identical atoms, errors included, still compare True.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    answers = _answer(declared, '(== 4 (+ 1 "bad"))')
+    assert len(answers) == 1
+    assert answers[0].startswith("(Error (+ 1 ")
 
-    LeaTTa's `Ground.equiv` promotes the integer with `Float.ofInt` in
-    both mixed numeric cases (`MettaHyperonFull/Core/Atom.lean:47-62`), and
-    `Atom.equiv` uses that relation for grounded atoms (lines 110-116).
-    """
-    assert _answer(declared, "(== 1 1.0)") == ["True"]
-    assert _answer(declared, "(== 1.0 1)") == ["True"]
-    assert _answer(declared, "(!= 1 1.0)") == ["False"]
-    assert _answer(declared, "(!= 1.0 1)") == ["False"]
+
+def test_mixed_numeric_equality_is_term_equality(declared):
+    """The integer 1 and the float 1.0 are different TERMS, so they are not
+    equal.
+
+    Measured 2026-08-30 against upstream, byte-identical: `(== 1 1.0)` is
+    False and `(!= 1 1.0)` is True there. This engine compared numbers by
+    value with `=:=/2` until then, on LeaTTa's `Ground.equiv` promoting the
+    integer with `Float.ofInt`.
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    assert _answer(declared, "(== 1 1.0)") == ["False"]
+    assert _answer(declared, "(== 1.0 1)") == ["False"]
+    assert _answer(declared, "(!= 1 1.0)") == ["True"]
+    assert _answer(declared, "(!= 1.0 1)") == ["True"]
     assert _answer(declared, "(== 1 1.5)") == ["False"]
     assert _answer(declared, "(!= 1.0 2)") == ["True"]
 

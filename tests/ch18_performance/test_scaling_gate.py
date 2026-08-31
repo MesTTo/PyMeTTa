@@ -64,15 +64,15 @@ MEMORY_SCALE_BASELINE = (
 )
 
 #: Two rows whose committed `fit` block does not describe the `representative`
-#: beside it, so neither can serve as a frozen oracle. `table-reclamation` was
-#: re-pinned by hand from [0, 0, 0, 0] to [168, 168, 168, 168] in 06380061 with
-#: the reason recorded in the file, and its fit block still describes the zero
-#: curve. `join-projection` is pinned on retired instructions, which are not
-#: deterministic on a shared workstation, so its stored fit and its stored
-#: representative came from different runs. Neither affects a verdict, because
-#: `compare_baseline` reads the fit of the CURRENT measurement and never the
-#: pinned one. Named here so a third cannot appear unnoticed.
-STALE_MEMORY_SCALE_FITS = frozenset({"join-projection", "table-reclamation"})
+#: beside it, so neither could serve as a frozen oracle. The two historic
+#: members left on 2026-08-30: the petta-alignment campaign's full
+#: --update-baseline re-pin wrote every case's fit block and representative
+#: from ONE run, so `table-reclamation` no longer describes the zero curve it
+#: was hand-repaired from in 06380061, and `join-projection`'s fit and
+#: representative agree again. The set stays, empty, so a NEW mismatch cannot
+#: appear unnoticed; `compare_baseline` reads the fit of the CURRENT
+#: measurement either way.
+STALE_MEMORY_SCALE_FITS = frozenset()
 
 
 def _measured(sizes, values, *, routes=None, problems=()):

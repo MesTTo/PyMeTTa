@@ -14,12 +14,11 @@ Every arithmetic term is built by its operator WORD, `S.add` for `+` and
 `S.truediv` for `/`, because these calls are terms handed to `catch` and
 `if-error` rather than sums to compute.
 
-Four kinds of nothing-went-right are drawn apart here. An operand whose type
-RULES THE CALL OUT is already an error atom, so if-error sees one with no catch
-in between; an operand whose type merely does not DECIDE is not an error, and
-the call is left as written, which is upstream's NoReduce; a HOST error, the
-kind the language has no atom for, needs the catch; and integer division by
-zero already is error data.
+Three kinds of nothing-went-right are drawn apart here. An operand an
+arithmetic operation cannot use is already an error atom, so if-error sees one
+with no catch in between, and that holds whether its type RULES THE CALL OUT or
+merely fails to decide; a HOST error, the kind the language has no atom for,
+needs the catch; and integer division by zero already is error data.
 """
 
 from metta import G, S, V, lib, typed
@@ -37,14 +36,14 @@ def twin(m):
     [caught] = m.fn.catch(S.add(40, 2))
     assert if_error(caught, S.Error, caught) == [42]
 
-    # An operand whose type RULES THE CALL OUT is an error atom already: `a` is
-    # declared a String and the arrow says Number.
+    # An operand an arithmetic operation cannot use is an error atom already,
+    # whether its type RULES THE CALL OUT -- `a` is declared a String and the
+    # arrow says Number -- or merely fails to decide. Upstream reaches is/2 for
+    # both and raises; this engine answers instead
+    # [measured 2026-08-30 against PeTTa@ae66fa8].
     m += typed(S.a, S.String)
     assert if_error(S.add(40, S.a), S.Error, S.fine) == [S.Error]
-
-    # An operand whose type merely does not DECIDE is not an error. The call is
-    # left as written, so if-error takes its second branch.
-    assert if_error(S.add(40, S.undeclared_operand), S.Error, S.fine) == [S.fine]
+    assert if_error(S.add(40, S.undeclared_operand), S.Error, S.fine) == [S.Error]
 
     # catch is for a HOST error, the kind the language has no atom for. Two
     # unbound arithmetic operands are one.

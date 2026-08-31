@@ -72,7 +72,7 @@ def test_two_instances_of_a_parametric_space_answer_independently(metta):
         assert _answers(metta, f"!(new-space {right})") == [right]
 
         for space in (left, right):
-            assert _answers(metta, f"!(add-atom {space} {definition})") == ["()"]
+            assert _answers(metta, f"!(add-atom {space} {definition})") == ["True"]
 
         metta.run(f"!(add-atom {left} (entry left))")
         metta.run(f"!(add-atom {left} (edge a b))")
@@ -108,7 +108,7 @@ def test_two_instances_of_a_parametric_space_answer_independently(metta):
             metta, f"!(collapse (match {left} (entry $x) $x))"
         ) == ["(left)"]
 
-        assert _answers(metta, f"!(remove-atom {left} (entry left))") == ["()"]
+        assert _answers(metta, f"!(remove-atom {left} (entry left))") == ["True"]
         assert _answers(
             metta, f"!(collapse (match {left} (entry $x) $x))"
         ) == ["()"]
@@ -168,7 +168,7 @@ def test_a_callable_family_head_does_not_replace_the_identity(metta):
         metta.run("(= (cache $base $limit) &wrong-space)")
         assert _answers(metta, f"!(new-space {surface})") == [surface]
         assert _answers(metta, f"!(is-space {surface})") == ["True"]
-        assert _answers(metta, f"!(add-atom {surface} (entry local))") == ["()"]
+        assert _answers(metta, f"!(add-atom {surface} (entry local))") == ["True"]
         assert _answers(metta, f"!(space-contains {surface} (entry local))") == [
             "True"
         ]

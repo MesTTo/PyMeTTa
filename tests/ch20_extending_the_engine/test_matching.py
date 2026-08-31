@@ -55,9 +55,11 @@ def test_unify_runs_only_the_selected_branch(m):  # noqa: D103  -- pytest discov
     assert m.run("!(match (context-space) then-ran hit)") == [[S.hit]]
 
 
-def test_unify_rejects_a_cyclic_binding(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # The arbiter's variable cases carry the occurs check.
-    assert m.run("!(unify $x (f $x) cyclic sound)") == [[S.sound]]
+def test_unify_binds_a_cyclic_pair_raw(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # Bindings are raw under the petta alignment: the pair unifies as a
+    # rational tree and the then-branch runs, the engine's one binding law
+    # (the LeaTTa-era occurs check left with that arbiter).
+    assert m.run("!(unify $x (f $x) cyclic sound)") == [[S.cyclic]]
 
 
 def test_a_space_operand_is_queried(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

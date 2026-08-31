@@ -322,22 +322,27 @@ def test_transaction_term_uses_empty_answer_rollback_law(metta):
         assert fact not in space
 
 
-def test_eval_keeps_unreduced_guarded_head_and_status(metta):
-    """R5.13: P14.31 no longer conflates no matching clause with empty."""
+def test_the_no_match_policy_decides_between_empty_and_the_written_call(metta):
+    """R5.13: a guarded head with no matching clause answers NOTHING by
+    default, which is upstream's own answer, and `NoMatchOriginal` is the
+    policy that asks for the written call back instead
+    [measured 2026-08-30 against PeTTa@ae66fa8: `(= (only-zero 0) yes)` then
+    `(collapse (only-zero 7))` is `()` there and here].
+    """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
     @metta.define(name="r5-pick")
     def r5_pick(_n=1):
         return 7
 
     call = S["r5-pick"](2)
-    assert metta.eval(call) == [call]
-    assert metta.eval_status(call) == [("not-reducible", call)]
+    assert metta.eval(call) == []
 
-    policy = S["dispatch-policy"](S["r5-pick"], S.NoMatchEnum, S.NoMatchFail)
+    policy = S["dispatch-policy"](S["r5-pick"], S.NoMatchEnum, S.NoMatchOriginal)
     catalog = metta._at("&metta")
     catalog.add(policy)
     try:
-        assert metta.eval(call) == []
+        assert metta.eval(call) == [call]
+        assert metta.eval_status(call) == [("not-reducible", call)]
     finally:
         catalog.remove(policy)
 

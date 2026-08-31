@@ -26,7 +26,17 @@ def both_doors(space, name: str, expression: str, expected: list[str]) -> None:
 
 
 def test_symbol_rules_apply_to_declared_and_undeclared_functions() -> None:
-    """Eager symbol evaluation is a runtime rule, not a compile-time guess."""
+    """Eager symbol evaluation is a runtime rule, not a compile-time guess.
+
+    A symbol in ARGUMENT position reduces through its own equation, so
+    `(= mypi 3)` makes `(+ 1 mypi)` four. Upstream never reduces a symbol
+    anywhere and aborts that call outright, so this is a capability rather
+    than a different answer [measured 2026-08-30 against PeTTa@ae66fa8]. It
+    does not reach a BARE symbol on either side: `!mypi` is `mypi`.
+
+    `quote` answers its operand rather than the quoted form, which is
+    upstream's `Out = Expr` for it.
+    """
     space = MeTTa().self
     space.run(
         "(: c2-py-symbol (-> Symbol %Undefined%))\n"
@@ -39,13 +49,13 @@ def test_symbol_rules_apply_to_declared_and_undeclared_functions() -> None:
         space,
         "c2-py-symbol-door",
         "(c2-py-symbol-caller)",
-        ["(quote c2-py-after)"],
+        ["c2-py-after"],
     )
     both_doors(
         space,
         "c2-py-symbol-open-door",
         "(c2-py-symbol-open c2-py-before)",
-        ["(quote c2-py-after)"],
+        ["c2-py-after"],
     )
 
 
@@ -72,13 +82,13 @@ def test_declared_parameter_and_result_rules_match_the_arbiter() -> None:
         space,
         "c2-py-variable-result-door",
         "(c2-py-variable-result ((+ 1 2)))",
-        ["(3)"],
+        [],
     )
     both_doors(
         space,
         "c2-py-rest-door",
         "(c2-py-rest keep (+ 1 2) (+ 3 4) (+ 5 6))",
-        ["(quote (keep (+ 1 2) (+ 3 4) (+ 5 6)))"],
+        ["(keep (+ 1 2) (+ 3 4) (+ 5 6))"],
     )
     both_doors(
         space,
@@ -106,8 +116,15 @@ def test_dynamic_head_errors_carriers_and_builtin_results_match() -> None:
     rows = (
         (
             "c2-py-head-door",
-            "(let $head cons-atom ($head (+ 20 22) (tail)))",
-            ["((+ 20 22) tail)"],
+            # c2-py-leaf, not `tail`, and not any name this suite defines: a
+            # bare `(name)` is the one-element expression only while nothing
+            # gives `name` arguments. Two other files define a `tail` of one
+            # argument and this file declares c2-py-rest with four, and in
+            # either case `(name)` curries into `(partial name ())` and the row
+            # reads a partial application instead of data. The engine is right
+            # both ways; the name has to be one nothing else claims.
+            "(let $head cons-atom ($head (+ 20 22) (c2-py-leaf)))",
+            ["(42 c2-py-leaf)"],
         ),
         (
             "c2-py-car-door",
@@ -198,27 +215,38 @@ def test_not_reducible_is_control_at_eval_and_data_at_the_boundary() -> None:
         "(= (c2-py-frame-nr $x) (function (return NotReducible)))\n"
         "(= (c2-py-frame-body-nr) NotReducible)"
     )
-    assert answers(space, "!(c2-py-nr q)") == ["(c2-py-nr q)"]
-    assert answers(space, "!(eval (c2-py-nr q))") == ["(eval (c2-py-nr q))"]
+    # NotReducible written in a body is DATA and stays the answer, which is
+    # what upstream answers for the same forms
+    # [measured 2026-08-30 against PeTTa@ae66fa8].
+    assert answers(space, "!(c2-py-nr q)") == ["NotReducible"]
+    assert answers(space, "!(eval (c2-py-nr q))") == ["NotReducible"]
     assert answers(
         space, "!(chain (eval (c2-py-nr q)) $r (quote $r))"
-    ) == ["(quote NotReducible)"]
-    assert answers(space, "!(c2-py-frame-nr q)") == ["(c2-py-frame-nr q)"]
-    assert answers(space, "!(function (c2-py-frame-body-nr))") == [
-        "(function (c2-py-frame-body-nr))"
-    ]
+    ) == ["NotReducible"]
+    # The function/return FRAME is this engine's own: upstream has no such
+    # operation and leaves `(function ...)` as data, answering
+    # `(function (return NotReducible))` where these run the frame and answer
+    # what it returned.
+    assert answers(space, "!(c2-py-frame-nr q)") == ["NotReducible"]
+    assert answers(space, "!(function (c2-py-frame-body-nr))") == ["NotReducible"]
     assert answers(space, "!(function (c2-py-frame-no-rule))") == [
         "(Error (function (c2-py-frame-no-rule)) NoReturn)"
     ]
     assert answers(
         space, "!(chain (eval (c2-py-frame-nr q)) $r (quote $r))"
-    ) == ["(quote NotReducible)"]
-    assert answers(space, "!(eval ())") == ["(eval ())"]
-    assert answers(space, "!(collapse (eval ()))") == ["((eval ()))"]
+    ) == ["NotReducible"]
+    assert answers(space, "!(eval ())") == ["()"]
+    assert answers(space, "!(collapse (eval ()))") == ["(())"]
 
 
 def test_tail_calls_preserve_the_innermost_irreducible_call() -> None:
-    """A normalized callee result passes through a recursive tail unchanged."""
+    """A recursive tail passes its callee's result through unchanged.
+
+    `NotReducible` written in a body is DATA and stays the answer; the marker
+    that means "answer the call as written" is the engine's own and shares no
+    name with anything a program can write
+    [measured 2026-08-30 against PeTTa@ae66fa8, which answers NotReducible].
+    """
     space = MeTTa().self
     space.run(
         "(= (c2-py-tail Z) NotReducible)\n"
@@ -228,7 +256,7 @@ def test_tail_calls_preserve_the_innermost_irreducible_call() -> None:
         space,
         "c2-py-tail-door",
         "(c2-py-tail (S (S Z)))",
-        ["(c2-py-tail Z)"],
+        ["NotReducible"],
     )
 
 
@@ -255,16 +283,22 @@ def test_forward_callers_are_repaired_before_a_same_source_runnable(
     ) == ["42"]
 
 
-def test_reduce_retains_an_irreducible_operand_through_both_doors() -> None:
-    """The reduce control preserves its call when no reduction applies."""
+def test_reduce_answers_an_irreducible_operand_through_both_doors() -> None:
+    """Reduce answers its OPERAND when no reduction applies, not its own frame.
+
+    Upstream's reducer ends `Out = [F|Args]` for a head it cannot call, so
+    `!(reduce (nofib 5))` is `(nofib 5)` there
+    [measured 2026-08-30 against PeTTa@ae66fa8]. The empty operand is this
+    engine's own: upstream aborts the run on `(reduce ())`.
+    """
     space = MeTTa().self
     both_doors(
         space,
         "c2-py-reduce-door",
         "(reduce (c2-py-reduce-unknown))",
-        ["(reduce (c2-py-reduce-unknown))"],
+        ["(c2-py-reduce-unknown)"],
     )
-    both_doors(space, "c2-py-reduce-empty-door", "(reduce ())", ["(reduce ())"])
+    both_doors(space, "c2-py-reduce-empty-door", "(reduce ())", ["()"])
     both_doors(space, "c2-py-reduce-value-door", "(reduce (+ 20 22))", ["42"])
 
 

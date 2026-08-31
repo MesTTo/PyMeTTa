@@ -56,7 +56,8 @@ def test_remote_space_claims_subscribe_only_if_the_channel_exists(metta):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = "&remote-caps"
     store: list = []
-    provider = remote.attach(metta, space, _store_transport(store))
+    provider = remote.RemoteSpace(_store_transport(store))
+    metta._register_space(provider, space)
     try:
         # The channel does not exist: the wire carries four operations and
         # asking it for a fifth is a hole, not a slow path.

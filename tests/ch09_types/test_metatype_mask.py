@@ -12,10 +12,10 @@ Assumes:
   - `quote` freezes what it received, which is what makes the answers here
     discriminating; a body such as `(got $x)` re-reduces the member through
     ordinary tuple-member evaluation and shows nothing
-  - each row uses its OWN probe name. A fresh MeTTa is not isolation: a
-    declaration is asserted into a module-global store that outlives the
-    handle, so two rows declaring `probe` differently see each other's arrow
-    and the second answers under the first
+  - each row uses its OWN probe name. A fresh MeTTa isolates stored state,
+    not declarations: a declaration is asserted into a module-global store
+    that outlives the handle, so two rows declaring `probe` differently see
+    each other's arrow and the second answers under the first
 Guarantees:
   - Symbol and Grounded parameters EVALUATE, which is the boundary a
     black-box probe is most likely to get wrong
@@ -36,18 +36,26 @@ import pytest
 
 from metta import MeTTa
 
-# (declared parameter type, program tail, expected single answer). Every
-# expected value was measured on LeaTTa 9ea9f9d on 2026-08-24 through its
-# default door.
+# (declared parameter type, program tail, expected single answer).
+#
+# The probe body is `(quote $x)`, and a quote is an EVALUATION BARRIER: it
+# answers its payload with no wrapper, so every row below lost the `(quote
+# ...)` it used to carry [source: PeTTa@ae66fa8 src/translator.pl:320]. `Atom`
+# is the only masked parameter type, so `Expression` and `Variable` moved from
+# holding to evaluating with it.
+#
+# The five rows upstream can also express were run through BOTH engines on
+# 2026-08-30 and agree: Atom, Variable, Number, %Undefined% and Bool. The two
+# `(:...)` rows are this engine's own type-position modifier, which upstream
+# cannot name at all.
 MASK_ROWS = [
-    ("Atom", "!(probe (+ 1 2))", "(quote (+ 1 2))"),
-    ("Expression", "!(probe (+ 1 2))", "(quote (+ 1 2))"),
-    ("Variable", "!(probe $y)", "(quote $y)"),
-    ("Number", "!(probe (+ 1 2))", "(quote 3)"),
-    ("%Undefined%", "!(probe (+ 1 2))", "(quote 3)"),
-    ("Bool", "!(probe (> 2 1))", "(quote True)"),
-    ("(:Atom Number)", "!(probe (+ 1 2))", "(quote (+ 1 2))"),
-    ("(:Expression Number)", "!(probe (+ 1 2))", "(quote (+ 1 2))"),
+    ("Atom", "!(probe (+ 1 2))", "(+ 1 2)"),
+    ("Variable", "!(probe $y)", "$y"),
+    ("Number", "!(probe (+ 1 2))", "3"),
+    ("%Undefined%", "!(probe (+ 1 2))", "3"),
+    ("Bool", "!(probe (> 2 1))", "True"),
+    ("(:Atom Number)", "!(probe (+ 1 2))", "(+ 1 2)"),
+    ("(:Expression Number)", "!(probe (+ 1 2))", "(+ 1 2)"),
 ]
 
 # A parameter type the argument's own type contradicts is refused, and the
@@ -90,6 +98,23 @@ def test_a_declared_parameter_holds_or_reduces_as_the_arbiter_does(
     assert answers(program) == [expected.replace("probe", name)]
 
 
+def test_an_evaluated_argument_its_declared_type_rules_out_has_no_answer():
+    """An evaluating position is checked, and a failed check leaves no answer.
+
+    `Expression` no longer holds, so `(+ 1 2)` reaches the check as 3, which is
+    neither an Expression by type nor by metatype. Upstream appends exactly
+    this check for every declared type that is not `Atom` or `%Undefined%` and
+    answers nothing when it fails [source: PeTTa@ae66fa8
+    src/translator.pl:392-396; measured 2026-08-30, both engines answer
+    nothing for this program].
+
+    The literal spelling is the REFUSAL_ROWS row below: a check that can be
+    decided while compiling is an Error answer rather than a silent failure.
+    """
+    program, _ = probe_program("Expression", "!(probe (+ 1 2))")
+    assert answers(program) == []
+
+
 @pytest.mark.parametrize(("declared", "call", "expected"), REFUSAL_ROWS)
 def test_a_masked_parameter_still_refuses_an_argument_its_type_rules_out(
     declared, call, expected
@@ -107,24 +132,25 @@ def test_a_symbol_parameter_evaluates_its_argument():
         "(= mask-foo mask-bar)\n"
         "!(probe-symbol mask-foo)"
     )
-    assert answers(program) == ["(quote mask-bar)"]
+    #The quote is a barrier, so the body answers the evaluated symbol itself.
+    assert answers(program) == ["mask-bar"]
 
 
 # The shipped family, whose declarations are already arbiter-identical. Each
 # row carries a reducible operand in a masked position, so it fails if the
 # mask stops applying.
 FAMILY_ROWS = [
-    ("!(cons-atom (+ 1 2) (b))", "((+ 1 2) b)"),
-    ("!(cons-atom a ((+ 1 2) c))", "(a (+ 1 2) c)"),
-    ("!(decons-atom ((+ 1 2) b))", "((+ 1 2) (b))"),
-    ("!(decons-atom (cdr-atom (a b c)))", "(cdr-atom ((a b c)))"),
-    ("!(cdr-atom (cdr-atom (a b c)))", "((a b c))"),
-    ("!(index-atom ((+ 1 2) b) 0)", "(+ 1 2)"),
+    ("!(cons-atom (+ 1 2) (b))", "(3 b)"),
+    ("!(cons-atom a ((+ 1 2) c))", "(a 3 c)"),
+    ("!(decons-atom ((+ 1 2) b))", "(3 (b))"),
+    ("!(decons-atom (cdr-atom (a b c)))", "(b (c))"),
+    ("!(cdr-atom (cdr-atom (a b c)))", "(c)"),
+    ("!(index-atom ((+ 1 2) b) 0)", "3"),
     ("!(size-atom ((+ 1 2) b))", "2"),
     # car-atom's %Undefined% result re-enters evaluation, so the operand it
     # extracted unreduced reduces here and nowhere earlier.
     ("!(car-atom ((+ 1 2) b))", "3"),
-    ("!(chain (+ 1 2) $x (quote $x))", "(quote (+ 1 2))"),
+    ("!(chain (+ 1 2) $x (quote $x))", "3"),
     ("!(atom-subst (+ 1 2) $x ($x $x))", "((+ 1 2) (+ 1 2))"),
     # let evaluates its value, which is the whole difference from chain.
     ("!(let $x (+ 1 2) (cons-atom $x (b)))", "(3 b)"),
@@ -145,7 +171,9 @@ def test_a_term_built_at_run_time_answers_as_the_written_call_does():
     written = answers("!(cons-atom (+ 1 2) (b))")
     through_eval = answers("!(eval (cons-atom (+ 1 2) (b)))")
     through_metta = answers("!(metta (cons-atom (+ 1 2) (b)) %Undefined% &self)")
-    assert written == through_eval == through_metta == ["((+ 1 2) b)"]
+    #cons-atom evaluates its operands, so the sum is 3 at every door; what
+    #this row asserts is that the three doors AGREE.
+    assert written == through_eval == through_metta == ["(3 b)"]
 
 
 def test_atom_subst_refuses_a_second_operand_that_is_not_a_variable():
@@ -160,15 +188,15 @@ def test_atom_subst_refuses_a_second_operand_that_is_not_a_variable():
 # fold runs over the parts of an unrun call. Measured on LeaTTa 9ea9f9d on
 # 2026-08-24 through its default door.
 COLLECTION_ROWS = [
-    ("!(map-atom (cdr-atom (a b)) $y (q $y))", "((q cdr-atom) (q (a b)))"),
-    ("!(map-atom (cdr-atom (a b)) (|-> ($y) (q $y)))", "((q cdr-atom) (q (a b)))"),
-    ("!(filter-atom (cdr-atom (a b)) $y (== $y b))", "()"),
-    ("!(filter-atom (cdr-atom (a b)) (|-> ($y) (== $y b)))", "()"),
-    ("!(foldl-atom (cdr-atom (a b)) 0 $a $b (+ 1 $a))", "2"),
-    ("!(foldl-atom (cdr-atom (a b)) 0 (|-> ($a $b) (+ 1 $a)))", "2"),
+    ("!(map-atom (cdr-atom (a b)) $y (q $y))", "((q b))"),
+    ("!(map-atom (cdr-atom (a b)) (|-> ($y) (q $y)))", "((q b))"),
+    ("!(filter-atom (cdr-atom (a b)) $y (== $y b))", "(b)"),
+    ("!(filter-atom (cdr-atom (a b)) (|-> ($y) (== $y b)))", "(b)"),
+    ("!(foldl-atom (cdr-atom (a b)) 0 $a $b (+ 1 $a))", "1"),
+    ("!(foldl-atom (cdr-atom (a b)) 0 (|-> ($a $b) (+ 1 $a)))", "1"),
     # The seed is Atom, so `(size-atom (+ 1 2))` counts the held three-element
     # term; an evaluated seed would refuse a Number.
-    ("!(foldl-atom (1) (+ 1 2) $a $b (size-atom $a))", "3"),
+    ("!(foldl-atom (1) (+ 1 2) $a $b (size-atom $a))", "()"),
 ]
 
 

@@ -52,6 +52,10 @@ def test_equation_head_segments_match_the_reference_matrix(metta):
         !(py-seg-mixed (a b tag (a c)))
         """,
     )
+    # A guarded head with no matching clause answers NOTHING, which is
+    # upstream's own answer for it [measured 2026-08-30 against PeTTa@ae66fa8].
+    # The quote-bearing rows keep their quote: their declared RESULT is Atom,
+    # so what the body produced is the answer and is not evaluated again.
     assert groups == [
         ["(a b)"],
         ["()"],
@@ -61,7 +65,7 @@ def test_equation_head_segments_match_the_reference_matrix(metta):
         ["(quote (pair (a) (b SEP c)))", "(quote (pair (a SEP b) (c)))"],
         ["(segment-branch ordinary-branch)"],
         ["yes"],
-        ["(py-seg-mixed (a b tag (a c)))"],
+        [],
     ]
 
 
@@ -83,12 +87,16 @@ def test_variable_headed_calls_use_the_same_segment_equations(metta):
         """,
     )
     splits = ["(quote (pair (a) (b SEP c)))", "(quote (pair (a SEP b) (c)))"]
+    # py-seg-dynamic DECLARES an Atom result, so what its body produced is the
+    # answer and the quote survives. py-seg-dynamic-all declares nothing, so
+    # its result re-enters evaluation and quote answers its operand, which is
+    # upstream's `Out = Expr` for it.
     assert groups == [
         splits,
         splits,
-        ["(quote ())"],
-        ["(quote ())"],
-        ["(quote (a b))"],
+        ["()"],
+        ["()"],
+        ["(a b)"],
     ]
 
 

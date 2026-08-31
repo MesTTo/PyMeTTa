@@ -671,18 +671,26 @@ def test_unify_path_compresses_long_alias_chains():
 
 
 def test_ground_equality_is_the_engines():
-    """Python-side equality carries the engine's own two relations. A raw
-    operand answers the == operator over crossed values: booleans are not
-    numbers, integers and floats compare by numeric value, signed zeros are
-    equal, NaN is unequal to itself as IEEE reads it. Another ATOM answers
-    unification instead: an integer atom never equals a float atom, signed
-    zeros are two atoms, one NaN atom matches another the way the engine's
-    matcher does, so a dict of atoms counts exactly what a space stores.
+    """Python-side equality carries the engine's ONE relation, whichever side
+    the other operand comes from. A raw value and an atom answer the same
+    thing, because == over crossed values and unification are the same
+    relation: booleans are not numbers, an integer never equals a float,
+    signed zeros are two values, and one NaN equals another the way the
+    engine's matcher reads it, so a dict of atoms counts exactly what a space
+    stores.
+
+    It was two relations until 2026-08-30, when == picked up upstream's
+    declaration over two independent type variables and stopped coercing
+    [measured 2026-08-30 against PeTTa@ae66fa8: `(== 0 0.0)`, `(== 0.0 -0.0)`
+    and `(== True 1)` are False on both engines, `(== NaN NaN)` is True on
+    both]. Hashing is unchanged and stays coarser than equality, which is what
+    a hash is allowed to be: 1 and 1.0 share a bucket and compare unequal.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     nan = float("nan")
-    assert Grounded(1) == 1 and Grounded(1) == 1.0
-    assert Grounded(0.0) == -0.0
-    assert Grounded(nan) != nan
+    assert Grounded(1) == 1
+    assert Grounded(1) != 1.0
+    assert Grounded(0.0) != -0.0
+    assert Grounded(nan) == nan
     assert Grounded(1) != Grounded(1.0)
     assert Grounded(1.0) == Grounded(1.0)
     assert Grounded(0.0) != Grounded(-0.0)

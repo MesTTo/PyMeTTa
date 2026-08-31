@@ -25,7 +25,7 @@ Open Obligations:
 
 import pytest
 
-from metta import Expression, S, V
+from metta import TRUE, Expression, S, V
 
 
 @pytest.fixture()
@@ -45,11 +45,12 @@ def test_match_snapshots_rows_before_template_effects(m):  # noqa: D103  -- pyte
     m.run("(link A B)\n(link B C)\n(link C A)\n(link C E)")
     (rewrites,) = m.run(
         "!(collapse (match &self (, (link $x $y) (link $y $z) (link $z $x))"
-        "                        (let () (remove-atom &self (link $x $y))"
+        "                        (let $_ (remove-atom &self (link $x $y))"
         "                                (add-atom &self (link $y $x)))))"
     )
-    # Three loop rotations, one unit each. One unit is what a lazy match gives.
-    assert rewrites[0] == Expression(Expression(), Expression(), Expression())
+    # Three loop rotations, one True each, because add-atom answers True. One
+    # answer is what a lazy match gives.
+    assert rewrites[0] == Expression(TRUE, TRUE, TRUE)
     assert sorted(str(atom) for atom in m.atoms()) == [
         "(link A C)",
         "(link B A)",
@@ -63,8 +64,8 @@ def test_match_snapshots_rows_before_template_effects(m):  # noqa: D103  -- pyte
 def test_a_single_pattern_keeps_the_row_its_sibling_removed(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.run("!(add-atom &self (item alpha))\n!(add-atom &self (item beta))")
     m.run(
-        "(= (visit alpha) (let () (remove-atom &self (item beta)) alpha))\n"
-        "(= (visit beta) (let () (remove-atom &self (item alpha)) beta))"
+        "(= (visit alpha) (let $_ (remove-atom &self (item beta)) alpha))\n"
+        "(= (visit beta) (let $_ (remove-atom &self (item alpha)) beta))"
     )
     (answers,) = m.run("!(collapse (match &self (item $x) (visit $x)))")
     assert answers[0] == Expression(S.alpha, S.beta)
@@ -254,7 +255,7 @@ def test_a_conjunction_over_a_python_provider_snapshots_too(metta):
     try:
         (rows,) = metta.run(
             f"!(collapse (match {name} (, (step $x $y) (step $y $z))"
-            f"                        (let () (remove-atom {name} (step $x $y)) ($x $z))))"
+            f"                        (let $_ (remove-atom {name} (step $x $y)) ($x $z))))"
         )
         # Three rows found before the first removal, so three answers; a lazy
         # conjunction loses the rows whose first step the template just took.

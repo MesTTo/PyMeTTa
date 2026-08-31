@@ -30,6 +30,7 @@ Open Obligations:
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
+import gc
 import inspect
 from pathlib import Path
 
@@ -100,12 +101,19 @@ def _execution_module_owns(metta, space_name):
     removal funnel and can be checked by asking the space, while a lambda and a
     specialization have no stored atom behind them and can only be seen here.
     """
+    # metta_exec_module_known/2 rather than space_module/2: the latter ENSURES
+    # the module, so asking a dropped space which module it uses would create
+    # one and mark the name used, which is how a name a test drops stops being
+    # handed back [measured 2026-08-31: metta_exec_module_known went from false
+    # to true across this read].
     row = metta.runtime.once(
-        "atom_string(_S, Space), space_module(_S, _M), "
-        "findall(_T, (current_predicate(_M:_N/_A), functor(_H, _N, _A), "
-        "             \\+ predicate_property(_M:_H, imported_from(_)), "
-        "             predicate_property(_M:_H, number_of_clauses(_C)), "
-        '             format(atom(_T), "~w/~w x~w", [_N, _A, _C])), Owned)',
+        "atom_string(_S, Space), "
+        "( metta_exec_module_known(_S, _M) "
+        "  -> findall(_T, (current_predicate(_M:_N/_A), functor(_H, _N, _A), "
+        "                  \\+ predicate_property(_M:_H, imported_from(_)), "
+        "                  predicate_property(_M:_H, number_of_clauses(_C)), "
+        '                  format(atom(_T), "~w/~w x~w", [_N, _A, _C])), Owned) '
+        "  ; Owned = [] )",
         Space=space_name,
     )
     return sorted(row["Owned"])
@@ -337,3 +345,28 @@ def test_a_recycled_child_name_may_choose_a_different_parent(drained):
         second_child.drop()
         first_parent.drop()
         second_parent.drop()
+
+
+def test_a_second_context_does_not_reuse_a_revived_space_name(drained):
+    """A handle that outlives its context revives the name it was given.
+
+    The pool must not hand that name to the next context.
+
+    `MeTTa().self` drops the context at once, which releases its home space
+    and pools the name, and the surviving handle then writes to that name and
+    brings it back to life. Measured 2026-08-31: the pool handed the revived
+    name to the next `MeTTa()`, whose parent declaration refused it as already
+    created, so a second context could not be built at all.
+    """
+    surviving = metta_package.MeTTa().self
+    gc.collect()
+    revived = str(surviving.name)
+    surviving.run("(= (revived-life $x) $x)")
+    second = metta_package.MeTTa()
+    try:
+        assert str(second.self.name) != revived
+        assert surviving.run("!(revived-life 7)") == [[7]]
+    finally:
+        second.close()
+        surviving.drop()
+    del drained

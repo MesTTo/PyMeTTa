@@ -51,7 +51,12 @@ from metta import atoms as atom_module
 
 BASELINE_METTA_METHODS = 90
 BASELINE_PACKAGE_EXPORTS = 152
-FINAL_METTA_METHODS = 20
+#: 22 since the ownership model of 2026-08-30: a context OWNS the anonymous
+#: home it mints, and close()/closed are the two context primitives that say
+#: so (the with form rides them). Both delegate lifecycle to Space.drop, so
+#: Space keeps the lifecycle verbs and MeTTa still carries only context
+#: primitives.
+FINAL_METTA_METHODS = 22
 # 61 at the narrow-core commit; +4 when the R6 merge promoted the canonical
 # atoms TRUE, FALSE and UNIT to root values; +1 when
 # R1 exported the static fn namespace at the root; +8 when R5 landed its

@@ -2,8 +2,8 @@
 Assumes: nothing beyond the ordinary MeTTa surface; a cell is engine
   vocabulary reachable with no import.
 Guarantees:
-  - (new-state V) answers a first-class cell, change-state! answers the cell it
-    wrote so writes compose, and a cell's type is (StateMonad <type of V>).
+  - (new-state V) answers a first-class cell, change-state! runs for its
+    EFFECT and answers `true`, and a cell's type is (StateMonad <type of V>).
   [tested: test_a_state_cell_is_a_value_typed_by_what_it_holds; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the older named spelling still works, because a cell is a handle atom and a
     plain symbol names one too.
@@ -52,11 +52,22 @@ def test_a_state_cell_is_a_value_typed_by_what_it_holds() -> None:
     """The cell is the value, and (StateMonad $t) is what it holds."""
     metta = MeTTa().space("&statecell")
 
-    # A cell is a value: it can be built, passed and written through without
-    # ever being given a name. This is the arbiter's own composability probe,
-    # LeaTTa tests/semantics/grounded/25-state-rendering.metta.
+    # A cell is a value: it can be built and passed without ever being given a
+    # name.
     assert _answers(metta, "!(get-state (new-state 5))") == ["5"]
-    assert _answers(metta, "!(get-state (change-state! (new-state 1) 2))") == ["2"]
+
+    # A WRITE is not a way to obtain the cell: change-state! runs for its
+    # effect and answers `true`, so the read names the cell a `let` is holding
+    # rather than composing onto the write
+    # [source: PeTTa@ae66fa8 src/metta.pl:265].
+    #`str(atom)` is the PYTHON surface's spelling of the answer, so a MeTTa
+    #`true` reads back as Python's `True` here; the engine's own text is
+    #lowercase and tests/prolog/suites/reader/parser.plt pins that.
+    assert _answers(metta, "!(change-state! (new-state 1) 2)") == ["True"]
+    assert _answers(
+        metta,
+        "!(let $c (new-state 1) (let $_ (change-state! $c 2) (get-state $c)))",
+    ) == ["2"]
 
     # And it nests, because the content is any value at all.
     assert _answers(
@@ -72,7 +83,7 @@ def test_a_state_cell_is_a_value_typed_by_what_it_holds() -> None:
     assert _normalised(metta, "!(get-type new-state)") == ["(-> $v (StateMonad $v))"]
     assert _normalised(metta, "!(get-type get-state)") == ["(-> (StateMonad $v) $v)"]
     assert _normalised(metta, "!(get-type change-state!)") == [
-        "(-> (StateMonad $v) $v (StateMonad $v))"
+        "(-> (StateMonad $v) $v Bool)"
     ]
     assert _answers(metta, "!(get-type (new-state 5))") == ["(StateMonad Number)"]
     assert _answers(metta, '!(get-type (new-state "hi"))') == ["(StateMonad String)"]
@@ -87,7 +98,7 @@ def test_a_state_cell_is_a_value_typed_by_what_it_holds() -> None:
 
     # The older named spelling is unchanged: bind! binds the name to the cell,
     # so the name reads and writes it exactly as before.
-    assert _answers(metta, "!(bind! statecell-named (new-state 7))") == ["()"]
+    assert _answers(metta, "!(bind! statecell-named (new-state 7))") == ["True"]
     assert _answers(metta, "!(get-state statecell-named)") == ["7"]
     metta.run("!(change-state! statecell-named 9)")
     assert _answers(metta, "!(get-state statecell-named)") == ["9"]

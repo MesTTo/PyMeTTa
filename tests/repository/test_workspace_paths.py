@@ -12,10 +12,8 @@ Open Obligations:
 import subprocess
 
 _FIXED_ORACLE_PATH_PATTERN = {
-    "tests/conformance/leatta.py",
-    "tests/conformance/cmetta.py",
-    "tests/conformance/cmetta_corpus.py",
-    "extensions/python/tests/conformance/test_presented_core_oracle.py",
+    "tests/conformance/cetta.py",
+    "tests/conformance/cetta_corpus.py",
     "extensions/python/tests/conformance/test_critical_pair_oracle.py",
 }
 

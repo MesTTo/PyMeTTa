@@ -14,9 +14,10 @@ reading the order.
 Two packages are not chapters, because their subject is not the language:
 
 - `conformance/` holds the arbiters and oracles that decide what MeTTa MEANS.
-  LeaTTa, the CeTTa fork, the presented-core oracle, the critical-pair
-  enumerator, the differential against the CLI. A finding here says this engine
-  disagrees with an authority, which is a different claim from a broken feature.
+  The vendored upstream PeTTa corpus, the CeTTa fork differential, the
+  critical-pair enumerator, the differential against the CLI. A finding here
+  says this engine disagrees with an authority, which is a different claim
+  from a broken feature.
 - `repository/` holds the tests whose subject is this repository: the README's
   executed blocks, the generated reference pages, the example corpus and its
   parity lane, the twins lane, the notebook, the tree partition, absolute paths

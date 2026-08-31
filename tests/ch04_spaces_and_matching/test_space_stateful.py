@@ -22,7 +22,7 @@ from hypothesis import settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 from hypothesis.stateful import RuleBasedStateMachine, invariant, rule  # noqa: E402
 
-from metta import Expression, MeTTa, Variable, testing, unify  # noqa: E402
+from metta import Expression, Space, Variable, testing, unify  # noqa: E402
 
 
 def _substitute(atom, bindings):
@@ -38,7 +38,7 @@ class SpaceStateMachine(RuleBasedStateMachine):
 
     def __init__(self):  # noqa: D107  -- the test double construction contract is local to its containing scenario
         super().__init__()
-        self._owner = MeTTa().self
+        self._owner = Space()
         self.space = self._owner._new_space()
         self.model = Counter()
         self._temporary = TemporaryDirectory(prefix="metta-stateful-")

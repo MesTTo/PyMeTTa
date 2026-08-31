@@ -89,11 +89,13 @@ def test_arithmetic_overflow_agrees_with_the_literal_side(metta):
 def test_real_valued_math_treats_integer_and_float_operands_alike(metta):
     """Real-valued math promotes integers before applying binary64 math.
 
-    LeaTTa's ``toFloat?``-based ``floatUn`` and ``floatBin`` paths govern
-    sqrt, log, trig, and pow. Its ``powMath`` additionally limits an integer
-    exponent to signed i32 while permitting an unbounded Float exponent and
-    always returning Float. ``exp-math`` is covered separately by MeTTa's
-    existing real-valued doctrine because LeaTTa's floatUn table excludes it.
+    The ``floatUn``/``floatBin`` family -- sqrt, log and the trig functions --
+    promotes and answers Float. ``pow-math`` does NOT: it keeps its operands'
+    own kinds, which is upstream's ``'pow-math'(A, B, Out) :- Out is A ** B``
+    [source: PeTTa@ae66fa8 src/metta.pl:69], so its integer and float forms
+    part company exactly where the host's integer and float powers do. The
+    signed-i32 bound on an integer exponent stays. ``exp-math`` is covered
+    separately by this engine's own real-valued doctrine.
     """
     unary_pairs = {
         "sqrt-math": (4, 2.0),
@@ -124,11 +126,23 @@ def test_real_valued_math_treats_integer_and_float_operands_alike(metta):
         assert math.isnan(integer_answer), integer_form
         assert math.isnan(float_answer), float_form
 
-    assert metta.run("!(pow-math 2 3)")[0] == [8.0]
-    assert metta.run("!(pow-math 1 -2147483648)")[0] == [1.0]
-    assert metta.run("!(pow-math 1 2147483647)")[0] == [1.0]
-    assert metta.run("!(pow-math 0 -1)")[0] == [math.inf]
-    assert metta.run("!(pow-math 1 2147483648.0)")[0] == [1.0]
+    assert metta.run("!(pow-math 2 3)")[0] == [8]
+    # INTEGER 1, not 1.0, on both engines: an integer base raised to an
+    # integer power keeps its kind whatever the exponent's sign
+    # [measured 2026-08-30 against PeTTa@ae66fa8: all three answer `1`].
+    # Written 1.0 here until then, which passed only because Grounded's raw
+    # comparison was a numeric tower; == is exact now and the kind shows.
+    assert metta.run("!(pow-math 1 -2147483648)")[0] == [1]
+    assert metta.run("!(pow-math 1 2147483647)")[0] == [1]
+    # pow-math keeps its operands' kinds, so an INTEGER zero raised to a
+    # negative power is a division by zero and the float form is inf. Upstream
+    # aborts the run on the integer one; answering is this engine's superset
+    # [measured 2026-08-30 against PeTTa@ae66fa8, which raises from **/2].
+    assert str(metta.run("!(pow-math 0 -1)")[0][0]) == (
+        "(Error (pow-math 0 -1) DivisionByZero)"
+    )
+    assert metta.run("!(pow-math 0.0 -1)")[0] == [math.inf]
+    assert metta.run("!(pow-math 1 2147483648.0)")[0] == [1]
     reason = "power argument is too big, try using float value"
     for exponent in (2147483648, -2147483649):
         answer = str(metta.run(f"!(pow-math 2 {exponent})")[0][0])

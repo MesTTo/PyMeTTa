@@ -49,7 +49,7 @@ from typing import Any
 import pytest
 
 import metta
-from metta import wire
+from metta import parse, wire
 
 _BINDING = Path(__file__).resolve().parents[4] / "extensions" / "node"
 _CORPUS = json.loads((_BINDING / "kit" / "corpus.json").read_text(encoding="utf-8"))
@@ -399,7 +399,11 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
         for here, there in zip(expected, ran["groups"], strict=True):
             for atom, answer in zip(here, there, strict=True):
                 assert _comparable(atom.to_wire()) == answer["wire"], f"{source}: {atom!r}"
-                if _named_apart(str(atom)) != _named_apart(answer["text"]):
+                # Both sides through ONE notation: the seat answers MeTTa
+                # text and `str(atom)` is the Python surface's own spelling,
+                # and a boolean is `true` there and `True` here. Reading the
+                # seat's text back into an atom compares the VALUES.
+                if _named_apart(str(atom)) != _named_apart(str(parse(answer["text"]))):
                     divergences.add((answer["text"], str(atom)))
 
     assert len(node_report["atoms"]) == len(_CORPUS["atoms"])
@@ -412,7 +416,7 @@ def test_the_node_binding_and_the_python_host_answer_the_same_programs(node_repo
         assert crossed["wire"] == expected, transport
         assert crossed["roundTrip"] == expected, f"{transport} did not survive the engine"
         assert _comparable_transport(crossed["backToTransport"]) == expected, transport
-        if _named_apart(str(atom)) != _named_apart(crossed["text"]):
+        if _named_apart(str(atom)) != _named_apart(str(parse(crossed["text"]))):
             divergences.add((crossed["text"], str(atom)))
 
     assert len(node_report["refused"]) == len(_CORPUS["refused"])

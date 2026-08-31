@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 import metta
-from metta import Atom, Expression, Handle, S, Space, V, wire
+from metta import TRUE, Atom, Handle, S, Space, V, wire
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ def test_a_space_is_the_grounded_handle_species_and_import_operand(spaces):  # n
     assert target == S[target.name]
     assert S[target.name] == target
     assert {target, S[target.name]} == {target}
-    assert _import(target, "lib_thread") == [Expression()]
+    assert _import(target, "lib_thread") == [TRUE]
     assert target.is_function_here("cpu-count")
     assert len(target.eval(S["cpu-count"]())) == 1
 
@@ -88,7 +88,7 @@ def test_add_atom_accepts_a_space_handle_inside_a_built_term(spaces):  # noqa: D
     _context, host, target = spaces
     fact = S.direct(S.ok)
 
-    assert host.eval(S["add-atom"](target, fact)) == [Expression()]
+    assert host.eval(S["add-atom"](target, fact)) == [TRUE]
     assert fact in target
 
 
@@ -99,7 +99,7 @@ def test_a_spawned_write_carries_its_target_as_a_space_handle(spaces):  # noqa: 
 
     future = host.eval(S.spawn(S["add-atom"](target, fact)))[0]
     assert isinstance(future, Space)
-    assert host.eval(S["await"](future)) == [Expression()]
+    assert host.eval(S["await"](future)) == [TRUE]
     assert fact in target
     future.drop()
 
@@ -109,7 +109,7 @@ def test_add_atom_accepts_a_computed_space_handle(spaces):  # noqa: D103  -- pyt
     host.add(S["="](S["r2-target"](), target))
     fact = S.computed(S.ok)
 
-    assert host.eval(S["add-atom"](S["r2-target"](), fact)) == [Expression()]
+    assert host.eval(S["add-atom"](S["r2-target"](), fact)) == [TRUE]
     assert fact in target
 
 
@@ -164,7 +164,10 @@ def test_the_ampersand_alone_does_not_make_a_space(spaces):  # noqa: D103  -- py
     assert host.eval(S["get-metatype"](S["&&&"])) == [S.Symbol]
     assert host.eval(S["is-space"](S["&&&"])) == [metta.TRUE]
     assert type(metta.parse("&&&")) is metta.Symbol
-    assert type(host.eval(S.quote(S["&&&"]))[0].children[1]) is metta.Symbol
+    # quote ANSWERS its operand rather than a wrapper, which is upstream's own
+    # lowering, `Out = Expr` [source: PeTTa@ae66fa8 src/translator.pl:320-322],
+    # so the atom to check the species of is the operand itself.
+    assert type(host.eval(S.quote(S["&&&"]))[0]) is metta.Symbol
 
     # A State cell wears the same &-handle spelling and is no space either.
     (cell,) = host.eval(S["new-state"](1))

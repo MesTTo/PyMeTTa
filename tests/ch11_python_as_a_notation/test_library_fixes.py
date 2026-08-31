@@ -82,7 +82,7 @@ from pathlib import Path
 
 import pytest
 
-from metta import FALSE, TRUE, UNIT, Expression, G, S, V, fn, if_, space
+from metta import FALSE, TRUE, Expression, G, S, V, fn, if_, space
 from metta.atoms import order_key
 from metta.errors import EngineError
 from metta.vocabularies import SpaceCapability
@@ -97,7 +97,7 @@ def test_resolved_bang_call_is_eager(tmp_path: Path) -> None:
     answers = target.fn["import!"](target, str(source))
 
     assert target.eval(S["libfix-eager-effect"]()) == [S.eager]
-    assert list(answers) == [UNIT]
+    assert list(answers) == [TRUE]
 
 
 def test_calls_keep_values_and_binding_rows() -> None:
@@ -374,14 +374,20 @@ def test_compiled_match_accepts_space_handles() -> None:
 
 
 def test_state_cells_are_shared_across_answer_engines() -> None:
-    """A write through either evaluation door is visible through the other."""
+    """A write through either evaluation door is visible through the other.
+
+    `change-state!` answers True rather than the cell, which is upstream's own
+    answer for it: `'change-state!'(Var, Value, true) :- nb_setval(Var, Value).`
+    [source: PeTTa@ae66fa8 src/metta.pl:265]. What the write is FOR is the
+    read, so the read is what each door checks.
+    """
     target = space()
     cell = target.eval(S["new-state"](S.rest))[0]
 
-    assert target.answers(S["change-state!"](cell, S.active)).one() == cell
+    assert target.answers(S["change-state!"](cell, S.active)).one() == TRUE
     assert target.eval(S["get-state"](cell)) == [S.active]
 
-    assert target.eval(S["change-state!"](cell, S.rest)) == [cell]
+    assert target.eval(S["change-state!"](cell, S.rest)) == [TRUE]
     assert target.answers(S["get-state"](cell)).one() == S.rest
 
 

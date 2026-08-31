@@ -109,12 +109,18 @@ def test_clear_preserves_unrelated_tables_and_untable_removes(m):
     assert m.run("!(table-clear-all)") == [[True]]
 
 
-def test_declaring_an_undefined_function_is_loud(m):
-    """Tabling a name that does not exist yet tables nothing, so the
-    repaired plane refuses it by name and arity instead of succeeding.
+def test_declaring_a_function_before_it_exists_holds_the_declaration(m):
+    """A declaration may precede its definition: it is HELD and installs
+    when the function's clauses arrive, which is the reading order
+    upstream's own examples/tabling_fib.metta uses. A name that is never
+    defined simply never tables.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
-    with pytest.raises(EngineError, match="never-defined"):
-        m.run("!(tabled (never-defined $x $y))")
+    assert m.run("!(tabled (held-fn $n))") == [[True]]
+    assert not _tabled_property(m, "held-fn", 2)
+    m.run("(= (held-fn $n) (+ $n 1))")
+    assert m.run("!(held-fn 1)") == [[2]]
+    assert _tabled_property(m, "held-fn", 2)
+    assert m.run("!(untabled (held-fn $n))") == [[True]]
 
 
 def test_declarations_reflect_into_metta(m):
@@ -287,3 +293,49 @@ def test_a_drop_untables_before_it_removes_any_clause(metta):
         with metta._new_space() as second_life:
             second_life.run("(= (cycle-fn $n) (* $n 10))")
             assert second_life.run("!(cycle-fn 5)") == [[50]]
+
+
+def test_an_equation_change_does_not_pay_for_a_dropped_table(metta):
+    """A function change abolishes the tables MeTTa declared.
+
+    Not every table variant the process has ever built.
+
+    abolish_all_tables/0 walks the whole variant trie, and the trie keeps a
+    variant for every table ever built, so once a space had tabled a deep
+    recursion and been dropped, every later equation change paid for it:
+    measured 2026-08-31, one equation change cost 10,353, 40,355 and 160,359
+    inferences after a 5,000, 20,000 and 80,000-answer table was dropped,
+    which is 2N. The 60-cycle test above spent 156 of its 162 seconds that
+    way. Abolishing each declared function's own subgoals instead reads 377
+    inferences at all three sizes, so this pins the CLASS: the cost may not
+    grow with the size of a table that is already gone.
+    """
+    metta.run("!(import! &self (library lib_tabling))")
+    metta.run("(= (cost-warm $n) (+ $n 1))")
+    metta.run("!(tabled (cost-warm $n))")
+    metta.run("!(cost-warm 1)")
+
+    def change_cost(answers: int) -> int:
+        with metta._new_space() as big:
+            big.run("!(import! (context-space) (library lib_tabling))")
+            big.run("(= (cost-deep $n) (if (== $n 0) done (cost-deep (- $n 1))))")
+            big.run("!(tabled (cost-deep $n))")
+            big.run(
+                f"!(with-pragma! ((max-stack-depth 1000000)) (cost-deep {answers}))"
+            )
+        victim = metta._new_space()
+        victim.run("(= (cost-changing $n) (+ $n 1))")
+        try:
+            with metta.stats() as block:
+                victim.run("(= (cost-changing $n) (+ $n 2))")
+        finally:
+            victim.drop()
+        return block.inferences
+
+    small, large = change_cost(5_000), change_cost(20_000)
+    assert large <= small * 2, (
+        f"an equation change cost {small} inferences after a 5,000-answer table "
+        f"was dropped and {large} after a 20,000-answer one, so it is still "
+        f"paying for tables that no longer exist"
+    )
+    assert large < 5_000, f"one equation change cost {large} inferences"

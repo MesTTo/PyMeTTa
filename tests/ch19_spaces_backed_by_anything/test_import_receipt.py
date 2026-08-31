@@ -26,7 +26,7 @@ def quote(value: str) -> str:
 def import_thread(space) -> None:
     """Import the shipped Linda library through MeTTa's public import form."""
     answers = space.eval(S["import!"](space, S.library(S["lib_thread"])))
-    assert [str(answer) for answer in answers] == ["()"]
+    assert [str(answer) for answer in answers] == ["True"]
 
 
 def take_call(target):
@@ -377,23 +377,32 @@ def test_saved_goal_runs_after_public_reimport_repairs_its_source() -> None:
         job = S.job(S.ready)
         target.add(job)
         assert target.eval(take_call(target)) == [job]
+        # The cached entry is a TEMPLATE, not this call: translation_template/3
+        # abstracts a literal argument into a variable so one compiled form
+        # serves every literal, and translated_form_hit/5 instantiates it by
+        # unifying the stored source with the call. So the source is saved
+        # beside the goals and unified here for the same reason, or the goals
+        # run with an unbound seconds argument and the engine says so
+        # ("Arguments are not sufficiently instantiated") before ever reaching
+        # the clauses this test is about.
         saved = target.runtime.once(
-            "retractall(user:c2_receipt_saved(_, _, _)), "
+            "retractall(user:c2_receipt_saved(_, _, _, _)), "
             f"translator:translated_form_cache({module}, _Key, _Id, _Source, _Goals, _Out), "
             "_Source = ['take-atom'|_Args], "
-            f"assertz(user:c2_receipt_saved({module}, _Goals, _Out)), !, R = saved"
+            f"assertz(user:c2_receipt_saved({module}, _Source, _Goals, _Out)), !, R = saved"
         )
         assert saved["R"] == "saved"
         assert target.remove(binary)
         assert target.remove(timed)
         import_thread(target)
         result = target.runtime.once(
-            "user:c2_receipt_saved(_Module, _Goals, _Out), "
+            "user:c2_receipt_saved(_Module, _Source, _Goals, _Out), "
+            f"_Source = ['take-atom', {quote(target.name)}, [job, _State], 2.0], "
             "user:metta_py_call_goals(_Module, _Goals), R = _Out"
         )
         assert result is not None
     finally:
-        target.runtime.once("retractall(user:c2_receipt_saved(_, _, _)), R = cleared")
+        target.runtime.once("retractall(user:c2_receipt_saved(_, _, _, _)), R = cleared")
         try:
             import_thread(target)
         finally:
