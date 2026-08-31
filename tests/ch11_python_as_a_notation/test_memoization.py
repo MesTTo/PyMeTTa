@@ -7,21 +7,21 @@ Guarantees:
     lib_memo's own forms rather than a host door; the unmemoized control
     declares the automatic memo policy's explicit refusal.
   [tested: test_a_cached_definition_memoizes_its_complete_answer_bag;
-   commit=WORKTREE]
+   commit=205f818240658af34bda4a383084c42cf1383275]
   - memo replay preserves duplicate occurrences because multiplicity is part
     of the result law, even after the owning space shadows the replay loop's
     host spelling.
   [tested: test_a_cached_definition_preserves_duplicate_answers,
-   test_exact_cache_replay_ignores_a_space_local_between_shadow; commit=WORKTREE]
+   test_exact_cache_replay_ignores_a_space_local_between_shadow; commit=205f818240658af34bda4a383084c42cf1383275]
   - memoized and unmemoized answer bags agree for ground recursion, open calls
     and a dependency whose definition changes between calls, including when an
     already-live pool engine populated the old private answer table.
   [tested: test_exact_cache_matches_uncached_answer_bags,
-   test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=WORKTREE]
+   test_exact_cache_invalidation_crosses_a_live_pool_engine; commit=205f818240658af34bda4a383084c42cf1383275]
   - memoizing a registered operation is refused by the LIBRARY on its declared
     effect class, for every seat, and `unchecked` does not open it.
   [tested: test_memoizing_an_effectful_operation_is_refused_by_the_library;
-   commit=WORKTREE]
+   commit=205f818240658af34bda4a383084c42cf1383275]
 Fails when: read as a fixed-size cache. The memo holds the answers for the calls
   that were made and has no maxsize; the engine's own `(cache <name> unchecked)`
   is the staleness it accepts, not a size.
