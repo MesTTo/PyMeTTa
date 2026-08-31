@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from itertools import islice
 
-from metta import S, V, _space_objects
+from metta import Grounded, S, V, _space_objects
 
 
 def _fill(home, name, count):
@@ -181,3 +181,50 @@ def test_a_spent_budget_raises_and_a_raised_budget_delivers_more(metta):
         f"a tenfold budget delivered {more} against {first}: raising the "
         f"budget is the diagnosis path and it must show more answers"
     )
+
+
+def test_the_evaluation_cursor_chunks_too(metta, monkeypatch):
+    """answers() pulls chunks like stream(), counted at the bridge seam.
+
+    Neither meter the other tests use works here. The inference counter
+    cannot discriminate, because an evaluation cursor reports its
+    engine-side inferences into the caller's block, so the chunk shows as
+    slightly MORE inferences (the collection loop) while removing the
+    crossings the counter never saw; and CPU under load is the noise this
+    suite avoids. What the chunk claims is fewer crossings, so the test
+    counts exactly that: calls that pull on the cursor, at the runtime
+    seam every pull goes through. Ten thousand answers in a doubling chunk
+    capped at 64 need about 160 pulls; one at a time needed 10,001. The
+    margin below is 3x over the doubling's own arithmetic, and a one-answer
+    evaluation stays at two pulls, which is normal use paying nothing.
+    """
+    space = metta.metta.space("&chunk_eval")
+    for index in range(10000):
+        space.add(S.item(index))
+    space.run("(= (all) (match &self (item $x) $x))")
+    space.run("(= (just-one) 42)")
+
+    runtime = space.runtime
+    original = type(runtime).apply_must
+    pulls = []
+
+    def counting(self, predicate, *inputs):
+        if "cursor" in predicate and "open" not in predicate and "close" not in predicate:
+            pulls.append(predicate)
+        return original(self, predicate, *inputs)
+
+    monkeypatch.setattr(type(runtime), "apply_must", counting)
+
+    assert len(list(space.answers(S.all()))) == 10000
+    drain_pulls = len(pulls)
+    assert drain_pulls < 500, (
+        f"{drain_pulls} pulls for ten thousand answers: the evaluation "
+        f"cursor is crossing per answer"
+    )
+
+    pulls.clear()
+    assert list(space.answers(S.just_one())) == [Grounded(42)]
+    assert len(pulls) <= 2, (
+        f"{len(pulls)} pulls for one answer: normal use is paying for the chunk"
+    )
+

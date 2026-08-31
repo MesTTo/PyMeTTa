@@ -64,12 +64,14 @@ Open Obligations:
 from __future__ import annotations
 
 import re
+from collections import deque
 from collections.abc import Generator, Iterable, Iterator, Sequence
 from contextvars import ContextVar
 from typing import Any, Self
 
 from ._engine import Runtime
 from ._space_objects import (
+    _CHUNK_CAP,
     EngineProfile,
     FunctionCost,
     _apply_limited,
@@ -586,8 +588,10 @@ def evaluate_answers(
     """Return evaluation as a cached lazy answer sequence.
 
     The SWI engine is opened on the first pull. Its inference budget spans
-    every resume, while the wall limit wraps each individual resume, matching
-    the established query-cursor economics [tested:
+    every resume, while the wall limit wraps each CROSSING, which since the
+    chunked pull covers a doubling batch of answers rather than one, the
+    accepted price of the crossing win [tested:
+    test_the_evaluation_cursor_chunks_too;
     test_function_calls_pull_engine_answers_only_as_demanded;
     commit=2d4d4583c2d82e90bb21a7e8671842f126edd4f4].
 
@@ -656,35 +660,52 @@ def evaluate_answers(
             handle = rt.apply_must(predicate, *inputs)
         row_cls = _row_class(tuple(columns))
         reported_inferences = 0
+        # The same doubling chunk the match cursor pulls, for the same
+        # measured reason: the crossing is half the cost of a drain, and a
+        # short chunk is the whole of the exhaustion signal. Captured engine
+        # output arrives once per refill rather than once per answer, which
+        # capture()'s block-scoped contract never promised more finely.
+        buffered: deque[Any] = deque()
+        want = 1
+        drained = False
         try:
             while True:
-                captured = _CAPTURED_OUTPUT.get()
-                predicate = "metta_py_cursor_next"
-                pull_inputs: list[Any] = [handle]
-                if captured is not None:
-                    predicate, pull_inputs = (
-                        "metta_py_captured",
-                        [predicate, pull_inputs],
-                    )
-                if seconds is None and stack < 0:
-                    output = rt.apply_must(predicate, *pull_inputs)
-                else:
-                    output = _apply_limited(
-                        rt,
-                        (-1.0 if seconds is None else seconds, -1, stack),
-                        predicate,
-                        pull_inputs,
-                    )
-                if captured is not None:
-                    output, text = output
-                    captured._append(str(text))
-                if not output:
-                    return
+                if not buffered:
+                    if drained:
+                        return
+                    captured = _CAPTURED_OUTPUT.get()
+                    predicate = "metta_py_cursor_chunk"
+                    pull_inputs: list[Any] = [handle, want]
+                    if captured is not None:
+                        predicate, pull_inputs = (
+                            "metta_py_captured",
+                            [predicate, pull_inputs],
+                        )
+                    if seconds is None and stack < 0:
+                        output = rt.apply_must(predicate, *pull_inputs)
+                    else:
+                        output = _apply_limited(
+                            rt,
+                            (-1.0 if seconds is None else seconds, -1, stack),
+                            predicate,
+                            pull_inputs,
+                        )
+                    if captured is not None:
+                        output, text = output
+                        captured._append(str(text))
+                    if len(output) < want:
+                        drained = True
+                    want = min(want * 2, _CHUNK_CAP)
+                    if not output:
+                        return
+                    buffered.extend(output)
                 if under is None:
-                    value_wire, row_wires, cumulative_inferences = output[0]
+                    value_wire, row_wires, cumulative_inferences = buffered.popleft()
                     annotation_wire = None
                 else:
-                    value_wire, row_wires, annotation_wire, cumulative_inferences = output[0]
+                    value_wire, row_wires, annotation_wire, cumulative_inferences = (
+                        buffered.popleft()
+                    )
                 current_inferences = int(cumulative_inferences)
                 _record_engine_inferences(
                     max(0, current_inferences - reported_inferences)

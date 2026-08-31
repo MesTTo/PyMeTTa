@@ -521,8 +521,8 @@ _CHUNK_CAP = 64
 
 
 class Cursor:
-    """Private streaming answers pulled one at a time from an engine-held
-    query. Iterate it, close() it, or leave its with-block. Exhaustion reaps
+    """Private streaming answers pulled from an engine-held query in doubling
+    chunks, one janus crossing per chunk. Iterate it, close() it, or leave its with-block. Exhaustion reaps
     the engine and remains ordinary iterator exhaustion; explicit close is a
     separate state that refuses further pulls. A cursor dropped unclosed is
     reaped by its finalizer. Rows carry the query's variable names as columns,
