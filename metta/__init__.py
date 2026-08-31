@@ -321,7 +321,7 @@ def _ambient_space():
 
 
 @_overload
-def unify(left: _Any, right: _Any) -> _Mapping[str, Atom] | None: ...
+def unify(left: _Any, right: _Any) -> _Mapping[Atom, Atom] | None: ...
 
 
 @_overload
