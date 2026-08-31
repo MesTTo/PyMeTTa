@@ -671,27 +671,36 @@ def test_a_substitution_can_be_applied_by_both_of_its_producers():
     assert S.f(V.x).subs({}) == S.f(V.x)
 
 
-def test_using_reaches_a_variable_hole_through_an_atom_key(metta):
+def test_bind_reaches_a_variable_hole_through_an_atom_key(metta):
     """The engine's substitution matches an atom by NAME, so it can reach a
-    symbol and cannot reach a variable at all: neither `using={"x": 5}` nor
-    `using={"$x": 5}` fills the hole in `(dbl $x)`, because a variable crosses
-    the wire as ['v', 'x'] where a symbol crosses as ['s', 'x']. A variable
-    hole is exactly what unify reports, so the one substitution the library
-    could produce was the one no evaluation door could apply. An atom key says
-    which atom it means and is applied in the host.
+    symbol and cannot reach a variable at all: neither a `"x"` key nor a
+    `"$x"` key fills the hole in `(dbl $x)`, because a variable crosses the
+    wire as ['v', 'x'] where a symbol crosses as ['s', 'x']. A variable hole is
+    exactly what unify reports, so the one substitution the library could
+    produce was the one no evaluation door could apply. An ATOM key says which
+    atom it means and is applied in the host.
+
+    `bind()` is the one door for all of it. It was `run`'s alone and every
+    other door carried a `using=` keyword saying the same thing; a mapping is
+    the kind of value that grows, so it wants a block it can grow inside
+    rather than a keyword it has to fit beside.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     import metta as metta_module
 
     space = metta._new_space()
     space.add(metta_module.equation(S.subsdbl(V.x)).to(S["*"](V.x, 2)))
 
-    assert space.eval(S.subsdbl(S.n), using={"n": 5}) == [10]
-    assert space.eval(S.subsdbl(S.n), using={S.n: 5}) == [10]
-    assert space.eval(S.subsdbl(V.x), using={V.x: 5}) == [10]
-    assert space.eval_status(S.subsdbl(V.x), using={V.x: 5}) == [("value", 10)]
-    assert list(space.answers(S.subsdbl(V.x), using={V.x: 5})) == [10]
-    # Mixed keys reach their own substitutions.
-    assert space.eval(S["*"](V.x, S.n), using={V.x: 3, "n": 4}) == [12]
+    with space.bind({"n": 5}):
+        assert space.eval(S.subsdbl(S.n)) == [10]
+    with space.bind({S.n: 5}):
+        assert space.eval(S.subsdbl(S.n)) == [10]
+    with space.bind({V.x: 5}):
+        assert space.eval(S.subsdbl(V.x)) == [10]
+        assert space.eval_status(S.subsdbl(V.x)) == [("value", 10)]
+        assert list(space.answers(S.subsdbl(V.x))) == [10]
+    # Mixed keys reach their own substitutions, and the block nests.
+    with space.bind({V.x: 3}), space.bind({"n": 4}):
+        assert space.eval(S["*"](V.x, S.n)) == [12]
 
 
 def test_unify_binds_a_ground_term_and_pattern_in_both_orders():

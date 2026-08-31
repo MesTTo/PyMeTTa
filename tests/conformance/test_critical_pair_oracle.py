@@ -1,58 +1,48 @@
-"""Purpose: this repository's critical-pair enumerator is checked against a
-    kernel-checked one. engine/trs.pl's overlaps/2 and confluence_check/3 mirror
-    MeTTaILProofs/CPExecutable.lean's criticalPairs, oneSteps, boundedJoin? and
-    checkConfluence, definition for definition, and this runs both over one
-    corpus and requires the same family of pairs and the same verdict on each.
-    Agreement is the criterion rather than "it runs", and a disagreement is
-    diagnosable because the Lean side names the pair.
+"""Purpose: pin this repository's critical-pair enumerator over a corpus built
+    to separate enumerators. engine/trs.pl's overlaps/2 and confluence_check/3
+    are what run, and the corpus mixes hand-written systems chosen for the
+    shapes that separate implementations (root overlap, inner overlap, overlap
+    under a variable, self overlap, non-left-linear, deep position, growing
+    right-hand side) with a seeded random batch.
     WHAT IT COVERS: REWRITING. A critical pair is an overlap between two rules
-    of a rewrite relation; MeTTa's evaluation narrows, and neither enumerator
-    says anything about that.
+    of a rewrite relation; MeTTa's evaluation narrows, and this says nothing
+    about that.
+
+    This was an AGREEMENT lane once, run against a kernel-checked enumerator in
+    Lean and requiring the same family of pairs and the same verdict on each.
+    That half is gone (user, 2026-08-31: "there should not be any leatta
+    tests"), with the rest of the outside-arbiter machinery. What is lost is
+    named rather than glossed: nothing now cross-checks overlaps/2 against an
+    independent implementation, so this lane pins that the enumerator RUNS over
+    every corpus system and that its report parser is exact, and no longer that
+    its answers match another checker's.
 Assumes:
-  - the oracle lives at a fixed local path outside this repository, the same
-    assumption tests/conformance/leatta.py documents; CI never has it, so the
-    agreement tests skip rather than fail where it is absent.
   - every corpus system has non-variable left-hand sides and no
-    right-hand-side variable its left-hand side does not bind. Both sides need
-    the second (it is the Lean theorems' own RhsVarsInLhs); the first keeps the
-    bounded search finite, since a variable left-hand side rewrites every
-    subterm of everything.
+    right-hand-side variable its left-hand side does not bind. The second is
+    what makes the systems well-formed; the first keeps the bounded search
+    finite, since a variable left-hand side rewrites every subterm of
+    everything.
 Guarantees:
-  - the two sides are compared as SORTED line multisets per system, because the
-    two enumerators nest their loops differently and the family is what is
-    being compared, not the visiting order [measured 2026-08-19: the orders
-    genuinely differ, the families do not].
-  - the comparator is exercised where the oracle is absent, by the
-    planted-divergence test, which needs no Lean.
-  - the corpus mixes hand-written systems chosen for the shapes that separate
-    the two enumerators (root overlap, inner overlap, overlap under a variable,
-    self overlap, non-left-linear, deep position, growing right-hand side) with
-    a seeded random batch, so the agreement is not an agreement about the cases
-    one author thought of.
+  - the report parser is exact about pair families, verdicts and the certified
+    marker, and rejects a malformed report [tested:
+    test_the_report_parser_is_exact]
+  - the enumerator answers for every system in the corpus [tested:
+    test_the_prolog_enumerator_covers_every_corpus_system]
 Open Obligations:
-  To Do: None
+  To Do: an independent cross-check of overlaps/2. The Lean lane was the only
+    one and it is gone; a second enumerator in this repository would be a
+    different thing from an outside arbiter and is the honest replacement.
   Hacks: None
   Future Enhancements: None.
 """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations
 
-import os
 import random
 import subprocess
 from pathlib import Path
 
 import pytest
-
-_ORACLE_ROOT = Path(os.environ.get("LEATTA_PATH", "/home/user/Dev/LeaTTa"))
-_ORACLE_PROOF = _ORACLE_ROOT / "MeTTaILProofs" / "CPExecutable.lean"
-
-needs_oracle = pytest.mark.skipif(
-    not _ORACLE_PROOF.exists(),
-    reason="the LeaTTa critical-pair checker is a fixed local checkout outside "
-    "this repository; agreement is enforced only where it exists, as with "
-    "tests/conformance/leatta.py",
-)
 
 FUEL = 4
 
@@ -238,71 +228,6 @@ def _prolog_corpus(systems) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _lean_term(term: tuple) -> str:
-    if term[0] == "v":
-        return f"(.var {term[1]})"
-    inner = ", ".join(_lean_term(a) for a in term[2])
-    return f'(.app "{term[1]}" [{inner}])'
-
-
-_LEAN_PRELUDE = """import MeTTaILProofs.CPExecutable
-open MeTTaIL.CP
-
-partial def varsOf : FOTerm → List Nat
-  | .var x => [x]
-  | .app _ args => args.flatMap varsOf
-
-partial def dedupNat : List Nat → List Nat
-  | [] => []
-  | x :: xs => x :: dedupNat (xs.filter (· != x))
-
-def posOf : List Nat → Nat → Nat
-  | [], _ => 0
-  | y :: ys, x => if y == x then 0 else 1 + posOf ys x
-
-partial def renderWith (order : List Nat) : FOTerm → String
-  | .var x => "?" ++ toString (posOf order x)
-  | .app f [] => f
-  | .app f args =>
-      "(" ++ f ++ " " ++ String.intercalate " " (args.map (renderWith order)) ++ ")"
-
-def verdictOf (R : List (Prod FOTerm FOTerm)) (fuel : Nat)
-    (cp : ComputedCriticalPair) : String :=
-  match boundedJoin? R fuel cp.left cp.right with
-  | some _ => "joined"
-  | none =>
-      if oneSteps R cp.left = [] ∧ oneSteps R cp.right = [] ∧ cp.left ≠ cp.right
-      then "counterexample" else "unknown"
-
-def systemReport (name : String) (R : List (Prod FOTerm FOTerm)) (fuel : Nat) : String :=
-  let lines := (criticalPairs R).map (fun cp =>
-    let order := dedupNat (varsOf cp.left ++ varsOf cp.right)
-    renderWith order cp.left ++ "\\t" ++ renderWith order cp.right ++ "\\t"
-      ++ verdictOf R fuel cp)
-  "=== " ++ name ++ "\\n"
-    ++ String.join (lines.map (fun l => l ++ "\\n"))
-    ++ "### " ++ (if (checkConfluence R fuel).isCertified then "certified"
-                  else "not-certified") ++ "\\n"
-"""
-
-
-def _lean_script(systems, fuel: int) -> str:
-    entries = []
-    for name, rules in systems:
-        written = ", ".join(
-            f"({_lean_term(left)}, {_lean_term(right)})" for left, right in rules
-        )
-        entries.append(f'("{name}", [{written}])')
-    body = ",\n   ".join(entries)
-    return (
-        _LEAN_PRELUDE
-        + "\ndef systems : List (Prod String (List (Prod FOTerm FOTerm))) :=\n"
-        + f"  [ {body} ]\n\n"
-        + "#eval IO.print (String.join "
-        + f"(systems.map (fun s => systemReport s.1 s.2 {fuel})))\n"
-    )
-
-
 def _parse(text: str) -> dict[str, tuple[list[str], str]]:
     """One report into {system: (sorted pair lines, certified marker)}."""
     result: dict[str, tuple[list[str], str]] = {}
@@ -350,18 +275,6 @@ def _run_prolog(repo_root: Path, corpus: Path, fuel: int) -> str:
     return finished.stdout
 
 
-def _run_lean(script: Path, fuel: int) -> str:  # noqa: ARG001  -- the test reflects this callable signature, so every declared parameter must remain visible
-    finished = subprocess.run(
-        ["lake", "env", "lean", str(script)],
-        capture_output=True,
-        text=True,
-        timeout=280,
-        check=True,
-        cwd=_ORACLE_ROOT,
-    )
-    return finished.stdout
-
-
 @pytest.fixture(scope="module")
 def prolog_report(repo_root, tmp_path_factory):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     corpus = tmp_path_factory.mktemp("cp") / "corpus.pl"
@@ -369,42 +282,17 @@ def prolog_report(repo_root, tmp_path_factory):  # noqa: D103  -- pytest discove
     return _parse(_run_prolog(repo_root, corpus, FUEL))
 
 
-@pytest.fixture(scope="module")
-def lean_report(tmp_path_factory):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    script = tmp_path_factory.mktemp("cp") / "corpus.lean"
-    script.write_text(_lean_script(ALL_SYSTEMS, FUEL))
-    return _parse(_run_lean(script, FUEL))
-
-
 def test_the_prolog_enumerator_covers_every_corpus_system(prolog_report):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert sorted(prolog_report) == sorted(name for name, _ in ALL_SYSTEMS)
 
 
-@needs_oracle
-def test_the_two_enumerators_compute_the_same_critical_pairs(  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    prolog_report, lean_report
-):
-    ours = {name: pairs for name, (pairs, _) in prolog_report.items()}
-    theirs = {name: pairs for name, (pairs, _) in lean_report.items()}
-    assert ours == theirs
+def test_the_report_parser_is_exact():
+    """Pair order does not matter, verdict and certified marker do.
 
-
-@needs_oracle
-def test_the_two_checkers_agree_on_confluence(prolog_report, lean_report):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    ours = {name: verdict for name, (_, verdict) in prolog_report.items()}
-    theirs = {name: verdict for name, (_, verdict) in lean_report.items()}
-    assert ours == theirs
-
-
-@needs_oracle
-def test_the_corpus_exercises_all_three_verdicts(lean_report):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    verdicts = {
-        line.split("\t")[2] for pairs, _ in lean_report.values() for line in pairs
-    }
-    assert verdicts == {"joined", "counterexample", "unknown"}
-
-
-def test_the_oracle_lane_catches_a_planted_divergence():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    This outlived the agreement lane it was written for: the parser reads the
+    enumerator's own report, so its exactness is this lane's, not the departed
+    oracle's.
+    """
     report = "=== s\na\tb\tjoined\n### certified\n"
     assert _parse(report) == {"s": (["a\tb\tjoined"], "certified")}
     assert _parse(report) != _parse("=== s\na\tb\tcounterexample\n### certified\n")

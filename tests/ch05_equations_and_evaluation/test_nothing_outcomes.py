@@ -2,7 +2,7 @@
 Guarantees:
   - eager eval returns no atoms for Empty and the written atom for
     NotReducible, while eval_status names both paths, including after a
-    using= substitution [tested:
+    bound substitution [tested:
     test_eager_eval_keeps_empty_and_not_reducible_distinct; commit=4a5325f86c83a301673099e0f6281cae0ec6595c]
   - reducible() asks the head question without evaluating and agrees with
     eval_status on every outcome [tested:
@@ -32,13 +32,13 @@ def test_eager_eval_keeps_empty_and_not_reducible_distinct(metta):
     assert m.eval_status(S.empty()) == [("empty", None)]
     assert m.eval_status(unreduced) == [("not-reducible", unreduced)]
 
-    # A using= substitution lands BEFORE the reducibility question, so the
+    # A bound substitution lands BEFORE the reducibility question, so the
     # status names the substituted term rather than the written one.
-    substituted = m.eval_status(S.UnknownHead(S.placeholder), using={"placeholder": 7})
-    assert substituted == [("not-reducible", S.UnknownHead(7))]
-    assert m.eval(S.UnknownHead(S.placeholder), using={"placeholder": 7}) == [
-        S.UnknownHead(7)
-    ]
+    with m.bind({"placeholder": 7}):
+        assert m.eval_status(S.UnknownHead(S.placeholder)) == [
+            ("not-reducible", S.UnknownHead(7))
+        ]
+        assert m.eval(S.UnknownHead(S.placeholder)) == [S.UnknownHead(7)]
 
 
 def test_reducible_asks_the_question_without_running_the_term(metta):

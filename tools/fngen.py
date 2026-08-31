@@ -180,6 +180,17 @@ fn = _Namespace(
     aliases=_ALIASES,
     documentation=_DOCUMENTATION,
     label="target function",
+    # This namespace is GENERATED, so it holds what the catalog held when
+    # fngen last ran and cannot see a name registered since. `space.fn` is the
+    # LIVE one and does, which is the whole difference between them and is
+    # what a caller who has just registered something needs to be told
+    # [measured 2026-08-31: an @m.pure registered at run time is absent here
+    # and present on space.fn].
+    remedy=(
+        "; that namespace is generated, so a name registered at run time is "
+        "on the live one instead: space.fn.<name>, or build the term directly "
+        "with S['<name>'](...)"
+    ),
 )
 '''
 

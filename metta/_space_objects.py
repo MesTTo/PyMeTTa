@@ -1182,7 +1182,17 @@ class _FunctionNamespace:
                 resolved = bang
             else:
                 asked = attribute if attribute is not None else name
-                msg = f"{self._space.name}.fn has no function {asked!r}"
+                # The remedy, for the same reason the GENERATED namespace names
+                # one: a caller who reaches a function namespace wants the
+                # function, and "no such name" alone leaves them hunting a
+                # typo. This door is the LIVE one, so a miss here means the
+                # name is not defined or registered anywhere this space can
+                # see, which is a different answer from the generated door's.
+                msg = (
+                    f"{self._space.name}.fn has no function {asked!r}; define "
+                    f"it with @space.define, register it with @space.op, or "
+                    f"build the term directly with S[{asked!r}](...)"
+                )
                 raise AttributeError(msg)
         return _EngineFunction(self._space, resolved)
 

@@ -1,21 +1,25 @@
 """Purpose: the MeTTa standard library, said in Python, with every saying
-executed. LeaTTa declares 382 stdlib operations over 380 distinct names, and
-`phrasebook_entries.py` carries one row per name: the MeTTa form, the Python
-spelling, and a note. This lane runs both sides of every row, compares them
-against each other and against the frozen answers in
-`phrasebook_answers.json`, and prints the coverage as a number per bucket
+executed. `phrasebook_entries.py` carries one row for each of 380 stdlib
+names: the MeTTa form, the Python spelling, and a note. This lane runs both
+sides of every row, compares them against each other and against the frozen
+answers in `phrasebook_answers.json`, and prints the coverage as a number per
+bucket
 rather than as a mood. `--markdown` regenerates
 `website/reference/stdlib-phrasebook.md` from the same rows, so the page
 cannot drift from what ran.
 
-THREE COLUMNS, because two would hide the interesting half. A row's MeTTa
-form carries the recorded arbiter capture (frozen into
-phrasebook_answers.json while the LeaTTa lane still ran; the semantics
-reference is the vendored upstream PeTTa corpus now) AND this engine's
-answer, and its Python spelling is measured here; the lane compares all
-three. So a row says what the recorded capture answered, whether this
-engine agrees, and whether Python says the same thing, and every
-disagreement is named rather than averaged away.
+TWO COLUMNS, because one would prove nothing. A row's MeTTa form runs on
+this engine and its Python spelling runs beside it, and the lane compares
+them against each other and against what each answered last time. So a row
+says whether the two surfaces agree today and whether either has moved since
+it was frozen, and every disagreement is named rather than averaged away.
+
+There was a third column once, an outside arbiter's answers, and it is gone
+(user, 2026-08-31: "there should not be any leatta tests"). It finished the
+migration commit 20cd107a began when it moved the conformance lane to
+vendored upstream PeTTa: this engine follows upstream PeTTa, so a second
+implementation's answer is not evidence about this one. The rows themselves
+stay, superset and all.
 
 Why both sides run at all: a phrasebook that only shows Python proves nothing
 about the translation, and one nobody runs rots within a week. Running the
@@ -34,7 +38,7 @@ The five buckets, and what each CLAIMS:
     building the term at the `S.` door and reducing it. Section 9e's third
     bucket. Such a row is Python with no MeTTa source text, but it is
     deliberately transliteration-shaped: the ladder keeps the rung.
-  - `internal`: LeaTTa's mechanised interpreter, written in MeTTa. The
+  - `internal`: a mechanised interpreter, written in MeTTa. The
     `interpret-*`, `mi-*` and `u-*` families are the interpreter's own
     equations rather than operations a program calls, and MeTTa writes its
     interpreter in Prolog, so these names are on neither surface. Accounted
@@ -54,21 +58,17 @@ Assumes:
     commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - `&pb` in a row's MeTTa form is that row's own space. On this engine the
     name is made unique per row before the form runs, because `bind!` here
-    keeps the old contents when a bound name is re-bound; on LeaTTa each row
-    is its own process, so the written name is used as written [measured
+    keeps the old contents when a bound name is re-bound, where a
+    process-per-row runner would use the written name as written [measured
     2026-08-22: re-binding a bound name leaves `(f 1)` in place here, while
-    LeaTTa refuses the second `bind!` with
+    a stricter reader refuses the second `bind!` with
     `(Error ... (BadArgType 1 Symbol SpaceType))`; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
-  - LeaTTa lives outside this repository and CI never clones it, so its column
-    is frozen into `phrasebook_answers.json` and re-measured only under
-    `--learn`, exactly as the upstream parity baseline freezes its numbers
-    [source: tests/checks/check_upstream_parity.py, its Assumes block;
-    the leatta runner the capture was frozen through left the tree with the
-    petta alignment and exists at the pinned commit;
-    commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+  - both sides are frozen into `phrasebook_answers.json` and re-measured only
+    under `--learn`, exactly as the upstream parity baseline freezes its numbers
+    [source: tests/checks/check_upstream_parity.py, its Assumes block]
 Guarantees:
-  - every LeaTTa stdlib name has exactly one row, so the coverage denominator
-    cannot quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name]
+  - every stdlib name has exactly one row, so the coverage denominator cannot
+    quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name]
   - a row whose Python spelling stops answering what it claims is a finding,
     which is what stops a phrasebook rotting [tested:
     test_a_broken_python_spelling_is_a_finding]
@@ -77,12 +77,12 @@ Guarantees:
     test_a_silent_divergence_is_a_finding]
   - the checked-in page equals what `--markdown` produces [tested:
     test_the_phrasebook_page_is_up_to_date]
-  - Python-first additions that have no LeaTTa stdlib declaration are rendered
-    in a separate exact-spelling table rather than corrupting manifest coverage
+  - Python-first additions that have no stdlib declaration of their own are
+    rendered in a separate exact-spelling table rather than corrupting coverage
     [tested: test_python_first_public_faces_are_in_the_phrasebook;
     commit=39092863ae34184a9f955f185ff57c1ff177ec40]
-  - a row may run a MeTTa-only setup and an explicitly recorded equivalent
-    LeaTTa form; neither is silently sent to the other engine [tested:
+  - a row may run a MeTTa-only setup; nothing is silently sent elsewhere
+    [tested:
     python extensions/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - PUBLIC/INTERNAL is row data, all live catalog names carry it, and the
     rendered reference includes PUBLIC rows only [tested:
@@ -112,9 +112,7 @@ import ast
 import contextlib
 import json
 import os
-import subprocess
 import sys
-import tempfile
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -125,30 +123,12 @@ TOOLS = Path(__file__).resolve().parent
 REPO = TOOLS.parents[2]
 PAGE = REPO / "website" / "reference" / "stdlib-phrasebook.md"
 ANSWERS = TOOLS / "phrasebook_answers.json"
-#: The oracle checkout, reached the way every other lane that consults it does:
-#: LEATTA_PATH names it, and the default is the sibling of this repository's own
-#: parent, so nothing tracked cites an absolute workspace path
-#: [tested: test_no_tracked_file_cites_an_absolute_workspace_path].
-LEATTA = (
-    Path(os.environ["LEATTA_PATH"])
-    if "LEATTA_PATH" in os.environ
-    else REPO.parents[1] / "LeaTTa"
-)
-LEATTA_MANIFEST = LEATTA / "tests" / "conformance" / "stdlib-manifest.json"
-#: The oracle revision the rows were transcribed from, vendored so this
-#: repository's gate reads an oracle this repository owns. See drift().
-VENDORED_MANIFEST = TOOLS / "leatta-stdlib-manifest.json"
-LEATTA_BINARY = LEATTA / ".lake" / "build" / "bin" / "LeaTTa"
-
 sys.path.insert(0, str(TOOLS))
 sys.path.insert(0, str(REPO / "extensions" / "python"))
 
 from phrasebook_entries import (  # noqa: E402
     BUCKETS,
     ENTRIES,
-    LEATTA_COMMIT,
-    LEATTA_ENTRY_COUNT,
-    LEATTA_VERSION,
     PUBLIC_FACES,
     SECTIONS,
     VISIBILITIES,
@@ -165,8 +145,8 @@ EVIDENCE = "c6abaad21ab41b32b815b7481edff822b236e69a"
 #: The placeholder a row writes for "a space of my own".
 SPACE = "&pb"
 
-#: How many answers a bracketed LeaTTa transcript line may hold before the
-#: page truncates it. The largest honest row is `get-atoms` over a few facts.
+#: How many answers a bracketed transcript line may hold before the page
+#: truncates it. The largest honest row is `get-atoms` over a few facts.
 SHOWN = 6
 
 
@@ -214,32 +194,6 @@ def metta_answers(engine: Any, entry: Entry, index: int, space: Any = None) -> t
         message = f"{entry.name}: no runnable form in {entry.metta!r}"
         raise ValueError(message)
     return tuple(str(atom) for atom in groups[-1])
-
-
-def leatta_answers(entry: Entry, scratch: Path) -> tuple[str, ...]:
-    """The same form on the oracle, one process per row.
-
-    The row's file goes in a PRIVATE directory rather than the shared one:
-    the oracle reads the directory its file sits in, so a crowded `/tmp`
-    makes every row 875 times slower [measured 2026-08-22: `!(+ 1 2)` costs
-    0.008s from an empty directory and 7.0s from a `/tmp` holding 829
-    entries, on this box; commit=f88aa8be03cb64cb59d3307515ded8701f418321].
-    """
-    path = scratch / "row.metta"
-    source = entry.oracle_metta or entry.metta
-    path.write_text(source if source.endswith("\n") else source + "\n")
-    finished = subprocess.run(  # noqa: S603
-        [str(LEATTA_BINARY), "--observed-file", str(path)],
-        capture_output=True,
-        text=True,
-        timeout=20,
-        check=False,
-    )
-    lines = [line for line in finished.stdout.splitlines() if line.startswith("[")]
-    if not lines:
-        message = f"{entry.name}: LeaTTa printed no answer line: {finished.stdout!r}"
-        raise ValueError(message)
-    return split_answers(lines[-1])
 
 
 def split_answers(line: str) -> tuple[str, ...]:
@@ -353,25 +307,7 @@ def compare(entry: Entry, frozen: dict[str, Any], seen: dict[str, Any]) -> list[
                 f"the two sides disagree, {pair[0]} against {pair[1]}, and the row "
                 f"does not say why"
             )
-        oracle = frozen.get("leatta")
-        if oracle is not None and seen["python"] is not None and oracle != seen["python"]:
-            findings.append(
-                f"the Python spelling answers {seen['python']} where LeaTTa answers "
-                f"{oracle}, and the row does not say why"
-            )
     return findings
-
-
-def divergences(entries: list[Entry], answers: dict[str, Any]) -> list[str]:
-    """Where this engine and the oracle answer the same form differently."""
-    out = []
-    for entry in entries:
-        frozen = answers.get(entry.name, {})
-        oracle, here = frozen.get("leatta"), frozen.get("metta")
-        if oracle is None or here is None or oracle == here:
-            continue
-        out.append(f"{entry.name}: LeaTTa {oracle}, this engine {here}")
-    return out
 
 
 def structural(entries: list[Entry]) -> list[str]:
@@ -408,8 +344,8 @@ def structural(entries: list[Entry]) -> list[str]:
             )
         if entry.metta_setup is not None and entry.metta is None:
             findings.append(f"{entry.name}: has setup but no MeTTa form")
-        if entry.oracle_metta is not None and entry.metta is None:
-            findings.append(f"{entry.name}: has an oracle form but no MeTTa form")
+        if entry.unary_metta is not None and entry.metta is None:
+            findings.append(f"{entry.name}: has a unary form but no MeTTa form")
         if entry.metta_fuel is not None and entry.metta_fuel < 1:
             findings.append(f"{entry.name}: has a non-positive MeTTa inference limit")
     return findings
@@ -441,151 +377,32 @@ def visibility_drift(engine: Any, entries: list[Entry]) -> list[str]:
     return findings
 
 
-def _vendored_manifest() -> Any:
-    """The oracle revision these rows were transcribed from, kept in-tree."""
-    return json.loads(VENDORED_MANIFEST.read_text(encoding="utf-8"))
-
-
-def oracle_state() -> str:
-    """Where the sibling LeaTTa checkout stands against the vendored revision.
-
-    ``absent`` (not checked out), ``at-pin`` (the same revision this repository
-    vendors), or ``moved`` (the oracle has gone on). Only the middle one lets a
-    live comparison mean what it says, and none of the three changes whether
-    the ROWS are faithful, which is asked of the vendored copy instead.
-    """
-    if not LEATTA_MANIFEST.is_file():
-        return "absent"
-    live = json.loads(LEATTA_MANIFEST.read_text(encoding="utf-8"))
-    return "at-pin" if str(live["commit"]) == str(_vendored_manifest()["commit"]) else "moved"
-
-
-def drift(entries: list[Entry]) -> tuple[str, list[str]]:
-    """The rows against the oracle revision this repository vendors.
-
-    Read from `leatta-stdlib-manifest.json` beside this file rather than from a
-    sibling checkout, because a gate whose verdict depends on another
-    repository's working tree is not a gate on this one. That was not
-    hypothetical: on 2026-08-26 this lane was green, and hours later reported
-    five 'the phrasebook has no row for it' findings that read as our file
-    being wrong, while nothing here had changed and the sibling had moved
-    39c7c43 to d6c7c16 to 4987902 with a dirty tree mid-edit. Vendoring the
-    manifest is MeTTa.jl's discipline for the same problem (it vendors
-    LeaTTa's prelude verbatim beside a regeneration script) and the benchmark
-    harness's, in observe_configuration.
-
-    Whether the ORACLE has moved past what we vendor is a real and separate
-    question. It is answered in the note below on every run, and advancing is a
-    deliberate re-vendor rather than something a sibling checkout can trigger:
-
-        cd /path/to/LeaTTa && git show <commit>:tests/conformance/stdlib-manifest.json \
-            > extensions/python/tools/leatta-stdlib-manifest.json
-
-    then advance LEATTA_COMMIT and LEATTA_ENTRY_COUNT with the rows.
-    """
-    manifest = _vendored_manifest()
-    declared: dict[str, list[str]] = {}
-    for operation in manifest["operations"]:
-        declared.setdefault(operation["name"], operation["types"])
-    ours = {entry.name: list(entry.types) for entry in entries}
-    differences = _row_differences(declared, ours, manifest)
-    state = oracle_state()
-    if state == "absent":
-        standing = f"the sibling checkout at {LEATTA} is absent"
-    elif state == "at-pin":
-        standing = "the sibling checkout holds the same revision"
-    else:
-        live = json.loads(LEATTA_MANIFEST.read_text(encoding="utf-8"))
-        standing = (
-            f"the sibling checkout has MOVED to manifest {live['version']} at "
-            f"commit {live['commit']} with {live['operationCount']} declarations; "
-            f"re-vendor deliberately to follow it"
-        )
-    note = (
-        f"checked against the vendored LeaTTa manifest {manifest['version']} at "
-        f"commit {manifest['commit']} (tree {LEATTA_COMMIT}): "
-        f"{manifest['operationCount']} declarations over {len(declared)} distinct "
-        f"names; {standing}"
-    )
-    return note, differences
-
-
-def _row_differences(
-    declared: dict[str, list[str]], ours: dict[str, list[str]], manifest: Any
-) -> list[str]:
-    """Every way the rows and one manifest revision disagree about WHICH NAMES exist.
-
-    The types are no longer compared.
-
-    The type half retired with the arbiter on 2026-08-30. PeTTa is what this
-    engine follows, and where the two differ the row records upstream's
-    declaration: `println!` and `change-state!` answer a Bool where LeaTTa
-    answers unit or the cell, `remove-atom` answers True whether or not the
-    space held the atom, and `atom-subst` declares its second operand
-    `(:Atom Variable)`, a modifier LeaTTa's plain `Variable` has no spelling
-    for. Reporting those as drift asked the wrong oracle
-    The same retirement is recorded in
-    [tested: test_the_phrasebook_carries_one_row_per_name].
-
-    The COMPLETENESS half never depended on which oracle is the arbiter: a
-    name one side has and the other does not is worth knowing whoever is
-    right about its type, and this is the only place that asks.
-    """
-    findings = [
-        f"LeaTTa declares {name!r} and the phrasebook has no row for it"
-        for name in sorted(set(declared) - set(ours))
-    ]
-    findings += [
-        f"the phrasebook has a row for {name!r} which LeaTTa no longer declares"
-        for name in sorted(set(ours) - set(declared))
-    ]
-    if manifest["operationCount"] != LEATTA_ENTRY_COUNT:
-        findings.append(
-            f"LeaTTa now declares {manifest['operationCount']} operations where the "
-            f"phrasebook records {LEATTA_ENTRY_COUNT}"
-        )
-    return findings
-
-
 def report(
     entries: list[Entry],
     findings: dict[str, list[str]],
     answers: dict[str, Any],
     *,
-    note: str,
-    diverging: list[str],
     show: int,
 ) -> None:
-    """The whole verdict on one screen: coverage, divergences, residue, findings."""
-    _report_coverage(entries, note)
-    _report_divergences(diverging, show)
+    """The whole verdict on one screen: coverage, residue, findings."""
+    _report_coverage(entries)
     _report_cost(answers)
     _report_residue(entries)
     _report_findings(findings, show)
 
 
-def _report_coverage(entries: list[Entry], note: str) -> None:
+def _report_coverage(entries: list[Entry]) -> None:
     counts = Counter(entry.bucket for entry in entries)
     total = len(entries)
     spoken = counts["dissolves"] + counts["method"] + counts["instruction"]
     surface = total - counts["internal"]
     print(
         f"stdlib phrasebook: {spoken} of {surface} surface operations have a Python "
-        f"spelling ({LEATTA_ENTRY_COUNT} LeaTTa declarations over {total} distinct "
-        f"names, {counts['internal']} of them the mechanised interpreter's own)"
+        f"spelling ({total} distinct names, {counts['internal']} of them the "
+        f"mechanised interpreter's own)"
     )
     for bucket, description in BUCKETS.items():
         print(f"  {bucket:<12} {counts[bucket]:>4}   {description}")
-    print(f"  {note}")
-
-
-def _report_divergences(diverging: list[str], show: int) -> None:
-    if diverging:
-        print(f"  This engine and LeaTTa answer {len(diverging)} form(s) differently:")
-        for line in diverging[:show]:
-            print(f"    {line}")
-        if len(diverging) > show:
-            print(f"    ... {len(diverging) - show} more")
 
 
 def _report_cost(answers: dict[str, Any]) -> None:
@@ -642,14 +459,14 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         "Every operation MeTTa's standard library declares, and what you write in Python",
         f"instead. {spoken} of the {surface} operations a program can call have a Python",
         "spelling, and every runnable row below was measured on this engine and",
-        "through the Python spelling here. A row names the equivalent oracle form",
+        "through the Python spelling here. A row names the equivalent unary form",
         "when this engine's reified strategy application has another arity.",
         "",
         f"The rows carry this engine's own names and types, {len(entries)} distinct names,",
         "and `extensions/python/tools/phrasebook.py` runs them and fails when a",
-        "spelling stops answering what it says it answers. The oracle column",
-        "measured against a second engine until 2026-08-30; PeTTa is the arbiter",
-        "now and `tests/conformance/petta.py` is the lane that gates on it.",
+        "spelling stops answering what it says it answers. A third column",
+        "measured against a second engine until 2026-08-31; upstream PeTTa is the",
+        "arbiter and `tests/conformance/petta.py` is the lane that gates on it.",
         "",
         "## How to read a row",
         "",
@@ -668,8 +485,8 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
         "## Python-first additions",
         "",
         "These faces implement the Python-first execution model and therefore have no",
-        "LeaTTa standard-library declaration to occupy one of the manifest rows above.",
-        "They stay separate so the differential coverage denominator remains exact.",
+        "standard-library declaration to occupy one of the rows above.",
+        "They stay separate so the coverage denominator remains exact.",
         "",
         "| public spelling | meaning | example |",
         "|---|---|---|",
@@ -688,8 +505,7 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
     free = sum(1 for _, record in priced if record["python_inferences"] == 0)
     out += [
         "",
-        f"Provenance: LeaTTa manifest {LEATTA_VERSION} at commit `{LEATTA_COMMIT}`, "
-        f"{LEATTA_ENTRY_COUNT} declarations over {len(entries)} distinct names.",
+        f"Provenance: {len(entries)} distinct stdlib names, each with one row.",
         "",
         "## What the Python spelling costs",
         "",
@@ -742,9 +558,9 @@ def page(entries: list[Entry], answers: dict[str, Any]) -> str:
                 line += f" The form is shown but not run here: {entry.unrun}."
             if entry.ruled:
                 line += f" Ruled rather than missing: {entry.ruled}."
-            if entry.oracle_metta:
-                oracle = entry.oracle_metta.replace("\n", " ⏎ ")
-                line += f" LeaTTa oracle form: `{oracle}`."
+            if entry.unary_metta:
+                unary = entry.unary_metta.replace("\n", " ⏎ ")
+                line += f" Unary form: `{unary}`."
             out.append(line)
         out.append("")
     return "\n".join(out) + "\n"
@@ -842,7 +658,7 @@ def _answer(frozen: dict[str, Any]) -> str:
     A phrasebook row is only interesting when they disagree, so the column
     labels the sides exactly then and stays quiet otherwise.
     """
-    sides = [(name, frozen.get(name)) for name in ("leatta", "metta", "python")]
+    sides = [(name, frozen.get(name)) for name in ("metta", "python")]
     present = [(name, value) for name, value in sides if value is not None]
     if not present:
         return ""
@@ -911,34 +727,23 @@ def cost(engine: Any, entries: list[Entry]) -> list[tuple[str, int, int]]:
 
 def learn(engine: Any, entries: list[Entry], answers: dict[str, Any]) -> dict[str, Any]:
     """Re-measure every side and freeze it. LeaTTa only when it is present."""
-    with tempfile.TemporaryDirectory(prefix="phrasebook-") as scratch:
-        return _learn(engine, entries, answers, Path(scratch))
+    return _learn(engine, entries, answers)
 
 
 def _learn(
-    engine: Any, entries: list[Entry], answers: dict[str, Any], scratch: Path
+    engine: Any, entries: list[Entry], answers: dict[str, Any]
 ) -> dict[str, Any]:
-    oracle = LEATTA_BINARY.is_file()
     fresh: dict[str, Any] = {
         "//": {
             "what": "measured answers, one record per stdlib name; --learn rewrites it",
-            "leatta": f"manifest {LEATTA_VERSION}, commit {LEATTA_COMMIT}",
-            "oracle_measured": oracle,
         }
     }
     for index, entry in enumerate(entries):
         if entry.metta is None and entry.python is None:
             continue
         record = dict(answers.get(entry.name, {}))
+        record.pop("leatta", None)
         record.update(measure(engine, entry, index))
-        if entry.metta is not None:
-            if oracle:
-                try:
-                    record["leatta"] = list(leatta_answers(entry, scratch))
-                except Exception as error:  # noqa: BLE001
-                    record["leatta"] = [f"RAISED {type(error).__name__}: {error}"]
-        else:
-            record.pop("leatta", None)
         fresh[entry.name] = record
     for name, engine_side, python_side in cost(engine, entries):
         fresh[name]["metta_inferences"] = engine_side
@@ -990,10 +795,6 @@ def main(argv: list[str]) -> int:
     structure = structural(entries)
     if structure:
         findings["the phrasebook itself"] = structure
-    note, drifted = drift(entries)
-    if drifted:
-        findings["LeaTTa drift"] = drifted
-
     import metta  # noqa: PLC0415  -- deferred so the lane imports without an engine
 
     engine = metta.MeTTa(metta_path=str(REPO)).self
@@ -1026,8 +827,6 @@ def main(argv: list[str]) -> int:
         entries,
         findings,
         answers,
-        note=note,
-        diverging=divergences(entries, answers),
         show=arguments.show,
     )
     return 1 if (arguments.gate and findings) else 0

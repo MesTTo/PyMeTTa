@@ -22,8 +22,6 @@ import os
 import subprocess
 import sys
 
-import pytest
-
 from metta import S, V, equation
 
 _TYPED_SHADOWING_PROBE = r"""
@@ -97,15 +95,25 @@ def test_answers_selects_a_theory_or_interpreter_per_ask(metta):
         S.Interpreted(target, S["%Undefined%"], space)
     ]
 
-    with pytest.raises(TypeError, match="pass one of them per answers"):
-        space.answers(target, theory=laws, interpreter=interpreter)
+    # They COMPOSE. The interpreter is handed the theory's space, so it
+    # interprets the theory: head and third argument of one application, not
+    # rival answers to one question.
+    space.run("(: compose-eval (-> Atom Atom Atom %Undefined%))")
+    space.run("(= (compose-eval $t $ty $s) (Traced (metta $t $ty $s)))")
+    composed = list(
+        space.answers(S.choice(), theory=laws, interpreter=S["compose-eval"])
+    )
+    assert composed == [S.Traced(S.left), S.Traced(S.right)]
+    assert list(space.answers(S.choice(), interpreter=S["compose-eval"])) == [
+        S.Traced(S.base)
+    ]
 
 
 def test_eval_status_selects_the_same_relations_answers_does(metta):
     """The door that REPORTS the evaluation path can select one.
 
-    eval_status took using=, timeout= and inferences= while eval() and
-    answers() took those plus under=, theory= and interpreter=. Being unable
+    eval_status took timeout= and inferences= while eval() and answers()
+    took those plus under=, theory= and interpreter=. Being unable
     to point the status door at an alternative evaluation relation was the
     sharpest form of that gap: an explicit interpreter is exactly when
     "did anything reduce this, or is it its own answer" is worth asking.
@@ -133,17 +141,59 @@ def test_eval_status_selects_the_same_relations_answers_does(metta):
         ("value", S.Interpreted(target, S["%Undefined%"], space))
     ]
 
-    with pytest.raises(TypeError, match="pass one of them per eval_status"):
-        space.eval_status(target, theory=laws, interpreter=interpreter)
+    # And they compose here for the same reason they compose on answers().
+    space.run("(: status-eval (-> Atom Atom Atom %Undefined%))")
+    space.run("(= (status-eval $t $ty $s) (Traced (metta $t $ty $s)))")
+    assert space.eval_status(
+        S.choice(), theory=laws, interpreter=S["status-eval"]
+    ) == [("value", S.Traced(S.left)), ("value", S.Traced(S.right))]
+
+
+def test_an_interpreter_must_declare_its_metatypes(metta):
+    """`Atom` in, `%Undefined%` out, or the engine reduces around it.
+
+    MeTTa reduces a call's arguments before the callee sees them, so an
+    interpreter declared the ordinary way is handed the ANSWER rather than the
+    term it was meant to interpret, and its own answer is not reduced when the
+    return metatype is `Atom`. Both halves are the declaration's job and
+    neither is this door's to enforce -- MeTTa would call either function
+    happily -- so the contract states them and this measures them.
+    """
+    space = metta._new_space()
+    space.add(equation(S.choice()).to(S.base))
+
+    @space.define(name="plain-interp")
+    def plain_interp(term, _expected, _space):
+        return S.Saw(term)
+
+    # An ordinary define sees the reduced answer.
+    assert list(space.answers(S.choice(), interpreter=S["plain-interp"])) == [
+        S.Saw(S.base)
+    ]
+
+    # An Atom-typed first parameter sees the term.
+    space.run("(: atom-interp (-> Atom Atom Atom %Undefined%))")
+    space.run("(= (atom-interp $t $ty $s) (Saw $t))")
+    assert list(space.answers(S.choice(), interpreter=S["atom-interp"])) == [
+        S.Saw(S.choice())
+    ]
+
+    # An Atom RETURN metatype leaves the interpreter's own answer unreduced.
+    space.run("(: unreduced-interp (-> Atom Atom Atom Atom))")
+    space.run("(= (unreduced-interp $t $ty $s) (metta $t $ty $s))")
+    assert list(space.answers(S.choice(), interpreter=S["unreduced-interp"])) == [
+        S.metta(S.choice(), S["%Undefined%"], space)
+    ]
 
 
 def test_derivation_binds_host_values_like_the_doors_beside_it(metta):
-    """`using=` lands BEFORE the search, so a bound proof was unaskable."""
+    """A binding lands BEFORE the search, so a bound proof was unaskable."""
     space = metta._new_space()
     space.add(equation(S["p14-proof-double"](V.x)).to(S["*"](V.x, 2)))
 
     direct = space.derivation(S["p14-proof-double"](5))
-    bound = space.derivation(S["p14-proof-double"](S.n), using={"n": 5})
+    with space.bind({"n": 5}):
+        bound = space.derivation(S["p14-proof-double"](S.n))
     # Same call and same answer. Not the whole tree: the engine names an
     # unresolved variable freshly per search, so the equations inside read
     # `$_1` and `$_2` for the same equation.

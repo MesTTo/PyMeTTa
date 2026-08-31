@@ -1158,8 +1158,13 @@ class Space(Handle):
     ) -> _BoundValues:
         """Scope named host values for :meth:`run` without a call flag."""
         bindings = {} if values is None else dict(values)
-        if any(not isinstance(name, str) for name in bindings):
-            msg = "every bound host-value name must be a string"
+        if any(
+            not isinstance(name, str | Atom) for name in bindings
+        ):
+            msg = (
+                "a bound host value is named by a string, meaning the SYMBOL "
+                "of that name, or by an atom, meaning that atom itself"
+            )
             raise TypeError(msg)
         overlap = bindings.keys() & named.keys()
         if overlap:
@@ -1184,13 +1189,18 @@ class Space(Handle):
         directive instead of flattened. Equations and facts in the source
         land in this space.
 
-        `using` names Python values the source refers to by bare symbol,
+        `bind()` names Python values the source refers to by bare symbol,
         the way DuckDB reads a local dataframe by its variable name:
 
-            m.run("!(py-len graph)", using={"graph": my_graph})
+            with m.bind({"graph": my_graph}):
+                m.run("!(py-len graph)")
 
         Each named symbol substitutes to its value (objects by identity),
-        after reading, before anything runs.
+        after reading, before anything runs. It is a BLOCK rather than a
+        keyword because a binding mapping is the kind of value that grows,
+        and a block grows down the page where a keyword has to fit beside
+        everything else on the call. Every target door reads the same scope,
+        so one block covers a run(), an eval() and an answers() together.
 
         `timeout` (seconds) and `inferences` (engine steps) bound the call
         with the engine's own guards; passing either raises TimeLimitError
@@ -1228,7 +1238,6 @@ class Space(Handle):
     def profile(
         self,
         source: str,
-        using: dict[str, Any] | None = None,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
@@ -1250,7 +1259,7 @@ class Space(Handle):
             self._rt,
             self._space,
             source,
-            using,
+            _RUN_BINDINGS.get(),
             timeout=timeout,
             inferences=inferences,
         )
@@ -1258,7 +1267,6 @@ class Space(Handle):
     def profile_extension(
         self,
         source: str,
-        using: dict[str, Any] | None = None,
         *,
         extension: str | None = None,
         names: _abc.Sequence[str] | None = None,
@@ -1310,7 +1318,7 @@ class Space(Handle):
             self._rt,
             self._space,
             source,
-            using,
+            _RUN_BINDINGS.get(),
             wanted,
             timeout=timeout,
             inferences=inferences,
@@ -2560,7 +2568,6 @@ class Space(Handle):
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
@@ -2582,18 +2589,17 @@ class Space(Handle):
         that path `not-reducible`. run() does not carry the third truth
         value; evaluate through eval() when it matters.
 
-        `using` binds named host values into the term before it evaluates,
-        exactly as it does for run(): `m.eval("(decide x)", using={"x":
-        tensor})` hands the tensor itself to the rule, by identity, rather
-        than a printed form of it. The name is the SYMBOL x and not the
-        variable $x, on this door and the source door alike; the example here
-        wrote `$x` and did not work [measured 2026-08-31]. The evaluation doors take the same
+        `bind()` binds named host values into the term before it evaluates,
+        exactly as it does for run(): inside `with m.bind({"x": tensor})`,
+        `m.eval("(decide x)")` hands the tensor itself to the rule, by
+        identity, rather than a printed form of it. The name is the SYMBOL x
+        and not the variable $x, on this door and the source door alike. The evaluation doors take the same
         vocabulary the source door takes, so reaching for a term instead
         of source text costs no change of spelling.
 
         A key may be a NAME or an ATOM. A name means the symbol of that name,
         which is what the engine's own substitution matches and what run()
-        takes. An atom means exactly that atom, so `using={V.x: 5}` fills a
+        takes. An atom means exactly that atom, so `bind({V.x: 5})` fills a
         VARIABLE hole -- the one substitution `unify` reports and the one no
         door could apply, because a variable crosses the wire as ['v', 'x']
         where a symbol crosses as ['s', 'x'] and the engine matches names.
@@ -2611,7 +2617,7 @@ class Space(Handle):
         _record_sync_engine_call(self, "eval", sys._getframe(1))
         # Atom-keyed bindings are applied here whichever branch runs below, so
         # the eager path and the delegating one agree on what `using=` accepts.
-        target, using = self._prepared_ask(target, using, door="eval")
+        target, using = self._prepared_ask(target, None)
         # The two doors are NOT one mechanism, which was measured rather than
         # assumed: eval() is one eager engine call (metta_py_eval_all) and
         # answers() opens a cursor, and routing eval() through the cursor
@@ -2625,7 +2631,6 @@ class Space(Handle):
             return list(
                 self.answers(
                     target,
-                    using=using,
                     timeout=timeout,
                     inferences=inferences,
                     under=under,
@@ -2641,7 +2646,6 @@ class Space(Handle):
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
@@ -2676,23 +2680,34 @@ class Space(Handle):
         commit=0d49980b03d507f9bae0354786ab826a146c20df].
 
         ``interpreter=`` instead evaluates the explicit full-interpreter
-        application ``(interpreter target %Undefined% receiver)`` for this ask.
-        The selectors are mutually exclusive because each decides what
-        evaluation relation the answer cursor runs.
+        application ``(interpreter target %Undefined% space)`` for this ask,
+        which is the shape MeTTa's own evaluation function has: it says
+        "reduce with YOURS rather than the engine's".
+
+        The two COMPOSE, and are the head and the third argument of one
+        application rather than rival answers to one question: with both, the
+        interpreter is handed the theory's space, so it interprets the theory
+        [measured 2026-08-31: an interpreter tracing its delegate answered
+        `(Traced base)` alone and `(Traced left), (Traced right)` over a
+        two-equation theory]. They used to refuse together.
+
+        The INTERPRETER must declare its first parameter `Atom`, MeTTa's own
+        way to receive an argument unevaluated, or the engine reduces the
+        target before the interpreter ever sees it; and its RETURN metatype
+        `%Undefined%`, or the interpreter's own answer is not reduced either.
+        `(: e (-> Atom Atom Atom %Undefined%))` is the declaration.
         """
         _record_sync_engine_call(self, "answers", sys._getframe(1))
-        target, using = self._prepared_ask(
-            target, using, theory, interpreter, "answers"
-        )
+        target, using = self._prepared_ask(target, None, theory, interpreter)
         carrier = _selected_under(under)
         if theory is not None:
             return self._answers_with_theory(
                 target,
                 theory,
-                using=using,
                 timeout=timeout,
                 inferences=inferences,
                 carrier=carrier,
+                interpreter=interpreter,
             )
         if carrier is None:
             return evaluate_answers(
@@ -2782,7 +2797,6 @@ class Space(Handle):
         using: dict[Any, Any] | None,
         theory: Any = None,
         interpreter: Any = None,
-        door: str = "answers",
     ) -> tuple[Any, dict[str, Any] | None]:
         """Everything a term ask does to its target before the engine sees it.
 
@@ -2790,8 +2804,10 @@ class Space(Handle):
 
         ``interpreter=`` is a TERM rewrite and nothing more, so it costs the
         same three lines wherever it is offered; ``theory=`` needs a scratch
-        space and stays with the door that owns its lifetime, and the two
-        refuse together because each answers "what reduces this?".
+        space and stays with the door that owns its lifetime, which is why the
+        rewrite is skipped here when a theory is also present: the application
+        has to name the SCRATCH as its space, and the scratch does not exist
+        yet.
 
         And an ATOM-keyed ``using=`` binding is applied here rather than sent
         on. The engine's metta_host_substitute/3 matches an atom by NAME
@@ -2804,12 +2820,7 @@ class Space(Handle):
         ``Atom.subs`` here and a name key keeps meaning the symbol it always
         meant, to the same engine predicate as before.
         """
-        if theory is not None and interpreter is not None:
-            msg = (
-                f"theory= and interpreter= each select the evaluation relation; "
-                f"pass one of them per {door}() ask"
-            )
-            raise TypeError(msg)
+        using = {**(_RUN_BINDINGS.get() or {}), **(using or {})} or None
         if using:
             keyed = {key: value for key, value in using.items() if isinstance(key, Atom)}
             if keyed:
@@ -2821,12 +2832,32 @@ class Space(Handle):
                     for key, value in using.items()
                     if not isinstance(key, Atom)
                 } or None
-        if interpreter is not None:
-            interpreted = parse(target) if isinstance(target, str) else _to_atom(target)
-            target = Expression(
-                [_to_atom(interpreter), interpreted, Symbol("%Undefined%"), self]
-            )
+        if interpreter is not None and theory is None:
+            target = self._interpreted(target, interpreter, self)
         return target, using
+
+    def _interpreted(self, target: Any, interpreter: Any, space: Space) -> Expression:
+        """The explicit interpreter application, over one space.
+
+        ``(interpreter target %Undefined% space)`` is the shape MeTTa's own
+        evaluation function has -- `!(test (metta (+ 1 2) %Undefined% &self) 3)`
+        is in the corpus -- so this says "reduce with YOURS instead of the
+        engine's". The space argument is what makes it compose with ``theory=``:
+        the interpreter reads the space it is handed, and the theory decides
+        which space that is.
+
+        The INTERPRETER must declare its first parameter `Atom`, or MeTTa
+        reduces the target before it ever arrives and the interpreter sees an
+        answer rather than a term
+        [measured 2026-08-31: an ordinary define answered `(Saw base)` where
+        `(: e (-> Atom Atom Atom %Undefined%))` answered `(Saw (choice))`].
+        The return metatype is the other half: `%Undefined%` there so the
+        interpreter's own answer reduces, `Atom` so it does not.
+        """
+        interpreted = parse(target) if isinstance(target, str) else _to_atom(target)
+        return Expression(
+            [_to_atom(interpreter), interpreted, Symbol("%Undefined%"), space]
+        )
 
     def _in_theory(self, theory: Any) -> _abc.Iterator[Space]:
         """A scratch space holding one theory, dropped when the block ends.
@@ -2849,10 +2880,10 @@ class Space(Handle):
         target: Any,
         theory: Any,
         *,
-        using: dict[str, Any] | None,
         timeout: float | None,
         inferences: int | None,
         carrier: Any | None,
+        interpreter: Any | None = None,
     ) -> Answers[Any]:
         """Defer an isolated theory ask and own its scratch-space lifetime."""
         columns = () if isinstance(target, str) else tuple(_column_names((_to_atom(target),)))
@@ -2864,17 +2895,26 @@ class Space(Handle):
                 atoms = self._theory_atoms(theory)
                 if atoms:
                     scratch.add(*atoms)
+                # With an interpreter, the application names the SCRATCH and is
+                # asked of the RECEIVER: the interpreter's own definition lives
+                # here, and the space it reads is the theory's. Asking the
+                # scratch instead leaves the interpreter unresolved, and naming
+                # the receiver leaves the theory unread
+                # [measured 2026-08-31, both ways round].
+                asked, ask_of = (
+                    (target, scratch)
+                    if interpreter is None
+                    else (self._interpreted(target, interpreter, scratch), self)
+                )
                 if carrier is None:
-                    inner = scratch.answers(
-                        target,
-                        using=using,
+                    inner = ask_of.answers(
+                        asked,
                         timeout=timeout,
                         inferences=inferences,
                     )
                 else:
-                    inner = scratch.answers(
-                        target,
-                        using=using,
+                    inner = ask_of.answers(
+                        asked,
                         timeout=timeout,
                         inferences=inferences,
                         under=carrier,
@@ -2961,19 +3001,6 @@ class Space(Handle):
             None,
         )
 
-    def hyperpose(
-        self,
-        *targets: Any,
-        timeout: float | None = None,
-    ) -> list[Atom | Undefined]:
-        """parallel(), under the language's own name.
-
-        (hyperpose ...) is the engine form this runs, so the Python
-        surface reads MeTTa-natively; a thread pool is a space whose
-        atoms are spaces, and this is how one is exercised from Python.
-        """
-        return self.parallel(*targets, timeout=timeout)
-
     def pool(self, workers: int | None = None) -> Any:
         """A pool of worker threads that each hold their own Prolog engine.
 
@@ -3024,7 +3051,6 @@ class Space(Handle):
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         theory: Any | None = None,
@@ -3060,16 +3086,24 @@ class Space(Handle):
         answer with an algebra value, so it would make a status row a triple
         rather than the pair it is, which is a question about what a status IS.
         """
-        target, using = self._prepared_ask(
-            target, using, theory, interpreter, "eval_status"
-        )
+        target, using = self._prepared_ask(target, None, theory, interpreter)
         if theory is None:
             return evaluate_status(
                 self._rt, self._space, target, timeout, inferences, using=using
             )
         for scratch in self._in_theory(theory):
-            return scratch.eval_status(
-                target, using=using, timeout=timeout, inferences=inferences
+            # With an interpreter, the application names the SCRATCH and is
+            # asked of the RECEIVER, the same way answers() composes them: the
+            # interpreter's definition lives here and the space it reads is
+            # the theory's.
+            if interpreter is None:
+                return scratch.eval_status(
+                    target, timeout=timeout, inferences=inferences
+                )
+            return self.eval_status(
+                self._interpreted(target, interpreter, scratch),
+                timeout=timeout,
+                inferences=inferences,
             )
         raise AssertionError  # pragma: no cover -- _in_theory always yields once
 
@@ -3092,7 +3126,6 @@ class Space(Handle):
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
@@ -3115,9 +3148,7 @@ class Space(Handle):
         failure, and failure outranks the count. eval() is the door
         that keeps errors as data.
         """
-        answers = self.eval(
-            target, using=using, timeout=timeout, inferences=inferences
-        )
+        answers = self.eval(target, timeout=timeout, inferences=inferences)
         raise_error_answers(answers, space=self._space, target=target)
         return value_one(target, answers)
 
@@ -3125,7 +3156,6 @@ class Space(Handle):
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
@@ -3140,9 +3170,7 @@ class Space(Handle):
         does, because None must keep meaning "no answers" and an error
         used as a value is the silent kind of wrong.
         """
-        answers = self.eval(
-            target, using=using, timeout=timeout, inferences=inferences
-        )
+        answers = self.eval(target, timeout=timeout, inferences=inferences)
         if not answers:
             return None
         raise_error_answers(answers[:1], space=self._space, target=target)
@@ -3999,7 +4027,6 @@ class Space(Handle):
         target: Any,
         depth: int | None = None,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> list[Any]:
@@ -4022,7 +4049,7 @@ class Space(Handle):
         `interpreter`, because a meta-interpreted diagnostic does not select an
         evaluation relation.
         """
-        target, using = self._prepared_ask(target, using, door="derivation")
+        target, using = self._prepared_ask(target, None)
         diagnostics = _importlib.import_module(f"{__package__}._space_diagnostics")
         return diagnostics.derivations(
             self._rt,
@@ -4784,15 +4811,6 @@ class Space(Handle):
         )
         self._rt.must("metta_install_bridges")
         return atom
-
-    def reaction(
-        self,
-        pattern: str | Atom,
-        operation: str | Atom,
-        priority: int | None = None,
-    ) -> Atom:
-        """Compatibility spelling for :meth:`reacts`; new code uses reacts."""
-        return self.reacts(pattern, operation, priority)
 
     def admits(self, type_name: str) -> Atom:
         """Type a pool's membership: only TYPE-carrying atoms enter.

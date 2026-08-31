@@ -551,11 +551,11 @@ _ALIASES.update(
 )
 
 _DOCUMENTATION = {
-    "%": "%: (-> Number Number Number)\n\nPython's own operator. Both take the sign of the divisor for a positive divisor; LeaTTa's is Euclidean, so a NEGATIVE divisor parts them and `mod-floor` is the name for Python's convention.",
+    "%": "%: (-> Number Number Number)\n\nPython's own operator. Both take the sign of the divisor for a positive divisor; a Euclidean `%` differs on a NEGATIVE divisor, which parts them and `mod-floor` is the name for Python's convention.",
     "*": "*: (-> Number Number Number)\n\nPython's own operator.",
     "+": "+: (-> Number Number Number)\n\nPython's own operator. On atoms the same operator builds `(+ ...)` instead of computing, which is how a compiled body reaches the MeTTa function.",
     "-": "-: (-> Number Number Number)\n\nPython's own operator.",
-    "/": "/: (-> Number Number Number)\n\nPython's `/` is true division, and so is this engine's. LeaTTa's integer `/` is EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on floats all three agree.",
+    "/": "/: (-> Number Number Number)\n\nPython's `/` is true division, and so is this engine's. An integer `/` is EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on floats all three agree.",
     "<": "<: (-> Number Number Bool)\n\nPython's own operator.",
     "<=": "<=: (-> Number Number Bool)\n\nPython's own operator.",
     "=": "=: (-> $t $t %Undefined%)\n\nThe definitional decorator. `@m.define` compiles a function into equations, `metta.equation(lhs).to(rhs)` builds one by hand, and both land as ordinary `(= ...)` atoms a program can match.",
@@ -587,7 +587,7 @@ _DOCUMENTATION = {
     "car-atom": "car-atom: (-> Expression %Undefined%)\n\nIndexing. An expression is a sequence in Python, so its head is `e[0]`.",
     "case": "case: (-> Atom Expression %Undefined%)\n\nPython's `match` statement. A bare variable arm is `case _`.",
     "cdr-atom": "cdr-atom: (-> Expression Expression)\n\nSlicing. `e[1:]` answers a Python tuple today rather than an Expression, which prints the same and is the T6 friction section 9e names as this bucket's one prerequisite.",
-    "ceil-math": "ceil-math: (-> Number Number)\n\n`math.ceil`, which answers an integer in Python 3 where LeaTTa keeps the float.",
+    "ceil-math": "ceil-math: (-> Number Number)\n\n`math.ceil`, which answers an integer in Python 3 where a float-preserving float.",
     "chain": "chain: (-> Atom Variable Atom %Undefined%)\n\nPython assignment. Chain executes one instruction, binds, substitutes and continues, which is exactly `x = m.eval(t)[0]` followed by use of `x`.",
     "change-state!": "change-state!: (-> (StateMonad $tcso) $tcso Bool)\n\nAssigning `state.value` writes the same typed engine cell and reading it back returns the replacement. The WRITE answers True rather than the cell, which is upstream's own answer -- `'change-state!'(Var, Value, true)` [source: PeTTa@ae66fa8 src/metta.pl:265] -- so the read is a separate step here as it is in Python.",
     "collapse": "collapse: (-> Atom Atom)\n\n`list()` is the everyday spelling, materialising the answers; `tuple()` is the same act when you want MeTTa's own `( )` atom back, which is what collapse answers.",
@@ -659,7 +659,7 @@ _DOCUMENTATION = {
     "tan-math": "tan-math: (-> Number Number)\n\n`math.tan`.",
     "trace!": "trace!: (-> %Undefined% Atom %Undefined%)\n\n`print` or `logging` beside the value; `m.trace()` is the engine's own reduction trace, a different and deeper thing.",
     "trunc-math": "trunc-math: (-> Number Number)\n\n`math.trunc`, or `int` on a float.",
-    "unify": "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural unification. `metta.unify(a, b)` symmetrically answers one bindings mapping or `None`; `metta.unify(a, b, then, els)` evaluates the engine conditional, running `then` once per binding set and `els` only when none exists. A compiled body lowers the same four-argument call directly to the engine form.",
+    "unify": "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural unification. `metta.unify(a, b)` symmetrically answers one substitution keyed by the VARIABLES, which is what `atom.subs` takes, or `None`; `metta.unify(a, b, then, els)` evaluates the engine conditional, running `then` once per binding set and `els` only when none exists. A compiled body lowers the same four-argument call directly to the engine form.",
     "union": "union: (-> Atom Atom %Undefined%)\n\nMultiset union over nondeterministic answers, which is concatenation: answers are iterables and `+` joins them.",
     "union-atom": "union-atom: (-> Expression Expression Atom)\n\nThe same act over an expression's children; a tuple goes back in as one expression.",
     "unique": "unique: (-> Atom %Undefined%)\n\n`dict.fromkeys` is Python's order-preserving dedupe.",
@@ -674,4 +674,15 @@ fn = _Namespace(
     aliases=_ALIASES,
     documentation=_DOCUMENTATION,
     label="target function",
+    # This namespace is GENERATED, so it holds what the catalog held when
+    # fngen last ran and cannot see a name registered since. `space.fn` is the
+    # LIVE one and does, which is the whole difference between them and is
+    # what a caller who has just registered something needs to be told
+    # [measured 2026-08-31: an @m.pure registered at run time is absent here
+    # and present on space.fn].
+    remedy=(
+        "; that namespace is generated, so a name registered at run time is "
+        "on the live one instead: space.fn.<name>, or build the term directly "
+        "with S['<name>'](...)"
+    ),
 )

@@ -46,13 +46,17 @@ def unpack_vector(m, handle: Handle) -> list[int]:
     extension's own accessors read the native structure out element by
     element. Nothing in this function knows what a vector is inside.
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
+    # One block, both doors. This used to bind the handle for run() and pass
+    # the same handle again as eval()'s `using=` two lines later, which is
+    # exactly the fragmentation the scope removes.
     with m.bind(h=handle):
         (row,) = m.run("!(vector-length h)")
-    length = int(str(row[0]))
-    return [
-        int(str(m.eval("(vector-nth h i)", using={"h": handle, "i": i})[0]))
-        for i in range(length)
-    ]
+        length = int(str(row[0]))
+        out = []
+        for i in range(length):
+            with m.bind(i=i):
+                out.append(int(str(m.eval("(vector-nth h i)")[0])))
+    return out
 
 
 def test_a_c_object_crosses_by_identity_and_unpacks_in_python(vectors):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

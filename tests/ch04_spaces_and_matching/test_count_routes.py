@@ -255,6 +255,50 @@ def test_a_generated_answer_bag_survives_both_routes(metta, answers) -> None:
     agreed = both_routes_agree(lambda: metta.fn[name](0))
     assert agreed == Counter(str(value) for value in answers)
 
+def test_a_view_releases_its_cursor_on_request_not_only_on_collection(metta) -> None:
+    """`close()` and the `with` form, which the other resource-owning type had.
+
+    A lazy view owns an engine cursor. `Space` has said so from the start, with
+    `drop()` and the `with` form, and the ASYNC cursor says so too with
+    `aclose()` and its async context manager; the synchronous view had only a
+    finalizer. Being only a finalizer is the defect: `__del__` runs during
+    interpreter shutdown with module globals already cleared, which is how an
+    abandoned cursor printed "Exception ignored ... catching classes that do
+    not inherit from BaseException" out of a torn-down module [measured
+    2026-08-31].
+    """
+    name = unique("route-closed")
+
+    @metta.op(name=name, effect="writesState")
+    def route(origin, destination):
+        del origin, destination
+        yield from ((S.paris, S.lyon), (S.lyon, S.nice))
+
+    def engines() -> int:
+        return metta.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
+
+    gc.collect()
+    before = engines()
+
+    # Abandoned part-way, then closed by hand rather than by the collector.
+    view = metta.answers(S[name](V.origin, V.destination))
+    next(iter(view))
+    assert engines() > before, "a pulled view holds a cursor"
+    view.close()
+    assert engines() == before, "close() gives it back"
+    view.close()  # twice is a no-op, as drop() is
+
+    # Answers already pulled stay readable: they are cached values, not engine
+    # state, so closing gives up only what was never pulled.
+    assert view[0] is not None
+
+    # And the with form is the same act, scoped.
+    with metta.answers(S[name](V.origin, V.destination)) as scoped:
+        next(iter(scoped))
+        assert engines() > before
+    assert engines() == before, "leaving the block gives it back"
+
+
 def test_a_counted_view_releases_its_engine_when_it_is_dropped(metta) -> None:
     """A counted view nobody iterates releases the cursor its count retained.
 

@@ -1249,10 +1249,12 @@ def test_copy_clones_through_the_bulk_door(metta):  # noqa: D103  -- pytest disc
             protocol.drop()
 
 
-def test_eval_using_carries_identity(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    # using= binds named host values into a TERM, the same vocabulary run()
-    # takes for source, so reaching for eval instead of run costs no change
-    # of spelling. The value crosses by identity, not as a printed form.
+def test_bind_carries_identity_into_a_term(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
+    # bind() names host values for a TERM, the same scope run() reads for
+    # source, so reaching for eval instead of run costs no change of
+    # spelling. The value crosses by identity, not as a printed form. It was
+    # a `using=` keyword on six doors and a scope on one; a binding mapping
+    # is the kind of value that grows, so it wants the block.
     class Blob:
         def __init__(self, n):
             self.n = n
@@ -1266,13 +1268,15 @@ def test_eval_using_carries_identity(m):  # noqa: D103  -- pytest discovers or i
     )
     m.run("(= (describe $o) (Seen (blob-n $o)))")
     try:
-        assert str(m.eval("(describe o)", using={"o": blob})[0]) == "(Seen 7)"
-        assert m.eval("(describe o)", using={"o": blob}) == [parse("(Seen 7)")]
-        assert str(m.eval("(describe o)", using={"o": blob})[0]) == "(Seen 7)"
-        # a built atom is the same door
-        assert str(m.eval(parse("(describe o)"), using={"o": blob})[0]) == "(Seen 7)"
-        # and the object arrived itself, not a copy
-        assert m.eval("(blob-n o)", using={"o": blob}) == [7]
+        with m.bind({"o": blob}):
+            assert str(m.eval("(describe o)")[0]) == "(Seen 7)"
+            assert m.eval("(describe o)") == [parse("(Seen 7)")]
+            # a built atom is the same door
+            assert str(m.eval(parse("(describe o)"))[0]) == "(Seen 7)"
+            # and the object arrived itself, not a copy
+            assert m.eval("(blob-n o)") == [7]
+            # one block covers the source door too
+            assert m.run("!(blob-n o)") == [[7]]
     finally:
         m.unregister_op("blob-n")
 
@@ -1289,7 +1293,8 @@ def test_a_not_reducible_answer_is_the_unreduced_term_with_no_flag(m):
         m.eval("(Point item)", residuals=True)
 
     assert m.eval_status("(Point item)")[0][0] == "not-reducible"
-    (answer,) = m.eval("(Point item)", using={"item": blob})
+    with m.bind({"item": blob}):
+        (answer,) = m.eval("(Point item)")
     assert isinstance(answer, metta.Expression)
     assert answer.args[0].value is blob
 

@@ -174,7 +174,7 @@ def twin(m):
     # Runs its branches concurrently, so `once` over an expensive branch and a
     # cheap one answers as soon as the cheap one is done.
     # !(test (once (hyperpose ((spin 3000000) (spin 3)))) done)
-    branches = S.hyperpose((S.spin(3_000_000), S.spin(3)))
+    branches = S.parallel((S.spin(3_000_000), S.spin(3)))
     assert m.answers(branches).first(default=UNIT) == S.done
     #
     # Both branches ran and both answers came back, which is what collapsing

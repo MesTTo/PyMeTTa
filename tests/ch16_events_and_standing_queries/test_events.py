@@ -108,7 +108,7 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
         rule = bridge(
             metta._at("&ev-declared"), S.tick(V.n), target, S.heard(V.n)
         )
-        metta._at("&ev-declared").reaction("(tick $n)", "(insert &ev-mirror (reacted $n))"
+        metta._at("&ev-declared").reacts("(tick $n)", "(insert &ev-mirror (reacted $n))"
         )
         mirror = metta._at("&ev-mirror")
         try:
@@ -126,7 +126,7 @@ def test_a_context_that_declares_events_serves_them_and_one_that_does_not_refuse
         with pytest.raises(MettaError, match="declares no event capability"):
             bridge(metta._at("&ev-silent"), S.tick(V.n), target)
         with pytest.raises(MettaError, match="events &ev-silent"):
-            metta._at("&ev-silent").reaction("(tick $n)", "(insert &ev-mirror (reacted $n))"
+            metta._at("&ev-silent").reacts("(tick $n)", "(insert &ev-mirror (reacted $n))"
             )
 
         # The refusal is surgical: what the provider does implement still
@@ -204,7 +204,7 @@ def test_subscribe_bridge_and_reaction_are_expressible_over_the_public_event_str
     # EVALUATE, a reaction's step: run an operation under the bindings. The
     # shipped form declares (on ...) and the engine folds it; this one folds
     # the same evaluation from outside.
-    metta._at(source.name).reaction("(job $n)", "(insert &ev-reacted (shipped $n))"
+    metta._at(source.name).reacts("(job $n)", "(insert &ev-reacted (shipped $n))"
     )
     reacted = metta._at("&ev-reacted")
 

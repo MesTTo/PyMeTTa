@@ -911,7 +911,6 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         under: Any = _UNSET,
@@ -931,7 +930,6 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.eval(
                 target,
-                using=using,
                 timeout=timeout,
                 inferences=inferences,
                 under=_UNSET if carrier is None else carrier,
@@ -944,7 +942,6 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
@@ -952,7 +949,6 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m._one(
                 target,
-                using=using,
                 timeout=timeout,
                 inferences=inferences,
             )
@@ -1008,14 +1004,13 @@ class AsyncMeTTa:
     async def profile(
         self,
         source: str,
-        using: dict[str, Any] | None = None,
         *,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
         """Profile source execution and return its groups and counters."""
         return await self.call(
-            lambda m: m.profile(source, using, timeout=timeout, inferences=inferences)
+            lambda m: m.profile(source, timeout=timeout, inferences=inferences)
         )
 
     async def parse(self, source: str) -> Any:
@@ -1081,7 +1076,6 @@ class AsyncMeTTa:
         target: Any,
         depth: int | None = None,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
@@ -1090,7 +1084,6 @@ class AsyncMeTTa:
             lambda m: m.derivation(
                 target,
                 depth,
-                using=using,
                 timeout=timeout,
                 inferences=inferences,
             )
@@ -1165,24 +1158,19 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
     ) -> Any:
         """The first answer decoded, or None for no answers."""
         return await self.call(
             lambda m: m._first(
-                target, using=using, timeout=timeout, inferences=inferences
+                target, timeout=timeout, inferences=inferences
             )
         )
 
     async def parallel(self, *targets: Any, timeout: float | None = None) -> list:
         """Evaluate every target concurrently inside the engine."""
         return await self.call(lambda m: m.parallel(*targets, timeout=timeout))
-
-    async def hyperpose(self, *targets: Any, timeout: float | None = None) -> list:
-        """parallel() under its MeTTa name."""
-        return await self.call(lambda m: m.hyperpose(*targets, timeout=timeout))
 
     async def integrate(self, target: Any) -> str:
         """Install a library integration; see metta.integrate."""
@@ -1191,7 +1179,6 @@ class AsyncMeTTa:
     async def profile_extension(
         self,
         source: str,
-        using: dict[str, Any] | None = None,
         *,
         extension: str | None = None,
         names: Sequence[str] | None = None,
@@ -1202,7 +1189,6 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.profile_extension(
                 source,
-                using,
                 extension=extension,
                 names=names,
                 timeout=timeout,
@@ -1214,7 +1200,6 @@ class AsyncMeTTa:
         self,
         target: Any,
         *,
-        using: dict[str, Any] | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
         theory: Any | None = None,
@@ -1224,7 +1209,6 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.eval_status(
                 target,
-                using=using,
                 timeout=timeout,
                 inferences=inferences,
                 theory=theory,
@@ -1392,14 +1376,6 @@ class AsyncMeTTa:
         return await self.call(
             lambda m: m.reacts(pattern, operation, priority)
         )
-
-    async def reaction(  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
-        self,
-        pattern: str | Atom,
-        operation: str | Atom,
-        priority: int | None = None,
-    ) -> Atom:
-        return await self.reacts(pattern, operation, priority)
 
     async def agenda(
         self, policy: AgendaPolicy, function: str | None = None

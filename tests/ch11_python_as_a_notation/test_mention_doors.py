@@ -292,6 +292,43 @@ def test_rejected_attributes_never_execute_host_objects(m):
         m.define(_computed_fn_member)
 
 
+def test_the_generated_namespace_names_the_live_one_when_it_misses():
+    """Two `fn` doors, and the refusal has to say which is which.
+
+    The module-level `fn` is GENERATED, which is what gives it autocomplete and
+    a type stub; `space.fn` is LIVE. So a name registered at run time is absent
+    from one and present on the other, and saying only "not in the generated
+    catalog" sends a caller looking for a typo they did not make.
+    """
+    import metta as metta_module
+
+    space = metta_module.space("&fnremedy")
+
+    @space.pure(name="fn-remedy-probe")
+    def probe(value):
+        return value
+
+    try:
+        with pytest.raises(AttributeError) as refused:
+            _ = metta_module.fn.fn_remedy_probe
+        message = str(refused.value)
+        assert "space.fn.<name>" in message, message
+        assert "S['<name>'](...)" in message, message
+        # And the remedy is real, not advice.
+        assert space.fn.fn_remedy_probe is not None
+    finally:
+        space.unregister_op("fn-remedy-probe")
+
+    # The LIVE door names its own remedies, which are different ones: a miss
+    # here means the name is defined nowhere this space can see, so the answer
+    # is to define or register it rather than to look on another namespace.
+    with pytest.raises(AttributeError) as absent:
+        _ = space.fn.defined_nowhere
+    live = str(absent.value)
+    assert "@space.define" in live and "@space.op" in live, live
+    assert "S['defined_nowhere'](...)" in live, live
+
+
 def test_the_fn_namespace_is_generated(repo_root: Path):
     """One generator owns the runtime manifest and explicit typed members."""
     tools = repo_root / "extensions" / "python" / "tools"

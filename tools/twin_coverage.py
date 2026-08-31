@@ -291,7 +291,7 @@ HOST_TEXT_CALLS = frozenset({"print", "Path", "open", "warning", "info", "debug"
 #: commit=5c67147566907276a95a5fbf059cf8f98b6685f1].
 DECLARATION_CALLS = frozenset({
     "admits", "agenda", "algebra", "annotations", "capacity", "context",
-    "emits", "events", "handles", "image", "merge", "on_error", "reaction",
+    "emits", "events", "handles", "image", "merge", "on_error", "reacts",
     "source", "writes",
 })
 

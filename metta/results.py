@@ -1167,13 +1167,49 @@ class Answers[T](Sequence[T]):
         del memo
         return self
 
+    def close(self) -> None:
+        """Release the engine cursor this view holds, now rather than later.
+
+            with metta.answers(S.fact(V.n)) as rows:
+                for row in rows:
+                    if enough(row):
+                        break
+
+        A lazy view owns a cursor and the engine behind it, and a view that is
+        abandoned part-way holds both until the collector runs. `Space` has
+        owned a resource and said so from the start, with `drop()` and the
+        `with` form; this is the same vocabulary for the other type that owns
+        one, which had only a finalizer.
+
+        The finalizer stays as the backstop, and being only a backstop is the
+        point: a `__del__` runs during interpreter shutdown with module globals
+        already cleared, which is how an abandoned cursor printed
+        "Exception ignored ... catching classes that do not inherit from
+        BaseException" out of a torn-down module [measured 2026-08-31].
+
+        Closing twice is a no-op, as it is for `drop()`. Answers already pulled
+        stay readable, because they are cached values rather than engine state;
+        only what has NOT been pulled is given up.
+        """
+        source = self._source
+        close = getattr(source, "close", None)
+        if callable(close):
+            close()
+        self._done = True
+
+    def __enter__(self) -> Self:  # noqa: D105 -- the Python context protocol names the contract
+        return self
+
+    def __exit__(self, *_exception: object) -> None:  # noqa: D105 -- the Python context protocol names the contract
+        self.close()
+
     def __del__(self) -> None:  # noqa: D105 -- finalization releases the owned source
-        # The source owns everything the engine holds for this view, which for
-        # a lazy evaluation is a cursor and the engine behind it. A source
-        # that was never started owns one too, the cursor a declined count
-        # opened, so the closable object the count route hands over closes
-        # both; a bare generator's finally would never run
-        # [source: metta/_space_execution.py, _RetainedAnswers.close; tested
+        # The backstop under close(). The source owns everything the engine
+        # holds for this view, which for a lazy evaluation is a cursor and the
+        # engine behind it. A source that was never started owns one too, the
+        # cursor a declined count opened, so the closable object the count
+        # route hands over closes both; a bare generator's finally would never
+        # run [source: metta/_space_execution.py, _RetainedAnswers.close; tested
         # test_a_counted_view_releases_its_engine_when_it_is_dropped].
         close = getattr(self._source, "close", None)
         if callable(close):

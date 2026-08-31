@@ -2,12 +2,13 @@
 what you write in Python instead, and which bucket the translation falls in.
 `phrasebook.py` runs both sides of every row; this file is only the rows.
 
-The names, their types and their metatypes are LeaTTa's, copied verbatim from
-`tests/conformance/stdlib-manifest.json`, whose own derivation field says every
-field was measured against LeaTTa's built binary rather than transcribed. The
-manifest declares 382 operations over 380 distinct names: `print-alternatives!`
-and `_minimal-foldl-atom` are each declared twice, once in the prelude and once
-in a built-in module registry, with identical types both times.
+The rows are the MeTTa standard-library surface: 380 distinct names with their
+types and metatypes. They were transcribed once from a mechanised stdlib
+manifest and are this repository's own from here, checked against what this
+engine answers rather than against another implementation. The oracle
+comparison that used to sit beside them is gone (user, 2026-08-31: "there
+should not be any leatta tests"), finishing the migration commit 20cd107a began
+when it moved the conformance lane to upstream PeTTa.
 
 Assumes:
   - a row's MeTTa form is a whole program, so `bind!` and `(= ...)` inside one
@@ -15,9 +16,8 @@ Assumes:
   - `&pb` in a MeTTa form is that row's own space; the runner makes the name
     unique per row before running it here
 Guarantees:
-  - the `types` of every row equal LeaTTa's declaration for that name, which
-    `phrasebook.py --gate` re-checks against the manifest whenever LeaTTa is
-    checked out [tested: test_the_phrasebook_carries_one_row_per_name]
+  - every stdlib name has exactly one row, so the coverage denominator cannot
+    quietly shrink [tested: test_the_phrasebook_carries_one_row_per_name]
   - get-type, class declaration, and state rows use the consolidated R5 Python
     doors [tested: test_the_phrasebook_page_is_up_to_date; commit=c34c9bf3e55a8425d3f251c3ad06c33bc9755a22]
   - the matching, nondeterminism, fold, and state rows execute every public
@@ -29,8 +29,7 @@ Guarantees:
   - the Python-first additions table names the two effect-safety declarations
     and the saga runner they gate [tested:
     test_python_first_public_faces_are_in_the_phrasebook; commit=16ffc0beff1dff8e6d42cb6c50ff010a22cfa0c0]
-  - strategy rows import lib_strategy only on MeTTa and may name an equivalent
-    unary LeaTTa oracle form when this engine's reified plan has a different arity
+  - strategy rows import lib_strategy only on MeTTa
     [tested: python extensions/python/tools/phrasebook.py --gate; commit=0d37dd6b24fe916e44cdbfb4efc6a1d5ffaf74aa]
   - space write rows teach the scalar-atom versus fact-stream boundary shipped
     by ``Space +=`` [tested: test_the_phrasebook_page_is_up_to_date;
@@ -66,11 +65,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-#: The manifest these rows were taken from.
-LEATTA_VERSION = "1.0.9"
-LEATTA_COMMIT = "39c7c43"
-LEATTA_ENTRY_COUNT = 382
-
 BUCKETS = {
     "dissolves": (
         "Python already has the concept, so there is no metta name at all and the "
@@ -82,8 +76,8 @@ BUCKETS = {
         "the `S.` door and reducing it"
     ),
     "internal": (
-        "LeaTTa's mechanised interpreter, written in MeTTa; this engine writes its "
-        "interpreter in Prolog, so these names are on neither surface"
+        "a mechanised interpreter's own names, written in MeTTa; this engine "
+        "writes its interpreter in Prolog, so these names are on neither surface"
     ),
     "absent": "a user-facing operation with no Python spelling today: the residue",
 }
@@ -129,7 +123,7 @@ class Entry:
     unrun: str | None = None
     ruled: str | None = None
     metta_setup: str | None = None
-    oracle_metta: str | None = None
+    unary_metta: str | None = None
     metta_fuel: int | None = None
     visibility: str = ""
 
@@ -145,7 +139,7 @@ class Entry:
 
 @dataclass(frozen=True)
 class PublicFace:
-    """One Python-first public spelling with no LeaTTa stdlib row."""
+    """One Python-first public spelling with no stdlib row of its own."""
 
     spelling: str
     meaning: str
@@ -170,7 +164,7 @@ PUBLIC_FACES: tuple[PublicFace, ...] = (
     ),
     PublicFace(
         "space.answers(term, theory=laws); space.answers(term, interpreter=interpret)",
-        "select a complete theory value or full interpreter for one ask",
+        "select a theory, a full interpreter, or both, for one ask",
         "answers = space.answers(query, theory=rules)",
     ),
     PublicFace(
@@ -307,16 +301,15 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "/", (NUMBER2,), "Grounded", "arith", "dissolves",
-        "Python's `/` is true division, and so is this engine's. LeaTTa's integer `/` is "
+        "Python's `/` is true division, and so is this engine's. An integer `/` is "
         "EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on "
         "floats all three agree.",
         metta="!(/ 7 2)", python="7 / 2",
-        differs="LeaTTa answers 3 (Euclidean integer division), this engine and Python 3.5",
     ),
     Entry(
         "%", (NUMBER2,), "Grounded", "arith", "dissolves",
         "Python's own operator. Both take the sign of the divisor for a positive "
-        "divisor; LeaTTa's is Euclidean, so a NEGATIVE divisor parts them and "
+        "divisor; a Euclidean `%` differs on a NEGATIVE divisor, which parts them and "
         "`mod-floor` is the name for Python's convention.",
         metta="!(% -7 3)", python="-7 % 3",
     ),
@@ -446,16 +439,14 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "ceil-math", (NUMBER1,), "Grounded", "math", "dissolves",
-        "`math.ceil`, which answers an integer in Python 3 where LeaTTa keeps the "
+        "`math.ceil`, which answers an integer in Python 3 where a float-preserving "
         "float.",
         metta="!(ceil-math 2.1)", python="import math\nmath.ceil(2.1)",
-        differs="LeaTTa answers 3.0 and keeps the float; this engine and Python answer 3",
     ),
     Entry(
         "floor-math", (NUMBER1,), "Grounded", "math", "dissolves",
         "`math.floor`, the same integer-against-float difference as `ceil-math`.",
         metta="!(floor-math 2.9)", python="import math\nmath.floor(2.9)",
-        differs="LeaTTa answers 2.0 and keeps the float; this engine and Python answer 2",
     ),
     Entry(
         "round-math", (NUMBER1,), "Grounded", "math", "dissolves",
@@ -463,13 +454,11 @@ ENTRIES: list[Entry] = [
         "`round(2.5)` is 2 where MeTTa answers 3. Half away from zero is "
         "`math.floor(x + 0.5)` for a positive number.",
         metta="!(round-math 2.5)", python="import math\nmath.floor(2.5 + 0.5)",
-        differs="LeaTTa answers 3.0 and keeps the float; this engine and Python answer 3",
     ),
     Entry(
         "trunc-math", (NUMBER1,), "Grounded", "math", "dissolves",
         "`math.trunc`, or `int` on a float.",
         metta="!(trunc-math 2.9)", python="import math\nmath.trunc(2.9)",
-        differs="LeaTTa answers 2.0 and keeps the float; this engine and Python answer 2",
     ),
     Entry(
         "isnan-math", ("(-> Number Bool)",), "Grounded", "math", "dissolves",
@@ -543,13 +532,11 @@ ENTRIES: list[Entry] = [
         "max-atom", ("(-> %Undefined% Number)",), "Grounded", "atoms", "dissolves",
         "Python's builtin `max` over the children.",
         metta="!(max-atom (1 2 3))", python="max([1, 2, 3])",
-        differs="LeaTTa answers 3.0 and keeps the float; this engine and Python answer 3",
     ),
     Entry(
         "min-atom", ("(-> %Undefined% Number)",), "Grounded", "atoms", "dissolves",
         "Python's builtin `min` over the children.",
         metta="!(min-atom (1 2 3))", python="min([1, 2, 3])",
-        differs="LeaTTa answers 1.0 and keeps the float; this engine and Python answer 1",
     ),
     Entry(
         "sort-strings", ("(-> Expression Expression)",), "Grounded", "atoms", "dissolves",
@@ -605,7 +592,7 @@ ENTRIES: list[Entry] = [
         "[measured 2026-08-22].",
         metta="!(for-each-in-atom (1 2) println!)",
         python="for value in [1, 2]:\n    print(value)\nmetta.Expression()",
-        differs="this engine answers one unit per element where LeaTTa answers one",
+        differs="this engine answers one unit per element",
     ),
     Entry(
         "atom-subst", ("(-> Atom (:Atom Variable) Atom Atom)",), "Symbol", "atoms", "method",
@@ -746,13 +733,14 @@ ENTRIES: list[Entry] = [
     Entry(
         "unify", ("(-> Atom Atom Atom Atom %Undefined%)",), "Symbol", "control", "method",
         "Structural unification. `metta.unify(a, b)` symmetrically answers one "
-        "bindings mapping or `None`; `metta.unify(a, b, then, els)` evaluates the "
+        "substitution keyed by the VARIABLES, which is what `atom.subs` takes, "
+        "or `None`; `metta.unify(a, b, then, els)` evaluates the "
         "engine conditional, running `then` once per binding set and `els` only "
         "when none exists. A compiled body lowers the same four-argument call "
         "directly to the engine form.",
         metta="!(unify (f $x) (f a) $x nope)",
         python=(
-            "assert metta.unify(S.f(S.a), S.f(V.x)) == {'x': S.a}\n"
+            "assert metta.unify(S.f(S.a), S.f(V.x)) == {V.x: S.a}\n"
             "metta.unify(S.f(V.x), S.f(S.a), V.x, S.nope).one()"
         ),
     ),
@@ -798,7 +786,7 @@ ENTRIES: list[Entry] = [
         "evaluates it, so the quoting question does not arise. `S.quote(x)` builds "
         "the term itself where a program needs the constructor.",
         metta="!(quote (+ 1 2))", python="S['+'](1, 2)",
-        differs="LeaTTa answers (quote (+ 1 2)) and keeps the wrapper; this "
+        differs="a wrapper-keeping quote answers (quote (+ 1 2)); this "
                 "engine and Python answer (+ 1 2), which is upstream's own "
                 "lowering, `Out = Expr` [source: PeTTa@ae66fa8 "
                 "src/translator.pl:320-322]",
@@ -815,7 +803,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "gtry", ("(-> Atom Atom Atom)",), "Symbol", "control", "method",
-        "LeaTTa's guarded try is lib_strategy's binary failure-to-identity "
+        "the guarded try is lib_strategy's binary failure-to-identity "
         "spelling. Python builds the same gtry atom and evaluates it in the space.",
         metta="!(gtry id a)",
         python=PY_STRATEGY_SETUP + "space.eval(S.gtry(metta.strategies.id, S.a))",
@@ -824,57 +812,57 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "_check-alternatives", ("(-> Atom Atom)",), "Symbol", "control", "internal",
-        "LeaTTa's alternative-set check inside the Stratego basis.",
+        "the alternative-set check inside the Stratego basis.",
     ),
     Entry(
         "_case-empty", ("(-> Expression Atom)",), "Symbol", "control", "internal",
-        "LeaTTa's own decomposition of `case`.",
+        "a mechanised decomposition of `case`.",
     ),
     Entry(
         "case%", ("(-> Atom Expression %Undefined%)",), "Symbol", "control", "absent",
-        "LeaTTa's `%`-suffixed variant, the error-transparent twin of `case`. This engine "
+        "the `%`-suffixed variant, the error-transparent twin of `case`. This engine "
         "ships no `%` family.",
         metta="!(case% 2 ((1 one) (2 two)))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "let%", ("(-> Atom %Undefined% Atom %Undefined%)",), "Symbol", "control", "absent",
-        "LeaTTa's error-transparent twin of `let`.",
+        "the error-transparent twin of `let`.",
         metta="!(let% $x 1 (+ $x 1))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "let*%", ("(-> Expression Atom %Undefined%)",), "Symbol", "control", "absent",
-        "LeaTTa's error-transparent twin of `let*`.",
+        "the error-transparent twin of `let*`.",
         metta="!(let*% (($x 1)) $x)", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "unify%", ("(-> Atom Atom Atom Atom %Undefined%)",), "Symbol", "control", "absent",
-        "LeaTTa's error-transparent twin of `unify`.",
+        "the error-transparent twin of `unify`.",
         metta="!(unify% (f a) (f $x) $x nope)", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "=%", ("(-> $t $t %Undefined%)",), "Symbol", "control", "absent",
-        "LeaTTa's error-transparent twin of `=`, the equation head itself.",
+        "the error-transparent twin of `=`, the equation head itself.",
         metta="!(get-type =%)", unrun="this engine does not declare the name",
     ),
     Entry(
         "switch-minimal", ("(-> Atom Expression Atom)",), "Symbol", "control", "internal",
-        "LeaTTa's own decomposition of `switch`.",
+        "a mechanised decomposition of `switch`.",
     ),
     Entry(
         "_switch-minimal%", ("(-> Atom Expression Atom)",), "Symbol", "control", "internal",
-        "LeaTTa's own decomposition of `switch`.",
+        "a mechanised decomposition of `switch`.",
     ),
     Entry(
         "switch-internal", ("(-> Atom Expression Atom)",), "Symbol", "control", "internal",
-        "LeaTTa's own decomposition of `switch`.",
+        "a mechanised decomposition of `switch`.",
     ),
     Entry(
         "switch-internal%", ("(-> Atom Expression Atom)",), "Symbol", "control", "internal",
-        "LeaTTa's own decomposition of `switch`.",
+        "a mechanised decomposition of `switch`.",
     ),
     Entry(
         "case-empty-internal", ("(-> Atom Atom)",), "Symbol", "control", "internal",
-        "LeaTTa's own decomposition of `case`.",
+        "a mechanised decomposition of `case`.",
     ),
     # --------------------------------------------------------------- spaces
     Entry(
@@ -904,7 +892,7 @@ ENTRIES: list[Entry] = [
         metta="!(bind! &pb (new-space))\n!(add-reduct &pb (total (+ 1 2)))\n!(get-atoms &pb)",
         python="space += S.total(m.eval(S['+'](1, 2))[0])\nspace.atoms()",
         differs=(
-            "This engine stores `(total (+ 1 2))` UNREDUCED where LeaTTa and the Python "
+            "This engine stores `(total (+ 1 2))` UNREDUCED where the Python "
             "composition both store `(total 3)`: this engine's add-reduct does not "
             "reduce inside an expression whose head has no equations"
         ),
@@ -919,7 +907,7 @@ ENTRIES: list[Entry] = [
                "    space += S.total(m.eval(term)[0])\n"
                "space.atoms()",
         differs=(
-            "This engine stores both forms UNREDUCED where LeaTTa and the Python "
+            "This engine stores both forms UNREDUCED where the Python "
             "composition store `(total 3)` and `(total 4)`, the same non-reduction "
             "as `add-reduct`"
         ),
@@ -970,7 +958,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "match%", ("(-> SpaceType Atom Atom %Undefined%)",), "Grounded", "spaces", "absent",
-        "LeaTTa's error-transparent twin of `match`.",
+        "the error-transparent twin of `match`.",
         metta="!(bind! &pb (new-space))\n!(match% &pb (f $x) $x)",
         unrun="this engine leaves the call unreduced",
     ),
@@ -1099,7 +1087,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "Pair", ("(-> $ta $tb (PairType $ta $tb))",), "Symbol", "types", "absent",
-        "A constructor from LeaTTa's `skel` demonstration module. This engine has no "
+        "A constructor from the `skel` demonstration module. This engine has no "
         "such module; a class decorated with `@space.define` declares its "
         "constructor in that space.",
         metta="!(get-type (Pair 1 2))", unrun="this engine does not declare the name",
@@ -1112,7 +1100,7 @@ ENTRIES: list[Entry] = [
     Entry(
         "skel-swap-pair", ("(-> (PairType $ta $tb) (PairType $tb $ta))",), "Symbol",
         "types", "absent",
-        "The `skel` module's worked equation, LeaTTa's demonstration that a "
+        "The `skel` module's worked equation, the demonstration that a "
         "built-in module can ship both a MeTTa and a native implementation.",
         metta="!(skel-swap-pair (Pair 1 2))", unrun="this engine does not declare the name",
     ),
@@ -1176,7 +1164,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "_new-state", ("(-> $t Expression (StateMonad $t))",), "Grounded", "state", "internal",
-        "LeaTTa's internal constructor behind `new-state`.",
+        "the internal constructor behind `new-state`.",
     ),
     # ----------------------------------------------------------------- text
     Entry(
@@ -1185,7 +1173,7 @@ ENTRIES: list[Entry] = [
         "own answer: `'println!'(Arg, true)` [source: PeTTa@ae66fa8 "
         "src/metta.pl:212].",
         metta="!(println! hello)", python="print('hello')\nmetta.TRUE",
-        differs="LeaTTa answers (); this engine and Python answer True, which "
+        differs="this engine and Python answer True, which "
                 "is upstream's own `'println!'(Arg, true)` [source: "
                 "PeTTa@ae66fa8 src/metta.pl:212]",
     ),
@@ -1204,7 +1192,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "print-alternatives!", ("(-> Atom Expression (->))",), "Grounded", "text", "dissolves",
-        "Python's `print` over the answers, which is what LeaTTa's assert family "
+        "Python's `print` over the answers, which is what the assert family "
         "uses it for: showing what a form actually answered.",
         metta="!(print-alternatives! subject (a b))",
         python="print(S.subject, [S.a, S.b])\nmetta.Expression()",
@@ -1212,7 +1200,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "_print-alternatives-each!", ("(-> Expression (->))",), "Symbol", "text", "internal",
-        "LeaTTa's per-alternative half of the printer.",
+        "the per-alternative half of the printer.",
     ),
     # --------------------------------------------------------------- assert
     Entry(
@@ -1220,34 +1208,29 @@ ENTRIES: list[Entry] = [
         "Python's own `assert`. A twin or a test states its claims this way and the "
         "run proves them, because a false assertion raises.",
         metta="!(assert (== 1 1))", python="assert 1 == 1\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertEqual", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a == b`, and pytest's own assertion rewriting prints the halves.",
         metta="!(assertEqual (+ 1 1) 2)", python="assert m.eval(S['+'](1, 1))[0] == 2\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertEqualMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a == b, message`, which is Python's own second argument.",
         metta='!(assertEqualMsg (+ 1 1) 2 "sums")',
         python="assert m.eval(S['+'](1, 1))[0] == 2, 'sums'\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertAlphaEqual", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "`assert a.alpha_eq(b)`: the assertion is Python's, the relation is MeTTa's.",
         metta="!(assertAlphaEqual (f $x) (f $y))",
         python="assert S.f(V.x).alpha_eq(S.f(V.y))\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertAlphaEqualMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The same with Python's assertion message.",
         metta='!(assertAlphaEqualMsg (f $x) (f $y) "renaming")',
         python="assert S.f(V.x).alpha_eq(S.f(V.y)), 'renaming'\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertEqualToResult", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
@@ -1255,51 +1238,46 @@ ENTRIES: list[Entry] = [
         "is `assert list(answers) == [...]`.",
         metta="!(assertEqualToResult (superpose (1 2)) (1 2))",
         python="assert m.eval(S.superpose(metta.Expression(1, 2))) == [1, 2]\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertEqualToResultMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The same with Python's assertion message.",
         metta='!(assertEqualToResultMsg (superpose (1 2)) (1 2) "both")',
         python="assert m.eval(S.superpose(metta.Expression(1, 2))) == [1, 2], 'both'\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertAlphaEqualToResult", ("(-> Atom Atom (->))",), "Symbol", "assert", "dissolves",
         "The answer-list form compared modulo renaming.",
         metta="!(assertAlphaEqualToResult (f $x) ((f $y)))",
         python="assert m.eval(S.f(V.x))[0].alpha_eq(S.f(V.y))\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertAlphaEqualToResultMsg", ("(-> Atom Atom Atom (->))",), "Symbol", "assert",
         "dissolves", "The same with Python's assertion message.",
         metta='!(assertAlphaEqualToResultMsg (f $x) ((f $y)) "renaming")',
         python="assert m.eval(S.f(V.x))[0].alpha_eq(S.f(V.y)), 'renaming'\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "assertIncludes", ("(-> Atom Expression (->))",), "Symbol", "assert", "dissolves",
         "Python's own `in`.",
         metta="!(assertIncludes (superpose (a b)) (a))",
         python="assert S.a in m.eval(S.superpose(metta.Expression(S.a, S.b)))\nTrue",
-        differs="LeaTTa answers the unit `()` where this engine answers True",
     ),
     Entry(
         "_assert-results-are-equal", ("(-> Atom Atom Atom (->))",), "Grounded", "assert",
-        "internal", "LeaTTa's internal comparison behind the assert family.",
+        "internal", "the internal comparison behind the assert family.",
     ),
     Entry(
         "_assert-results-are-equal-msg", ("(-> Atom Atom Atom Atom (->))",), "Grounded",
-        "assert", "internal", "LeaTTa's internal comparison behind the assert family.",
+        "assert", "internal", "the internal comparison behind the assert family.",
     ),
     Entry(
         "_assert-results-are-alpha-equal", ("(-> Atom Atom Atom (->))",), "Grounded",
-        "assert", "internal", "LeaTTa's internal comparison behind the assert family.",
+        "assert", "internal", "the internal comparison behind the assert family.",
     ),
     Entry(
         "_assert-results-are-alpha-equal-msg", ("(-> Atom Atom Atom Atom (->))",), "Grounded",
-        "assert", "internal", "LeaTTa's internal comparison behind the assert family.",
+        "assert", "internal", "the internal comparison behind the assert family.",
     ),
     # ------------------------------------------------------------------ doc
     Entry(
@@ -1310,7 +1288,7 @@ ENTRIES: list[Entry] = [
         metta="!(get-doc &self +)",
         python="def slug(title):\n    'Make a title into a slug.'\nslug.__doc__",
         differs=(
-            "LeaTTa answers the full `@doc-formal` structure for `+`; this engine answers "
+            "the mechanised interpreter answers the full `@doc-formal` structure for `+`; this engine answers "
             "nothing, because nothing emits documentation atoms"
         ),
     ),
@@ -1399,42 +1377,42 @@ ENTRIES: list[Entry] = [
         "Python's builtin `help`, which is the same act on the same docstring.",
         metta="!(help! +)", python="def pbf(x):\n    'adds one'\npbf.__doc__",
         differs=(
-            "LeaTTa prints the documentation and answers the unit; this engine leaves the "
+            "the mechanised interpreter prints the documentation and answers the unit; this engine leaves the "
             "call unreduced because it declares no documentation"
         ),
         unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "help-internal!", ("(-> Atom (->))", "(-> Symbol (->))"), "Symbol", "doc", "internal",
-        "LeaTTa's internal dispatch behind `help!`.",
+        "the internal dispatch behind `help!`.",
     ),
     Entry(
         "help-param!", ("(-> Atom (->))",), "Symbol", "doc", "internal",
-        "LeaTTa's internal parameter printer behind `help!`.",
+        "the internal parameter printer behind `help!`.",
     ),
     Entry(
         "help-space!", ("(-> SpaceType (->))",), "Symbol", "doc", "internal",
-        "LeaTTa's internal space-documentation printer behind `help!`.",
+        "the internal space-documentation printer behind `help!`.",
     ),
     Entry(
         "get-doc-atom", ("(-> SpaceType Atom %Undefined%)",), "Symbol", "doc", "internal",
-        "LeaTTa's internal dispatch behind `get-doc`.",
+        "the internal dispatch behind `get-doc`.",
     ),
     Entry(
         "get-doc-function", ("(-> SpaceType Atom Type %Undefined%)",), "Symbol", "doc",
-        "internal", "LeaTTa's internal dispatch behind `get-doc`.",
+        "internal", "the internal dispatch behind `get-doc`.",
     ),
     Entry(
         "get-doc-single-atom", ("(-> SpaceType Atom %Undefined%)",), "Symbol", "doc",
-        "internal", "LeaTTa's internal dispatch behind `get-doc`.",
+        "internal", "the internal dispatch behind `get-doc`.",
     ),
     Entry(
         "get-doc-params", ("(-> Expression Atom Expression (Expression Atom))",), "Symbol",
-        "doc", "internal", "LeaTTa's internal dispatch behind `get-doc`.",
+        "doc", "internal", "the internal dispatch behind `get-doc`.",
     ),
     Entry(
         "undefined-doc-function-type", ("(-> Expression Type)",), "Symbol", "doc", "internal",
-        "LeaTTa's internal fallback type for an undocumented application.",
+        "the internal fallback type for an undocumented application.",
     ),
     # -------------------------------------------------------------- modules
     Entry(
@@ -1618,7 +1596,7 @@ ENTRIES: list[Entry] = [
     # ----------------------------------------------------------- strategies
     Entry(
         "try", ("TP", "(-> Atom Atom)"), "Symbol", "strategies", "method",
-        "Stratego's `try(s) = s <+ id`. This engine reifies `s` in the plan and LeaTTa "
+        "Stratego's `try(s) = s <+ id`. This engine reifies `s` in the plan and the mechanised interpreter "
         "specialises the same law to one equality rewrite.",
         metta="(= (pb-try-step strategy-a) strategy-b)\n"
               "(= (pb-try-step $x) Empty)\n"
@@ -1631,7 +1609,7 @@ ENTRIES: list[Entry] = [
               "S['strategy-a']))"
         ),
         metta_setup=STRATEGY_SETUP,
-        oracle_metta="(= strategy-a strategy-b)\n!(try strategy-a)",
+        unary_metta="(= strategy-a strategy-b)\n!(try strategy-a)",
         metta_fuel=STRATEGY_INFERENCES,
     ),
     Entry(
@@ -1650,7 +1628,7 @@ ENTRIES: list[Entry] = [
               "S['strategy-a']))"
         ),
         metta_setup=STRATEGY_SETUP,
-        oracle_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
+        unary_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
                      "!(repeat strategy-a)",
         metta_fuel=STRATEGY_INFERENCES,
     ),
@@ -1670,7 +1648,7 @@ ENTRIES: list[Entry] = [
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
-        oracle_metta="(= strategy-a strategy-b)\n"
+        unary_metta="(= strategy-a strategy-b)\n"
                      "(= (strategy-node strategy-b) strategy-bottomup-root)\n"
                      "!(topdown (strategy-node strategy-a))",
         metta_fuel=STRATEGY_INFERENCES,
@@ -1694,7 +1672,7 @@ ENTRIES: list[Entry] = [
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
-        oracle_metta="(= strategy-a strategy-b)\n"
+        unary_metta="(= strategy-a strategy-b)\n"
                      "(= (strategy-node strategy-b) strategy-bottomup-root)\n"
                      "!(bottomup (strategy-node strategy-a))",
         metta_fuel=STRATEGY_INFERENCES,
@@ -1719,7 +1697,7 @@ ENTRIES: list[Entry] = [
               "space.eval(S['strategy-apply'](plan, S['strategy-node'](S['strategy-a'])))"
         ),
         metta_setup=STRATEGY_SETUP,
-        oracle_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
+        unary_metta="(= strategy-a strategy-b)\n(= strategy-b strategy-c)\n"
                      "(= (strategy-node strategy-c) strategy-innermost-root)\n"
                      "!(innermost (strategy-node strategy-a))",
         metta_fuel=STRATEGY_INFERENCES,
@@ -1738,7 +1716,7 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "stratego-one", ("(-> Atom Atom Atom)",), "Symbol", "strategies", "method",
-        "Stratego's `one(s)`, applying to one child. LeaTTa deliberately diverges "
+        "Stratego's `one(s)`, applying to one child. the mechanised interpreter deliberately diverges "
         "from Stratego's committed choice by answering EVERY successful position "
         "through MeTTa's own nondeterminism.",
         metta="!(stratego-one id (f a b))",
@@ -1756,16 +1734,16 @@ ENTRIES: list[Entry] = [
         "`one`: apply the strategy to every immediate child it succeeds on, keep "
         "each declining child as written, and fail when no child succeeded. The "
         "non-emptiness guard is the whole content, since `all` composed with "
-        "`gtry` can never fail. A LeaTTa extension beyond corelib.",
+        "`gtry` can never fail. A the mechanised interpreter extension beyond corelib.",
         metta="!(stratego-some id (f a b))", unrun="this engine leaves the call unreduced",
     ),
     Entry(
         "_stratego-all-tail", ("(-> Atom Expression Expression)",), "Symbol", "strategies",
-        "internal", "LeaTTa's internal tail recursion behind `stratego-all`.",
+        "internal", "the internal tail recursion behind `stratego-all`.",
     ),
     Entry(
         "_stratego-some-walk", ("(-> Atom Expression Atom)",), "Symbol", "strategies",
-        "internal", "LeaTTa's internal tail walk behind `stratego-some`, pairing "
+        "internal", "the internal tail walk behind `stratego-some`, pairing "
         "the rebuilt tail with whether any member succeeded.",
     ),
     Entry(
@@ -1786,7 +1764,7 @@ ENTRIES: list[Entry] = [
     # ------------------------------------------------------------- matching
     Entry(
         "fuzzy-match", ("(-> Atom Expression Number Atom)",), "Grounded", "matching", "absent",
-        "LeaTTa's cost-bounded approximate matcher, answering each candidate with "
+        "the cost-bounded approximate matcher, answering each candidate with "
         "its cost. MeTTa has `metta.structures` for many-to-one matching and no "
         "approximate matcher.",
         metta="!(fuzzy-match (f a) ((f a) (f b)) 1)",
@@ -1889,17 +1867,17 @@ ENTRIES: list[Entry] = [
     ),
     Entry(
         "_metta-call", ("(-> Atom Type SpaceType Atom)",), "Symbol", "instructions", "internal",
-        "LeaTTa's grounded-call step inside `metta`.",
+        "the grounded-call step inside `metta`.",
     ),
     Entry(
         "_metta-call-result", ("(-> Atom Atom Type SpaceType Atom)",), "Symbol", "instructions",
-        "internal", "LeaTTa's grounded-call continuation inside `metta`.",
+        "internal", "the grounded-call continuation inside `metta`.",
     ),
     Entry(
         "_minimal-foldl-atom",
         ("(-> Expression Atom Variable Variable Atom SpaceType %Undefined%)",), "Grounded",
         "instructions", "internal",
-        "LeaTTa's internal fold behind `foldl-atom`, declared twice in the "
+        "the internal fold behind `foldl-atom`, declared twice in the "
         "manifest: once in the prelude and once in a built-in module registry.",
     ),
 ]
@@ -1913,8 +1891,8 @@ def _family(names: dict[str, tuple[str, ...]], note: str) -> list[Entry]:
     ]
 
 
-#: LeaTTa's typed interpreter, `interpret` and its helper equations. These are
-#: the mechanised interpreter written in MeTTa, which is what makes LeaTTa an
+#: the typed interpreter, `interpret` and its helper equations. These are
+#: the mechanised interpreter written in MeTTa, which is what makes the mechanised interpreter an
 #: oracle rather than a second implementation; MeTTa's interpreter is Prolog,
 #: so none of these names exists here and none is a surface operation.
 _INTERPRET = {
@@ -1979,7 +1957,7 @@ _INTERPRET = {
     "interpret-type-cast-error-or-bad-type": ("(-> Atom Type Expression %Undefined%)",),
 }
 
-#: The minimal-interpreter half, `mi-*`: LeaTTa's MeTTa-written implementation
+#: The minimal-interpreter half, `mi-*`: the MeTTa-written implementation
 #: of the fourteen core instructions in terms of each other.
 _MI = {
     "mi-apply-chain": ("(-> Atom Variable Atom Expression)",),
@@ -2042,7 +2020,7 @@ _MI = {
     "mi-unify-structural": ("(-> Atom Atom Atom Atom %Undefined%)",),
 }
 
-#: The universal-machine half, `u-*`: LeaTTa's small-step machine over the
+#: The universal-machine half, `u-*`: the small-step machine over the
 #: same instructions, with its instruction tags (`u-eval`, `u-chain`, ...) as
 #: nullary symbols rather than operations.
 _U = {
@@ -2118,18 +2096,18 @@ _U = {
 
 ENTRIES += _family(
     _INTERPRET,
-    "LeaTTa's typed interpreter, written in MeTTa: `interpret` and the equations "
-    "that implement it. This is the machinery that makes LeaTTa an oracle rather "
+    "the typed interpreter, written in MeTTa: `interpret` and the equations "
+    "that implement it. This is the machinery that makes the mechanised interpreter an oracle rather "
     "than a second implementation, and MeTTa writes its interpreter in Prolog, so "
     "none of these names is on either surface",
 )
 ENTRIES += _family(
     _MI,
-    "LeaTTa's minimal interpreter, written in MeTTa: the fourteen core "
+    "the minimal interpreter, written in MeTTa: the fourteen core "
     "instructions implemented in terms of each other",
 )
 ENTRIES += _family(
     _U,
-    "LeaTTa's universal small-step machine, written in MeTTa, with its instruction "
+    "the universal small-step machine, written in MeTTa, with its instruction "
     "tags as nullary symbols",
 )

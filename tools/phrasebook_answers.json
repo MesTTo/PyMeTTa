@@ -1,2120 +1,1567 @@
 {
- "%": {
-  "leatta": [
-   "2"
-  ],
-  "metta": [
-   "2"
-  ],
-  "metta_inferences": 704,
-  "python": [
-   "2"
-  ],
-  "python_inferences": 0
- },
- "&self": {
-  "leatta": [
-   "(f 1)"
-  ],
-  "metta": [
-   "(f 1)"
-  ],
-  "metta_inferences": 658,
-  "python": [
-   "(f 1)"
-  ],
-  "python_inferences": 66
- },
- "*": {
-  "leatta": [
-   "12"
-  ],
-  "metta": [
-   "12"
-  ],
-  "metta_inferences": 703,
-  "python": [
-   "12"
-  ],
-  "python_inferences": 0
- },
- "+": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 703,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "-": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 703,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "->": {
-  "leatta": [
-   "(-> Number Number)"
-  ],
-  "metta": [
-   "(-> Number Number)"
-  ],
-  "metta_inferences": 1848,
-  "python": [
-   "(-> Number Number)"
-  ],
-  "python_inferences": 0
- },
- "/": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3.5"
-  ],
-  "metta_inferences": 704,
-  "python": [
-   "3.5"
-  ],
-  "python_inferences": 0
- },
- "//": {
-  "leatta": "manifest 1.0.9, commit 39c7c43",
-  "oracle_measured": true,
-  "what": "measured answers, one record per stdlib name; --learn rewrites it"
- },
- "<": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 722,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "<=": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 722,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "=": {
-  "leatta": [
-   "2"
-  ],
-  "metta": [
-   "2"
-  ],
-  "metta_inferences": 3238,
-  "python": [
-   "2"
-  ],
-  "python_inferences": 1849
- },
- "=%": {
-  "leatta": [
-   "(-> $t#0 $t#0 %Undefined%)"
-  ],
-  "metta": null,
-  "python": null
- },
- "==": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 894,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "=alpha": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 723,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- ">": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 722,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- ">=": {
-  "leatta": [
-   "False"
-  ],
-  "metta": [
-   "False"
-  ],
-  "metta_inferences": 723,
-  "python": [
-   "False"
-  ],
-  "python_inferences": 0
- },
- "@desc": {
-  "leatta": [
-   "(@desc \"adds one\")"
-  ],
-  "metta": [
-   "(@desc \"adds one\")"
-  ],
-  "metta_inferences": 463,
-  "python": [
-   "\"adds one\""
-  ],
-  "python_inferences": 0
- },
- "@doc": {
-  "leatta": [
-   "(@doc pbf (@desc \"adds one\"))"
-  ],
-  "metta": [
-   "(@doc pbf (@desc \"adds one\"))"
-  ],
-  "metta_inferences": 555,
-  "python": [
-   "\"adds one\""
-  ],
-  "python_inferences": 0
- },
- "@doc-formal": {
-  "leatta": [
-   "(@doc-formal (@item pbf) (@kind function) (@type (-> Number Number)) (@desc \"adds one\"))"
-  ],
-  "metta": [
-   "(@doc-formal (@item pbf) (@kind function) (@type (-> Number Number)) (@desc \"adds one\"))"
-  ],
-  "metta_inferences": 883,
-  "python": [
-   "(\"int\" \"adds one\")"
-  ],
-  "python_inferences": 0
- },
- "@item": {
-  "leatta": [
-   "(@item pbf)"
-  ],
-  "metta": [
-   "(@item pbf)"
-  ],
-  "metta_inferences": 490,
-  "python": [
-   "pbf"
-  ],
-  "python_inferences": 0
- },
- "@param": {
-  "leatta": [
-   "(@param \"the addend\")"
-  ],
-  "metta": [
-   "(@param \"the addend\")"
-  ],
-  "metta_inferences": 463,
-  "python": [
-   "\"the addend\""
-  ],
-  "python_inferences": 0
- },
- "@params": {
-  "leatta": [
-   "(@params ((@param \"the addend\")))"
-  ],
-  "metta": [
-   "(@params ((@param \"the addend\")))"
-  ],
-  "metta_inferences": 534,
-  "python": [
-   "\"the addend\""
-  ],
-  "python_inferences": 0
- },
- "@return": {
-  "leatta": [
-   "(@return \"the sum\")"
-  ],
-  "metta": [
-   "(@return \"the sum\")"
-  ],
-  "metta_inferences": 463,
-  "python": [
-   "\"the sum\""
-  ],
-  "python_inferences": 0
- },
- "@type": {
-  "leatta": [
-   "(@type Number)"
-  ],
-  "metta": [
-   "(@type Number)"
-  ],
-  "metta_inferences": 490,
-  "python": [
-   "\"int\""
-  ],
-  "python_inferences": 0
- },
- "BadArgType": {
-  "leatta": [
-   "(-> Number Type Type ErrorDescription)"
-  ],
-  "metta": null,
-  "python": null
- },
- "BadType": {
-  "leatta": [
-   "(-> Type Type ErrorDescription)"
-  ],
-  "metta": null,
-  "python": null
- },
- "Error": {
-  "leatta": [
-   "(Error a b)"
-  ],
-  "metta": [
-   "(Error a b)"
-  ],
-  "metta_inferences": 506,
-  "python": [
-   "(Error a b)"
-  ],
-  "python_inferences": 0
- },
- "ErrorType": {
-  "leatta": [
-   "ErrorType"
-  ],
-  "metta": [
-   "ErrorType"
-  ],
-  "metta_inferences": 1080,
-  "python": [
-   "ErrorType"
-  ],
-  "python_inferences": 0
- },
- "IncorrectNumberOfArguments": {
-  "leatta": [
-   "ErrorDescription"
-  ],
-  "metta": null,
-  "python": null
- },
- "Pair": {
-  "leatta": [
-   "%Undefined%"
-  ],
-  "metta": null,
-  "python": null
- },
- "PairType": {
-  "leatta": [
-   "%Undefined%"
-  ],
-  "metta": null,
-  "python": null
- },
- "SpaceType": {
-  "leatta": [
-   "SpaceType"
-  ],
-  "metta": null,
-  "python": null
- },
- "TP": {
-  "leatta": [
-   "Type"
-  ],
-  "metta": [
-   "Type"
-  ],
-  "metta_inferences": 5999010,
-  "python": [
-   "Type"
-  ],
-  "python_inferences": 6006525
- },
- "TU": {
-  "leatta": [
-   "(-> Type Type)"
-  ],
-  "metta": [
-   "(-> Type Type)"
-  ],
-  "metta_inferences": 6002677,
-  "python": [
-   "(-> Type Type)"
-  ],
-  "python_inferences": 6009226
- },
- "_separate-errors": {
-  "leatta": [
-   "(Error a b)"
-  ],
-  "metta": null,
-  "python": [
-   "(Error a b)"
-  ]
- },
- "abs-math": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 636,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "acos-math": {
-  "leatta": [
-   "0.0"
-  ],
-  "metta": [
-   "0.0"
-  ],
-  "metta_inferences": 643,
-  "python": [
-   "0.0"
-  ],
-  "python_inferences": 0
- },
- "add-atom": {
-  "leatta": [
-   "(f 1)"
-  ],
-  "metta": [
-   "(f 1)"
-  ],
-  "metta_inferences": 1526,
-  "python": [
-   "(f 1)"
-  ],
-  "python_inferences": 66
- },
- "add-atoms": {
-  "leatta": [
-   "(f 1)",
-   "(f 2)"
-  ],
-  "metta": [
-   "(f 1)",
-   "(f 2)"
-  ],
-  "metta_inferences": 1624,
-  "python": [
-   "(f 1)",
-   "(f 2)"
-  ],
-  "python_inferences": 116
- },
- "add-reduct": {
-  "leatta": [
-   "(total 3)"
-  ],
-  "metta": [
-   "(total 3)"
-  ],
-  "metta_inferences": 1873,
-  "python": [
-   "(total 3)"
-  ],
-  "python_inferences": 183
- },
- "add-reducts": {
-  "leatta": [
-   "(total 3)",
-   "(total 4)"
-  ],
-  "metta": [
-   "(total 3)",
-   "(total 4)"
-  ],
-  "metta_inferences": 2319,
-  "python": [
-   "(total 3)",
-   "(total 4)"
-  ],
-  "python_inferences": 341
- },
- "and": {
-  "leatta": [
-   "False"
-  ],
-  "metta": [
-   "False"
-  ],
-  "metta_inferences": 771,
-  "python": [
-   "False"
-  ],
-  "python_inferences": 0
- },
- "asin-math": {
-  "leatta": [
-   "0.0"
-  ],
-  "metta": [
-   "0.0"
-  ],
-  "metta_inferences": 645,
-  "python": [
-   "0.0"
-  ],
-  "python_inferences": 0
- },
- "assert": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1020,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "assertAlphaEqual": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1170,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "assertAlphaEqualMsg": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1202,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "assertAlphaEqualToResult": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1108,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 131
- },
- "assertAlphaEqualToResultMsg": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1141,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 131
- },
- "assertEqual": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1371,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 117
- },
- "assertEqualMsg": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1403,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 117
- },
- "assertEqualToResult": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1197,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 165
- },
- "assertEqualToResultMsg": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1230,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 165
- },
- "assertIncludes": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1136,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 177
- },
- "atan-math": {
-  "leatta": [
-   "0.0"
-  ],
-  "metta": [
-   "0.0"
-  ],
-  "metta_inferences": 643,
-  "python": [
-   "0.0"
-  ],
-  "python_inferences": 0
- },
- "atom-subst": {
-  "leatta": [
-   "(f a)"
-  ],
-  "metta": null,
-  "python": [
-   "(f a)"
-  ]
- },
- "bind!": {
-  "leatta": [
-   "(f 1)"
-  ],
-  "metta": [
-   "(f 1)"
-  ],
-  "metta_inferences": 1526,
-  "python": [
-   "(f 1)"
-  ],
-  "python_inferences": 66
- },
- "bottomup": {
-  "leatta": [
-   "strategy-bottomup-root"
-  ],
-  "metta": [
-   "strategy-bottomup-root"
-  ],
-  "metta_inferences": 8762590,
-  "python": [
-   "strategy-bottomup-root"
-  ],
-  "python_inferences": 8946524
- },
- "capture": {
-  "leatta": [
-   "3"
-  ],
-  "metta": null,
-  "python": null
- },
- "car-atom": {
-  "leatta": [
-   "a"
-  ],
-  "metta": [
-   "a"
-  ],
-  "metta_inferences": 968,
-  "python": [
-   "a"
-  ],
-  "python_inferences": 0
- },
- "case": {
-  "leatta": [
-   "two"
-  ],
-  "metta": [
-   "two"
-  ],
-  "metta_inferences": 538,
-  "python": [
-   "two"
-  ],
-  "python_inferences": 0
- },
- "case%": {
-  "leatta": [
-   "two"
-  ],
-  "metta": null,
-  "python": null
- },
- "cdr-atom": {
-  "leatta": [
-   "(b c)"
-  ],
-  "metta": [
-   "(b c)"
-  ],
-  "metta_inferences": 984,
-  "python": [
-   "(b c)"
-  ],
-  "python_inferences": 0
- },
- "ceil-math": {
-  "leatta": [
-   "3.0"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 641,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "chain": {
-  "leatta": [
-   "(foo 3)"
-  ],
-  "metta": [
-   "(foo 3)"
-  ],
-  "metta_inferences": 821,
-  "python": [
-   "(foo 3)"
-  ],
-  "python_inferences": 117
- },
- "change-state!": {
-  "leatta": [
-   "2"
-  ],
-  "metta": [
-   "2"
-  ],
-  "metta_inferences": 1148,
-  "python": [
-   "2"
-  ],
-  "python_inferences": 376
- },
- "collapse": {
-  "leatta": [
-   "(a b)"
-  ],
-  "metta": [
-   "(a b)"
-  ],
-  "metta_inferences": 532,
-  "python": [
-   "(a b)"
-  ],
-  "python_inferences": 0
- },
- "collapse-bind": {
-  "leatta": [
-   "((a (bindings)) (b (bindings)))"
-  ],
-  "metta": null,
-  "python": null
- },
- "cons-atom": {
-  "leatta": [
-   "(f a b)"
-  ],
-  "metta": [
-   "(f a b)"
-  ],
-  "metta_inferences": 752,
-  "python": [
-   "(f a b)"
-  ],
-  "python_inferences": 0
- },
- "context-space": {
-  "leatta": [
-   "(f 1)"
-  ],
-  "metta": [
-   "(f 1)"
-  ],
-  "metta_inferences": 1035,
-  "python": [
-   "(f 1)"
-  ],
-  "python_inferences": 66
- },
- "cos-math": {
-  "leatta": [
-   "1.0"
-  ],
-  "metta": [
-   "1.0"
-  ],
-  "metta_inferences": 643,
-  "python": [
-   "1.0"
-  ],
-  "python_inferences": 0
- },
- "decons-atom": {
-  "leatta": [
-   "(f (a b))"
-  ],
-  "metta": [
-   "(f (a b))"
-  ],
-  "metta_inferences": 750,
-  "python": [
-   "(f (a b))"
-  ],
-  "python_inferences": 0
- },
- "div-euclid": {
-  "leatta": [
-   "-4"
-  ],
-  "metta": null,
-  "python": [
-   "-4"
-  ]
- },
- "div-floor": {
-  "leatta": [
-   "-4"
-  ],
-  "metta": null,
-  "python": [
-   "-4"
-  ]
- },
- "div-trunc": {
-  "leatta": [
-   "-3"
-  ],
-  "metta": null,
-  "python": [
-   "-3"
-  ]
- },
- "eval": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 807,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 117
- },
- "eval-via-match": {
-  "leatta": [
-   "3"
-  ],
-  "metta": null,
-  "python": null
- },
- "eval-via-unify": {
-  "leatta": [
-   "3"
-  ],
-  "metta": null,
-  "python": null
- },
- "evalc": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 860,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 362
- },
- "filter-atom": {
-  "leatta": [
-   "(2 3)"
-  ],
-  "metta": [
-   "(2 3)"
-  ],
-  "metta_inferences": 3211,
-  "python": [
-   "(2 3)"
-  ],
-  "python_inferences": 0
- },
- "floor-math": {
-  "leatta": [
-   "2.0"
-  ],
-  "metta": [
-   "2"
-  ],
-  "metta_inferences": 641,
-  "python": [
-   "2"
-  ],
-  "python_inferences": 0
- },
- "foldl-atom": {
-  "leatta": [
-   "6"
-  ],
-  "metta": [
-   "6"
-  ],
-  "metta_inferences": 1653,
-  "python": [
-   "6"
-  ],
-  "python_inferences": 298
- },
- "for-each-in-atom": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "(True True)"
-  ],
-  "metta_inferences": 949,
-  "python": [
-   "()"
-  ],
-  "python_inferences": 0
- },
- "fork-space": {
-  "leatta": [
-   "(f 1)"
-  ],
-  "metta": null,
-  "python": [
-   "(f 1)"
-  ]
- },
- "format-args": {
-  "leatta": [
-   "\"a and b\""
-  ],
-  "metta": [
-   "\"a and b\""
-  ],
-  "metta_inferences": 870,
-  "python": [
-   "\"a and b\""
-  ],
-  "python_inferences": 0
- },
- "function": {
-  "leatta": [
-   "5"
-  ],
-  "metta": null,
-  "python": null
- },
- "fuzzy-match": {
-  "leatta": [
-   "(fuzzy-result (cost 0) (f a))",
-   "(fuzzy-result (cost 1) (f b))"
-  ],
-  "metta": null,
-  "python": null
- },
- "fuzzy-match-context": {
-  "leatta": [
-   "(fuzzy-result (cost 0 0 0 0) (f a))"
-  ],
-  "metta": null,
-  "python": null
- },
- "fuzzy-match-space": {
-  "leatta": [
-   "(fuzzy-result (cost 0 0 0) (f a))"
-  ],
-  "metta": null,
-  "python": null
- },
- "get-atoms": {
-  "leatta": [
-   "(f 1)"
-  ],
-  "metta": [
-   "(f 1)"
-  ],
-  "metta_inferences": 1526,
-  "python": [
-   "(f 1)"
-  ],
-  "python_inferences": 95
- },
- "get-deps": {
-  "leatta": [
-   "()"
-  ],
-  "metta": null,
-  "python": null
- },
- "get-doc": {
-  "leatta": [
-   "(@doc-formal (@item +) (@kind function) (@type (-> Number Number Number)) (@desc \"Sums two numbers\") (@params ((@param (@type Number) (@desc \"Addend\")) (@param (@type Number) (@desc \"Augend\")))) (@return (@type Number) (@desc \"Sum\")))"
-  ],
-  "metta": [],
-  "metta_inferences": 1298,
-  "python": [
-   "\"Make a title into a slug.\""
-  ],
-  "python_inferences": 0
- },
- "get-metatype": {
-  "leatta": [
-   "Expression"
-  ],
-  "metta": [
-   "Expression"
-  ],
-  "metta_inferences": 451,
-  "python": [
-   "Expression"
-  ],
-  "python_inferences": 0
- },
- "get-state": {
-  "leatta": [
-   "5"
-  ],
-  "metta": [
-   "5"
-  ],
-  "metta_inferences": 882,
-  "python": [
-   "5"
-  ],
-  "python_inferences": 247
- },
- "get-type": {
-  "leatta": [
-   "Number"
-  ],
-  "metta": [
-   "Number"
-  ],
-  "metta_inferences": 846,
-  "python": [
-   "Number"
-  ],
-  "python_inferences": 181
- },
- "get-type-space": {
-  "leatta": [
-   "Number"
-  ],
-  "metta": [
-   "Number"
-  ],
-  "metta_inferences": 1023,
-  "python": [
-   "Number"
-  ],
-  "python_inferences": 848
- },
- "git-import!": {
-  "leatta": [
-   "Grounded"
-  ],
-  "metta": [
-   "Grounded"
-  ],
-  "metta_inferences": 440,
-  "python": [
-   "json"
-  ],
-  "python_inferences": 0
- },
- "git-module!": {
-  "leatta": [
-   "Grounded"
-  ],
-  "metta": null,
-  "python": null
- },
- "gtry": {
-  "leatta": [
-   "a"
-  ],
-  "metta": [
-   "a"
-  ],
-  "metta_inferences": 5856664,
-  "python": [
-   "a"
-  ],
-  "python_inferences": 6021716
- },
- "help!": {
-  "leatta": [
-   "()"
-  ],
-  "metta": null,
-  "python": [
-   "\"adds one\""
-  ]
- },
- "id": {
-  "leatta": [
-   "5"
-  ],
-  "metta": [
-   "5"
-  ],
-  "metta_inferences": 624,
-  "python": [
-   "5"
-  ],
-  "python_inferences": 0
- },
- "if": {
-  "leatta": [
-   "a"
-  ],
-  "metta": [
-   "a"
-  ],
-  "metta_inferences": 452,
-  "python": [
-   "a"
-  ],
-  "python_inferences": 0
- },
- "if-decons-expr": {
-  "leatta": [
-   "(yes a (b))"
-  ],
-  "metta": null,
-  "python": [
-   "(yes a (b))"
-  ]
- },
- "if-equal": {
-  "leatta": [
-   "yes"
-  ],
-  "metta": [
-   "yes"
-  ],
-  "metta_inferences": 1060,
-  "python": [
-   "yes"
-  ],
-  "python_inferences": 0
- },
- "if-error": {
-  "leatta": [
-   "yes"
-  ],
-  "metta": [
-   "yes"
-  ],
-  "metta_inferences": 8131,
-  "python": [
-   "yes"
-  ],
-  "python_inferences": 0
- },
- "import!": {
-  "leatta": [
-   "a"
-  ],
-  "metta": [
-   "a"
-  ],
-  "metta_inferences": 2054,
-  "python": [
-   "math"
-  ],
-  "python_inferences": 0
- },
- "import-into!": {
-  "leatta": [
-   "(Error (import-into! &space-#0 (library lib_he)) import-into!: module must be a symbol)"
-  ],
-  "metta": null,
-  "python": null
- },
- "import-item!": {
-  "leatta": [
-   "(Error (import-item! &self (library lib_he) unify) import-item! expects (import-item! <dest> <module> <item>))"
-  ],
-  "metta": null,
-  "python": null
- },
- "include": {
-  "leatta": [
-   "Grounded"
-  ],
-  "metta": [
-   "Grounded"
-  ],
-  "metta_inferences": 440,
-  "python": [
-   "7"
-  ],
-  "python_inferences": 1924
- },
- "index-atom": {
-  "leatta": [
-   "b"
-  ],
-  "metta": [
-   "b"
-  ],
-  "metta_inferences": 738,
-  "python": [
-   "b"
-  ],
-  "python_inferences": 0
- },
- "innermost": {
-  "leatta": [
-   "strategy-innermost-root"
-  ],
-  "metta": [
-   "strategy-innermost-root"
-  ],
-  "metta_inferences": 9383328,
-  "python": [
-   "strategy-innermost-root"
-  ],
-  "python_inferences": 9573271
- },
- "intersection": {
-  "leatta": [
-   "b",
-   "c"
-  ],
-  "metta": [
-   "b",
-   "c"
-  ],
-  "metta_inferences": 1605,
-  "python": [
-   "b",
-   "c"
-  ],
-  "python_inferences": 0
- },
- "intersection-atom": {
-  "leatta": [
-   "(b c)"
-  ],
-  "metta": [
-   "(b c)"
-  ],
-  "metta_inferences": 942,
-  "python": [
-   "(b c)"
-  ],
-  "python_inferences": 0
- },
- "is-function": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1600,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "isinf-math": {
-  "leatta": [
-   "False"
-  ],
-  "metta": [
-   "False"
-  ],
-  "metta_inferences": 659,
-  "python": [
-   "False"
-  ],
-  "python_inferences": 0
- },
- "isnan-math": {
-  "leatta": [
-   "False"
-  ],
-  "metta": [
-   "False"
-  ],
-  "metta_inferences": 656,
-  "python": [
-   "False"
-  ],
-  "python_inferences": 0
- },
- "let": {
-  "leatta": [
-   "2"
-  ],
-  "metta": [
-   "2"
-  ],
-  "metta_inferences": 700,
-  "python": [
-   "2"
-  ],
-  "python_inferences": 0
- },
- "let%": {
-  "leatta": [
-   "2"
-  ],
-  "metta": null,
-  "python": null
- },
- "let*": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 716,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "let*%": {
-  "leatta": [
-   "1"
-  ],
-  "metta": null,
-  "python": null
- },
- "loaded-mods!": {
-  "leatta": [
-   "(corelib builtin:skel)"
-  ],
-  "metta": null,
-  "python": [
-   "json"
-  ]
- },
- "log-math": {
-  "leatta": [
-   "3.0"
-  ],
-  "metta": [
-   "3.0"
-  ],
-  "metta_inferences": 710,
-  "python": [
-   "3.0"
-  ],
-  "python_inferences": 0
- },
- "map-atom": {
-  "leatta": [
-   "(2 3 4)"
-  ],
-  "metta": [
-   "(2 3 4)"
-  ],
-  "metta_inferences": 1495,
-  "python": [
-   "(2 3 4)"
-  ],
-  "python_inferences": 0
- },
- "match": {
-  "leatta": [
-   "1"
-  ],
-  "metta": [
-   "1"
-  ],
-  "metta_inferences": 1531,
-  "python": [
-   "1"
-  ],
-  "python_inferences": 30280
- },
- "match%": {
-  "leatta": [],
-  "metta": null,
-  "python": null
- },
- "max-atom": {
-  "leatta": [
-   "3.0"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 654,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "metta": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 1170,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 117
- },
- "min-atom": {
-  "leatta": [
-   "1.0"
-  ],
-  "metta": [
-   "1"
-  ],
-  "metta_inferences": 654,
-  "python": [
-   "1"
-  ],
-  "python_inferences": 0
- },
- "mod-euclid": {
-  "leatta": [
-   "1"
-  ],
-  "metta": null,
-  "python": [
-   "1"
-  ]
- },
- "mod-floor": {
-  "leatta": [
-   "1"
-  ],
-  "metta": null,
-  "python": [
-   "1"
-  ]
- },
- "mod-space!": {
-  "leatta": [
-   "&mod:corelib"
-  ],
-  "metta": null,
-  "python": null
- },
- "module-space-no-deps": {
-  "leatta": [
-   "&space-#0"
-  ],
-  "metta": null,
-  "python": null
- },
- "module-tree!": {
-  "leatta": [
-   "(top corelib stdlib skel)"
-  ],
-  "metta": null,
-  "python": [
-   "requires"
-  ]
- },
- "near-match": {
-  "leatta": [
-   "(near-match (f a) ((f a) (f b)) 1)"
-  ],
-  "metta": null,
-  "python": null
- },
- "new-space": {
-  "leatta": [],
-  "metta": [],
-  "metta_inferences": 714,
-  "python": [],
-  "python_inferences": 103
- },
- "new-state": {
-  "leatta": [
-   "1"
-  ],
-  "metta": [
-   "1"
-  ],
-  "metta_inferences": 943,
-  "python": [
-   "1"
-  ],
-  "python_inferences": 778
- },
- "noeval": {
-  "leatta": [
-   "(+ 1 2)"
-  ],
-  "metta": [
-   "(+ 1 2)"
-  ],
-  "metta_inferences": 452,
-  "python": [
-   "(+ 1 2)"
-  ],
-  "python_inferences": 0
- },
- "nop": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "()"
-  ],
-  "metta_inferences": 429,
-  "python": [
-   "()"
-  ],
-  "python_inferences": 0
- },
- "noreduce-eq": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 1050,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "not": {
-  "leatta": [
-   "False"
-  ],
-  "metta": [
-   "False"
-  ],
-  "metta_inferences": 677,
-  "python": [
-   "False"
-  ],
-  "python_inferences": 0
- },
- "or": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 771,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "pow-math": {
-  "leatta": [
-   "8.0"
-  ],
-  "metta": [
-   "8.0"
-  ],
-  "metta_inferences": 714,
-  "python": [
-   "8.0"
-  ],
-  "python_inferences": 0
- },
- "print-alternatives!": {
-  "leatta": [
-   "()"
-  ],
-  "metta": null,
-  "python": [
-   "()"
-  ]
- },
- "print-mods!": {
-  "leatta": [
-   "()"
-  ],
-  "metta": null,
-  "python": [
-   "()"
-  ]
- },
- "println!": {
-  "leatta": [
-   "()"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 652,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "quote": {
-  "leatta": [
-   "(quote (+ 1 2))"
-  ],
-  "metta": [
-   "(+ 1 2)"
-  ],
-  "metta_inferences": 445,
-  "python": [
-   "(+ 1 2)"
-  ],
-  "python_inferences": 0
- },
- "reduce-via-match": {
-  "leatta": [
-   "(reduce-via-match (+ 1 2) x)"
-  ],
-  "metta": null,
-  "python": null
- },
- "register-module!": {
-  "leatta": [
-   "Grounded"
-  ],
-  "metta": null,
-  "python": null
- },
- "rem-trunc": {
-  "leatta": [
-   "-1"
-  ],
-  "metta": null,
-  "python": [
-   "-1"
-  ]
- },
- "remove-atom": {
-  "leatta": [],
-  "metta": [],
-  "metta_inferences": 1675,
-  "python": [],
-  "python_inferences": 98
- },
- "repeat": {
-  "leatta": [
-   "strategy-c"
-  ],
-  "metta": [
-   "strategy-c"
-  ],
-  "metta_inferences": 7189936,
-  "python": [
-   "strategy-c"
-  ],
-  "python_inferences": 7322539
- },
- "return": {
-  "leatta": [
-   "(+ 2 3)"
-  ],
-  "metta": null,
-  "python": null
- },
- "return-on-error": {
-  "leatta": [
-   "b"
-  ],
-  "metta": [
-   "b"
-  ],
-  "metta_inferences": 6786,
-  "python": [
-   "b"
-  ],
-  "python_inferences": 0
- },
- "round-math": {
-  "leatta": [
-   "3.0"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 641,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "sealed": {
-  "leatta": [
-   "($x $y#0)"
-  ],
-  "metta": [
-   "($x $y#0)"
-  ],
-  "metta_inferences": 470,
-  "python": [
-   "($_v0 $_v1)"
-  ],
-  "python_inferences": 182
- },
- "sin-math": {
-  "leatta": [
-   "0.0"
-  ],
-  "metta": [
-   "0.0"
-  ],
-  "metta_inferences": 643,
-  "python": [
-   "0.0"
-  ],
-  "python_inferences": 0
- },
- "size-atom": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 727,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "skel-swap-pair": {
-  "leatta": [
-   "(skel-swap-pair (Pair 1 2))"
-  ],
-  "metta": null,
-  "python": null
- },
- "skel-swap-pair-native": {
-  "leatta": [
-   "(Error (skel-swap-pair-native (Pair 1 2)) StackOverflow)"
-  ],
-  "metta": null,
-  "python": null
- },
- "sort-strings": {
-  "leatta": [
-   "(\"a\" \"b\" \"c\")"
-  ],
-  "metta": [
-   "(\"a\" \"b\" \"c\")"
-  ],
-  "metta_inferences": 707,
-  "python": [
-   "(\"a\" \"b\" \"c\")"
-  ],
-  "python_inferences": 0
- },
- "sqrt-math": {
-  "leatta": [
-   "2.0"
-  ],
-  "metta": [
-   "2.0"
-  ],
-  "metta_inferences": 643,
-  "python": [
-   "2.0"
-  ],
-  "python_inferences": 0
- },
- "stratego-all": {
-  "leatta": [
-   "(f a b)"
-  ],
-  "metta": [
-   "(f a b)"
-  ],
-  "metta_inferences": 9593778,
-  "python": [
-   "(f a b)"
-  ],
-  "python_inferences": 10423166
- },
- "stratego-one": {
-  "leatta": [
-   "(f a b)",
-   "(f a b)",
-   "(f a b)"
-  ],
-  "metta": [
-   "(f a b)",
-   "(f a b)",
-   "(f a b)"
-  ],
-  "metta_inferences": 11089750,
-  "python": [
-   "(f a b)",
-   "(f a b)",
-   "(f a b)"
-  ],
-  "python_inferences": 11370414
- },
- "stratego-some": {
-  "leatta": [
-   "(f a b)"
-  ],
-  "metta": null,
-  "python": null
- },
- "subtraction": {
-  "leatta": [
-   "a",
-   "b"
-  ],
-  "metta": [
-   "a",
-   "b"
-  ],
-  "metta_inferences": 1482,
-  "python": [
-   "a",
-   "b"
-  ],
-  "python_inferences": 0
- },
- "subtraction-atom": {
-  "leatta": [
-   "(a b)"
-  ],
-  "metta": [
-   "(a b)"
-  ],
-  "metta_inferences": 900,
-  "python": [
-   "(a b)"
-  ],
-  "python_inferences": 0
- },
- "superpose": {
-  "leatta": [
-   "a",
-   "b"
-  ],
-  "metta": [
-   "a",
-   "b"
-  ],
-  "metta_inferences": 474,
-  "python": [
-   "a",
-   "b"
-  ],
-  "python_inferences": 14216
- },
- "superpose-bind": {
-  "leatta": [
-   "a"
-  ],
-  "metta": null,
-  "python": null
- },
- "switch": {
-  "leatta": [
-   "two"
-  ],
-  "metta": [
-   "two"
-  ],
-  "metta_inferences": 792,
-  "python": [
-   "two"
-  ],
-  "python_inferences": 0
- },
- "tan-math": {
-  "leatta": [
-   "0.0"
-  ],
-  "metta": [
-   "0.0"
-  ],
-  "metta_inferences": 643,
-  "python": [
-   "0.0"
-  ],
-  "python_inferences": 0
- },
- "topdown": {
-  "leatta": [
-   "(strategy-node strategy-b)"
-  ],
-  "metta": [
-   "(strategy-node strategy-b)"
-  ],
-  "metta_inferences": 8033274,
-  "python": [
-   "(strategy-node strategy-b)"
-  ],
-  "python_inferences": 8586828
- },
- "trace!": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 1018,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 0
- },
- "trunc-math": {
-  "leatta": [
-   "2.0"
-  ],
-  "metta": [
-   "2"
-  ],
-  "metta_inferences": 641,
-  "python": [
-   "2"
-  ],
-  "python_inferences": 0
- },
- "try": {
-  "leatta": [
-   "strategy-b"
-  ],
-  "metta": [
-   "strategy-b"
-  ],
-  "metta_inferences": 6501129,
-  "python": [
-   "strategy-b"
-  ],
-  "python_inferences": 7037046
- },
- "unify": {
-  "leatta": [
-   "a"
-  ],
-  "metta": [
-   "a"
-  ],
-  "metta_inferences": 527,
-  "python": [
-   "a"
-  ],
-  "python_inferences": 279
- },
- "unify%": {
-  "leatta": [
-   "a"
-  ],
-  "metta": null,
-  "python": null
- },
- "union": {
-  "leatta": [
-   "a",
-   "b",
-   "b",
-   "b",
-   "c"
-  ],
-  "metta": [
-   "a",
-   "b",
-   "b",
-   "b",
-   "c"
-  ],
-  "metta_inferences": 1761,
-  "python": [
-   "a",
-   "b",
-   "b",
-   "b",
-   "c"
-  ],
-  "python_inferences": 0
- },
- "union-atom": {
-  "leatta": [
-   "(a b b b c)"
-  ],
-  "metta": [
-   "(a b b b c)"
-  ],
-  "metta_inferences": 842,
-  "python": [
-   "(a b b b c)"
-  ],
-  "python_inferences": 0
- },
- "unique": {
-  "leatta": [
-   "a",
-   "b",
-   "c"
-  ],
-  "metta": [
-   "a",
-   "b",
-   "c"
-  ],
-  "metta_inferences": 1190,
-  "python": [
-   "a",
-   "b",
-   "c"
-  ],
-  "python_inferences": 0
- },
- "unique-atom": {
-  "leatta": [
-   "(a b c)"
-  ],
-  "metta": [
-   "(a b c)"
-  ],
-  "metta_inferences": 797,
-  "python": [
-   "(a b c)"
-  ],
-  "python_inferences": 0
- },
- "unquote": {
-  "leatta": [
-   "3"
-  ],
-  "metta": [
-   "3"
-  ],
-  "metta_inferences": 1358,
-  "python": [
-   "3"
-  ],
-  "python_inferences": 117
- },
- "xor": {
-  "leatta": [
-   "True"
-  ],
-  "metta": [
-   "True"
-  ],
-  "metta_inferences": 771,
-  "python": [
-   "True"
-  ],
-  "python_inferences": 0
- },
- "\u25c1": {
-  "leatta": [
-   "(-> Atom Type Atom Atom)"
-  ],
-  "metta": [
-   "(-> Atom Type Atom Atom)"
-  ],
-  "metta_inferences": 6003645,
-  "python": [
-   "(-> Atom Type Atom Atom)"
-  ],
-  "python_inferences": 6003842
- }
+  "%": {
+    "metta": [
+      "2"
+    ],
+    "metta_inferences": 704,
+    "python": [
+      "2"
+    ],
+    "python_inferences": 0
+  },
+  "&self": {
+    "metta": [
+      "(f 1)"
+    ],
+    "metta_inferences": 658,
+    "python": [
+      "(f 1)"
+    ],
+    "python_inferences": 66
+  },
+  "*": {
+    "metta": [
+      "12"
+    ],
+    "metta_inferences": 703,
+    "python": [
+      "12"
+    ],
+    "python_inferences": 0
+  },
+  "+": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 703,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "-": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 703,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "->": {
+    "metta": [
+      "(-> Number Number)"
+    ],
+    "metta_inferences": 1848,
+    "python": [
+      "(-> Number Number)"
+    ],
+    "python_inferences": 0
+  },
+  "/": {
+    "metta": [
+      "3.5"
+    ],
+    "metta_inferences": 704,
+    "python": [
+      "3.5"
+    ],
+    "python_inferences": 0
+  },
+  "//": {
+    "what": "measured answers, one record per stdlib name; --learn rewrites it"
+  },
+  "<": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 722,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "<=": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 722,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "=": {
+    "metta": [
+      "2"
+    ],
+    "metta_inferences": 3238,
+    "python": [
+      "2"
+    ],
+    "python_inferences": 1849
+  },
+  "=%": {
+    "metta": null,
+    "python": null
+  },
+  "==": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 894,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "=alpha": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 723,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  ">": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 722,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  ">=": {
+    "metta": [
+      "False"
+    ],
+    "metta_inferences": 723,
+    "python": [
+      "False"
+    ],
+    "python_inferences": 0
+  },
+  "@desc": {
+    "metta": [
+      "(@desc \"adds one\")"
+    ],
+    "metta_inferences": 463,
+    "python": [
+      "\"adds one\""
+    ],
+    "python_inferences": 0
+  },
+  "@doc": {
+    "metta": [
+      "(@doc pbf (@desc \"adds one\"))"
+    ],
+    "metta_inferences": 555,
+    "python": [
+      "\"adds one\""
+    ],
+    "python_inferences": 0
+  },
+  "@doc-formal": {
+    "metta": [
+      "(@doc-formal (@item pbf) (@kind function) (@type (-> Number Number)) (@desc \"adds one\"))"
+    ],
+    "metta_inferences": 883,
+    "python": [
+      "(\"int\" \"adds one\")"
+    ],
+    "python_inferences": 0
+  },
+  "@item": {
+    "metta": [
+      "(@item pbf)"
+    ],
+    "metta_inferences": 490,
+    "python": [
+      "pbf"
+    ],
+    "python_inferences": 0
+  },
+  "@param": {
+    "metta": [
+      "(@param \"the addend\")"
+    ],
+    "metta_inferences": 463,
+    "python": [
+      "\"the addend\""
+    ],
+    "python_inferences": 0
+  },
+  "@params": {
+    "metta": [
+      "(@params ((@param \"the addend\")))"
+    ],
+    "metta_inferences": 534,
+    "python": [
+      "\"the addend\""
+    ],
+    "python_inferences": 0
+  },
+  "@return": {
+    "metta": [
+      "(@return \"the sum\")"
+    ],
+    "metta_inferences": 463,
+    "python": [
+      "\"the sum\""
+    ],
+    "python_inferences": 0
+  },
+  "@type": {
+    "metta": [
+      "(@type Number)"
+    ],
+    "metta_inferences": 490,
+    "python": [
+      "\"int\""
+    ],
+    "python_inferences": 0
+  },
+  "BadArgType": {
+    "metta": null,
+    "python": null
+  },
+  "BadType": {
+    "metta": null,
+    "python": null
+  },
+  "Error": {
+    "metta": [
+      "(Error a b)"
+    ],
+    "metta_inferences": 506,
+    "python": [
+      "(Error a b)"
+    ],
+    "python_inferences": 0
+  },
+  "ErrorType": {
+    "metta": [
+      "ErrorType"
+    ],
+    "metta_inferences": 1080,
+    "python": [
+      "ErrorType"
+    ],
+    "python_inferences": 0
+  },
+  "IncorrectNumberOfArguments": {
+    "metta": null,
+    "python": null
+  },
+  "Pair": {
+    "metta": null,
+    "python": null
+  },
+  "PairType": {
+    "metta": null,
+    "python": null
+  },
+  "SpaceType": {
+    "metta": null,
+    "python": null
+  },
+  "TP": {
+    "metta": [
+      "Type"
+    ],
+    "metta_inferences": 5999010,
+    "python": [
+      "Type"
+    ],
+    "python_inferences": 6006525
+  },
+  "TU": {
+    "metta": [
+      "(-> Type Type)"
+    ],
+    "metta_inferences": 6002677,
+    "python": [
+      "(-> Type Type)"
+    ],
+    "python_inferences": 6009226
+  },
+  "_separate-errors": {
+    "metta": null,
+    "python": [
+      "(Error a b)"
+    ]
+  },
+  "abs-math": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 636,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "acos-math": {
+    "metta": [
+      "0.0"
+    ],
+    "metta_inferences": 643,
+    "python": [
+      "0.0"
+    ],
+    "python_inferences": 0
+  },
+  "add-atom": {
+    "metta": [
+      "(f 1)"
+    ],
+    "metta_inferences": 1526,
+    "python": [
+      "(f 1)"
+    ],
+    "python_inferences": 66
+  },
+  "add-atoms": {
+    "metta": [
+      "(f 1)",
+      "(f 2)"
+    ],
+    "metta_inferences": 1624,
+    "python": [
+      "(f 1)",
+      "(f 2)"
+    ],
+    "python_inferences": 116
+  },
+  "add-reduct": {
+    "metta": [
+      "(total 3)"
+    ],
+    "metta_inferences": 1873,
+    "python": [
+      "(total 3)"
+    ],
+    "python_inferences": 183
+  },
+  "add-reducts": {
+    "metta": [
+      "(total 3)",
+      "(total 4)"
+    ],
+    "metta_inferences": 2319,
+    "python": [
+      "(total 3)",
+      "(total 4)"
+    ],
+    "python_inferences": 341
+  },
+  "and": {
+    "metta": [
+      "False"
+    ],
+    "metta_inferences": 771,
+    "python": [
+      "False"
+    ],
+    "python_inferences": 0
+  },
+  "asin-math": {
+    "metta": [
+      "0.0"
+    ],
+    "metta_inferences": 645,
+    "python": [
+      "0.0"
+    ],
+    "python_inferences": 0
+  },
+  "assert": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1020,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "assertAlphaEqual": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1170,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "assertAlphaEqualMsg": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1202,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "assertAlphaEqualToResult": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1108,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 131
+  },
+  "assertAlphaEqualToResultMsg": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1141,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 131
+  },
+  "assertEqual": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1371,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 117
+  },
+  "assertEqualMsg": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1403,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 117
+  },
+  "assertEqualToResult": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1197,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 165
+  },
+  "assertEqualToResultMsg": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1230,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 165
+  },
+  "assertIncludes": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1136,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 177
+  },
+  "atan-math": {
+    "metta": [
+      "0.0"
+    ],
+    "metta_inferences": 643,
+    "python": [
+      "0.0"
+    ],
+    "python_inferences": 0
+  },
+  "atom-subst": {
+    "metta": null,
+    "python": [
+      "(f a)"
+    ]
+  },
+  "bind!": {
+    "metta": [
+      "(f 1)"
+    ],
+    "metta_inferences": 1526,
+    "python": [
+      "(f 1)"
+    ],
+    "python_inferences": 66
+  },
+  "bottomup": {
+    "metta": [
+      "strategy-bottomup-root"
+    ],
+    "metta_inferences": 8762590,
+    "python": [
+      "strategy-bottomup-root"
+    ],
+    "python_inferences": 8946524
+  },
+  "capture": {
+    "metta": null,
+    "python": null
+  },
+  "car-atom": {
+    "metta": [
+      "a"
+    ],
+    "metta_inferences": 968,
+    "python": [
+      "a"
+    ],
+    "python_inferences": 0
+  },
+  "case": {
+    "metta": [
+      "two"
+    ],
+    "metta_inferences": 538,
+    "python": [
+      "two"
+    ],
+    "python_inferences": 0
+  },
+  "case%": {
+    "metta": null,
+    "python": null
+  },
+  "cdr-atom": {
+    "metta": [
+      "(b c)"
+    ],
+    "metta_inferences": 984,
+    "python": [
+      "(b c)"
+    ],
+    "python_inferences": 0
+  },
+  "ceil-math": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 641,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "chain": {
+    "metta": [
+      "(foo 3)"
+    ],
+    "metta_inferences": 821,
+    "python": [
+      "(foo 3)"
+    ],
+    "python_inferences": 117
+  },
+  "change-state!": {
+    "metta": [
+      "2"
+    ],
+    "metta_inferences": 1148,
+    "python": [
+      "2"
+    ],
+    "python_inferences": 376
+  },
+  "collapse": {
+    "metta": [
+      "(a b)"
+    ],
+    "metta_inferences": 532,
+    "python": [
+      "(a b)"
+    ],
+    "python_inferences": 0
+  },
+  "collapse-bind": {
+    "metta": null,
+    "python": null
+  },
+  "cons-atom": {
+    "metta": [
+      "(f a b)"
+    ],
+    "metta_inferences": 752,
+    "python": [
+      "(f a b)"
+    ],
+    "python_inferences": 0
+  },
+  "context-space": {
+    "metta": [
+      "(f 1)"
+    ],
+    "metta_inferences": 1035,
+    "python": [
+      "(f 1)"
+    ],
+    "python_inferences": 66
+  },
+  "cos-math": {
+    "metta": [
+      "1.0"
+    ],
+    "metta_inferences": 643,
+    "python": [
+      "1.0"
+    ],
+    "python_inferences": 0
+  },
+  "decons-atom": {
+    "metta": [
+      "(f (a b))"
+    ],
+    "metta_inferences": 750,
+    "python": [
+      "(f (a b))"
+    ],
+    "python_inferences": 0
+  },
+  "div-euclid": {
+    "metta": null,
+    "python": [
+      "-4"
+    ]
+  },
+  "div-floor": {
+    "metta": null,
+    "python": [
+      "-4"
+    ]
+  },
+  "div-trunc": {
+    "metta": null,
+    "python": [
+      "-3"
+    ]
+  },
+  "eval": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 807,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 117
+  },
+  "eval-via-match": {
+    "metta": null,
+    "python": null
+  },
+  "eval-via-unify": {
+    "metta": null,
+    "python": null
+  },
+  "evalc": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 860,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 362
+  },
+  "filter-atom": {
+    "metta": [
+      "(2 3)"
+    ],
+    "metta_inferences": 3211,
+    "python": [
+      "(2 3)"
+    ],
+    "python_inferences": 0
+  },
+  "floor-math": {
+    "metta": [
+      "2"
+    ],
+    "metta_inferences": 641,
+    "python": [
+      "2"
+    ],
+    "python_inferences": 0
+  },
+  "foldl-atom": {
+    "metta": [
+      "6"
+    ],
+    "metta_inferences": 1653,
+    "python": [
+      "6"
+    ],
+    "python_inferences": 298
+  },
+  "for-each-in-atom": {
+    "metta": [
+      "(True True)"
+    ],
+    "metta_inferences": 949,
+    "python": [
+      "()"
+    ],
+    "python_inferences": 0
+  },
+  "fork-space": {
+    "metta": null,
+    "python": [
+      "(f 1)"
+    ]
+  },
+  "format-args": {
+    "metta": [
+      "\"a and b\""
+    ],
+    "metta_inferences": 870,
+    "python": [
+      "\"a and b\""
+    ],
+    "python_inferences": 0
+  },
+  "function": {
+    "metta": null,
+    "python": null
+  },
+  "fuzzy-match": {
+    "metta": null,
+    "python": null
+  },
+  "fuzzy-match-context": {
+    "metta": null,
+    "python": null
+  },
+  "fuzzy-match-space": {
+    "metta": null,
+    "python": null
+  },
+  "get-atoms": {
+    "metta": [
+      "(f 1)"
+    ],
+    "metta_inferences": 1526,
+    "python": [
+      "(f 1)"
+    ],
+    "python_inferences": 95
+  },
+  "get-deps": {
+    "metta": null,
+    "python": null
+  },
+  "get-doc": {
+    "metta": [],
+    "metta_inferences": 1298,
+    "python": [
+      "\"Make a title into a slug.\""
+    ],
+    "python_inferences": 0
+  },
+  "get-metatype": {
+    "metta": [
+      "Expression"
+    ],
+    "metta_inferences": 451,
+    "python": [
+      "Expression"
+    ],
+    "python_inferences": 0
+  },
+  "get-state": {
+    "metta": [
+      "5"
+    ],
+    "metta_inferences": 882,
+    "python": [
+      "5"
+    ],
+    "python_inferences": 247
+  },
+  "get-type": {
+    "metta": [
+      "Number"
+    ],
+    "metta_inferences": 846,
+    "python": [
+      "Number"
+    ],
+    "python_inferences": 181
+  },
+  "get-type-space": {
+    "metta": [
+      "Number"
+    ],
+    "metta_inferences": 1023,
+    "python": [
+      "Number"
+    ],
+    "python_inferences": 848
+  },
+  "git-import!": {
+    "metta": [
+      "Grounded"
+    ],
+    "metta_inferences": 440,
+    "python": [
+      "json"
+    ],
+    "python_inferences": 0
+  },
+  "git-module!": {
+    "metta": null,
+    "python": null
+  },
+  "gtry": {
+    "metta": [
+      "a"
+    ],
+    "metta_inferences": 5856664,
+    "python": [
+      "a"
+    ],
+    "python_inferences": 6021716
+  },
+  "help!": {
+    "metta": null,
+    "python": [
+      "\"adds one\""
+    ]
+  },
+  "id": {
+    "metta": [
+      "5"
+    ],
+    "metta_inferences": 624,
+    "python": [
+      "5"
+    ],
+    "python_inferences": 0
+  },
+  "if": {
+    "metta": [
+      "a"
+    ],
+    "metta_inferences": 452,
+    "python": [
+      "a"
+    ],
+    "python_inferences": 0
+  },
+  "if-decons-expr": {
+    "metta": null,
+    "python": [
+      "(yes a (b))"
+    ]
+  },
+  "if-equal": {
+    "metta": [
+      "yes"
+    ],
+    "metta_inferences": 1060,
+    "python": [
+      "yes"
+    ],
+    "python_inferences": 0
+  },
+  "if-error": {
+    "metta": [
+      "yes"
+    ],
+    "metta_inferences": 8131,
+    "python": [
+      "yes"
+    ],
+    "python_inferences": 0
+  },
+  "import!": {
+    "metta": [
+      "a"
+    ],
+    "metta_inferences": 2054,
+    "python": [
+      "math"
+    ],
+    "python_inferences": 0
+  },
+  "import-into!": {
+    "metta": null,
+    "python": null
+  },
+  "import-item!": {
+    "metta": null,
+    "python": null
+  },
+  "include": {
+    "metta": [
+      "Grounded"
+    ],
+    "metta_inferences": 440,
+    "python": [
+      "7"
+    ],
+    "python_inferences": 1924
+  },
+  "index-atom": {
+    "metta": [
+      "b"
+    ],
+    "metta_inferences": 738,
+    "python": [
+      "b"
+    ],
+    "python_inferences": 0
+  },
+  "innermost": {
+    "metta": [
+      "strategy-innermost-root"
+    ],
+    "metta_inferences": 9383328,
+    "python": [
+      "strategy-innermost-root"
+    ],
+    "python_inferences": 9573271
+  },
+  "intersection": {
+    "metta": [
+      "b",
+      "c"
+    ],
+    "metta_inferences": 1605,
+    "python": [
+      "b",
+      "c"
+    ],
+    "python_inferences": 0
+  },
+  "intersection-atom": {
+    "metta": [
+      "(b c)"
+    ],
+    "metta_inferences": 942,
+    "python": [
+      "(b c)"
+    ],
+    "python_inferences": 0
+  },
+  "is-function": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1600,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "isinf-math": {
+    "metta": [
+      "False"
+    ],
+    "metta_inferences": 659,
+    "python": [
+      "False"
+    ],
+    "python_inferences": 0
+  },
+  "isnan-math": {
+    "metta": [
+      "False"
+    ],
+    "metta_inferences": 656,
+    "python": [
+      "False"
+    ],
+    "python_inferences": 0
+  },
+  "let": {
+    "metta": [
+      "2"
+    ],
+    "metta_inferences": 700,
+    "python": [
+      "2"
+    ],
+    "python_inferences": 0
+  },
+  "let%": {
+    "metta": null,
+    "python": null
+  },
+  "let*": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 716,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "let*%": {
+    "metta": null,
+    "python": null
+  },
+  "loaded-mods!": {
+    "metta": null,
+    "python": [
+      "json"
+    ]
+  },
+  "log-math": {
+    "metta": [
+      "3.0"
+    ],
+    "metta_inferences": 710,
+    "python": [
+      "3.0"
+    ],
+    "python_inferences": 0
+  },
+  "map-atom": {
+    "metta": [
+      "(2 3 4)"
+    ],
+    "metta_inferences": 1495,
+    "python": [
+      "(2 3 4)"
+    ],
+    "python_inferences": 0
+  },
+  "match": {
+    "metta": [
+      "1"
+    ],
+    "metta_inferences": 1531,
+    "python": [
+      "1"
+    ],
+    "python_inferences": 30280
+  },
+  "match%": {
+    "metta": null,
+    "python": null
+  },
+  "max-atom": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 654,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "metta": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 1170,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 117
+  },
+  "min-atom": {
+    "metta": [
+      "1"
+    ],
+    "metta_inferences": 654,
+    "python": [
+      "1"
+    ],
+    "python_inferences": 0
+  },
+  "mod-euclid": {
+    "metta": null,
+    "python": [
+      "1"
+    ]
+  },
+  "mod-floor": {
+    "metta": null,
+    "python": [
+      "1"
+    ]
+  },
+  "mod-space!": {
+    "metta": null,
+    "python": null
+  },
+  "module-space-no-deps": {
+    "metta": null,
+    "python": null
+  },
+  "module-tree!": {
+    "metta": null,
+    "python": [
+      "requires"
+    ]
+  },
+  "near-match": {
+    "metta": null,
+    "python": null
+  },
+  "new-space": {
+    "metta": [],
+    "metta_inferences": 714,
+    "python": [],
+    "python_inferences": 103
+  },
+  "new-state": {
+    "metta": [
+      "1"
+    ],
+    "metta_inferences": 943,
+    "python": [
+      "1"
+    ],
+    "python_inferences": 778
+  },
+  "noeval": {
+    "metta": [
+      "(+ 1 2)"
+    ],
+    "metta_inferences": 452,
+    "python": [
+      "(+ 1 2)"
+    ],
+    "python_inferences": 0
+  },
+  "nop": {
+    "metta": [
+      "()"
+    ],
+    "metta_inferences": 429,
+    "python": [
+      "()"
+    ],
+    "python_inferences": 0
+  },
+  "noreduce-eq": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 1050,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "not": {
+    "metta": [
+      "False"
+    ],
+    "metta_inferences": 677,
+    "python": [
+      "False"
+    ],
+    "python_inferences": 0
+  },
+  "or": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 771,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "pow-math": {
+    "metta": [
+      "8.0"
+    ],
+    "metta_inferences": 714,
+    "python": [
+      "8.0"
+    ],
+    "python_inferences": 0
+  },
+  "print-alternatives!": {
+    "metta": null,
+    "python": [
+      "()"
+    ]
+  },
+  "print-mods!": {
+    "metta": null,
+    "python": [
+      "()"
+    ]
+  },
+  "println!": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 652,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "quote": {
+    "metta": [
+      "(+ 1 2)"
+    ],
+    "metta_inferences": 445,
+    "python": [
+      "(+ 1 2)"
+    ],
+    "python_inferences": 0
+  },
+  "reduce-via-match": {
+    "metta": null,
+    "python": null
+  },
+  "register-module!": {
+    "metta": null,
+    "python": null
+  },
+  "rem-trunc": {
+    "metta": null,
+    "python": [
+      "-1"
+    ]
+  },
+  "remove-atom": {
+    "metta": [],
+    "metta_inferences": 1675,
+    "python": [],
+    "python_inferences": 98
+  },
+  "repeat": {
+    "metta": [
+      "strategy-c"
+    ],
+    "metta_inferences": 7189936,
+    "python": [
+      "strategy-c"
+    ],
+    "python_inferences": 7322539
+  },
+  "return": {
+    "metta": null,
+    "python": null
+  },
+  "return-on-error": {
+    "metta": [
+      "b"
+    ],
+    "metta_inferences": 6786,
+    "python": [
+      "b"
+    ],
+    "python_inferences": 0
+  },
+  "round-math": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 641,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "sealed": {
+    "metta": [
+      "($x $y#0)"
+    ],
+    "metta_inferences": 470,
+    "python": [
+      "($_v0 $_v1)"
+    ],
+    "python_inferences": 182
+  },
+  "sin-math": {
+    "metta": [
+      "0.0"
+    ],
+    "metta_inferences": 643,
+    "python": [
+      "0.0"
+    ],
+    "python_inferences": 0
+  },
+  "size-atom": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 727,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "skel-swap-pair": {
+    "metta": null,
+    "python": null
+  },
+  "skel-swap-pair-native": {
+    "metta": null,
+    "python": null
+  },
+  "sort-strings": {
+    "metta": [
+      "(\"a\" \"b\" \"c\")"
+    ],
+    "metta_inferences": 707,
+    "python": [
+      "(\"a\" \"b\" \"c\")"
+    ],
+    "python_inferences": 0
+  },
+  "sqrt-math": {
+    "metta": [
+      "2.0"
+    ],
+    "metta_inferences": 643,
+    "python": [
+      "2.0"
+    ],
+    "python_inferences": 0
+  },
+  "stratego-all": {
+    "metta": [
+      "(f a b)"
+    ],
+    "metta_inferences": 9593778,
+    "python": [
+      "(f a b)"
+    ],
+    "python_inferences": 10423166
+  },
+  "stratego-one": {
+    "metta": [
+      "(f a b)",
+      "(f a b)",
+      "(f a b)"
+    ],
+    "metta_inferences": 11089750,
+    "python": [
+      "(f a b)",
+      "(f a b)",
+      "(f a b)"
+    ],
+    "python_inferences": 11370414
+  },
+  "stratego-some": {
+    "metta": null,
+    "python": null
+  },
+  "subtraction": {
+    "metta": [
+      "a",
+      "b"
+    ],
+    "metta_inferences": 1482,
+    "python": [
+      "a",
+      "b"
+    ],
+    "python_inferences": 0
+  },
+  "subtraction-atom": {
+    "metta": [
+      "(a b)"
+    ],
+    "metta_inferences": 900,
+    "python": [
+      "(a b)"
+    ],
+    "python_inferences": 0
+  },
+  "superpose": {
+    "metta": [
+      "a",
+      "b"
+    ],
+    "metta_inferences": 474,
+    "python": [
+      "a",
+      "b"
+    ],
+    "python_inferences": 14216
+  },
+  "superpose-bind": {
+    "metta": null,
+    "python": null
+  },
+  "switch": {
+    "metta": [
+      "two"
+    ],
+    "metta_inferences": 792,
+    "python": [
+      "two"
+    ],
+    "python_inferences": 0
+  },
+  "tan-math": {
+    "metta": [
+      "0.0"
+    ],
+    "metta_inferences": 643,
+    "python": [
+      "0.0"
+    ],
+    "python_inferences": 0
+  },
+  "topdown": {
+    "metta": [
+      "(strategy-node strategy-b)"
+    ],
+    "metta_inferences": 8033274,
+    "python": [
+      "(strategy-node strategy-b)"
+    ],
+    "python_inferences": 8586828
+  },
+  "trace!": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 1018,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 0
+  },
+  "trunc-math": {
+    "metta": [
+      "2"
+    ],
+    "metta_inferences": 641,
+    "python": [
+      "2"
+    ],
+    "python_inferences": 0
+  },
+  "try": {
+    "metta": [
+      "strategy-b"
+    ],
+    "metta_inferences": 6501129,
+    "python": [
+      "strategy-b"
+    ],
+    "python_inferences": 7037046
+  },
+  "unify": {
+    "metta": [
+      "a"
+    ],
+    "metta_inferences": 527,
+    "python": [
+      "a"
+    ],
+    "python_inferences": 279
+  },
+  "unify%": {
+    "metta": null,
+    "python": null
+  },
+  "union": {
+    "metta": [
+      "a",
+      "b",
+      "b",
+      "b",
+      "c"
+    ],
+    "metta_inferences": 1761,
+    "python": [
+      "a",
+      "b",
+      "b",
+      "b",
+      "c"
+    ],
+    "python_inferences": 0
+  },
+  "union-atom": {
+    "metta": [
+      "(a b b b c)"
+    ],
+    "metta_inferences": 842,
+    "python": [
+      "(a b b b c)"
+    ],
+    "python_inferences": 0
+  },
+  "unique": {
+    "metta": [
+      "a",
+      "b",
+      "c"
+    ],
+    "metta_inferences": 1190,
+    "python": [
+      "a",
+      "b",
+      "c"
+    ],
+    "python_inferences": 0
+  },
+  "unique-atom": {
+    "metta": [
+      "(a b c)"
+    ],
+    "metta_inferences": 797,
+    "python": [
+      "(a b c)"
+    ],
+    "python_inferences": 0
+  },
+  "unquote": {
+    "metta": [
+      "3"
+    ],
+    "metta_inferences": 1358,
+    "python": [
+      "3"
+    ],
+    "python_inferences": 117
+  },
+  "xor": {
+    "metta": [
+      "True"
+    ],
+    "metta_inferences": 771,
+    "python": [
+      "True"
+    ],
+    "python_inferences": 0
+  },
+  "\u25c1": {
+    "metta": [
+      "(-> Atom Type Atom Atom)"
+    ],
+    "metta_inferences": 6003645,
+    "python": [
+      "(-> Atom Type Atom Atom)"
+    ],
+    "python_inferences": 6003842
+  }
 }

@@ -476,26 +476,18 @@ def test_aio_covers_the_whole_synchronous_surface():
         "under",
         "into",
     ]
-    # The residuals parameter this pin exists for is still absent; under,
-    # theory and interpreter are answers()' three, and eval() carries them on
-    # BOTH surfaces because answers() itself is excluded here.
-    assert list(inspect.signature(aio.AsyncMeTTa.eval).parameters) == [
-        "self",
-        "target",
-        "using",
-        "timeout",
-        "inferences",
-        "under",
-        "theory",
-        "interpreter",
-    ]
-    assert list(inspect.signature(aio.AsyncMeTTa.one).parameters) == [
-        "self",
-        "target",
-        "using",
-        "timeout",
-        "inferences",
-    ]
+    # What this pin exists for, stated rather than spelled as a list: the
+    # `residuals` parameter is still absent, and eval() carries answers()'
+    # three relation selectors on BOTH surfaces because answers() itself is
+    # excluded above. An exact list would go red on every legitimate widening
+    # or pruning, as it did when `using=` collapsed into `bind()`.
+    evaluated = set(inspect.signature(aio.AsyncMeTTa.eval).parameters)
+    assert "residuals" not in evaluated
+    assert {"under", "theory", "interpreter"} <= evaluated
+    # And the binding scope replaced the keyword on every door that took it.
+    for door in ("eval", "one", "first", "eval_status", "derivation"):
+        parameters = set(inspect.signature(getattr(aio.AsyncMeTTa, door)).parameters)
+        assert "using" not in parameters, door
 
 
 def test_aio_plain_methods_forward_on_the_worker(metta, tmp_path):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract

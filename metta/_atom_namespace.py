@@ -79,6 +79,7 @@ class _Namespace:
         "_kind",
         "_label",
         "_lock",
+        "_remedy",
     )
 
     def __init__(
@@ -89,6 +90,7 @@ class _Namespace:
         aliases: dict[str, str] | None = None,
         documentation: dict[str, str] | None = None,
         label: str = "name",
+        remedy: str = "",
     ) -> None:
         object.__setattr__(self, "_kind", kind)
         object.__setattr__(self, "_allowed", allowed)
@@ -98,6 +100,11 @@ class _Namespace:
             aliases if aliases is not None else generated_aliases(allowed or ()),
         )
         object.__setattr__(self, "_label", label)
+        #: What to reach for when a CLOSED namespace does not carry a name.
+        #: A closed namespace is generated, so it cannot see a name registered
+        #: since generation, and its refusal has to say where that name IS
+        #: reachable rather than only that it is absent here.
+        object.__setattr__(self, "_remedy", remedy)
         object.__setattr__(self, "_documentation", documentation or {})
         object.__setattr__(self, "_cache", {})
         object.__setattr__(self, "_fast", {})
@@ -162,7 +169,11 @@ class _Namespace:
                 target = aliases[name]
             except KeyError:
                 label = object.__getattribute__(self, "_label")
-                msg = f"no {label} attribute named {name!r} exists in the generated catalog"
+                remedy = object.__getattribute__(self, "_remedy")
+                msg = (
+                    f"no {label} attribute named {name!r} exists in the "
+                    f"generated catalog{remedy}"
+                )
                 raise AttributeError(msg) from None
         hit = self._resolve(target)
         lock = object.__getattribute__(self, "_lock")
@@ -177,7 +188,11 @@ class _Namespace:
         allowed = object.__getattribute__(self, "_allowed")
         if allowed is not None and name not in allowed:
             label = object.__getattribute__(self, "_label")
-            msg = f"no {label} named {name!r} exists in the generated catalog"
+            remedy = object.__getattribute__(self, "_remedy")
+            msg = (
+                f"no {label} named {name!r} exists in the generated "
+                f"catalog{remedy}"
+            )
             raise AttributeError(msg)
         fast = object.__getattribute__(self, "_fast")
         try:

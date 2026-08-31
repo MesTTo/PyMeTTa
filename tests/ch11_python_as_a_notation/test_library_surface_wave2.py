@@ -302,7 +302,7 @@ def test_declarations_use_their_atom_heads_on_the_receiver() -> None:
     assert str(target.reacts("(notice $x)", "(insert &self (seen $x))")) == (
         "(on &libfix-declarations (notice $x) (insert &self (seen $x)))"
     )
-    assert str(target.reaction("(legacy $x)", "(insert &self (seen $x))")) == (
+    assert str(target.reacts("(legacy $x)", "(insert &self (seen $x))")) == (
         "(on &libfix-declarations (legacy $x) (insert &self (seen $x)))"
     )
 

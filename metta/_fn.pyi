@@ -64,7 +64,7 @@ class _FunctionNamespace:
     cdr_atom: Symbol
     "cdr-atom: (-> Expression Expression)\n\nSlicing. `e[1:]` answers a Python tuple today rather than an Expression, which prints the same and is the T6 friction section 9e names as this bucket's one prerequisite."
     ceil_math: Symbol
-    "ceil-math: (-> Number Number)\n\n`math.ceil`, which answers an integer in Python 3 where LeaTTa keeps the float."
+    "ceil-math: (-> Number Number)\n\n`math.ceil`, which answers an integer in Python 3 where a float-preserving float."
     chain: Symbol
     "chain: (-> Atom Variable Atom %Undefined%)\n\nPython assignment. Chain executes one instruction, binds, substitutes and continues, which is exactly `x = m.eval(t)[0]` followed by use of `x`."
     change_state: Symbol
@@ -202,7 +202,7 @@ class _FunctionNamespace:
     "min-atom: (-> %Undefined% Number)\n\nPython's builtin `min` over the children."
     mm2_exec: Symbol
     mod: Symbol
-    "%: (-> Number Number Number)\n\nPython's own operator. Both take the sign of the divisor for a positive divisor; LeaTTa's is Euclidean, so a NEGATIVE divisor parts them and `mod-floor` is the name for Python's convention."
+    "%: (-> Number Number Number)\n\nPython's own operator. Both take the sign of the divisor for a positive divisor; a Euclidean `%` differs on a NEGATIVE divisor, which parts them and `mod-floor` is the name for Python's convention."
     mork_add_atoms: Symbol
     mork_flush: Symbol
     msort: Symbol
@@ -318,7 +318,7 @@ class _FunctionNamespace:
     "trace!: (-> %Undefined% Atom %Undefined%)\n\n`print` or `logging` beside the value; `m.trace()` is the engine's own reduction trace, a different and deeper thing."
     transaction: Symbol
     truediv: Symbol
-    "/: (-> Number Number Number)\n\nPython's `/` is true division, and so is this engine's. LeaTTa's integer `/` is EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on floats all three agree."
+    "/: (-> Number Number Number)\n\nPython's `/` is true division, and so is this engine's. An integer `/` is EUCLIDEAN by its own ruling, so `(/ 7 2)` is 3 there and 3.5 here; on floats all three agree."
     trunc_math: Symbol
     "trunc-math: (-> Number Number)\n\n`math.trunc`, or `int` on a float."
     type_cast: Symbol
@@ -328,7 +328,7 @@ class _FunctionNamespace:
     undocumented: Symbol
     undocumented_space: Symbol
     unify: Symbol
-    "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural unification. `metta.unify(a, b)` symmetrically answers one bindings mapping or `None`; `metta.unify(a, b, then, els)` evaluates the engine conditional, running `then` once per binding set and `els` only when none exists. A compiled body lowers the same four-argument call directly to the engine form."
+    "unify: (-> Atom Atom Atom Atom %Undefined%)\n\nStructural unification. `metta.unify(a, b)` symmetrically answers one substitution keyed by the VARIABLES, which is what `atom.subs` takes, or `None`; `metta.unify(a, b, then, els)` evaluates the engine conditional, running `then` once per binding set and `els` only when none exists. A compiled body lowers the same four-argument call directly to the engine form."
     union: Symbol
     "union: (-> Atom Atom %Undefined%)\n\nMultiset union over nondeterministic answers, which is concatenation: answers are iterables and `+` joins them."
     union_atom: Symbol

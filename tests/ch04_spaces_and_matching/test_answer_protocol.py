@@ -867,7 +867,7 @@ def test_a_bridge_inserts_under_the_matched_bindings(metta):  # noqa: D103  -- p
 
 def test_a_revise_bridge_replaces(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("!(add-atom &br-state (mode old))")
-    metta._at("&br-cmd").reaction("(set-mode $m)", "(revise &br-state (mode $_) (mode $m))"
+    metta._at("&br-cmd").reacts("(set-mode $m)", "(revise &br-state (mode $_) (mode $m))"
     )
     metta.run("!(add-atom &br-cmd (set-mode new))")
     out = metta.run("!(collapse (match &br-state (mode $m) $m))")
@@ -875,13 +875,13 @@ def test_a_revise_bridge_replaces(metta):  # noqa: D103  -- pytest discovers or 
 
 
 def test_a_bridge_cascade_is_bounded(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta._at("&br-loop").reaction("(tick $n)", "(insert &br-loop (tick $n))")
+    metta._at("&br-loop").reacts("(tick $n)", "(insert &br-loop (tick $n))")
     with pytest.raises(EngineError, match="cascade"):
         metta.run("!(add-atom &br-loop (tick 1))")
 
 
 def test_an_unknown_bridge_head_is_loud(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
-    metta._at("&br-bad").reaction("(x $y)", "(teleport &elsewhere $y)")
+    metta._at("&br-bad").reacts("(x $y)", "(teleport &elsewhere $y)")
     with pytest.raises(EngineError, match="managed head"):
         metta.run("!(add-atom &br-bad (x 1))")
 
@@ -1177,7 +1177,7 @@ def test_fabricated_space_identities_are_refused():  # noqa: D103  -- pytest dis
 
 def test_hyperpose_is_parallel_under_the_languages_name(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.run("(= (ic-sq $x) (* $x $x))")
-    answers = metta.hyperpose("(ic-sq 2)", "(ic-sq 3)")
+    answers = metta.parallel("(ic-sq 2)", "(ic-sq 3)")
     assert sorted(str(a) for a in answers) == ["4", "9"]
 
 

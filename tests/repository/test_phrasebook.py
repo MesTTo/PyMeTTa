@@ -4,10 +4,10 @@ A lane that cannot be shown failing is evidence of nothing, so these plant a
 wrong answer, a silent divergence between the two sides, a bucket claimed
 without a spelling, a residue row that secretly carries one, and a stale page,
 and require the lane to answer correctly about each. The coverage claim itself
-is checked the other way round: every name LeaTTa declares has exactly one row,
-so the denominator cannot quietly shrink.
-The supplemental table separately pins Python-first faces that have no LeaTTa
-manifest name [tested: test_python_first_public_faces_are_in_the_phrasebook;
+is checked the other way round: every stdlib name has exactly one row, so the
+denominator cannot quietly shrink.
+The supplemental table separately pins Python-first faces that have no stdlib
+name of their own [tested: test_python_first_public_faces_are_in_the_phrasebook;
 commit=5059173b1767600ce4df0f6b7841d88116ee62d3].
 Internal catalog rows never enter the public generated page [tested:
 test_internal_rows_are_absent_from_the_public_phrasebook;
@@ -53,11 +53,11 @@ def _entry(**overrides) -> Entry:
 def test_the_phrasebook_carries_one_row_per_name():
     """One row per name, no duplicates, and the declared count.
 
-    The row's TYPE used to be checked against a vendored LeaTTa manifest, and
-    that check retired with the arbiter on 2026-08-30: PeTTa is what this
-    engine follows now, and its types are this engine's own. What survives is
-    the completeness half, which never depended on the other oracle -- a name
-    with two rows or a missing row is a defect whatever the arbiter is
+    The row's TYPE used to be checked against a vendored manifest, and that
+    check retired with the outside arbiter: upstream PeTTa is what this engine
+    follows, and its types are this engine's own. What survives is the
+    completeness half, which never depended on another oracle -- a name with
+    two rows or a missing row is a defect either way
     [tested by this file's own planted-duplicate case below].
     """
     names = [entry.name for entry in ENTRIES]
@@ -106,7 +106,7 @@ def test_a_dishonest_row_is_a_structural_finding(overrides, expected):
 def test_a_broken_python_spelling_is_a_finding():
     """A spelling that stops answering what the record says is caught."""
     entry = _entry()
-    frozen = {"leatta": ["3"], "metta": ["3"], "python": ["3"]}
+    frozen = {"metta": ["3"], "python": ["3"]}
     seen = {"metta": ["3"], "python": ["4"]}
     findings = book.compare(entry, frozen, seen)
     assert any("the python side now answers" in finding for finding in findings), findings
@@ -115,18 +115,11 @@ def test_a_broken_python_spelling_is_a_finding():
 def test_a_silent_divergence_is_a_finding():
     """Two sides that disagree without saying why is a finding; saying why is not."""
     seen = {"metta": ["3"], "python": ["4"]}
-    frozen = {"leatta": ["3"], "metta": ["3"], "python": ["4"]}
+    frozen = {"metta": ["3"], "python": ["4"]}
     quiet = book.compare(_entry(), frozen, seen)
     assert any("the two sides disagree" in finding for finding in quiet), quiet
     spoken = book.compare(_entry(differs="the engines round differently"), frozen, seen)
     assert not any("the two sides disagree" in finding for finding in spoken), spoken
-
-
-def test_a_spelling_that_leaves_the_oracle_behind_is_a_finding():
-    """Agreeing with this engine is not enough when the oracle says otherwise."""
-    frozen = {"leatta": ["3"], "metta": ["4"], "python": ["4"]}
-    findings = book.compare(_entry(), frozen, {"metta": ["4"], "python": ["4"]})
-    assert any("where LeaTTa answers" in finding for finding in findings), findings
 
 
 def test_a_raising_spelling_is_a_finding():

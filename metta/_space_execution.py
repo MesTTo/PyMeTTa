@@ -166,6 +166,20 @@ def capture_output() -> CapturedOutput:
 def _run_target(space: str, source: str, using: dict[str, Any] | None) -> tuple[str, list[Any]]:
     if not using:
         return "metta_py_run", [source, space]
+    # A NAME only. bind() also takes an atom key, which means that exact atom
+    # and is applied in the host before a TERM is asked; source text has no
+    # term yet, so there is nothing here to apply it to. Refusing beats
+    # dropping it, which would run the source with the binding silently
+    # missing.
+    unnamed = [key for key in using if not isinstance(key, str)]
+    if unnamed:
+        msg = (
+            f"source execution binds by NAME, and {unnamed!r} names an atom. "
+            f"An atom key is applied to a TERM, so pass the term to eval(), "
+            f"answers() or eval_status() instead, or bind the name the "
+            f"source writes."
+        )
+        raise TypeError(msg)
     pairs = [[name, _encode(value).to_wire()] for name, value in using.items()]
     return "metta_py_run_using", [source, space, pairs]
 

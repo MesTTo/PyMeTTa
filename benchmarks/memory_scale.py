@@ -497,7 +497,7 @@ def _hyperpose(size: int) -> dict[str, int]:
     try:
         return _measure(
             space,
-            lambda: space.hyperpose(*targets, timeout=120),
+            lambda: space.parallel(*targets, timeout=120),
             extras=lambda answers: {"answer_count": len(answers)},
         )
     finally:

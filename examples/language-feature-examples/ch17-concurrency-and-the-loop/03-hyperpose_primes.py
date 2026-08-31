@@ -42,7 +42,7 @@ def twin(m):
     # hyperpose takes its branches through a variable as happily as inline, and
     # the answers come back in whatever order the threads finish.
     xs = (3, 1, 2)
-    assert sorted(m.hyperpose(*xs)) == [1, 2, 3]
+    assert sorted(m.parallel(*xs)) == [1, 2, 3]
 
 
 #: Inferences this twin spends, its own tripwire. PLACEHOLDER: the wave's

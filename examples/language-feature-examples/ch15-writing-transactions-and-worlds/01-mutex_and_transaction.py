@@ -6,7 +6,7 @@ sloppy one that would race, the mutex-protected one that does not, and one
 wrapped in a transaction whose branch fails, which rolls the removal back.
 Five protected increments run at once and 37 becomes 42.
 
-`m.hyperpose(*targets)` is the parallel door under the language's own name, so
+`m.parallel(*targets)` is the parallel door under the language's own name, so
 running the five branches is one Python call, and reading the aftermath is the
 container door, `list(space)`.
 
@@ -57,7 +57,7 @@ def twin(m):
     rollback = S["Transaction_rollback_fail_to_inc"]
     m += equation(rollback()).to(S.transaction(increment(S.empty())))
 
-    m.hyperpose(*(S.mutexinc() for _ in range(5)))
+    m.parallel(*(S.mutexinc() for _ in range(5)))
     assert list(temp) == [S.cnt(42)]
 
     m.eval(rollback())

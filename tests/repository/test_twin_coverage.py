@@ -354,7 +354,7 @@ def test_a_declaration_takes_members_and_refuses_a_program(tmp_path):
         "from metta import S\n"
         "BUDGET = 1\n"
         "def twin(m):\n"
-        '    m.reaction("(Job $n)", S.run)\n'
+        '    m.reacts("(Job $n)", S.run)\n'
         '    m.merge("(user $n $a)", "fair")\n',
         encoding="utf-8",
     )
@@ -439,7 +439,7 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
         "merge", "on_error", "source", "writes",
     }
     assert coverage.DECLARATION_CALLS - enum_calls == {
-        "admits", "algebra", "annotations", "capacity", "reaction",
+        "admits", "algebra", "annotations", "capacity", "reacts",
     }
     # And the fifteen doors that take them are the fifteen the rewrite map
     # names, every one of them a live method on the handle.
@@ -447,8 +447,14 @@ def test_the_declaration_vocabulary_is_the_librarys_own():
 
     assert len(coverage.DECLARATION_CALLS) == 15
     assert all(hasattr(Space, name) for name in coverage.DECLARATION_CALLS)
+    # Each call has a retired `declare_*` spelling it replaced. `reacts` is
+    # the one whose retired name does not follow from its current one: the
+    # door was `declare_reaction`, then `reaction`, and `reacts` now, because
+    # `reaction` was an explicit compatibility alias and this library keeps no
+    # synonyms. The retired map records what was retired, not what replaced it.
+    retired_of = {"reacts": "declare_reaction"}
     assert all(
-        f"declare_{name}" in coverage.RETIRED_HANDLE
+        retired_of.get(name, f"declare_{name}") in coverage.RETIRED_HANDLE
         for name in coverage.DECLARATION_CALLS
     )
 
