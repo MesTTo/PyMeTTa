@@ -47,6 +47,10 @@ Guarantees:
     [tested: test_a_retained_count_replays_the_bag_the_cursor_would_have_answered,
     test_a_length_evaluates_an_effect_bearing_goal_exactly_once;
     commit=00a30179a1acd55aa969b44a977fb9a38e2e2df2]
+  - abandoning that view releases the engine its count retained, on the path
+    where the answers were never pulled as well [tested:
+    test_a_counted_view_releases_its_engine_when_it_is_dropped;
+    commit=WORKTREE]
 Open Obligations:
   To Do: None
   Hacks: None
@@ -60,7 +64,7 @@ Open Obligations:
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Generator, Iterable, Iterator, Sequence
 from contextvars import ContextVar
 from typing import Any, Self
 
@@ -515,6 +519,49 @@ def _retain_and_count(
     return int(count), handle
 
 
+class _RetainedAnswers:
+    """An answer stream that owns the cursor a declined count left behind.
+
+    Both close on every path that abandons the view.
+    Both hold ONE SWI engine and the whole bag it counted. Closing the
+    generator alone released nothing when the generator had never started,
+    because a generator that never ran runs no finally block: a view that was
+    counted and never iterated left its engine and its answers alive for the
+    life of the process [measured 2026-08-30: current_engine/1 still counted
+    the engine after del and gc.collect(), and metta_py_cursor_next still
+    answered from the abandoned handle; tested
+    test_a_counted_view_releases_its_engine_when_it_is_dropped].
+    """
+
+    __slots__ = ("_answers", "_retained", "_rt")
+
+    def __init__(
+        self, answers: Generator[Any], retained: list[Any], rt: Runtime
+    ) -> None:
+        self._answers = answers
+        self._retained = retained
+        self._rt = rt
+
+    def __iter__(self) -> Iterator[Any]:
+        return self
+
+    def __next__(self) -> Any:
+        return next(self._answers)
+
+    def close(self) -> None:
+        """Release the stream and any cursor it never took over.
+
+        A started generator has already popped the handle, so its own finally
+        closes that engine and the list is empty here; an unstarted one leaves
+        it, and this is the only place left to close it.
+        """
+        try:
+            self._answers.close()
+        finally:
+            while self._retained:
+                self._rt.do("metta_py_cursor_close", self._retained.pop())
+
+
 def evaluate_answers(
     rt: Runtime,
     space: str,
@@ -587,7 +634,7 @@ def evaluate_answers(
         retained.append(handle)
         return count
 
-    def stream() -> Iterator[Any]:
+    def stream() -> Generator[Any]:
         if retained:
             handle = retained.pop()
         else:
@@ -664,7 +711,7 @@ def evaluate_answers(
             rt.do("metta_py_cursor_close", handle)
 
     return Answers(
-        stream(),
+        _RetainedAnswers(stream(), retained, rt),
         columns=columns,
         space=space,
         target=target,

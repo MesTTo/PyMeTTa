@@ -35,6 +35,10 @@ Guarantees:
   - evaluation values and their caller-binding rows are parallel faces of one
     Answers cursor [tested: test_calls_keep_values_and_binding_rows;
     commit=18b1135167d60396c41e63e42ded2f66d0eb1900]
+  - finalizing an Answers releases everything the engine holds for it, the
+    cursor a declined count opened and never handed to the stream included
+    [tested: test_a_counted_view_releases_its_engine_when_it_is_dropped;
+    commit=WORKTREE]
   - private item replay lets a deferred algebra route preserve those rows
     without probing the engine when its Answers view is constructed [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
@@ -1147,6 +1151,13 @@ class Answers[T](Sequence[T]):
         return self
 
     def __del__(self) -> None:  # noqa: D105 -- finalization releases the owned source
+        # The source owns everything the engine holds for this view, which for
+        # a lazy evaluation is a cursor and the engine behind it. A source
+        # that was never started owns one too, the cursor a declined count
+        # opened, so the closable object the count route hands over closes
+        # both; a bare generator's finally would never run
+        # [source: metta/_space_execution.py, _RetainedAnswers.close; tested
+        # test_a_counted_view_releases_its_engine_when_it_is_dropped].
         close = getattr(self._source, "close", None)
         if callable(close):
             close()

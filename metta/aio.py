@@ -19,6 +19,23 @@ Guarantees:
   - the transition drain discards only a structured interrupt and fails
     closed on every other error [tested
     test_aio_drain_only_discards_structured_interrupt]
+  - a cancelled acquisition releases what the worker finished rather than
+    leaving it live and unowned: the worker thread a cancelled connect
+    launched, the registered subscription, the installed assumption facts
+    [tested: test_aio_cancelled_connect_leaves_no_live_worker,
+    test_aio_cancelled_subscription_registration_cancels_it,
+    test_aio_cancelled_assuming_removes_the_facts_it_installed;
+    commit=WORKTREE]
+  - aclose refuses further work only after the engine has let go, so a close
+    that failed is retryable, and the stream's terminator reaches a consumer
+    whose queue is full [tested:
+    test_aio_a_failed_cursor_close_stays_retryable,
+    test_aio_a_failed_subscription_close_stays_retryable,
+    test_aio_the_close_sentinel_survives_a_full_queue; commit=WORKTREE]
+  - an event queue is published only once its registration succeeded, and its
+    bound is refused unless it is a count of events [tested:
+    test_aio_a_failed_subscription_publishes_no_queue,
+    test_the_async_queue_bound_is_refused_the_same_way; commit=WORKTREE]
   - an abandoned live owner emits ResourceWarning and registered workers
     detach during interpreter shutdown [tested test_aio_leak_warns_and_stop_joins,
     test_aio_shutdown_handler_stops_forgotten_workers]
@@ -102,6 +119,7 @@ from __future__ import annotations
 import asyncio
 import atexit
 import builtins as _builtins
+import contextlib
 import contextvars
 import logging
 import math
@@ -111,20 +129,19 @@ import re as _re
 import threading
 import warnings
 import weakref
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Coroutine, Iterable, Mapping, Sequence
 from types import TracebackType
 from typing import Any, Final, Literal, Self, TypeVar, overload
 
 from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
 from ._name_mapping import OperatorRecipe, operator_attribute_target
-from ._space import Space as MeTTa
-from ._space import _creation_site
+from ._space import Space, _creation_site
 from ._under import _UNSET
-from .atoms import Atom
+from .atoms import Atom, Expression, Symbol
 from .errors import Interrupted, MettaError
 from .results import Rows
-from .subscribe import SUBSCRIPTION_QUEUE_MAX
+from .subscribe import SUBSCRIPTION_QUEUE_MAX, _capacity
 from .vocabularies import (
     AgendaPolicy,
     AnswerPolicy,
@@ -229,7 +246,10 @@ class _EngineThread:
             msg = "AsyncMeTTa startup did not create a future"
             raise RuntimeError(msg)
         if not launch:
-            await started
+            # Another caller launched this worker and owns stopping it. The
+            # shield keeps THIS caller's cancellation off the shared startup
+            # future, which would otherwise cancel the launcher's wait too.
+            await asyncio.shield(started)
             return
 
         def worker() -> None:  # noqa: C901  -- worker keeps the worker lifecycle state machine together so its branches share one state
@@ -264,7 +284,19 @@ class _EngineThread:
                     self._state = "live"
             logger.debug("AsyncMeTTa worker attached a Prolog engine")
             try:
-                loop.call_soon_threadsafe(_set_future_result, started)
+                try:
+                    loop.call_soon_threadsafe(_set_future_result, started)
+                except RuntimeError:
+                    # The awaiting caller's loop closed while this engine was
+                    # attaching. There is nobody to report to and nobody left
+                    # to stop this worker either, so it refuses itself instead
+                    # of raising out of the thread and then blocking forever on
+                    # a queue no one will feed
+                    # [tested test_aio_a_worker_whose_loop_closed_stops_itself].
+                    logger.warning(
+                        "could not report AsyncMeTTa worker startup: event loop closed"
+                    )
+                    self.close_soon()
                 while True:
                     request = self.work.get()
                     if request is None:
@@ -346,7 +378,17 @@ class _EngineThread:
             with self._state_lock:
                 self._fail_locked(exc)
             raise
-        await started
+        try:
+            await asyncio.shield(started)
+        except asyncio.CancelledError:
+            # This call launched the worker, so nothing else will ever stop
+            # it: connect() never returned a handle and the awaiting caller
+            # is gone. Refuse it here and the thread detaches its engine on
+            # its own, instead of living to interpreter exit
+            # [tested test_aio_cancelled_connect_leaves_no_live_worker].
+            started.add_done_callback(_retrieve_startup)
+            self.close_soon()
+            raise
 
     def _fail_locked(self, cause: BaseException) -> None:
         self._failure = cause
@@ -547,6 +589,96 @@ def _shutdown_workers() -> None:
 atexit.register(_shutdown_workers)
 
 
+async def _settled(task: asyncio.Task[Any]) -> BaseException | None:
+    """Wait for `task` to finish, and answer the failure it ended with.
+
+    The wait survives repeated cancellation of the waiter.
+    Cancelling the waiter is not cancelling the work: `task` is the
+    acquisition or the release that has to finish whatever happens to the
+    coroutine waiting on it, so a cancel landing here is absorbed and the
+    wait resumes. A caller re-raises its own cancellation afterwards; this
+    answers only what the work itself did. The loop is the one
+    AsyncSaga.__aenter__ has run since its cancellation cleanup was written,
+    lifted here so every acquisition on this worker shares it.
+    """
+    while not task.done():
+        with contextlib.suppress(BaseException):
+            await asyncio.shield(task)
+    return None if task.cancelled() else task.exception()
+
+
+async def _acquire[T](
+    work: Coroutine[Any, Any, T],
+    release: Callable[[T], Coroutine[Any, Any, Any]],
+) -> T:
+    """Acquire on the worker, and release what a cancelled caller cannot own.
+
+    Cancelling around an acquisition is the torn middle: the worker finishes
+    attaching the engine, registering the subscription or installing the
+    facts, and _deliver drops the result because the awaiting future is
+    already cancelled, so the resource is live with nothing holding it
+    [measured 2026-08-30: one leaked worker thread, one invisible live
+    subscription and one permanently installed fact, one per cancelled
+    acquisition; tested test_aio_cancelled_connect_leaves_no_live_worker,
+    test_aio_cancelled_subscription_registration_cancels_it,
+    test_aio_cancelled_assuming_removes_the_facts_it_installed].
+    The commit point is shielded so the acquisition always completes, and the
+    cancelled caller then releases what it can no longer own before the
+    CancelledError continues.
+    """
+    acquiring = asyncio.ensure_future(work)
+    try:
+        return await asyncio.shield(acquiring)
+    except asyncio.CancelledError:
+
+        async def undo() -> None:
+            try:
+                acquired = await acquiring
+            except BaseException:  # noqa: BLE001  -- an acquisition that failed holds nothing to release
+                return
+            await release(acquired)
+
+        failure = await _settled(asyncio.ensure_future(undo()))
+        if failure is not None:
+            # Not logger.exception: the failure worth reading is the release's,
+            # not the CancelledError this handler was entered with.
+            logger.error(  # noqa: TRY400  -- the handled exception is the cancellation, and the release's failure is what this reports
+                "could not release an abandoned AsyncMeTTa acquisition",
+                exc_info=failure,
+            )
+        raise
+
+
+async def _shielded(work: Coroutine[Any, Any, Any]) -> None:
+    """Complete a release even when this task is cancelled.
+
+    The cancellation continues afterwards. A close torn in half leaves the
+    engine's resource live while the flag that would refuse a retry is already
+    set.
+    """
+    releasing = asyncio.ensure_future(work)
+    try:
+        await asyncio.shield(releasing)
+    except asyncio.CancelledError:
+        failure = await _settled(releasing)
+        if failure is not None:
+            logger.error(  # noqa: TRY400  -- the handled exception is the cancellation, and the release's failure is what this reports
+                "an AsyncMeTTa release failed after its caller was cancelled",
+                exc_info=failure,
+            )
+        raise
+
+
+def _retrieve_startup(startup: asyncio.Future[None]) -> None:
+    """Consume a startup outcome no coroutine waits for any more.
+
+    An abandoned attach failure then does not surface as an unretrieved
+    exception.
+    """
+    if not startup.cancelled():
+        startup.exception()
+
+
 def _deliver(request: _Request, payload, *, failed: bool) -> None:
     def resolve() -> None:
         if request.future.done():  # the awaiting task was cancelled
@@ -571,7 +703,10 @@ class AsyncMeTTa:
             await am.add(S.edge(1, 2))
             rows = await am.match(S.edge(V.a, V.b))
 
-    The exact rule should be: every finite request-response method forwards through the worker. Context managers, cursors, decorators, callback registrations, returned synchronous helper objects, and interactive entry points remain call() or synchronous-surface operations.
+    The rule: every finite request-response method forwards through the
+    worker; context managers, cursors, decorators, callback registrations,
+    returned synchronous helper objects and interactive entry points remain
+    call() or synchronous-surface operations.
 
     call(fn) reaches anything not mirrored by running fn(m) on the engine's
     thread. interrupt() stops the evaluation the
@@ -582,17 +717,17 @@ class AsyncMeTTa:
 
     def __init__(  # noqa: D107  -- the enclosing class documents construction and the object invariants
         self,
-        space: str = _DEFAULT_SPACE,
+        space: str | Symbol | Expression | Space = _DEFAULT_SPACE,
         *,
-        metta: MeTTa | None = None,
+        metta: Space | None = None,
     ) -> None:
-        self._m = metta if metta is not None else MeTTa(space)
+        self._m = metta if metta is not None else Space(space)
         self._worker = _EngineThread()
         self._closed = False
         self._owner = True
 
     @classmethod
-    def _sharing(cls, metta: MeTTa, worker: _EngineThread) -> AsyncMeTTa:
+    def _sharing(cls, metta: Space, worker: _EngineThread) -> AsyncMeTTa:
         shared = cls.__new__(cls)
         shared._m = metta
         shared._worker = worker
@@ -604,6 +739,11 @@ class AsyncMeTTa:
     def name(self) -> _SpaceId:  # noqa: D102  -- the enclosing type and implemented protocol supply this method contract
         return self._m.name
 
+    @property
+    def dropped(self) -> bool:
+        """Whether drop() has released the wrapped space's handle."""
+        return self._m.dropped
+
     def bind(
         self,
         values: Mapping[str, Any] | None = None,
@@ -614,7 +754,7 @@ class AsyncMeTTa:
         return self._m.bind(values, **named)
 
     @property
-    def metta(self) -> MeTTa:
+    def metta(self) -> Space:
         """The wrapped synchronous space, for engine-thread work via call()."""
         return self._m
 
@@ -626,7 +766,7 @@ class AsyncMeTTa:
         await self._worker.start()
         return self
 
-    async def call(self, fn: Callable[[MeTTa], Any]) -> Any:
+    async def call(self, fn: Callable[[Space], Any]) -> Any:
         """Run fn(m) on the engine's thread and await its result: the
         escape hatch to the entire synchronous surface, subscriptions,
         derivations, stats blocks and all.
@@ -783,7 +923,7 @@ class AsyncMeTTa:
         )
 
     async def copy(self) -> AsyncMeTTa:
-        """This space's contents in a new anonymous space; MeTTa.copy,
+        """This space's contents in a new anonymous space; Space.copy,
         the clone borrowing this connection's worker.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         clone = await self.call(lambda m: m.copy())
@@ -1389,7 +1529,7 @@ class AsyncMeTTa:
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         return _AsyncBatch(self)
 
-    async def transaction(self, target: Callable[[MeTTa], Any] | Atom | str, /) -> Any:
+    async def transaction(self, target: Callable[[Space], Any] | Atom | str, /) -> Any:
         """Run a callable or term inside one engine transaction on the worker.
 
         A callable receives the worker's own
@@ -1558,7 +1698,7 @@ class AsyncSaga:
 
         acquired: dict[str, Any] = {}
 
-        def enter(space: MeTTa) -> Any:
+        def enter(space: Space) -> Any:
             saga = space.saga(self._receipts._m)
             acquired["saga"] = saga
             saga.__enter__()
@@ -1568,23 +1708,14 @@ class AsyncSaga:
         try:
             self._saga = await self._am.call(enter)
         except BaseException as acquisition_error:  # cancellation owns cleanup too
-            def cleanup(_space: MeTTa) -> None:
+            def cleanup(_space: Space) -> None:
                 saga = acquired.pop("saga", None)
                 if saga is not None:
                     saga.close()
 
-            cleanup_task = asyncio.create_task(self._am.call(cleanup))
-            cleanup_error: BaseException | None = None
-            while not cleanup_task.done():
-                try:
-                    await asyncio.shield(cleanup_task)
-                except asyncio.CancelledError:
-                    continue
-                except BaseException as error:  # noqa: BLE001 -- pair cleanup with acquisition
-                    cleanup_error = error
-                    break
-            if cleanup_error is None and not cleanup_task.cancelled():
-                cleanup_error = cleanup_task.exception()
+            cleanup_error = await _settled(
+                asyncio.ensure_future(self._am.call(cleanup))
+            )
             if cleanup_error is not None:
                 msg = "async saga acquisition and cancellation cleanup both failed"
                 raise BaseExceptionGroup(
@@ -1686,7 +1817,7 @@ _STREAM_CLOSED: Final = object()
 
 
 class _AsyncStats:
-    """MeTTa.stats() as an async context manager: the counters start and
+    """Space.stats() as an async context manager: the counters start and
     stop on the worker, and the entered block object carries the deltas.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
@@ -1715,10 +1846,21 @@ class _AsyncAssuming:
 
     async def __aenter__(self) -> AsyncMeTTa:
         facts = self._facts
-        self._cm = await self._am.call(lambda m: m.assuming(*facts))
-        cm = self._cm
-        await self._am.call(lambda _m: cm.__enter__())
-        return self._am
+        am = self._am
+
+        def enter(space: Space) -> Any:
+            # Both halves on ONE crossing: a cancellation between building the
+            # block and entering it used to leave the facts installed with no
+            # block to remove them.
+            block = space.assuming(*facts)
+            block.__enter__()
+            return block
+
+        self._cm = await _acquire(
+            am.call(enter),
+            lambda block: am.call(lambda _m: block.__exit__(None, None, None)),
+        )
+        return am
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         cm = self._cm
@@ -1780,17 +1922,30 @@ class _AsyncCursor:
         self._inferences = inferences
         self._cursor: Any = None
         self._closed = False
+        self._opening = asyncio.Lock()
 
     async def _ensure(self) -> Any:
-        if self._cursor is None:
-            patterns, where = self._patterns, self._where
-            timeout, inferences = self._timeout, self._inferences
-            self._cursor = await self._am.call(
-                lambda m: m._stream(
-                    *patterns, where=where, timeout=timeout, inferences=inferences
+        if self._cursor is not None:
+            return self._cursor
+        # Two tasks pulling one cursor would otherwise open two engine
+        # cursors and keep the second, abandoning the first.
+        async with self._opening:
+            if self._cursor is None:
+                patterns, where = self._patterns, self._where
+                timeout, inferences = self._timeout, self._inferences
+                am = self._am
+                self._cursor = await _acquire(
+                    am.call(
+                        lambda m: m._stream(
+                            *patterns,
+                            where=where,
+                            timeout=timeout,
+                            inferences=inferences,
+                        )
+                    ),
+                    lambda cursor: am.call(lambda _m: cursor.close()),
                 )
-            )
-        return self._cursor
+            return self._cursor
 
     async def columns(self) -> tuple[str, ...]:
         """The column names, opening the cursor if it is not yet open."""
@@ -1818,12 +1973,19 @@ class _AsyncCursor:
         return row
 
     async def aclose(self) -> None:
+        """Close the engine cursor; a failed close stays retryable."""
         if self._closed:
             return
-        self._closed = True
-        if self._cursor is not None:
-            cursor = self._cursor
+        await _shielded(self._release())
+
+    async def _release(self) -> None:
+        # The flag goes up only after the engine cursor is gone: marking
+        # first left a live cursor behind a closed flag that refused every
+        # retry [tested test_aio_a_failed_cursor_close_stays_retryable].
+        cursor = self._cursor
+        if cursor is not None:
             await self._am.call(lambda _m: cursor.close())
+        self._closed = True
 
     async def __aenter__(self) -> Self:
         await self._ensure()
@@ -1852,11 +2014,16 @@ class _AsyncSubscription:
         self._am = am
         self._pattern = pattern
         self._on = on
-        self._queue_max = queue_max
+        # The same bound the synchronous subscription takes, refused here at
+        # construction: a bound no comparison decides is not a bound, and
+        # asyncio.Queue(maxsize=nan) is a queue that never reports itself full
+        # [tested test_the_async_queue_bound_is_refused_the_same_way].
+        self._queue_max = _capacity(queue_max)
         self._subscription: Any = None
         self._queue: asyncio.Queue[Any] | None = None
         self._closed = False
         self._dropped = 0
+        self._opening = asyncio.Lock()
 
     def _offer(self, events: asyncio.Queue[Any], event: Any) -> None:
         """Hand one event to a consumer that may have stopped consuming.
@@ -1873,20 +2040,48 @@ class _AsyncSubscription:
         except asyncio.QueueFull:
             self._dropped += 1
 
+    def _end(self, events: asyncio.Queue[Any]) -> None:
+        """Wake a consumer blocked on this queue, a full queue included.
+
+        put_nowait raises QueueFull, and raising out of a close path is how a
+        subscription stays live behind a closed flag. Closing discards the
+        backlog anyway, because __anext__ stops on the closed flag, so one
+        queued event makes room for the terminator. A full queue holds at
+        least one event and nothing runs between the refused put and this
+        get, so the loop ends on its second turn at the latest.
+        """
+        while True:
+            try:
+                events.put_nowait(_STREAM_CLOSED)
+            except asyncio.QueueFull:
+                events.get_nowait()
+            else:
+                return
+
     async def _ensure(self) -> asyncio.Queue[Any]:
-        if self._queue is None:
-            loop = asyncio.get_running_loop()
-            events: asyncio.Queue[Any] = asyncio.Queue(maxsize=self._queue_max)
-            self._queue = events
+        if self._queue is not None:
+            return self._queue
+        # One registration for concurrent consumers, and the queue is
+        # published only once one exists to write to it.
+        async with self._opening:
+            if self._queue is None:
+                loop = asyncio.get_running_loop()
+                events: asyncio.Queue[Any] = asyncio.Queue(maxsize=self._queue_max)
 
-            def deliver(event: Any) -> None:
-                loop.call_soon_threadsafe(self._offer, events, event)
+                def deliver(event: Any) -> None:
+                    loop.call_soon_threadsafe(self._offer, events, event)
 
-            pattern, on = self._pattern, self._on
-            self._subscription = await self._am.call(
-                lambda m: m.subscribe(pattern, deliver, on=on)
-            )
-        return self._queue
+                pattern, on, am = self._pattern, self._on, self._am
+                self._subscription = await _acquire(
+                    am.call(lambda m: m.subscribe(pattern, deliver, on=on)),
+                    lambda subscription: am.call(lambda _m: subscription.cancel()),
+                )
+                # A queue reachable before its registration succeeded is one a
+                # consumer waits on forever: nothing owns it, and nothing will
+                # ever write to it
+                # [tested test_aio_a_failed_subscription_publishes_no_queue].
+                self._queue = events
+            return self._queue
 
     def __aiter__(self) -> Self:
         return self
@@ -1914,14 +2109,21 @@ class _AsyncSubscription:
         return event
 
     async def aclose(self) -> None:
+        """Cancel the standing query and end the stream; retryable."""
         if self._closed:
             return
-        self._closed = True
-        if self._subscription is not None:
-            subscription = self._subscription
+        await _shielded(self._release())
+
+    async def _release(self) -> None:
+        # Cancel first: marking closed before the engine let go left a live
+        # subscription that every later aclose() returned early from
+        # [tested test_aio_a_failed_subscription_close_stays_retryable].
+        subscription = self._subscription
+        if subscription is not None:
             await self._am.call(lambda _m: subscription.cancel())
+        self._closed = True
         if self._queue is not None:
-            self._queue.put_nowait(_STREAM_CLOSED)
+            self._end(self._queue)
 
     async def __aenter__(self) -> Self:
         await self._ensure()
@@ -1998,8 +2200,6 @@ class _AsyncEngineFunction:
 
     def __metta__(self) -> Atom:
         """An async bound function in term position mentions as its head symbol."""
-        from .atoms import Symbol  # noqa: PLC0415  -- aio deliberately defers atom imports
-
         return Symbol(self._name)
 
     async def __call__(self, *args: Any) -> Any:
@@ -2050,9 +2250,9 @@ class _AsyncCompositeEngineFunction:
 
 
 async def connect(
-    space: str = _DEFAULT_SPACE,
+    space: str | Symbol | Expression | Space = _DEFAULT_SPACE,
     *,
-    metta: MeTTa | None = None,
+    metta: Space | None = None,
 ) -> AsyncMeTTa:
     """An AsyncMeTTa with its engine thread already running, aiosqlite's
     own naming for the entry point.

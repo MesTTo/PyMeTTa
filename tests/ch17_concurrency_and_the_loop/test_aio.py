@@ -55,6 +55,7 @@ from collections import Counter
 import pytest
 
 from metta import (
+    TRUE,
     MeTTa,
     MettaError,
     S,
@@ -62,7 +63,7 @@ from metta import (
     aio,
 )
 from metta._engine import bridge as engine_bridge
-from metta.atoms import Expression, Variable
+from metta.atoms import Variable
 from metta.errors import (
     EngineError,
     InferenceLimitError,
@@ -222,7 +223,7 @@ def test_aio_carries_bounds_and_errors_across_threads(m):  # noqa: D103  -- pyte
                 await am.run("!(unclosed")
             with am.capture() as output:
                 groups = await am.run("!(println! crossed)")
-            assert groups == [[Expression()]]
+            assert groups == [[TRUE]]
             return output.text
 
     assert "crossed" in asyncio.run(go())
@@ -892,3 +893,262 @@ def test_aio_scoped_limits_cross_to_the_worker(m):  # noqa: D103  -- pytest disc
             assert await am.eval("(aio-ctx-spin 3)") == [S.done]
 
     asyncio.run(go())
+
+
+def _live_workers() -> set:
+    """The engine worker threads alive right now, by the name they take."""
+    return {
+        thread
+        for thread in threading.enumerate()
+        if thread.name == "metta-aio" and thread.is_alive()
+    }
+
+
+def _watched(space) -> list:
+    """What Python is watching, read the way a MeTTa program reads it.
+
+    The standing queries reflect into &metta as (subscription <space>
+    <pattern> <edge>) and withdraw when they are cancelled.
+    """
+    (group,) = space.run("!(collapse (match &metta (subscription $s $p $on) $p))")
+    return list(group[0])
+
+
+def _live_engines(space) -> int:
+    """How many SWI engines exist, which is one per open answer cursor.
+
+    Through the runtime's own door, so the count does not race the worker
+    thread that is holding the engine this connection attached.
+    """
+    return space.runtime.once("aggregate_all(count, current_engine(_), N)")["N"]
+
+
+def _fail_one_crossing(am, failure):
+    """Make the next worker crossing raise, and the one after it behave."""
+    real = am.call
+    fired = []
+
+    async def call(fn):
+        if not fired:
+            fired.append(1)
+            am.call = real
+            raise failure
+        return await real(fn)
+
+    am.call = call
+
+
+def test_aio_cancelled_connect_leaves_no_live_worker(m):
+    """A cancelled connect() stops the worker it launched.
+
+    The awaiting caller never received the AsyncMeTTa, so nothing else could
+    ever close it: the thread and its attached engine used to live to
+    interpreter exit.
+    """
+    before = _live_workers()
+
+    async def go():
+        task = asyncio.ensure_future(aio.connect(metta=m))
+        await asyncio.sleep(0)  # the task reaches its first suspension
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        # Inside the loop, because the refused worker reports its startup
+        # through call_soon_threadsafe on the way out.
+        for _ in range(100):
+            if not _live_workers() - before:
+                return
+            await asyncio.sleep(0.05)
+
+    asyncio.run(go())
+    assert not _live_workers() - before
+
+
+def test_aio_cancelled_assuming_removes_the_facts_it_installed(m):
+    """Cancelling as the worker installs assumed facts removes them again."""
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            block = am.assuming(S.aio_assumed(1))
+            holder: list = [None]
+            real = am.call
+            cancelled: list = []
+
+            async def call(fn):
+                answer = await real(fn)
+                # Cancel at the crossing that INSTALLED the facts, whatever
+                # number that is, which is the torn middle the block would
+                # otherwise have to undo and cannot.
+                installed = await real(lambda space: bool(space.match(S.aio_assumed(V.n))))
+                if installed and not cancelled:
+                    cancelled.append(1)
+                    holder[0].cancel()
+                    await asyncio.sleep(0)
+                return answer
+
+            am.call = call
+            holder[0] = asyncio.ensure_future(block.__aenter__())
+            with pytest.raises(asyncio.CancelledError):
+                await holder[0]
+            am.call = real
+            assert cancelled, "the facts were never installed, so nothing was torn"
+            return await am.match(S.aio_assumed(V.n))
+
+    assert asyncio.run(go()) == []
+
+
+def test_aio_cancelled_subscription_registration_cancels_it(m):
+    """A cancelled registration is cancelled on the engine too.
+
+    The caller stopped waiting, so nothing holds the queue the standing query
+    would deliver into.
+    """
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            events = am.watch(S.aio_orphan(V.x))
+            holder: list = [None]
+            real = am.call
+
+            async def call(fn):
+                # The torn middle: the worker has registered the standing
+                # query and the caller that would own it is already gone.
+                answer = await real(fn)
+                holder[0].cancel()
+                await asyncio.sleep(0)  # the cancellation lands on the waiter
+                return answer
+
+            am.call = call
+            holder[0] = asyncio.ensure_future(events.__anext__())
+            with pytest.raises(asyncio.CancelledError):
+                await holder[0]
+            am.call = real
+            return _watched(m)
+
+    assert asyncio.run(go()) == []
+
+
+def test_aio_a_failed_cursor_close_stays_retryable(m):
+    """A close that failed leaves the cursor open AND closable.
+
+    The engine still holds it, so a flag that refused the retry stranded it.
+    """
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            await am.add(S.aio_row(1), S.aio_row(2))
+            rows = am.stream(S.aio_row(V.n))
+            await rows.columns()  # opens the engine cursor
+            open_engines = _live_engines(m)
+            _fail_one_crossing(am, RuntimeError("transient close failure"))
+            with pytest.raises(RuntimeError, match="transient close failure"):
+                await rows.aclose()
+            await rows.aclose()
+            return open_engines, _live_engines(m)
+
+    open_engines, after = asyncio.run(go())
+    assert after == open_engines - 1
+
+
+def test_aio_a_failed_subscription_close_stays_retryable(m):
+    """A cancel that failed leaves the subscription live AND cancellable."""
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            events = am.watch(S.aio_retry(V.x))
+            await events.__aenter__()
+            assert _watched(m)
+            _fail_one_crossing(am, RuntimeError("transient cancel failure"))
+            with pytest.raises(RuntimeError, match="transient cancel failure"):
+                await events.aclose()
+            still_live = _watched(m)
+            await events.aclose()
+            return still_live, _watched(m)
+
+    still_live, after = asyncio.run(go())
+    assert still_live != []
+    assert after == []
+
+
+def test_aio_a_failed_subscription_publishes_no_queue(m):
+    """A registration that failed leaves no queue for a consumer to wait on.
+
+    The queue used to be published before the subscription existed, so the
+    second pull waited on a queue nothing owned and nothing would ever write
+    to, forever.
+    """
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            events = am.watch(S.aio_refused(V.x))
+
+            async def refuse(_fn):
+                msg = "registration refused"
+                raise MettaError(msg)
+
+            am.call = refuse
+            with pytest.raises(MettaError, match="registration refused"):
+                await events.__anext__()
+            with pytest.raises(MettaError, match="registration refused"):
+                await asyncio.wait_for(events.__anext__(), timeout=10.0)
+
+    asyncio.run(go())
+
+
+def test_aio_the_close_sentinel_survives_a_full_queue(m):
+    """Closing a stream whose queue is full ends it instead of raising.
+
+    put_nowait raises QueueFull, and a close path that raises leaves the
+    subscription live behind a flag that has already refused every retry.
+    """
+
+    async def go():
+        async with aio.AsyncMeTTa(metta=m) as am:
+            async with am.watch(S.aio_full(V.x), queue_max=1) as events:
+                # Each add delivers through call_soon_threadsafe BEFORE the
+                # add's own result does, so the queue is full on return.
+                await am.add(S.aio_full(1))
+                await am.add(S.aio_full(2))
+                assert events is not None
+            return _watched(m)
+
+    assert asyncio.run(go()) == []
+
+
+def test_aio_a_worker_whose_loop_closed_stops_itself(m, monkeypatch):
+    """A worker whose caller's loop is gone refuses itself quietly.
+
+    The worker reports its startup through call_soon_threadsafe, which raises
+    once the loop has closed. Left unguarded that RuntimeError leaves the
+    thread through threading.excepthook, printing a traceback for a case the
+    library already handles everywhere else it delivers to a loop.
+    """
+    janus = engine_bridge()
+    attach = janus.attach_engine
+    released = threading.Event()
+    raised: list = []
+
+    def slow_attach():
+        # Hold the worker inside the attach until the caller's loop is closed.
+        assert released.wait(30)
+        attach()
+
+    monkeypatch.setattr(janus, "attach_engine", slow_attach)
+    monkeypatch.setattr(threading, "excepthook", raised.append)
+    before = _live_workers()
+
+    async def go():
+        task = asyncio.ensure_future(aio.connect(metta=m))
+        await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(go())  # the loop closes with the worker still attaching
+    released.set()
+    for _ in range(300):
+        if not _live_workers() - before:
+            break
+        time.sleep(0.05)
+    assert not _live_workers() - before, "the worker did not stop itself"
+    assert not raised, f"the worker raised out of its thread: {raised}"

@@ -34,6 +34,7 @@ import janus_swi
 import pytest
 
 import metta
+import metta as metta_package
 import metta._network as network
 from metta import S, remote
 from metta import testing as remote_testing
@@ -864,7 +865,9 @@ def test_a_lazily_attached_space_stops_the_serving_engine_when_metta_stops(metta
     gateway = remote.Gateway(metta)
     client = metta._new_space()
     try:
-        remote.attach(client, "&hq", gateway, "&re-lazy-attached", batch=1)
+        client._register_space(
+            remote.RemoteSpace(gateway, "&re-lazy-attached", batch=1), "&hq"
+        )
         provider.yielded = 0
         (group,) = client.run("!(once (match &hq (re_counted $n) $n))")
         assert [str(a) for a in group] == ["0"]
@@ -973,17 +976,20 @@ def test_attaching_a_space_this_process_serves_is_refused_with_the_remedy(metta)
     attach succeeded and the first match hung for the transport's whole
     timeout, then failed on a broken pipe with nothing naming the cause.
     """
+    import metta as package
+
     with remote.serve(metta, spaces=[metta.name]) as server:
-        client = metta._new_space()
         with pytest.raises(MettaError) as refusal:
-            remote.attach(client, "&hq", server.url, metta.name)
+            package.attach("&hq", server.url)
     message = str(refusal.value)
     assert "same process" in message
     assert "Gateway" in message, "the refusal has to name the transport that works"
 
     # And the remedy the message gives does work, in this same process.
     client = metta._new_space()
-    remote.attach(client, "&hq", remote.Gateway(metta, [metta.name]), metta.name)
+    client._register_space(
+        remote.RemoteSpace(remote.Gateway(metta, [metta.name]), str(metta.name)), "&hq"
+    )
     assert client.run("!(match &hq (re_ctx_probe $x) $x)") == [[]]
 
 
@@ -991,4 +997,198 @@ def test_a_url_no_server_in_this_process_owns_is_not_refused(metta):
     """The guard is on the address, so an ordinary remote URL still attaches."""
     # Nothing is listening; attaching is still allowed, and only a call fails.
     client = metta._new_space()
-    remote.attach(client, "&elsewhere", "http://127.0.0.1:9/", "&self")
+    client._register_space(
+        remote.RemoteSpace(remote.connect("http://127.0.0.1:9/")), "&elsewhere"
+    )
+
+
+def test_a_failed_stop_leaves_the_remote_cursor_retryable(metta):
+    """A /stop that failed leaves the cursor open on both sides AND closable.
+
+    Discarding the token first made every later close return at the flag while
+    the server held the engine to its idle deadline.
+    """
+    scratch = metta._new_space()
+    scratch.add(*[metta.parse(f"(re_retry {n})") for n in range(4)])
+    before = _live_engines(metta)
+    gateway = remote.Gateway(metta, [str(scratch.name)])
+    stops = []
+
+    def transport(operation, payload):
+        if operation == "stop":
+            stops.append(payload)
+            if len(stops) == 1:
+                msg = "transient stop failure"
+                raise MettaError(msg)
+        return gateway(operation, payload)
+
+    try:
+        cursor = remote.RemoteCursor(transport, str(scratch.name), metta.parse("(re_retry $n)"))
+        assert _live_engines(metta) == before + 1
+        with pytest.raises(MettaError, match="transient stop failure"):
+            cursor.close()
+        assert _live_engines(metta) == before + 1, "nothing was released"
+        cursor.close()
+        assert len(stops) == 2, "the retry reached the server"
+        assert _live_engines(metta) == before
+    finally:
+        gateway.close()
+        scratch.drop()
+
+
+def test_closing_every_cursor_survives_one_failure(metta):
+    """One cursor that will not close does not abandon the rest.
+
+    The table has already let go of every one of them, so a close that stops
+    at the first failure leaves the engines behind the others unheld.
+    """
+    scratch = metta._new_space()
+    scratch.add(*[metta.parse(f"(re_every {n})") for n in range(4)])
+    before = _live_engines(metta)
+    gateway = remote.Gateway(metta, [str(scratch.name)])
+    pattern = metta.parse("(re_every $n)")
+
+    class Stuck:
+        def close(self):
+            msg = "this cursor will not close"
+            raise RuntimeError(msg)
+
+    try:
+        remote.RemoteCursor(gateway, str(scratch.name), pattern)
+        remote.RemoteCursor(gateway, str(scratch.name), pattern)
+        assert _live_engines(metta) == before + 2
+        entries = list(gateway._cursors._open.values())
+        held, entries[0].cursor = entries[0].cursor, Stuck()
+
+        with pytest.raises(RuntimeError, match="will not close"):
+            gateway.close()
+
+        assert _live_engines(metta) == before + 1, "the second cursor was released"
+        held.close()
+        assert _live_engines(metta) == before
+    finally:
+        scratch.drop()
+
+
+def test_a_close_that_cannot_stop_the_worker_keeps_the_cursors(metta):
+    """A worker that would not stop may still be inside a cursor.
+
+    close() leaves the cursors open rather than closing one out from under a
+    live request, and says so. The next close releases them.
+    """
+    scratch = metta._new_space()
+    scratch.add(*[metta.parse(f"(re_racing {n})") for n in range(4)])
+    before = _live_engines(metta)
+    server = remote.serve(metta)
+    try:
+        space = remote.RemoteSpace(remote.connect(server.url), str(scratch.name))
+        answers = space.stream(metta.parse("(re_racing $n)"), batch=1)
+        assert str(next(answers)) == "(re_racing 0)"
+        assert _live_engines(metta) == before + 1
+
+        stopped = server._worker.stop
+
+        def will_not_stop(*_arguments, **_options):
+            msg = "remote worker did not stop within 10 seconds"
+            raise TimeoutError(msg)
+
+        server._worker.stop = will_not_stop
+        with pytest.raises(BaseExceptionGroup) as refusal:
+            server.close()
+        assert "left open" in str(refusal.value.exceptions[1])
+        assert _live_engines(metta) == before + 1, "the live worker keeps its cursors"
+
+        server._worker.stop = stopped
+        server.close()
+        assert _live_engines(metta) == before
+    finally:
+        server.close()
+        scratch.drop()
+
+
+def test_a_failing_authorize_hook_answers_json_on_health(metta):
+    """An authorize hook that raises on GET /health answers a JSON refusal.
+
+    Raising out of the handler dropped the connection instead, and a client
+    cannot tell that from a network fault.
+    """
+
+    def authorize(request):
+        if request.operation == "health":
+            msg = "policy backend is down"
+            raise RuntimeError(msg)
+        return True
+
+    with remote.serve(metta, authorize=authorize) as server:
+        transport = remote.connect(server.url)
+        with pytest.raises(MettaError, match="policy backend is down"):
+            transport.health()
+
+
+def test_attaching_a_wildcard_served_space_through_loopback_is_refused(metta):
+    """A server bound to every address is reached through loopback too.
+
+    The deadlock guard has to recognise the addresses a wildcard bind serves
+    rather than only the literal it was bound to.
+    """
+    with remote.serve(metta, host="0.0.0.0", spaces=[str(metta.name)]) as server:
+        for host in ("127.0.0.1", "localhost"):
+            with pytest.raises(MettaError, match="same process") as refusal:
+                metta_package.attach("&hq-wildcard", f"http://{host}:{server.port}/")
+            assert "Gateway" in str(refusal.value)
+
+
+def test_a_rational_tree_candidate_crosses_as_the_stored_atom(metta):
+    """A rational-tree candidate crosses as the stored atom it is.
+
+    A repeated pattern variable can bind to a term that contains itself, and
+    that candidate IS an answer the server owes. No finite tagged form spells
+    a rational tree, so the reply carries the stored atom rather than dropping
+    the candidate
+    [source: website/live/remote-protocol.md, the rational-tree paragraph].
+    """
+    scratch = metta._new_space()
+    scratch.add(metta.parse("(re_cyclic (f $x) $x)"), metta.parse("(re_cyclic a b)"))
+    gateway = remote.Gateway(metta, [str(scratch.name)])
+    space = remote.RemoteSpace(gateway, str(scratch.name))
+    try:
+        stored = next(
+            str(atom) for atom in space.atoms() if str(atom).startswith("(re_cyclic (f")
+        )
+        folded = metta.parse("(re_cyclic $r $r)")
+        assert [str(atom) for atom in space.match(folded)] == [stored]
+        # The bounded door refuses the row instead of dropping it, and takes
+        # the same way out.
+        assert [str(atom) for atom in space.match(folded, limit=1)] == [stored]
+        # The lazy door answers the same set: ask/next takes its candidates
+        # from the same linearised cursor, where it used to refuse the row.
+        with space.stream(folded, batch=1) as answers:
+            assert [str(atom) for atom in answers] == [stored]
+        # Exactness holds: the candidate that does not unify stays out of
+        # the folded pattern's answer, while the open pattern answers both.
+        assert sorted(
+            str(atom) for atom in space.match(metta.parse("(re_cyclic $one $two)"))
+        ) == ["(re_cyclic (f $_0) $_0)", "(re_cyclic a b)"]
+    finally:
+        gateway.close()
+        scratch.drop()
+
+
+def test_two_reads_of_one_stored_atom_answer_the_same_atom(metta):
+    """The `repeated` source this server declares means printed forms too.
+
+    A stored variable's engine name is a stack offset that moves with every
+    match the server runs, so one atom read twice crossed as two atoms that
+    compared unequal.
+    """
+    scratch = metta._new_space()
+    scratch.add(metta.parse("(re_stable (g $y) $y)"))
+    gateway = remote.Gateway(metta, [str(scratch.name)])
+    space = remote.RemoteSpace(gateway, str(scratch.name))
+    try:
+        first = [str(atom) for atom in space.atoms()]
+        list(space.match(metta.parse("(re_stable $one $two)")))
+        assert [str(atom) for atom in space.atoms()] == first
+    finally:
+        gateway.close()
+        scratch.drop()
