@@ -471,6 +471,19 @@ class Rows(UserList[Row]):
     @overload
     def build[BuildT](self, column: str, cls: type[BuildT]) -> list[BuildT]: ...
 
+    def into(self, cls: type) -> list:
+        """Each row as one ``cls``, matched by field name.
+
+        ``match(..., into=cls)`` is sugar for this and says so: the
+        conversion was only ever reachable through that keyword, so a
+        prepared query's solve(), or any other Rows, could not ask for it
+        even though rows_into() never cared where the rows came from
+        [measured 2026-08-31]. build(cls) is the neighbouring door and a
+        different question: it rebuilds ONE column of complete constructor
+        expressions, where this maps every column onto a field.
+        """
+        return rows_into(self, cls)
+
     def build(self, column: str | type, cls: type | None = None) -> list:
         """Rebuild constructor atoms through the two-way translator.
 
@@ -1019,6 +1032,10 @@ class Answers[T](Sequence[T]):
             raise TypeError(msg)
         rows = cast(Iterable[Iterable[Any]], self)
         return Rows(self._columns, rows, _query=self._query)
+
+    def into(self, cls: type) -> list:
+        """Materialize, then convert through Rows.into."""
+        return self._eager_rows().into(cls)
 
     def build(self, *args: Any) -> list[Any]:
         """Materialize, then rebuild one column through Rows.build."""

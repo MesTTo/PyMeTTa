@@ -983,6 +983,50 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):  # noqa: D103  -- pytest d
         next(rows)  # leaving the with-block closed it
 
 
+def test_the_row_conversion_is_reachable_without_the_keyword_that_named_it(m):
+    """into= is sugar, and sugar names its longhand.
+
+    rows_into() never cared where its rows came from, but the only door to it
+    was match(into=), so a prepared query's solve() could not ask for the
+    conversion at all. build(cls) is the neighbour and a different question:
+    ONE column of constructor expressions, against every column onto a field
+    [measured 2026-08-31].
+    """
+    @dataclasses.dataclass
+    class Edge:
+        a: int
+        b: int
+
+    m.add(S.edge(1, 2), S.edge(2, 3))
+    expected = [Edge(1, 2), Edge(2, 3)]
+    assert m.match(S.edge(V.a, V.b), into=Edge) == expected
+    assert m.match(S.edge(V.a, V.b)).into(Edge) == expected
+    assert m.prepare(S.edge(V.a, V.b)).solve().into(Edge) == expected
+
+
+def test_a_cursor_reduces_with_the_vocabulary_its_siblings_use(m):
+    """One lazy row source, one vocabulary, whatever view you hold.
+
+    Rows and Answers both spell first() and one(); a cursor spelled neither,
+    so a streaming caller wrote next(cursor) and caught StopIteration for the
+    thing a matching caller wrote as .first() -- and taking the first row is
+    the whole reason a stream exists [measured 2026-08-31].
+    """
+    tables.add(m, "edge", [(i, i + 1) for i in range(5)])
+    assert tuple(m.stream(S.edge(V.a, V.b)).first()) == tuple(
+        m.match(S.edge(V.a, V.b)).first()
+    )
+    with m.stream(S.edge(V.a, V.b), limit=1) as cursor:
+        assert tuple(cursor.one()) == (0, 1)
+    # Exactness costs the second pull, and several is refused by count.
+    with pytest.raises(MettaError, match="at least 2"):
+        m.stream(S.edge(V.a, V.b)).one()
+    # Absence takes the caller's default, or names the remedy.
+    assert m.stream(S.absent(V.x)).first(default=None) is None
+    with pytest.raises(MettaError, match="pass default="):
+        m.stream(S.absent(V.x)).first()
+
+
 def test_stream_agrees_with_query_and_closes_on_exhaustion(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(50)])
     cursor = m.stream(S.edge(V.a, V.b))

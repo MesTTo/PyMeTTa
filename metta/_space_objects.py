@@ -6,6 +6,10 @@ Guarantees:
     test_stack_limit_is_carried_to_the_limited_six_seam; commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]
   - Cursor keeps exhaustion distinct from explicit close [tested
     test_stream_agrees_with_query_and_closes_on_exhaustion]
+  - a cursor answers first() and one() with Rows' and Answers' contract and
+    message, so one lazy row source is not three vocabularies [tested:
+    test_a_cursor_reduces_with_the_vocabulary_its_siblings_use;
+    commit=WORKTREE]
   - an algebra cursor captures each engine annotation while leaving the
     ordinary one-row wire unchanged [tested:
     test_ranked_and_tropical_slices_are_stable_best_prefixes;
@@ -76,7 +80,7 @@ from .atoms import (
     _variables,
 )
 from .errors import EngineError, MettaError
-from .results import Rows, _row_class
+from .results import _MISSING, Rows, _row_class
 
 if TYPE_CHECKING:
     from ._space import Space as MeTTa
@@ -667,6 +671,54 @@ class Cursor:
         avoid.
         """
         raise TypeError(_CURSOR_LENGTH_REFUSAL)
+
+    def first(self, *, default: Any = _MISSING) -> Any:
+        """Return the first row, or the caller's explicit default.
+
+        Rows.first() and Answers.first() already spell this, with this
+        contract and this message; a cursor is the third view of one lazy row
+        source and had only ``next(cursor)`` plus a StopIteration to catch.
+        Taking the first row is also the whole reason a stream exists, so it
+        was the door most worth having and the one that was missing.
+
+        This PULLS: the cursor is one-shot, so the row is gone from it. The
+        cursor stays open, since a caller who wants the second row wants it
+        from here.
+        """
+        row = next(self, _MISSING)
+        if row is not _MISSING:
+            return row
+        if default is not _MISSING:
+            return default
+        msg = "first() found no rows; pass default= for absence"
+        raise EngineError(msg)
+
+    def one(self, *, default: Any = _MISSING) -> Any:
+        """THE row, when the stream is asserted to have exactly one.
+
+        Rows.one()'s contract on a cursor: none or several raise naming what
+        was found, so a lookup that silently took an arbitrary row cannot
+        hide. Proving "exactly one" costs the SECOND pull, which is what
+        exactness means on a source that cannot be looked at twice, and the
+        cursor is closed either way because nothing can follow the answer it
+        just asserted is alone.
+        """
+        row = next(self, _MISSING)
+        if row is _MISSING:
+            self.close()
+            if default is not _MISSING:
+                return default
+            msg = "one() expected exactly one row, got 0; use first() for row-or-default"
+            raise EngineError(msg)
+        extra = next(self, _MISSING)
+        self.close()
+        if extra is not _MISSING:
+            msg = (
+                "one() expected exactly one row, got at least 2; "
+                "use first() for the first row, or iterate for all"
+            )
+            raise EngineError(msg)
+        return row
 
     def close(self) -> None:
         """Destroy the held engine; idempotent and distinct from exhaustion."""
