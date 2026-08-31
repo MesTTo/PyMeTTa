@@ -9,7 +9,7 @@ Guarantees:
   - a cursor answers first() and one() with Rows' and Answers' contract and
     message, so one lazy row source is not three vocabularies [tested:
     test_a_cursor_reduces_with_the_vocabulary_its_siblings_use;
-    commit=WORKTREE]
+    commit=8af77aca7f8f2bbc6272d5f25c19ff205a6ab7e5]
   - an algebra cursor captures each engine annotation while leaving the
     ordinary one-row wire unchanged [tested:
     test_ranked_and_tropical_slices_are_stable_best_prefixes;
