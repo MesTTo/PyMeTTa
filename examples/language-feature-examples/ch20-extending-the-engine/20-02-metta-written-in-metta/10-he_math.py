@@ -137,5 +137,5 @@ RUNG = "min-atom and max-atom are two of the stdlib numeric operations this file
 #: try/raise/dict/set/global/type-alias compilation, engine bit family
 #: builtins, prelude except/error-payload ops, variadic doors, twin heals
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 BUDGET = 5458

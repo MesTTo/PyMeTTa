@@ -41,7 +41,7 @@ def twin(m):
 
 #: PLACEHOLDER, never measured in this worktree: the corpus pricing pass
 #: prices every budget in one run on the final tree
-#: [assumed: BUDGET states no measured cost; commit=WORKTREE].
+#: [assumed: BUDGET states no measured cost; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 #: RE-PINNED 2026-09-01, 1 to 4956 (+4955), the compiled-language batch:
 #: try/raise on the error algebra, dict-space literals with lib_dict auto-
 #: import, the exact-integer operator family as engine builtins (bit-
@@ -50,5 +50,5 @@ def twin(m):
 #: seven py- bridges, the variadic door family (transfer, batched remove and
 #: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 BUDGET = 4956

@@ -70,5 +70,5 @@ def twin(m):
 #: aligned-path work; thirteen twins additionally carry the idiom sweep's local
 #: deltas tabulated in the twin-idioms notes, none above 347 [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 BUDGET = 4493

@@ -143,10 +143,10 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: aligned-path work; thirteen twins additionally carry the idiom sweep's local
 #: deltas tabulated in the twin-idioms notes, none above 347 [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 #: RE-PINNED 2026-09-01, 61707 to 62169 (+462), the compiled-language batch:
 #: try/raise/dict/set/global/type-alias compilation, engine bit family
 #: builtins, prelude except/error-payload ops, variadic doors, twin heals
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 BUDGET = 62169

@@ -3,22 +3,22 @@ eval, simultaneous unify — and the write/remove symmetry behind them.
 Guarantees:
   - transfer moves one occurrence per named atom into another space in one
     transactional crossing, counting the found [tested:
-    test_transfer_moves_a_batch_atomically; commit=WORKTREE]
+    test_transfer_moves_a_batch_atomically; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - remove's variadic face counts the found in one crossing while the
     one-atom call keeps its truth-value reading, and every shape add
     accepts removes symmetrically [tested:
-    test_remove_batches_and_takes_every_added_shape; commit=WORKTREE]
+    test_remove_batches_and_takes_every_added_shape; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - `-=` drains every unifying occurrence, upstream's law, where remove()
     stays the one-occurrence door [tested:
-    test_isub_drains_every_occurrence; commit=WORKTREE]
+    test_isub_drains_every_occurrence; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - eval's variadic face answers one group per term, run()'s grouping,
     with one bind scope over the whole batch [tested:
-    test_eval_batches_with_one_bind_scope; commit=WORKTREE]
+    test_eval_batches_with_one_bind_scope; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - unify is simultaneous when variadic: every operand agrees under one
     substitution or the answer is None [tested:
-    test_unify_is_simultaneous_when_variadic; commit=WORKTREE]
+    test_unify_is_simultaneous_when_variadic; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - an abandoned FutureSpace warns and a settled one stays silent [tested:
-    test_an_abandoned_future_warns; commit=WORKTREE]
+    test_an_abandoned_future_warns; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
 Open Obligations:
   To Do: None
   Hacks: None

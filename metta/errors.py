@@ -30,7 +30,7 @@ Guarantees:
     with_coordinates derives that block for a statement wall raised with the
     line alone, the caret gutter width-matched to the number gutter [tested:
     test_a_refusal_renders_the_file_line_function_and_exact_caret;
-    commit=WORKTREE]
+    commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
 Open Obligations:
   To Do: None
   Hacks: None

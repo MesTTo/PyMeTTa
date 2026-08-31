@@ -172,5 +172,5 @@ RUNG = "a `let*` whose bindings arrive as a VALUE has no assignment spelling"
 #: seven py- bridges, the variadic door family (transfer, batched remove and
 #: eval), the -= drain-law repair, and fourteen twins healed to the arbiter
 #: [measured 2026-09-01: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 BUDGET = 10732

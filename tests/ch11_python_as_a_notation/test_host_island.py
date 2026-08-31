@@ -12,7 +12,7 @@ Guarantees:
     test_py_host_island_inside_loops_emits_exact_findings; commit=3f0a1d237a3c969b2d4ad0d48b2195ce196b631a]
   - an unmarked host callee islands implicitly: nothing runs at compile
     time and the author's own call runs per application [tested:
-    test_unknown_host_callee_islands_implicitly; commit=WORKTREE]
+    test_unknown_host_callee_islands_implicitly; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
 """  # noqa: D205, D415  -- the test contract is one continuous invariant, not summary-and-body prose
 
 from __future__ import annotations

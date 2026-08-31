@@ -45,13 +45,13 @@ Guarantees:
     the same application-time grounded islands, with nothing executed at
     compile time and the loud refusal kept for names that resolve nowhere
     [tested: test_py_host_island_executes_per_engine_application,
-    test_unknown_host_callee_islands_implicitly; commit=WORKTREE]
+    test_unknown_host_callee_islands_implicitly; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - keyword-bearing calls whose parameter names are known lower to positional
     applications; a host callee keeps its keywords by islanding whole, and an
     engine head with unknown keywords still refuses toward the positional
     spelling [tested: test_known_call_site_keywords_bind_to_positional_metta_arguments,
     test_unknown_symbol_keywords_refuse_with_the_positional_remedy;
-    commit=WORKTREE]
+    commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
 Open Obligations:
   To Do: None
   Hacks: None

@@ -4,17 +4,17 @@ aliases, and the exact-integer operator family.
 Guarantees:
   - try/except/else/finally compile onto catch, if-error, `except` and
     error-payload with Python's dispatch, binding and ordering [tested:
-    every test below whose name starts test_try or test_raise; commit=WORKTREE]
+    every test below whose name starts test_try or test_raise; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - a dict literal lowers to lib_dict's dict-space and every Python door
     rides the library's own vocabulary [tested: the test_dict rows below;
-    commit=WORKTREE]
+    commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - `global` reads and writes the definition module through a grounded
     reference, and `type X = T` is the rewrite rule it reads as [tested:
     test_global_pragma_moves_the_module,
-    test_type_alias_claims_and_rewrites; commit=WORKTREE]
+    test_type_alias_claims_and_rewrites; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
   - &, |, ^, ~, <<, >> and // lower to the engine's exact integer family
     and agree with Python on every probed input [tested:
-    test_bitwise_and_floor_division_agree_with_python; commit=WORKTREE]
+    test_bitwise_and_floor_division_agree_with_python; commit=51b792423cec5787614d1488c0793b8a50eaa6fc]
 Open Obligations:
   To Do: None
   Hacks: None

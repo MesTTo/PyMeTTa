@@ -159,10 +159,10 @@ def twin(m):
 #: aligned-path work; thirteen twins additionally carry the idiom sweep's local
 #: deltas tabulated in the twin-idioms notes, none above 347 [measured
 #: 2026-09-01: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 #: RE-PINNED 2026-09-01, 115008 to 115167 (+159), the -= drain law reaching the
 #: C-store pair: the twin healed to the two grains, remove() one occurrence and
 #: -= draining, mirroring the metta side [measured 2026-09-01: min-of-3 serial
 #: fresh processes; command=python extensions/python/tools/twin_coverage.py
-#: --repin; commit=WORKTREE].
+#: --repin; commit=51b792423cec5787614d1488c0793b8a50eaa6fc].
 BUDGET = 115167
