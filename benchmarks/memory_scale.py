@@ -349,7 +349,7 @@ def _query_answers(size: int, *, stream: bool) -> dict[str, int]:
     def operation() -> int:
         if not stream:
             return len(list(space.match(S.memscale_row(V.value))))
-        with space._stream(S.memscale_row(V.value)) as rows:
+        with space.stream(S.memscale_row(V.value)) as rows:
             return sum(1 for _ in rows)
 
     try:
@@ -1040,7 +1040,7 @@ def compare_baseline(
     return failures
 
 
-def run_suite(  # noqa: C901  -- the loop keeps each process, payload, and failure in one lifecycle
+def run_suite(
     *,
     names: Sequence[str],
     repetitions: int,

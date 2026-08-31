@@ -137,9 +137,10 @@ from ._api_types import _DEFAULT_SPACE, _SpaceId
 from ._engine import Runtime, bridge, runtime
 from ._name_mapping import OperatorRecipe, operator_attribute_target
 from ._space import Space, _creation_site
+from ._space_objects import require_deadline
 from ._under import _UNSET
 from .atoms import Atom, Expression, Symbol
-from .errors import Interrupted, MettaError
+from .errors import Interrupted, MettaError, Timeout
 from .results import Rows
 from .subscribe import SUBSCRIPTION_QUEUE_MAX, _capacity
 from .vocabularies import (
@@ -219,7 +220,7 @@ class _EngineThread:
         self._current: _Request | None = None
         self._swi_thread: Any = None
 
-    async def start(self) -> None:  # noqa: C901  -- start keeps the worker lifecycle state machine together so its branches share one state
+    async def start(self) -> None:
         loop = asyncio.get_running_loop()
         started: asyncio.Future[None] | None = None
         launch = False
@@ -252,7 +253,7 @@ class _EngineThread:
             await asyncio.shield(started)
             return
 
-        def worker() -> None:  # noqa: C901  -- worker keeps the worker lifecycle state machine together so its branches share one state
+        def worker() -> None:
             # A persistent attached engine makes this thread first-class
             # for janus, the same pattern remote.serve()'s worker runs:
             # the fast calling convention holds here and per-call attach
@@ -1409,19 +1410,25 @@ class AsyncMeTTa:
         /,
         *,
         prolog: str | os.PathLike[str] | None = None,
+        name: str | None = None,
         accessors: bool = True,
         methods: bool = True,
     ) -> Any:
         """Compile a Python function into equations on the worker. The
         returned handle's own calls are synchronous doors; evaluate
         through fn(name) or run() from async code.
+
+        `name=` is the naming ladder's exact-spelling rung, and it is here
+        because the ladder does not shrink from one surface to another: an
+        async caller installing `prime?` or an authored underscore had no
+        door for it while the synchronous define did [measured 2026-08-31].
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         if fn is not None:
+            # accessors= and methods= carry for every shape, their defaults
+            # being what the plain call already meant.
             return await self.call(
-                lambda m: (
-                    m.define(fn, accessors=accessors, methods=methods)
-                    if isinstance(fn, type)
-                    else m.define(fn)
+                lambda m: m.define(
+                    fn, name=name, accessors=accessors, methods=methods
                 )
             )
         if prolog is None:
@@ -1580,8 +1587,10 @@ class AsyncMeTTa:
         self,
         *patterns: Any,
         where: Any | None = None,
+        limit: int | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        under: Any = _UNSET,
     ) -> _AsyncCursor:
         """match(), pulled asynchronously: one row per worker round trip.
 
@@ -1593,7 +1602,9 @@ class AsyncMeTTa:
         caller's duty, the finalization reading the data model gives
         asynchronous iterators.
         """
-        return _AsyncCursor(self, patterns, where, timeout, inferences)
+        return _AsyncCursor(
+            self, patterns, where, timeout, inferences, limit=limit, under=under
+        )
 
     def subscribe(
         self, pattern: Any, *, on: str = "add", queue_max: int = SUBSCRIPTION_QUEUE_MAX
@@ -1610,10 +1621,23 @@ class AsyncMeTTa:
         return _AsyncSubscription(self, pattern, on, queue_max)
 
     def watch(
-        self, pattern: Any, *, on: str = "add", queue_max: int = SUBSCRIPTION_QUEUE_MAX
+        self,
+        pattern: Any,
+        *,
+        on: str = "add",
+        deadline: float | None = None,
+        queue_max: int = SUBSCRIPTION_QUEUE_MAX,
     ) -> _AsyncSubscription:
-        """Observe matching writes as the async-native event iterator."""
-        return _AsyncSubscription(self, pattern, on, queue_max)
+        """Observe matching writes, raising Timeout after each quiet deadline.
+
+        The synchronous watch()'s meaning, which this door carried the NAME of
+        without: it was subscribe() under a second name, same signature and
+        same body, so an async caller had no way to say "stop waiting after
+        this long" that peek() and take() both give them
+        [measured 2026-08-31].
+        """
+        require_deadline(deadline)
+        return _AsyncSubscription(self, pattern, on, queue_max, deadline=deadline)
 
     @property
     def fn(self) -> _AsyncFunctionNamespace:
@@ -1908,18 +1932,20 @@ class _AsyncPrepared:
 
 
 class _AsyncCursor:
-    """MeTTa.stream() pulled asynchronously: one row per worker round
+    """Space.stream() pulled asynchronously: one row per worker round
     trip, closable, and an async context manager. Iterating without the
     async-with works too; aclose() is then the caller's duty, the
     finalization reading the data model gives asynchronous iterators.
     """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
 
-    def __init__(self, am, patterns, where, timeout, inferences) -> None:
+    def __init__(self, am, patterns, where, timeout, inferences, *, limit=None, under=_UNSET) -> None:
         self._am = am
         self._patterns = patterns
         self._where = where
         self._timeout = timeout
         self._inferences = inferences
+        self._limit = limit
+        self._under = under
         self._cursor: Any = None
         self._closed = False
         self._opening = asyncio.Lock()
@@ -1933,14 +1959,17 @@ class _AsyncCursor:
             if self._cursor is None:
                 patterns, where = self._patterns, self._where
                 timeout, inferences = self._timeout, self._inferences
+                limit, under = self._limit, self._under
                 am = self._am
                 self._cursor = await _acquire(
                     am.call(
-                        lambda m: m._stream(
+                        lambda m: m.stream(
                             *patterns,
                             where=where,
+                            limit=limit,
                             timeout=timeout,
                             inferences=inferences,
+                            under=under,
                         )
                     ),
                     lambda cursor: am.call(lambda _m: cursor.close()),
@@ -2010,10 +2039,13 @@ class _AsyncSubscription:
         pattern: Any,
         on: str,
         queue_max: int = SUBSCRIPTION_QUEUE_MAX,
+        *,
+        deadline: float | None = None,
     ) -> None:
         self._am = am
         self._pattern = pattern
         self._on = on
+        self._deadline = deadline
         # The same bound the synchronous subscription takes, refused here at
         # construction: a bound no comparison decides is not a bound, and
         # asyncio.Queue(maxsize=nan) is a queue that never reports itself full
@@ -2103,7 +2135,15 @@ class _AsyncSubscription:
             raise MettaError(
                 msg
             )
-        event = await events.get()
+        if self._deadline is None:
+            event = await events.get()
+        else:
+            try:
+                event = await asyncio.wait_for(events.get(), self._deadline)
+            except TimeoutError:
+                await self.aclose()
+                msg = f"no matching change arrived within {self._deadline} seconds"
+                raise Timeout(msg) from None
         if event is _STREAM_CLOSED:
             raise StopAsyncIteration
         return event

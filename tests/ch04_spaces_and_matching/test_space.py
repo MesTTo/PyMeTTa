@@ -293,7 +293,7 @@ def test_query_surfaces_share_column_order(m):  # noqa: D103  -- pytest discover
     expected = ("first", "second", "third")
     assert m.match(*patterns).columns == expected
     assert m.prepare(*patterns).columns == expected
-    with m._stream(*patterns) as cursor:
+    with m.stream(*patterns) as cursor:
         assert cursor.columns == expected
 
 
@@ -323,10 +323,10 @@ def test_wide_query_projection_is_identical_through_every_answer_door(m):  # noq
         assert rows.columns == columns
         assert tuple(rows.one()) == expected
 
-    with m._stream(*patterns) as cursor:
+    with m.stream(*patterns) as cursor:
         assert cursor.columns == columns
         assert tuple(next(cursor)) == expected
-    with m._stream(*patterns, where=guard) as cursor:
+    with m.stream(*patterns, where=guard) as cursor:
         assert cursor.columns == columns
         assert tuple(next(cursor)) == expected
 

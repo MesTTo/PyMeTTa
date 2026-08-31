@@ -534,4 +534,17 @@ def twin(m):
 #: to demote a check nothing emits [measured 2026-08-31: min-of-3 serial
 #: fresh processes; command=pytest test_twin_coverage.py -k 01-identity;
 #: commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
-BUDGET = 2402
+#: RE-PINNED 2026-08-31, 2402 to 2411 (+9): the entry above priced this twin
+#: at 57f21ba9 and three commits landed after it, one of which (c530ccb8) is
+#: the only one to touch engine Prolog. It rewrote engine/translator/runtime.pl
+#: to take the mbr artifact path from metta_engine_src_dir/1 rather than
+#: prolog_load_context/2, and the translator is what compiling this twin's one
+#: equation goes through, so that is the candidate. It is NAMED AS A CANDIDATE
+#: rather than a cause: no control was run that removes only that change, and
+#: this twin is the whole corpus's smallest, so it is the one whose fixed
+#: overhead clears the +-4 allowance while larger twins absorb the same move
+#: [measured 2026-08-31: 2411 on six consecutive runs, 0.0000% spread;
+#: command=pytest test_twin_coverage.py -k 01-identity; commit=WORKTREE]
+#: [assumed 2026-08-31: the attribution to c530ccb8's translator change;
+#: commit=WORKTREE].
+BUDGET = 2411

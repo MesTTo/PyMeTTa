@@ -206,7 +206,7 @@ def _write_merged_json(paths: Sequence[Path], target: Path) -> None:
         raise
 
 
-def main(argv: Sequence[str] | None = None) -> int:  # noqa: C901  -- main keeps the child-process timeout and cleanup together so its branches share one state
+def main(argv: Sequence[str] | None = None) -> int:
     """Run the requested benchmark cases through isolated pytest processes."""
     parser = _parser()
     arguments = parser.parse_args(argv)

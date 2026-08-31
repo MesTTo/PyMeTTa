@@ -867,7 +867,7 @@ def test_explain_reflects_the_plan(metta):  # noqa: D103  -- pytest discovers or
 
 def test_a_stream_explains_without_pulling_a_row(metta):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     metta.add(parse("(sedge only)"))
-    with metta._stream(parse("(sedge $x)")) as cursor:
+    with metta.stream(parse("(sedge $x)")) as cursor:
         text = cursor.explain()
         assert "query over &self: (sedge $x)" in text
         assert "stored atoms: engine unification" in text

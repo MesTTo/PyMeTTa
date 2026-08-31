@@ -757,7 +757,7 @@ class Runtime:
         holds the goal's state between pulls, metta_py_cursor_next takes one
         answer, and unrelated calls interleave freely, which a raw janus
         cursor forbids because its frames nest LIFO and it dies crossing
-        threads. MeTTa.stream() is that door in-process and
+        threads. Space.stream() is that door in-process and
         RemoteSpace.stream() is the same lifecycle over the wire. A
         shim-side findall would only move the drain, not remove it.
 

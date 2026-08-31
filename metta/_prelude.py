@@ -66,7 +66,7 @@ def pythonic(value: Any) -> Any:
     return value
 
 
-def install(runtime) -> None:  # noqa: C901  -- install keeps the prelude registration table together so its branches share one state
+def install(runtime) -> None:
     """Register the prelude on the shared engine, once per process."""
 
     def _subscript(value, key, what):

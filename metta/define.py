@@ -174,7 +174,7 @@ def _function_namespace(fn: types.FunctionType) -> dict[str, Any]:
     return {**_builtins_namespace(), **fn.__globals__, **nonlocals, **type_params}
 
 
-def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:  # noqa: C901  -- _annotation_resolver keeps the annotation namespace and its resolvers together so its branches share one state
+def _annotation_resolver(fn: types.FunctionType) -> Callable[[ast.expr], Atom]:
     """Resolve local annotation syntax without executing arbitrary source."""
     namespace = _function_namespace(fn)
 

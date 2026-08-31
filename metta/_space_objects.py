@@ -103,6 +103,22 @@ def _require_bound(value: Any, called: str, kinds: tuple[type, ...], reads: str)
         raise ValueError(msg)
 
 
+def require_deadline(deadline: Any) -> None:
+    """Check one quiet-deadline: a nonnegative number of seconds, or None.
+
+    One definition because three doors take the same argument and mean the
+    same thing by it: peek(), take() and watch(), across both surfaces. It
+    was written out twice in _space.py and the async watch had no check at
+    all, which is how the two surfaces came to disagree about whether a
+    deadline was even a parameter.
+    """
+    if deadline is None:
+        return
+    if isinstance(deadline, bool) or not isinstance(deadline, (int, float)) or deadline < 0:
+        msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
+        raise ValueError(msg)
+
+
 #: The scoped defaults `with m.limits(...)` sets: a contextvar, so the
 #: scope is async-correct and thread-local the way decimal.localcontext
 #: is. Per-call kwargs override by simply not being None.
@@ -203,7 +219,7 @@ def guard_atom(where: Any | None) -> Atom | None:
         return guard
     msg = (
         f"a where= guard is a term the engine evaluates per row, as in "
-        f"S['>='](V.age, 18); {where!r} can never answer true"
+        f"V.age.ge(18); {where!r} can never answer true"
     )
     raise TypeError(
         msg

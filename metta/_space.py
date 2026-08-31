@@ -239,6 +239,7 @@ from ._space_objects import (
     _refuse_in_batch,
     _StatsBlock,
     guard_atom,
+    require_deadline,
 )
 from ._space_persistence import (
     load_space,
@@ -1458,13 +1459,7 @@ class Space(Handle):
     def _wait_for_atom(
         self, operation: str, pattern: Any, deadline: float | None
     ) -> Atom:
-        if deadline is not None and (
-            isinstance(deadline, bool)
-            or not isinstance(deadline, (int, float))
-            or deadline < 0
-        ):
-            msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
-            raise ValueError(msg) from None
+        require_deadline(deadline)
         caller = (
             self
             if self._space == _DEFAULT_SPACE
@@ -1861,7 +1856,7 @@ class Space(Handle):
         evaluated per join and required true, so restrictions a pattern
         cannot spell (an inequality) compose onto the match:
 
-            m.match(S.person(V.name, V.age), where=S[">="](V.age, 18))
+            m.match(S.person(V.name, V.age), where=V.age.ge(18))
 
         `limit` bounds the answers, the engine stopping at the count
         rather than trimming afterwards. `timeout` (seconds) and
@@ -2122,12 +2117,14 @@ class Space(Handle):
             target=patterns,
         )
 
-    def _stream(
+    def stream(
         self,
         *patterns: Any,
         where: Any | None = None,
+        limit: int | None = None,
         timeout: float | None = None,
         inferences: int | None = None,
+        under: Any = _UNSET,
     ) -> Cursor:
         """match(), pulled: the same conjunction and guard, answered one
         row at a time through a cursor the engine holds open.
@@ -2149,8 +2146,27 @@ class Space(Handle):
         which see the pull loop rather than the engine. The cursor
         enumerates under the engine's logical update view: writes made
         after the first pull are not seen by this cursor.
+
+        `limit` and `under` mean what they mean on match(), because this is
+        match() and the cursor underneath already carried both. What this
+        door does NOT take is match()'s `into=`, and that is a real
+        difference rather than an omission: `into` builds a container out of
+        every row, which is the one thing a cursor exists not to do.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
-        return Cursor(self, patterns, where, timeout, inferences)
+        carrier = _selected_under(under)
+        if carrier is None:
+            return Cursor(self, patterns, where, timeout, inferences, limit=limit)
+        declaration = _satellite("algebra").resolve(self, carrier)
+        return Cursor(
+            self,
+            patterns,
+            where,
+            timeout,
+            inferences,
+            limit=limit,
+            under=declaration.name,
+            order=declaration.order,
+        )
 
     def assuming(self, *facts: Any) -> _Assuming:
         """Facts held only inside a with-block: the assumptions reading of
@@ -2298,16 +2314,18 @@ class Space(Handle):
         *,
         on: str = "add",
         deadline: float | None = None,
+        queue_max: int | None = None,
     ):
-        """Yield matching changes, raising Timeout after each quiet deadline."""
-        if deadline is not None and (
-            isinstance(deadline, bool)
-            or not isinstance(deadline, (int, float))
-            or deadline < 0
-        ):
-            msg = f"deadline is a nonnegative number of seconds, not {deadline!r}"
-            raise ValueError(msg)
-        return _WatchIterator(self.subscribe(pattern, on=on), deadline)
+        """Yield matching changes, raising Timeout after each quiet deadline.
+
+        `queue_max` bounds the subscription underneath, the same bound
+        subscribe() takes; a watch could not name it before, though the
+        subscription it builds always had one.
+        """
+        require_deadline(deadline)
+        return _WatchIterator(
+            self.subscribe(pattern, on=on, queue_max=queue_max), deadline
+        )
 
     def limits(
         self,
@@ -4884,7 +4902,7 @@ class MeTTa:
             "metta_path": self._rt.metta_path,
         }
 
-    def space(  # noqa: C901  -- one door, read top to bottom: validations, then acquisitions under one unwind
+    def space(
         self,
         name: str | Symbol | Expression | Space | None = None,
         backing: Any = None,

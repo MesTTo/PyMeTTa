@@ -269,7 +269,7 @@ def _refused(operation, *arguments) -> str | None:
     return None
 
 
-def _check_term(case: dict, driver: CodecDriver) -> list[str]:  # noqa: C901  -- _check_term keeps the codec conformance decision table together so its branches share one state
+def _check_term(case: dict, driver: CodecDriver) -> list[str]:
     complaints: list[str] = []
     wire = _case_wire(case, driver)
     here = f"{driver.name}/{case['id']}"

@@ -77,6 +77,37 @@ def test_boolean_operators_compose_guards():  # noqa: D103  -- pytest discovers 
     assert ~V.ok == Expression(S["not"], V.ok)
 
 
+def test_ordering_builds_terms_by_method_the_way_equality_does(m):
+    """Ordering has the spelling equality has, for the same reason.
+
+    `<` between two atoms is engine sort order, so it cannot also build a
+    term; `.eq()` exists for exactly that clash and `.lt()` and friends are
+    the same answer for the same clash. Before they existed, ordering was the
+    one part of the term vocabulary with no short spelling, and the match
+    docstring, the guide and the guard's own error message all reached for the
+    refused operator instead [measured 2026-08-31].
+    """
+    assert V.age.lt(18) == Expression(S["<"], V.age, 18)
+    assert V.age.le(18) == Expression(S["<="], V.age, 18)
+    assert V.age.gt(18) == Expression(S[">"], V.age, 18)
+    assert V.age.ge(18) == Expression(S[">="], V.age, 18)
+    # The bracket door still spells the same term, so the ladder is intact.
+    assert V.age.ge(18) == S[">="](V.age, 18)
+    # And they compose through the connectives like any other guard term.
+    assert V.age.ge(18) & V.age.le(40) == metta_package.and_(V.age.ge(18), V.age.le(40))
+
+    m.add(S.person(S.ada, 36))
+    m.add(S.person(S.kid, 9))
+    assert [str(row.name) for row in m.match(S.person(V.name, V.age), where=V.age.ge(18))] == ["ada"]
+    assert [
+        str(row.name)
+        for row in m.match(S.person(V.name, V.age), where=metta_package.and_(V.age.gt(10), V.age.lt(40)))
+    ] == ["ada"]
+    # The operator still refuses, which is what makes the method necessary.
+    with pytest.raises(TypeError):
+        _ = V.age >= 18
+
+
 def test_grounded_atoms_keep_values_but_stage_operators():  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     assert Grounded(3) + 1 == Expression(S["+"], 3, 1)
     assert Grounded(3) * Grounded(4) == Expression(S["*"], 3, 4)

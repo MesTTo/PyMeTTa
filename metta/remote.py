@@ -254,7 +254,7 @@ class RemoteCursor:
     """A remote answer stream: `/ask` opened it, `/next` pulls the next
     chunk, `/stop` releases it.
 
-    MeTTa.stream()'s Cursor with a wire under it, and the same discipline:
+    Space.stream()'s Cursor with a wire under it, and the same discipline:
     iterate it, close() it, or leave its with-block. Exhaustion releases
     the server's cursor and stays ordinary iterator exhaustion; an
     explicit close is the separate state that refuses further pulls.
@@ -1255,7 +1255,7 @@ class Gateway:
         """
         linear = _linear(pattern)
         template = pattern if linear is None else linear
-        cursor = space._stream(template)
+        cursor = space.stream(template)
         answers = (
             substitute(template, dict(zip(cursor.columns, row, strict=True)))
             for row in cursor
@@ -1638,7 +1638,7 @@ class Server:
         return []
 
 
-def serve(  # noqa: C901  -- serve keeps the HTTP negotiation and resource lifecycle together so its branches share one state
+def serve(
     m,
     host: str = "127.0.0.1",
     port: int = 0,

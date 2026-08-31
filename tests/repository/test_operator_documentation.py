@@ -76,7 +76,13 @@ def test_every_operator_is_documented_including_non_symbolic_comparisons():
     # The unary forms and the two spelled methods.
     for dunder in ("__invert__", "__neg__", "__abs__"):
         built[dunder] = _head(getattr(type(S.x), dunder)(S.x))
-    built["lt"] = _head(S["<"](S.x, V.y))
+    # The six spelled comparison methods. Ordering is a method for exactly the
+    # reason equality is: the operator is already engine sort order, so the
+    # term needs its own name rather than an overload that could mean either.
+    built["lt"] = _head(S.x.lt(V.y))
+    built["le"] = _head(S.x.le(V.y))
+    built["gt"] = _head(S.x.gt(V.y))
+    built["ge"] = _head(S.x.ge(V.y))
     built["eq"] = _head(S.x.eq(V.y))
     built["ne"] = _head(S.x.ne(V.y))
 

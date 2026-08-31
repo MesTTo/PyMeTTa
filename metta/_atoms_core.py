@@ -510,6 +510,31 @@ class Atom:
     def ne(self, other: Any) -> Expression:
         return _expression_atoms((Symbol("not"), self.eq(other)))
 
+    # Ordering, for the same reason eq() exists and by the same construction.
+    # The rich-comparison operators cannot carry these: `<` between two atoms
+    # is already engine sort order, which is what sorted() needs, so `V.age >=
+    # 18` is refused rather than silently meaning one of two things. That
+    # refusal is right, but it left ordering as the ONE part of the term
+    # vocabulary with no short spelling -- and_/or_/not_/if_/in_ cover the
+    # connectives and eq/ne cover equality -- so the documentation reached for
+    # the refused operator three times, in the match docstring, the guide, and
+    # the guard's own error message [measured 2026-08-31].
+    def gt(self, other: Any) -> Expression:
+        """The strictly-greater TERM, (> self other)."""
+        return self._build(">", other)
+
+    def ge(self, other: Any) -> Expression:
+        """The greater-or-equal TERM, (>= self other)."""
+        return self._build(">=", other)
+
+    def lt(self, other: Any) -> Expression:
+        """The strictly-less TERM, (< self other)."""
+        return self._build("<", other)
+
+    def le(self, other: Any) -> Expression:
+        """The less-or-equal TERM, (<= self other)."""
+        return self._build("<=", other)
+
     @property
     def vars(self) -> tuple[str, ...]:
         """Variable names in first-appearance order; no names means ground."""

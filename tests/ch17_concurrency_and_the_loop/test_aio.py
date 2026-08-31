@@ -2,6 +2,11 @@
 works, results and errors cross threads intact, bounds fire on the worker
 thread, and spaces borrow the owner's engine thread.
 Guarantees:
+  - the two surfaces agree PARAMETER for parameter, not merely method for
+    method, so a door cannot carry one name and two shapes: checking names
+    alone let watch(), stream() and define() each diverge until they were
+    found by hand [tested: test_aio_covers_the_whole_synchronous_surface;
+    commit=WORKTREE]
   - async solve, Linda verbs, watch, class/type dispatch, and both transaction
     laws execute on the owning worker [tested:
     test_aio_structural_surface_behaves; commit=cff2e7f319bd2212f0c2d74f8d5fe5be3ac693b5]
@@ -406,6 +411,45 @@ def test_aio_covers_the_whole_synchronous_surface():
     missing = sync - set(dir(aio.AsyncMeTTa)) - excluded
     assert not missing, f"AsyncMeTTa lacks {sorted(missing)}"
     assert not excluded - sync, "the exclusion ledger names a method Space lost"
+
+    # Parity is per PARAMETER, not per name. Checking names alone let three
+    # doors carry the same name and a different surface on each side, all
+    # found by hand on 2026-08-31: watch() took deadline= here and queue_max=
+    # there, stream() lost limit= and under=, and define() lost name=, which
+    # is the naming ladder's exact-spelling rung and so cannot be missing from
+    # one surface. A default may differ where the surfaces genuinely differ
+    # (queue_max is unbounded-by-default synchronously); a NAME may not.
+    parameter_excluded = {
+        # The async stream IS the delivery, so there is nothing to call back.
+        # The asynchronous docstring says so where the parameter would be.
+        ("subscribe", "callback"),
+    }
+    divergent = set()
+    for name in sorted(sync - excluded):
+        asynchronous = getattr(aio.AsyncMeTTa, name, None)
+        if asynchronous is None:
+            continue
+        try:
+            here = inspect.signature(getattr(Space, name))
+            there = inspect.signature(asynchronous)
+        except (TypeError, ValueError):
+            continue
+        named = {
+            side: {
+                parameter.name
+                for parameter in signature.parameters.values()
+                if parameter.name != "self" and parameter.kind is not parameter.VAR_KEYWORD
+            }
+            for side, signature in (("sync", here), ("async", there))
+        }
+        divergent |= {
+            (name, parameter)
+            for parameter in named["sync"] ^ named["async"]
+            if (name, parameter) not in parameter_excluded
+        }
+    assert not divergent, (
+        f"these doors carry one name and two surfaces: {sorted(divergent)}"
+    )
     signature = inspect.signature(aio.AsyncMeTTa.save)
     assert list(signature.parameters) == ["self", "path", "format"]
     assert signature.parameters["format"].default == "metta"

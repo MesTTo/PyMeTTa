@@ -801,7 +801,7 @@ class Saga:
             finally:
                 self._recovering = False
 
-    def _rollback_committed(self, start: int = 0) -> None:  # noqa: C901  -- recovery reads as one ordered ledger walk
+    def _rollback_committed(self, start: int = 0) -> None:
         """Run one preflighted reverse plan while the runner lock is held.
 
         Journalled obligations claim their stored occurrences first. An

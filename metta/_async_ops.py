@@ -293,7 +293,7 @@ def _publish_landing(token: int, status: str, payload: Any) -> None:
     engine.do_must("metta_py_async_land", token, status, payload)
 
 
-def _event_loop() -> asyncio.AbstractEventLoop:  # noqa: C901 -- startup, publication, teardown, and recovery share one locked state transition
+def _event_loop() -> asyncio.AbstractEventLoop:
     launch: threading.Thread | None = None
     with _LOCK:
         if _LOOP_STATE.shutting_down:

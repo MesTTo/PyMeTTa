@@ -857,7 +857,7 @@ def test_a_cursor_budget_is_cumulative_and_counts_engine_work(m):
 
     probe = 20_000
     partway = _rows_until_the_budget_stops(
-        m._stream(S.edge(V.a, V.b), inferences=probe)
+        m.stream(S.edge(V.a, V.b), inferences=probe)
     )
     # Partway: neither stopped before the first answer nor drained.
     assert 0 < partway < 4_000
@@ -865,13 +865,13 @@ def test_a_cursor_budget_is_cumulative_and_counts_engine_work(m):
 
     # Below the whole cost: stops, and later than a quarter of the budget did.
     smaller = _rows_until_the_budget_stops(
-        m._stream(S.edge(V.a, V.b), inferences=probe // 4)
+        m.stream(S.edge(V.a, V.b), inferences=probe // 4)
     )
     assert 0 < smaller < partway
 
     # Above it: drains. match() builds the same cursor, so it drains too.
     generous = int(per_row * 4_000 * 4)
-    assert len(list(m._stream(S.edge(V.a, V.b), inferences=generous))) == 4_000
+    assert len(list(m.stream(S.edge(V.a, V.b), inferences=generous))) == 4_000
     assert len(m.match(S.edge(V.a, V.b), inferences=generous)) == 4_000
 
     # The evaluation cursor is a second engine door and carries the same bound.
@@ -971,7 +971,7 @@ def test_a_stats_counter_is_unreadable_until_its_block_closes(m):
 
 def test_stream_pulls_rows_lazily_and_interleaves(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(500)])
-    with m._stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
+    with m.stream(S.edge(V.a, V.b), S.edge(V.b, V.c)) as rows:
         first = next(rows)
         assert (first.a, first.b, first.c) == (0, 1, 2)
         # Unrelated engine work interleaves while the cursor stays open,
@@ -985,7 +985,7 @@ def test_stream_pulls_rows_lazily_and_interleaves(m):  # noqa: D103  -- pytest d
 
 def test_stream_agrees_with_query_and_closes_on_exhaustion(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(50)])
-    cursor = m._stream(S.edge(V.a, V.b))
+    cursor = m.stream(S.edge(V.a, V.b))
     assert [tuple(r) for r in cursor] == [tuple(r) for r in m.match(S.edge(V.a, V.b))]
     with pytest.raises(StopIteration):
         next(cursor)
@@ -1003,7 +1003,7 @@ def test_stream_agrees_with_query_and_closes_on_exhaustion(m):  # noqa: D103  --
 def test_a_cursor_slice_pulls_only_what_it_takes(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     space = m._new_space()
     space.add(*[S.fact(i, i) for i in range(2000)])
-    with space.stats() as lazy, space._stream(S.fact(V.k, V.n)) as cursor:
+    with space.stats() as lazy, space.stream(S.fact(V.k, V.n)) as cursor:
         first_three = cursor[:3]
     with space.stats() as answers_cost:
         trimmed = list(space.match(S.fact(V.k, V.n))[:3])
@@ -1011,9 +1011,9 @@ def test_a_cursor_slice_pulls_only_what_it_takes(m):  # noqa: D103  -- pytest di
     # The public query view now shares the cursor's demand-driven cost.
     assert answers_cost.inferences < lazy.inferences * 3
 
-    with space._stream(S.fact(V.k, V.n)) as cursor:
+    with space.stream(S.fact(V.k, V.n)) as cursor:
         assert cursor[0].k == first_three[0].k
-    with space._stream(S.fact(V.k, V.n)) as cursor:
+    with space.stream(S.fact(V.k, V.n)) as cursor:
         assert [row.k for row in cursor[1:4]] == [row.k for row in first_three[1:]] + [
             trimmed[3].k if len(trimmed) > 3 else space.match(S.fact(V.k, V.n))[3].k
         ]
@@ -1025,42 +1025,42 @@ def test_a_cursor_refuses_what_would_need_the_whole_stream(m):
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     space = m._new_space()
     space.add(*[S.fact(i, i) for i in range(10)])
-    with space._stream(S.fact(V.k, V.n)) as cursor, pytest.raises(TypeError, match="no len"):
+    with space.stream(S.fact(V.k, V.n)) as cursor, pytest.raises(TypeError, match="no len"):
         len(cursor)
     with (
-        space._stream(S.fact(V.k, V.n)) as cursor,
+        space.stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(IndexError, match="indexed from the end"),
     ):
         cursor[-1]
     with (
-        space._stream(S.fact(V.k, V.n)) as cursor,
+        space.stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(ValueError, match="takes no step"),
     ):
         cursor[::2]
     with (
-        space._stream(S.fact(V.k, V.n)) as cursor,
+        space.stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(ValueError, match="counts from the start"),
     ):
         cursor[-3:]
     with (
-        space._stream(S.fact(V.k, V.n)) as cursor,
+        space.stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(TypeError, match="int or a slice"),
     ):
         cursor["a"]
     # Running off the end is an IndexError naming how many it answered, and an
     # empty window is an empty list rather than an error.
     with (
-        space._stream(S.fact(V.k, V.n)) as cursor,
+        space.stream(S.fact(V.k, V.n)) as cursor,
         pytest.raises(IndexError, match="fewer than 100"),
     ):
         cursor[99]
-    with space._stream(S.fact(V.k, V.n)) as cursor:
+    with space.stream(S.fact(V.k, V.n)) as cursor:
         assert cursor[3:1] == []
 
 
 def test_abandoned_stream_warns_before_reaping(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     m.add(S.edge(1, 2))
-    cursor = m._stream(S.edge(V.a, V.b))
+    cursor = m.stream(S.edge(V.a, V.b))
     with pytest.warns(ResourceWarning, match="open metta Cursor"):
         del cursor
         gc.collect()
@@ -1068,10 +1068,10 @@ def test_abandoned_stream_warns_before_reaping(m):  # noqa: D103  -- pytest disc
 
 def test_stream_guard_and_per_pull_bounds(m):  # noqa: D103  -- pytest discovers or injects this callable; its descriptive name states the contract
     tables.add(m, "edge", [(i, i + 1) for i in range(100)])
-    with m._stream(S.edge(V.a, V.b), where=S[">="](V.a, 90)) as rows:
+    with m.stream(S.edge(V.a, V.b), where=S[">="](V.a, 90)) as rows:
         assert [r.a for r in rows] == list(range(90, 100))
     m.run("(= (stream-spin $n) (if (== $n 0) done (stream-spin (- $n 1))))")
-    cursor = m._stream(
+    cursor = m.stream(
         S.edge(V.a, V.b),
         where="(== (stream-spin 100000000) done)",
         inferences=1_000,
