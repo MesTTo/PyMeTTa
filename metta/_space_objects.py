@@ -59,6 +59,7 @@ import logging
 import time
 import warnings
 import weakref
+from collections import deque
 from collections.abc import Iterable
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Self, cast
@@ -506,6 +507,19 @@ _CURSOR_LENGTH_REFUSAL = (
 )
 
 
+#: The largest chunk a cursor will pull in one crossing. Growth is geometric,
+#: so the cap only decides where doubling stops, and the sweep says it stops
+#: mattering at 16: speedup against a chunk of one, drained at four sizes,
+#: 1 / 1.24x / 1.53x / 1.86x / 1.80x / 1.91x / 1.88x / 1.91x for caps
+#: 1, 2, 4, 16, 64, 256, 1024, 4096 at ten thousand answers [measured
+#: 2026-08-31, ai-tmp/capsweep.py]. Everything from 16 up is one flat band, so
+#: this takes the smallest cap comfortably past its start rather than the
+#: largest: 64 reaches the whole win while a refill holds a quarter of what
+#: 256 would. SQL Server's cursors pick 128 by the same reasoning and Lemire
+#: measures 64 as the batch where prefetching stops paying.
+_CHUNK_CAP = 64
+
+
 class Cursor:
     """Private streaming answers pulled one at a time from an engine-held
     query. Iterate it, close() it, or leave its with-block. Exhaustion reaps
@@ -519,8 +533,11 @@ class Cursor:
         "__weakref__",
         "_annotation",
         "_atoms",
+        "_buffer",
         "_capture",
+        "_chunk",
         "_closed",
+        "_drained",
         "_exhausted",
         "_finalizer",
         "_handle",
@@ -579,6 +596,9 @@ class Cursor:
         self._handle = self._rt.apply_must(predicate, *arguments)
         self._closed = False
         self._exhausted = False
+        self._buffer: deque = deque()
+        self._chunk = 1
+        self._drained = False
         # The finalizer is the last guard, not the contract: it destroys
         # the engine if a cursor is dropped unclosed, from whichever
         # thread collection runs on (cross-thread destroy is probed).
@@ -594,26 +614,69 @@ class Cursor:
     def __iter__(self) -> Self:
         return self
 
+    def _refill(self) -> None:
+        """Cross once, for as many answers as this cursor has earned.
+
+        A crossing costs 2.55us against 2.55us of engine work for a plain
+        enumeration, so a cursor that crosses per answer spends half its time
+        in the boundary: 27.9x the eager door at ten thousand answers, and the
+        gap is FLAT at 2.35us per answer from k=10 to k=10000, which is what
+        says it is per-crossing rather than a warm-up
+        [measured 2026-08-31, ai-parametricity-audit.md].
+
+        The chunk starts at one and doubles, which is the same policy TCP
+        opens a connection with and a vector grows by, and it is here for the
+        same reason: a caller who takes one answer of an infinite stream must
+        pay for one, and a caller who drains ten thousand should not pay ten
+        thousand crossings. Taking k answers computes fewer than 2k, so
+        stream()'s promise of work proportional to answers pulled holds with
+        a constant rather than exactly.
+
+        Nothing here asks what the query does. A producer with effects the
+        developer did not declare is a wrong declaration, and effect classes
+        exist so this layer does not second-guess them.
+
+        Bounded cursors chunk too (user ruling, 2026-08-31). A budget that
+        trips mid-chunk discards that chunk's collected prefix, so a spent
+        cursor may deliver fewer answers than the budget's work computed:
+        measured, a 3000-inference budget delivered 210 answers one at a time
+        and 191 chunked. That is the accepted price; per-answer accounting at
+        a trip is not worth a crossing per answer, and the diagnosis path is
+        raising the budget, which delivers more. The wall bound consequently
+        covers a chunk's worth of work per crossing rather than one answer's.
+        """
+        want = self._chunk
+        if self._timeout is None and self._stack < 0:
+            answers = self._rt.apply_must("metta_py_cursor_chunk", self._handle, want)
+        else:
+            answers = _apply_limited(
+                self._rt,
+                (-1.0 if self._timeout is None else self._timeout, -1, self._stack),
+                "metta_py_cursor_chunk",
+                [self._handle, want],
+            )
+        self._buffer = deque(answers)
+        # A SHORT chunk is the whole of the exhaustion signal, so no pull ever
+        # looks past the last answer it was asked for.
+        if len(answers) < want:
+            self._drained = True
+        self._chunk = min(want * 2, _CHUNK_CAP)
+
     def __next__(self):
-        if self._exhausted:
-            raise StopIteration
         if self._closed:
             msg = "this cursor is closed"
             raise MettaError(msg)
-        if self._timeout is None and self._stack < 0:
-            answer = self._rt.apply_must("metta_py_cursor_next", self._handle)
-        else:
-            answer = _apply_limited(
-                self._rt,
-                (-1.0 if self._timeout is None else self._timeout, -1, self._stack),
-                "metta_py_cursor_next",
-                [self._handle],
-            )
-        if not answer:
+        if not self._buffer:
+            if self._exhausted or self._drained:
+                self._exhausted = True
+                self._finalizer()
+                raise StopIteration
+            self._refill()
+        if not self._buffer:
             self._exhausted = True
             self._finalizer()
             raise StopIteration
-        payload = answer[0]
+        payload = self._buffer.popleft()
         if self._under is not None:
             row_wires, annotation_wire = payload
             self._annotation = _atom_from_wire(annotation_wire)

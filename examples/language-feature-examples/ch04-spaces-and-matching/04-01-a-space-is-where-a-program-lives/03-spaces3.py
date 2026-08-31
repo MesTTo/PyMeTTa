@@ -78,4 +78,10 @@ def twin(m):  # noqa: ARG001  -- the twin works in its own named space; the defa
 #: and 234 instead and would have pinned a configuration the gate does not run
 #: [measured 2026-08-28: min-of-3 serial fresh processes; command=python
 #: bindings/python/tools/twin_coverage.py --repin; commit=0289cbd162aeb0380fbbe502129bca3b976b32c7].
-BUDGET = 242
+#: RE-PINNED 2026-08-31, 242 to 252 (+10), the lazy cursor pulls a doubling
+#: chunk per janus crossing now, and the chunk's Prolog-side collection loop
+#: retires about three inferences per answer where the per-answer crossing
+#: retired its own wrapper; drains halve, a tiny stream pays a few inferences
+#: more [measured 2026-08-31: min-of-3 serial fresh processes; command=python
+#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+BUDGET = 252

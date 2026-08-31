@@ -952,6 +952,7 @@ metta_py_wrappable(metta_py_atomic).
 metta_py_wrappable(metta_py_speculative).
 metta_py_wrappable(metta_py_profiled).
 metta_py_wrappable(metta_py_cursor_next).
+metta_py_wrappable(metta_py_cursor_chunk).
 metta_py_wrappable(metta_py_eval_count).
 metta_py_wrappable(metta_py_eval_count_under).
 metta_py_wrappable(metta_py_eval_count_if_repeatable).
@@ -1122,6 +1123,25 @@ metta_py_ordered_pairs(_, Pairs, Ordered) :-
 %[] is exhaustion, [Row] one answer, so Python needs no sentinel value.
 metta_py_cursor_next(Engine, Answer) :-
     ( engine_next(Engine, Row) -> Answer = [Row] ; Answer = [] ).
+
+%Up to Count answers in ONE crossing, which is the whole of the optimisation:
+%a pull costs 2.55us of janus crossing against 2.55us of engine work, so a
+%cursor that crosses per answer spends half its time in the boundary
+%[measured 2026-08-31, extensions/python/tests/ch18_performance/test_cursor_chunking.py].
+%A SHORT list is the whole of the exhaustion signal, the same reading the
+%remote seat's _pull/2 takes, so nothing here looks ahead: the answer after
+%the last one asked for is never computed. Count is what Python asked for and
+%Python is what decides it may ask for more than one; see _Chunk in
+%_space_objects.py for when that is sound.
+metta_py_cursor_chunk(_, Count, []) :-
+    Count =< 0, !.
+metta_py_cursor_chunk(Engine, Count, Answers) :-
+    (   engine_next(Engine, Row)
+    ->  Answers = [Row|Rest],
+        Left is Count - 1,
+        metta_py_cursor_chunk(Engine, Left, Rest)
+    ;   Answers = []
+    ).
 
 %Idempotent close: a second destroy finds no engine and is at peace.
 metta_py_cursor_close(Engine) :-
