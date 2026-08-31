@@ -140,6 +140,10 @@ def test_no_binding_carries_its_own_verbosity_setter(metta, repo_root):
         for pattern in _BINDING_SOURCE
         for path in seats.rglob(pattern)
         if "node_modules" not in path.parts
+        # cmetta's make install-check stages the whole engine tree, this
+        # file included, under extensions/cmetta/build; a build artifact is
+        # the engine's own copy, not a binding source growing a setter.
+        and "build" not in path.parts
         and _WRITES_THE_FLAG.search(path.read_text(encoding="utf-8", errors="ignore"))
     )
     assert not offenders, (

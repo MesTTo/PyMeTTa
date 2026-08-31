@@ -286,11 +286,11 @@ def from_pattern(pattern, max_leaves: int = 8):
     st = _st()
     term = _encode(pattern)
     values = ground_atoms(max_leaves)
-    variables = tuple(item for item in term.vars if item.name != "_")
+    holes = tuple(item for item in term.vars if item.name != "_")
 
     @st.composite
     def instances(draw):
-        bindings = {item: draw(values) for item in variables}
+        bindings = {item: draw(values) for item in holes}
 
         def instantiate(atom):
             if not isinstance(atom, Variable):

@@ -63,9 +63,9 @@ Guarantees:
     [tested: test_a_duplicate_declaration_names_the_first_one;
     commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - the returned staging wrapper carries its registration identity through
-    functools.wraps chains so mutually exclusive definition doors can refuse
-    before mutation [tested:
-    test_cache_over_an_operation_refuses_before_definition_registration;
+    functools.wraps chains, which is how the lint resolves a bare name to the
+    operation behind it [tested:
+    test_an_effectful_ground_operation_at_rule_construction_is_linted;
     commit=8d6131a9d9902c67ce8cac71e96e8362a8713561]
 Open Obligations:
   To Do: None
@@ -986,7 +986,11 @@ def register[**P, R](
 
 
 def _registered_operation(fn: Callable[..., Any]) -> Operation | None:
-    """Return the live registration owned by this callable or wrapper chain."""
+    """Return the live registration owned by this callable or wrapper chain.
+
+    Reached as a module attribute by _space_definitions._installed_callable_name,
+    which is how a bound definition resolves the exact live name it carries.
+    """
     operation = live_registration(fn)
     if operation is not None:
         return operation
@@ -996,6 +1000,7 @@ def _registered_operation(fn: Callable[..., Any]) -> Operation | None:
         if fn is behind or source is inspect.unwrap(behind):
             return candidate
     return None
+
 
 
 def unregister(runtime, name: str) -> None:

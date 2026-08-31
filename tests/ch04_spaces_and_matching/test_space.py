@@ -33,7 +33,7 @@ Guarantees:
   - an unreduced directive is its own answer, and raw execution choices use
     named transport rather than boolean pairs [tested:
     test_an_unreduced_directive_is_its_own_answer,
-    test_eval_using_carries_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
+    test_run_using_carries_identity; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
   - ``Expression(space)`` snapshots the space's assembly-order listing
     [tested: test_expression_of_a_space_is_an_assembly_order_snapshot;
     commit=b1de70215dd3f0c9d5437558c57c5911c13948b5]

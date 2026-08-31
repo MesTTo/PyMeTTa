@@ -132,5 +132,5 @@ def twin(m):  # noqa: ARG001  -- both spaces are created here; the default handl
 #: anonymous one, and carries its own storage module for the life of the
 #: process [measured 2026-08-31: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=41e2cb9862e757dbe066516dab13ae55491f64d3].
 BUDGET = 61560
