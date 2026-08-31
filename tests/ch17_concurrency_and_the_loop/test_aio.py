@@ -52,10 +52,12 @@ import gc
 import inspect
 import logging
 import re
+import sys
 import threading
 import time
 import uuid
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -383,23 +385,12 @@ def test_aio_covers_the_whole_synchronous_surface():
     """  # noqa: D205  -- the scenario narrative is one continuous invariant, not summary-and-body prose
     from metta._space import Space
 
-    excluded = {
-        # asyncio's fan-out is N workers and asyncio.gather; a pool of
-        # engine threads is the synchronous spelling of the same thing.
-        "pool",
-        # an interactive Prolog toplevel belongs to a terminal thread.
-        "prolog",
-        # a transaction body is a closed synchronous goal (SWI's
-        # transaction/1 takes one); transaction() is the async spelling
-        # and there is no decorator because decoration cannot await.
-        "transactional",
-        # Answers is a synchronous replayable iterator. AsyncMeTTa's stream
-        # is the awaitable pull protocol rather than a cross-thread iterator.
-        "answers",
-        # These are Space's Atom/Handle operand protocol, not engine calls.
-        "metatype",
-        "to_wire",
-    }
+    # The ledger the GENERATOR reads, so one list decides both what is
+    # excluded and what gets generated; each entry carries its own reason.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    from aio_divergences import EXCLUDED
+
+    excluded = set(EXCLUDED)
     # Atom and Handle methods are operand behavior inherited by Space, not
     # engine calls for the async facade to mirror.
     sync = {name for name in Space.__dict__ if not name.startswith("_")}
