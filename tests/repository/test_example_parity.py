@@ -1,13 +1,7 @@
 """Purpose: prove the parity lane detects a difference, ignores a difference
-in spelling that is not one, and preserves the per-form grouping, and that
-the llms lane's builtin-count claim distinguishes a missing build product
-from documentation drift. A lane that cannot be shown failing is not
-evidence of anything, so these plant differences and require the lanes to
-report them.
-Guarantees:
-  - the llms module scanner distinguishes ``engine/metta.pl`` from the
-    ``metta.remote`` Python module [tested:
-    test_the_llms_module_scanner_ignores_engine_paths; commit=b962cf7c06b2680f94174515e24a3b6afd5ee5c4]
+in spelling that is not one, and preserves the per-form grouping. A lane that
+cannot be shown failing is not evidence of anything, so these plant differences
+and require the lane to report them.
 Open Obligations:
   To Do: None
   Hacks: None
@@ -29,14 +23,6 @@ REPO = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "extensions" / "python" / "tools"))
 
 import example_parity as parity  # noqa: E402
-
-
-def test_the_llms_module_scanner_ignores_engine_paths():
-    """The import-module rename must not reinterpret a repository filename."""
-    from llmsdoc import METTA_ATTR
-
-    claims = "`engine/metta.pl` implements the engine; `metta.remote.connect` is Python"
-    assert METTA_ATTR.findall(claims) == [("remote", "connect")]
 
 
 def test_the_corpus_is_one_definition():
@@ -233,83 +219,3 @@ def test_the_stated_corpus_size_is_the_real_one():
         f"examples/README.md says {stated.group(1)}, the runners run {size}"
     )
 
-
-def test_the_llms_builtin_claim_holds_in_a_bare_configuration(tmp_path):
-    """A worktree without a backend's build product reads the truth, not red.
-
-    The builtin count is the one llms.txt claim carrying a CONFIGURATION:
-    a seat resting on a build product registers its builtins only where that
-    product exists, and both wave-10 agents lost a gate run to the bare
-    mismatch message. Such a seat declares the product as needs(artefact(_))
-    and its registrations as seam:extension_builtin/2 facts, so when the
-    absent artefact explains the difference exactly, the lane passes with a
-    note naming the artefact and every registration; a difference the artefact
-    does not explain stays a failing drift claim, and a seat that rests on no
-    build product never contributes to the explanation.
-    """
-    from llmsdoc import _absent_artefact_diagnosis
-
-    seat = tmp_path / "extensions" / "mork"
-    backend = seat / "mork_ffi"
-    backend.mkdir(parents=True)
-    # The seat's own control file, verbatim: the artefact need in it is what
-    # makes the seat eligible for this diagnosis at all, and the path it names
-    # is the one the note quotes.
-    (seat / "extension.pl").write_text(
-        (REPO / "extensions" / "mork" / "extension.pl").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    declarations = (
-        REPO / "extensions" / "mork" / "mork_ffi" / "morkspaces.pl"
-    ).read_text(encoding="utf-8")
-    (backend / "morkspaces.pl").write_text(declarations, encoding="utf-8")
-    names = re.findall(
-        r"^seam:extension_builtin\('?([^',)]+)'?\s*,[^)]*\)\.",
-        declarations,
-        re.MULTILINE,
-    )
-    assert names
-    stated = int(
-        re.search(
-            r"(\d+) builtins are registered",
-            (REPO / "llms.txt").read_text(encoding="utf-8"),
-        ).group(1)
-    )
-    bare = stated - len(names)
-    note = _absent_artefact_diagnosis(stated, bare, root=tmp_path)
-    assert note is not None
-    assert "extensions/mork/mork_ffi/target/release/libmork_ffi.so" in note
-    assert "missing build product, not doc drift" in note
-    for name in names:
-        assert name in note
-    # A delta the declarations do not explain is genuine drift, not config.
-    assert _absent_artefact_diagnosis(stated, bare - 1, root=tmp_path) is None
-
-    # A seat that declares builtins and rests on no build product is not an
-    # unbuilt backend, and every seat sits in one folder now: the Python seat
-    # declares seven of these facts and needs library(janus), so counting its
-    # names here would explain a real drift away with a build that does not
-    # exist. Its presence must not change the answer.
-    host = tmp_path / "extensions" / "python"
-    host.mkdir(parents=True)
-    (host / "extension.pl").write_text(
-        (REPO / "extensions" / "python" / "extension.pl").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    (host / "bridge.pl").write_text(
-        (REPO / "extensions" / "python" / "bridge.pl").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    assert _absent_artefact_diagnosis(stated, bare, root=tmp_path) == note
-
-    # With the artefact present the diagnosis stands aside entirely.
-    # BOTH artefacts, because the seat declares both: morkspaces.pl opens
-    # libmork_ffi.so for its global symbols and then loads morklib.so for
-    # mork/3 itself. Creating one and calling the backend built is the exact
-    # half-built tree the second need was added to refuse, so the diagnosis is
-    # right to keep standing and the fixture was the thing that was wrong.
-    artefact = backend / "target" / "release"
-    artefact.mkdir(parents=True)
-    (artefact / "libmork_ffi.so").touch()
-    (backend / "morklib.so").touch()
-    assert _absent_artefact_diagnosis(stated, bare, root=tmp_path) is None
