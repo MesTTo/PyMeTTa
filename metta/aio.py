@@ -25,17 +25,17 @@ Guarantees:
     [tested: test_aio_cancelled_connect_leaves_no_live_worker,
     test_aio_cancelled_subscription_registration_cancels_it,
     test_aio_cancelled_assuming_removes_the_facts_it_installed;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - aclose refuses further work only after the engine has let go, so a close
     that failed is retryable, and the stream's terminator reaches a consumer
     whose queue is full [tested:
     test_aio_a_failed_cursor_close_stays_retryable,
     test_aio_a_failed_subscription_close_stays_retryable,
-    test_aio_the_close_sentinel_survives_a_full_queue; commit=WORKTREE]
+    test_aio_the_close_sentinel_survives_a_full_queue; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - an event queue is published only once its registration succeeded, and its
     bound is refused unless it is a count of events [tested:
     test_aio_a_failed_subscription_publishes_no_queue,
-    test_the_async_queue_bound_is_refused_the_same_way; commit=WORKTREE]
+    test_the_async_queue_bound_is_refused_the_same_way; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - an abandoned live owner emits ResourceWarning and registered workers
     detach during interpreter shutdown [tested test_aio_leak_warns_and_stop_joins,
     test_aio_shutdown_handler_stops_forgotten_workers]

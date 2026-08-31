@@ -27,10 +27,10 @@ Guarantees:
   - a candidate whose instantiation is a rational tree crosses as the stored
     atom, the finite form the protocol names for it, instead of being dropped
     from the reply [tested: test_a_rational_tree_candidate_crosses_as_the_stored_atom,
-    test_the_kit_certifies_the_attached_space; commit=WORKTREE]
+    test_the_kit_certifies_the_attached_space; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - one stored atom reads back as one atom, however much matching the server
     did in between [tested:
-    test_two_reads_of_one_stored_atom_answer_the_same_atom; commit=WORKTREE]
+    test_two_reads_of_one_stored_atom_answer_the_same_atom; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - a close releases what it can and stays retryable: a failed /stop keeps its
     token, close_all closes every cursor before it raises, and a server whose
     worker did not stop leaves its cursors to the next close rather than
@@ -38,15 +38,15 @@ Guarantees:
     test_a_failed_stop_leaves_the_remote_cursor_retryable,
     test_closing_every_cursor_survives_one_failure,
     test_a_close_that_cannot_stop_the_worker_keeps_the_cursors;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - GET /health answers an authorization hook's own failure as JSON instead of
     dropping the connection [tested:
-    test_a_failing_authorize_hook_answers_json_on_health; commit=WORKTREE]
+    test_a_failing_authorize_hook_answers_json_on_health; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - the same-process guard covers the addresses a wildcard bind serves and the
     addresses its caller is about to serve [tested:
     test_attaching_a_wildcard_served_space_through_loopback_is_refused,
     test_a_manifest_that_attaches_before_it_serves_is_refused;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - the authorize hook judges /next and /stop against the space the
     cursor's answers come from, not the request's absent space field
     [tested test_authorize_sees_the_cursors_own_space]

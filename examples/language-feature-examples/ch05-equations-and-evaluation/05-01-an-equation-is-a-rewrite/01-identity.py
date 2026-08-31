@@ -474,7 +474,7 @@ def twin(m):
 #: reactions declared rather than to writes, and 2821 to 2831 is the harness's
 #: own five reaction declarations paying it [measured 2026-08-29: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 #: RE-PINNED 2026-08-30, 2831 to 2793 (-38), the engine image, the class every
 #: entry above records, moving DOWN for once: the PeTTa-alignment pass removed
 #: and added scanned rows and export names across engine/ext_points.pl,
@@ -488,7 +488,7 @@ def twin(m):
 #: rather than against it, 2800 to 2787, which is what a boot-image move looks
 #: like and what the twin's own work never does [measured 2026-08-30: min-of-3
 #: serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 #: RE-PINNED 2026-08-30, 2793 to 2656 (-137), the petta-alignment eliminations
 #: reached the twin's own evaluation path: the fuel charge is compiled only
 #: under a configured budget, the total-boolean scaffolding is not emitted, and
@@ -496,20 +496,20 @@ def twin(m):
 #: is registered, so the identity calls stopped paying the per-crossing probe
 #: of an empty table [measured 2026-08-30: min-of-3 serial fresh processes;
 #: command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 #: RE-PINNED 2026-08-30, 2656 to 2662 (+6), boot-image movement from the same
 #: day's later engine edits (the qualified boundary emission, the reverted
 #: assert guard and the census generalization changed the compiled image), the
 #: documented process-predicate-set sensitivity this file's header prices at a
 #: few inferences either way [measured 2026-08-30: min-of-3 serial fresh
 #: processes; command=python extensions/python/tools/twin_coverage.py --repin;
-#: commit=WORKTREE].
+#: commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 #: RE-PINNED 2026-08-31, 2662 to 2421 (-241, -9.1%), the petta matcher
 #: adoption: the match door's entry scan, C classifier and per-candidate
 #: acyclic_term left with the LeaTTa occurs law, and let binds raw, the
 #: shared constants every counter lane shed that evening [measured
 #: 2026-08-31: min-of-3 serial fresh processes; command=pytest
-#: test_twin_coverage.py -k 01-identity; commit=WORKTREE].
+#: test_twin_coverage.py -k 01-identity; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 #: RE-PINNED 2026-08-31, 2421 to 4929 (+2508), the context home's execution
 #: module is created by its FIRST write, and this twin's single define is that
 #: write. Measured 2026-08-31: one equation costs 385 inferences into &self,
@@ -519,7 +519,7 @@ def twin(m):
 #: MeTTa() minting its own home rather than sharing &self is what moved it; the
 #: twin pays the whole one-off because it defines exactly once [measured
 #: 2026-08-31: min-of-3 serial fresh processes; command=python
-#: extensions/python/tools/twin_coverage.py --repin; commit=WORKTREE].
+#: extensions/python/tools/twin_coverage.py --repin; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 #: RE-PINNED 2026-08-31, 4929 to 2416 (-2513): the +2508 measured above was
 #: real but its cause was a defect, not the design. The abandonment backstop
 #: then watched the CONTEXT object, so a chained `MeTTa().self` released the
@@ -528,10 +528,10 @@ def twin(m):
 #: import_module/2 x232). The backstop now watches the home HANDLE, so the
 #: module is built once and the twin pays one build, not two
 #: [measured 2026-08-31: min-of-3 serial fresh processes; command=pytest
-#: test_twin_coverage.py -k 01-identity; commit=WORKTREE].
+#: test_twin_coverage.py -k 01-identity; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 #: RE-PINNED 2026-08-31, 2416 to 2402 (-14): the occurs-demotion pass is
 #: gone, so compiling this twin's one equation no longer rebuilds its body
 #: to demote a check nothing emits [measured 2026-08-31: min-of-3 serial
 #: fresh processes; command=pytest test_twin_coverage.py -k 01-identity;
-#: commit=WORKTREE].
+#: commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
 BUDGET = 2402

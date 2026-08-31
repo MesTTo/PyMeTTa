@@ -26,7 +26,7 @@ Guarantees:
     lose the writes that process acknowledges [tested:
     test_a_journal_migration_cannot_replace_a_journal_another_process_holds,
     test_a_second_provider_in_this_process_is_refused_before_it_touches_the_file;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - terminal-tail recovery syncs the backup file and its directory before
     truncating the journal
     [tested: test_tail_backup_is_durable_before_truncation; commit=f88aa8be03cb64cb59d3307515ded8701f418321]
@@ -58,7 +58,7 @@ Owns resources:
     place, since unlinking it would let a waiter holding the removed inode
     take a claim nobody else can see
     [tested: test_a_second_provider_in_this_process_is_refused_before_it_touches_the_file;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
 Guarded by:
   - _STATE_LOCK protects active paths and the module pool; each provider's
     _call_lock serializes journal operations

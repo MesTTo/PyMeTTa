@@ -27,12 +27,12 @@ Guarantees:
     never costs the obligation it was recording [tested:
     test_a_refused_recovery_receipt_still_compensates_the_effect_it_could_not_record,
     test_an_unjournalled_obligation_survives_scope_close_and_a_later_rollback;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - a step whose enlisted providers did not all commit is retained and
     refused by name rather than compensated on a guess, because the receipt
     records the operation and not the participant that carried it [tested:
     test_a_lost_participant_leaves_the_saga_in_doubt_rather_than_compensating;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
 Owns resources:
   - the receipt-space subscription opened on context entry and cancelled on
     every exit, including rollback and cancellation failures.

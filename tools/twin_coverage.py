@@ -1434,7 +1434,7 @@ def layout(twin: Path) -> list[str]:
 #: commit=845d851b7241ccea3b6a13f532172945bf6d8d9e].
 _REPIN_TAG = (
     "[{kind} {date}: min-of-{rounds} serial fresh processes; "
-    "command={command}; commit=WORKTREE]"
+    "command={command}; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]"
 )
 _REPIN_COMMAND = "python extensions/python/tools/twin_coverage.py --repin"
 
@@ -1452,7 +1452,7 @@ def repinned(
     envelope, and refuses a silent move, since a re-pin without its mechanism
     is the thing the whole chain exists to prevent.
 
-    The evidence tag it writes carries `commit=WORKTREE`, the lawful
+    The evidence tag it writes carries `commit=57f21ba9edf94bcf28cde11f938bce2c241a3709`, the lawful
     in-progress spelling, so `RELEASE=1 tests/checks/check_evidence_tags.py` refuses
     a tree that ships one before the provenance pin.
     """

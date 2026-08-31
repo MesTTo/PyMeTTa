@@ -11,10 +11,10 @@ Assumes:
     live servers, takes the addresses a caller is about to serve, and raises
     MettaError for a URL either set covers; the manifest calls it rather than
     repeating it [source: metta/remote.py _refuse_this_process;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - metta.remote._raise_failures raises one failure on its own and several
     as a BaseExceptionGroup, the shape Server.close() already gives a
-    caller [source: metta/remote.py _raise_failures; commit=WORKTREE]
+    caller [source: metta/remote.py _raise_failures; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
 Guarantees:
   - the vocabulary is closed (load, attach, bridge, serve) and every form
     is validated before ANY form performs; a bad manifest changes nothing
@@ -32,7 +32,7 @@ Guarantees:
     form that binds its port, because the whole manifest is validated before
     any of it runs [tested:
     test_a_manifest_that_attaches_before_it_serves_is_refused;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - an attach form meets the same refusal the direct attach door applies,
     because it calls it: a URL this process serves is refused instead of
     attached [measured 2026-08-30: the manifest attached it where the direct
@@ -40,16 +40,16 @@ Guarantees:
     transport timeout, before failing with a message naming neither the
     cause nor the remedy] [tested:
     test_a_manifest_cannot_attach_a_space_this_process_serves;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - a form whose effect performed and whose (boot ...) record raised is
     reported as exactly that, never as a form that performed nothing
     [tested: test_a_failed_record_reports_the_effect_that_performed;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
 Owns: the servers its serve forms started. Boot.close() stops them, on the
   failure path too, and one that refuses to stop does not strand the
   servers after it: every close is attempted and the failures travel
   together [tested: test_every_server_closes_even_when_one_refuses,
-  test_a_cleanup_failure_travels_beside_the_boot_failure; commit=WORKTREE].
+  test_a_cleanup_failure_travels_beside_the_boot_failure; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
   The engine and the registered providers stay, because passive state
   belongs to the space story, not to the assembler.
 Decides: a manifest that fails mid-way keeps the writes its performed
@@ -186,7 +186,7 @@ def _served_addresses(
     are known before the attach forms perform; handing them to the guard is
     what makes an attach form refused whether it stands above or below the
     serve form that binds its port
-    [source: metta/remote.py _refuse_this_process; commit=WORKTREE].
+    [source: metta/remote.py _refuse_this_process; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709].
     """
     return tuple(
         (host, cast(Grounded, directive.children[2]).value)

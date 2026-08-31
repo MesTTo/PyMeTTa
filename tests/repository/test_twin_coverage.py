@@ -1139,7 +1139,7 @@ def test_a_repin_appends_below_the_code_and_rewrites_the_number(tmp_path):
     assert (
         "[measured 2026-08-27: min-of-3 serial fresh processes; "
         "command=python extensions/python/tools/twin_coverage.py --repin; "
-        "commit=WORKTREE]" in written
+        "commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]" in written
     )
     assert body[-1] == "BUDGET = 142"
     assert max(len(line) for line in chain) <= 79

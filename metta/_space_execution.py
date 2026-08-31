@@ -50,7 +50,7 @@ Guarantees:
   - abandoning that view releases the engine its count retained, on the path
     where the answers were never pulled as well [tested:
     test_a_counted_view_releases_its_engine_when_it_is_dropped;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
 Open Obligations:
   To Do: None
   Hacks: None

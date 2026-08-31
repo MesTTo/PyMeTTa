@@ -31,7 +31,7 @@ Guarantees:
     silently removing the bound [measured 2026-08-30: queue_max=float("nan")
     passed the old `queue_max < 1` check and then held 25 of 25 events after
     25 adds, float("inf") the same] [tested:
-    test_a_queue_bound_that_cannot_fill_is_refused; commit=WORKTREE]
+    test_a_queue_bound_that_cannot_fill_is_refused; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
 Guarded by:
   - metta.events' fold registry lock protects queue state and the engine
     subscription snapshot [tested test_subscription_cancel_is_thread_safe]

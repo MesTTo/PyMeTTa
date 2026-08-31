@@ -33,12 +33,12 @@ Guarantees:
     obligation, reachable from rollback() after the scope closed [tested:
     test_a_refused_recovery_receipt_still_compensates_the_effect_it_could_not_record,
     test_an_unjournalled_obligation_survives_scope_close_and_a_later_rollback;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - a step whose participants did not all commit is retained and refused by
     name instead of compensated, since the receipt cannot say which half of
     the step survived [tested:
     test_a_lost_participant_leaves_the_saga_in_doubt_rather_than_compensating;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - receipt instrumentation installs and retires as one set, so no step can
     leave a wrapper or a receipt sink behind [tested:
     test_a_refused_wrapper_installation_leaves_no_saga_instrumentation,

@@ -51,7 +51,7 @@ Assumes:
     space, so stored state is isolated per context while registrations stay
     process-wide; sharing the process home is spelled `metta.engine()`
     [tested: extensions/python/tests/ch04_spaces_and_matching/test_space.py::test_metta_contexts_are_isolated;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - `&pb` in a row's MeTTa form is that row's own space. On this engine the
     name is made unique per row before the form runs, because `bind!` here
     keeps the old contents when a bound name is re-bound; on LeaTTa each row

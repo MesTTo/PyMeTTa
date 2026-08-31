@@ -15,7 +15,7 @@ Guarantees:
   - a repeated source's two enumerations are compared up to variable
     renaming, because a stored variable's engine name is a stack offset that
     moves with anything else the process does [tested:
-    test_overlay_passes_the_conformance_kit; commit=WORKTREE]
+    test_overlay_passes_the_conformance_kit; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - check_space_provider holds match soundness and exact pushdown claims
     to the whole pattern family of every stored atom, ground, opened and
     repeated-variable, judged by two-way unifiability [tested:
@@ -544,7 +544,7 @@ def _joined(pattern, atom):
     Check-side variables are named metta-check-*, so a collision would need
     a stored $metta-check-* variable.
     [source: extensions/python/metta/atoms.py:unify and
-    engine/spaces/bounded_matching.pl:metta_match_atoms/2; commit=WORKTREE]
+    engine/spaces/bounded_matching.pl:metta_match_atoms/2; commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
     """
     bindings: dict = {}
     stack = [(_encode(pattern), _encode(atom))]

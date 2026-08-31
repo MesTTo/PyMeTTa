@@ -18,7 +18,7 @@ Guarantees:
     the provider that took it [tested:
     test_a_journal_migration_cannot_replace_a_journal_another_process_holds,
     test_a_second_provider_in_this_process_is_refused_before_it_touches_the_file;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - journaled spaces stage transaction/speculation writes, publish only a
     committed event segment, and replay no rolled-back fact [tested:
     test_a_journal_transaction_publishes_only_its_committed_delta,

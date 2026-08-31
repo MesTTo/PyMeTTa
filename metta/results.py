@@ -38,7 +38,7 @@ Guarantees:
   - finalizing an Answers releases everything the engine holds for it, the
     cursor a declined count opened and never handed to the stream included
     [tested: test_a_counted_view_releases_its_engine_when_it_is_dropped;
-    commit=WORKTREE]
+    commit=57f21ba9edf94bcf28cde11f938bce2c241a3709]
   - private item replay lets a deferred algebra route preserve those rows
     without probing the engine when its Answers view is constructed [tested:
     test_tagged_derivations_flow_through_match_and_reinterpret_without_requery;
