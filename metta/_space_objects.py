@@ -497,6 +497,7 @@ class Cursor:
         "__weakref__",
         "_annotation",
         "_atoms",
+        "_capture",
         "_closed",
         "_exhausted",
         "_finalizer",
@@ -522,6 +523,7 @@ class Cursor:
         limit: int | None = None,
         under: str | None = None,
         order: str | None = None,
+        capture: Any = None,
     ) -> None:
         atoms = [_to_atom(p) for p in patterns]
         columns = _column_names(atoms)
@@ -545,6 +547,7 @@ class Cursor:
         self._where_atom = checked
         guard = [] if checked is None else checked.to_wire()
         self._under = under
+        self._capture = capture
         self._annotation: Atom | None = None
         predicate = "metta_py_cursor_open"
         arguments = [space.name, wires, guard, columns.copy(), limit or 0, steps]
@@ -594,7 +597,14 @@ class Cursor:
             self._annotation = _atom_from_wire(annotation_wire)
         else:
             row_wires = payload
-        return self._row_cls(_atom_from_wire(v) for v in row_wires)
+        row = self._row_cls(_atom_from_wire(v) for v in row_wires)
+        # An algebra cursor answers what match(under=) answers. Without this
+        # the SAME word meant two things: a folded algebra answer through
+        # match, and a bare row with a separate .annotation through stream
+        # [measured 2026-08-31].
+        if self._capture is not None:
+            return self._capture(row, self._annotation)
+        return row
 
     @property
     def annotation(self) -> Atom:

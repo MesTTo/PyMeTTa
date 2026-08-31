@@ -341,3 +341,24 @@ def test_semiring_vocabulary_members_are_carrier_spellings(metta):
     with metta._new_space() as facts:
         facts.add(S.item(S.a), S.item(S.a))
         assert facts.match(S.item(V.x), under=Semiring.counting).one() == 2
+
+
+def test_a_streamed_algebra_answers_what_a_matched_one_answers(metta):
+    """One word, one meaning, whichever door you hold.
+
+    stream(under=) reached the cursor's raw protocol at first, a bare row
+    with a separate .annotation, where match(under=) answers the folded
+    algebra value; the same word meant two things for one afternoon. It
+    answers the same TaggedAnswer now, and 'counting' is refused by name
+    rather than answered differently, a fold over the whole answer set being
+    the thing a cursor exists not to have [measured 2026-08-31].
+    """
+    space = metta._at("&self")
+    space.add(S.streamed(S.a, 1), S.streamed(S.b, 9))
+    for carrier in ("ranked", "tropical", "prov"):
+        matched = list(space.match(S.streamed(V.x, V.n), under=carrier))
+        with space.stream(S.streamed(V.x, V.n), under=carrier) as cursor:
+            assert list(cursor) == matched
+    assert list(space.match(S.streamed(V.x, V.n), under="counting")) == [2]
+    with pytest.raises(TypeError, match="nothing to stream"):
+        space.stream(S.streamed(V.x, V.n), under="counting")

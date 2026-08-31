@@ -2148,15 +2148,31 @@ class Space(Handle):
         after the first pull are not seen by this cursor.
 
         `limit` and `under` mean what they mean on match(), because this is
-        match() and the cursor underneath already carried both. What this
-        door does NOT take is match()'s `into=`, and that is a real
-        difference rather than an omission: `into` builds a container out of
-        every row, which is the one thing a cursor exists not to do.
+        match() and the cursor underneath already carried both: a tagging
+        algebra (ranked, tropical, prov) answers one TaggedAnswer per pull,
+        the same value match() answers. `under='counting'` is refused by
+        name, because a counting fold is ONE number over the whole answer
+        set and a cursor exists not to have one.
+
+        What this door does NOT take is match()'s `into=`, the same kind of
+        difference: `into` builds a container out of every row.
         """  # noqa: D205  -- the API contract is one continuous invariant, not summary-and-body prose
         carrier = _selected_under(under)
         if carrier is None:
             return Cursor(self, patterns, where, timeout, inferences, limit=limit)
-        declaration = _satellite("algebra").resolve(self, carrier)
+        algebra_api = _satellite("algebra")
+        declaration = algebra_api.resolve(self, carrier)
+        if declaration.name == "counting":
+            # A counting fold is ONE value over the whole answer set, which is
+            # the thing a cursor exists not to have. Answering per-row would
+            # make under= mean a fold through match() and something else here.
+            msg = (
+                "under='counting' folds every answer into one number, so it "
+                "has nothing to stream; use match(under='counting'), which "
+                "answers that number, or stream under a tagging algebra "
+                "(ranked, tropical, prov) for one tagged answer per pull"
+            )
+            raise TypeError(msg)
         return Cursor(
             self,
             patterns,
@@ -2166,6 +2182,9 @@ class Space(Handle):
             limit=limit,
             under=declaration.name,
             order=declaration.order,
+            capture=lambda row, annotation: algebra_api.captured_answer(
+                self, row, annotation, declaration
+            ),
         )
 
     def assuming(self, *facts: Any) -> _Assuming:
