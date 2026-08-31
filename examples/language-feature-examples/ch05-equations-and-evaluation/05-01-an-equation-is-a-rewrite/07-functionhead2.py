@@ -55,7 +55,7 @@ def twin(m):
     # (= (living garfield) True) ... (= (small cat42) True)
     # rung: each head fixes a SYMBOL, and a stacked clause's literal default is a
     #   bool, int, float or str (residue, P14.4)
-    m.add(*(equation(rel(who)).to(TRUE) for who, rels in FACTS.items() for rel in rels))
+    m += [equation(rel(who)).to(TRUE) for who, rels in FACTS.items() for rel in rels]
 
     @m.define
     def only(c, x):

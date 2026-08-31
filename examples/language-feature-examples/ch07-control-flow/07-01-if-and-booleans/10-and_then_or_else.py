@@ -107,7 +107,7 @@ def twin(m):
 
     # !(test (collapse (get-atoms &ran))
     #        ((ran taken-by-and-then) (ran taken-by-or-else)))
-    assert m.match(S.ran(V.t)).t == [S.taken_by_and_then, S.taken_by_or_else]
+    assert m[S.ran(V.t)].t == [S.taken_by_and_then, S.taken_by_or_else]
 
     # The contrast, in one place: `and` does NOT skip, so its second argument
     # runs even though the first is False. Both forms are written the same way
@@ -116,14 +116,14 @@ def twin(m):
     # The original opens `&ran2` to keep this experiment apart. This twin
     # keeps it apart by slicing the context-space matches after the first
     # experiment.
-    already = len(m.match(S.ran(V.t)).t)
+    already = len(m[S.ran(V.t)].t)
     # !(and False (note2 and-runs-it))
     m.eval(and_(FALSE, S.note2(S.and_runs_it)))
     # !(and-then False (note2 and-then-skips-it))
     m.eval(S.and_then(FALSE, S.note2(S.and_then_skips_it)))
 
     # !(test (collapse (get-atoms &ran2)) ((ran and-runs-it)))
-    assert m.match(S.ran(V.t)).t[already:] == [S.and_runs_it]
+    assert m[S.ran(V.t)].t[already:] == [S.and_runs_it]
 
     # And the other side of the trade: and-then cannot be solved backwards,
     # where `and` can. The one-armed `if_` is the engine's own filter arity,

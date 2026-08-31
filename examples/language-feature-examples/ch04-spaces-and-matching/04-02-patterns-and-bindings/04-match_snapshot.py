@@ -33,8 +33,7 @@ LINKS = [(S.A, S.B), (S.B, S.C), (S.C, S.A), (S.C, S.E)]
 
 def twin(m):
     """Reverse every link of a cycle, then watch two templates delete each other."""
-    for tail, head in LINKS:
-        m += S.link(tail, head)
+    m += [S.link(tail, head) for tail, head in LINKS]
 
     # All three rows are found before the first reversal breaks the cycle, so
     # all three are reverted and (link C E) is left alone.

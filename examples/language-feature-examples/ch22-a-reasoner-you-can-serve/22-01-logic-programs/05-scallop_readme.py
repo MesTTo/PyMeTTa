@@ -80,8 +80,7 @@ def paths(m):
 def evens(m):
     """Stratified even-or-odd: negation sees the finite number relation whole."""
     # (sc-number 0) ... (sc-number 10)
-    for number in range(11):
-        m += S.sc_number(number)
+    m += [S.sc_number(number) for number in range(11)]
 
     @m.rules
     def parity(x, step):
@@ -112,8 +111,7 @@ def evens(m):
 def colour_counts(m):
     """A count per colour, through the general fold rather than a counter."""
     # (sc-object-color 0 "blue") (sc-object-color 1 "green") (sc-object-color 2 "blue")
-    for obj, colour in COLOURS:
-        m += S.sc_object_color(obj, colour)
+    m += [S.sc_object_color(obj, colour) for obj, colour in COLOURS]
 
     @m.define
     def sc_one_color(colour):
@@ -144,8 +142,10 @@ def colour_counts(m):
 def class_tops(m):
     """An argmax per class, through an open reducer rather than a closed list."""
     # (sc-class-student-grade 0 "tom" 50), and five more
-    for klass, student, grade in GRADES:
-        m += S.sc_class_student_grade(klass, student, grade)
+    m += [
+        S.sc_class_student_grade(klass, student, grade)
+        for klass, student, grade in GRADES
+    ]
 
     @m.define
     def sc_pick_max(left, right):
@@ -180,10 +180,8 @@ def class_tops(m):
 def animal_count(m):
     """The animal count as a SET: four raw derivations become Scallop's two."""
     # (sc-is-a giraffe mammal) ... (sc-name 2 tiger)
-    for kind, parent in KINDS:
-        m += S.sc_is_a(kind, parent)
-    for obj, kind in NAMES:
-        m += S.sc_name(obj, kind)
+    m += [S.sc_is_a(kind, parent) for kind, parent in KINDS]
+    m += [S.sc_name(obj, kind) for obj, kind in NAMES]
 
     @m.define
     def sc_parent_kind(kind):

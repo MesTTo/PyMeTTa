@@ -54,7 +54,7 @@ def twin(m):
     ]
 
     # And it answers through the seam, which is the point of proving it.
-    assert sorted(row.y for row in demo.match(S.edge(S.a, V.y))) == [S.b]
+    assert sorted(row.y for row in demo[S.edge(S.a, V.y)]) == [S.b]
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and

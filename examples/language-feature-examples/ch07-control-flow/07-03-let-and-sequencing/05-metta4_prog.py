@@ -27,7 +27,7 @@ def twin(m):
     m += S.friend(S.sam, S.tom)
     m -= S.friend(S.sam, S.tom)
     m += S.friend(S.sam, S.tim)
-    assert m.match(S.friend(S.sam, V.who)).who == [S.tim]
+    assert m[S.friend(S.sam, V.who)].who == [S.tim]
 
     # The top rung is a statement sequence whose value is the FIRST statement.
     # Python has none: `progn` is what a statement sequence already is, and the

@@ -348,10 +348,10 @@ def twin(m):
     """Walk negation from what `not` cannot say to a constrained domain."""
     # !(add-atom &metta (dispatch-policy penguin NoMatchEnum NoMatchFail)), and eight more
     reflection = metta.reflection
-    for relation in FALLIBLE:
-        reflection += S.dispatch_policy(
-            relation, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail]
-        )
+    reflection += [
+        S.dispatch_policy(relation, S.NoMatchEnum, S[NoMatchEnum.NoMatchFail])
+        for relation in FALLIBLE
+    ]
 
     defaults(m)
     defects(m)

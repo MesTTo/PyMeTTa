@@ -35,15 +35,14 @@ def twin(m):
 
     # (: T1in Type1) (: T1out Type1) (: T2in Type2) (: T2out Type2)
     # (: T3in Type1) (: Tdefault Type2)
-    for name, declared in (
-        (S.T1in, S.Type1),
-        (S.T1out, S.Type1),
-        (S.T2in, S.Type2),
-        (S.T2out, S.Type2),
-        (S.T3in, S.Type1),
-        (S.Tdefault, S.Type2),
-    ):
-        m += typed(name, declared)
+    m += [
+        typed(S.T1in, S.Type1),
+        typed(S.T1out, S.Type1),
+        typed(S.T2in, S.Type2),
+        typed(S.T2out, S.Type2),
+        typed(S.T3in, S.Type1),
+        typed(S.Tdefault, S.Type2),
+    ]
 
     # !(test (f T1in) T1out)
     assert f(S.T1in) == [S.T1out]

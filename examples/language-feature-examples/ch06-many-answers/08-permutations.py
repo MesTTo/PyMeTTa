@@ -42,16 +42,20 @@ def twin(m):
     # Every ordered pair of distinct positions, the original's four rows of
     # fourteen.
     # (1 != 2) (1 != 3) ... (8 != 7)
-    for left in range(1, 9):
-        for right in range(1, 9):
-            if left != right:
-                m += (left, NE, right)
+    m += [
+        (left, NE, right)
+        for left in range(1, 9)
+        for right in range(1, 9)
+        if left != right
+    ]
 
     # One hole, moved through the nine slots of a row.
     # (E $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 1 (___ $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8))
     # ... and eight more, the hole one place further along each time
-    for slot in range(1, 10):
-        m += S.E(*SLOT, slot, (*SLOT[: slot - 1], HOLE, *SLOT[slot - 1:]))
+    m += [
+        S.E(*SLOT, slot, (*SLOT[: slot - 1], HOLE, *SLOT[slot - 1:]))
+        for slot in range(1, 10)
+    ]
 
     # The triangular constraint graph: each new position differs from every
     # earlier one, and the ninth slot is where the hole may sit.

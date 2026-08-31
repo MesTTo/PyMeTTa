@@ -34,8 +34,7 @@ def twin(m):
 
     assert hide(S.anything) == []
 
-    for left, right in FRIENDS:
-        m += S.friend(left, right)
+    m += [S.friend(left, right) for left, right in FRIENDS]
 
     for outer in m[S.friend(V.a, V.b)]:
         for inner in m[S.friend(outer.b, V.c)]:

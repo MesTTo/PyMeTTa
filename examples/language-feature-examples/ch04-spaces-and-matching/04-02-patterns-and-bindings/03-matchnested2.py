@@ -29,8 +29,7 @@ def twin(m):
 
     assert hide(S.anything) == []
 
-    for left, right in FRIENDS:
-        m += S.friend(left, right)
+    m += [S.friend(left, right) for left, right in FRIENDS]
 
     for row in m[S.friend(V.a, V.b), S.friend(V.b, V.c)]:
         m += S.transitive(row.a, row.b, row.c)

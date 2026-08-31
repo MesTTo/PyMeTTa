@@ -87,7 +87,7 @@ def twin(m):
     # And the space is still a data source. Holding rules is an addition, not a
     # replacement, which is the whole of what "both" means.
     demo += S.edge(S.a, S.b)
-    assert [(row.x, row.y) for row in demo.match(S.edge(V.x, V.y))] == [(S.a, S.b)]
+    assert [(row.x, row.y) for row in demo[S.edge(V.x, V.y)]] == [(S.a, S.b)]
 
 
 #: A PLACEHOLDER, not a measurement. The twins wave re-authored this file and

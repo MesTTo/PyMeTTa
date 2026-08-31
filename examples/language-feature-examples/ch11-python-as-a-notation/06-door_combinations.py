@@ -77,7 +77,7 @@ def twin(m):
         # a ground op call runs NOW: the effect fires once, at construction
         yield eq(S.dc_op_ground()).to(dc_stamp(4))
 
-    m.add(*dc_cells)
+    m += dc_cells
 
     # The construction-time record: exactly one effect, the ground one.
     assert fired == [4]
