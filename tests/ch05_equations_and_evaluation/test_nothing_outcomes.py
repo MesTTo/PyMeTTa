@@ -3,10 +3,10 @@ Guarantees:
   - eager eval returns no atoms for Empty and the written atom for
     NotReducible, while eval_status names both paths, including after a
     using= substitution [tested:
-    test_eager_eval_keeps_empty_and_not_reducible_distinct; commit=WORKTREE]
+    test_eager_eval_keeps_empty_and_not_reducible_distinct; commit=4a5325f86c83a301673099e0f6281cae0ec6595c]
   - reducible() asks the head question without evaluating and agrees with
     eval_status on every outcome [tested:
-    test_reducible_asks_the_question_without_running_the_term; commit=WORKTREE]
+    test_reducible_asks_the_question_without_running_the_term; commit=4a5325f86c83a301673099e0f6281cae0ec6595c]
 """  # noqa: D205, D415 -- the obligation block is a searchable contract, not a prose module summary
 
 from __future__ import annotations

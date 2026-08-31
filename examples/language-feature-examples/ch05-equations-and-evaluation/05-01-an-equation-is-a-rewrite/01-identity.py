@@ -556,5 +556,5 @@ def twin(m):
 #: buys the seam being reachable from this door at all; every other twin in
 #: the corpus absorbed the same move inside its allowance
 #: [measured 2026-08-31: 2429 on three consecutive runs, 0.0000% spread;
-#: command=pytest test_twin_coverage.py -k 01-identity; commit=WORKTREE].
+#: command=pytest test_twin_coverage.py -k 01-identity; commit=4a5325f86c83a301673099e0f6281cae0ec6595c].
 BUDGET = 2429
